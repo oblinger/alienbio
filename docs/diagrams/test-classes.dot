@@ -1,0 +1,28 @@
+digraph Classes {
+    rankdir=TB
+    node [shape=record, style=filled, fillcolor=lightyellow]
+
+    Entity [
+        label="{Entity|name\ldescription|serialize()\ldeserialize()\l}"
+        URL="obsidian://open?vault=kmr&file=prj%2FABio%2Fdocs%2Farchitecture%2Ftest-entity"
+        target="_blank"
+    ]
+
+    BioMolecule [
+        label="{BioMolecule|english_name\lchemical_name\lbdepth\l|produced_by()\lconsumed_by()\l}"
+        URL="obsidian://open?vault=kmr&file=prj%2FABio%2Fdocs%2Farchitecture%2Ftest-molecule"
+        target="_blank"
+    ]
+
+    BioReaction [
+        label="{BioReaction|reactants\lproducts\leffectors\l|rate_function()\l}"
+        URL="obsidian://open?vault=kmr&file=prj%2FABio%2Fdocs%2Farchitecture%2Ftest-reaction"
+        target="_blank"
+    ]
+
+    Entity -> BioMolecule [arrowhead=empty]
+    Entity -> BioReaction [arrowhead=empty]
+
+    BioMolecule -> BioReaction [label="consumed_by" style=dashed]
+    BioReaction -> BioMolecule [label="produces" style=dashed]
+}

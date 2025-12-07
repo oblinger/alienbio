@@ -1,0 +1,48 @@
+# Alienbio build commands
+
+# Default: show available commands
+default:
+    @just --list
+
+# Build all components
+build:
+    @echo "Building alienbio..."
+    uv sync
+
+# Run all tests
+test:
+    uv run pytest tests/ -v
+
+# Type check with pyright
+check:
+    uv run pyright src/
+
+# Format code with ruff
+fmt:
+    uv run ruff format src/ tests/
+
+# Lint code with ruff
+lint:
+    uv run ruff check src/ tests/
+
+# Clean build artifacts
+clean:
+    rm -rf __pycache__ .pytest_cache .pyright .ruff_cache
+    find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
+# Generate SVG diagrams from .dot files
+docs:
+    @echo "Generating diagrams..."
+    @for f in docs/diagrams/*.dot; do \
+        dot -Tsvg "$$f" -o "$${f%.dot}.svg"; \
+        echo "Generated $${f%.dot}.svg"; \
+    done
+
+# Build Rust simulator
+build-rust:
+    cd rust && cargo build --release
+
+# Run main entry point
+run *ARGS:
+    uv run python -m alienbio {{ARGS}}

@@ -1,0 +1,12 @@
+[package]
+name = "alienbio-sim"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance simulator for Alien Biology"
+
+[lib]
+name = "alienbio_sim"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.20", features = ["extension-module"] }
