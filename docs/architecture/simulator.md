@@ -1,0 +1,59 @@
+# Simulator
+
+Execution engine for biology dynamics.
+
+**Subsystem**: [[execution|Execution]] > Simulation
+
+## Description
+
+Simulator is the protocol for execution engines that advance biological state through time. Two implementations exist: PythonSimulator (reference) and RustSimulator (performance).
+
+## Protocol Definition
+
+```python
+from typing import Protocol
+
+class Simulator(Protocol):
+    """Execution engine protocol."""
+
+    def step(self, state: State, system: BioSystem, dt: float) -> State:
+        """Advance state by one timestep."""
+        ...
+
+    def run(self, world: World, duration: float) -> Timeline:
+        """Run simulation for specified duration."""
+        ...
+
+    def run_until(self, world: World, predicate: Callable[[State], bool]) -> Timeline:
+        """Run until predicate is satisfied."""
+        ...
+```
+
+## Methods
+
+### step(state, system, dt) -> State
+Advances the state by a single timestep dt.
+
+### run(world, duration) -> Timeline
+Runs the full simulation, recording states and applying interventions.
+
+### run_until(world, predicate) -> Timeline
+Runs until the predicate returns True.
+
+## Implementations
+
+### PythonSimulator
+- NumPy-based vectorized operations
+- Clear, readable reference implementation
+- Suitable for debugging and small systems
+
+### RustSimulator
+- PyO3 bindings expose same interface
+- SIMD-optimized concentration updates
+- 10-100x faster for large systems
+
+## See Also
+
+- [[simulation|Simulation Subsystem]]
+- [[state|State]] - What gets simulated
+- [[world|World]] - Complete setup
