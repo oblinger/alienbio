@@ -2,14 +2,12 @@
 
 Connected sequence of reactions.
 
-**Subsystem**: [[biology|Biology]] > Pathways
+**Subsystem**: [[biology]] > Pathways
 
 ## Description
-
 Pathway represents a connected subgraph of the reaction network, forming a coherent metabolic function like a biosynthesis chain, energy cycle, or signaling cascade.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 from enum import Enum
@@ -35,7 +33,6 @@ class Pathway(Entity, Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | reactions | list | Ordered reactions in the pathway |
@@ -45,6 +42,5 @@ class Pathway(Entity, Protocol):
 | net_stoichiometry | dict | Net consumption/production |
 
 ## See Also
-
 - [[pathways|Pathways Subsystem]]
 - [[bio_reaction|BioReaction]] - Individual reactions

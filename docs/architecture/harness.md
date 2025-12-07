@@ -2,14 +2,12 @@
 
 Execution runner with logging and result aggregation.
 
-**Subsystem**: [[execution|Execution]] > Experimentation
+**Subsystem**: [[execution]] > Experimentation
 
 ## Description
-
 Harness is the top-level execution runner that manages experiment runs with proper timeout handling, logging, and result aggregation.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 
@@ -33,14 +31,12 @@ class Harness(Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | timeout | float | Max time per experiment |
 | log_dir | str | Directory for execution logs |
 
 ## Methods
-
 ### run_experiment(experiment) -> ExperimentResult
 Runs a single experiment with timeout and error handling.
 
@@ -51,7 +47,6 @@ Runs a test batch, potentially in parallel.
 Exports results to JSON/CSV for analysis.
 
 ## See Also
-
 - [[experimentation|Experimentation Subsystem]]
 - [[experiment|Experiment]] - What gets run
 - [[test|Test]] - Batch runs

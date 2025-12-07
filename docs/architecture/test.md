@@ -2,14 +2,12 @@
 
 Batch of experiments across variations.
 
-**Subsystem**: [[execution|Execution]] > Experimentation
+**Subsystem**: [[execution]] > Experimentation
 
 ## Description
-
 Test represents a batch of experiments varying across worlds, agents, or task parameters, with aggregated statistics.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 
@@ -26,7 +24,6 @@ class Test(Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | name | str | Test batch identifier |
@@ -34,7 +31,6 @@ class Test(Protocol):
 | variations | dict | Parameter variations being tested |
 
 ## TestResult
-
 ```python
 class TestResult:
     experiment_results: list[ExperimentResult]
@@ -43,13 +39,11 @@ class TestResult:
 ```
 
 ## Variation Types
-
 - **World variations**: Different seeds, complexity levels
 - **Agent variations**: Different models, prompts
 - **Task variations**: Different difficulty, time horizons
 
 ## See Also
-
 - [[experimentation|Experimentation Subsystem]]
 - [[experiment|Experiment]] - Individual runs
 - [[harness|Harness]] - Execution runner

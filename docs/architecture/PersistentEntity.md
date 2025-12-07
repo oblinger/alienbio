@@ -2,14 +2,12 @@
 
 Entity that is saved to data/ and loadable by name.
 
-**Subsystem**: [[infra|Infra]] > Entities
+**Subsystem**: [[infra]] > Entities
 
 ## Description
-
 PersistentEntity extends Entity for objects that are saved to the `data/` folder and can be loaded by name via dvc_dat. These represent reusable definitions like molecule types, reaction templates, and organism blueprints.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol, TypeVar
 
@@ -29,7 +27,6 @@ class PersistentEntity(Entity, Protocol):
 ```
 
 ## Methods
-
 ### load(name: str) -> PersistentEntity
 Class method that loads an entity from the data/ folder by name.
 
@@ -37,7 +34,6 @@ Class method that loads an entity from the data/ folder by name.
 Saves the entity to the data/ folder using its name.
 
 ## Storage
-
 Persistent entities are stored as YAML files in `data/`:
 ```
 data/
@@ -49,6 +45,5 @@ data/
 ```
 
 ## See Also
-
 - [[entity|Entity]] - Base protocol
 - [[scoped_entity|ScopedEntity]] - Runtime instance entities

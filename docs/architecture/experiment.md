@@ -2,14 +2,12 @@
 
 Single world setup with task, agent, and scoring.
 
-**Subsystem**: [[execution|Execution]] > Experimentation
+**Subsystem**: [[execution]] > Experimentation
 
 ## Description
-
 Experiment represents a single experimental run: one world, one task, one agent, producing one result.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol, Any
 
@@ -27,7 +25,6 @@ class Experiment(Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | world | World | The biological system |
@@ -36,7 +33,6 @@ class Experiment(Protocol):
 | result | ExperimentResult | Outcome after running |
 
 ## ExperimentResult
-
 ```python
 class ExperimentResult:
     score: float
@@ -46,7 +42,6 @@ class ExperimentResult:
 ```
 
 ## See Also
-
 - [[experimentation|Experimentation Subsystem]]
 - [[task|Task]] - Goal specification
 - [[test|Test]] - Batch of experiments

@@ -2,14 +2,12 @@
 
 Transformation between molecules.
 
-**Subsystem**: [[biology|Biology]] > Reactions
+**Subsystem**: [[biology]] > Reactions
 
 ## Description
-
 BioReaction represents a chemical transformation that converts reactants to products, modulated by effectors. Reactions have rate functions that determine how fast they proceed.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol, Callable
 from enum import Enum
@@ -34,7 +32,6 @@ class BioReaction(Entity, Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | reactants | list[tuple] | (molecule, stoichiometry) pairs consumed |
@@ -44,13 +41,11 @@ class BioReaction(Entity, Protocol):
 | reaction_class | ReactionClass | Anabolic, catabolic, or energy |
 
 ## Reaction Classes
-
 - **Anabolic**: Build complex from simple, increase bdepth, consume energy
 - **Catabolic**: Break down complex, decrease bdepth, release energy
 - **Energy**: Closed-loop carriers (ATP/NADH analogs)
 
 ## See Also
-
 - [[reactions|Reactions Subsystem]]
 - [[reaction_generator|ReactionGenerator]] - Factory for reactions
 - [[pathway|Pathway]] - Connected reaction sequences

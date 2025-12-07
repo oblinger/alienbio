@@ -2,14 +2,12 @@
 
 Factory for synthetic reactions.
 
-**Subsystem**: [[biology|Biology]] > Reactions
+**Subsystem**: [[biology]] > Reactions
 
 ## Description
-
 ReactionGenerator produces BioReactions matching statistical distributions from KEGG, including template patterns, energy distributions, and effector roles.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 
@@ -30,7 +28,6 @@ class ReactionGenerator(Generator[BioReaction], Protocol):
 ```
 
 ## Methods
-
 ### generate_anabolic(inputs) -> BioReaction
 Generates a reaction that builds a higher-depth molecule from inputs.
 
@@ -41,7 +38,6 @@ Generates a reaction that breaks down a molecule into simpler products.
 Generates an energy carrier reaction (alien ATP/NADH analog).
 
 ## Statistical Matching
-
 Reactions match KEGG distributions:
 - (n_reactants, n_products) template frequencies
 - Delta-depth patterns per reaction class
@@ -49,7 +45,6 @@ Reactions match KEGG distributions:
 - Effector role frequencies
 
 ## See Also
-
 - [[generators|Generators Subsystem]]
 - [[generator|Generator]] - Base protocol
 - [[bio_reaction|BioReaction]] - Generated type

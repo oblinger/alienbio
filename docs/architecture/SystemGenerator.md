@@ -2,14 +2,12 @@
 
 Factory for complete bio-systems.
 
-**Subsystem**: [[biology|Biology]] > Systems
+**Subsystem**: [[biology]] > Systems
 
 ## Description
-
 SystemGenerator assembles complete BioSystems by combining molecules and reactions from other generators, establishing initial conditions and compartment structure.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 
@@ -29,14 +27,12 @@ class SystemGenerator(Generator[BioSystem], Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | molecule_gen | MoleculeGenerator | Source for molecules |
 | reaction_gen | ReactionGenerator | Source for reactions |
 
 ## Methods
-
 ### generate_simple(n_molecules, n_reactions) -> BioSystem
 Generates a simple system with specified complexity.
 
@@ -44,7 +40,6 @@ Generates a simple system with specified complexity.
 Generates a system with named compartments and transport reactions.
 
 ## See Also
-
 - [[generators|Generators Subsystem]]
 - [[generator|Generator]] - Base protocol
 - [[bio_system|BioSystem]] - Generated type

@@ -2,14 +2,12 @@
 
 Complete organism with compartmentalized physiology.
 
-**Subsystem**: [[biology|Biology]] > Organisms
+**Subsystem**: [[biology]] > Organisms
 
 ## Description
-
 BioOrganism represents a complete organism as a hierarchical DAG of compartments, from organelles up to the whole organism. It tracks cross-compartment transport, homeostatic targets, and signaling.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 
@@ -26,7 +24,6 @@ class BioOrganism(Entity, Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | hierarchy | dict | Parent-child relationships between compartments |
@@ -34,7 +31,6 @@ class BioOrganism(Entity, Protocol):
 | homeostatic_targets | dict | Target concentration ranges |
 
 ## Hierarchy
-
 Organisms have nested compartments:
 ```
 organism
@@ -48,7 +44,6 @@ organism
 ```
 
 ## See Also
-
 - [[entities|Entities Subsystem]]
 - [[bio_system|BioSystem]] - Individual compartment systems
 - [[simulation|Simulation Subsystem]] - Running organisms

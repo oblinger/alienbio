@@ -2,14 +2,12 @@
 
 Base protocol for synthetic biology factories.
 
-**Subsystem**: [[biology|Biology]] > Generators
+**Subsystem**: [[biology]] > Generators
 
 ## Description
-
 Generator is the base protocol for factories that produce synthetic biology components matching statistical distributions captured from Earth biochemistry.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol, TypeVar, Generic
 
@@ -31,14 +29,12 @@ class Generator(Protocol, Generic[T]):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | model | BioChemistryModel | Statistical distributions to match |
 | seed | int | Random seed for reproducibility |
 
 ## Methods
-
 ### generate() -> T
 Generates a single new instance matching the statistical model.
 
@@ -46,7 +42,6 @@ Generates a single new instance matching the statistical model.
 Generates multiple instances efficiently.
 
 ## See Also
-
 - [[generators|Generators Subsystem]]
 - [[molecule_generator|MoleculeGenerator]]
 - [[reaction_generator|ReactionGenerator]]

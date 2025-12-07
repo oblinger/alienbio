@@ -2,14 +2,12 @@
 
 DAG of bioparts with molecule concentrations.
 
-**Subsystem**: [[biology|Biology]] > Systems
+**Subsystem**: [[biology]] > Systems
 
 ## Description
-
 BioSystem represents a biological system as a directed acyclic graph of bioparts (compartments), each containing molecule concentrations and active reactions.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 
@@ -30,7 +28,6 @@ class BioSystem(Entity, Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | compartments | dict[str, Compartment] | Named compartments in the system |
@@ -38,7 +35,6 @@ class BioSystem(Entity, Protocol):
 | reactions | set[BioReaction] | All reactions in the system |
 
 ## Compartments
-
 Compartments are named regions with their own concentration vectors:
 - Cytoplasm
 - Nucleus
@@ -48,7 +44,6 @@ Compartments are named regions with their own concentration vectors:
 Transport reactions move molecules between compartments.
 
 ## See Also
-
 - [[entities|Entities Subsystem]]
 - [[bio_organism|BioOrganism]] - Complete organism built from systems
 - [[state|State]] - Snapshot of system concentrations

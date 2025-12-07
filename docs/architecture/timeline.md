@@ -2,14 +2,12 @@
 
 Sequence of states with intervention hooks.
 
-**Subsystem**: [[execution|Execution]] > Simulation
+**Subsystem**: [[execution]] > Simulation
 
 ## Description
-
 Timeline records the history of states throughout a simulation run, supporting intervention hooks for applying perturbations at specific times.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol, Callable
 
@@ -30,7 +28,6 @@ class Timeline(Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | states | list[State] | Recorded state history |
@@ -38,7 +35,6 @@ class Timeline(Protocol):
 | events | list[tuple] | (time, description) event log |
 
 ## Methods
-
 ### add_intervention(time, fn)
 Schedules a state transformation to apply at the specified simulation time.
 
@@ -46,7 +42,6 @@ Schedules a state transformation to apply at the specified simulation time.
 Returns the state at or immediately before the specified time.
 
 ## See Also
-
 - [[simulation|Simulation Subsystem]]
 - [[state|State]] - Individual snapshots
 - [[world|World]] - Contains timeline during run

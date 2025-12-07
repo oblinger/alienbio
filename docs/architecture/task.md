@@ -2,14 +2,12 @@
 
 Goal specification with scoring criteria.
 
-**Subsystem**: [[execution|Execution]] > Interface
+**Subsystem**: [[execution]] > Interface
 
 ## Description
-
 Task defines what an agent should accomplish, including the setup, goal, scoring criteria, and constraints on available actions.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 
@@ -37,7 +35,6 @@ class Task(Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | name | str | Task identifier |
@@ -47,13 +44,11 @@ class Task(Protocol):
 | available_actions | list | What agent can do |
 
 ## Task Types
-
 - **Predict**: Forecast future concentrations
 - **Diagnose**: Identify disease from symptoms
 - **Cure**: Restore healthy homeostasis
 
 ## See Also
-
 - [[interface|Interface Subsystem]]
 - [[measurement|Measurement]] - Observation tools
 - [[action|Action]] - Modification tools

@@ -2,14 +2,12 @@
 
 Complete runnable setup.
 
-**Subsystem**: [[execution|Execution]] > Simulation
+**Subsystem**: [[execution]] > Simulation
 
 ## Description
-
 World combines a biological system, generators, initial conditions, and simulator configuration into a complete runnable setup.
 
 ## Protocol Definition
-
 ```python
 from typing import Protocol
 
@@ -31,7 +29,6 @@ class World(Protocol):
 ```
 
 ## Properties
-
 | Property | Type | Description |
 |----------|------|-------------|
 | system | BioSystem or BioOrganism | The biology being simulated |
@@ -40,7 +37,6 @@ class World(Protocol):
 | config | SimulatorConfig | Simulation parameters |
 
 ## Methods
-
 ### run(duration) -> Timeline
 Runs the simulation for the specified duration, returning full timeline.
 
@@ -48,7 +44,6 @@ Runs the simulation for the specified duration, returning full timeline.
 Runs until the predicate function returns True for a state.
 
 ## See Also
-
 - [[simulation|Simulation Subsystem]]
 - [[simulator|Simulator]] - Execution engine
 - [[bio_system|BioSystem]] - System being simulated
