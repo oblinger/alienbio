@@ -37,6 +37,6 @@ Computes all reaction rates from current concentrations, applies stoichiometric 
 4. Return new state with updated concentrations and timestamp
 
 ## See Also
-- [[simulation|Simulation Subsystem]]
-- [[state|State]] - What gets updated
-- [[simulator|Simulator]] - Orchestrates steps
+- [[execution]]
+- [[State]] - What gets updated
+- [[Simulator]] - Orchestrates steps

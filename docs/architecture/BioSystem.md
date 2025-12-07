@@ -44,6 +44,6 @@ Compartments are named regions with their own concentration vectors:
 Transport reactions move molecules between compartments.
 
 ## See Also
-- [[entities|Entities Subsystem]]
-- [[bio_organism|BioOrganism]] - Complete organism built from systems
-- [[state|State]] - Snapshot of system concentrations
+- [[infra]]
+- [[BioOrganism]] - Complete organism built from systems
+- [[State]] - Snapshot of system concentrations

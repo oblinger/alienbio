@@ -44,6 +44,6 @@ Runs the simulation for the specified duration, returning full timeline.
 Runs until the predicate function returns True for a state.
 
 ## See Also
-- [[simulation|Simulation Subsystem]]
-- [[simulator|Simulator]] - Execution engine
-- [[bio_system|BioSystem]] - System being simulated
+- [[execution]]
+- [[Simulator]] - Execution engine
+- [[BioSystem]] - System being simulated

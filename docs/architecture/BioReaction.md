@@ -46,6 +46,6 @@ class BioReaction(Entity, Protocol):
 - **Energy**: Closed-loop carriers (ATP/NADH analogs)
 
 ## See Also
-- [[reactions|Reactions Subsystem]]
-- [[reaction_generator|ReactionGenerator]] - Factory for reactions
-- [[pathway|Pathway]] - Connected reaction sequences
+- [[biology]]
+- [[ReactionGenerator]] - Factory for reactions
+- [[Pathway]] - Connected reaction sequences

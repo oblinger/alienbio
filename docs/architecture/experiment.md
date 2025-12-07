@@ -42,6 +42,6 @@ class ExperimentResult:
 ```
 
 ## See Also
-- [[experimentation|Experimentation Subsystem]]
-- [[task|Task]] - Goal specification
-- [[test|Test]] - Batch of experiments
+- [[execution]]
+- [[Task]] - Goal specification
+- [[Test]] - Batch of experiments

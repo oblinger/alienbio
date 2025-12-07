@@ -47,6 +47,6 @@ Runs a test batch, potentially in parallel.
 Exports results to JSON/CSV for analysis.
 
 ## See Also
-- [[experimentation|Experimentation Subsystem]]
-- [[experiment|Experiment]] - What gets run
-- [[test|Test]] - Batch runs
+- [[execution]]
+- [[Experiment]] - What gets run
+- [[Test]] - Batch runs

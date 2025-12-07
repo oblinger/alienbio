@@ -49,6 +49,6 @@ Runs until the predicate returns True.
 - 10-100x faster for large systems
 
 ## See Also
-- [[simulation|Simulation Subsystem]]
-- [[state|State]] - What gets simulated
-- [[world|World]] - Complete setup
+- [[execution]]
+- [[State]] - What gets simulated
+- [[World]] - Complete setup

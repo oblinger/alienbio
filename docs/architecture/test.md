@@ -44,6 +44,6 @@ class TestResult:
 - **Task variations**: Different difficulty, time horizons
 
 ## See Also
-- [[experimentation|Experimentation Subsystem]]
-- [[experiment|Experiment]] - Individual runs
-- [[harness|Harness]] - Execution runner
+- [[execution]]
+- [[Experiment]] - Individual runs
+- [[Harness]] - Execution runner

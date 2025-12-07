@@ -45,5 +45,5 @@ data/
 ```
 
 ## See Also
-- [[entity|Entity]] - Base protocol
-- [[scoped_entity|ScopedEntity]] - Runtime instance entities
+- [[Entity]] - Base protocol
+- [[ScopedEntity]] - Runtime instance entities

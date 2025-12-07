@@ -42,5 +42,5 @@ class Pathway(Entity, Protocol):
 | net_stoichiometry | dict | Net consumption/production |
 
 ## See Also
-- [[pathways|Pathways Subsystem]]
-- [[bio_reaction|BioReaction]] - Individual reactions
+- [[biology]]
+- [[BioReaction]] - Individual reactions

@@ -44,6 +44,6 @@ class BioMolecule(Entity, Protocol):
 - **bdepth=4+**: Complex molecules (proteins, lipids)
 
 ## See Also
-- [[molecules|Molecules Subsystem]]
-- [[molecule_generator|MoleculeGenerator]] - Factory for molecules
-- [[bio_reaction|BioReaction]] - Transforms molecules
+- [[biology]]
+- [[MoleculeGenerator]] - Factory for molecules
+- [[BioReaction]] - Transforms molecules

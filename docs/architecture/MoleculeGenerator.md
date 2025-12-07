@@ -44,6 +44,6 @@ Molecules are generated to match KEGG distributions:
 - Molecular weight distributions
 
 ## See Also
-- [[generators|Generators Subsystem]]
-- [[generator|Generator]] - Base protocol
-- [[bio_molecule|BioMolecule]] - Generated type
+- [[biology]]
+- [[Generator]] - Base protocol
+- [[BioMolecule]] - Generated type

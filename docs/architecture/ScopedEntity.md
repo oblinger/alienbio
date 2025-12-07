@@ -37,6 +37,6 @@ Scoped entities use qualified names that include their full path:
 - `experiment3.organism.mitochondria.atp` - ATP in a specific compartment
 
 ## See Also
-- [[entity|Entity]] - Base protocol
-- [[persistent_entity|PersistentEntity]] - Reusable definitions
-- [[world|World]] - The scope container
+- [[Entity]] - Base protocol
+- [[PersistentEntity]] - Reusable definitions
+- [[World]] - The scope container

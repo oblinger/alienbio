@@ -41,5 +41,5 @@ Converts the entity to a YAML string representation suitable for storage or tran
 Class method that reconstructs an entity from its YAML representation.
 
 ## See Also
-- [[persistent_entity|PersistentEntity]] - Entities saved to data/
-- [[scoped_entity|ScopedEntity]] - Entities scoped to a World
+- [[PersistentEntity]] - Entities saved to data/
+- [[ScopedEntity]] - Entities scoped to a World

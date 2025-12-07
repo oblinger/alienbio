@@ -45,6 +45,6 @@ Reactions match KEGG distributions:
 - Effector role frequencies
 
 ## See Also
-- [[generators|Generators Subsystem]]
-- [[generator|Generator]] - Base protocol
-- [[bio_reaction|BioReaction]] - Generated type
+- [[biology]]
+- [[Generator]] - Base protocol
+- [[BioReaction]] - Generated type

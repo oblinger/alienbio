@@ -38,6 +38,6 @@ Applies the action and returns the modified world.
 - `adjust_temperature(+2.0)` - Change environmental condition
 
 ## See Also
-- [[interface|Interface Subsystem]]
-- [[measurement|Measurement]] - Counterpart for observations
-- [[task|Task]] - Constrains available actions
+- [[execution]]
+- [[Measurement]] - Counterpart for observations
+- [[Task]] - Constrains available actions

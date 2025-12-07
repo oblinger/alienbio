@@ -41,6 +41,6 @@ Returns the concentration of a specific molecule in a compartment.
 Creates a deep copy suitable for modification without affecting original.
 
 ## See Also
-- [[simulation|Simulation Subsystem]]
-- [[step|Step]] - Advances state
-- [[timeline|Timeline]] - Sequence of states
+- [[execution]]
+- [[Step]] - Advances state
+- [[Timeline]] - Sequence of states

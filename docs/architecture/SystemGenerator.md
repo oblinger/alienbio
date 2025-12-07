@@ -40,6 +40,6 @@ Generates a simple system with specified complexity.
 Generates a system with named compartments and transport reactions.
 
 ## See Also
-- [[generators|Generators Subsystem]]
-- [[generator|Generator]] - Base protocol
-- [[bio_system|BioSystem]] - Generated type
+- [[biology]]
+- [[Generator]] - Base protocol
+- [[BioSystem]] - Generated type

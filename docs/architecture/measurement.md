@@ -38,6 +38,6 @@ Executes the measurement and returns the observation.
 - `measure_flux("glycolysis")` → 1.2
 
 ## See Also
-- [[interface|Interface Subsystem]]
-- [[action|Action]] - Counterpart for modifications
-- [[task|Task]] - Uses measurements
+- [[execution]]
+- [[Action]] - Counterpart for modifications
+- [[Task]] - Uses measurements

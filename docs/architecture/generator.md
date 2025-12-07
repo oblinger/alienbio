@@ -42,7 +42,7 @@ Generates a single new instance matching the statistical model.
 Generates multiple instances efficiently.
 
 ## See Also
-- [[generators|Generators Subsystem]]
-- [[molecule_generator|MoleculeGenerator]]
-- [[reaction_generator|ReactionGenerator]]
-- [[system_generator|SystemGenerator]]
+- [[biology]]
+- [[MoleculeGenerator]]
+- [[ReactionGenerator]]
+- [[SystemGenerator]]

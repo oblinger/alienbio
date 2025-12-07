@@ -44,6 +44,6 @@ organism
 ```
 
 ## See Also
-- [[entities|Entities Subsystem]]
-- [[bio_system|BioSystem]] - Individual compartment systems
-- [[simulation|Simulation Subsystem]] - Running organisms
+- [[infra]]
+- [[BioSystem]] - Individual compartment systems
+- [[execution]] - Running organisms

@@ -49,7 +49,7 @@ class Task(Protocol):
 - **Cure**: Restore healthy homeostasis
 
 ## See Also
-- [[interface|Interface Subsystem]]
-- [[measurement|Measurement]] - Observation tools
-- [[action|Action]] - Modification tools
-- [[experiment|Experiment]] - Runs tasks
+- [[execution]]
+- [[Measurement]] - Observation tools
+- [[Action]] - Modification tools
+- [[Experiment]] - Runs tasks
