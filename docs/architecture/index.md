@@ -16,6 +16,7 @@ For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[ex
 ## E
 - **[[Entity]]** - Base class for all biology objects
 - **[[Experiment]]** - Single world setup with task, agent, scoring
+- **[[Expr]]** - Simple functional expressions for operations and declarations
 
 ## G
 - **[[Generator]]** - Base class for synthetic biology factories
