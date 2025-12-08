@@ -1,8 +1,6 @@
 # ABIO infra - Infrastructure
-
-Infrastructure layer providing foundational capabilities for the Alien Biology system.
-
 **Parent**: [[alienbio]]
+Infrastructure layer providing foundational capabilities for the Alien Biology system.
 
 ## Entities
 Core data classes and identity patterns that all biology objects inherit from.
@@ -35,4 +33,4 @@ System configuration and settings management.
 ## Testing
 - **[[Testing]]** - Testing paradigm for Python and Rust code.
 
-- **[[Roadmap]]** - Implementation milestones.
+- **[[ABIO PRD Roadmap]]** - Implementation milestones.

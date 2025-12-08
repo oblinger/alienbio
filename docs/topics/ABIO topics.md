@@ -11,7 +11,7 @@ Cross-cutting topics that span multiple subsystems.
 - **[[Print-format]]** - Standard format for protocol documentation
 
 ## R
-- **[[Roadmap]]** - Implementation milestones and planning
+- **[[ABIO PRD Roadmap]]** - Implementation milestones and planning (in devdocs/)
 
 ## T
 - **[[Testing]]** - Testing tiers (smoke, commit, release), test organization
