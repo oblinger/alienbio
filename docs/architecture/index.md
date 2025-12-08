@@ -13,6 +13,9 @@ For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[ex
 - **[[BioReaction]]** - Transformation between molecules
 - **[[BioSystem]]** - DAG of bioparts with molecule concentrations
 
+## C
+- **[[Context]]** - Runtime pegboard for all major subsystems
+
 ## E
 - **[[Entity]]** - Base class for all biology objects
 - **[[Experiment]]** - Single world setup with task, agent, scoring
@@ -20,9 +23,6 @@ For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[ex
 
 ## G
 - **[[Generator]]** - Base class for synthetic biology factories
-
-## H
-- **[[Harness]]** - Execution runner with logging and result aggregation
 
 ## M
 - **[[Measurement]]** - Function to observe system state
@@ -45,6 +45,7 @@ For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[ex
 ## T
 - **[[Task]]** - Goal specification with scoring criteria
 - **[[Test]]** - Batch of experiments across variations
+- **[[TestHarness]]** - Execution runner with logging and result aggregation
 - **[[Timeline]]** - Sequence of states with intervention hooks
 
 ## W

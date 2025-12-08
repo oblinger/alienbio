@@ -1,21 +1,23 @@
-# Harness
+# TestHarness
 
-Execution runner with logging and result aggregation.
+Execution runner for experiments with logging and result aggregation.
 
 **Subsystem**: [[execution]] > Experimentation
 
 ## Description
-Harness is the top-level execution runner that manages experiment runs with proper timeout handling, logging, and result aggregation.
+TestHarness manages experiment runs with proper timeout handling, logging, and result aggregation. It is attached to [[Context]] during test execution.
 
 ## Protocol Definition
 ```python
 from typing import Protocol
 
-class Harness(Protocol):
+class TestHarness(Protocol):
     """Execution runner for experiments."""
 
     timeout: float
     log_dir: str
+    experiments: list[Experiment]
+    results: list[ExperimentResult]
 
     def run_experiment(self, experiment: Experiment) -> ExperimentResult:
         """Run single experiment with timeout and logging."""
@@ -25,7 +27,11 @@ class Harness(Protocol):
         """Run test batch with parallel execution."""
         ...
 
-    def export_results(self, result: TestResult, path: str) -> None:
+    def run(self) -> list[ExperimentResult]:
+        """Run all queued experiments."""
+        ...
+
+    def export_results(self, path: str) -> None:
         """Export results for analysis."""
         ...
 ```
@@ -35,6 +41,8 @@ class Harness(Protocol):
 |----------|------|-------------|
 | timeout | float | Max time per experiment |
 | log_dir | str | Directory for execution logs |
+| experiments | list[Experiment] | Queue of experiments to run |
+| results | list[ExperimentResult] | Collected results |
 
 ## Methods
 ### run_experiment(experiment) -> ExperimentResult
@@ -43,10 +51,14 @@ Runs a single experiment with timeout and error handling.
 ### run_test(test) -> TestResult
 Runs a test batch, potentially in parallel.
 
-### export_results(result, path)
+### run() -> list[ExperimentResult]
+Runs all queued experiments and returns results.
+
+### export_results(path)
 Exports results to JSON/CSV for analysis.
 
 ## See Also
-- [[execution]]
+- [[Context]] - Pegboard that holds this harness
+- [[execution]] - Parent subsystem
 - [[Experiment]] - What gets run
 - [[Test]] - Batch runs

@@ -4,6 +4,10 @@ Running simulations and experiments: the engine that advances biological state t
 
 **Parent**: [[alienbio]]
 
+## Runtime
+The runtime environment and pegboard for all subsystems.
+- **[[Context]]** - Runtime pegboard containing config, connections, and all major subsystems.
+
 ## Simulation
 Execution engine for biology dynamics.
 - **[[State]]** - Snapshot of all molecule concentrations at a point in time.
@@ -22,4 +26,4 @@ Agent-facing API for observations and actions.
 Framework for LLM capability testing.
 - **[[Experiment]]** - Single world setup with task, agent, and scoring.
 - **[[Test]]** - Batch of experiments across world/agent/task variations.
-- **[[Harness]]** - Execution runner with timeout handling, logging, and result aggregation.
+- **[[TestHarness]]** - Execution runner with timeout handling, logging, and result aggregation.
