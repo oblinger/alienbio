@@ -58,9 +58,9 @@ alienbio/
 ├─tests/
 │ ├─unit/                        # Fast isolated tests
 │ │ ├─infra/
+│ │ │ └─test_entity.py
 │ │ ├─biology/
-│ │ ├─generators/
-│ │ └─execution/
+│ │ └─...
 │ ├─integration/                 # Component interaction tests
 │ ├─property/                    # Hypothesis/proptest
 │ ├─parity/                      # Python == Rust verification
