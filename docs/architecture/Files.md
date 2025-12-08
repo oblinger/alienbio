@@ -9,7 +9,6 @@ alienbio/
 ├─src/
 │ ├─alienbio/                    # Python package
 │ │ ├─__init__.py
-│ │ ├─_smoke.py                  # Auto-run smoke tests
 │ │ ├─protocols/                 # Protocol definitions (mirrors docs/architecture/)
 │ │ │ ├─__init__.py
 │ │ │ ├─infra.py                 # Entity, Context, Expr
@@ -54,6 +53,10 @@ alienbio/
 │   │ ├─state.rs
 │   │ └─simulator.rs
 │   └─benches/                   # Criterion benchmarks
+├─scripts/                       # Utility scripts (see Scripts section)
+│ ├─smoke.py                     # Auto-run smoke tests
+│ ├─build.py                     # Build helpers
+│ └─download_upstream.py         # Fetch external datasets
 ├─tests/
 │ ├─unit/                        # Fast isolated tests
 │ │ ├─infra/
@@ -71,7 +74,7 @@ alienbio/
 ├─docs/
 │ ├─architecture/                # Protocol documentation
 │ └─topics/                      # Cross-cutting topics
-├─data/                          # Persistent data (DAT system)
+├─data/                          # Persistent data (DAT system, see Data section)
 │ ├─upstream/                    # External datasets (immutable)
 │ │ └─kegg/
 │ │   └─2024.1/
@@ -99,6 +102,20 @@ alienbio/
 - `execution.py` → [[execution]]
 
 **Implementation folders** (`infra/`, `biology/`, `generators/`, `execution/`) contain base implementations of those protocols.
+
+## Scripts
+
+**scripts/** contains utility scripts that support development and operations. These are invoked by justfile commands or run directly.
+
+```
+scripts/
+  smoke.py                  # Smoke tests run on package import
+  build.py                  # Build automation helpers
+  download_upstream.py      # Fetch and verify external datasets
+  generate_derived.py       # Run catalog generators to populate derived/
+```
+
+Scripts are kept separate from the package to avoid polluting the importable namespace.
 
 ## Catalog
 
@@ -183,11 +200,15 @@ YAML files can reference code via the DAT prototype system. Code files define th
 
 ## Data
 
-**data/** contains all persistent data managed by the DAT system. Data flows from upstream through derived to runs:
+**data/** contains all persistent data managed by the [[DAT]] system. Every folder in `data/` is a DAT entry with a `_spec.yaml` file describing its contents and provenance.
+
+Data flows from upstream through derived to runs:
 
 ```
 upstream (external) → derived (generated) → runs (experiments)
 ```
+
+See [[DAT]] for details on the DAT system and `_spec.yaml` format.
 
 ### upstream/
 
@@ -197,7 +218,7 @@ External datasets downloaded from other sources. **Immutable** - never modified 
 data/upstream/
   kegg/
     2024.1/                     # Version from source
-      _dat.yaml                 # Metadata: source URL, download date, checksum
+      _spec.yaml                # Metadata: source URL, download date, checksum
       compounds.json
       reactions.json
   uniprot/
@@ -217,9 +238,9 @@ Generated data built from upstream datasets + catalog code. These are materializ
 ```
 data/derived/
   kegg1/                        # Mirrors catalog/kegg1
-    _dat.yaml                   # What catalog version, what upstream version
+    _spec.yaml                  # What catalog version, what upstream version
     molecules/                  # Generated molecule set
-      _dat.yaml
+      _spec.yaml
       molecules.json
     reactions/
     pathways/
@@ -243,7 +264,7 @@ Experiment executions. Each run is a unique, timestamped folder.
 data/runs/
   metabolism_bench/             # Experiment name
     2024-01-15_001/             # Timestamp + sequence number
-      _dat.yaml                 # Full config: derived data used, parameters
+      _spec.yaml                # Full config: derived data used, parameters
       results/
       logs/
     2024-01-15_002/
