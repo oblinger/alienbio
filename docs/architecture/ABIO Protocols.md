@@ -1,4 +1,4 @@
-# ABIO index - Protocol Index
+# ABIO Protocols
 
 Alphabetical listing of all protocols in the Alien Biology system.
 

@@ -1,4 +1,4 @@
-# ABIO topics - Topics Index
+# ABIO Topics
 
 Cross-cutting topics that span multiple subsystems.
 
