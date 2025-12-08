@@ -1,11 +1,15 @@
 # MoleculeGenerator
-
-Factory for synthetic molecules.
-
 **Subsystem**: [[biology]] > Molecules
+Factory for synthetic molecules.
 
 ## Description
 MoleculeGenerator produces BioMolecules matching statistical distributions captured from KEGG, including atom counts, functional groups, and naming patterns.
+
+| Methods | Description |
+|---------|-------------|
+| generate_primitive | Generate a bdepth=0 molecule |
+| generate_at_depth | Generate molecule at specific biosynthetic depth |
+| generate_name | Generate alien molecule name |
 
 ## Protocol Definition
 ```python
@@ -31,7 +35,7 @@ class MoleculeGenerator(Generator[BioMolecule], Protocol):
 ### generate_primitive() -> BioMolecule
 Generates a bdepth=0 primitive molecule from alien atoms.
 
-### generate_at_depth(bdepth: int) -> BioMolecule
+### generate_at_depth(bdepth) -> BioMolecule
 Generates a molecule at the specified biosynthetic depth.
 
 ### generate_name() -> str

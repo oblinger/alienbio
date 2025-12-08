@@ -1,11 +1,19 @@
 # State
-
-Snapshot of molecule concentrations.
-
 **Subsystem**: [[execution]] > Simulation
+Snapshot of molecule concentrations.
 
 ## Description
 State represents a snapshot of all molecule concentrations at a point in time. It's the fundamental data structure that simulation operates on.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| timestamp | float | Simulation time of this snapshot |
+| concentrations | dict | Compartment name to numpy concentration vector |
+
+| Methods | Description |
+|---------|-------------|
+| get | Get concentration of molecule in compartment |
+| copy | Create a deep copy of this state |
 
 ## Protocol Definition
 ```python
@@ -26,12 +34,6 @@ class State(Protocol):
         """Create a deep copy of this state."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| timestamp | float | Simulation time of this snapshot |
-| concentrations | dict | Compartment name to numpy concentration vector |
 
 ## Methods
 ### get(molecule, compartment) -> float

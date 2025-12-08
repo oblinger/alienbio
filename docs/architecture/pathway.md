@@ -1,11 +1,17 @@
 # Pathway
-
-Connected sequence of reactions.
-
 **Subsystem**: [[biology]] > Pathways
+Connected sequence of reactions.
 
 ## Description
 A pathway is a connected subgraph of the reaction network that performs a coherent metabolic function, such as a biosynthetic pathway, energy cycle, or signaling cascade.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| reactions | list | Ordered reactions in the pathway |
+| entry_molecules | set | Molecules consumed from outside |
+| exit_molecules | set | Molecules produced for outside |
+| pathway_type | PathwayType | Linear, branching, cyclic, or signaling |
+| net_stoichiometry | dict | Net consumption/production |
 
 ## Protocol Definition
 ```python
@@ -31,15 +37,6 @@ class Pathway(Entity, Protocol):
         """Net input/output across the pathway."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| reactions | list | Ordered reactions in the pathway |
-| entry_molecules | set | Molecules consumed from outside |
-| exit_molecules | set | Molecules produced for outside |
-| pathway_type | PathwayType | Linear, branching, cyclic, or signaling |
-| net_stoichiometry | dict | Net consumption/production |
 
 ## See Also
 - [[biology]]

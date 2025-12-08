@@ -1,11 +1,18 @@
 # Measurement
-
-Function to observe system state.
-
 **Subsystem**: [[execution]] > Interface
+Function to observe system state.
 
 ## Description
 Measurement represents an observation function that agents can use to query aspects of the biological system. Measurements intentionally provide limited visibility.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| name | str | Measurement identifier |
+| description | str | What this measures |
+
+| Methods | Description |
+|---------|-------------|
+| measure | Take a measurement from the world |
 
 ## Protocol Definition
 ```python
@@ -21,12 +28,6 @@ class Measurement(Protocol):
         """Take a measurement from the world."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| name | str | Measurement identifier |
-| description | str | What this measures |
 
 ## Methods
 ### measure(world, **params) -> Any

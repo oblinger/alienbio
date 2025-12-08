@@ -1,11 +1,15 @@
 # Expr
-
-Simple functional expression protocol for representing operations and declarations.
-
 **Subsystem**: [[infra]] > Entities
+Simple functional expression protocol.
 
 ## Description
 Expr provides a uniform way to represent functional information - function calls, declarations, and structured data. The print format mirrors Python function call syntax for familiarity.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| head | str | Function/operation name |
+| args | tuple[Any, ...] | Positional arguments |
+| kwargs | dict[str, Any] | Keyword arguments |
 
 ## Protocol Definition
 ```python

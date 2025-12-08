@@ -1,11 +1,21 @@
 # BioReaction
-
-Transformation between molecules.
-
 **Subsystem**: [[biology]] > Reactions
+Transformation between molecules.
 
 ## Description
 BioReaction represents a chemical transformation that converts reactants to products, modulated by effectors. Reactions have rate functions that determine how fast they proceed.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| reactants | list[tuple] | (molecule, stoichiometry) pairs consumed |
+| products | list[tuple] | (molecule, stoichiometry) pairs produced |
+| effectors | list[tuple] | (molecule, role) where role is catalyst/inhibitor/cofactor |
+| rate_fn | Callable | Rate function from concentrations to rate |
+| reaction_class | ReactionClass | Anabolic, catabolic, or energy |
+
+| Methods | Description |
+|---------|-------------|
+| compute_rate | Compute reaction rate given current concentrations |
 
 ## Protocol Definition
 ```python
@@ -31,14 +41,9 @@ class BioReaction(Entity, Protocol):
         ...
 ```
 
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| reactants | list[tuple] | (molecule, stoichiometry) pairs consumed |
-| products | list[tuple] | (molecule, stoichiometry) pairs produced |
-| effectors | list[tuple] | (molecule, role) where role is catalyst/inhibitor/cofactor |
-| rate_fn | Callable | Rate function from concentrations to rate |
-| reaction_class | ReactionClass | Anabolic, catabolic, or energy |
+## Methods
+### compute_rate(concentrations) -> float
+Compute reaction rate given current concentrations of all molecules.
 
 ## Reaction Classes
 - **Anabolic**: Build complex from simple, increase bdepth, consume energy

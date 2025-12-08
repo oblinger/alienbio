@@ -1,11 +1,18 @@
 # Action
-
-Agent action to perturb system state.
-
 **Subsystem**: [[execution]] > Interface
+Agent action to perturb system state.
 
 ## Description
 Action represents a modification function that agents can use to perturb the biological system. Actions are the agent's means of affecting the world.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| name | str | Action identifier |
+| description | str | What this action does |
+
+| Methods | Description |
+|---------|-------------|
+| apply | Apply action to world, return modified world |
 
 ## Protocol Definition
 ```python
@@ -21,12 +28,6 @@ class Action(Protocol):
         """Apply action to world, return modified world."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| name | str | Action identifier |
-| description | str | What this action does |
 
 ## Methods
 ### apply(world, **params) -> World

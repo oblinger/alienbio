@@ -1,11 +1,23 @@
 # Context
-
-Runtime pegboard containing all major subsystems of the alienbio environment.
-
 **Subsystem**: [[execution]]
+Runtime pegboard containing all major subsystems.
 
 ## Description
 Context is the root object graph for alienbio runtime. It serves as a pegboard where all major subsystems are attached as attributes. A single Context instance is held in a context variable, accessible globally via `Context.current()`.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| config | Config | System configuration and settings |
+| prefixes | dict[str, EntitySource] | Prefix bindings for entity display |
+| simulator | Simulator \| None | Rust or Python simulation engine |
+| data_store | DataStore \| None | Persistent entity storage |
+| world | World \| None | Currently loaded world |
+| harness | TestHarness \| None | Test execution runner |
+
+| Methods | Description |
+|---------|-------------|
+| current | Get the active context (static) |
+| child | Create derived context with overrides |
 
 ## Protocol Definition
 ```python
@@ -56,6 +68,13 @@ class Context:
         ...
 ```
 
+## Methods
+### current() -> Context
+Get the active context. Raises RuntimeError if none active.
+
+### child(**overrides) -> Context
+Create derived context with some values changed.
+
 ## Initialization Order
 Standard initialization follows a defined sequence:
 
@@ -78,16 +97,6 @@ def create(cls, config_path: Path | None = None) -> Context:
 
     return ctx
 ```
-
-## Attributes
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| config | Config | System configuration and settings |
-| prefixes | dict[str, EntitySource] | Prefix bindings for entity display |
-| simulator | Simulator \| None | Rust or Python simulation engine |
-| data_store | DataStore \| None | Persistent entity storage |
-| world | World \| None | Currently loaded world |
-| harness | TestHarness \| None | Test execution runner |
 
 ## Usage
 ```python

@@ -1,11 +1,23 @@
 # TestHarness
-
-Execution runner for experiments with logging and result aggregation.
-
 **Subsystem**: [[execution]] > Experimentation
+Execution runner for experiments with logging and result aggregation.
 
 ## Description
 TestHarness manages experiment runs with proper timeout handling, logging, and result aggregation. It is attached to [[Context]] during test execution.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| timeout | float | Max time per experiment |
+| log_dir | str | Directory for execution logs |
+| experiments | list[Experiment] | Queue of experiments to run |
+| results | list[ExperimentResult] | Collected results |
+
+| Methods | Description |
+|---------|-------------|
+| run_experiment | Run single experiment with timeout and logging |
+| run_test | Run test batch with parallel execution |
+| run | Run all queued experiments |
+| export_results | Export results for analysis |
 
 ## Protocol Definition
 ```python
@@ -35,14 +47,6 @@ class TestHarness(Protocol):
         """Export results for analysis."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| timeout | float | Max time per experiment |
-| log_dir | str | Directory for execution logs |
-| experiments | list[Experiment] | Queue of experiments to run |
-| results | list[ExperimentResult] | Collected results |
 
 ## Methods
 ### run_experiment(experiment) -> ExperimentResult

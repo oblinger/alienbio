@@ -1,11 +1,14 @@
 # PersistentEntity
-
-Entity that is saved to data/ and loadable by name.
-
 **Subsystem**: [[infra]] > Entities
+Entity that is saved to data/ and loadable by name.
 
 ## Description
 PersistentEntity extends Entity for objects that are saved to the `data/` folder and can be loaded by name via dvc_dat. These represent reusable definitions like molecule types, reaction templates, and organism blueprints.
+
+| Methods | Description |
+|---------|-------------|
+| load | Load entity by name from data/ folder (classmethod) |
+| save | Save entity to data/ folder |
 
 ## Protocol Definition
 ```python
@@ -27,10 +30,10 @@ class PersistentEntity(Entity, Protocol):
 ```
 
 ## Methods
-### load(name: str) -> PersistentEntity
+### load(name) -> PersistentEntity
 Class method that loads an entity from the data/ folder by name.
 
-### save() -> None
+### save()
 Saves the entity to the data/ folder using its name.
 
 ## Storage

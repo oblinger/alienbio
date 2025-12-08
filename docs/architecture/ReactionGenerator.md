@@ -1,11 +1,15 @@
 # ReactionGenerator
-
-Factory for synthetic reactions.
-
 **Subsystem**: [[biology]] > Reactions
+Factory for synthetic reactions.
 
 ## Description
 ReactionGenerator produces BioReactions matching statistical distributions from KEGG, including template patterns, energy distributions, and effector roles.
+
+| Methods | Description |
+|---------|-------------|
+| generate_anabolic | Generate anabolic reaction from given inputs |
+| generate_catabolic | Generate catabolic reaction breaking down input |
+| generate_energy | Generate energy carrier reaction |
 
 ## Protocol Definition
 ```python

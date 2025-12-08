@@ -1,11 +1,19 @@
 # Entity
-
-Base protocol for all biology objects.
-
 **Subsystem**: [[infra]] > Entities
+Base protocol for all biology objects.
 
 ## Description
 Entity is the root of the type hierarchy for all biology objects. It provides consistent serialization, identity, and naming patterns.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| name | str | Unique identifier within scope |
+| description | str | Human-readable description |
+
+| Methods | Description |
+|---------|-------------|
+| serialize | Convert to YAML string representation |
+| deserialize | Reconstruct from YAML string |
 
 ## Protocol Definition
 ```python
@@ -26,12 +34,6 @@ class Entity(Protocol):
         """Reconstruct from YAML string."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| name | str | Unique identifier within scope |
-| description | str | Human-readable description |
 
 ## Methods
 ### serialize() -> str

@@ -1,11 +1,14 @@
 # ScopedEntity
-
-Entity named relative to containing World or Harness.
-
 **Subsystem**: [[infra]] > Entities
+Entity named relative to containing World or Harness.
 
 ## Description
 ScopedEntity extends Entity for runtime instances that are named relative to their containing scope. These represent specific instances like "the glucose in compartment A" rather than "glucose" as a molecule type.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| scope | World | The containing World or Harness |
+| qualified_name | str | Full path like "world1.compartmentA.glucose" |
 
 ## Protocol Definition
 ```python
@@ -24,12 +27,6 @@ class ScopedEntity(Entity, Protocol):
         """Full name including scope path."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| scope | World | The containing World or Harness |
-| qualified_name | str | Full path like "world1.compartmentA.glucose" |
 
 ## Naming
 Scoped entities use qualified names that include their full path:

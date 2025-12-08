@@ -1,11 +1,22 @@
 # Task
-
-Goal specification with scoring criteria.
-
 **Subsystem**: [[execution]] > Interface
+Goal specification with scoring criteria.
 
 ## Description
 Task defines what an agent should accomplish, including the setup, goal, scoring criteria, and constraints on available actions.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| name | str | Task identifier |
+| task_type | TaskType | Predict, diagnose, or cure |
+| world | World | Initial world setup |
+| available_measurements | list | What agent can observe |
+| available_actions | list | What agent can do |
+
+| Methods | Description |
+|---------|-------------|
+| score | Score the agent's result |
+| is_complete | Check if goal is achieved |
 
 ## Protocol Definition
 ```python
@@ -34,14 +45,12 @@ class Task(Protocol):
         ...
 ```
 
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| name | str | Task identifier |
-| task_type | TaskType | Predict, diagnose, or cure |
-| world | World | Initial world setup |
-| available_measurements | list | What agent can observe |
-| available_actions | list | What agent can do |
+## Methods
+### score(result) -> float
+Score the agent's result.
+
+### is_complete(world) -> bool
+Check if goal is achieved.
 
 ## Task Types
 - **Predict**: Forecast future concentrations

@@ -1,11 +1,20 @@
 # Experiment
-
-Single world setup with task, agent, and scoring.
-
 **Subsystem**: [[execution]] > Experimentation
+Single world setup with task, agent, and scoring.
 
 ## Description
 Experiment represents a single experimental run: one world, one task, one agent, producing one result.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| world | World | The biological system |
+| task | Task | What the agent should do |
+| agent | Any | The AI system being evaluated |
+| result | ExperimentResult | Outcome after running |
+
+| Methods | Description |
+|---------|-------------|
+| run | Execute the experiment |
 
 ## Protocol Definition
 ```python
@@ -24,13 +33,9 @@ class Experiment(Protocol):
         ...
 ```
 
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| world | World | The biological system |
-| task | Task | What the agent should do |
-| agent | Any | The AI system being evaluated |
-| result | ExperimentResult | Outcome after running |
+## Methods
+### run() -> ExperimentResult
+Execute the experiment.
 
 ## ExperimentResult
 ```python

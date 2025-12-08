@@ -1,11 +1,17 @@
 # Step
-
-Single time advancement applying reactions.
-
 **Subsystem**: [[execution]] > Simulation
+Single time advancement applying reactions.
 
 ## Description
 Step represents a single time advancement in the simulation, computing reaction rates and updating concentrations accordingly.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| dt | float | Time delta for this step |
+
+| Methods | Description |
+|---------|-------------|
+| apply | Apply reactions to advance state by dt |
 
 ## Protocol Definition
 ```python
@@ -20,11 +26,6 @@ class Step(Protocol):
         """Apply reactions to advance state by dt."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| dt | float | Time delta for this step |
 
 ## Methods
 ### apply(state, system) -> State

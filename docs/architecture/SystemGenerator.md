@@ -1,11 +1,19 @@
 # SystemGenerator
-
-Factory for complete bio-systems.
-
 **Subsystem**: [[biology]] > Systems
+Factory for complete bio-systems.
 
 ## Description
 SystemGenerator assembles complete BioSystems by combining molecules and reactions from other generators, establishing initial conditions and compartment structure.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| molecule_gen | MoleculeGenerator | Source for molecules |
+| reaction_gen | ReactionGenerator | Source for reactions |
+
+| Methods | Description |
+|--------|-------------|
+| generate_simple | Generate a simple single-compartment system |
+| generate_compartmentalized | Generate system with specified compartments |
 
 ## Protocol Definition
 ```python
@@ -26,18 +34,12 @@ class SystemGenerator(Generator[BioSystem], Protocol):
         ...
 ```
 
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| molecule_gen | MoleculeGenerator | Source for molecules |
-| reaction_gen | ReactionGenerator | Source for reactions |
-
 ## Methods
 ### generate_simple(n_molecules, n_reactions) -> BioSystem
-Generates a simple system with specified complexity.
+Generates a simple system with specified complexity. Creates a single compartment with the requested number of molecules and reactions connecting them.
 
 ### generate_compartmentalized(compartments) -> BioSystem
-Generates a system with named compartments and transport reactions.
+Generates a system with named compartments and transport reactions between them.
 
 ## See Also
 - [[biology]]

@@ -1,11 +1,17 @@
 # BioMolecule
-
-Chemical compound with atoms, bonds, and properties.
-
 **Subsystem**: [[biology]] > Molecules
+Chemical compound with atoms, bonds, and properties.
 
 ## Description
 BioMolecule represents a chemical compound in the alien biology. It tracks atom composition, bond structure, and derived properties. Molecules are typically PersistentEntities (the type definition) but can also be ScopedEntities (a specific instance with concentration).
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| atoms | dict[str, int] | Element symbol to count |
+| bonds | list[tuple] | Bond graph as (atom1, atom2, order) |
+| bdepth | int | Biosynthetic depth (0 = primitive) |
+| molecular_weight | float | Computed from atom masses |
+| functional_groups | list[str] | Reactive sites identified |
 
 ## Protocol Definition
 ```python
@@ -28,15 +34,6 @@ class BioMolecule(Entity, Protocol):
         """Identified functional groups."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| atoms | dict[str, int] | Element symbol to count |
-| bonds | list[tuple] | Bond graph as (atom1, atom2, order) |
-| bdepth | int | Biosynthetic depth (0 = primitive) |
-| molecular_weight | float | Computed from atom masses |
-| functional_groups | list[str] | Reactive sites identified |
 
 ## Biosynthetic Depth
 - **bdepth=0**: Primitive molecules built from atoms (CO2, H2O analogs)

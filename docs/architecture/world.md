@@ -1,11 +1,21 @@
 # World
-
-Complete runnable setup.
-
 **Subsystem**: [[execution]] > Simulation
+Complete runnable setup.
 
 ## Description
 World combines a biological system, generators, initial conditions, and simulator configuration into a complete runnable setup.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| system | BioSystem or BioOrganism | The biology being simulated |
+| generators | dict | Named generators for expansion |
+| initial_state | State | Starting concentrations |
+| config | SimulatorConfig | Simulation parameters |
+
+| Methods | Description |
+|---------|-------------|
+| run | Run simulation for specified duration |
+| run_until | Run until predicate returns True |
 
 ## Protocol Definition
 ```python
@@ -27,14 +37,6 @@ class World(Protocol):
         """Run until predicate returns True."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| system | BioSystem or BioOrganism | The biology being simulated |
-| generators | dict | Named generators for expansion |
-| initial_state | State | Starting concentrations |
-| config | SimulatorConfig | Simulation parameters |
 
 ## Methods
 ### run(duration) -> Timeline

@@ -1,11 +1,20 @@
 # Timeline
-
-Sequence of states with intervention hooks.
-
 **Subsystem**: [[execution]] > Simulation
+Sequence of states with intervention hooks.
 
 ## Description
 Timeline records the history of states throughout a simulation run, supporting intervention hooks for applying perturbations at specific times.
+
+| Properties | Type | Description |
+|----------|------|-------------|
+| states | list[State] | Recorded state history |
+| interventions | list[tuple] | (time, function) pairs to apply |
+| events | list[tuple] | (time, description) event log |
+
+| Methods | Description |
+|---------|-------------|
+| add_intervention | Schedule an intervention at specified time |
+| get_state_at | Get state at or before specified time |
 
 ## Protocol Definition
 ```python
@@ -26,13 +35,6 @@ class Timeline(Protocol):
         """Get state at or before specified time."""
         ...
 ```
-
-## Properties
-| Property | Type | Description |
-|----------|------|-------------|
-| states | list[State] | Recorded state history |
-| interventions | list[tuple] | (time, function) pairs to apply |
-| events | list[tuple] | (time, description) event log |
 
 ## Methods
 ### add_intervention(time, fn)

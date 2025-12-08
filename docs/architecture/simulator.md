@@ -1,11 +1,15 @@
 # Simulator
-
-Execution engine for biology dynamics.
-
 **Subsystem**: [[execution]] > Simulation
+Execution engine for biology dynamics.
 
 ## Description
 Simulator is the protocol for execution engines that advance biological state through time. Two implementations exist: PythonSimulator (reference) and RustSimulator (performance).
+
+| Methods | Description |
+|---------|-------------|
+| step | Advance state by one timestep |
+| run | Run simulation for specified duration |
+| run_until | Run until predicate is satisfied |
 
 ## Protocol Definition
 ```python
