@@ -17,8 +17,7 @@ alienbio/
 │ │ │ ├─molecule.py
 │ │ │ ├─reaction.py
 │ │ │ ├─pathway.py
-│ │ │ ├─system.py
-│ │ │ └─organism.py
+│ │ │ └─container.py
 │ │ ├─generators/            # Synthetic biology factories
 │ │ │ ├─molecule_gen.py
 │ │ │ ├─reaction_gen.py
@@ -35,7 +34,7 @@ alienbio/
 │   │ ├─molecule.rs
 │   │ ├─reaction.rs
 │   │ ├─pathway.rs
-│   │ ├─system.rs
+│   │ ├─container.rs
 │   │ ├─state.rs
 │   │ └─simulator.rs
 │   └─benches/               # Criterion benchmarks
