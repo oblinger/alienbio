@@ -3,7 +3,7 @@
 Factory for synthetic reactions.
 
 ## Description
-ReactionGenerator produces BioReactions matching statistical distributions from KEGG, including template patterns, energy distributions, and effector roles.
+ReactionGenerator produces BioReactions with configurable kinetics and stoichiometry. Different named instances can match specific distributions (e.g., KEGG-like) or generate purely synthetic reactions.
 
 | Methods | Description |
 |---------|-------------|
@@ -41,8 +41,8 @@ Generates a reaction that breaks down a molecule into simpler products.
 ### generate_energy() -> BioReaction
 Generates an energy carrier reaction (alien ATP/NADH analog).
 
-## Statistical Matching
-Reactions match KEGG distributions:
+## Configurable Properties
+Implementations can parameterize:
 - (n_reactants, n_products) template frequencies
 - Delta-depth patterns per reaction class
 - Activation energy and delta-G distributions

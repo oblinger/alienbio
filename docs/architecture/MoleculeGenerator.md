@@ -3,7 +3,7 @@
 Factory for synthetic molecules.
 
 ## Description
-MoleculeGenerator produces BioMolecules matching statistical distributions captured from KEGG, including atom counts, functional groups, and naming patterns.
+MoleculeGenerator produces BioMolecules with configurable properties. Different named instances can match specific distributions (e.g., KEGG-like) or generate purely synthetic molecules.
 
 | Methods | Description |
 |---------|-------------|
@@ -41,11 +41,12 @@ Generates a molecule at the specified biosynthetic depth.
 ### generate_name() -> str
 Generates an alien name using Markov chain or diffusion model.
 
-## Statistical Matching
-Molecules are generated to match KEGG distributions:
+## Configurable Properties
+Implementations can parameterize:
 - Atom count distributions per bdepth
 - Functional group frequencies
 - Molecular weight distributions
+- Naming patterns (Markov, diffusion, etc.)
 
 ## See Also
 - [[biology]]

@@ -7,12 +7,12 @@ All classes that describe a biological system: the molecules, reactions, pathway
 ## Molecules (Rust)
 Chemical compounds in the alien biology.
 - **[[BioMolecule]]** - Chemical compound with atoms, bonds, and properties. Organized by biosynthetic depth.
-- **[[MoleculeGenerator]]** - Factory that produces molecules matching statistical distributions from KEGG.
+- **[[MoleculeGenerator]]** - Factory that produces synthetic molecules with configurable properties.
 
 ## Reactions (Rust)
 Transformations between molecules.
 - **[[BioReaction]]** - Transformation with reactants, products, effectors, and rate functions.
-- **[[ReactionGenerator]]** - Factory that produces reactions matching template distributions.
+- **[[ReactionGenerator]]** - Factory that produces synthetic reactions with configurable kinetics.
 
 ## Pathways (Rust)
 Connected sequences of reactions.
