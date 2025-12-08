@@ -1,5 +1,5 @@
 # Entity
-**Subsystem**: [[infra]] > Entities
+**Subsystem**: [[ABIO infra]] > Entities
 Base protocol for all biology objects.
 
 ## Description

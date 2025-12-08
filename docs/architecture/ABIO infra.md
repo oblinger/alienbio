@@ -1,4 +1,4 @@
-# Infra - Infrastructure
+# ABIO infra - Infrastructure
 
 Infrastructure layer providing foundational capabilities for the Alien Biology system.
 

@@ -1,5 +1,5 @@
 # BioReaction
-**Subsystem**: [[biology]] > Reactions
+**Subsystem**: [[ABIO biology]] > Reactions
 Transformation between molecules.
 
 ## Description
@@ -51,6 +51,6 @@ Compute reaction rate given current concentrations of all molecules.
 - **Energy**: Closed-loop carriers (ATP/NADH analogs)
 
 ## See Also
-- [[biology]]
+- [[ABIO biology]]
 - [[ReactionGenerator]] - Factory for reactions
 - [[Pathway]] - Connected reaction sequences

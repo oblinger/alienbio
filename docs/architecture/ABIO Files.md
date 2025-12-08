@@ -1,4 +1,4 @@
-# Files
+# ABIO Files - Directory Layout
 
 Directory layout for the alienbio project.
 
@@ -96,10 +96,10 @@ alienbio/
 ## Structure Notes
 
 **protocols/** contains only Protocol definitions - the interfaces that implementations must satisfy. Each file mirrors a section in `docs/architecture/`:
-- `infra.py` → [[infra]]
-- `biology.py` → [[biology]]
-- `generators.py` → [[biology]] > Generators
-- `execution.py` → [[execution]]
+- `infra.py` → [[ABIO infra]]
+- `biology.py` → [[ABIO biology]]
+- `generators.py` → [[ABIO biology]] > Generators
+- `execution.py` → [[ABIO execution]]
 
 **Implementation folders** (`infra/`, `biology/`, `generators/`, `execution/`) contain base implementations of those protocols.
 

@@ -1,5 +1,5 @@
 # BioContainer
-**Subsystem**: [[biology]] > Containers
+**Subsystem**: [[ABIO biology]] > Containers
 Nestable container for molecules, reactions, and child containers.
 
 ## Description
@@ -85,7 +85,7 @@ BioContainer(kind="organism")
 Transport reactions move molecules between a container and its parent or siblings. They're stored in the `transport` list and reference molecules in both containers.
 
 ## See Also
-- [[biology]]
+- [[ABIO biology]]
 - [[BioMolecule]] - What containers hold
 - [[BioReaction]] - What happens inside containers
 - [[World]] - Wraps a container for simulation

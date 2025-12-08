@@ -1,5 +1,5 @@
 # Task
-**Subsystem**: [[execution]] > Interface
+**Subsystem**: [[ABIO execution]] > Interface
 Goal specification with scoring criteria.
 
 ## Description
@@ -58,7 +58,7 @@ Check if goal is achieved.
 - **Cure**: Restore healthy homeostasis
 
 ## See Also
-- [[execution]]
+- [[ABIO execution]]
 - [[Measurement]] - Observation tools
 - [[Action]] - Modification tools
 - [[Experiment]] - Runs tasks

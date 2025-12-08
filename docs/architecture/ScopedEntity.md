@@ -1,5 +1,5 @@
 # ScopedEntity
-**Subsystem**: [[infra]] > Entities
+**Subsystem**: [[ABIO infra]] > Entities
 Entity named relative to containing World or Harness.
 
 ## Description

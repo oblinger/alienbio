@@ -1,5 +1,5 @@
 # Generator
-**Subsystem**: [[biology]] > Generators
+**Subsystem**: [[ABIO biology]] > Generators
 Base protocol for synthetic biology factories.
 
 ## Description
@@ -44,7 +44,7 @@ Generates a single new instance matching the statistical model.
 Generates multiple instances efficiently.
 
 ## See Also
-- [[biology]]
+- [[ABIO biology]]
 - [[MoleculeGenerator]]
 - [[ReactionGenerator]]
 - [[SystemGenerator]]

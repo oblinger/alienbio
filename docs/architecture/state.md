@@ -1,5 +1,5 @@
 # State
-**Subsystem**: [[execution]] > Simulation
+**Subsystem**: [[ABIO execution]] > Simulation
 Snapshot of molecule concentrations.
 
 ## Description
@@ -43,6 +43,6 @@ Returns the concentration of a specific molecule in a compartment.
 Creates a deep copy suitable for modification without affecting original.
 
 ## See Also
-- [[execution]]
+- [[ABIO execution]]
 - [[Step]] - Advances state
 - [[Timeline]] - Sequence of states

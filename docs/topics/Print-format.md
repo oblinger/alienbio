@@ -2,7 +2,7 @@
 
 How entities are displayed to users and serialized for storage.
 
-**Related**: [[infra]] > Entities, [[Expr]]
+**Related**: [[ABIO infra]] > Entities, [[Expr]]
 
 ## Overview
 Entities need to be visible to users in multiple contexts:

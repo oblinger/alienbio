@@ -1,5 +1,5 @@
 # Simulator
-**Subsystem**: [[execution]] > Simulation
+**Subsystem**: [[ABIO execution]] > Simulation
 Execution engine for biology dynamics.
 
 ## Description
@@ -53,6 +53,6 @@ Runs until the predicate returns True.
 - 10-100x faster for large systems
 
 ## See Also
-- [[execution]]
+- [[ABIO execution]]
 - [[State]] - What gets simulated
 - [[World]] - Complete setup

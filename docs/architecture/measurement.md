@@ -1,5 +1,5 @@
 # Measurement
-**Subsystem**: [[execution]] > Interface
+**Subsystem**: [[ABIO execution]] > Interface
 Function to observe system state.
 
 ## Description
@@ -39,6 +39,6 @@ Executes the measurement and returns the observation.
 - `measure_flux("glycolysis")` → 1.2
 
 ## See Also
-- [[execution]]
+- [[ABIO execution]]
 - [[Action]] - Counterpart for modifications
 - [[Task]] - Uses measurements

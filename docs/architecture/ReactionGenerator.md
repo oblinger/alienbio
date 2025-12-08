@@ -1,5 +1,5 @@
 # ReactionGenerator
-**Subsystem**: [[biology]] > Reactions
+**Subsystem**: [[ABIO biology]] > Reactions
 Factory for synthetic reactions.
 
 ## Description
@@ -49,6 +49,6 @@ Implementations can parameterize:
 - Effector role frequencies
 
 ## See Also
-- [[biology]]
+- [[ABIO biology]]
 - [[Generator]] - Base protocol
 - [[BioReaction]] - Generated type

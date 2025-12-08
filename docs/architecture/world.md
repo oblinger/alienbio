@@ -1,5 +1,5 @@
 # World
-**Subsystem**: [[execution]] > Simulation
+**Subsystem**: [[ABIO execution]] > Simulation
 Complete runnable setup.
 
 ## Description
@@ -46,6 +46,6 @@ Runs the simulation for the specified duration, returning full timeline.
 Runs until the predicate function returns True for a state.
 
 ## See Also
-- [[execution]]
+- [[ABIO execution]]
 - [[Simulator]] - Execution engine
 - [[BioContainer]] - Container being simulated

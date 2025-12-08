@@ -2,7 +2,7 @@
 
 Testing paradigm for the alienbio system.
 
-**Related**: [[infra]], [[execution]]
+**Related**: [[ABIO infra]], [[ABIO execution]]
 
 ## Overview
 Testing is organized by both *type* (what's being tested) and *tier* (when tests run).

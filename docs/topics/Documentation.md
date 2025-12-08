@@ -2,7 +2,7 @@
 
 Conventions for documenting the alienbio project.
 
-**Related**: [[infra]], [[Files]]
+**Related**: [[ABIO infra]], [[ABIO Files]]
 
 ## File Tree Notation
 

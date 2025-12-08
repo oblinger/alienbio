@@ -1,5 +1,5 @@
 # ContainerGenerator
-**Subsystem**: [[biology]] > Containers
+**Subsystem**: [[ABIO biology]] > Containers
 Composable factory for BioContainers.
 
 ## Description
@@ -56,7 +56,7 @@ organ = organ_gen.generate(n_molecules=10, n_reactions=5, n_children=100, depth=
 ```
 
 ## See Also
-- [[biology]]
+- [[ABIO biology]]
 - [[Generator]] - Base protocol
 - [[BioContainer]] - Generated type
 - [[MoleculeGenerator]] - Composed for molecules

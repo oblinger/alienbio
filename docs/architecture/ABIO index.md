@@ -1,8 +1,8 @@
-# Protocol Index
+# ABIO index - Protocol Index
 
 Alphabetical listing of all protocols in the Alien Biology system.
 
-For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[execution]].
+For hierarchical organization, see [[alienbio]] → [[ABIO infra]], [[ABIO biology]], [[ABIO execution]].
 
 ## A
 - **[[Action]]** - Agent action to perturb system state

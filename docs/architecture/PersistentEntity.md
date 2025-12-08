@@ -1,5 +1,5 @@
 # PersistentEntity
-**Subsystem**: [[infra]] > Entities
+**Subsystem**: [[ABIO infra]] > Entities
 Entity that is saved to data/ and loadable by name.
 
 ## Description

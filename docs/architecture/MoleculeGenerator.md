@@ -1,5 +1,5 @@
 # MoleculeGenerator
-**Subsystem**: [[biology]] > Molecules
+**Subsystem**: [[ABIO biology]] > Molecules
 Factory for synthetic molecules.
 
 ## Description
@@ -49,6 +49,6 @@ Implementations can parameterize:
 - Naming patterns (Markov, diffusion, etc.)
 
 ## See Also
-- [[biology]]
+- [[ABIO biology]]
 - [[Generator]] - Base protocol
 - [[BioMolecule]] - Generated type

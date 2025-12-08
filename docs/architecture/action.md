@@ -1,5 +1,5 @@
 # Action
-**Subsystem**: [[execution]] > Interface
+**Subsystem**: [[ABIO execution]] > Interface
 Agent action to perturb system state.
 
 ## Description
@@ -39,6 +39,6 @@ Applies the action and returns the modified world.
 - `adjust_temperature(+2.0)` - Change environmental condition
 
 ## See Also
-- [[execution]]
+- [[ABIO execution]]
 - [[Measurement]] - Counterpart for observations
 - [[Task]] - Constrains available actions

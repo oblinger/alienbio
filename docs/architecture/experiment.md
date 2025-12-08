@@ -1,5 +1,5 @@
 # Experiment
-**Subsystem**: [[execution]] > Experimentation
+**Subsystem**: [[ABIO execution]] > Experimentation
 Single world setup with task, agent, and scoring.
 
 ## Description
@@ -47,6 +47,6 @@ class ExperimentResult:
 ```
 
 ## See Also
-- [[execution]]
+- [[ABIO execution]]
 - [[Task]] - Goal specification
 - [[Test]] - Batch of experiments

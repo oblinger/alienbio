@@ -1,5 +1,5 @@
 # Pathway
-**Subsystem**: [[biology]] > Pathways
+**Subsystem**: [[ABIO biology]] > Pathways
 Connected sequence of reactions.
 
 ## Description
@@ -39,5 +39,5 @@ class Pathway(Entity, Protocol):
 ```
 
 ## See Also
-- [[biology]]
+- [[ABIO biology]]
 - [[BioReaction]] - Individual reactions

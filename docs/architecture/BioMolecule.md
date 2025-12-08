@@ -1,5 +1,5 @@
 # BioMolecule
-**Subsystem**: [[biology]] > Molecules
+**Subsystem**: [[ABIO biology]] > Molecules
 Chemical compound with atoms, bonds, and properties.
 
 ## Description
@@ -41,6 +41,6 @@ class BioMolecule(Entity, Protocol):
 - **bdepth=4+**: Complex molecules (proteins, lipids)
 
 ## See Also
-- [[biology]]
+- [[ABIO biology]]
 - [[MoleculeGenerator]] - Factory for molecules
 - [[BioReaction]] - Transforms molecules
