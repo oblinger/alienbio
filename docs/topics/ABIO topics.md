@@ -7,6 +7,9 @@ Cross-cutting topics that span multiple subsystems.
 ## D
 - **[[DAT]]** - Data management system, `_spec.yaml` format, provenance tracking
 
+## O
+- **[[ABIO Operators]]** - Top-level operations: do, create, load, save, parse, ctx
+
 ## P
 - **[[Print-format]]** - Standard format for protocol documentation
 
