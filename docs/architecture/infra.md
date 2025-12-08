@@ -22,6 +22,7 @@ Core data classes and identity patterns that all biology objects inherit from.
 - **[matplotlib](https://matplotlib.org/stable/)** - Plotting concentration curves, debugging visualizations.
 - **[pyyaml](https://pyyaml.org/)** - YAML serialization for entities.
 - **[pytest](https://docs.pytest.org/)** - Unit and integration testing.
+- **[hypothesis](https://hypothesis.readthedocs.io/)** - Property-based testing.
 - **[pyo3](https://pyo3.rs/)** - Rust-Python bindings for high-performance simulator.
 - **[ruff](https://docs.astral.sh/ruff/)** - Fast linting and formatting.
 - **[pyright](https://microsoft.github.io/pyright/)** - Static type checking.
@@ -30,3 +31,8 @@ Core data classes and identity patterns that all biology objects inherit from.
 System configuration and settings management.
 
 *(Protocols to be added)*
+
+## Testing
+- **[[Testing]]** - Testing paradigm for Python and Rust code.
+
+- **[[Roadmap]]** - Implementation milestones.

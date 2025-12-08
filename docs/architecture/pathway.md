@@ -5,7 +5,7 @@ Connected sequence of reactions.
 **Subsystem**: [[biology]] > Pathways
 
 ## Description
-Pathway represents a connected subgraph of the reaction network, forming a coherent metabolic function like a biosynthesis chain, energy cycle, or signaling cascade.
+A pathway is a connected subgraph of the reaction network that performs a coherent metabolic function, such as a biosynthetic pathway, energy cycle, or signaling cascade.
 
 ## Protocol Definition
 ```python
