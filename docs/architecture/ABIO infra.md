@@ -33,4 +33,4 @@ System configuration and settings management.
 ## Testing
 - **[[Testing]]** - Testing paradigm for Python and Rust code.
 
-- **[[ABIO PRD Roadmap]]** - Implementation milestones.
+- **[[ABIO Roadmap]]** - Implementation milestones.
