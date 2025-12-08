@@ -1,10 +1,9 @@
-# Print-format - Entity Display and Serialization
-
-How entities are displayed to users and serialized for storage.
-
-**Related**: [[ABIO infra]] > Entities, [[Expr]]
+# Print-format
+**Topic**: [[ABIO Topics]]
+Entity display format (PREFIX:name) and serialization conventions.
 
 ## Overview
+
 Entities need to be visible to users in multiple contexts:
 - Debug output in the console
 - Log files

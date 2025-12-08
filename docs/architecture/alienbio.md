@@ -1,5 +1,5 @@
-# alienbio - Alien Biology Architecture
-Root architecture document for the Alien Biology system. The architecture is organized into three major subsystems.
+# alienbio
+Root architecture document for the Alien Biology system.
 
 - **[[ABIO Roadmap]]** - Implementation milestones and planning.
 - **[[ABIO Files]]** 		- Directory layout for the project.

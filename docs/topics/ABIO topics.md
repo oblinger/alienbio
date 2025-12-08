@@ -1,23 +1,19 @@
 # ABIO Topics
-
+**Parent**: [[alienbio]]
 Cross-cutting topics that span multiple subsystems.
 
-**Parent**: [[alienbio]]
+## A
+- **[[alienbio]]** - Top-level module: do, create, load, save, parse, ctx, o
 
 ## D
 - **[[DAT]]** - Data management system, `_spec.yaml` format, provenance tracking
-
-## O
-- **[[ABIO Operators]]** - Top-level operations: do, create, load, save, parse, ctx
+- **[[Documentation]]** - Documentation standards and conventions
 
 ## P
-- **[[Print-format]]** - Standard format for protocol documentation
+- **[[Print-format]]** - Entity display format (PREFIX:name)
 
 ## R
-- **[[ABIO Roadmap]]** - Implementation milestones and planning (in devdocs/)
+- **[[ABIO Roadmap]]** - Implementation milestones and planning
 
 ## T
 - **[[Testing]]** - Testing tiers (smoke, commit, release), test organization
-
-## Documentation
-- **[[Documentation]]** - Documentation standards and conventions

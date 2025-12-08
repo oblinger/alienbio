@@ -1,8 +1,6 @@
-# ABIO Files - Directory Layout
-
-Directory layout for the alienbio project.
-
+# ABIO Files
 **Parent**: [[alienbio]]
+Directory layout for the alienbio project.
 
 ```
 alienbio/

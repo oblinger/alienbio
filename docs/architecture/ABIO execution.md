@@ -1,7 +1,6 @@
-# ABIO execution - Running Simulations and Experiments
+# ABIO execution
 **Parent**: [[alienbio]]
-Running simulations and experiments: the engine that advances biological state through time and the framework for testing AI agents.
-
+Simulation engine that advances biological state through time, plus the agent interface and experimentation framework.
 
 ## Runtime
 The runtime environment and pegboard for all subsystems.

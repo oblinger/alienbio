@@ -1,10 +1,9 @@
 # Testing
-
-Testing paradigm for the alienbio system.
-
-**Related**: [[ABIO infra]], [[ABIO execution]]
+**Topic**: [[ABIO Topics]]
+Testing tiers (smoke, commit, release) and test organization.
 
 ## Overview
+
 Testing is organized by both *type* (what's being tested) and *tier* (when tests run).
 
 ## Test Tiers

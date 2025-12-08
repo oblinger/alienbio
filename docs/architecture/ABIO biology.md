@@ -1,8 +1,6 @@
-# ABIO biology - Biological System Description
-
-All classes that describe a biological system: the molecules, reactions, pathways, and structures that make up alien life.
-
+# ABIO biology
 **Parent**: [[alienbio]]
+Molecules, reactions, pathways, containers, and their generators.
 
 ## Molecules (Rust)
 Chemical compounds in the alien biology.

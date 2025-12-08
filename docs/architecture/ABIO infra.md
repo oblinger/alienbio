@@ -1,6 +1,6 @@
-# ABIO infra - Infrastructure
+# ABIO infra
 **Parent**: [[alienbio]]
-Infrastructure layer providing foundational capabilities for the Alien Biology system.
+Infrastructure: entity base classes, serialization, data management, and configuration.
 
 ## Entities
 Core data classes and identity patterns that all biology objects inherit from.

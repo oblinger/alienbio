@@ -1,8 +1,6 @@
 # ABIO Protocols
-
+**Parent**: [[alienbio]]
 Alphabetical listing of all protocols in the Alien Biology system.
-
-For hierarchical organization, see [[alienbio]] → [[ABIO infra]], [[ABIO biology]], [[ABIO execution]].
 
 ## A
 - **[[Action]]** - Agent action to perturb system state

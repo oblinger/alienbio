@@ -1,8 +1,6 @@
-# DAT - Data Management
-
-How alienbio uses the DAT system for data management.
-
-**Parent**: [[topics]]
+# DAT
+**Topic**: [[ABIO Topics]]
+Data management system using `_spec.yaml` for provenance tracking.
 
 ## Overview
 

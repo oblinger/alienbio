@@ -1,8 +1,6 @@
 # Documentation
-
-Conventions for documenting the alienbio project.
-
-**Related**: [[ABIO infra]], [[ABIO Files]]
+**Topic**: [[ABIO Topics]]
+Documentation standards and conventions.
 
 ## File Tree Notation
 
