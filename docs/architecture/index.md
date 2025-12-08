@@ -8,10 +8,9 @@ For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[ex
 - **[[Action]]** - Agent action to perturb system state
 
 ## B
+- **[[BioContainer]]** - Nestable container for molecules, reactions, and child containers
 - **[[BioMolecule]]** - Chemical compound with atoms, bonds, properties
-- **[[BioOrganism]]** - Complete organism with compartmentalized physiology
 - **[[BioReaction]]** - Transformation between molecules
-- **[[BioSystem]]** - DAG of bioparts with molecule concentrations
 
 ## C
 - **[[Context]]** - Runtime pegboard for all major subsystems
@@ -40,7 +39,7 @@ For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[ex
 - **[[Simulator]]** - Execution engine for biology dynamics
 - **[[State]]** - Snapshot of molecule concentrations
 - **[[Step]]** - Single time advancement applying reactions
-- **[[SystemGenerator]]** - Factory for complete bio-systems
+- **[[SystemGenerator]]** - Factory for complete container hierarchies
 
 ## T
 - **[[Task]]** - Goal specification with scoring criteria

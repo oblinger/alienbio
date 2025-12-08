@@ -18,7 +18,7 @@ from typing import Protocol
 class Simulator(Protocol):
     """Execution engine protocol."""
 
-    def step(self, state: State, system: BioSystem, dt: float) -> State:
+    def step(self, state: State, container: BioContainer, dt: float) -> State:
         """Advance state by one timestep."""
         ...
 
@@ -32,7 +32,7 @@ class Simulator(Protocol):
 ```
 
 ## Methods
-### step(state, system, dt) -> State
+### step(state, container, dt) -> State
 Advances the state by a single timestep dt.
 
 ### run(world, duration) -> Timeline

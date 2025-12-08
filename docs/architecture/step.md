@@ -22,13 +22,13 @@ class Step(Protocol):
 
     dt: float  # time delta
 
-    def apply(self, state: State, system: BioSystem) -> State:
+    def apply(self, state: State, container: BioContainer) -> State:
         """Apply reactions to advance state by dt."""
         ...
 ```
 
 ## Methods
-### apply(state, system) -> State
+### apply(state, container) -> State
 Computes all reaction rates from current concentrations, applies stoichiometric updates, handles transport, and returns the new state.
 
 ## Algorithm

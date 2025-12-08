@@ -18,11 +18,7 @@ Transformations between molecules.
 Connected sequences of reactions.
 - **[[Pathway]]** - Connected subgraph forming a metabolic function: linear chains, branching paths, cycles, or signaling cascades.
 
-## Systems (Rust)
-Compartmentalized biological structures.
-- **[[BioSystem]]** - DAG of bioparts with molecule concentrations per compartment.
-- **[[SystemGenerator]]** - Factory that assembles complete systems from molecules and reactions.
-
-## Organisms (Rust)
-Complete biological entities.
-- **[[BioOrganism]]** - Complete organism with hierarchical compartments, cross-compartment transport, and homeostatic targets.
+## Containers (Rust)
+Nestable biological structures from organelles to organisms.
+- **[[BioContainer]]** - Nestable container for molecules, reactions, and child containers. Kind labels: organism, organ, cell, organelle.
+- **[[SystemGenerator]]** - Factory that assembles complete container hierarchies from molecules and reactions.

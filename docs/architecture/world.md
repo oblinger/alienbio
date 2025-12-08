@@ -3,11 +3,11 @@
 Complete runnable setup.
 
 ## Description
-World combines a biological system, generators, initial conditions, and simulator configuration into a complete runnable setup.
+World combines a biological container, generators, initial conditions, and simulator configuration into a complete runnable setup.
 
 | Properties | Type | Description |
 |----------|------|-------------|
-| system | BioSystem or BioOrganism | The biology being simulated |
+| container | BioContainer | The biology being simulated |
 | generators | dict | Named generators for expansion |
 | initial_state | State | Starting concentrations |
 | config | SimulatorConfig | Simulation parameters |
@@ -24,7 +24,7 @@ from typing import Protocol
 class World(Protocol):
     """Complete runnable simulation setup."""
 
-    system: BioSystem | BioOrganism
+    container: BioContainer
     generators: dict[str, Generator]
     initial_state: State
     config: "SimulatorConfig"
@@ -48,4 +48,4 @@ Runs until the predicate function returns True for a state.
 ## See Also
 - [[execution]]
 - [[Simulator]] - Execution engine
-- [[BioSystem]] - System being simulated
+- [[BioContainer]] - Container being simulated

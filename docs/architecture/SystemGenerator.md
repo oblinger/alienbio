@@ -1,9 +1,9 @@
 # SystemGenerator
-**Subsystem**: [[biology]] > Systems
-Factory for complete bio-systems.
+**Subsystem**: [[biology]] > Containers
+Factory for complete container hierarchies.
 
 ## Description
-SystemGenerator assembles complete BioSystems by combining molecules and reactions from other generators, establishing initial conditions and compartment structure.
+SystemGenerator assembles complete BioContainers by combining molecules and reactions from other generators, establishing initial conditions and container structure.
 
 | Properties | Type | Description |
 |----------|------|-------------|
@@ -12,36 +12,36 @@ SystemGenerator assembles complete BioSystems by combining molecules and reactio
 
 | Methods | Description |
 |--------|-------------|
-| generate_simple | Generate a simple single-compartment system |
-| generate_compartmentalized | Generate system with specified compartments |
+| generate_simple | Generate a simple single-container system |
+| generate_nested | Generate nested container hierarchy |
 
 ## Protocol Definition
 ```python
 from typing import Protocol
 
-class SystemGenerator(Generator[BioSystem], Protocol):
-    """Factory for complete bio-systems."""
+class SystemGenerator(Generator[BioContainer], Protocol):
+    """Factory for complete container hierarchies."""
 
     molecule_gen: MoleculeGenerator
     reaction_gen: ReactionGenerator
 
-    def generate_simple(self, n_molecules: int, n_reactions: int) -> BioSystem:
-        """Generate a simple single-compartment system."""
+    def generate_simple(self, n_molecules: int, n_reactions: int) -> BioContainer:
+        """Generate a simple single-container system."""
         ...
 
-    def generate_compartmentalized(self, compartments: list[str]) -> BioSystem:
-        """Generate system with specified compartments."""
+    def generate_nested(self, structure: dict) -> BioContainer:
+        """Generate nested container hierarchy from structure spec."""
         ...
 ```
 
 ## Methods
-### generate_simple(n_molecules, n_reactions) -> BioSystem
-Generates a simple system with specified complexity. Creates a single compartment with the requested number of molecules and reactions connecting them.
+### generate_simple(n_molecules, n_reactions) -> BioContainer
+Generates a simple container with specified complexity. Creates a single container with the requested number of molecules and reactions.
 
-### generate_compartmentalized(compartments) -> BioSystem
-Generates a system with named compartments and transport reactions between them.
+### generate_nested(structure) -> BioContainer
+Generates a nested container hierarchy based on a structure specification.
 
 ## See Also
 - [[biology]]
 - [[Generator]] - Base protocol
-- [[BioSystem]] - Generated type
+- [[BioContainer]] - Generated type
