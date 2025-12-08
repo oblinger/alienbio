@@ -14,7 +14,7 @@ alienbio/
 │ │ │ ├─__init__.py
 │ │ │ ├─infra.py                 # Entity, Context, Expr
 │ │ │ ├─biology.py               # BioMolecule, BioReaction, BioContainer, Pathway
-│ │ │ ├─generators.py            # Generator, MoleculeGenerator, ReactionGenerator, ContainerGenerator
+│ │ │ ├─generators.py            # Generators for synthetic biological systems
 │ │ │ └─execution.py             # State, Step, Simulator, World, Timeline
 │ │ ├─infra/                     # Infrastructure implementations
 │ │ │ ├─context.py
