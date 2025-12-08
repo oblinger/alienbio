@@ -13,6 +13,7 @@ For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[ex
 - **[[BioReaction]]** - Transformation between molecules
 
 ## C
+- **[[ContainerGenerator]]** - Composable factory for BioContainers
 - **[[Context]]** - Runtime pegboard for all major subsystems
 
 ## E
@@ -39,7 +40,6 @@ For hierarchical organization, see [[alienbio]] → [[infra]], [[biology]], [[ex
 - **[[Simulator]]** - Execution engine for biology dynamics
 - **[[State]]** - Snapshot of molecule concentrations
 - **[[Step]]** - Single time advancement applying reactions
-- **[[SystemGenerator]]** - Factory for complete container hierarchies
 
 ## T
 - **[[Task]]** - Goal specification with scoring criteria

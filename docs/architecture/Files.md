@@ -21,7 +21,7 @@ alienbio/
 │ │ ├─generators/            # Synthetic biology factories
 │ │ │ ├─molecule_gen.py
 │ │ │ ├─reaction_gen.py
-│ │ │ └─system_gen.py
+│ │ │ └─container_gen.py
 │ │ └─execution/             # Simulation and testing
 │ │   ├─state.py
 │ │   ├─simulator.py

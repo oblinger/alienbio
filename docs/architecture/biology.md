@@ -21,4 +21,4 @@ Connected sequences of reactions.
 ## Containers (Rust)
 Nestable biological structures from organelles to organisms.
 - **[[BioContainer]]** - Nestable container for molecules, reactions, and child containers. Kind labels: organism, organ, cell, organelle.
-- **[[SystemGenerator]]** - Factory that assembles complete container hierarchies from molecules and reactions.
+- **[[ContainerGenerator]]** - Composable factory for BioContainers. Generators compose recursively: simple generators build complex ones.
