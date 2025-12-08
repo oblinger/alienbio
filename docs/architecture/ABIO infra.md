@@ -1,5 +1,5 @@
 # ABIO infra
-**Parent**: [[alienbio]]
+**Parent**: [[ABIO Sys]]
 Infrastructure: entity base classes, serialization, data management, and configuration.
 
 ## Entities
@@ -12,6 +12,8 @@ Core data classes and identity patterns that all biology objects inherit from.
 - **[[Print-format]]** - How entities display and serialize (string, YAML, markdown).
 
 ## Data Management
+- **[[ABIO Data]]** - Organization of the `data/` folder and intent-based categories.
+- **[[DAT]]** - The DAT system mechanics (`_spec.yaml` format, commitments).
 - **[dvc_dat](https://github.com/oblinger/dvc-dat/blob/main/docs/overview.md)** - Persistent storage and retrieval of entities by name.
 
 ## Installed Packages
@@ -32,5 +34,3 @@ System configuration and settings management.
 
 ## Testing
 - **[[Testing]]** - Testing paradigm for Python and Rust code.
-
-- **[[ABIO Roadmap]]** - Implementation milestones.

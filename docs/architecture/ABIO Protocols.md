@@ -1,5 +1,5 @@
 # ABIO Protocols
-**Parent**: [[alienbio]]
+**Parent**: [[ABIO Sys]]
 Alphabetical listing of all protocols in the Alien Biology system.
 
 ## A

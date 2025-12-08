@@ -1,5 +1,5 @@
 # ABIO execution
-**Parent**: [[alienbio]]
+**Parent**: [[ABIO Sys]]
 Simulation engine that advances biological state through time, plus the agent interface and experimentation framework.
 
 ## Runtime

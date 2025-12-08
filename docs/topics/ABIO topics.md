@@ -1,5 +1,5 @@
 # ABIO Topics
-**Parent**: [[alienbio]]
+**Parent**: [[ABIO Sys]]
 Cross-cutting topics that span multiple subsystems.
 
 ## A

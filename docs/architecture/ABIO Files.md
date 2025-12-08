@@ -1,5 +1,5 @@
 # ABIO Files
-**Parent**: [[alienbio]]
+**Parent**: [[ABIO Sys]]
 Directory layout for the alienbio project.
 
 ```
@@ -76,16 +76,20 @@ alienbio/
 │ ├─upstream/                    # External datasets (immutable)
 │ │ └─kegg/
 │ │   └─2024.1/
-│ ├─derived/                     # Generated from upstream + catalog
-│ │ ├─kegg1/
-│ │ │ ├─molecules/
-│ │ │ └─reactions/
-│ │ └─minimal1/
-│ │   └─cell/
+│ ├─chem/                        # Standalone/reusable chemistry
+│ │ └─kegg1/
+│ ├─world/                       # Simulation worlds
+│ │ ├─simple1/
+│ │ │ └─chem/                    # Nested chemistry for this world
+│ │ └─complex1/
+│ ├─test/                        # Test configurations
+│ │ └─T1/
+│ │   ├─world/                   # World specific to this test
+│ │   │ └─chem/
+│ │   └─results/
 │ └─runs/                        # Experiment executions
 │   └─metabolism_bench/
-│     ├─2024-01-15_001/
-│     └─2024-01-15_002/
+│     └─2024-01-15_001/
 ├─justfile                       # Build/test commands
 ├─pyproject.toml
 └─README.md
@@ -198,85 +202,4 @@ YAML files can reference code via the DAT prototype system. Code files define th
 
 ## Data
 
-**data/** contains all persistent data managed by the [[DAT]] system. Every folder in `data/` is a DAT entry with a `_spec.yaml` file describing its contents and provenance.
-
-Data flows from upstream through derived to runs:
-
-```
-upstream (external) → derived (generated) → runs (experiments)
-```
-
-See [[DAT]] for details on the DAT system and `_spec.yaml` format.
-
-### upstream/
-
-External datasets downloaded from other sources. **Immutable** - never modified after download.
-
-```
-data/upstream/
-  kegg/
-    2024.1/                     # Version from source
-      _spec.yaml                # Metadata: source URL, download date, checksum
-      compounds.json
-      reactions.json
-  uniprot/
-    2024.2/
-```
-
-Each upstream dataset is a DAT with metadata recording:
-- Source URL
-- Download date
-- Version from source
-- Checksum for integrity verification
-
-### derived/
-
-Generated data built from upstream datasets + catalog code. These are materialized outputs from running catalog generators.
-
-```
-data/derived/
-  kegg1/                        # Mirrors catalog/kegg1
-    _spec.yaml                  # What catalog version, what upstream version
-    molecules/                  # Generated molecule set
-      _spec.yaml
-      molecules.json
-    reactions/
-    pathways/
-  minimal1/
-    cell/
-```
-
-Organization **mirrors the source catalog** - if `catalog/kegg1/` defines generators, `data/derived/kegg1/` contains their outputs. This creates clear traceability.
-
-Each derived DAT records:
-- Which catalog version generated it
-- Which upstream data it used
-- Generation timestamp
-- Any parameters used
-
-### runs/
-
-Experiment executions. Each run is a unique, timestamped folder.
-
-```
-data/runs/
-  metabolism_bench/             # Experiment name
-    2024-01-15_001/             # Timestamp + sequence number
-      _spec.yaml                # Full config: derived data used, parameters
-      results/
-      logs/
-    2024-01-15_002/
-    latest -> 2024-01-15_002    # Optional: symlink to most recent
-```
-
-Run naming convention: `{YYYY-MM-DD}_{seq}` where seq is a sequence number for runs on the same day.
-
-### Data Flow
-
-The three-level structure tells a story:
-
-1. **upstream/** - "Here's the external data we started with"
-2. **derived/** - "Here's what we built from it using our catalog"
-3. **runs/** - "Here's what happened when we ran experiments"
-
-Future: DVC or Weights & Biases integration will version the data folder, enabling full reproducibility of any run by specifying exact versions of all components.
+See [[ABIO Data]] for the organization of the `data/` folder.
