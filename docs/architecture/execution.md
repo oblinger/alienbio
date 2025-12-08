@@ -8,7 +8,7 @@ Running simulations and experiments: the engine that advances biological state t
 The runtime environment and pegboard for all subsystems.
 - **[[Context]]** - Runtime pegboard containing config, connections, and all major subsystems.
 
-## Simulation
+## Simulation (Rust)
 Execution engine for biology dynamics.
 - **[[State]]** - Snapshot of all molecule concentrations at a point in time.
 - **[[Step]]** - Single time advancement applying all active reactions.
