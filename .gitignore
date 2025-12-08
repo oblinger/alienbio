@@ -51,10 +51,11 @@ rust/Cargo.lock
 .DS_Store
 Thumbs.db
 
-# Data (large files managed by dvc_dat)
-data/*.pkl
-data/*.json
-data/*.csv
+# Data (managed by dvc_dat, not source controlled)
+data/
+
+# Development symlinks (local only)
+src/dvc_dat
 
 # Generated docs (regenerate with just docs)
 docs/diagrams/*.svg

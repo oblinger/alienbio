@@ -1,0 +1,6 @@
+sync_folder: data
+mount_commands:
+  - at: catalog
+    folder: src/alienbio/catalog
+  - at: fixtures
+    module: tests.fixtures

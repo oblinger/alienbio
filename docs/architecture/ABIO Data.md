@@ -2,7 +2,7 @@
 **Parent**: [[ABIO infra]]
 Organization of the `data/` folder and intent-based categories.
 
-- The `data/` folder contains all persistent data managed by the [[DAT]] system. 
+- The `data/` folder contains all persistent data managed by the [[ABIO DAT]] system. 
 - Every folder containing a `_spec_.yaml` file is a self-describing DAT object with contents and provenance.
 - Top-level categories represent **intent** - each is an intrinsic type:
 - Each top-level category contains items of that intrinsic type. 
@@ -14,5 +14,5 @@ Organization of the `data/` folder and intent-based categories.
 - This allows **cohesion** when things are built together, while still enabling **sharing** when components are used across multiple contexts.
 
 ## See Also
-- [[DAT]] - The DAT system mechanics (`_spec.yaml` format, commitments)
+- [[ABIO DAT]] - dvc_dat integration, name resolution, `_spec_.yaml` format
 - [[ABIO Files]] - Full project directory layout

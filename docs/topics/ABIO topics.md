@@ -3,10 +3,10 @@
 Cross-cutting topics that span multiple subsystems.
 
 ## A
+- **[[ABIO DAT]]** - dvc_dat integration, name resolution, `_spec_.yaml` format
 - **[[alienbio]]** - Top-level module: do, create, load, save, parse, ctx, o
 
 ## D
-- **[[DAT]]** - Data management system, `_spec.yaml` format, provenance tracking
 - **[[Documentation]]** - Documentation standards and conventions
 
 ## P

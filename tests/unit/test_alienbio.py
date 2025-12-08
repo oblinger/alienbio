@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from alienbio import Context, create, ctx, do, load, o, save, set_context
+from alienbio import Context, Dat, create, ctx, do, load, o, save, set_context
 
 
 class TestCtx:
@@ -44,33 +44,42 @@ class TestDo:
     """Tests for do() name resolution."""
 
     def test_do_resolves_dotted_name(self):
-        """do() resolves a dotted name to an object."""
-        result = do("catalog.kegg1")
+        """do() resolves a dotted name to fixture data."""
+        result = do("fixtures.simple")
         assert result is not None
-        assert result["_name"] == "catalog.kegg1"
-        assert result["_parts"] == ["catalog", "kegg1"]
+        assert result["name"] == "simple_fixture"
 
-    def test_do_handles_deep_paths(self):
-        """do() handles deeply nested dotted paths."""
-        result = do("catalog.kegg1.molecule_gen")
-        assert result["_parts"] == ["catalog", "kegg1", "molecule_gen"]
+    def test_do_resolves_nested_fixture(self):
+        """do() resolves nested fixtures."""
+        result = do("fixtures.kegg1")
+        assert result["name"] == "kegg1"
+        assert result["type"] == "biochemistry_model"
 
 
 class TestCreate:
     """Tests for create() instantiation."""
 
     def test_create_from_string_spec(self):
-        """create() instantiates from a string prototype name."""
-        result = create("catalog.kegg1.molecule_gen")
-        assert result["_proto"] == "catalog.kegg1.molecule_gen"
-        assert "_resolved" in result
+        """create() creates a Dat from a string prototype name."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            context = Context(data_path=Path(tmpdir))
+            set_context(context)
+
+            result = create("fixtures.simple", path=f"{tmpdir}/test_create")
+            assert isinstance(result, Dat)
+            assert result.get_spec()["name"] == "simple_fixture"
 
     def test_create_from_dict_spec(self):
-        """create() instantiates from a dict specification."""
-        spec = {"_proto": "catalog.kegg1.molecule_gen", "params": {"count": 10}}
-        result = create(spec)
-        assert result["_proto"] == "catalog.kegg1.molecule_gen"
-        assert result["_spec"] == spec
+        """create() creates a Dat from a dict specification."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            context = Context(data_path=Path(tmpdir))
+            set_context(context)
+
+            spec = {"custom": "value", "count": 10}
+            result = create(spec, path=f"{tmpdir}/test_dict")
+            assert isinstance(result, Dat)
+            assert result.get_spec()["custom"] == "value"
+            assert result.get_spec()["count"] == 10
 
 
 class TestSaveLoad:
@@ -85,13 +94,7 @@ class TestSaveLoad:
             save({"name": "test"}, "test/item1")
 
             assert (Path(tmpdir) / "test" / "item1").exists()
-            assert (Path(tmpdir) / "test" / "item1" / "_spec.yaml").exists()
-
-    def test_load_returns_object(self):
-        """load() returns an object from a data path."""
-        result = load("test/item1")
-        assert result["_loaded"] is True
-        assert "test/item1" in result["_path"]
+            assert (Path(tmpdir) / "test" / "item1" / "_spec_.yaml").exists()
 
     def test_save_load_roundtrip(self):
         """save() then load() round-trips an object."""
@@ -101,10 +104,10 @@ class TestSaveLoad:
 
             obj = {"name": "test_obj", "value": 42}
             save(obj, "roundtrip/test1")
-            loaded = load("roundtrip/test1")
+            loaded = load(Path(tmpdir) / "roundtrip" / "test1")
 
-            assert loaded["_loaded"] is True
-            assert "roundtrip/test1" in loaded["_path"]
+            assert loaded.get_spec()["name"] == "test_obj"
+            assert loaded.get_spec()["value"] == 42
 
 
 class TestProxy:
