@@ -28,13 +28,11 @@ Alphabetical listing of all protocols in the Alien Biology system.
 
 ## P
 - **[[Pathway]]** - Connected sequence of reactions
-- **[[PersistentEntity]]** - Entity saved to data/, loadable by name
 
 ## R
 - **[[ReactionGenerator]]** - Factory for synthetic reactions
 
 ## S
-- **[[ScopedEntity]]** - Entity named relative to containing World
 - **[[Simulator]]** - Execution engine for biology dynamics
 - **[[State]]** - Snapshot of molecule concentrations
 - **[[Step]]** - Single time advancement applying reactions

@@ -88,4 +88,4 @@ o = _ContextProxy()
 
 - [[Context]] - Runtime pegboard protocol
 - [[ABIO DAT]] - dvc_dat integration and data management
-- [[Print-format]] - Entity display format
+- [[Entity-naming]] - Entity naming and display format
