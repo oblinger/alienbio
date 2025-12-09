@@ -72,4 +72,4 @@ Expressions can be parsed from their string representation back into Expr object
 
 ## See Also
 - [[Entity]] - Base protocol
-- [[Print-format]] - Display conventions using Expr
+- [[Entity-naming]] - Display conventions

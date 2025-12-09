@@ -62,9 +62,6 @@ class TestCreate:
     def test_create_from_string_spec(self):
         """create() creates a Dat from a string prototype name."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             result = create("fixtures.simple", path=f"{tmpdir}/test_create")
             assert isinstance(result, Dat)
             assert result.get_spec()["name"] == "simple_fixture"
@@ -72,9 +69,6 @@ class TestCreate:
     def test_create_from_dict_spec(self):
         """create() creates a Dat from a dict specification."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             spec = {"custom": "value", "count": 10}
             result = create(spec, path=f"{tmpdir}/test_dict")
             assert isinstance(result, Dat)
@@ -88,10 +82,7 @@ class TestSaveLoad:
     def test_save_creates_directory(self):
         """save() creates the target directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
-            save({"name": "test"}, "test/item1")
+            save({"name": "test"}, f"{tmpdir}/test/item1")
 
             assert (Path(tmpdir) / "test" / "item1").exists()
             assert (Path(tmpdir) / "test" / "item1" / "_spec_.yaml").exists()
@@ -99,12 +90,9 @@ class TestSaveLoad:
     def test_save_load_roundtrip(self):
         """save() then load() round-trips an object."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             obj = {"name": "test_obj", "value": 42}
-            save(obj, "roundtrip/test1")
-            loaded = load(Path(tmpdir) / "roundtrip" / "test1")
+            save(obj, f"{tmpdir}/roundtrip/test1")
+            loaded = load(f"{tmpdir}/roundtrip/test1")
 
             assert loaded.get_spec()["name"] == "test_obj"
             assert loaded.get_spec()["value"] == 42
@@ -120,6 +108,7 @@ class TestProxy:
 
         assert o.config == {"proxy_test": True}
 
-    def test_proxy_accesses_data_path(self):
-        """o.data_path accesses context data_path."""
-        assert o.data_path == ctx().data_path
+    def test_proxy_accesses_io(self):
+        """o.io accesses context io."""
+        from alienbio import IO
+        assert isinstance(o.io, IO)

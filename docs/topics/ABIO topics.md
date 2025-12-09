@@ -9,8 +9,8 @@ Cross-cutting topics that span multiple subsystems.
 ## D
 - **[[Documentation]]** - Documentation standards and conventions
 
-## P
-- **[[Print-format]]** - Entity display format (PREFIX:name)
+## E
+- **[[Entity-naming]]** - Entity naming, qualified paths, DAT anchors, display format
 
 ## R
 - **[[ABIO Roadmap]]** - Implementation milestones and planning

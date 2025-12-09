@@ -5,11 +5,9 @@ Infrastructure: entity base classes, serialization, data management, and configu
 ## Entities
 Core data classes and identity patterns that all biology objects inherit from.
 - **[[Entity]]** - Base protocol for all biology objects.
-- **[[PersistentEntity]]** - Entities saved to `data/` folder, loadable by name via dvc_dat.
-- **[[ScopedEntity]]** - Entities named relative to their containing World or Harness.
 - **[[Expr]]** - Simple functional expressions for operations and declarations.
-
-- **[[Print-format]]** - How entities display and serialize (string, YAML, markdown).
+- **[[IO]]** - Entity I/O: prefix bindings, formatting, parsing, persistence.
+- **[[Entity-naming]]** - Naming scheme, DAT anchors, prefix system, display format.
 
 ## Data Management
 - **[[ABIO Data]]** - Organization of the `data/` folder and intent-based categories.

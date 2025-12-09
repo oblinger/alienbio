@@ -5,10 +5,14 @@ from __future__ import annotations
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from dvc_dat import Dat
 from dvc_dat import do as dvc_do
+
+if TYPE_CHECKING:
+    from .entity import Entity
+    from .io import IO as IOClass
 
 
 @dataclass
@@ -17,10 +21,20 @@ class Context:
 
     Holds configuration, connections, and references to all major subsystems.
     Stored in a ContextVar for thread/async safety.
+
+    Note: For data path, use Dat.manager.sync_folder (single source of truth).
     """
 
     config: dict[str, Any] = field(default_factory=dict)
-    data_path: Path = field(default_factory=lambda: Path("data"))
+    _io: IOClass | None = field(default=None, repr=False)
+
+    @property
+    def io(self) -> IOClass:
+        """Entity I/O: prefix bindings, formatting, lookup, persistence."""
+        if self._io is None:
+            from .io import IO
+            self._io = IO()
+        return self._io
 
     def do(self, name: str, *args, **kwargs) -> Any:
         """Execute a do-method by dotted name.
@@ -46,13 +60,24 @@ class Context:
 
     def save(self, obj: Any, path: str | Path) -> Dat:
         """Save an object as a Dat to a data path."""
-        full_path = self.data_path / path
         if isinstance(obj, Dat):
             obj.save()
             return obj
         # Create a new Dat with the object as spec
+        # Dat.create handles path resolution via Dat.manager.sync_folder
         spec = obj if isinstance(obj, dict) else {"value": obj}
-        return Dat.manager.create(Dat, path=str(full_path), spec=spec)
+        return Dat.create(path=str(path), spec=spec)
+
+    def lookup(self, name: str) -> Entity:
+        """Look up an entity by PREFIX:path string.
+
+        Args:
+            name: String in PREFIX:path format (e.g., "W:cytoplasm.glucose")
+
+        Returns:
+            The entity at the specified path
+        """
+        return self.io.lookup(name)
 
 
 # Global context variable
@@ -95,6 +120,11 @@ def load(path: str | Path) -> Dat:
 def save(obj: Any, path: str | Path) -> Dat:
     """Save an object as a Dat to a data path."""
     return ctx().save(obj, path)
+
+
+def lookup(name: str) -> Entity:
+    """Look up an entity by PREFIX:path string."""
+    return ctx().lookup(name)
 
 
 class _ContextProxy:
