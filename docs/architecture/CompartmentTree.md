@@ -1,28 +1,16 @@
 # CompartmentTree
 **Subsystem**: [[ABIO biology]] > Simulation
+Hierarchical topology of compartments for efficient simulation.
 
-Hierarchical topology of compartments.
-
-## Purpose
-
-CompartmentTree represents the nested structure of biological compartments:
-- Organism > Organ > Cell > Organelle
-- Stored separately from concentrations for efficient updates
-- Provides parent/child relationships for flow calculations
-
-## Design
-
-The tree uses integer IDs for compartments (0, 1, 2, ...) and stores:
-
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `parents` | List[Optional[int]] | `parent[child]` = parent_id or None for root |
-| `children` | Dict[int, List[int]] | `children[parent]` = list of child IDs |
-| `names` | List[str] | Human-readable names |
+## Overview
+CompartmentTree represents the nested structure of biological compartments (Organism > Organ > Cell > Organelle). It uses integer IDs for efficient access and is stored separately from concentrations for fast updates. Provides parent/child relationships for flow calculations.
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `num_compartments` | int | Total compartment count |
+| `parents` | List[Optional[int]] | Parent ID for each compartment |
+| `children` | Dict[int, List[int]] | Children list for each parent |
+| `names` | List[str] | Human-readable names |
 
 | Method | Returns | Description |
 |--------|---------|-------------|
@@ -33,8 +21,9 @@ The tree uses integer IDs for compartments (0, 1, 2, ...) and stores:
 | `add_root(name)` | int | Add root, returns ID |
 | `add_child(parent, name)` | int | Add child, returns ID |
 
-## Usage
+## Discussion
 
+### Usage Example
 ```python
 from alienbio import CompartmentTreeImpl
 
@@ -60,8 +49,7 @@ print(tree)
 # └── liver (2)
 ```
 
-## Example Structure
-
+### Example Structure
 ```
 organism (0)
 ├── organ_a (1)
@@ -74,30 +62,56 @@ organism (0)
 
 Each membrane (parent-child boundary) can have Flows that transport molecules.
 
-## Tree Invariants
-
+### Tree Invariants
 1. Exactly one root (parent = None)
 2. All non-root compartments have exactly one parent
 3. No cycles
 4. IDs are contiguous: 0, 1, 2, ..., N-1
 
-## Serialization
-
-```yaml
-parents: [null, 0, 0, 1, 1]  # null = root
-names: ["organism", "heart", "liver", "cell_1", "cell_2"]
-```
-
-## Topology Changes
-
+### Topology Changes
 The tree structure changes rarely (e.g., cell division). When it does:
 1. Add new compartments with `add_child()`
 2. Expand WorldState to include new compartments
 3. Initialize new compartment concentrations
 
-## See Also
+### Serialization
+```yaml
+parents: [null, 0, 0, 1, 1]  # null = root
+names: ["organism", "heart", "liver", "cell_1", "cell_2"]
+```
 
+## Protocol
+```python
+from typing import Protocol, List, Optional, runtime_checkable
+
+@runtime_checkable
+class CompartmentTree(Protocol):
+    """Protocol for compartment topology."""
+
+    @property
+    def num_compartments(self) -> int:
+        """Total number of compartments."""
+        ...
+
+    def parent(self, child: int) -> Optional[int]:
+        """Get parent of a compartment (None for root)."""
+        ...
+
+    def children(self, parent: int) -> List[int]:
+        """Get children of a compartment."""
+        ...
+
+    def root(self) -> int:
+        """Get the root compartment."""
+        ...
+
+    def is_root(self, compartment: int) -> bool:
+        """Check if compartment is the root."""
+        ...
+```
+
+## See Also
 - [[WorldState]] - Concentration storage
 - [[Flow]] - Transport across membranes
 - [[WorldSimulator]] - Uses tree for flow calculations
-- [[Compartment]] - Entity-based compartments (different abstraction)
+- [[Compartment]] - Entity-based compartments

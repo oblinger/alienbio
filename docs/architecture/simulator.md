@@ -1,58 +1,80 @@
 # Simulator
 **Subsystem**: [[ABIO execution]] > Simulation
-Execution engine for biology dynamics.
+Execution engine for biology dynamics (single-compartment, legacy).
 
-## Description
-Simulator is the protocol for execution engines that advance biological state through time. Two implementations exist: PythonSimulator (reference) and RustSimulator (performance).
+## Overview
+Simulator is the protocol for execution engines that advance biological state through time. Two implementations exist: PythonSimulator (reference) and RustSimulator (performance). For multi-compartment simulations, use WorldSimulator instead.
 
-| Methods | Description |
-|---------|-------------|
-| step | Advance state by one timestep |
-| run | Run simulation for specified duration |
-| run_until | Run until predicate is satisfied |
+| Property | Type | Description |
+|----------|------|-------------|
+| `chemistry` | Chemistry | The chemistry being simulated |
+| `dt` | float | Time step size |
 
-## Protocol Definition
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `step(state)` | State | Advance state by one timestep |
+| `run(state, steps)` | List[State] | Run simulation for multiple steps |
+
+## Discussion
+
+### Usage Example
 ```python
-from typing import Protocol
+from alienbio import SimpleSimulatorImpl, StateImpl
 
-class Simulator(Protocol):
-    """Execution engine protocol."""
+sim = SimpleSimulatorImpl(chemistry=chem, dt=0.1)
+state = StateImpl(chemistry=chem, initial={"glucose": 10.0})
 
-    def step(self, state: State, container: BioContainer, dt: float) -> State:
-        """Advance state by one timestep."""
-        ...
+# Single step
+new_state = sim.step(state)
 
-    def run(self, world: World, duration: float) -> Timeline:
-        """Run simulation for specified duration."""
-        ...
-
-    def run_until(self, world: World, predicate: Callable[[State], bool]) -> Timeline:
-        """Run until predicate is satisfied."""
-        ...
+# Multiple steps
+history = sim.run(state, steps=1000)
 ```
 
-## Methods
-### step(state, container, dt) -> State
-Advances the state by a single timestep dt.
+### Implementations
 
-### run(world, duration) -> Timeline
-Runs the full simulation, recording states and applying interventions.
-
-### run_until(world, predicate) -> Timeline
-Runs until the predicate returns True.
-
-## Implementations
-### PythonSimulator
+**PythonSimulator:**
 - NumPy-based vectorized operations
 - Clear, readable reference implementation
 - Suitable for debugging and small systems
 
-### RustSimulator
+**RustSimulator:**
 - PyO3 bindings expose same interface
 - SIMD-optimized concentration updates
 - 10-100x faster for large systems
 
+### Relationship to WorldSimulator
+- **Simulator**: Single-compartment, uses Chemistry
+- **WorldSimulator**: Multi-compartment, uses CompartmentTree + Flows
+
+## Protocol
+```python
+from typing import Protocol, List
+
+class Simulator(Protocol):
+    """Execution engine protocol (single-compartment)."""
+
+    @property
+    def chemistry(self) -> Chemistry:
+        """The Chemistry being simulated."""
+        ...
+
+    @property
+    def dt(self) -> float:
+        """Time step size."""
+        ...
+
+    def step(self, state: State) -> State:
+        """Advance state by one timestep."""
+        ...
+
+    def run(self, state: State, steps: int) -> List[State]:
+        """Run simulation for specified steps."""
+        ...
+```
+
 ## See Also
-- [[ABIO execution]]
+- [[WorldSimulator]] - Multi-compartment simulator
 - [[State]] - What gets simulated
-- [[World]] - Complete setup
+- [[Chemistry]] - Molecules and reactions
+- [[ABIO execution]] - Parent subsystem

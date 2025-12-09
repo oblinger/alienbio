@@ -1,33 +1,49 @@
 # World
 **Subsystem**: [[ABIO execution]] > Simulation
-Complete runnable setup.
+Complete runnable setup for simulation.
 
-## Description
+## Overview
 World combines a biological container, generators, initial conditions, and simulator configuration into a complete runnable setup.
 
-| Properties | Type | Description |
+| Property | Type | Description |
 |----------|------|-------------|
-| container | BioContainer | The biology being simulated |
-| generators | dict | Named generators for expansion |
-| initial_state | State | Starting concentrations |
-| config | SimulatorConfig | Simulation parameters |
+| `container` | BioContainer | The biology being simulated |
+| `generators` | Dict[str, Generator] | Named generators for expansion |
+| `initial_state` | State | Starting concentrations |
+| `config` | SimulatorConfig | Simulation parameters |
 
-| Methods | Description |
-|---------|-------------|
-| run | Run simulation for specified duration |
-| run_until | Run until predicate returns True |
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `run(duration)` | Timeline | Run simulation for specified duration |
+| `run_until(predicate)` | Timeline | Run until predicate returns True |
 
-## Protocol Definition
+## Discussion
+
+### Usage Example
 ```python
-from typing import Protocol
+from alienbio import World
+
+world = World(
+    container=chem,
+    initial_state=state,
+    config=SimulatorConfig(dt=0.1),
+)
+
+timeline = world.run(duration=100.0)
+final_state = timeline.states[-1]
+```
+
+## Protocol
+```python
+from typing import Protocol, Dict, Callable
 
 class World(Protocol):
     """Complete runnable simulation setup."""
 
     container: BioContainer
-    generators: dict[str, Generator]
+    generators: Dict[str, Generator]
     initial_state: State
-    config: "SimulatorConfig"
+    config: SimulatorConfig
 
     def run(self, duration: float) -> Timeline:
         """Run simulation for specified duration."""
@@ -38,14 +54,8 @@ class World(Protocol):
         ...
 ```
 
-## Methods
-### run(duration) -> Timeline
-Runs the simulation for the specified duration, returning full timeline.
-
-### run_until(predicate) -> Timeline
-Runs until the predicate function returns True for a state.
-
 ## See Also
-- [[ABIO execution]]
 - [[Simulator]] - Execution engine
-- [[BioContainer]] - Container being simulated
+- [[Timeline]] - Simulation results
+- [[Chemistry]] - Container being simulated
+- [[ABIO execution]] - Parent subsystem

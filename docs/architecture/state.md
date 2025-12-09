@@ -1,33 +1,54 @@
 # State
 **Subsystem**: [[ABIO execution]] > Simulation
-Snapshot of molecule concentrations.
+Snapshot of molecule concentrations (single-compartment, legacy).
 
-## Description
-State represents a snapshot of all molecule concentrations at a point in time. It's the fundamental data structure that simulation operates on.
+## Overview
+State represents a snapshot of all molecule concentrations at a point in time for single-compartment simulations. For multi-compartment simulations, use WorldState instead.
 
-| Properties | Type | Description |
+| Property | Type | Description |
 |----------|------|-------------|
-| timestamp | float | Simulation time of this snapshot |
-| concentrations | dict | Compartment name to numpy concentration vector |
+| `timestamp` | float | Simulation time of this snapshot |
+| `concentrations` | Dict[str, float] | Molecule name to concentration |
 
-| Methods | Description |
-|---------|-------------|
-| get | Get concentration of molecule in compartment |
-| copy | Create a deep copy of this state |
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get(molecule, compartment)` | float | Get concentration of molecule |
+| `copy()` | State | Create a deep copy of this state |
 
-## Protocol Definition
+## Discussion
+
+### Usage Example
 ```python
-from typing import Protocol
-import numpy as np
+from alienbio import StateImpl
+
+state = StateImpl(
+    chemistry=chem,
+    initial={"glucose": 10.0, "atp": 5.0}
+)
+
+# Access concentration
+glucose_conc = state.get("glucose")
+
+# Copy for simulation
+new_state = state.copy()
+```
+
+### Relationship to WorldState
+- **State**: Single-compartment, uses molecule names as strings
+- **WorldState**: Multi-compartment, uses integer IDs for efficiency
+
+## Protocol
+```python
+from typing import Protocol, Dict
 
 class State(Protocol):
-    """Snapshot of system concentrations."""
+    """Snapshot of system concentrations (single-compartment)."""
 
     timestamp: float
-    concentrations: dict[str, np.ndarray]  # compartment -> concentration vector
+    concentrations: Dict[str, float]
 
-    def get(self, molecule: str, compartment: str) -> float:
-        """Get concentration of molecule in compartment."""
+    def get(self, molecule: str) -> float:
+        """Get concentration of molecule."""
         ...
 
     def copy(self) -> "State":
@@ -35,14 +56,8 @@ class State(Protocol):
         ...
 ```
 
-## Methods
-### get(molecule, compartment) -> float
-Returns the concentration of a specific molecule in a compartment.
-
-### copy() -> State
-Creates a deep copy suitable for modification without affecting original.
-
 ## See Also
-- [[ABIO execution]]
-- [[Step]] - Advances state
+- [[WorldState]] - Multi-compartment state storage
+- [[Simulator]] - Advances state
 - [[Timeline]] - Sequence of states
+- [[ABIO execution]] - Parent subsystem

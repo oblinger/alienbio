@@ -1,15 +1,9 @@
 # WorldSimulator
 **Subsystem**: [[ABIO biology]] > Simulation
-
 Multi-compartment simulation with reactions and flows.
 
-## Purpose
-
-WorldSimulator advances the state of a multi-compartment world over time. Each simulation step:
-1. Applies reactions within each compartment
-2. Applies flows across compartment membranes
-
-## Design
+## Overview
+WorldSimulator advances the state of a multi-compartment world over time. Each simulation step applies reactions within compartments and flows across membranes. Supports history sampling for efficient memory usage.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -25,8 +19,9 @@ WorldSimulator advances the state of a multi-compartment world over time. Each s
 | `run(state, steps, sample_every)` | List[WorldState] | Run simulation |
 | `from_chemistry(chem, tree, flows, dt)` | WorldSimulator | Build from Chemistry |
 
-## Usage
+## Discussion
 
+### Usage Example
 ```python
 from alienbio import (
     WorldSimulatorImpl, WorldStateImpl, CompartmentTreeImpl,
@@ -42,16 +37,16 @@ cell = tree.add_child(organism, "cell")
 reactions = [
     ReactionSpec(
         name="glycolysis",
-        reactants={0: 1},      # 1 glucose
-        products={1: 2},       # 2 pyruvate
+        reactants={0: 1},
+        products={1: 2},
         rate_constant=0.1,
-        compartments=None,     # all compartments
+        compartments=None,  # all compartments
     ),
 ]
 
 # Define flows
 flows = [
-    FlowImpl(child=cell, molecule=0, rate_constant=0.05),  # glucose uptake
+    FlowImpl(child=cell, molecule=0, rate_constant=0.05),
 ]
 
 # Create simulator
@@ -63,20 +58,13 @@ sim = WorldSimulatorImpl(
     dt=0.1,
 )
 
-# Initialize state (references the tree)
+# Initialize state and run
 state = WorldStateImpl(tree=tree, num_molecules=10)
-state.set(organism, 0, 100.0)  # glucose in organism
-
-# Run simulation
+state.set(organism, 0, 100.0)
 history = sim.run(state, steps=1000, sample_every=100)
-
-# history contains 11 snapshots: [0, 100, 200, ..., 1000]
-# All states share the same tree reference (efficient)
-assert history[0].tree is history[-1].tree
 ```
 
-## ReactionSpec
-
+### ReactionSpec
 Lightweight reaction specification using molecule IDs:
 
 ```python
@@ -89,20 +77,8 @@ ReactionSpec(
 )
 ```
 
-## Building from Chemistry
-
+### Building from Chemistry
 ```python
-from alienbio import ChemistryImpl
-
-# Create chemistry with molecules and reactions
-chem = ChemistryImpl(
-    "glycolysis",
-    molecules={"glucose": glucose, "pyruvate": pyruvate},
-    reactions={"step1": reaction},
-    dat=dat,
-)
-
-# Build simulator
 sim = WorldSimulatorImpl.from_chemistry(
     chemistry=chem,
     tree=tree,
@@ -111,8 +87,7 @@ sim = WorldSimulatorImpl.from_chemistry(
 )
 ```
 
-## Simulation Loop
-
+### Simulation Loop
 Each `step()`:
 
 ```
@@ -127,22 +102,7 @@ Each `step()`:
    - Transfer molecules between parent and child
 ```
 
-## Tree Sharing in History
-
-Each WorldState holds a reference to its CompartmentTree. All states in a simulation history share the same tree reference (no copying):
-
-```python
-history = sim.run(state, steps=1000, sample_every=100)
-
-# All 11 snapshots reference the same tree object
-for s in history:
-    assert s.tree is state.tree
-```
-
-When topology changes (e.g., cell division), create a new tree and new states will reference it while historical states keep their original tree.
-
-## History Sampling
-
+### History Sampling
 For long simulations, sample every Nth step to save memory:
 
 ```python
@@ -152,23 +112,87 @@ history = sim.run(state, steps=1000)
 # Sampled history (11 states: 0, 100, 200, ..., 1000)
 history = sim.run(state, steps=1000, sample_every=100)
 
-# Current state only (just run, don't store)
+# Current state only
 for _ in range(1000):
     state = sim.step(state)
 ```
 
-## GPU Considerations
+### Tree Sharing in History
+All states in a simulation history share the same tree reference:
 
-The Python implementation is designed for clarity. For high-performance simulations:
+```python
+for s in history:
+    assert s.tree is state.tree
+```
 
-1. **Rust implementation** with PyO3 bindings
-2. **Batched operations** for SIMD
-3. **GPU kernels** for massive parallelism
+When topology changes (e.g., cell division), create a new tree.
 
-The dense WorldState layout is GPU-friendly: regular memory access patterns, no pointer chasing.
+### GPU Considerations
+The Python implementation is designed for clarity. For high-performance:
+- **Rust implementation** with PyO3 bindings
+- **Batched operations** for SIMD
+- **GPU kernels** for massive parallelism
+
+The dense WorldState layout is GPU-friendly.
+
+## Method Details
+
+### `step(state: WorldState) -> WorldState`
+Advance the simulation by one time step.
+
+**Args:**
+- `state`: Current world state
+
+**Returns:** New state after applying reactions and flows
+
+### `run(state: WorldState, steps: int, sample_every: Optional[int] = None) -> List[WorldState]`
+Run simulation for multiple steps.
+
+**Args:**
+- `state`: Initial state
+- `steps`: Number of steps to run
+- `sample_every`: If set, only keep every Nth state in history
+
+**Returns:** List of states (includes initial state)
+
+## Protocol
+```python
+from typing import Protocol, List, Optional, runtime_checkable
+
+@runtime_checkable
+class Simulator(Protocol):
+    """Protocol for simulators."""
+
+    @property
+    def chemistry(self) -> Chemistry:
+        """The Chemistry being simulated."""
+        ...
+
+    @property
+    def tree(self) -> CompartmentTree:
+        """The compartment topology."""
+        ...
+
+    @property
+    def dt(self) -> float:
+        """Time step size."""
+        ...
+
+    def step(self, state: WorldState) -> WorldState:
+        """Advance the simulation by one time step."""
+        ...
+
+    def run(
+        self,
+        state: WorldState,
+        steps: int,
+        sample_every: Optional[int] = None,
+    ) -> List[WorldState]:
+        """Run simulation for multiple steps."""
+        ...
+```
 
 ## See Also
-
 - [[WorldState]] - Concentration storage
 - [[CompartmentTree]] - Compartment topology
 - [[Flow]] - Membrane transport

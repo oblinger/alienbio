@@ -2,21 +2,38 @@
 **Subsystem**: [[ABIO execution]] > Interface
 Agent action to perturb system state.
 
-## Description
+## Overview
 Action represents a modification function that agents can use to perturb the biological system. Actions are the agent's means of affecting the world.
 
-| Properties | Type | Description |
+| Property | Type | Description |
 |----------|------|-------------|
-| name | str | Action identifier |
-| description | str | What this action does |
+| `name` | str | Action identifier |
+| `description` | str | What this action does |
 
-| Methods | Description |
-|---------|-------------|
-| apply | Apply action to world, return modified world |
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `apply(world, **params)` | World | Apply action and return modified world |
 
-## Protocol Definition
+## Discussion
+
+### Examples
+- `add_molecule("inhibitor_X", 0.1)` - Add inhibitor to system
+- `remove_enzyme("kinase_A")` - Remove an enzyme
+- `adjust_temperature(+2.0)` - Change environmental condition
+
+### Usage
 ```python
-from typing import Protocol
+action = Action(
+    name="add_drug",
+    description="Add therapeutic compound to system"
+)
+
+new_world = action.apply(world, molecule="drug_X", concentration=0.5)
+```
+
+## Protocol
+```python
+from typing import Protocol, Any
 
 class Action(Protocol):
     """Agent modification function."""
@@ -24,21 +41,12 @@ class Action(Protocol):
     name: str
     description: str
 
-    def apply(self, world: World, **params) -> World:
+    def apply(self, world: World, **params: Any) -> World:
         """Apply action to world, return modified world."""
         ...
 ```
 
-## Methods
-### apply(world, **params) -> World
-Applies the action and returns the modified world.
-
-## Examples
-- `add_molecule("inhibitor_X", 0.1)` - Add inhibitor to system
-- `remove_enzyme("kinase_A")` - Remove an enzyme
-- `adjust_temperature(+2.0)` - Change environmental condition
-
 ## See Also
-- [[ABIO execution]]
 - [[Measurement]] - Counterpart for observations
 - [[Task]] - Constrains available actions
+- [[ABIO execution]] - Parent subsystem

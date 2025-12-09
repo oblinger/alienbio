@@ -1,17 +1,9 @@
 # Compartment
-**Subsystem**: [[ABIO biology]] > Biology
-
+**Subsystem**: [[ABIO biology]] > Containers
 Entity representing a biological compartment in the hierarchy.
 
-## Purpose
-
-Compartment is an Entity that defines a region in the biological hierarchy (organism, organ, cell, organelle). It serves as both:
-- **Initial state specification**: multiplicity, concentrations
-- **Behavior specification**: membrane flows, active reactions
-
-The entity tree of Compartments is the complete simulation specification.
-
-## Design
+## Overview
+Compartment is an Entity that defines a region in the biological hierarchy (organism, organ, cell, organelle). It serves as both initial state specification (multiplicity, concentrations) and behavior specification (membrane flows, active reactions). The entity tree of Compartments is the complete simulation specification.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -31,8 +23,9 @@ The entity tree of Compartments is the complete simulation specification.
 | `all_compartments()` | List[Compartment] | Self and all descendants |
 | `depth()` | int | Depth in tree (root = 0) |
 
-## Usage
+## Discussion
 
+### Usage Example
 ```python
 from alienbio import CompartmentImpl, FlowImpl
 
@@ -62,9 +55,8 @@ hepatocyte = CompartmentImpl(
 )
 ```
 
-## Multiplicity
-
-Multiplicity represents how many instances of a compartment exist:
+### Multiplicity
+Multiplicity represents how many instances of a compartment exist. Concentrations are per-instance. Total molecules = multiplicity × concentration.
 
 ```python
 # 1 billion red blood cells in arteries
@@ -76,23 +68,18 @@ arterial_rbc = CompartmentImpl(
 )
 ```
 
-Concentrations are per-instance. Total molecules = multiplicity × concentration.
-
 Nested multiplicities are conceptually multiplicative:
 - Liver has 1e9 hepatocytes
 - Each hepatocyte has 500 mitochondria
 - Total mitochondria = 1e9 × 500 = 5e11
 
-## Volume
-
+### Volume
 Volume specifies the size of each compartment instance. It is **required** (no default) because the appropriate scale varies widely:
-- Macroscopic systems (organs, blood vessels): might use mL or L
-- Cellular systems: might use femtoliters (10⁻¹⁵ L)
-- Abstract simulations: might use arbitrary units like 10,000 for percentage-like concentrations
+- Macroscopic systems (organs): mL or L
+- Cellular systems: femtoliters (10⁻¹⁵ L)
+- Abstract simulations: arbitrary units
 
 ### Two Concentration Concepts
-
-Volume participates in two different concentration calculations:
 
 **1. Molecular concentration within a compartment**
 ```
@@ -104,120 +91,79 @@ Used by reactions. Example: glucose concentration inside a hepatocyte.
 ```
 child_concentration = child_multiplicity / parent_volume
 ```
-Used by lateral flows between siblings. Example: concentration of oxygenated RBCs in arterial blood.
-
-```
-ARTERIES (volume = 1000 mL)
-├── oxygenated_rbc (multiplicity = 2e9)    → concentration = 2e6/mL
-└── deoxygenated_rbc (multiplicity = 0.5e9) → concentration = 0.5e6/mL
-```
+Used by lateral flows. Example: concentration of oxygenated RBCs in arterial blood.
 
 ### Membrane Flow Calculations
-
-When molecules flow across a membrane, the same molecule count causes different concentration changes on each side due to volume asymmetry:
-
-```
-PARENT (volume = 1000)
-│
-├── membrane ← 100 molecules flow from parent to child
-│
-└── CHILD (volume = 1)
-```
+When molecules flow across a membrane, volume asymmetry causes different concentration changes:
 
 ```
-ΔC_parent = -100 / 1000 = -0.1
-ΔC_child  = +100 / 1    = +100
+PARENT (volume = 1000)      CHILD (volume = 1)
+ΔC = -100/1000 = -0.1       ΔC = +100/1 = +100
 ```
 
 This asymmetry is fundamental: a small cell taking up molecules from a large extracellular space barely affects outside concentration but dramatically changes inside concentration.
 
-### Lateral Flow Calculations
-
-When instances transfer between siblings, both use the parent's volume:
-
-```
-ΔC_source = -instances / parent_volume
-ΔC_dest   = +instances / parent_volume
-```
-
-Same parent volume on both sides since siblings share a container.
-
-### Usage
-
-```python
-# Explicit volume is required
-hepatocyte = CompartmentImpl(
-    "hepatocyte",
-    parent=liver,
-    kind="cell",
-    volume=1e-12,  # femtoliters
-    concentrations={"glucose": 1.0},
-)
-```
-
-## Membrane Flows
-
-Each compartment owns its membrane. Flows across the membrane are listed in `membrane_flows`:
-
-```python
-hepatocyte = CompartmentImpl(
-    "hepatocyte",
-    parent=liver,
-    kind="cell",
-    membrane_flows=[
-        FlowImpl(origin=0, molecule=glucose_id, rate_constant=0.1),
-        FlowImpl(origin=0, molecule=oxygen_id, rate_constant=0.5),
-    ],
-)
-```
-
-## Active Reactions
-
-By default, all reactions from Chemistry are active in all compartments. To restrict:
-
-```python
-# Only glycolysis and gluconeogenesis in hepatocytes
-hepatocyte = CompartmentImpl(
-    "hepatocyte",
-    parent=liver,
-    kind="cell",
-    active_reactions=["glycolysis", "gluconeogenesis"],
-)
-
-# All reactions active (default)
-generic_cell = CompartmentImpl(
-    "cell",
-    parent=organ,
-    kind="cell",
-    active_reactions=None,  # all from chemistry
-)
-```
-
-## Container Kinds
-
+### Container Kinds
 The `kind` field is a semantic label:
 - **organism** - Top-level biological entity
 - **organ** - Functional unit within organism
 - **cell** - Individual cellular unit
-- **organelle** - Sub-cellular compartment (mitochondria, nucleus, etc.)
+- **organelle** - Sub-cellular compartment
 - **compartment** - Generic sub-region
 
-## Entity Tree → Simulation
-
+### Entity Tree → Simulation
 The Compartment entity tree compiles to simulation structures:
 
 ```
 CompartmentImpl tree  ──compile──►  WorldSimulator
-                                      ├── CompartmentTree (efficient topology)
-                                      ├── WorldState (concentrations + multiplicities)
-                                      ├── ReactionSpecs (per compartment)
-                                      └── FlowSpecs (from membrane_flows)
+                                      ├── CompartmentTree
+                                      ├── WorldState
+                                      ├── ReactionSpecs
+                                      └── FlowSpecs
+```
+
+## Protocol
+```python
+from typing import Protocol, Dict, List, Optional, runtime_checkable
+
+@runtime_checkable
+class Compartment(Protocol):
+    """Protocol for compartment entities."""
+
+    @property
+    def kind(self) -> str:
+        """Compartment type: organism, organ, cell, organelle."""
+        ...
+
+    @property
+    def volume(self) -> float:
+        """Volume of each instance."""
+        ...
+
+    @property
+    def multiplicity(self) -> float:
+        """Number of instances."""
+        ...
+
+    @property
+    def concentrations(self) -> Dict[str, float]:
+        """Initial molecule concentrations."""
+        ...
+
+    @property
+    def membrane_flows(self) -> List[Flow]:
+        """Flows across this membrane."""
+        ...
+
+    @property
+    def active_reactions(self) -> Optional[List[str]]:
+        """Active reaction names (None = all)."""
+        ...
 ```
 
 ## See Also
-
 - [[CompartmentTree]] - Efficient topology for simulation
-- [[WorldState]] - Concentration storage (includes multiplicities)
+- [[WorldState]] - Concentration storage
 - [[Flow]] - Membrane and lateral transport
 - [[Chemistry]] - Reactions and molecules
 - [[WorldSimulator]] - Multi-compartment simulation
