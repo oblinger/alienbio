@@ -25,13 +25,7 @@ class TestIOCreation:
     def test_create_default(self):
         """IO can be created with defaults."""
         io = IO()
-        assert io.data_path == Path("data")
         assert io.prefixes == {}
-
-    def test_create_with_data_path(self):
-        """IO can be created with custom data path."""
-        io = IO(data_path=Path("/custom/path"))
-        assert io.data_path == Path("/custom/path")
 
 
 class TestPrefixBindings:

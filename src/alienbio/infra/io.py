@@ -12,30 +12,22 @@ if TYPE_CHECKING:
 
 
 class IO:
-    """Entity I/O: naming, formatting, parsing, and persistence.
+    """Entity I/O: naming, formatting, lookup, and persistence.
 
     IO handles all external representation concerns for entities:
     - Prefix bindings: Maps short prefixes (R:, W:) to Entity/DAT anchors
     - Formatting: Converts entities to PREFIX:path strings
-    - Parsing: Converts PREFIX:path strings back to entities
+    - Lookup: Converts PREFIX:path strings back to entities
     - Persistence: Load/save entities via DAT
 
     The 'D:' prefix is always bound to the data root as an escape hatch.
+
+    Note: For data path, use Dat.manager.sync_folder (single source of truth).
     """
 
-    def __init__(self, data_path: Optional[Path] = None) -> None:
-        """Initialize IO.
-
-        Args:
-            data_path: Root path for data storage. Defaults to 'data'.
-        """
+    def __init__(self) -> None:
+        """Initialize IO."""
         self._prefixes: Dict[str, Entity] = {}
-        self._data_path = data_path or Path("data")
-
-    @property
-    def data_path(self) -> Path:
-        """Root path for data storage."""
-        return self._data_path
 
     @property
     def prefixes(self) -> Dict[str, Entity]:
@@ -227,15 +219,15 @@ class IO:
 
         Args:
             obj: Object to save. If dict, uses as spec. Otherwise wraps in {"value": obj}.
-            path: Path relative to data root
+            path: Path relative to Dat.manager.sync_folder
 
         Returns:
             The created Dat
         """
-        full_path = self._data_path / path
         if isinstance(obj, Dat):
             obj.save()
             return obj
         # Create a new Dat with the object as spec
+        # Dat.create handles path resolution via Dat.manager.sync_folder
         spec = obj if isinstance(obj, dict) else {"value": obj}
-        return Dat.create(path=str(full_path), spec=spec)
+        return Dat.create(path=str(path), spec=spec)

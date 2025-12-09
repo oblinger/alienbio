@@ -21,10 +21,11 @@ class Context:
 
     Holds configuration, connections, and references to all major subsystems.
     Stored in a ContextVar for thread/async safety.
+
+    Note: For data path, use Dat.manager.sync_folder (single source of truth).
     """
 
     config: dict[str, Any] = field(default_factory=dict)
-    data_path: Path = field(default_factory=lambda: Path("data"))
     _io: IOClass | None = field(default=None, repr=False)
 
     @property
@@ -32,7 +33,7 @@ class Context:
         """Entity I/O: prefix bindings, formatting, lookup, persistence."""
         if self._io is None:
             from .io import IO
-            self._io = IO(data_path=self.data_path)
+            self._io = IO()
         return self._io
 
     def do(self, name: str, *args, **kwargs) -> Any:
@@ -59,13 +60,13 @@ class Context:
 
     def save(self, obj: Any, path: str | Path) -> Dat:
         """Save an object as a Dat to a data path."""
-        full_path = self.data_path / path
         if isinstance(obj, Dat):
             obj.save()
             return obj
         # Create a new Dat with the object as spec
+        # Dat.create handles path resolution via Dat.manager.sync_folder
         spec = obj if isinstance(obj, dict) else {"value": obj}
-        return Dat.manager.create(Dat, path=str(full_path), spec=spec)
+        return Dat.create(path=str(path), spec=spec)
 
     def lookup(self, name: str) -> Entity:
         """Look up an entity by PREFIX:path string.

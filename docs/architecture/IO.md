@@ -15,7 +15,8 @@ IO is accessed through [[Context]] and provides the implementation for top-level
 | Properties | Type | Description |
 |----------|------|-------------|
 | _prefixes | Dict[str, Entity] | Prefix -> target entity bindings |
-| data_path | Path | Root path for data storage |
+
+Note: For data path, use `Dat.manager.sync_folder` (single source of truth).
 
 | Methods | Description |
 |---------|-------------|
@@ -31,13 +32,14 @@ IO is accessed through [[Context]] and provides the implementation for top-level
 
 ```python
 from typing import Dict, Any, Optional
-from pathlib import Path
 
 class IO:
-    """Entity I/O: naming, formatting, lookup, persistence."""
+    """Entity I/O: naming, formatting, lookup, persistence.
+
+    Note: For data path, use Dat.manager.sync_folder (single source of truth).
+    """
 
     _prefixes: Dict[str, "Entity"]
-    _data_path: Path
 
     def bind_prefix(self, prefix: str, target: "Entity") -> None:
         """Bind a prefix to a target entity.

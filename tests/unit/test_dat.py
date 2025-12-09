@@ -47,9 +47,6 @@ class TestCreate:
     def test_create_from_string_returns_dat(self):
         """create() from string spec returns a Dat."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             result = create("fixtures.simple", path=f"{tmpdir}/create_str")
             assert isinstance(result, Dat)
             assert result.get_spec()["name"] == "simple_fixture"
@@ -57,9 +54,6 @@ class TestCreate:
     def test_create_from_dict_returns_dat(self):
         """create() from dict spec returns a Dat."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             spec = {"custom_key": "custom_value", "count": 10}
             result = create(spec, path=f"{tmpdir}/create_dict")
             assert isinstance(result, Dat)
@@ -73,10 +67,7 @@ class TestSaveLoadRoundtrip:
     def test_save_creates_dat_folder(self):
         """save() creates a Dat folder with _spec_.yaml."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
-            result = save({"name": "test", "value": 123}, "test/item1")
+            result = save({"name": "test", "value": 123}, f"{tmpdir}/test/item1")
 
             spec_path = Path(tmpdir) / "test" / "item1" / "_spec_.yaml"
             assert spec_path.exists()
@@ -85,37 +76,28 @@ class TestSaveLoadRoundtrip:
     def test_save_returns_dat(self):
         """save() returns a Dat object."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
-            result = save({"name": "test"}, "test/item2")
+            result = save({"name": "test"}, f"{tmpdir}/test/item2")
 
             assert isinstance(result, Dat)
 
     def test_load_returns_dat(self):
         """load() returns a Dat object."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             # Create a Dat first
-            save({"name": "test_load"}, "test/load_test")
+            save({"name": "test_load"}, f"{tmpdir}/test/load_test")
 
             # Load it
-            result = load(Path(tmpdir) / "test" / "load_test")
+            result = load(f"{tmpdir}/test/load_test")
 
             assert isinstance(result, Dat)
 
     def test_save_load_roundtrip_dict(self):
         """save() then load() round-trips a dict through Dat."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             original = {"name": "roundtrip_test", "value": 42, "nested": {"a": 1}}
-            save(original, "roundtrip/test1")
+            save(original, f"{tmpdir}/roundtrip/test1")
 
-            loaded = load(Path(tmpdir) / "roundtrip" / "test1")
+            loaded = load(f"{tmpdir}/roundtrip/test1")
 
             assert loaded.get_spec()["name"] == "roundtrip_test"
             assert loaded.get_spec()["value"] == 42
@@ -124,12 +106,9 @@ class TestSaveLoadRoundtrip:
     def test_save_wraps_non_dict_in_value_key(self):
         """save() wraps non-dict values in a 'value' key."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
+            save("just a string", f"{tmpdir}/test/string_val")
 
-            save("just a string", "test/string_val")
-
-            loaded = load(Path(tmpdir) / "test" / "string_val")
+            loaded = load(f"{tmpdir}/test/string_val")
             assert loaded.get_spec()["value"] == "just a string"
 
 
@@ -139,11 +118,8 @@ class TestDatOperations:
     def test_dat_has_spec(self):
         """Dat objects have a _spec attribute."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
-            save({"key": "value"}, "test/spec_test")
-            loaded = load(Path(tmpdir) / "test" / "spec_test")
+            save({"key": "value"}, f"{tmpdir}/test/spec_test")
+            loaded = load(f"{tmpdir}/test/spec_test")
 
             assert hasattr(loaded, "spec")
             assert loaded.get_spec()["key"] == "value"
@@ -151,11 +127,8 @@ class TestDatOperations:
     def test_dat_has_path(self):
         """Dat objects have a _path attribute."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
-            save({"key": "value"}, "test/path_test")
-            loaded = load(Path(tmpdir) / "test" / "path_test")
+            save({"key": "value"}, f"{tmpdir}/test/path_test")
+            loaded = load(f"{tmpdir}/test/path_test")
 
             assert hasattr(loaded, "_path")
             assert "path_test" in str(loaded._path)
@@ -175,9 +148,6 @@ class TestYamlStringSpec:
     def test_create_from_yaml_string_spec(self):
         """create() works with YAML string spec names."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             dat = create("fixtures.experiment_template", path=f"{tmpdir}/yaml_exp")
             assert isinstance(dat, Dat)
             assert dat.get_spec()["name"] == "experiment_from_yaml"
@@ -226,9 +196,6 @@ class TestDatWithProperSpec:
     def test_create_from_spec_with_dat_section(self):
         """create() with spec that has dat: section works correctly."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             dat = create("fixtures.simple_dat", path=f"{tmpdir}/simple_dat_test")
             assert isinstance(dat, Dat)
             assert dat.get_spec()["name"] == "simple_dat"
@@ -238,9 +205,6 @@ class TestDatWithProperSpec:
     def test_create_runnable_experiment(self):
         """create() with runnable spec (dat.do defined) works."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             dat = create("fixtures.runnable_experiment", path=f"{tmpdir}/run_exp")
             assert isinstance(dat, Dat)
             assert dat.get_spec()["dat"]["do"] == "fixtures.run_compute_metric"
@@ -249,9 +213,6 @@ class TestDatWithProperSpec:
     def test_dat_run_executes_do_function(self):
         """dat.run() executes the function specified in dat.do."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             dat = create("fixtures.runnable_experiment", path=f"{tmpdir}/run_test")
 
             # Run the DAT - this should call fixtures.compute_metric with dat
@@ -268,10 +229,7 @@ class TestDataFolderOperations:
     def test_save_to_fixtures_subfolder(self):
         """save() can write to a fixtures/ subfolder in data."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
-            dat = save({"name": "in_fixtures", "value": 999}, "fixtures/test_item")
+            dat = save({"name": "in_fixtures", "value": 999}, f"{tmpdir}/fixtures/test_item")
 
             assert isinstance(dat, Dat)
             spec_path = Path(tmpdir) / "fixtures" / "test_item" / "_spec_.yaml"
@@ -280,14 +238,11 @@ class TestDataFolderOperations:
     def test_load_from_fixtures_subfolder(self):
         """load() can read from a fixtures/ subfolder in data."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             # Save first
-            save({"name": "loadable", "value": 123}, "fixtures/loadable_item")
+            save({"name": "loadable", "value": 123}, f"{tmpdir}/fixtures/loadable_item")
 
             # Load it back
-            dat = load(Path(tmpdir) / "fixtures" / "loadable_item")
+            dat = load(f"{tmpdir}/fixtures/loadable_item")
 
             assert isinstance(dat, Dat)
             assert dat.get_spec()["name"] == "loadable"
@@ -296,16 +251,13 @@ class TestDataFolderOperations:
     def test_roundtrip_nested_subfolder(self):
         """save/load roundtrip works with nested subfolders."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            context = Context(data_path=Path(tmpdir))
-            set_context(context)
-
             original = {
                 "name": "deeply_nested",
                 "data": {"level1": {"level2": {"value": 42}}}
             }
-            save(original, "fixtures/nested/deep/item")
+            save(original, f"{tmpdir}/fixtures/nested/deep/item")
 
-            loaded = load(Path(tmpdir) / "fixtures" / "nested" / "deep" / "item")
+            loaded = load(f"{tmpdir}/fixtures/nested/deep/item")
 
             assert loaded.get_spec()["name"] == "deeply_nested"
             assert loaded.get_spec()["data"]["level1"]["level2"]["value"] == 42
