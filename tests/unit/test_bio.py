@@ -1,15 +1,27 @@
-"""Unit tests for bio module: BioMolecule, BioReaction, BioChemistry, State, Simulator."""
+"""Unit tests for bio module: Molecule, Reaction, Chemistry, State, Simulator."""
 
 import pytest
 from unittest.mock import MagicMock
 
 from alienbio import (
-    BioMolecule,
-    BioReaction,
-    BioChemistry,
+    # Protocols (for type checking)
+    Atom,
+    Molecule,
+    Reaction,
+    Chemistry,
     State,
     Simulator,
-    SimpleSimulator,
+    # Implementation classes (for instantiation)
+    AtomImpl,
+    MoleculeImpl,
+    ReactionImpl,
+    ChemistryImpl,
+    StateImpl,
+    SimpleSimulatorImpl,
+    # Atom utilities
+    COMMON_ATOMS,
+    get_atom,
+    # Other
     Entity,
     Context,
     set_context,
@@ -34,14 +46,67 @@ class MockDat:
         pass
 
 
-class TestBioMolecule:
-    """Tests for BioMolecule class."""
+class TestAtom:
+    """Tests for Atom class."""
+
+    def test_create_atom(self):
+        """Create atom with properties."""
+        atom = AtomImpl("C", "Carbon", 12.011)
+
+        assert atom.symbol == "C"
+        assert atom.name == "Carbon"
+        assert atom.atomic_weight == 12.011
+
+    def test_atom_invalid_symbol(self):
+        """Symbol must be 1-2 characters."""
+        with pytest.raises(ValueError, match="1-2 characters"):
+            AtomImpl("ABC", "Invalid", 1.0)
+
+    def test_atom_equality(self):
+        """Atoms are equal if same symbol."""
+        atom1 = AtomImpl("C", "Carbon", 12.011)
+        atom2 = AtomImpl("C", "Carbon", 12.011)
+
+        assert atom1 == atom2
+
+    def test_atom_hash(self):
+        """Atoms can be dict keys."""
+        atom1 = AtomImpl("C", "Carbon", 12.011)
+        atom2 = AtomImpl("C", "Carbon", 12.011)
+
+        d = {atom1: 6}
+        assert d[atom2] == 6
+
+    def test_common_atoms(self):
+        """COMMON_ATOMS contains expected elements."""
+        assert "C" in COMMON_ATOMS
+        assert "H" in COMMON_ATOMS
+        assert "O" in COMMON_ATOMS
+        assert "N" in COMMON_ATOMS
+
+        assert COMMON_ATOMS["C"].name == "Carbon"
+        assert COMMON_ATOMS["H"].atomic_weight == pytest.approx(1.008)
+
+    def test_get_atom(self):
+        """get_atom retrieves by symbol."""
+        carbon = get_atom("C")
+        assert carbon.symbol == "C"
+        assert carbon.name == "Carbon"
+
+    def test_get_atom_unknown(self):
+        """get_atom raises for unknown symbol."""
+        with pytest.raises(KeyError, match="Unknown atom"):
+            get_atom("Xx")
+
+
+class TestMolecule:
+    """Tests for Molecule class."""
 
     def test_create_molecule_with_parent(self):
         """Create molecule as child of parent entity."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat)
-        mol = BioMolecule("glucose", parent=parent)
+        mol = MoleculeImpl("glucose", parent=parent)
 
         assert mol.local_name == "glucose"
         assert mol.parent is parent
@@ -50,98 +115,121 @@ class TestBioMolecule:
     def test_create_molecule_with_dat(self):
         """Create molecule as root entity."""
         dat = MockDat("molecules/glucose")
-        mol = BioMolecule("glucose", dat=dat)
+        mol = MoleculeImpl("glucose", dat=dat)
 
         assert mol.local_name == "glucose"
         assert mol.dat() is dat
 
-    def test_molecule_properties(self):
-        """Molecule stores arbitrary properties."""
+    def test_molecule_atoms(self):
+        """Molecule stores atom composition."""
         dat = MockDat("molecules/glucose")
-        props = {"molecular_weight": 180.16, "formula": "C6H12O6"}
-        mol = BioMolecule("glucose", dat=dat, properties=props)
+        C = get_atom("C")
+        H = get_atom("H")
+        O = get_atom("O")
+        atoms = {C: 6, H: 12, O: 6}
+        mol = MoleculeImpl("glucose", dat=dat, atoms=atoms, name="Glucose")
 
-        assert mol.properties == props
-        assert mol.get_property("molecular_weight") == 180.16
-        assert mol.get_property("missing", default=0) == 0
+        assert mol.atoms == atoms
+        assert mol.name == "Glucose"
+        assert mol.symbol == "C6H12O6"
+        assert mol.molecular_weight == pytest.approx(180.156)  # 6*12.011 + 12*1.008 + 6*15.999
 
-    def test_set_property(self):
-        """Can update molecule properties."""
+    def test_molecule_bdepth(self):
+        """Molecule has biosynthetic depth."""
         dat = MockDat("molecules/glucose")
-        mol = BioMolecule("glucose", dat=dat)
-        mol.set_property("color", "white")
+        mol = MoleculeImpl("glucose", dat=dat, bdepth=2)
 
-        assert mol.get_property("color") == "white"
+        assert mol.bdepth == 2
 
-    def test_properties_returns_copy(self):
-        """Properties returns a copy, not original."""
-        dat = MockDat("molecules/glucose")
-        mol = BioMolecule("glucose", dat=dat, properties={"x": 1})
+    def test_atoms_returns_copy(self):
+        """atoms returns a copy, not original."""
+        dat = MockDat("molecules/water")
+        H = get_atom("H")
+        O = get_atom("O")
+        mol = MoleculeImpl("water", dat=dat, atoms={H: 2, O: 1})
 
-        props = mol.properties
-        props["y"] = 2
-        assert "y" not in mol.properties
+        atoms = mol.atoms
+        atoms[get_atom("C")] = 1
+        assert get_atom("C") not in mol.atoms
 
     def test_molecule_to_dict(self):
-        """to_dict includes properties."""
-        dat = MockDat("molecules/glucose")
-        mol = BioMolecule("glucose", dat=dat, properties={"weight": 180})
+        """to_dict includes atoms."""
+        dat = MockDat("molecules/water")
+        H = get_atom("H")
+        O = get_atom("O")
+        mol = MoleculeImpl("water", dat=dat, atoms={H: 2, O: 1}, name="Water")
 
         d = mol.to_dict()
-        assert d["type"] == "Molecule"
-        assert d["name"] == "glucose"
-        assert d["properties"] == {"weight": 180}
+        assert d["head"] == "Molecule"
+        assert d["name"] == "water"  # local_name from Entity
+        assert d["display_name"] == "Water"  # human-readable name when different
+        assert d["atoms"] == {"H": 2, "O": 1}
 
     def test_molecule_inherits_entity(self):
-        """BioMolecule is an Entity."""
+        """MoleculeImpl is an Entity."""
         dat = MockDat("molecules/glucose")
-        mol = BioMolecule("glucose", dat=dat)
+        mol = MoleculeImpl("glucose", dat=dat)
 
         assert isinstance(mol, Entity)
 
     def test_molecule_type_registered(self):
-        """BioMolecule registered as 'Molecule'."""
+        """MoleculeImpl registered as 'Molecule'."""
         cls = get_entity_type("Molecule")
-        assert cls is BioMolecule
+        assert cls is MoleculeImpl
 
 
-class TestBioReaction:
-    """Tests for BioReaction class."""
+class TestReaction:
+    """Tests for Reaction class."""
 
     def test_create_reaction(self):
         """Create reaction with reactants and products."""
-        dat = MockDat("chemistry/glycolysis")
-        chem = BioChemistry("glycolysis", dat=dat)
-        glucose = BioMolecule("glucose", parent=chem)
-        atp = BioMolecule("atp", parent=chem)
+        dat = MockDat("reactions/step1")
+        glucose = MoleculeImpl("glucose", dat=MockDat("mol/glucose"))
+        atp = MoleculeImpl("atp", dat=MockDat("mol/atp"))
 
-        reaction = BioReaction(
+        reaction = ReactionImpl(
             "step1",
             reactants={glucose: 1},
             products={atp: 2},
             rate=0.1,
-            parent=chem,
+            dat=dat,
         )
 
         assert reaction.local_name == "step1"
+        assert reaction.name == "step1"
         assert glucose in reaction.reactants
         assert atp in reaction.products
         assert reaction.rate == 0.1
 
+    def test_reaction_symbol(self):
+        """Reaction symbol is formula string."""
+        glucose = MoleculeImpl("glucose", dat=MockDat("mol/glucose"))
+        atp = MoleculeImpl("atp", dat=MockDat("mol/atp"))
+        adp = MoleculeImpl("adp", dat=MockDat("mol/adp"))
+
+        reaction = ReactionImpl(
+            "step1",
+            reactants={glucose: 1, atp: 1},
+            products={adp: 2},
+            dat=MockDat("reactions/step1"),
+        )
+
+        # symbol is "reactant + reactant -> product + product"
+        assert "->" in reaction.symbol
+        assert "glucose" in reaction.symbol or "atp" in reaction.symbol
+
     def test_reaction_stoichiometry(self):
         """Reaction stores stoichiometric coefficients."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
-        c = BioMolecule("C", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        c = MoleculeImpl("C", dat=MockDat("mol/C"))
 
         # 2A + B -> 3C
-        reaction = BioReaction(
+        reaction = ReactionImpl(
             "r1",
             reactants={a: 2, b: 1},
             products={c: 3},
-            parent=chem,
+            dat=MockDat("reactions/r1"),
         )
 
         assert reaction.reactants[a] == 2
@@ -151,34 +239,35 @@ class TestBioReaction:
     def test_reaction_rate_constant(self):
         """Constant rate returns same value."""
         dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        reaction = BioReaction("r1", rate=0.5, parent=chem)
+        chem = ChemistryImpl("test", dat=dat)
+        reaction = ReactionImpl("r1", rate=0.5, dat=MockDat("reactions/r1"))
 
-        state = State(chem)
+        state = StateImpl(chem)
         assert reaction.get_rate(state) == 0.5
 
     def test_reaction_rate_function(self):
         """Rate function called with state."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        mol = BioMolecule("enzyme", parent=chem)
+        enzyme = MoleculeImpl("enzyme", dat=MockDat("mol/enzyme"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"enzyme": enzyme},
+            dat=MockDat("chemistry/test"),
+        )
 
         def rate_fn(state):
             return state["enzyme"] * 0.1
 
-        reaction = BioReaction("r1", rate=rate_fn, parent=chem)
+        reaction = ReactionImpl("r1", rate=rate_fn, dat=MockDat("reactions/r1"))
 
-        state = State(chem, initial={"enzyme": 5.0})
+        state = StateImpl(chem, initial={"enzyme": 5.0})
         assert reaction.get_rate(state) == 0.5
 
     def test_add_reactant_product(self):
         """Can add reactants and products after creation."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
 
-        reaction = BioReaction("r1", parent=chem)
+        reaction = ReactionImpl("r1", dat=MockDat("reactions/r1"))
         reaction.add_reactant(a, 2)
         reaction.add_product(b, 1)
 
@@ -187,162 +276,181 @@ class TestBioReaction:
 
     def test_reaction_to_dict(self):
         """to_dict includes reactants, products, rate."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
 
-        reaction = BioReaction(
+        reaction = ReactionImpl(
             "r1",
             reactants={a: 1},
             products={b: 1},
             rate=0.1,
-            parent=chem,
+            dat=MockDat("reactions/r1"),
         )
 
         d = reaction.to_dict()
-        assert d["type"] == "Reaction"
+        assert d["head"] == "Reaction"
         assert d["reactants"] == {"A": 1}
         assert d["products"] == {"B": 1}
         assert d["rate"] == 0.1
 
     def test_reaction_to_dict_omits_rate_function(self):
         """to_dict omits callable rate."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-
-        reaction = BioReaction("r1", rate=lambda s: 0.1, parent=chem)
+        reaction = ReactionImpl("r1", rate=lambda s: 0.1, dat=MockDat("reactions/r1"))
 
         d = reaction.to_dict()
         assert "rate" not in d
 
     def test_reaction_type_registered(self):
-        """BioReaction registered as 'Reaction'."""
+        """ReactionImpl registered as 'Reaction'."""
         cls = get_entity_type("Reaction")
-        assert cls is BioReaction
+        assert cls is ReactionImpl
 
 
-class TestBioChemistry:
-    """Tests for BioChemistry class."""
+class TestChemistry:
+    """Tests for Chemistry class."""
 
     def test_create_chemistry(self):
         """Create chemistry container."""
         dat = MockDat("chemistry/glycolysis")
-        chem = BioChemistry("glycolysis", dat=dat, description="Sugar breakdown")
+        chem = ChemistryImpl("glycolysis", dat=dat, description="Sugar breakdown")
 
         assert chem.local_name == "glycolysis"
         assert chem.description == "Sugar breakdown"
 
-    def test_chemistry_contains_molecules(self):
-        """BioChemistry tracks molecule children."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        glucose = BioMolecule("glucose", parent=chem)
-        atp = BioMolecule("atp", parent=chem)
+    def test_chemistry_with_atoms(self):
+        """Chemistry stores atoms dict."""
+        C = AtomImpl("C", "Carbon", 12.011)
+        H = AtomImpl("H", "Hydrogen", 1.008)
+        O = AtomImpl("O", "Oxygen", 15.999)
 
-        mols = chem.molecules
-        assert "glucose" in mols
-        assert "atp" in mols
-        assert mols["glucose"] is glucose
+        chem = ChemistryImpl(
+            "test",
+            atoms={"C": C, "H": H, "O": O},
+            dat=MockDat("chemistry/test"),
+        )
 
-    def test_chemistry_contains_reactions(self):
-        """BioChemistry tracks reaction children."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
-        r1 = BioReaction("r1", parent=chem)
-        r2 = BioReaction("r2", parent=chem)
+        assert len(chem.atoms) == 3
+        assert chem.atoms["C"].name == "Carbon"
 
-        rxns = chem.reactions
-        assert "r1" in rxns
-        assert "r2" in rxns
-        assert rxns["r1"] is r1
+    def test_chemistry_with_molecules(self):
+        """Chemistry stores molecules dict."""
+        glucose = MoleculeImpl("glucose", dat=MockDat("mol/glucose"))
+        atp = MoleculeImpl("atp", dat=MockDat("mol/atp"))
 
-    def test_chemistry_filters_by_type(self):
-        """molecules/reactions only return correct types."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        mol = BioMolecule("A", parent=chem)
-        rxn = BioReaction("r1", parent=chem)
-        # Also add a plain Entity
-        plain = Entity("plain", parent=chem)
+        chem = ChemistryImpl(
+            "test",
+            molecules={"glucose": glucose, "atp": atp},
+            dat=MockDat("chemistry/test"),
+        )
 
-        assert "A" in chem.molecules
-        assert "r1" not in chem.molecules
+        assert len(chem.molecules) == 2
+        assert chem.molecules["glucose"] is glucose
+        assert chem.molecules["atp"] is atp
 
-        assert "r1" in chem.reactions
-        assert "A" not in chem.reactions
+    def test_chemistry_with_reactions(self):
+        """Chemistry stores reactions dict."""
+        glucose = MoleculeImpl("glucose", dat=MockDat("mol/glucose"))
+        pyruvate = MoleculeImpl("pyruvate", dat=MockDat("mol/pyruvate"))
 
-        # Plain entity in children but not in molecules/reactions
-        assert "plain" in chem.children
+        r1 = ReactionImpl(
+            "step1",
+            reactants={glucose: 1},
+            products={pyruvate: 2},
+            dat=MockDat("reactions/step1"),
+        )
 
-    def test_chemistry_iter_molecules(self):
-        """iter_molecules yields molecule children."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
-        BioMolecule("B", parent=chem)
-        BioReaction("r1", parent=chem)
+        chem = ChemistryImpl(
+            "glycolysis",
+            molecules={"glucose": glucose, "pyruvate": pyruvate},
+            reactions={"step1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
-        mols = list(chem.iter_molecules())
-        assert len(mols) == 2
-        assert all(isinstance(m, BioMolecule) for m in mols)
-
-    def test_chemistry_get_molecule(self):
-        """get_molecule returns molecule by name."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        mol = BioMolecule("A", parent=chem)
-        BioReaction("r1", parent=chem)
-
-        assert chem.get_molecule("A") is mol
-        assert chem.get_molecule("r1") is None  # reaction, not molecule
-        assert chem.get_molecule("missing") is None
+        assert len(chem.reactions) == 1
+        assert chem.reactions["step1"] is r1
 
     def test_chemistry_validate_ok(self):
         """validate returns empty list for valid chemistry."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
-        BioReaction("r1", reactants={a: 1}, products={b: 1}, parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, dat=MockDat("rxn/r1"))
+
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
         errors = chem.validate()
         assert errors == []
 
     def test_chemistry_validate_missing_reactant(self):
         """validate catches missing reactant."""
-        dat1 = MockDat("chemistry/test1")
-        dat2 = MockDat("chemistry/test2")
-        chem1 = BioChemistry("test1", dat=dat1)
-        chem2 = BioChemistry("test2", dat=dat2)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
 
-        a = BioMolecule("A", parent=chem1)  # in different chemistry!
-        b = BioMolecule("B", parent=chem2)
+        # Reaction uses 'a' but it's not in molecules dict
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, dat=MockDat("rxn/r1"))
 
-        BioReaction("r1", reactants={a: 1}, products={b: 1}, parent=chem2)
+        chem = ChemistryImpl(
+            "test",
+            molecules={"B": b},  # Missing A!
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
-        errors = chem2.validate()
+        errors = chem.validate()
         assert len(errors) == 1
         assert "reactant A not in chemistry" in errors[0]
 
+    def test_chemistry_validate_missing_atom(self):
+        """validate catches missing atom in molecule."""
+        C = get_atom("C")
+        H = get_atom("H")
+        O = get_atom("O")
+
+        # Molecule uses C, H, O but chemistry only has C, H
+        mol = MoleculeImpl("water", dat=MockDat("mol/water"), atoms={H: 2, O: 1})
+
+        chem = ChemistryImpl(
+            "test",
+            atoms={"C": C, "H": H},  # Missing O!
+            molecules={"water": mol},
+            dat=MockDat("chemistry/test"),
+        )
+
+        errors = chem.validate()
+        assert len(errors) == 1
+        assert "atom O not in chemistry" in errors[0]
+
     def test_chemistry_to_dict(self):
-        """to_dict includes counts."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
-        BioMolecule("B", parent=chem)
-        BioReaction("r1", parent=chem)
+        """to_dict includes atoms, molecules, reactions."""
+        C = get_atom("C")
+        H = get_atom("H")
+        a = MoleculeImpl("A", dat=MockDat("mol/A"), atoms={C: 1, H: 4})
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, dat=MockDat("rxn/r1"))
+
+        chem = ChemistryImpl(
+            "test",
+            atoms={"C": C, "H": H},
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
         d = chem.to_dict()
-        assert d["type"] == "BioChemistry"
-        assert d["molecule_count"] == 2
-        assert d["reaction_count"] == 1
+        assert d["head"] == "Chemistry"
+        assert "atoms" in d
+        assert "molecules" in d
+        assert "reactions" in d
+        assert d["atoms"]["C"]["name"] == "Carbon"
 
     def test_chemistry_type_registered(self):
-        """BioChemistry registered as 'BioChemistry'."""
-        cls = get_entity_type("BioChemistry")
-        assert cls is BioChemistry
+        """ChemistryImpl registered as 'Chemistry'."""
+        cls = get_entity_type("Chemistry")
+        assert cls is ChemistryImpl
 
 
 class TestState:
@@ -350,12 +458,15 @@ class TestState:
 
     def test_create_state(self):
         """Create state for chemistry."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
-        BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem)
+        state = StateImpl(chem)
 
         assert state.chemistry is chem
         assert "A" in state
@@ -364,61 +475,75 @@ class TestState:
 
     def test_state_initial_values(self):
         """Create state with initial concentrations."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
-        BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 1.0, "B": 2.0})
+        state = StateImpl(chem, initial={"A": 1.0, "B": 2.0})
 
         assert state["A"] == 1.0
         assert state["B"] == 2.0
 
     def test_state_setitem(self):
         """Can set concentration values."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem)
+        state = StateImpl(chem)
         state["A"] = 5.0
 
         assert state["A"] == 5.0
 
     def test_state_unknown_molecule_raises(self):
         """Setting unknown molecule raises KeyError."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem)
+        state = StateImpl(chem)
         with pytest.raises(KeyError, match="Unknown molecule"):
             state["X"] = 1.0
 
     def test_state_initial_unknown_raises(self):
         """Initial with unknown molecule raises KeyError."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a},
+            dat=MockDat("chemistry/test"),
+        )
 
         with pytest.raises(KeyError, match="Unknown molecule"):
-            State(chem, initial={"X": 1.0})
+            StateImpl(chem, initial={"X": 1.0})
 
     def test_state_get_default(self):
         """get returns default for missing keys."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
+        chem = ChemistryImpl("test", dat=MockDat("chemistry/test"))
 
-        state = State(chem)
+        state = StateImpl(chem)
         assert state.get("missing", 99) == 99
 
     def test_state_molecule_access(self):
         """Can access by molecule object."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        mol = BioMolecule("A", parent=chem)
+        mol = MoleculeImpl("A", dat=MockDat("mol/A"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": mol},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 3.0})
+        state = StateImpl(chem, initial={"A": 3.0})
 
         assert state.get_molecule(mol) == 3.0
 
@@ -427,12 +552,15 @@ class TestState:
 
     def test_state_iter(self):
         """Can iterate over molecule names."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
-        BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem)
+        state = StateImpl(chem)
         names = list(state)
 
         assert "A" in names
@@ -440,21 +568,27 @@ class TestState:
 
     def test_state_len(self):
         """len returns number of molecules."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
-        BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem)
+        state = StateImpl(chem)
         assert len(state) == 2
 
     def test_state_copy(self):
         """copy creates independent state."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state1 = State(chem, initial={"A": 1.0})
+        state1 = StateImpl(chem, initial={"A": 1.0})
         state2 = state1.copy()
 
         state2["A"] = 5.0
@@ -462,11 +596,14 @@ class TestState:
 
     def test_state_to_dict(self):
         """to_dict for serialization."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 1.0})
+        state = StateImpl(chem, initial={"A": 1.0})
         d = state.to_dict()
 
         assert d["chemistry"] == "test"
@@ -474,12 +611,15 @@ class TestState:
 
     def test_state_from_dict(self):
         """from_dict recreates state."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        BioMolecule("A", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a},
+            dat=MockDat("chemistry/test"),
+        )
 
         data = {"concentrations": {"A": 2.0}}
-        state = State.from_dict(chem, data)
+        state = StateImpl.from_dict(chem, data)
 
         assert state["A"] == 2.0
 
@@ -488,17 +628,20 @@ class TestSimulator:
     """Tests for Simulator class."""
 
     def test_simple_simulator_step(self):
-        """SimpleSimulator applies reactions once."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
+        """SimpleSimulatorImpl applies reactions once."""
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, rate=0.1, dat=MockDat("rxn/r1"))
 
-        # A -> B with rate 0.1
-        BioReaction("r1", reactants={a: 1}, products={b: 1}, rate=0.1, parent=chem)
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 10.0, "B": 0.0})
-        sim = SimpleSimulator(chem, dt=1.0)
+        state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
+        sim = SimpleSimulatorImpl(chem, dt=1.0)
 
         new_state = sim.step(state)
 
@@ -507,16 +650,19 @@ class TestSimulator:
 
     def test_simulator_step_stoichiometry(self):
         """Simulator respects stoichiometry."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 2}, products={b: 1}, rate=0.5, dat=MockDat("rxn/r1"))
 
-        # 2A -> B with rate 0.5
-        BioReaction("r1", reactants={a: 2}, products={b: 1}, rate=0.5, parent=chem)
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 10.0, "B": 0.0})
-        sim = SimpleSimulator(chem, dt=1.0)
+        state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
+        sim = SimpleSimulatorImpl(chem, dt=1.0)
 
         new_state = sim.step(state)
 
@@ -526,16 +672,19 @@ class TestSimulator:
 
     def test_simulator_step_no_negative(self):
         """Simulator clamps reactants to 0."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, rate=100, dat=MockDat("rxn/r1"))
 
-        # A -> B with high rate
-        BioReaction("r1", reactants={a: 1}, products={b: 1}, rate=100, parent=chem)
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 1.0, "B": 0.0})
-        sim = SimpleSimulator(chem, dt=1.0)
+        state = StateImpl(chem, initial={"A": 1.0, "B": 0.0})
+        sim = SimpleSimulatorImpl(chem, dt=1.0)
 
         new_state = sim.step(state)
 
@@ -544,15 +693,19 @@ class TestSimulator:
 
     def test_simulator_run(self):
         """run returns timeline of states."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, rate=0.1, dat=MockDat("rxn/r1"))
 
-        BioReaction("r1", reactants={a: 1}, products={b: 1}, rate=0.1, parent=chem)
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 10.0, "B": 0.0})
-        sim = SimpleSimulator(chem, dt=1.0)
+        state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
+        sim = SimpleSimulatorImpl(chem, dt=1.0)
 
         timeline = sim.run(state, steps=10)
 
@@ -563,15 +716,19 @@ class TestSimulator:
 
     def test_simulator_run_preserves_initial(self):
         """run doesn't modify initial state."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, rate=0.1, dat=MockDat("rxn/r1"))
 
-        BioReaction("r1", reactants={a: 1}, products={b: 1}, rate=0.1, parent=chem)
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 10.0, "B": 0.0})
-        sim = SimpleSimulator(chem, dt=1.0)
+        state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
+        sim = SimpleSimulatorImpl(chem, dt=1.0)
 
         sim.run(state, steps=10)
 
@@ -579,17 +736,21 @@ class TestSimulator:
 
     def test_simulator_dt(self):
         """dt affects reaction magnitude."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem)
-        b = BioMolecule("B", parent=chem)
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, rate=0.1, dat=MockDat("rxn/r1"))
 
-        BioReaction("r1", reactants={a: 1}, products={b: 1}, rate=0.1, parent=chem)
+        chem = ChemistryImpl(
+            "test",
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
-        state = State(chem, initial={"A": 10.0, "B": 0.0})
+        state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
 
         # dt=0.5 should halve the effect
-        sim = SimpleSimulator(chem, dt=0.5)
+        sim = SimpleSimulatorImpl(chem, dt=0.5)
         new_state = sim.step(state)
 
         assert new_state["A"] == pytest.approx(9.95)  # 10 - 0.1*0.5
@@ -601,21 +762,27 @@ class TestIntegration:
 
     def test_full_chemistry_simulation(self):
         """End-to-end test: build chemistry, simulate, check results."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("glycolysis", dat=dat, description="Simplified glycolysis")
-
         # Create molecules
-        glucose = BioMolecule("glucose", parent=chem)
-        pyruvate = BioMolecule("pyruvate", parent=chem)
-        atp = BioMolecule("atp", parent=chem)
+        glucose = MoleculeImpl("glucose", dat=MockDat("mol/glucose"))
+        pyruvate = MoleculeImpl("pyruvate", dat=MockDat("mol/pyruvate"))
+        atp = MoleculeImpl("atp", dat=MockDat("mol/atp"))
 
-        # Glucose -> 2 Pyruvate + 2 ATP
-        BioReaction(
+        # Create reaction: Glucose -> 2 Pyruvate + 2 ATP
+        r1 = ReactionImpl(
             "glycolysis_step",
             reactants={glucose: 1},
             products={pyruvate: 2, atp: 2},
             rate=0.1,
-            parent=chem,
+            dat=MockDat("rxn/glycolysis_step"),
+        )
+
+        # Build chemistry
+        chem = ChemistryImpl(
+            "glycolysis",
+            molecules={"glucose": glucose, "pyruvate": pyruvate, "atp": atp},
+            reactions={"glycolysis_step": r1},
+            dat=MockDat("chemistry/glycolysis"),
+            description="Simplified glycolysis",
         )
 
         # Validate chemistry
@@ -623,10 +790,10 @@ class TestIntegration:
         assert errors == []
 
         # Create initial state
-        state = State(chem, initial={"glucose": 10.0, "pyruvate": 0.0, "atp": 0.0})
+        state = StateImpl(chem, initial={"glucose": 10.0, "pyruvate": 0.0, "atp": 0.0})
 
         # Run simulation
-        sim = SimpleSimulator(chem, dt=1.0)
+        sim = SimpleSimulatorImpl(chem, dt=1.0)
         timeline = sim.run(state, steps=50)
 
         # Check results
@@ -637,40 +804,53 @@ class TestIntegration:
         assert final["pyruvate"] == final["atp"]  # equal amounts
 
     def test_entity_tree_structure(self):
-        """BioChemistry maintains proper entity tree structure."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        mol = BioMolecule("A", parent=chem)
-        rxn = BioReaction("r1", parent=chem)
+        """Molecules in chemistry are standalone entities."""
+        glucose = MoleculeImpl("glucose", dat=MockDat("mol/glucose"))
+        atp = MoleculeImpl("atp", dat=MockDat("mol/atp"))
 
-        # All are in same tree
-        assert mol.root() is chem
-        assert rxn.root() is chem
+        chem = ChemistryImpl(
+            "test",
+            molecules={"glucose": glucose, "atp": atp},
+            dat=MockDat("chemistry/test"),
+        )
 
-        # Parent relationships correct
-        assert mol.parent is chem
-        assert rxn.parent is chem
+        # Molecules are not children of chemistry
+        assert "glucose" not in chem.children
+        assert "atp" not in chem.children
 
-        # All share same dat
-        assert mol.dat() is dat
-        assert rxn.dat() is dat
+        # But they're in the molecules dict
+        assert chem.molecules["glucose"] is glucose
+        assert chem.molecules["atp"] is atp
 
-    def test_chemistry_serialization_roundtrip(self):
-        """BioChemistry can be serialized and inspected."""
-        dat = MockDat("chemistry/test")
-        chem = BioChemistry("test", dat=dat)
-        a = BioMolecule("A", parent=chem, properties={"weight": 100})
-        b = BioMolecule("B", parent=chem)
-        BioReaction("r1", reactants={a: 1}, products={b: 1}, rate=0.1, parent=chem)
+        # Chemistry is still an entity with its own dat
+        assert chem.dat().get_path_name() == "chemistry/test"
+
+    def test_chemistry_serialization(self):
+        """Chemistry can be serialized."""
+        C = get_atom("C")
+        H = get_atom("H")
+        O = get_atom("O")
+
+        a = MoleculeImpl("A", dat=MockDat("mol/A"), atoms={C: 1, H: 4}, bdepth=1)
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, rate=0.1, dat=MockDat("rxn/r1"))
+
+        chem = ChemistryImpl(
+            "test",
+            atoms={"C": C, "H": H, "O": O},
+            molecules={"A": a, "B": b},
+            reactions={"r1": r1},
+            dat=MockDat("chemistry/test"),
+        )
 
         # Serialize
-        d = chem.to_dict(recursive=True)
+        d = chem.to_dict()
 
         # Check structure
-        assert d["type"] == "BioChemistry"
-        assert d["molecule_count"] == 2
-        assert d["reaction_count"] == 1
-        assert "children" in d
-        assert "A" in d["children"]
-        assert "r1" in d["children"]
-        assert d["children"]["A"]["properties"] == {"weight": 100}
+        assert d["head"] == "Chemistry"
+        assert "atoms" in d
+        assert "molecules" in d
+        assert "reactions" in d
+        assert d["atoms"]["C"]["name"] == "Carbon"
+        assert d["molecules"]["A"]["atoms"] == {"C": 1, "H": 4}
+        assert d["molecules"]["A"]["bdepth"] == 1

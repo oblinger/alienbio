@@ -1,4 +1,4 @@
-"""BioReaction: entities representing chemical transformations."""
+"""Reaction: entities representing chemical transformations."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from ..infra.entity import Entity
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
-    from .molecule import BioMolecule
+    from .molecule import Molecule
     from .state import State
 
 # Rate can be a constant or a function of state
@@ -16,10 +16,10 @@ RateFunction = Callable[["State"], float]
 RateValue = Union[float, RateFunction]
 
 
-class BioReaction(Entity, type_name="Reaction"):
-    """A reaction transforming reactants into products.
+class ReactionImpl(Entity, head="Reaction"):
+    """Implementation: A reaction transforming reactants into products.
 
-    BioReactions define transformations in the biological system.
+    Reactions define transformations in the biological system.
     Each reaction has:
     - reactants: molecules consumed (with stoichiometric coefficients)
     - products: molecules produced (with stoichiometric coefficients)
@@ -27,7 +27,7 @@ class BioReaction(Entity, type_name="Reaction"):
 
     Example:
         # A + 2B -> C with rate 0.1
-        reaction = BioReaction(
+        reaction = ReactionImpl(
             "r1",
             reactants={mol_a: 1, mol_b: 2},
             products={mol_c: 1},
@@ -42,8 +42,8 @@ class BioReaction(Entity, type_name="Reaction"):
         self,
         name: str,
         *,
-        reactants: Optional[Dict[BioMolecule, float]] = None,
-        products: Optional[Dict[BioMolecule, float]] = None,
+        reactants: Optional[Dict[Molecule, float]] = None,
+        products: Optional[Dict[Molecule, float]] = None,
         rate: RateValue = 1.0,
         parent: Optional[Entity] = None,
         dat: Optional[Dat] = None,
@@ -61,17 +61,17 @@ class BioReaction(Entity, type_name="Reaction"):
             description: Human-readable description
         """
         super().__init__(name, parent=parent, dat=dat, description=description)
-        self._reactants: Dict[BioMolecule, float] = reactants.copy() if reactants else {}
-        self._products: Dict[BioMolecule, float] = products.copy() if products else {}
+        self._reactants: Dict[Molecule, float] = reactants.copy() if reactants else {}
+        self._products: Dict[Molecule, float] = products.copy() if products else {}
         self._rate: RateValue = rate
 
     @property
-    def reactants(self) -> Dict[BioMolecule, float]:
+    def reactants(self) -> Dict[Molecule, float]:
         """Reactant molecules and their stoichiometric coefficients."""
         return self._reactants.copy()
 
     @property
-    def products(self) -> Dict[BioMolecule, float]:
+    def products(self) -> Dict[Molecule, float]:
         """Product molecules and their stoichiometric coefficients."""
         return self._products.copy()
 
@@ -79,6 +79,24 @@ class BioReaction(Entity, type_name="Reaction"):
     def rate(self) -> RateValue:
         """Reaction rate (constant or function)."""
         return self._rate
+
+    @property
+    def name(self) -> str:
+        """Human-readable name (same as local_name)."""
+        return self._local_name
+
+    @property
+    def symbol(self) -> str:
+        """Formula string: 'glucose + ATP -> G6P + ADP'."""
+        reactant_str = " + ".join(
+            f"{c}{m.name}" if c != 1 else m.name
+            for m, c in self._reactants.items()
+        )
+        product_str = " + ".join(
+            f"{c}{m.name}" if c != 1 else m.name
+            for m, c in self._products.items()
+        )
+        return f"{reactant_str} -> {product_str}"
 
     def set_rate(self, rate: RateValue) -> None:
         """Set the reaction rate."""
@@ -97,17 +115,17 @@ class BioReaction(Entity, type_name="Reaction"):
             return self._rate(state)
         return self._rate
 
-    def add_reactant(self, molecule: BioMolecule, coefficient: float = 1.0) -> None:
+    def add_reactant(self, molecule: Molecule, coefficient: float = 1.0) -> None:
         """Add a reactant to this reaction."""
         self._reactants[molecule] = coefficient
 
-    def add_product(self, molecule: BioMolecule, coefficient: float = 1.0) -> None:
+    def add_product(self, molecule: Molecule, coefficient: float = 1.0) -> None:
         """Add a product to this reaction."""
         self._products[molecule] = coefficient
 
-    def to_dict(self, recursive: bool = False, _root: Optional[Entity] = None) -> Dict[str, Any]:
-        """Convert to dict for serialization."""
-        result = super().to_dict(recursive=recursive, _root=_root)
+    def attributes(self) -> Dict[str, Any]:
+        """Semantic content of this reaction."""
+        result = super().attributes()
 
         # Serialize reactants as {molecule_name: coefficient}
         if self._reactants:
@@ -136,4 +154,4 @@ class BioReaction(Entity, type_name="Reaction"):
             for m, c in self._products.items()
         )
         rate_str = "<fn>" if callable(self._rate) else str(self._rate)
-        return f"BioReaction({self._local_name}: {reactant_str} -> {product_str}, rate={rate_str})"
+        return f"ReactionImpl({self._local_name}: {reactant_str} -> {product_str}, rate={rate_str})"

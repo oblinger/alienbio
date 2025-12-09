@@ -5,22 +5,22 @@ from __future__ import annotations
 from typing import Any, Dict, Iterator, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .chemistry import BioChemistry
-    from .molecule import BioMolecule
+    from .chemistry import ChemistryImpl
+    from .molecule import MoleculeImpl
 
 
-class State:
-    """Concentrations of molecules at a point in time.
+class StateImpl:
+    """Implementation: Concentrations of molecules at a point in time.
 
     State is essentially a dict mapping molecules to concentration values.
-    It's tied to a BioChemistry which defines the valid molecules.
+    It's tied to a Chemistry which defines the valid molecules.
 
     Attributes:
-        chemistry: The BioChemistry this state belongs to
+        chemistry: The Chemistry this state belongs to
         concentrations: Dict mapping molecule names to concentration values
 
     Example:
-        state = State(chemistry)
+        state = StateImpl(chemistry)
         state["glucose"] = 1.0
         state["atp"] = 0.5
         print(state["glucose"])  # 1.0
@@ -30,13 +30,13 @@ class State:
 
     def __init__(
         self,
-        chemistry: BioChemistry,
+        chemistry: ChemistryImpl,
         initial: Optional[Dict[str, float]] = None,
     ) -> None:
         """Initialize state for a chemistry.
 
         Args:
-            chemistry: The BioChemistry defining valid molecules
+            chemistry: The Chemistry defining valid molecules
             initial: Optional dict of initial concentrations by molecule name
         """
         self._chemistry = chemistry
@@ -55,8 +55,8 @@ class State:
                     raise KeyError(f"Unknown molecule: {name!r}")
 
     @property
-    def chemistry(self) -> BioChemistry:
-        """The BioChemistry this state belongs to."""
+    def chemistry(self) -> ChemistryImpl:
+        """The Chemistry this state belongs to."""
         return self._chemistry
 
     def __getitem__(self, key: str) -> float:
@@ -85,21 +85,21 @@ class State:
         """Get concentration with default."""
         return self._concentrations.get(key, default)
 
-    def get_molecule(self, molecule: BioMolecule) -> float:
+    def get_molecule(self, molecule: MoleculeImpl) -> float:
         """Get concentration by molecule object."""
-        return self._concentrations[molecule.local_name]
+        return self._concentrations[molecule.name]
 
-    def set_molecule(self, molecule: BioMolecule, value: float) -> None:
+    def set_molecule(self, molecule: MoleculeImpl, value: float) -> None:
         """Set concentration by molecule object."""
-        self[molecule.local_name] = value
+        self[molecule.name] = value
 
     def items(self) -> Iterator[tuple[str, float]]:
         """Iterate over (name, concentration) pairs."""
         return iter(self._concentrations.items())
 
-    def copy(self) -> State:
+    def copy(self) -> StateImpl:
         """Create a copy of this state."""
-        new_state = State(self._chemistry)
+        new_state = StateImpl(self._chemistry)
         new_state._concentrations = self._concentrations.copy()
         return new_state
 
@@ -111,7 +111,7 @@ class State:
         }
 
     @classmethod
-    def from_dict(cls, chemistry: BioChemistry, data: Dict[str, Any]) -> State:
+    def from_dict(cls, chemistry: ChemistryImpl, data: Dict[str, Any]) -> StateImpl:
         """Create state from serialized dict."""
         return cls(chemistry, initial=data.get("concentrations", {}))
 
@@ -120,14 +120,14 @@ class State:
         conc_str = ", ".join(
             f"{k}={v:.3g}" for k, v in self._concentrations.items()
         )
-        return f"State({conc_str})"
+        return f"StateImpl({conc_str})"
 
     def __str__(self) -> str:
         """Short representation."""
         non_zero = [(k, v) for k, v in self._concentrations.items() if v > 0]
         if not non_zero:
-            return "State(empty)"
+            return "StateImpl(empty)"
         conc_str = ", ".join(f"{k}={v:.3g}" for k, v in non_zero[:5])
         if len(non_zero) > 5:
             conc_str += f", ... ({len(non_zero)} molecules)"
-        return f"State({conc_str})"
+        return f"StateImpl({conc_str})"

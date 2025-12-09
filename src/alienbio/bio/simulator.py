@@ -6,12 +6,12 @@ from abc import ABC, abstractmethod
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .chemistry import BioChemistry
-    from .state import State
+    from .chemistry import ChemistryImpl
+    from .state import StateImpl
 
 
-class Simulator(ABC):
-    """Abstract base for simulators.
+class SimulatorBase(ABC):
+    """Abstract base class for simulators.
 
     A Simulator advances the state of a chemical system over time.
     Subclasses implement the actual simulation algorithm.
@@ -27,19 +27,19 @@ class Simulator(ABC):
 
     __slots__ = ("_chemistry", "_dt")
 
-    def __init__(self, chemistry: BioChemistry, dt: float = 1.0) -> None:
+    def __init__(self, chemistry: ChemistryImpl, dt: float = 1.0) -> None:
         """Initialize simulator.
 
         Args:
-            chemistry: The BioChemistry to simulate
+            chemistry: The Chemistry to simulate
             dt: Time step size (default 1.0)
         """
         self._chemistry = chemistry
         self._dt = dt
 
     @property
-    def chemistry(self) -> BioChemistry:
-        """The BioChemistry being simulated."""
+    def chemistry(self) -> ChemistryImpl:
+        """The Chemistry being simulated."""
         return self._chemistry
 
     @property
@@ -48,7 +48,7 @@ class Simulator(ABC):
         return self._dt
 
     @abstractmethod
-    def step(self, state: State) -> State:
+    def step(self, state: StateImpl) -> StateImpl:
         """Advance the simulation by one time step.
 
         Args:
@@ -59,7 +59,7 @@ class Simulator(ABC):
         """
         ...
 
-    def run(self, state: State, steps: int) -> List[State]:
+    def run(self, state: StateImpl, steps: int) -> List[StateImpl]:
         """Run simulation for multiple steps.
 
         Args:
@@ -79,8 +79,8 @@ class Simulator(ABC):
         return timeline
 
 
-class SimpleSimulator(Simulator):
-    """Basic simulator applying reactions once per step.
+class SimpleSimulatorImpl(SimulatorBase):
+    """Implementation: Basic simulator applying reactions once per step.
 
     This is a simple implementation suitable for testing.
     For each reaction:
@@ -94,11 +94,11 @@ class SimpleSimulator(Simulator):
 
     __slots__ = ()
 
-    def step(self, state: State) -> State:
+    def step(self, state: StateImpl) -> StateImpl:
         """Apply all reactions once."""
         new_state = state.copy()
 
-        for reaction in self._chemistry.iter_reactions():
+        for reaction in self._chemistry.reactions.values():
             # Get effective rate for this state
             rate = reaction.get_rate(state) * self._dt
 

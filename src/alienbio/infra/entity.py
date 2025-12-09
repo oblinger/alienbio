@@ -8,59 +8,68 @@ if TYPE_CHECKING:
     from dvc_dat import Dat
 
 
-# Type registry for Entity subclasses
-_entity_registry: Dict[str, Type["Entity"]] = {}
+# Head registry for Entity subclasses
+_head_registry: Dict[str, Type["Entity"]] = {}
 
 
-def register_entity_type(name: str, cls: Type["Entity"]) -> None:
-    """Register an entity type by name.
+def register_head(name: str, cls: Type["Entity"]) -> None:
+    """Register an entity head (type) by name.
 
     Called automatically by Entity subclasses via __init_subclass__.
     Can also be called manually for dynamic registration.
 
     Args:
-        name: Short name for the type (used in serialization)
+        name: Head name for the entity (used in serialization)
         cls: The Entity subclass to register
     """
-    _entity_registry[name] = cls
+    _head_registry[name] = cls
 
 
-def get_entity_type(name: str) -> Type["Entity"]:
-    """Look up entity type by name.
+def get_entity_class(name: str) -> Type["Entity"]:
+    """Look up entity class by head name.
 
     Args:
-        name: Registered type name
+        name: Registered head name
 
     Returns:
         The Entity subclass
 
     Raises:
-        KeyError: If type name not registered
+        KeyError: If head name not registered
     """
-    if name not in _entity_registry:
-        raise KeyError(f"Unknown entity type: {name!r}")
-    return _entity_registry[name]
+    if name not in _head_registry:
+        raise KeyError(f"Unknown entity head: {name!r}")
+    return _head_registry[name]
+
+
+def get_registered_heads() -> Dict[str, Type["Entity"]]:
+    """Get all registered heads (read-only copy)."""
+    return _head_registry.copy()
+
+
+# Legacy aliases for compatibility
+def register_entity_type(name: str, cls: Type["Entity"]) -> None:
+    """Legacy alias for register_head."""
+    register_head(name, cls)
+
+
+def get_entity_type(name: str) -> Type["Entity"]:
+    """Legacy alias for get_entity_class."""
+    return get_entity_class(name)
 
 
 def get_entity_types() -> Dict[str, Type["Entity"]]:
-    """Get all registered entity types (read-only copy)."""
-    return _entity_registry.copy()
-
-
-def _get_type_name(cls: Type["Entity"]) -> str:
-    """Get the registered type name for an Entity class.
-
-    Searches the registry for the class and returns its registered name.
-    Falls back to __name__ if not found (shouldn't happen).
-    """
-    for name, registered_cls in _entity_registry.items():
-        if registered_cls is cls:
-            return name
-    return cls.__name__
+    """Legacy alias for get_registered_heads."""
+    return get_registered_heads()
 
 
 class Entity:
     """Base class for all biology objects.
+
+    Entities have a three-part structure (like a function call):
+    - head: the entity type name (e.g., "Chemistry", "Molecule")
+    - args: ordered children (contained entities)
+    - attributes: keyword arguments (semantic content)
 
     Entities form a tree structure with bidirectional links:
     - _parent: link to containing entity
@@ -74,23 +83,23 @@ class Entity:
 
     __slots__ = ("_local_name", "_parent", "_children", "_top", "description")
 
-    def __init_subclass__(cls, type_name: Optional[str] = None, **kwargs) -> None:
-        """Auto-register subclasses in the type registry.
+    def __init_subclass__(cls, head: Optional[str] = None, **kwargs) -> None:
+        """Auto-register subclasses in the head registry.
 
         Args:
-            type_name: Optional short name for serialization.
-                       If not provided, uses the class name.
+            head: Optional head name for serialization.
+                  If not provided, uses the class name.
 
         Example:
             class Molecule(Entity):  # registers as "Molecule"
                 pass
 
-            class Molecule(Entity, type_name="M"):  # registers as "M"
+            class Molecule(Entity, head="Mol"):  # registers as "Mol"
                 pass
         """
         super().__init_subclass__(**kwargs)
-        name = type_name if type_name else cls.__name__
-        register_entity_type(name, cls)
+        name = head if head else cls.__name__
+        register_head(name, cls)
 
     def __init__(
         self,
@@ -152,6 +161,30 @@ class Entity:
     def children(self) -> Dict[str, Entity]:
         """Child entities by local name (read-only view)."""
         return self._children.copy()
+
+    @property
+    def head(self) -> str:
+        """The entity's head (type name).
+
+        This is the registered name used in serialization.
+        """
+        for name, registered_cls in _head_registry.items():
+            if registered_cls is type(self):
+                return name
+        return type(self).__name__
+
+    def attributes(self) -> Dict[str, Any]:
+        """Semantic content of this entity (override in subclasses).
+
+        Returns a dict of the entity's keyword arguments - its semantic
+        content excluding head and children (args).
+
+        Subclasses should override this to include their specific fields.
+        """
+        result: Dict[str, Any] = {"name": self._local_name}
+        if self.description:
+            result["description"] = self.description
+        return result
 
     def dat(self) -> Dat:
         """Get the DAT anchor for this entity's tree.
@@ -238,6 +271,11 @@ class Entity:
     def to_dict(self, recursive: bool = False, _root: Optional[Entity] = None) -> Dict[str, Any]:
         """Convert entity to dictionary representation for serialization.
 
+        The dict has three parts (like a function call):
+        - head: the entity type name
+        - args: children (contained entities) - only if present and recursive
+        - **attributes: semantic content (name, description, subclass fields)
+
         Args:
             recursive: If True, include children recursively
             _root: Internal - the root entity we're serializing from (to detect
@@ -246,32 +284,31 @@ class Entity:
         Returns:
             Dict with entity fields suitable for YAML/JSON serialization.
         """
-        result: Dict[str, Any] = {
-            "type": _get_type_name(type(self)),
-            "name": self._local_name,
-        }
-        if self.description:
-            result["description"] = self.description
+        # Start with head
+        result: Dict[str, Any] = {"head": self.head}
 
+        # Add attributes (semantic content)
+        result.update(self.attributes())
+
+        # Add args (children) if recursive and present
         if recursive and self._children:
             # Track the root entity for this serialization
             if _root is None:
                 _root = self.root()
 
-            children_dict: Dict[str, Any] = {}
+            args_dict: Dict[str, Any] = {}
             for name, child in self._children.items():
                 child_root = child.root()
                 if child_root is not _root:
                     # Child belongs to a different DAT - use absolute ref
                     # Import here to avoid circular import
                     from . import context
-                    children_dict[name] = context.ctx().io.ref(child, absolute=True)
+                    args_dict[name] = context.ctx().io.ref(child, absolute=True)
                 else:
                     # Same DAT - inline the child
-                    children_dict[name] = child.to_dict(recursive=True, _root=_root)
-            result["children"] = children_dict
+                    args_dict[name] = child.to_dict(recursive=True, _root=_root)
+            result["args"] = args_dict
 
-        # Subclasses should override to add their own fields
         return result
 
     def to_str(self, depth: int = -1) -> str:
@@ -385,4 +422,4 @@ class Entity:
 
 
 # Register the base Entity class (since __init_subclass__ only fires for subclasses)
-register_entity_type("Entity", Entity)
+register_head("Entity", Entity)

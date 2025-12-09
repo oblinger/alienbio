@@ -20,6 +20,8 @@ Entity is the root of the type hierarchy for all biology objects. It provides:
 
 | Methods      | Description                                          |
 | ------------ | ---------------------------------------------------- |
+| head         | Type name for serialization (property)               |
+| attributes   | Semantic content dict (override in subclasses)       |
 | dat          | Get the DAT anchor for this entity's tree (O(1))     |
 | root         | Get the root entity of this tree (O(1))              |
 | full_name    | Full path computed by walking up to DAT anchor       |
@@ -31,7 +33,7 @@ Entity is the root of the type hierarchy for all biology objects. It provides:
 | ancestors    | Iterate over ancestors to root                       |
 | descendants  | Iterate over all descendants                         |
 
-## Type Registry
+## Head Registry
 
 Entity subclasses are automatically registered for serialization via `__init_subclass__`:
 
@@ -40,15 +42,18 @@ Entity subclasses are automatically registered for serialization via `__init_sub
 class Molecule(Entity):
     pass
 
-# Registered as "M" (short type_name)
-class Molecule(Entity, type_name="M"):
+# Registered as "Mol" (short head name)
+class Molecule(Entity, head="Mol"):
     pass
 ```
 
 Registry functions:
-- `register_entity_type(name, cls)` - Register a type manually
-- `get_entity_type(name)` - Look up type by name
-- `get_entity_types()` - Get all registered types
+- `register_head(name, cls)` - Register a head manually
+- `get_entity_class(name)` - Look up class by head name
+- `get_registered_heads()` - Get all registered heads
+
+Legacy aliases (for compatibility):
+- `register_entity_type()`, `get_entity_type()`, `get_entity_types()`
 
 ## Protocol Definition
 
@@ -64,8 +69,20 @@ class Entity:
     _top: "Entity" | "Dat"  # Dat for root, root Entity for non-roots
     description: str
 
-    def __init_subclass__(cls, type_name: str = None, **kwargs) -> None:
-        """Auto-register subclasses. Use type_name for short alias."""
+    def __init_subclass__(cls, head: str = None, **kwargs) -> None:
+        """Auto-register subclasses. Use head for short alias."""
+        ...
+
+    @property
+    def head(self) -> str:
+        """Type name for serialization (from registry or class name)."""
+        ...
+
+    def attributes(self) -> Dict[str, Any]:
+        """Semantic content of this entity (override in subclasses).
+
+        Returns dict with 'name' and 'description'. Subclasses add their fields.
+        """
         ...
 
     def dat(self) -> "Dat":
@@ -89,7 +106,7 @@ class Entity:
         ...
 
     def to_dict(self, recursive: bool = False) -> Dict[str, Any]:
-        """Convert to dict. Includes 'type' field for subclass dispatch."""
+        """Convert to dict. Includes 'head' field for subclass dispatch."""
         ...
 
     def to_str(self, depth: int = -1) -> str:
@@ -105,6 +122,29 @@ class Entity:
         ...
 ```
 
+## Three-Part Structure
+
+Entities have a three-part structure analogous to a function call:
+
+| Part | Method/Property | Description |
+|------|-----------------|-------------|
+| **head** | `entity.head` | Type name (like function name): "Molecule", "Compartment" |
+| **args** | `entity.children` | Child entities (like positional args): nested content |
+| **attributes** | `entity.attributes()` | Semantic fields (like kwargs): name, description, custom fields |
+
+Subclasses override `attributes()` to include their specific fields:
+
+```python
+class MoleculeImpl(Entity, head="Molecule"):
+    def attributes(self) -> Dict[str, Any]:
+        result = super().attributes()  # Gets name, description
+        result["atoms"] = {atom.symbol: count for atom, count in self._atoms.items()}
+        result["bdepth"] = self._bdepth
+        return result
+```
+
+This structure is reflected in serialization: `to_dict()` outputs `head`, `args`, and the attribute fields.
+
 ## Serialization
 
 ### to_dict()
@@ -113,14 +153,14 @@ Converts entity to dictionary with type information:
 
 ```python
 molecule.to_dict()
-# {"type": "M", "name": "glucose", "formula": "C6H12O6"}
+# {"head": "M", "name": "glucose", "atoms": {"C": 6, "H": 12, "O": 6}}
 
 world.to_dict(recursive=True)
 # {
-#   "type": "Entity",
+#   "head": "Entity",
 #   "name": "world",
-#   "children": {
-#     "cytoplasm": {"type": "C", "name": "cytoplasm", ...}
+#   "args": {
+#     "cytoplasm": {"head": "C", "name": "cytoplasm", ...}
 #   }
 # }
 ```

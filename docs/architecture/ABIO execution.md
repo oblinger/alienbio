@@ -6,13 +6,20 @@ Simulation engine that advances biological state through time, plus the agent in
 The runtime environment and pegboard for all subsystems.
 - **[[Context]]** - Runtime pegboard containing config, connections, and all major subsystems.
 
-## Simulation (Rust)
-Execution engine for biology dynamics.
-- **[[State]]** - Snapshot of all molecule concentrations at a point in time.
-- **[[Step]]** - Single time advancement applying all active reactions.
+## Multi-Compartment Simulation
+Execution engine for multi-compartment biology dynamics with reactions and membrane transport.
+- **[[WorldState]]** - Dense concentration storage: `[num_compartments × num_molecules]` array. GPU-friendly.
+- **[[CompartmentTree]]** - Hierarchical topology of compartments with parent-child relationships.
+- **[[Flow]]** - Membrane transport between compartments (diffusion, active transport).
+- **[[WorldSimulator]]** - Multi-compartment simulation engine. Applies reactions within compartments, flows across membranes.
 - **[[Timeline]]** - Sequence of states with intervention hooks for perturbations.
 - **[[World]]** - Complete runnable setup combining system, generators, and initial conditions.
-- **[[Simulator]]** - Execution engine protocol. Two implementations: PythonSimulator and RustSimulator.
+
+## Legacy Single-Compartment (Rust)
+Original single-compartment simulation. Use multi-compartment for new work.
+- **[[State]]** - Single-compartment concentrations. See [[WorldState]] for multi-compartment.
+- **[[Step]]** - Single time advancement applying all active reactions.
+- **[[Simulator]]** - Single-compartment simulator. See [[WorldSimulator]] for multi-compartment.
 
 ## Interface
 Agent-facing API for observations and actions.

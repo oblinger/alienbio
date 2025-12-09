@@ -445,16 +445,16 @@ class IO:
             parent: Parent entity (required if no dat)
 
         Returns:
-            The created entity (may be a subclass based on 'type' field)
+            The created entity (may be a subclass based on 'head' field)
         """
-        from .entity import Entity, get_entity_type
+        from .entity import Entity, get_entity_class
 
-        # Get the entity class from type field (default to Entity)
-        type_name = data.get("type", "Entity")
+        # Get the entity class from head field (default to Entity)
+        head_name = data.get("head", "Entity")
         try:
-            entity_cls = get_entity_type(type_name)
+            entity_cls = get_entity_class(head_name)
         except KeyError:
-            # Unknown type - fall back to base Entity
+            # Unknown head - fall back to base Entity
             entity_cls = Entity
 
         name = data.get("name", "unnamed")
@@ -463,9 +463,9 @@ class IO:
         # Create entity using the resolved class
         entity = entity_cls(name, parent=parent, dat=dat, description=description)
 
-        # Recursively create children
-        children_data = data.get("children", {})
-        for child_name, child_data in children_data.items():
+        # Recursively create children (args)
+        args_data = data.get("args", {})
+        for child_name, child_data in args_data.items():
             if isinstance(child_data, str) and child_data.startswith("</"):
                 # Absolute ref - load from another DAT
                 child = self._absolute_lookup(child_data)
