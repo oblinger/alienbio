@@ -115,31 +115,18 @@ class Entity:
             )
         return f"{self._parent.full_name}.{self._local_name}"
 
-    def lookup(self, path: str) -> Entity:
-        """Find child entity by relative dotted path.
-
-        Args:
-            path: Dotted path like "compartment.glucose"
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert entity to dictionary representation for serialization.
 
         Returns:
-            The entity at the given path
-
-        Raises:
-            KeyError: If path not found
+            Dict with entity fields suitable for YAML/JSON serialization.
         """
-        if not path:
-            return self
-
-        parts = path.split(".", 1)
-        name = parts[0]
-
-        if name not in self._children:
-            raise KeyError(f"No child named {name!r} in {self._local_name!r}")
-
-        child = self._children[name]
-        if len(parts) == 1:
-            return child
-        return child.lookup(parts[1])
+        result: Dict[str, Any] = {"name": self._local_name}
+        if self.description:
+            result["description"] = self.description
+        # Note: parent, children, dat are structural - not serialized here
+        # Subclasses should override to add their own fields
+        return result
 
     def add_child(self, child: Entity) -> Entity:
         """Add a child entity.

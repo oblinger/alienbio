@@ -207,40 +207,38 @@ class TestFullName:
         assert child.full_name == "compartments/cytoplasm"
 
 
-class TestLookup:
-    """Tests for child entity lookup."""
+class TestToDict:
+    """Tests for to_dict serialization."""
 
-    def test_lookup_empty_path(self):
-        """lookup('') returns self."""
+    def test_to_dict_basic(self):
+        """to_dict returns dict with name."""
         dat = MockDat("runs/exp1")
         entity = Entity("world", dat=dat)
 
-        assert entity.lookup("") is entity
+        result = entity.to_dict()
 
-    def test_lookup_direct_child(self):
-        """lookup finds direct child."""
+        assert result == {"name": "world"}
+
+    def test_to_dict_with_description(self):
+        """to_dict includes description if present."""
+        dat = MockDat("runs/exp1")
+        entity = Entity("world", dat=dat, description="Main world")
+
+        result = entity.to_dict()
+
+        assert result == {"name": "world", "description": "Main world"}
+
+    def test_to_dict_excludes_structural_fields(self):
+        """to_dict does not include parent, children, dat."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat)
         child = Entity("compartment", parent=parent)
 
-        assert parent.lookup("compartment") is child
+        result = child.to_dict()
 
-    def test_lookup_nested_path(self):
-        """lookup finds nested entities via dotted path."""
-        dat = MockDat("runs/exp1")
-        world = Entity("world", dat=dat)
-        compartment = Entity("cytoplasm", parent=world)
-        molecule = Entity("glucose", parent=compartment)
-
-        assert world.lookup("cytoplasm.glucose") is molecule
-
-    def test_lookup_missing_raises(self):
-        """lookup raises KeyError for missing child."""
-        dat = MockDat("runs/exp1")
-        entity = Entity("world", dat=dat)
-
-        with pytest.raises(KeyError, match="No child named"):
-            entity.lookup("nonexistent")
+        assert "parent" not in result
+        assert "children" not in result
+        assert "dat" not in result
 
 
 class TestTreeTraversal:

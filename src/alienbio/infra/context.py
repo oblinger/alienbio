@@ -5,10 +5,14 @@ from __future__ import annotations
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from dvc_dat import Dat
 from dvc_dat import do as dvc_do
+
+if TYPE_CHECKING:
+    from .entity import Entity
+    from .io import IO as IOClass
 
 
 @dataclass
@@ -21,6 +25,15 @@ class Context:
 
     config: dict[str, Any] = field(default_factory=dict)
     data_path: Path = field(default_factory=lambda: Path("data"))
+    _io: IOClass | None = field(default=None, repr=False)
+
+    @property
+    def io(self) -> IOClass:
+        """Entity I/O: prefix bindings, formatting, lookup, persistence."""
+        if self._io is None:
+            from .io import IO
+            self._io = IO(data_path=self.data_path)
+        return self._io
 
     def do(self, name: str, *args, **kwargs) -> Any:
         """Execute a do-method by dotted name.
@@ -53,6 +66,17 @@ class Context:
         # Create a new Dat with the object as spec
         spec = obj if isinstance(obj, dict) else {"value": obj}
         return Dat.manager.create(Dat, path=str(full_path), spec=spec)
+
+    def lookup(self, name: str) -> Entity:
+        """Look up an entity by PREFIX:path string.
+
+        Args:
+            name: String in PREFIX:path format (e.g., "W:cytoplasm.glucose")
+
+        Returns:
+            The entity at the specified path
+        """
+        return self.io.lookup(name)
 
 
 # Global context variable
@@ -95,6 +119,11 @@ def load(path: str | Path) -> Dat:
 def save(obj: Any, path: str | Path) -> Dat:
     """Save an object as a Dat to a data path."""
     return ctx().save(obj, path)
+
+
+def lookup(name: str) -> Entity:
+    """Look up an entity by PREFIX:path string."""
+    return ctx().lookup(name)
 
 
 class _ContextProxy:

@@ -148,8 +148,8 @@ class IO:
         # Ancestor not found in entity's ancestry
         return None
 
-    def parse(self, string: str) -> Entity:
-        """Parse PREFIX:path string to entity.
+    def lookup(self, string: str) -> Entity:
+        """Look up entity by PREFIX:path string.
 
         Resolves prefix, then walks down path to find entity.
 
@@ -164,7 +164,7 @@ class IO:
             KeyError: If prefix is not bound or path not found
 
         Example:
-            io.parse("W:cytoplasm.glucose")  # -> glucose entity
+            io.lookup("W:cytoplasm.glucose")  # -> glucose entity
         """
         if ":" not in string:
             raise ValueError(
@@ -181,7 +181,35 @@ class IO:
         if not path:
             return target
 
-        return target.lookup(path)
+        return self._walk_path(target, path)
+
+    def _walk_path(self, entity: Entity, path: str) -> Entity:
+        """Walk down a dotted path from an entity.
+
+        Args:
+            entity: Starting entity
+            path: Dotted path like "compartment.glucose"
+
+        Returns:
+            The entity at the given path
+
+        Raises:
+            KeyError: If path not found
+        """
+        if not path:
+            return entity
+
+        parts = path.split(".", 1)
+        name = parts[0]
+
+        children = entity.children
+        if name not in children:
+            raise KeyError(f"No child named {name!r} in {entity.local_name!r}")
+
+        child = children[name]
+        if len(parts) == 1:
+            return child
+        return self._walk_path(child, parts[1])
 
     def load(self, path: str | Path) -> Dat:
         """Load a Dat from data path.

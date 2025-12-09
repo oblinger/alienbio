@@ -13,6 +13,7 @@ from .infra.context import (
     create,
     load,
     save,
+    lookup,
     o,
 )
 from .infra.entity import Entity
@@ -32,5 +33,6 @@ __all__ = [
     "create",
     "load",
     "save",
+    "lookup",
     "o",
 ]

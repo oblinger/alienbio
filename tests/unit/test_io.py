@@ -200,11 +200,11 @@ class TestFormat:
         assert result == "runs/exp2.cytoplasm"
 
 
-class TestParse:
-    """Tests for string parsing."""
+class TestLookup:
+    """Tests for entity lookup."""
 
-    def test_parse_with_path(self):
-        """parse() resolves prefix and walks path."""
+    def test_lookup_with_path(self):
+        """lookup() resolves prefix and walks path."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -212,12 +212,12 @@ class TestParse:
 
         io.bind_prefix("W", world)
 
-        result = io.parse("W:cytoplasm")
+        result = io.lookup("W:cytoplasm")
 
         assert result is compartment
 
-    def test_parse_nested_path(self):
-        """parse() handles dotted paths."""
+    def test_lookup_nested_path(self):
+        """lookup() handles dotted paths."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -226,45 +226,45 @@ class TestParse:
 
         io.bind_prefix("W", world)
 
-        result = io.parse("W:cytoplasm.glucose")
+        result = io.lookup("W:cytoplasm.glucose")
 
         assert result is molecule
 
-    def test_parse_prefix_only(self):
-        """parse() returns prefix target when no path."""
+    def test_lookup_prefix_only(self):
+        """lookup() returns prefix target when no path."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
 
         io.bind_prefix("W", world)
 
-        result = io.parse("W:")
+        result = io.lookup("W:")
 
         assert result is world
 
-    def test_parse_missing_colon_raises(self):
-        """parse() raises for string without colon."""
+    def test_lookup_missing_colon_raises(self):
+        """lookup() raises for string without colon."""
         io = IO()
 
         with pytest.raises(ValueError, match="missing prefix separator"):
-            io.parse("nocolon")
+            io.lookup("nocolon")
 
-    def test_parse_empty_prefix_raises(self):
-        """parse() raises for empty prefix."""
+    def test_lookup_empty_prefix_raises(self):
+        """lookup() raises for empty prefix."""
         io = IO()
 
         with pytest.raises(ValueError, match="empty prefix"):
-            io.parse(":path")
+            io.lookup(":path")
 
-    def test_parse_unbound_prefix_raises(self):
-        """parse() raises for unbound prefix."""
+    def test_lookup_unbound_prefix_raises(self):
+        """lookup() raises for unbound prefix."""
         io = IO()
 
         with pytest.raises(KeyError, match="Prefix 'X' is not bound"):
-            io.parse("X:path")
+            io.lookup("X:path")
 
-    def test_parse_invalid_path_raises(self):
-        """parse() raises for invalid path."""
+    def test_lookup_invalid_path_raises(self):
+        """lookup() raises for invalid path."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -272,14 +272,14 @@ class TestParse:
         io.bind_prefix("W", world)
 
         with pytest.raises(KeyError, match="No child named"):
-            io.parse("W:nonexistent")
+            io.lookup("W:nonexistent")
 
 
-class TestFormatParseRoundtrip:
-    """Tests for format/parse roundtrip."""
+class TestFormatLookupRoundtrip:
+    """Tests for format/lookup roundtrip."""
 
     def test_roundtrip_direct_child(self):
-        """format then parse roundtrips for direct child."""
+        """format then lookup roundtrips for direct child."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -288,12 +288,12 @@ class TestFormatParseRoundtrip:
         io.bind_prefix("W", world)
 
         formatted = io.format(compartment)
-        parsed = io.parse(formatted)
+        found = io.lookup(formatted)
 
-        assert parsed is compartment
+        assert found is compartment
 
     def test_roundtrip_nested(self):
-        """format then parse roundtrips for nested entity."""
+        """format then lookup roundtrips for nested entity."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -303,12 +303,12 @@ class TestFormatParseRoundtrip:
         io.bind_prefix("W", world)
 
         formatted = io.format(molecule)
-        parsed = io.parse(formatted)
+        found = io.lookup(formatted)
 
-        assert parsed is molecule
+        assert found is molecule
 
     def test_roundtrip_exact_prefix(self):
-        """format then parse roundtrips for prefix target."""
+        """format then lookup roundtrips for prefix target."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -316,6 +316,6 @@ class TestFormatParseRoundtrip:
         io.bind_prefix("W", world)
 
         formatted = io.format(world)
-        parsed = io.parse(formatted)
+        found = io.lookup(formatted)
 
-        assert parsed is world
+        assert found is world
