@@ -105,22 +105,22 @@ class TestPrefixBindings:
         assert "X" not in io.prefixes
 
 
-class TestFormat:
-    """Tests for entity formatting."""
+class TestRef:
+    """Tests for entity reference strings."""
 
-    def test_format_with_no_prefixes(self):
-        """format() uses full name when no prefixes bound."""
+    def test_ref_with_no_prefixes(self):
+        """ref() uses full name when no prefixes bound."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         compartment = Entity("cytoplasm", parent=world)
 
-        result = io.format(compartment)
+        result = io.ref(compartment)
 
         assert result == "runs/exp1.cytoplasm"
 
-    def test_format_with_matching_prefix(self):
-        """format() uses matching prefix."""
+    def test_ref_with_matching_prefix(self):
+        """ref() uses matching prefix."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -128,24 +128,24 @@ class TestFormat:
 
         io.bind_prefix("W", world)
 
-        result = io.format(compartment)
+        result = io.ref(compartment)
 
         assert result == "W:cytoplasm"
 
-    def test_format_exact_match(self):
-        """format() handles exact prefix match (no path)."""
+    def test_ref_exact_match(self):
+        """ref() handles exact prefix match (no path)."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
 
         io.bind_prefix("W", world)
 
-        result = io.format(world)
+        result = io.ref(world)
 
         assert result == "W:"
 
-    def test_format_nested_path(self):
-        """format() builds dotted path for nested entities."""
+    def test_ref_nested_path(self):
+        """ref() builds dotted path for nested entities."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -154,12 +154,12 @@ class TestFormat:
 
         io.bind_prefix("W", world)
 
-        result = io.format(molecule)
+        result = io.ref(molecule)
 
         assert result == "W:cytoplasm.glucose"
 
-    def test_format_prefers_shorter_path(self):
-        """format() prefers shorter prefix path."""
+    def test_ref_prefers_shorter_path(self):
+        """ref() prefers shorter prefix path."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -170,13 +170,13 @@ class TestFormat:
         io.bind_prefix("W", world)
         io.bind_prefix("C", compartment)
 
-        result = io.format(molecule)
+        result = io.ref(molecule)
 
         # C:glucose is shorter than W:cytoplasm.glucose
         assert result == "C:glucose"
 
-    def test_format_no_matching_prefix(self):
-        """format() uses full name when no prefix matches."""
+    def test_ref_no_matching_prefix(self):
+        """ref() uses full name when no prefix matches."""
         io = IO()
         dat1 = MockDat("runs/exp1")
         world1 = Entity("world1", dat=dat1)
@@ -188,7 +188,7 @@ class TestFormat:
         # Only bind world1, but entity is under world2
         io.bind_prefix("W", world1)
 
-        result = io.format(compartment)
+        result = io.ref(compartment)
 
         # Falls back to full name
         assert result == "runs/exp2.cytoplasm"
@@ -269,11 +269,63 @@ class TestLookup:
             io.lookup("W:nonexistent")
 
 
-class TestFormatLookupRoundtrip:
-    """Tests for format/lookup roundtrip."""
+class TestPathBinding:
+    """Tests for binding prefixes to path strings."""
 
-    def test_roundtrip_direct_child(self):
-        """format then lookup roundtrips for direct child."""
+    def test_bind_path_string(self):
+        """bind_prefix accepts a path string."""
+        io = IO()
+        io.bind_prefix("R", "runs/exp1")
+
+        assert "R" in io.prefixes
+        assert io.prefixes["R"] == "runs/exp1"
+
+    def test_resolve_d_prefix(self):
+        """D: prefix always resolves to data root."""
+        io = IO()
+
+        # D: should work even with no bindings
+        root = io.resolve_prefix("D")
+        assert root is not None
+        # It's a _RootEntity
+        assert root.local_name == ""
+
+    def test_lookup_d_prefix(self):
+        """lookup('D:') returns data root."""
+        io = IO()
+
+        root = io.lookup("D:")
+        assert root is not None
+        assert root.local_name == ""
+
+    def test_lookup_prefix_only_returns_bound_entity(self):
+        """lookup('W:') returns the bound entity (same as resolve_prefix)."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+
+        io.bind_prefix("W", world)
+
+        # These should be equivalent
+        assert io.lookup("W:") is world
+        assert io.resolve_prefix("W") is world
+
+    def test_ref_exact_prefix_match(self):
+        """ref() returns 'W:' when entity is exact prefix target."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+
+        io.bind_prefix("W", world)
+
+        assert io.ref(world) == "W:"
+
+
+class TestResolveRefs:
+    """Tests for resolve_refs - replacing <PREFIX:path> strings with entities."""
+
+    def test_resolve_refs_string(self):
+        """resolve_refs replaces <PREFIX:path> with entity."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -281,13 +333,39 @@ class TestFormatLookupRoundtrip:
 
         io.bind_prefix("W", world)
 
-        formatted = io.format(compartment)
-        found = io.lookup(formatted)
+        result = io.resolve_refs("<W:cytoplasm>")
 
-        assert found is compartment
+        assert result is compartment
 
-    def test_roundtrip_nested(self):
-        """format then lookup roundtrips for nested entity."""
+    def test_resolve_refs_plain_string(self):
+        """resolve_refs leaves plain strings unchanged."""
+        io = IO()
+
+        result = io.resolve_refs("just a string")
+
+        assert result == "just a string"
+
+    def test_resolve_refs_dict(self):
+        """resolve_refs processes dict values."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+
+        io.bind_prefix("W", world)
+
+        result = io.resolve_refs({
+            "name": "glucose",
+            "location": "<W:cytoplasm>",
+            "count": 100
+        })
+
+        assert result["name"] == "glucose"
+        assert result["location"] is compartment
+        assert result["count"] == 100
+
+    def test_resolve_refs_list(self):
+        """resolve_refs processes list items."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -296,20 +374,178 @@ class TestFormatLookupRoundtrip:
 
         io.bind_prefix("W", world)
 
-        formatted = io.format(molecule)
-        found = io.lookup(formatted)
+        result = io.resolve_refs(["<W:cytoplasm>", "<W:cytoplasm.glucose>"])
+
+        assert result[0] is compartment
+        assert result[1] is molecule
+
+    def test_resolve_refs_nested(self):
+        """resolve_refs handles nested structures."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+
+        io.bind_prefix("W", world)
+
+        result = io.resolve_refs({
+            "molecules": [
+                {"name": "glucose", "location": "<W:cytoplasm>"},
+                {"name": "ATP", "location": "<W:cytoplasm>"}
+            ]
+        })
+
+        assert result["molecules"][0]["location"] is compartment
+        assert result["molecules"][1]["location"] is compartment
+
+    def test_resolve_refs_non_string_passthrough(self):
+        """resolve_refs passes through non-string scalars."""
+        io = IO()
+
+        result = io.resolve_refs({"count": 42, "active": True, "value": None})
+
+        assert result == {"count": 42, "active": True, "value": None}
+
+
+class TestInsertRefs:
+    """Tests for insert_refs - replacing entities with <PREFIX:path> strings."""
+
+    def test_insert_refs_entity(self):
+        """insert_refs replaces entity with <PREFIX:path>."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+
+        io.bind_prefix("W", world)
+
+        result = io.insert_refs(compartment)
+
+        assert result == "<W:cytoplasm>"
+
+    def test_insert_refs_dict(self):
+        """insert_refs processes dict values."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+
+        io.bind_prefix("W", world)
+
+        result = io.insert_refs({
+            "name": "glucose",
+            "location": compartment,
+            "count": 100
+        })
+
+        assert result["name"] == "glucose"
+        assert result["location"] == "<W:cytoplasm>"
+        assert result["count"] == 100
+
+    def test_insert_refs_list(self):
+        """insert_refs processes list items."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+        molecule = Entity("glucose", parent=compartment)
+
+        io.bind_prefix("W", world)
+
+        result = io.insert_refs([compartment, molecule])
+
+        assert result == ["<W:cytoplasm>", "<W:cytoplasm.glucose>"]
+
+    def test_insert_refs_nested(self):
+        """insert_refs handles nested structures."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+
+        io.bind_prefix("W", world)
+
+        result = io.insert_refs({
+            "molecules": [
+                {"name": "glucose", "location": compartment},
+                {"name": "ATP", "location": compartment}
+            ]
+        })
+
+        assert result["molecules"][0]["location"] == "<W:cytoplasm>"
+        assert result["molecules"][1]["location"] == "<W:cytoplasm>"
+
+
+class TestResolveInsertRoundtrip:
+    """Tests for resolve_refs/insert_refs roundtrip."""
+
+    def test_roundtrip_structure(self):
+        """insert_refs then resolve_refs roundtrips a structure."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+        molecule = Entity("glucose", parent=compartment)
+
+        io.bind_prefix("W", world)
+
+        original = {
+            "name": "reaction",
+            "location": compartment,
+            "reactants": [molecule],
+            "count": 5
+        }
+
+        serialized = io.insert_refs(original)
+        restored = io.resolve_refs(serialized)
+
+        assert restored["name"] == "reaction"
+        assert restored["location"] is compartment
+        assert restored["reactants"][0] is molecule
+        assert restored["count"] == 5
+
+
+class TestRefLookupRoundtrip:
+    """Tests for ref/lookup roundtrip."""
+
+    def test_roundtrip_direct_child(self):
+        """ref then lookup roundtrips for direct child."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+
+        io.bind_prefix("W", world)
+
+        ref_str = io.ref(compartment)
+        found = io.lookup(ref_str)
+
+        assert found is compartment
+
+    def test_roundtrip_nested(self):
+        """ref then lookup roundtrips for nested entity."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+        molecule = Entity("glucose", parent=compartment)
+
+        io.bind_prefix("W", world)
+
+        ref_str = io.ref(molecule)
+        found = io.lookup(ref_str)
 
         assert found is molecule
 
     def test_roundtrip_exact_prefix(self):
-        """format then lookup roundtrips for prefix target."""
+        """ref then lookup roundtrips for prefix target."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
 
         io.bind_prefix("W", world)
 
-        formatted = io.format(world)
-        found = io.lookup(formatted)
+        ref_str = io.ref(world)
+        found = io.lookup(ref_str)
 
         assert found is world

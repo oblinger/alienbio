@@ -40,9 +40,17 @@ class Entity:
 
         Raises:
             ValueError: If neither parent nor dat is provided
+            ValueError: If name contains spaces
         """
         if parent is None and dat is None:
-            raise ValueError("Entity must have either a parent or a DAT anchor")
+            raise ValueError(
+                f"Entity {name!r} must have either a parent or a DAT anchor"
+            )
+
+        if " " in name:
+            raise ValueError(
+                f"Entity name {name!r} contains spaces; names must be valid identifiers"
+            )
 
         self._local_name = name
         self._parent: Optional[Entity] = None
@@ -127,6 +135,34 @@ class Entity:
         # Note: parent, children, dat are structural - not serialized here
         # Subclasses should override to add their own fields
         return result
+
+    def to_str(self, depth: int = -1) -> str:
+        """String representation of entity tree.
+
+        Returns a function-call style representation showing the entity
+        and optionally its children.
+
+        Args:
+            depth: How deep to recurse into children.
+                   -1 = unlimited, 0 = just this entity,
+                   1 = include immediate children, etc.
+
+        Returns:
+            String like "World(Cytoplasm(Glucose, ATP), Nucleus)"
+
+        Example:
+            entity.to_str()      # full tree
+            entity.to_str(0)     # just "World"
+            entity.to_str(1)     # "World(Cytoplasm, Nucleus)"
+        """
+        if not self._children or depth == 0:
+            return self._local_name
+
+        next_depth = -1 if depth == -1 else depth - 1
+        children_str = ", ".join(
+            child.to_str(next_depth) for child in self._children.values()
+        )
+        return f"{self._local_name}({children_str})"
 
     def add_child(self, child: Entity) -> Entity:
         """Add a child entity.

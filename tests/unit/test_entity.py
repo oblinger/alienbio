@@ -41,8 +41,14 @@ class TestEntityCreation:
 
     def test_create_requires_parent_or_dat(self):
         """Entity requires either parent or DAT anchor."""
-        with pytest.raises(ValueError, match="parent or a DAT anchor"):
+        with pytest.raises(ValueError, match="'orphan' must have either a parent or a DAT"):
             Entity("orphan")
+
+    def test_create_with_space_in_name_raises(self):
+        """Entity name cannot contain spaces."""
+        dat = MockDat("runs/exp1")
+        with pytest.raises(ValueError, match="contains spaces"):
+            Entity("invalid name", dat=dat)
 
     def test_create_with_both_parent_and_dat(self):
         """Entity can have both parent and DAT (dual-anchored)."""
@@ -239,6 +245,73 @@ class TestToDict:
         assert "parent" not in result
         assert "children" not in result
         assert "dat" not in result
+
+
+class TestToStr:
+    """Tests for to_str tree representation."""
+
+    def test_to_str_leaf(self):
+        """to_str returns just name for leaf entity."""
+        dat = MockDat("runs/exp1")
+        entity = Entity("glucose", dat=dat)
+
+        assert entity.to_str() == "glucose"
+
+    def test_to_str_with_children(self):
+        """to_str shows children in parentheses."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        Entity("cytoplasm", parent=world)
+        Entity("nucleus", parent=world)
+
+        result = world.to_str()
+
+        assert result == "world(cytoplasm, nucleus)"
+
+    def test_to_str_nested(self):
+        """to_str recurses into children."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cytoplasm = Entity("cytoplasm", parent=world)
+        Entity("glucose", parent=cytoplasm)
+        Entity("ATP", parent=cytoplasm)
+
+        result = world.to_str()
+
+        assert result == "world(cytoplasm(glucose, ATP))"
+
+    def test_to_str_depth_zero(self):
+        """to_str with depth=0 returns just name."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        Entity("cytoplasm", parent=world)
+
+        result = world.to_str(depth=0)
+
+        assert result == "world"
+
+    def test_to_str_depth_one(self):
+        """to_str with depth=1 shows immediate children only."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cytoplasm = Entity("cytoplasm", parent=world)
+        Entity("glucose", parent=cytoplasm)
+
+        result = world.to_str(depth=1)
+
+        assert result == "world(cytoplasm)"
+
+    def test_to_str_depth_two(self):
+        """to_str with depth=2 shows two levels."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cytoplasm = Entity("cytoplasm", parent=world)
+        glucose = Entity("glucose", parent=cytoplasm)
+        Entity("atom", parent=glucose)
+
+        result = world.to_str(depth=2)
+
+        assert result == "world(cytoplasm(glucose))"
 
 
 class TestTreeTraversal:

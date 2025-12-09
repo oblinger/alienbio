@@ -23,8 +23,10 @@ Note: For data path, use `Dat.manager.sync_folder` (single source of truth).
 | bind_prefix | Bind a prefix to a target entity |
 | unbind_prefix | Remove a prefix binding |
 | resolve_prefix | Get the entity bound to a prefix |
-| format | Convert entity to PREFIX:path string |
+| ref | Get reference string for entity (PREFIX:path) |
 | lookup | Find entity by PREFIX:path string |
+| resolve_refs | Replace `<PREFIX:path>` strings with entities in a structure |
+| insert_refs | Replace entities with `<PREFIX:path>` strings in a structure |
 | load | Load Dat from data path |
 | save | Save object as Dat to data path |
 
@@ -61,14 +63,14 @@ class IO:
         """
         ...
 
-    def format(self, entity: "Entity") -> str:
-        """Format entity as PREFIX:path string.
+    def ref(self, entity: "Entity") -> str:
+        """Get reference string for entity.
 
         Finds the shortest prefix that matches entity's ancestry,
         then builds the path from there.
 
         Example:
-            io.format(glucose)  # -> "W:cytoplasm.glucose"
+            io.ref(glucose)  # -> "W:cytoplasm.glucose"
         """
         ...
 
@@ -79,6 +81,28 @@ class IO:
 
         Example:
             io.lookup("W:cytoplasm.glucose")  # -> glucose entity
+        """
+        ...
+
+    def resolve_refs(self, obj: Any) -> Any:
+        """Replace <PREFIX:path> strings with Entity objects in a structure.
+
+        Recursively walks dicts and lists, replacing matching strings.
+
+        Example:
+            data = yaml.safe_load(file)
+            data = io.resolve_refs(data)  # <W:glucose> → Entity
+        """
+        ...
+
+    def insert_refs(self, obj: Any) -> Any:
+        """Replace Entity objects with <PREFIX:path> strings in a structure.
+
+        Recursively walks dicts and lists, replacing entities.
+
+        Example:
+            output = io.insert_refs(data)  # Entity → <W:glucose>
+            yaml.dump(output, file)
         """
         ...
 
@@ -100,7 +124,7 @@ class IO:
 ```python
 # Access via context
 ctx().io.bind_prefix("W", world)
-print(ctx().io.format(glucose))  # W:cytoplasm.glucose
+print(ctx().io.ref(glucose))  # W:cytoplasm.glucose
 
 # Or via top-level functions (which delegate to ctx().io)
 from alienbio import lookup, load, save
@@ -110,21 +134,53 @@ dat = load("runs/exp1")
 save({"name": "result"}, "runs/exp1/results")
 ```
 
-## Format / Lookup Roundtrip
+## Ref / Lookup Roundtrip
 
-`format` and `lookup` are inverses:
+`ref` and `lookup` are inverses:
 
 ```python
 io.bind_prefix("W", world)
 
-# format -> lookup roundtrip
-formatted = io.format(glucose)      # "W:cytoplasm.glucose"
-found = io.lookup(formatted)        # glucose entity
+# ref -> lookup roundtrip
+ref_str = io.ref(glucose)           # "W:cytoplasm.glucose"
+found = io.lookup(ref_str)          # glucose entity
 assert found is glucose
 
 # Shortest prefix is used
 io.bind_prefix("C", cytoplasm)
-io.format(glucose)  # "C:glucose" (shorter than "W:cytoplasm.glucose")
+io.ref(glucose)  # "C:glucose" (shorter than "W:cytoplasm.glucose")
+```
+
+## YAML Serialization
+
+Entity references in YAML use `<PREFIX:path>` format. The angle brackets allow
+entity references to be distinguished from plain strings without requiring quotes:
+
+```yaml
+molecules:
+  - name: glucose
+    location: <W:cytoplasm>
+    reactants:
+      - <W:cytoplasm.ATP>
+      - <W:cytoplasm.glucose>
+```
+
+Use `resolve_refs` and `insert_refs` to convert between YAML and in-memory structures:
+
+```python
+import yaml
+
+# Load YAML and resolve entity references
+with open("data.yaml") as f:
+    data = yaml.safe_load(f)
+data = io.resolve_refs(data)  # <W:cytoplasm> → Entity objects
+
+# ... work with entities ...
+
+# Serialize back to YAML
+output = io.insert_refs(data)  # Entity → <W:cytoplasm>
+with open("output.yaml", "w") as f:
+    yaml.dump(output, f)
 ```
 
 ## See Also
