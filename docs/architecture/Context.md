@@ -8,9 +8,8 @@ Context is the root object graph for alienbio runtime. It serves as a pegboard w
 | Properties | Type | Description |
 |----------|------|-------------|
 | config | Config | System configuration and settings |
-| prefixes | dict[str, EntitySource] | Prefix bindings for entity display |
+| io | IO | Entity I/O: prefixes, formatting, parsing, persistence |
 | simulator | Simulator \| None | Rust or Python simulation engine |
-| data_store | DataStore \| None | Persistent entity storage |
 | world | World \| None | Currently loaded world |
 | harness | TestHarness \| None | Test execution runner |
 
@@ -33,11 +32,10 @@ class Context:
 
     # Infrastructure (always present)
     config: Config
-    prefixes: dict[str, EntitySource] = field(default_factory=dict)
+    io: IO = field(default_factory=IO)
 
     # Connections (initialized on demand)
     simulator: Simulator | None = None
-    data_store: DataStore | None = None
 
     # Biology (loaded per-session)
     world: World | None = None
@@ -102,10 +100,16 @@ def create(cls, config_path: Path | None = None) -> Context:
 ```python
 # Create and enter context
 with Context.create("config.yaml") as ctx:
-    ctx.prefixes["M"] = ctx.world.molecules
+    # Bind prefixes for convenient entity display
+    ctx.io.bind_prefix("W", ctx.world)
+    ctx.io.bind_prefix("M", ctx.world.molecules)
 
-    # Entities use Context.current() for printing
+    # Entities use Context.current().io for printing
     print(some_molecule)  # -> M:glucose
+
+    # Load/save via io
+    dat = ctx.io.load("runs/exp1")
+    ctx.io.save(results, "runs/exp1/output")
 
     # Run tests
     ctx.harness = TestHarness(experiments=[...])
@@ -117,5 +121,6 @@ Uses Python's `contextvars` module, which provides proper isolation for threads 
 
 ## See Also
 - [[ABIO execution]] - Parent subsystem
+- [[IO]] - Entity I/O component
 - [[TestHarness]] - Test execution component
-- [[Entity-naming]] - How prefixes are used for display
+- [[Entity-naming]] - Naming scheme and prefix system

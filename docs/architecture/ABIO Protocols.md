@@ -22,6 +22,9 @@ Alphabetical listing of all protocols in the Alien Biology system.
 ## G
 - **[[Generator]]** - Base class for synthetic biology factories
 
+## I
+- **[[IO]]** - Entity I/O: prefix bindings, formatting, parsing, persistence
+
 ## M
 - **[[Measurement]]** - Function to observe system state
 - **[[MoleculeGenerator]]** - Factory for synthetic molecules

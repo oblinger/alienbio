@@ -64,12 +64,12 @@ Multi-letter prefixes for special cases:
 
 ### Prefix Bindings
 
-Prefixes are bound in [[Context]]. The `D:` prefix is always bound to the data root as an escape hatch - every entity can be named with `D:` even if no other prefix applies.
+Prefixes are bound via [[IO]] (accessed through [[Context]]). The `D:` prefix is always bound to the data root as an escape hatch - every entity can be named with `D:` even if no other prefix applies.
 
 ```python
 # Example prefix bindings in a run
-ctx.bind_prefix("R", current_run_dat)
-ctx.bind_prefix("W", current_world_dat)
+ctx.io.bind_prefix("R", current_run_dat)
+ctx.io.bind_prefix("W", current_world_dat)
 
 # Now these are equivalent:
 # D:runs/exp1/world1.compartment.glucose
@@ -123,5 +123,6 @@ The `serialize()` and `deserialize()` methods on [[Entity]] handle conversion. S
 ## See Also
 
 - [[Entity]] - Base protocol with serialize/deserialize methods
-- [[Context]] - Holds prefix bindings, load/save operators
+- [[IO]] - Prefix bindings, formatting, parsing, persistence
+- [[Context]] - Runtime pegboard containing IO
 - [[ABIO DAT]] - DAT storage integration
