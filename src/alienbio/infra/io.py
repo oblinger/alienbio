@@ -59,6 +59,7 @@ class IO:
         """Initialize IO."""
         self._prefixes: Dict[str, Entity | str] = {}
         self._path_entity_cache: Dict[str, Entity] = {}
+        self._dat_entity_cache: Dict[str, Entity] = {}  # DAT path -> root entity
         self._root_entity: Optional[_RootEntity] = None
 
     @property
@@ -150,22 +151,27 @@ class IO:
         self._path_entity_cache[path] = entity
         return entity
 
-    def ref(self, entity: Entity, prefer_short: bool = True) -> str:
+    def ref(
+        self, entity: Entity, prefer_short: bool = True, absolute: bool = False
+    ) -> str:
         """Get reference string for entity.
-
-        Finds the shortest prefix that reaches this entity's ancestry,
-        then builds the path from there. The 'D:' prefix is always available.
 
         Args:
             entity: Entity to get reference for
-            prefer_short: If True, uses shortest matching prefix
+            prefer_short: If True, uses shortest matching prefix (ignored if absolute)
+            absolute: If True, returns absolute format </dat/path.entity.path>
 
         Returns:
             String in PREFIX:path format (e.g., "W:cytoplasm.glucose")
+            or absolute format (e.g., "</runs/exp1.cytoplasm.glucose>")
 
         Example:
-            io.ref(glucose)  # -> "W:cytoplasm.glucose"
+            io.ref(glucose)                # -> "W:cytoplasm.glucose"
+            io.ref(glucose, absolute=True) # -> "</runs/exp1.cytoplasm.glucose>"
         """
+        if absolute:
+            return self._absolute_ref(entity)
+
         # Find which prefixes match this entity's ancestry
         matches: list[tuple[str, str]] = []  # (prefix, remaining_path)
 
@@ -193,6 +199,43 @@ class IO:
         if path:
             return f"{prefix}:{path}"
         return f"{prefix}:"
+
+    def _absolute_ref(self, entity: Entity) -> str:
+        """Get absolute reference string for entity.
+
+        Format: </dat/path.entity.path>
+        - dat/path is the filesystem path to the DAT
+        - entity.path is the dotted path from DAT root to entity
+
+        Example: </runs/exp1.cytoplasm.glucose>
+        """
+        # Find the DAT anchor
+        dat = entity.find_dat_anchor()
+        if dat is None:
+            raise ValueError(
+                f"Entity {entity.local_name!r} has no DAT anchor for absolute ref"
+            )
+
+        dat_path = dat.get_path_name()
+
+        # Build entity path from DAT root to this entity
+        # Walk up from entity to find the entity that owns the DAT
+        entity_parts: list[str] = []
+        current: Optional[Entity] = entity
+
+        while current is not None:
+            if current.dat is dat:
+                # Found the DAT owner - don't include its name in entity path
+                break
+            entity_parts.append(current.local_name)
+            current = current.parent
+
+        entity_parts.reverse()
+        entity_path = ".".join(entity_parts)
+
+        if entity_path:
+            return f"</{dat_path}.{entity_path}>"
+        return f"</{dat_path}>"
 
     def _relative_path(self, entity: Entity, ancestor: Entity) -> Optional[str]:
         """Compute relative path from ancestor to entity.
@@ -236,12 +279,16 @@ class IO:
         return None
 
     def lookup(self, string: str) -> Entity:
-        """Look up entity by PREFIX:path string.
+        """Look up entity by reference string.
 
-        Resolves prefix, then walks down path to find entity.
+        Supports two formats:
+        - PREFIX:path (e.g., "W:cytoplasm.glucose") - prefix-relative
+        - </dat/path.entity.path> (e.g., "</runs/exp1.cytoplasm>") - absolute
+
+        For absolute format, loads the DAT if not already loaded.
 
         Args:
-            string: String in PREFIX:path format
+            string: Reference string in either format
 
         Returns:
             The entity at the specified path
@@ -251,8 +298,14 @@ class IO:
             KeyError: If prefix is not bound or path not found
 
         Example:
-            io.lookup("W:cytoplasm.glucose")  # -> glucose entity
+            io.lookup("W:cytoplasm.glucose")       # prefix-relative
+            io.lookup("</runs/exp1.cytoplasm>")   # absolute
         """
+        # Check for absolute format: </dat/path.entity.path>
+        if string.startswith("</") and string.endswith(">"):
+            return self._absolute_lookup(string)
+
+        # Prefix-relative format: PREFIX:path
         if ":" not in string:
             raise ValueError(
                 f"Invalid entity reference {string!r}: missing prefix separator ':'"
@@ -269,6 +322,128 @@ class IO:
             return target
 
         return self._walk_path(target, path)
+
+    def _absolute_lookup(self, string: str) -> Entity:
+        """Look up entity by absolute reference.
+
+        Format: </dat/path.entity.path>
+        - dat/path is the filesystem path to the DAT
+        - entity.path is the dotted path from DAT root to entity
+
+        Loads the DAT if not already cached.
+        """
+        # Strip </ and >
+        inner = string[2:-1]
+
+        # Find first dot to split DAT path from entity path
+        dot_idx = inner.find(".")
+        if dot_idx == -1:
+            # No entity path, just DAT path
+            dat_path = inner
+            entity_path = ""
+        else:
+            dat_path = inner[:dot_idx]
+            entity_path = inner[dot_idx + 1:]
+
+        # Load or retrieve cached DAT entity
+        root_entity = self._load_dat_entity(dat_path)
+
+        if not entity_path:
+            return root_entity
+
+        return self._walk_path(root_entity, entity_path)
+
+    def _load_dat_entity(self, dat_path: str) -> Entity:
+        """Load a DAT and return its root entity, with caching.
+
+        If the DAT has already been loaded, returns the cached entity.
+        Otherwise loads from filesystem and caches.
+
+        If entities.yaml exists in the DAT folder, loads the entity tree
+        from it, recursively creating children.
+        """
+        # Check cache first
+        if dat_path in self._dat_entity_cache:
+            return self._dat_entity_cache[dat_path]
+
+        # Import here to avoid circular import
+        from .entity import Entity
+
+        # Load the DAT
+        dat = Dat.load(dat_path)
+
+        # Check for entities.yaml
+        dat_folder = Path(dat.get_path())
+        entities_file = dat_folder / "entities.yaml"
+
+        if entities_file.exists():
+            import yaml
+
+            with open(entities_file) as f:
+                entity_data = yaml.safe_load(f)
+
+            # Create root entity from loaded data
+            entity = self._create_entity_from_dict(entity_data, dat=dat)
+        else:
+            # Create root entity from DAT
+            # Use the last path component as the entity name
+            name = Path(dat_path).name
+            entity = Entity(name, dat=dat)
+
+        # Cache and return
+        self._dat_entity_cache[dat_path] = entity
+        return entity
+
+    def _create_entity_from_dict(
+        self,
+        data: Dict[str, Any],
+        *,
+        dat: Optional[Dat] = None,
+        parent: Optional[Entity] = None,
+    ) -> Entity:
+        """Create an entity and its children from a dict.
+
+        Uses type dispatch: looks up 'type' field in the entity registry
+        to instantiate the correct Entity subclass.
+
+        Args:
+            data: Dict with 'type', 'name', optional 'description', optional 'children'
+            dat: DAT anchor (required if no parent)
+            parent: Parent entity (required if no dat)
+
+        Returns:
+            The created entity (may be a subclass based on 'type' field)
+        """
+        from .entity import Entity, get_entity_type
+
+        # Get the entity class from type field (default to Entity)
+        type_name = data.get("type", "Entity")
+        try:
+            entity_cls = get_entity_type(type_name)
+        except KeyError:
+            # Unknown type - fall back to base Entity
+            entity_cls = Entity
+
+        name = data.get("name", "unnamed")
+        description = data.get("description", "")
+
+        # Create entity using the resolved class
+        entity = entity_cls(name, parent=parent, dat=dat, description=description)
+
+        # Recursively create children
+        children_data = data.get("children", {})
+        for child_name, child_data in children_data.items():
+            if isinstance(child_data, str) and child_data.startswith("</"):
+                # Absolute ref - load from another DAT
+                child = self._absolute_lookup(child_data)
+                # Reparent to this entity
+                child.set_parent(entity)
+            elif isinstance(child_data, dict):
+                # Inline child definition
+                self._create_entity_from_dict(child_data, parent=entity)
+            # else: skip invalid entries
+
+        return entity
 
     def _walk_path(self, entity: Entity, path: str) -> Entity:
         """Walk down a dotted path from an entity.

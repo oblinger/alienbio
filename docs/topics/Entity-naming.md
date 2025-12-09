@@ -90,10 +90,17 @@ Entity references use prefix notation: `PREFIX:path.to.entity`
 ### String Representation
 
 Every entity implements `__str__` and `__repr__`:
-- `__str__`: Full name from DAT anchor - `runs/exp1.cytoplasm.glucose`
+- `__str__`: Uses PREFIX:path via context when available (e.g., `W:cytoplasm.glucose`), falls back to full_name
 - `__repr__`: Full reconstructible form with class and fields
 
-For prefix notation, use `ctx().io.format(entity)` or the global `lookup()` function.
+```python
+# With context and prefix bindings
+ctx.io.bind_prefix("W", world)
+print(glucose)  # "W:cytoplasm.glucose"
+
+# Without context (falls back to full_name)
+print(glucose)  # "runs/exp1.cytoplasm.glucose"
+```
 
 ### Examples
 

@@ -7,28 +7,57 @@ Entity I/O: prefix bindings, formatting, lookup, and persistence.
 IO handles all external representation concerns for entities:
 - **Prefix bindings** - Maps short prefixes (R:, W:) to Entity anchors
 - **Formatting** - Converts entities to PREFIX:path strings
-- **Lookup** - Finds entities by PREFIX:path strings
+- **Lookup** - Finds entities by PREFIX:path or absolute strings
 - **Persistence** - Load/save entities via DAT
+- **Type dispatch** - Creates correct Entity subclasses when loading
 
 IO is accessed through [[Context]] and provides the implementation for top-level `load`, `save`, and `lookup` functions.
 
 | Properties | Type | Description |
 |----------|------|-------------|
-| _prefixes | Dict[str, Entity] | Prefix -> target entity bindings |
+| _prefixes | Dict[str, Entity \| str] | Prefix -> target entity or path bindings |
+| _dat_entity_cache | Dict[str, Entity] | Cache for loaded DAT entities |
 
 Note: For data path, use `Dat.manager.sync_folder` (single source of truth).
 
 | Methods | Description |
 |---------|-------------|
-| bind_prefix | Bind a prefix to a target entity |
+| bind_prefix | Bind a prefix to a target entity or path |
 | unbind_prefix | Remove a prefix binding |
 | resolve_prefix | Get the entity bound to a prefix |
-| ref | Get reference string for entity (PREFIX:path) |
-| lookup | Find entity by PREFIX:path string |
+| ref | Get reference string for entity (PREFIX:path or absolute) |
+| lookup | Find entity by PREFIX:path or absolute string |
 | resolve_refs | Replace `<PREFIX:path>` strings with entities in a structure |
 | insert_refs | Replace entities with `<PREFIX:path>` strings in a structure |
 | load | Load Dat from data path |
 | save | Save object as Dat to data path |
+
+## Reference Formats
+
+IO supports two reference formats:
+
+### Prefix-Relative Format
+`PREFIX:path` - Uses bound prefixes for short references.
+
+```python
+io.bind_prefix("W", world)
+io.ref(glucose)              # "W:cytoplasm.glucose"
+io.lookup("W:cytoplasm")     # -> cytoplasm entity
+```
+
+### Absolute Format
+`</dat/path.entity.path>` - Global reference independent of prefix bindings.
+
+```python
+io.ref(glucose, absolute=True)   # "</runs/exp1.cytoplasm.glucose>"
+io.lookup("</runs/exp1.cytoplasm>")  # -> cytoplasm entity
+```
+
+The absolute format:
+- Starts with `</` and ends with `>`
+- First component is the DAT path (slash-separated)
+- Remaining components are the entity path (dot-separated)
+- Loads the DAT if not already cached
 
 ## Protocol Definition
 
@@ -41,46 +70,58 @@ class IO:
     Note: For data path, use Dat.manager.sync_folder (single source of truth).
     """
 
-    _prefixes: Dict[str, "Entity"]
+    _prefixes: Dict[str, "Entity" | str]
+    _dat_entity_cache: Dict[str, "Entity"]
 
-    def bind_prefix(self, prefix: str, target: "Entity") -> None:
-        """Bind a prefix to a target entity.
+    def bind_prefix(self, prefix: str, target: "Entity" | str) -> None:
+        """Bind a prefix to a target entity or path string.
 
         Example:
-            io.bind_prefix("R", current_run)
-            io.bind_prefix("W", world)
+            io.bind_prefix("R", current_run)      # entity
+            io.bind_prefix("W", "runs/exp1")      # path string
         """
         ...
 
-    def unbind_prefix(self, prefix: str) -> Optional["Entity"]:
-        """Remove a prefix binding. Returns the previously bound entity."""
+    def unbind_prefix(self, prefix: str) -> Optional["Entity" | str]:
+        """Remove a prefix binding. Returns the previously bound target."""
         ...
 
     def resolve_prefix(self, prefix: str) -> "Entity":
         """Get the entity bound to a prefix.
 
+        The special prefix 'D' always resolves to the data root.
         Raises KeyError if prefix not bound.
         """
         ...
 
-    def ref(self, entity: "Entity") -> str:
+    def ref(
+        self, entity: "Entity", prefer_short: bool = True, absolute: bool = False
+    ) -> str:
         """Get reference string for entity.
 
-        Finds the shortest prefix that matches entity's ancestry,
-        then builds the path from there.
+        Args:
+            entity: Entity to get reference for
+            prefer_short: If True, uses shortest matching prefix
+            absolute: If True, returns </dat/path.entity.path> format
 
         Example:
-            io.ref(glucose)  # -> "W:cytoplasm.glucose"
+            io.ref(glucose)                # "W:cytoplasm.glucose"
+            io.ref(glucose, absolute=True) # "</runs/exp1.cytoplasm.glucose>"
         """
         ...
 
     def lookup(self, string: str) -> "Entity":
-        """Look up entity by PREFIX:path string.
+        """Look up entity by reference string.
 
-        Resolves prefix, then walks down path to find entity.
+        Supports two formats:
+        - PREFIX:path (e.g., "W:cytoplasm.glucose") - prefix-relative
+        - </dat/path.entity.path> (e.g., "</runs/exp1.cytoplasm>") - absolute
+
+        For absolute format, loads the DAT if not already cached.
 
         Example:
-            io.lookup("W:cytoplasm.glucose")  # -> glucose entity
+            io.lookup("W:cytoplasm.glucose")      # prefix-relative
+            io.lookup("</runs/exp1.cytoplasm>")   # absolute
         """
         ...
 
@@ -91,7 +132,7 @@ class IO:
 
         Example:
             data = yaml.safe_load(file)
-            data = io.resolve_refs(data)  # <W:glucose> → Entity
+            data = io.resolve_refs(data)  # <W:glucose> -> Entity
         """
         ...
 
@@ -101,7 +142,7 @@ class IO:
         Recursively walks dicts and lists, replacing entities.
 
         Example:
-            output = io.insert_refs(data)  # Entity → <W:glucose>
+            output = io.insert_refs(data)  # Entity -> <W:glucose>
             yaml.dump(output, file)
         """
         ...
@@ -126,6 +167,9 @@ class IO:
 ctx().io.bind_prefix("W", world)
 print(ctx().io.ref(glucose))  # W:cytoplasm.glucose
 
+# Absolute references
+print(ctx().io.ref(glucose, absolute=True))  # </runs/exp1.cytoplasm.glucose>
+
 # Or via top-level functions (which delegate to ctx().io)
 from alienbio import lookup, load, save
 
@@ -149,7 +193,32 @@ assert found is glucose
 # Shortest prefix is used
 io.bind_prefix("C", cytoplasm)
 io.ref(glucose)  # "C:glucose" (shorter than "W:cytoplasm.glucose")
+
+# Absolute roundtrip (no prefix binding needed)
+abs_ref = io.ref(glucose, absolute=True)  # "</runs/exp1.cytoplasm.glucose>"
+found = io.lookup(abs_ref)                 # glucose entity
 ```
+
+## Entity Loading with Type Dispatch
+
+When loading entities from `entities.yaml`, IO uses the type registry to create the correct Entity subclass:
+
+```yaml
+# entities.yaml
+type: Entity
+name: world
+children:
+  cytoplasm:
+    type: C
+    name: cytoplasm
+    volume: 1.5
+  glucose:
+    type: M
+    name: glucose
+    formula: C6H12O6
+```
+
+The `type` field maps to registered Entity subclasses via `get_entity_type()`.
 
 ## YAML Serialization
 
@@ -173,12 +242,12 @@ import yaml
 # Load YAML and resolve entity references
 with open("data.yaml") as f:
     data = yaml.safe_load(f)
-data = io.resolve_refs(data)  # <W:cytoplasm> → Entity objects
+data = io.resolve_refs(data)  # <W:cytoplasm> -> Entity objects
 
 # ... work with entities ...
 
 # Serialize back to YAML
-output = io.insert_refs(data)  # Entity → <W:cytoplasm>
+output = io.insert_refs(data)  # Entity -> <W:cytoplasm>
 with open("output.yaml", "w") as f:
     yaml.dump(output, f)
 ```

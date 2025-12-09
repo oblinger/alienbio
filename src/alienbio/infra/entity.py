@@ -2,10 +2,61 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator, Optional, TYPE_CHECKING
+from typing import Any, ClassVar, Dict, Iterator, Optional, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
+
+
+# Type registry for Entity subclasses
+_entity_registry: Dict[str, Type["Entity"]] = {}
+
+
+def register_entity_type(name: str, cls: Type["Entity"]) -> None:
+    """Register an entity type by name.
+
+    Called automatically by Entity subclasses via __init_subclass__.
+    Can also be called manually for dynamic registration.
+
+    Args:
+        name: Short name for the type (used in serialization)
+        cls: The Entity subclass to register
+    """
+    _entity_registry[name] = cls
+
+
+def get_entity_type(name: str) -> Type["Entity"]:
+    """Look up entity type by name.
+
+    Args:
+        name: Registered type name
+
+    Returns:
+        The Entity subclass
+
+    Raises:
+        KeyError: If type name not registered
+    """
+    if name not in _entity_registry:
+        raise KeyError(f"Unknown entity type: {name!r}")
+    return _entity_registry[name]
+
+
+def get_entity_types() -> Dict[str, Type["Entity"]]:
+    """Get all registered entity types (read-only copy)."""
+    return _entity_registry.copy()
+
+
+def _get_type_name(cls: Type["Entity"]) -> str:
+    """Get the registered type name for an Entity class.
+
+    Searches the registry for the class and returns its registered name.
+    Falls back to __name__ if not found (shouldn't happen).
+    """
+    for name, registered_cls in _entity_registry.items():
+        if registered_cls is cls:
+            return name
+    return cls.__name__
 
 
 class Entity:
@@ -21,6 +72,24 @@ class Entity:
     """
 
     __slots__ = ("_local_name", "_parent", "_children", "_dat", "description")
+
+    def __init_subclass__(cls, type_name: Optional[str] = None, **kwargs) -> None:
+        """Auto-register subclasses in the type registry.
+
+        Args:
+            type_name: Optional short name for serialization.
+                       If not provided, uses the class name.
+
+        Example:
+            class Molecule(Entity):  # registers as "Molecule"
+                pass
+
+            class Molecule(Entity, type_name="M"):  # registers as "M"
+                pass
+        """
+        super().__init_subclass__(**kwargs)
+        name = type_name if type_name else cls.__name__
+        register_entity_type(name, cls)
 
     def __init__(
         self,
@@ -123,16 +192,42 @@ class Entity:
             )
         return f"{self._parent.full_name}.{self._local_name}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, recursive: bool = False, _root_dat: Optional[Dat] = None) -> Dict[str, Any]:
         """Convert entity to dictionary representation for serialization.
+
+        Args:
+            recursive: If True, include children recursively
+            _root_dat: Internal - the DAT we're serializing from (to detect
+                       children with different DATs that need absolute refs)
 
         Returns:
             Dict with entity fields suitable for YAML/JSON serialization.
         """
-        result: Dict[str, Any] = {"name": self._local_name}
+        result: Dict[str, Any] = {
+            "type": _get_type_name(type(self)),
+            "name": self._local_name,
+        }
         if self.description:
             result["description"] = self.description
-        # Note: parent, children, dat are structural - not serialized here
+
+        if recursive and self._children:
+            # Track the root DAT for this serialization
+            if _root_dat is None:
+                _root_dat = self.find_dat_anchor()
+
+            children_dict: Dict[str, Any] = {}
+            for name, child in self._children.items():
+                child_dat = child.find_dat_anchor()
+                if child_dat is not None and child_dat is not _root_dat:
+                    # Child belongs to a different DAT - use absolute ref
+                    # Import here to avoid circular import
+                    from . import context
+                    children_dict[name] = context.ctx().io.ref(child, absolute=True)
+                else:
+                    # Same DAT - inline the child
+                    children_dict[name] = child.to_dict(recursive=True, _root_dat=_root_dat)
+            result["children"] = children_dict
+
         # Subclasses should override to add their own fields
         return result
 
@@ -223,6 +318,52 @@ class Entity:
             return self._parent.find_dat_anchor()
         return None
 
+    def save(self) -> None:
+        """Save this entity's DAT to disk.
+
+        Finds the nearest DAT anchor, then serializes the entire entity tree
+        rooted at that DAT to entities.yaml.
+
+        Raises:
+            ValueError: If entity has no DAT anchor
+        """
+        import yaml
+        from pathlib import Path
+
+        dat = self.find_dat_anchor()
+        if dat is None:
+            raise ValueError(
+                f"Entity {self._local_name!r} has no DAT anchor to save"
+            )
+
+        # Find the root entity that owns this DAT
+        root_entity = self._find_dat_root_entity(dat)
+
+        # Serialize the entity tree
+        entity_data = root_entity.to_dict(recursive=True)
+
+        # Write to entities.yaml in DAT folder
+        dat_path = Path(dat.get_path())
+        entities_file = dat_path / "entities.yaml"
+        with open(entities_file, "w") as f:
+            yaml.dump(entity_data, f, default_flow_style=False, sort_keys=False)
+
+        # Also save the DAT's spec
+        dat.save()
+
+    def _find_dat_root_entity(self, dat: Dat) -> Entity:
+        """Find the entity that directly owns the given DAT.
+
+        Walks up the tree to find the entity where entity.dat is dat.
+        """
+        current: Optional[Entity] = self
+        while current is not None:
+            if current._dat is dat:
+                return current
+            current = current._parent
+        # Should not happen if dat came from find_dat_anchor
+        return self
+
     def __repr__(self) -> str:
         """Full reconstructible representation."""
         parts = [f"name={self._local_name!r}"]
@@ -237,8 +378,21 @@ class Entity:
         return f"Entity({', '.join(parts)})"
 
     def __str__(self) -> str:
-        """Short display form using full name."""
+        """Short display form using PREFIX:path if context available.
+
+        Falls back to full_name if no context or prefix matches.
+        """
         try:
-            return self.full_name
-        except ValueError:
-            return f"<Entity:{self._local_name}>"
+            from .context import ctx
+
+            return ctx().io.ref(self)
+        except Exception:
+            # Fall back to full_name if context not available
+            try:
+                return self.full_name
+            except ValueError:
+                return f"<Entity:{self._local_name}>"
+
+
+# Register the base Entity class (since __init_subclass__ only fires for subclasses)
+register_entity_type("Entity", Entity)

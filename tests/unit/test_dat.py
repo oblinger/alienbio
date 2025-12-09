@@ -261,3 +261,292 @@ class TestDataFolderOperations:
 
             assert loaded.get_spec()["name"] == "deeply_nested"
             assert loaded.get_spec()["data"]["level1"]["level2"]["value"] == 42
+
+
+# Define mock entity subclasses here to avoid import order issues
+from alienbio.infra.entity import Entity as EntityBase
+
+
+class MockMolecule(EntityBase, type_name="TM"):
+    """Mock subclass for molecules."""
+
+    __slots__ = ("formula",)
+
+    def __init__(self, name, *, parent=None, dat=None, description="", formula=""):
+        super().__init__(name, parent=parent, dat=dat, description=description)
+        self.formula = formula
+
+    def to_dict(self, recursive=False, _root_dat=None):
+        result = super().to_dict(recursive=recursive, _root_dat=_root_dat)
+        if self.formula:
+            result["formula"] = self.formula
+        return result
+
+
+class MockCompartment(EntityBase, type_name="TC"):
+    """Mock subclass for compartments."""
+
+    __slots__ = ("volume",)
+
+    def __init__(self, name, *, parent=None, dat=None, description="", volume=0.0):
+        super().__init__(name, parent=parent, dat=dat, description=description)
+        self.volume = volume
+
+    def to_dict(self, recursive=False, _root_dat=None):
+        result = super().to_dict(recursive=recursive, _root_dat=_root_dat)
+        if self.volume:
+            result["volume"] = self.volume
+        return result
+
+
+class MockReaction(EntityBase, type_name="TR"):
+    """Mock subclass for reactions."""
+
+    __slots__ = ("rate",)
+
+    def __init__(self, name, *, parent=None, dat=None, description="", rate=0.0):
+        super().__init__(name, parent=parent, dat=dat, description=description)
+        self.rate = rate
+
+    def to_dict(self, recursive=False, _root_dat=None):
+        result = super().to_dict(recursive=recursive, _root_dat=_root_dat)
+        if self.rate:
+            result["rate"] = self.rate
+        return result
+
+
+class TestEntitySaveLoad:
+    """Tests for entity tree save/load with type dispatch."""
+
+    def test_save_creates_entities_yaml(self):
+        """Entity.save() creates entities.yaml file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a DAT first
+            dat = save({"name": "test_world"}, f"{tmpdir}/test/world1")
+
+            # Create entity tree
+            from alienbio.infra.entity import Entity
+
+            world = Entity("world", dat=dat)
+            Entity("child1", parent=world)
+
+            # Save the entity tree
+            world.save()
+
+            # Check entities.yaml exists
+            entities_file = Path(tmpdir) / "test" / "world1" / "entities.yaml"
+            assert entities_file.exists()
+
+    def test_save_includes_type_field(self):
+        """entities.yaml includes type field for each entity."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import yaml
+
+            dat = save({"name": "test"}, f"{tmpdir}/test/world2")
+
+            from alienbio.infra.entity import Entity
+
+            world = Entity("world", dat=dat)
+            world.save()
+
+            entities_file = Path(tmpdir) / "test" / "world2" / "entities.yaml"
+            with open(entities_file) as f:
+                data = yaml.safe_load(f)
+
+            assert data["type"] == "Entity"
+            assert data["name"] == "world"
+
+    def test_save_subclass_preserves_type(self):
+        """Saving a subclass preserves its type name."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import yaml
+
+            dat = save({"name": "test"}, f"{tmpdir}/test/comp1")
+
+            comp = MockCompartment("cytoplasm", dat=dat, volume=1.5)
+            comp.save()
+
+            entities_file = Path(tmpdir) / "test" / "comp1" / "entities.yaml"
+            with open(entities_file) as f:
+                data = yaml.safe_load(f)
+
+            assert data["type"] == "TC"  # Short type_name
+            assert data["name"] == "cytoplasm"
+            assert data["volume"] == 1.5
+
+    def test_save_mixed_tree(self):
+        """Saving a tree with mixed types preserves all types."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import yaml
+
+            dat = save({"name": "test"}, f"{tmpdir}/test/mixed1")
+
+            from alienbio.infra.entity import Entity
+
+            world = Entity("world", dat=dat)
+            cyto = MockCompartment("cytoplasm", parent=world, volume=1.0)
+            MockMolecule("glucose", parent=cyto, formula="C6H12O6")
+            MockReaction("glycolysis", parent=cyto, rate=0.1)
+
+            world.save()
+
+            entities_file = Path(tmpdir) / "test" / "mixed1" / "entities.yaml"
+            with open(entities_file) as f:
+                data = yaml.safe_load(f)
+
+            assert data["type"] == "Entity"
+            assert data["children"]["cytoplasm"]["type"] == "TC"
+            assert data["children"]["cytoplasm"]["volume"] == 1.0
+            assert data["children"]["cytoplasm"]["children"]["glucose"]["type"] == "TM"
+            assert data["children"]["cytoplasm"]["children"]["glucose"]["formula"] == "C6H12O6"
+            assert data["children"]["cytoplasm"]["children"]["glycolysis"]["type"] == "TR"
+            assert data["children"]["cytoplasm"]["children"]["glycolysis"]["rate"] == 0.1
+
+
+class TestEntityLoadWithTypes:
+    """Tests for loading entities with type dispatch."""
+
+    def test_load_entity_from_yaml(self):
+        """Loading from entities.yaml creates correct types."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import yaml
+
+            # Create DAT
+            dat = save({"name": "test"}, f"{tmpdir}/test/load1")
+
+            # Write entities.yaml with a MockMolecule
+            entities_file = Path(tmpdir) / "test" / "load1" / "entities.yaml"
+            entity_data = {
+                "type": "TM",
+                "name": "glucose",
+                "formula": "C6H12O6",
+            }
+            with open(entities_file, "w") as f:
+                yaml.dump(entity_data, f)
+
+            # Load via IO
+            from alienbio.infra.io import IO
+
+            io = IO()
+            entity = io._load_dat_entity(f"{tmpdir}/test/load1")
+
+            assert isinstance(entity, MockMolecule)
+            assert entity.local_name == "glucose"
+            # Note: formula won't be loaded yet because _create_entity_from_dict
+            # doesn't handle custom fields - that's a future enhancement
+
+    def test_load_with_children(self):
+        """Loading entities.yaml with children creates tree."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import yaml
+
+            dat = save({"name": "test"}, f"{tmpdir}/test/load2")
+
+            entities_file = Path(tmpdir) / "test" / "load2" / "entities.yaml"
+            entity_data = {
+                "type": "Entity",
+                "name": "world",
+                "children": {
+                    "cytoplasm": {
+                        "type": "TC",
+                        "name": "cytoplasm",
+                    }
+                }
+            }
+            with open(entities_file, "w") as f:
+                yaml.dump(entity_data, f)
+
+            from alienbio.infra.io import IO
+
+            io = IO()
+            entity = io._load_dat_entity(f"{tmpdir}/test/load2")
+
+            assert entity.local_name == "world"
+            assert "cytoplasm" in entity.children
+            assert isinstance(entity.children["cytoplasm"], MockCompartment)
+
+
+class TestEntityRoundtrip:
+    """Tests for complete save/load roundtrip."""
+
+    def test_roundtrip_base_entity(self):
+        """Save then load roundtrips a base Entity."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            from alienbio.infra.entity import Entity
+            from alienbio.infra.io import IO
+
+            # Create and save
+            dat = save({"name": "test"}, f"{tmpdir}/test/rt1")
+            original = Entity("world", dat=dat, description="Test world")
+            original.save()
+
+            # Clear cache and reload
+            io = IO()
+            loaded = io._load_dat_entity(f"{tmpdir}/test/rt1")
+
+            assert loaded.local_name == "world"
+            assert loaded.description == "Test world"
+            assert isinstance(loaded, Entity)
+
+    def test_roundtrip_preserves_tree_structure(self):
+        """Save then load roundtrips tree structure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            from alienbio.infra.entity import Entity
+            from alienbio.infra.io import IO
+
+            dat = save({"name": "test"}, f"{tmpdir}/test/rt2")
+            world = Entity("world", dat=dat)
+            cyto = Entity("cytoplasm", parent=world)
+            Entity("glucose", parent=cyto)
+            Entity("atp", parent=cyto)
+
+            world.save()
+
+            io = IO()
+            loaded = io._load_dat_entity(f"{tmpdir}/test/rt2")
+
+            assert loaded.local_name == "world"
+            assert "cytoplasm" in loaded.children
+            assert "glucose" in loaded.children["cytoplasm"].children
+            assert "atp" in loaded.children["cytoplasm"].children
+
+    def test_roundtrip_preserves_types(self):
+        """Save then load roundtrips entity types."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            from alienbio.infra.entity import Entity
+            from alienbio.infra.io import IO
+
+            dat = save({"name": "test"}, f"{tmpdir}/test/rt3")
+            world = Entity("world", dat=dat)
+            cyto = MockCompartment("cytoplasm", parent=world)
+            MockMolecule("glucose", parent=cyto)
+
+            world.save()
+
+            io = IO()
+            loaded = io._load_dat_entity(f"{tmpdir}/test/rt3")
+
+            assert isinstance(loaded, Entity)
+            assert isinstance(loaded.children["cytoplasm"], MockCompartment)
+            assert isinstance(loaded.children["cytoplasm"].children["glucose"], MockMolecule)
+
+    def test_roundtrip_with_to_str(self):
+        """Roundtripped tree has same to_str output."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            from alienbio.infra.entity import Entity
+            from alienbio.infra.io import IO
+
+            dat = save({"name": "test"}, f"{tmpdir}/test/rt4")
+            world = Entity("world", dat=dat)
+            cyto = MockCompartment("cytoplasm", parent=world)
+            MockMolecule("glucose", parent=cyto)
+            MockMolecule("atp", parent=cyto)
+
+            original_str = world.to_str()
+            world.save()
+
+            io = IO()
+            loaded = io._load_dat_entity(f"{tmpdir}/test/rt4")
+            loaded_str = loaded.to_str()
+
+            assert loaded_str == original_str
