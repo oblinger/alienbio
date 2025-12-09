@@ -321,6 +321,54 @@ class TestPathBinding:
         assert io.ref(world) == "W:"
 
 
+class TestAbsoluteRef:
+    """Tests for absolute reference format </dat/path.entity.path>."""
+
+    def test_absolute_ref_dat_root(self):
+        """ref(absolute=True) returns </dat/path> for DAT root entity."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+
+        result = io.ref(world, absolute=True)
+
+        assert result == "</runs/exp1>"
+
+    def test_absolute_ref_child(self):
+        """ref(absolute=True) returns </dat/path.child> for child entity."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cytoplasm = Entity("cytoplasm", parent=world)
+
+        result = io.ref(cytoplasm, absolute=True)
+
+        assert result == "</runs/exp1.cytoplasm>"
+
+    def test_absolute_ref_nested(self):
+        """ref(absolute=True) returns </dat/path.child.grandchild> for nested."""
+        io = IO()
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cytoplasm = Entity("cytoplasm", parent=world)
+        glucose = Entity("glucose", parent=cytoplasm)
+
+        result = io.ref(glucose, absolute=True)
+
+        assert result == "</runs/exp1.cytoplasm.glucose>"
+
+    def test_absolute_ref_no_dat_raises(self):
+        """ref(absolute=True) raises if entity has no DAT anchor."""
+        io = IO()
+        # Create orphan entity with a mock dat that we'll remove
+        dat = MockDat("temp")
+        entity = Entity("orphan", dat=dat)
+        entity._top = None  # Remove DAT to simulate orphan
+
+        with pytest.raises(ValueError, match="no DAT anchor"):
+            io.ref(entity, absolute=True)
+
+
 class TestResolveRefs:
     """Tests for resolve_refs - replacing <PREFIX:path> strings with entities."""
 
@@ -549,3 +597,65 @@ class TestRefLookupRoundtrip:
         found = io.lookup(ref_str)
 
         assert found is world
+
+
+class TestEntityStrWithContext:
+    """Tests for Entity.__str__ using context-aware formatting."""
+
+    def test_str_uses_prefix_when_context_available(self):
+        """Entity.__str__ uses PREFIX:path when context is set up."""
+        from alienbio.infra.context import Context, set_context
+
+        # Set up a context with IO
+        ctx = Context()
+        set_context(ctx)
+
+        try:
+            dat = MockDat("runs/exp1")
+            world = Entity("world", dat=dat)
+            compartment = Entity("cytoplasm", parent=world)
+
+            ctx.io.bind_prefix("W", world)
+
+            # str() should now use the prefix
+            assert str(world) == "W:"
+            assert str(compartment) == "W:cytoplasm"
+        finally:
+            # Clean up context
+            set_context(None)
+
+    def test_str_falls_back_without_context(self):
+        """Entity.__str__ falls back to full_name without context."""
+        from alienbio.infra.context import set_context
+
+        # Ensure no context is set
+        set_context(None)
+
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+
+        # Should fall back to full_name
+        assert str(world) == "runs/exp1"
+        assert str(compartment) == "runs/exp1.cytoplasm"
+
+    def test_str_uses_shortest_prefix(self):
+        """Entity.__str__ uses the shortest matching prefix."""
+        from alienbio.infra.context import Context, set_context
+
+        ctx = Context()
+        set_context(ctx)
+
+        try:
+            dat = MockDat("runs/exp1")
+            world = Entity("world", dat=dat)
+            compartment = Entity("cytoplasm", parent=world)
+            molecule = Entity("glucose", parent=compartment)
+
+            ctx.io.bind_prefix("W", world)
+            ctx.io.bind_prefix("C", compartment)
+
+            # Molecule should use shorter C: prefix
+            assert str(molecule) == "C:glucose"
+        finally:
+            set_context(None)

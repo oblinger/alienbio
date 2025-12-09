@@ -112,3 +112,96 @@ class TestProxy:
         """o.io accesses context io."""
         from alienbio import IO
         assert isinstance(o.io, IO)
+
+
+class TestCreateRoot:
+    """Tests for create_root() entity creation."""
+
+    def test_create_root_creates_entity_with_dat(self):
+        """create_root() creates an entity anchored to a DAT."""
+        from alienbio import Entity, create_root
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = create_root(f"{tmpdir}/test_root")
+
+            assert isinstance(root, Entity)
+            assert root.dat() is not None
+            assert root.parent is None
+            assert root.local_name == "test_root"
+
+    def test_create_root_uses_path_last_component_as_name(self):
+        """create_root() derives name from last path component."""
+        from alienbio import create_root
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = create_root(f"{tmpdir}/runs/exp1")
+
+            assert root.local_name == "exp1"
+
+    def test_create_root_accepts_explicit_name(self):
+        """create_root() accepts explicit name kwarg."""
+        from alienbio import create_root
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = create_root(f"{tmpdir}/runs/exp1", name="my_experiment")
+
+            assert root.local_name == "my_experiment"
+
+    def test_create_root_accepts_entity_type(self):
+        """create_root() creates instance of specified entity type."""
+        from alienbio import Entity, create_root
+
+        class World(Entity):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = create_root(f"{tmpdir}/runs/exp1", World)
+
+            assert isinstance(root, World)
+            assert type(root) is World
+
+    def test_create_root_passes_kwargs_to_entity(self):
+        """create_root() passes kwargs to entity constructor."""
+        from alienbio import create_root
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = create_root(
+                f"{tmpdir}/runs/exp1",
+                description="My experiment"
+            )
+
+            assert root.description == "My experiment"
+
+    def test_create_root_children_have_parent_chain(self):
+        """Children of root entity have parent chains to root."""
+        from alienbio import Entity, create_root
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = create_root(f"{tmpdir}/runs/exp1")
+            child = Entity("child", parent=root)
+            grandchild = Entity("grandchild", parent=child)
+
+            # Parent chain leads to root
+            assert grandchild.parent is child
+            assert child.parent is root
+            assert root.parent is None
+
+            # All entities in tree can access the tree's DAT
+            assert root.dat() is not None
+            assert child.dat() is root.dat()
+            assert grandchild.dat() is root.dat()
+
+    def test_create_root_save_persists_tree(self):
+        """Saving root entity persists entire tree."""
+        from alienbio import Entity, create_root
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = create_root(f"{tmpdir}/runs/exp1")
+            Entity("child1", parent=root)
+            Entity("child2", parent=root)
+
+            root.save()
+
+            # Check entities.yaml was created
+            entities_file = Path(tmpdir) / "runs" / "exp1" / "entities.yaml"
+            assert entities_file.exists()

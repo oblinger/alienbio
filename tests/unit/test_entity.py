@@ -5,7 +5,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from alienbio.infra.entity import Entity
+from alienbio.infra.entity import (
+    Entity,
+    get_entity_type,
+    get_entity_types,
+    register_entity_type,
+)
 
 
 class MockDat:
@@ -26,7 +31,7 @@ class TestEntityCreation:
         dat = MockDat("runs/exp1")
         entity = Entity("world", dat=dat)
         assert entity.local_name == "world"
-        assert entity.dat is dat
+        assert entity.dat() is dat
         assert entity.parent is None
 
     def test_create_with_parent(self):
@@ -37,7 +42,7 @@ class TestEntityCreation:
 
         assert child.local_name == "compartment"
         assert child.parent is parent
-        assert child.dat is None
+        assert child.dat() is dat  # Child accesses tree's DAT
 
     def test_create_requires_parent_or_dat(self):
         """Entity requires either parent or DAT anchor."""
@@ -51,7 +56,7 @@ class TestEntityCreation:
             Entity("invalid name", dat=dat)
 
     def test_create_with_both_parent_and_dat(self):
-        """Entity can have both parent and DAT (dual-anchored)."""
+        """Entity can have both parent and DAT (sub-root)."""
         parent_dat = MockDat("runs/exp1")
         parent = Entity("world", dat=parent_dat)
 
@@ -59,7 +64,7 @@ class TestEntityCreation:
         child = Entity("compartment", parent=parent, dat=child_dat)
 
         assert child.parent is parent
-        assert child.dat is child_dat
+        assert child.dat() is child_dat  # Sub-root has its own DAT
 
     def test_create_with_description(self):
         """Entity can have a description."""
@@ -91,8 +96,8 @@ class TestParentChildRelationship:
 
         assert "fake" not in parent.children
 
-    def test_add_child_sets_parent(self):
-        """add_child() sets the child's parent."""
+    def test_set_parent_attaches_root_entity(self):
+        """set_parent() can attach a root entity as a child."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat)
 
@@ -100,40 +105,116 @@ class TestParentChildRelationship:
         child_dat = MockDat("temp")
         child = Entity("compartment", dat=child_dat)
 
-        parent.add_child(child)
+        child.set_parent(parent)
 
         assert child.parent is parent
         assert "compartment" in parent.children
 
-    def test_add_child_returns_child(self):
-        """add_child() returns the child for chaining."""
-        dat = MockDat("runs/exp1")
-        parent = Entity("world", dat=dat)
-        child_dat = MockDat("temp")
-        child = Entity("compartment", dat=child_dat)
+    def test_detach_moves_to_orphan_root(self):
+        """detach() moves child to orphan root."""
+        from alienbio import ctx, set_context, Context
 
-        result = parent.add_child(child)
-        assert result is child
+        # Use fresh context to avoid naming collisions
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            parent = Entity("world", dat=dat)
+            child = Entity("compartment", parent=parent)
 
-    def test_remove_child(self):
-        """remove_child() removes child and clears its parent."""
-        dat = MockDat("runs/exp1")
-        parent = Entity("world", dat=dat)
-        child = Entity("compartment", parent=parent)
+            child.detach()
 
-        removed = parent.remove_child("compartment")
+            # Child is no longer under original parent
+            assert "compartment" not in parent.children
+            # Child is now under orphan root
+            assert child.parent is ctx().io.orphan_root
+            assert "compartment" in ctx().io.orphan_root.children
+            # Child remains valid
+            assert child.dat() is not None
+        finally:
+            set_context(None)
 
-        assert removed is child
-        assert child.parent is None
-        assert "compartment" not in parent.children
+    def test_orphan_root_lazy_loading(self):
+        """Orphan root is created lazily on first access."""
+        from alienbio import ctx, set_context, Context
 
-    def test_remove_nonexistent_child(self):
-        """remove_child() returns None for nonexistent child."""
-        dat = MockDat("runs/exp1")
-        parent = Entity("world", dat=dat)
+        set_context(Context())
+        try:
+            # Access orphan_root triggers lazy creation
+            orphan_root = ctx().io.orphan_root
+            assert orphan_root is not None
+            assert orphan_root.local_name == "orphans"
+            # ORPHAN prefix should be bound
+            assert "ORPHAN" in ctx().io.prefixes
+        finally:
+            set_context(None)
 
-        removed = parent.remove_child("nonexistent")
-        assert removed is None
+    def test_save_on_orphan_raises(self):
+        """Saving orphan root raises ValueError."""
+        from alienbio import ctx, set_context, Context
+
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            parent = Entity("world", dat=dat)
+            child = Entity("orphan_child", parent=parent)
+
+            child.detach()
+
+            # Trying to save the orphan root should raise
+            with pytest.raises(ValueError, match="Cannot save orphan"):
+                ctx().io.orphan_root.save()
+
+            # Trying to save an orphaned child's root also raises
+            with pytest.raises(ValueError, match="Cannot save orphan"):
+                child.root().save()
+        finally:
+            set_context(None)
+
+    def test_reattach_orphaned_entity(self):
+        """Orphaned entity can be re-attached to a new parent."""
+        from alienbio import ctx, set_context, Context
+
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            parent1 = Entity("world1", dat=dat)
+            parent2 = Entity("world2", dat=dat)
+            child = Entity("movable", parent=parent1)
+
+            # Detach from parent1
+            child.detach()
+            assert child.parent is ctx().io.orphan_root
+
+            # Re-attach to parent2
+            child.set_parent(parent2)
+            assert child.parent is parent2
+            assert "movable" in parent2.children
+            assert "movable" not in ctx().io.orphan_root.children
+        finally:
+            set_context(None)
+
+    def test_detach_subtree_moves_all_descendants(self):
+        """Detaching a subtree moves entire subtree to orphan root."""
+        from alienbio import ctx, set_context, Context
+
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            root = Entity("root", dat=dat)
+            child = Entity("child", parent=root)
+            grandchild = Entity("grandchild", parent=child)
+
+            # Detach child (which has grandchild)
+            child.detach()
+
+            # Child is now under orphan root
+            assert child.parent is ctx().io.orphan_root
+            # Grandchild still under child
+            assert grandchild.parent is child
+            # Grandchild's root is now orphan root
+            assert grandchild.root() is ctx().io.orphan_root
+        finally:
+            set_context(None)
 
     def test_duplicate_child_name_raises(self):
         """Adding child with duplicate name raises ValueError."""
@@ -145,7 +226,7 @@ class TestParentChildRelationship:
         child2 = Entity("compartment", dat=child_dat)
 
         with pytest.raises(ValueError, match="already has child named"):
-            parent.add_child(child2)
+            child2.set_parent(parent)
 
     def test_set_parent_moves_child(self):
         """set_parent() moves child between parents."""
@@ -190,16 +271,23 @@ class TestFullName:
 
         assert molecule.full_name == "runs/exp1.cytoplasm.glucose"
 
-    def test_full_name_no_anchor_raises(self):
-        """Entity with no DAT and no parent raises ValueError."""
-        # This can't happen through normal construction, but test the property
-        dat = MockDat("temp")
-        entity = Entity("orphan", dat=dat)
-        entity._dat = None
-        entity._parent = None
+    def test_detached_entity_has_orphan_full_name(self):
+        """Detached entity has full_name from orphan DAT."""
+        from alienbio import set_context, Context
 
-        with pytest.raises(ValueError, match="no DAT anchor and no parent"):
-            _ = entity.full_name
+        # Use fresh context to avoid naming collisions in orphan root
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            parent = Entity("world", dat=dat)
+            child = Entity("compartment", parent=parent)
+
+            child.detach()
+
+            # Full name now comes from orphan root
+            assert child.full_name == "<orphans>.compartment"
+        finally:
+            set_context(None)
 
     def test_dual_anchored_uses_own_dat(self):
         """Entity with both parent and DAT uses its own DAT."""
@@ -217,13 +305,13 @@ class TestToDict:
     """Tests for to_dict serialization."""
 
     def test_to_dict_basic(self):
-        """to_dict returns dict with name."""
+        """to_dict returns dict with type and name."""
         dat = MockDat("runs/exp1")
         entity = Entity("world", dat=dat)
 
         result = entity.to_dict()
 
-        assert result == {"name": "world"}
+        assert result == {"type": "Entity", "name": "world"}
 
     def test_to_dict_with_description(self):
         """to_dict includes description if present."""
@@ -232,7 +320,7 @@ class TestToDict:
 
         result = entity.to_dict()
 
-        assert result == {"name": "world", "description": "Main world"}
+        assert result == {"type": "Entity", "name": "world", "description": "Main world"}
 
     def test_to_dict_excludes_structural_fields(self):
         """to_dict does not include parent, children, dat."""
@@ -245,6 +333,71 @@ class TestToDict:
         assert "parent" not in result
         assert "children" not in result
         assert "dat" not in result
+
+
+class TestToDictRecursive:
+    """Tests for recursive to_dict serialization."""
+
+    def test_to_dict_recursive_single_child(self):
+        """to_dict(recursive=True) includes children."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        Entity("cytoplasm", parent=world)
+
+        result = world.to_dict(recursive=True)
+
+        assert result["name"] == "world"
+        assert "children" in result
+        assert "cytoplasm" in result["children"]
+        assert result["children"]["cytoplasm"]["name"] == "cytoplasm"
+
+    def test_to_dict_recursive_nested(self):
+        """to_dict(recursive=True) recurses into nested children."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cytoplasm = Entity("cytoplasm", parent=world)
+        Entity("glucose", parent=cytoplasm)
+
+        result = world.to_dict(recursive=True)
+
+        assert "children" in result
+        assert "cytoplasm" in result["children"]
+        cyto_dict = result["children"]["cytoplasm"]
+        assert "children" in cyto_dict
+        assert "glucose" in cyto_dict["children"]
+        assert cyto_dict["children"]["glucose"]["name"] == "glucose"
+
+    def test_to_dict_recursive_no_children(self):
+        """to_dict(recursive=True) omits children key for leaf."""
+        dat = MockDat("runs/exp1")
+        entity = Entity("leaf", dat=dat)
+
+        result = entity.to_dict(recursive=True)
+
+        assert result == {"type": "Entity", "name": "leaf"}
+        assert "children" not in result
+
+    def test_to_dict_recursive_preserves_description(self):
+        """to_dict(recursive=True) includes descriptions."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat, description="Main world")
+        Entity("cytoplasm", parent=world, description="Cell compartment")
+
+        result = world.to_dict(recursive=True)
+
+        assert result["description"] == "Main world"
+        assert result["children"]["cytoplasm"]["description"] == "Cell compartment"
+
+    def test_to_dict_non_recursive_omits_children(self):
+        """to_dict() without recursive=True omits children."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        Entity("cytoplasm", parent=world)
+
+        result = world.to_dict()  # recursive=False by default
+
+        assert result == {"type": "Entity", "name": "world"}
+        assert "children" not in result
 
 
 class TestToStr:
@@ -381,44 +534,63 @@ class TestTreeTraversal:
         assert list(leaf.descendants()) == []
 
 
-class TestDatAnchor:
-    """Tests for DAT anchor management."""
+class TestDatAccess:
+    """Tests for DAT access via dat() and root() methods."""
 
-    def test_find_dat_anchor_returns_own_dat(self):
-        """find_dat_anchor() returns own DAT if present."""
+    def test_dat_on_root(self):
+        """dat() returns DAT for root entity."""
         dat = MockDat("runs/exp1")
         entity = Entity("world", dat=dat)
 
-        assert entity.find_dat_anchor() is dat
+        assert entity.dat() is dat
 
-    def test_find_dat_anchor_walks_up(self):
-        """find_dat_anchor() walks up to find nearest DAT."""
+    def test_dat_on_child_returns_tree_dat(self):
+        """dat() returns tree's DAT for all entities in tree."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         compartment = Entity("cytoplasm", parent=world)
         molecule = Entity("glucose", parent=compartment)
 
-        assert molecule.find_dat_anchor() is dat
-        assert compartment.find_dat_anchor() is dat
+        assert molecule.dat() is dat
+        assert compartment.dat() is dat
+        assert world.dat() is dat
 
-    def test_find_dat_anchor_returns_none_if_orphan(self):
-        """find_dat_anchor() returns None if no DAT in ancestry."""
-        dat = MockDat("temp")
-        entity = Entity("orphan", dat=dat)
-        entity._dat = None
-        entity._parent = None
+    def test_dat_on_detached_returns_orphan_dat(self):
+        """dat() returns orphan DAT for detached entities."""
+        from alienbio import set_context, Context
+        from alienbio.infra.io import _OrphanDat
 
-        assert entity.find_dat_anchor() is None
+        # Use fresh context to avoid naming collisions
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            world = Entity("world", dat=dat)
+            child = Entity("child", parent=world)
 
-    def test_set_dat(self):
-        """set_dat() updates the DAT anchor."""
-        dat1 = MockDat("runs/exp1")
-        entity = Entity("world", dat=dat1)
+            # Detach the child
+            child.detach()
 
-        dat2 = MockDat("runs/exp2")
-        entity.set_dat(dat2)
+            # Detached entities have the orphan DAT
+            assert isinstance(child.dat(), _OrphanDat)
+        finally:
+            set_context(None)
 
-        assert entity.dat is dat2
+    def test_root_returns_self_for_root(self):
+        """root() returns self for root entity."""
+        dat = MockDat("runs/exp1")
+        entity = Entity("world", dat=dat)
+
+        assert entity.root() is entity
+
+    def test_root_returns_ancestor_with_dat(self):
+        """root() returns the ancestor with DAT anchor."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+        molecule = Entity("glucose", parent=compartment)
+
+        assert molecule.root() is world
+        assert compartment.root() is world
 
 
 class TestStringRepresentation:
@@ -439,14 +611,23 @@ class TestStringRepresentation:
 
         assert str(child) == "runs/exp1.compartment"
 
-    def test_str_fallback_for_orphan(self):
-        """__str__ falls back to <Entity:local_name> for orphan."""
-        dat = MockDat("temp")
-        entity = Entity("orphan", dat=dat)
-        entity._dat = None
-        entity._parent = None
+    def test_str_for_orphan_uses_orphan_prefix(self):
+        """__str__ uses ORPHAN: prefix for detached entities."""
+        from alienbio import ctx, set_context, Context
 
-        assert str(entity) == "<Entity:orphan>"
+        # Set up a context
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            parent = Entity("world", dat=dat)
+            child = Entity("myentity", parent=parent)
+
+            child.detach()
+
+            # Should show ORPHAN:myentity
+            assert str(child) == "ORPHAN:myentity"
+        finally:
+            set_context(None)
 
     def test_repr_includes_all_fields(self):
         """__repr__ includes local_name, description, dat, parent, children."""
@@ -473,3 +654,152 @@ class TestStringRepresentation:
         assert "description" not in repr_str
         assert "children" not in repr_str
         assert "parent" not in repr_str
+
+
+# Test subclasses for type registry testing
+class Molecule(Entity):
+    """Test subclass using class name as type."""
+
+    __slots__ = ("formula",)
+
+    def __init__(self, name, *, parent=None, dat=None, description="", formula=""):
+        super().__init__(name, parent=parent, dat=dat, description=description)
+        self.formula = formula
+
+    def to_dict(self, recursive=False, _root=None):
+        result = super().to_dict(recursive=recursive, _root=_root)
+        if self.formula:
+            result["formula"] = self.formula
+        return result
+
+
+class Compartment(Entity, type_name="C"):
+    """Test subclass using short type_name."""
+
+    __slots__ = ("volume",)
+
+    def __init__(self, name, *, parent=None, dat=None, description="", volume=0.0):
+        super().__init__(name, parent=parent, dat=dat, description=description)
+        self.volume = volume
+
+    def to_dict(self, recursive=False, _root=None):
+        result = super().to_dict(recursive=recursive, _root=_root)
+        if self.volume:
+            result["volume"] = self.volume
+        return result
+
+
+class Reaction(Entity, type_name="R"):
+    """Test subclass with short type_name for reactions."""
+
+    __slots__ = ("rate",)
+
+    def __init__(self, name, *, parent=None, dat=None, description="", rate=0.0):
+        super().__init__(name, parent=parent, dat=dat, description=description)
+        self.rate = rate
+
+    def to_dict(self, recursive=False, _root=None):
+        result = super().to_dict(recursive=recursive, _root=_root)
+        if self.rate:
+            result["rate"] = self.rate
+        return result
+
+
+class TestTypeRegistry:
+    """Tests for entity type registration."""
+
+    def test_entity_registered_as_entity(self):
+        """Base Entity is registered as 'Entity'."""
+        assert get_entity_type("Entity") is Entity
+
+    def test_subclass_registered_by_class_name(self):
+        """Subclass without type_name is registered by class name."""
+        assert get_entity_type("Molecule") is Molecule
+
+    def test_subclass_registered_by_type_name(self):
+        """Subclass with type_name is registered by that name."""
+        assert get_entity_type("C") is Compartment
+        assert get_entity_type("R") is Reaction
+
+    def test_get_entity_types_returns_all(self):
+        """get_entity_types returns all registered types."""
+        types = get_entity_types()
+        assert "Entity" in types
+        assert "Molecule" in types
+        assert "C" in types
+        assert "R" in types
+
+    def test_unknown_type_raises(self):
+        """get_entity_type raises KeyError for unknown type."""
+        with pytest.raises(KeyError, match="Unknown entity type"):
+            get_entity_type("NonexistentType")
+
+
+class TestSubclassSerialization:
+    """Tests for subclass serialization."""
+
+    def test_molecule_to_dict_includes_type(self):
+        """Molecule.to_dict includes type='Molecule'."""
+        dat = MockDat("runs/exp1")
+        mol = Molecule("glucose", dat=dat, formula="C6H12O6")
+
+        result = mol.to_dict()
+
+        assert result["type"] == "Molecule"
+        assert result["name"] == "glucose"
+        assert result["formula"] == "C6H12O6"
+
+    def test_compartment_to_dict_includes_short_type(self):
+        """Compartment.to_dict includes type='C' (short name)."""
+        dat = MockDat("runs/exp1")
+        comp = Compartment("cytoplasm", dat=dat, volume=1.5)
+
+        result = comp.to_dict()
+
+        assert result["type"] == "C"
+        assert result["name"] == "cytoplasm"
+        assert result["volume"] == 1.5
+
+    def test_recursive_to_dict_preserves_types(self):
+        """Recursive to_dict preserves subclass types."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cyto = Compartment("cytoplasm", parent=world, volume=1.0)
+        Molecule("glucose", parent=cyto, formula="C6H12O6")
+
+        result = world.to_dict(recursive=True)
+
+        assert result["type"] == "Entity"
+        assert result["children"]["cytoplasm"]["type"] == "C"
+        assert result["children"]["cytoplasm"]["children"]["glucose"]["type"] == "Molecule"
+
+
+class TestSubclassTree:
+    """Tests for trees with mixed entity subclasses."""
+
+    def test_mixed_entity_tree(self):
+        """Can create tree with mixed entity types."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cyto = Compartment("cytoplasm", parent=world, volume=1.0)
+        glucose = Molecule("glucose", parent=cyto, formula="C6H12O6")
+        rxn = Reaction("glycolysis", parent=cyto, rate=0.1)
+
+        assert world.children["cytoplasm"] is cyto
+        assert cyto.children["glucose"] is glucose
+        assert cyto.children["glycolysis"] is rxn
+        assert isinstance(cyto, Compartment)
+        assert isinstance(glucose, Molecule)
+        assert isinstance(rxn, Reaction)
+
+    def test_to_str_works_with_subclasses(self):
+        """to_str works correctly with subclass tree."""
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        cyto = Compartment("cytoplasm", parent=world)
+        Molecule("glucose", parent=cyto)
+        Molecule("atp", parent=cyto)
+
+        result = world.to_str()
+
+        assert result == "world(cytoplasm(glucose, atp))"
