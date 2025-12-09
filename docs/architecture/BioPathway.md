@@ -1,9 +1,11 @@
-# Pathway
-**Subsystem**: [[ABIO biology]] > Pathways
-Connected sequence of reactions.
+# BioPathway
+**Subsystem**: [[ABIO biology]] > BioPathways
+Connected sequence of reactions (analytical abstraction).
 
 ## Description
-A pathway is a connected subgraph of the reaction network that performs a coherent metabolic function, such as a biosynthetic pathway, energy cycle, or signaling cascade.
+A BioPathway is a connected subgraph of the reaction network that performs a coherent metabolic function, such as a biosynthetic pathway, energy cycle, or signaling cascade.
+
+BioPathway is an **analytical abstraction** - it's useful for understanding, generating, and describing reaction networks, but the simulation itself operates directly on BioReactions without needing pathway information.
 
 | Properties | Type | Description |
 |----------|------|-------------|
@@ -24,7 +26,7 @@ class PathwayType(Enum):
     CYCLIC = "cyclic"
     SIGNALING = "signaling"
 
-class Pathway(Entity, Protocol):
+class BioPathway(Entity, Protocol):
     """Connected sequence of reactions."""
 
     reactions: list[BioReaction]
@@ -38,6 +40,14 @@ class Pathway(Entity, Protocol):
         ...
 ```
 
+## Use Cases
+
+- **Understanding**: Identify which reactions form glycolysis, TCA cycle, etc.
+- **Generation**: Create coherent synthetic biologies with sensible pathway structures
+- **Analysis**: Find bottlenecks, understand metabolic flow
+- **Task design**: "Diagnose a defect in this pathway"
+
 ## See Also
 - [[ABIO biology]]
 - [[BioReaction]] - Individual reactions
+- [[BioChemistry]] - Container for molecules and reactions

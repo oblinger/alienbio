@@ -657,8 +657,8 @@ class TestStringRepresentation:
 
 
 # Test subclasses for type registry testing
-class Molecule(Entity):
-    """Test subclass using class name as type."""
+class SampleMol(Entity, type_name="SampleMol"):
+    """Test subclass using explicit type_name to avoid conflicts."""
 
     __slots__ = ("formula",)
 
@@ -713,8 +713,8 @@ class TestTypeRegistry:
         assert get_entity_type("Entity") is Entity
 
     def test_subclass_registered_by_class_name(self):
-        """Subclass without type_name is registered by class name."""
-        assert get_entity_type("Molecule") is Molecule
+        """Subclass with type_name is registered by that name."""
+        assert get_entity_type("SampleMol") is SampleMol
 
     def test_subclass_registered_by_type_name(self):
         """Subclass with type_name is registered by that name."""
@@ -725,7 +725,7 @@ class TestTypeRegistry:
         """get_entity_types returns all registered types."""
         types = get_entity_types()
         assert "Entity" in types
-        assert "Molecule" in types
+        assert "SampleMol" in types
         assert "C" in types
         assert "R" in types
 
@@ -739,13 +739,13 @@ class TestSubclassSerialization:
     """Tests for subclass serialization."""
 
     def test_molecule_to_dict_includes_type(self):
-        """Molecule.to_dict includes type='Molecule'."""
+        """SampleMol.to_dict includes type='SampleMol'."""
         dat = MockDat("runs/exp1")
-        mol = Molecule("glucose", dat=dat, formula="C6H12O6")
+        mol = SampleMol("glucose", dat=dat, formula="C6H12O6")
 
         result = mol.to_dict()
 
-        assert result["type"] == "Molecule"
+        assert result["type"] == "SampleMol"
         assert result["name"] == "glucose"
         assert result["formula"] == "C6H12O6"
 
@@ -765,13 +765,13 @@ class TestSubclassSerialization:
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cyto = Compartment("cytoplasm", parent=world, volume=1.0)
-        Molecule("glucose", parent=cyto, formula="C6H12O6")
+        SampleMol("glucose", parent=cyto, formula="C6H12O6")
 
         result = world.to_dict(recursive=True)
 
         assert result["type"] == "Entity"
         assert result["children"]["cytoplasm"]["type"] == "C"
-        assert result["children"]["cytoplasm"]["children"]["glucose"]["type"] == "Molecule"
+        assert result["children"]["cytoplasm"]["children"]["glucose"]["type"] == "SampleMol"
 
 
 class TestSubclassTree:
@@ -782,14 +782,14 @@ class TestSubclassTree:
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cyto = Compartment("cytoplasm", parent=world, volume=1.0)
-        glucose = Molecule("glucose", parent=cyto, formula="C6H12O6")
+        glucose = SampleMol("glucose", parent=cyto, formula="C6H12O6")
         rxn = Reaction("glycolysis", parent=cyto, rate=0.1)
 
         assert world.children["cytoplasm"] is cyto
         assert cyto.children["glucose"] is glucose
         assert cyto.children["glycolysis"] is rxn
         assert isinstance(cyto, Compartment)
-        assert isinstance(glucose, Molecule)
+        assert isinstance(glucose, SampleMol)
         assert isinstance(rxn, Reaction)
 
     def test_to_str_works_with_subclasses(self):
@@ -797,8 +797,8 @@ class TestSubclassTree:
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cyto = Compartment("cytoplasm", parent=world)
-        Molecule("glucose", parent=cyto)
-        Molecule("atp", parent=cyto)
+        SampleMol("glucose", parent=cyto)
+        SampleMol("atp", parent=cyto)
 
         result = world.to_str()
 

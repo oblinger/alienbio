@@ -1,9 +1,20 @@
 # BioContainer
-**Subsystem**: [[ABIO biology]] > Containers
+**Subsystem**: [[ABIO biology]] > BioContainers
 Nestable container for molecules, reactions, and child containers.
 
 ## Description
-BioContainer is the unified abstraction for all biological containment structures - from organelles to whole organisms. Containers can nest arbitrarily, with transport reactions moving molecules across boundaries. The `kind` label documents the biological level but doesn't affect behavior.
+BioContainer is an **Entity subclass** representing biological containment structures - from organelles to whole organisms. As an Entity, it participates in the standard tree structure with parent/child relationships, DAT anchoring, and serialization.
+
+Containers can nest arbitrarily, with transport reactions moving molecules across boundaries. The `kind` label documents the biological level but doesn't affect behavior.
+
+### Relationship to Other Entity Types
+| Entity Type | Purpose |
+|-------------|---------|
+| **BioMolecule** | Chemical species |
+| **BioReaction** | Transformations |
+| **BioChemistry** | Flat container (molecules + reactions) |
+| **BioContainer** | Hierarchical container with nesting and kind labels |
+| **BioPathway** | Analytical grouping of reactions |
 
 | Properties | Type | Description |
 |----------|------|-------------|

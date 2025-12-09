@@ -20,9 +20,20 @@ from .infra.context import (
 from .infra.entity import Entity
 from .infra.io import IO
 
+# Bio module exports
+from .bio import (
+    BioMolecule,
+    BioReaction,
+    BioChemistry,
+    State,
+    Simulator,
+)
+from .bio.simulator import SimpleSimulator
+
 __version__ = "0.1.0"
 
 __all__ = [
+    # Infrastructure
     "Context",
     "Dat",
     "Entity",
@@ -37,4 +48,11 @@ __all__ = [
     "save",
     "lookup",
     "o",
+    # Bio
+    "BioMolecule",
+    "BioReaction",
+    "BioChemistry",
+    "State",
+    "Simulator",
+    "SimpleSimulator",
 ]
