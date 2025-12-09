@@ -10,8 +10,9 @@ IO handles all external representation concerns for entities:
 - **Lookup** - Finds entities by PREFIX:path or absolute strings
 - **Persistence** - Load/save entities via DAT
 - **Type dispatch** - Creates correct Entity subclasses when loading
+- **Entity creation** - Create new DAT-anchored entity trees via `create_root`
 
-IO is accessed through [[Context]] and provides the implementation for top-level `load`, `save`, and `lookup` functions.
+IO is accessed through [[Context]] and provides the implementation for top-level `load`, `save`, `lookup`, and `create_root` functions.
 
 | Properties | Type | Description |
 |----------|------|-------------|
@@ -252,9 +253,48 @@ with open("output.yaml", "w") as f:
     yaml.dump(output, f)
 ```
 
+## Creating Entity Trees
+
+Use `create_root` to create a new DAT with its root entity:
+
+```python
+from alienbio import create_root, Entity
+
+# Create a new entity tree anchored to a DAT
+world = create_root("runs/exp1", World, description="My experiment")
+
+# Add children using normal constructors
+cytoplasm = Compartment("cytoplasm", parent=world, volume=1.5)
+glucose = Molecule("glucose", parent=cytoplasm)
+
+# Save persists the entire tree
+world.save()  # Creates runs/exp1/entities.yaml
+```
+
+The `create_root` function:
+- Creates a DAT at the specified path
+- Creates the root entity attached to that DAT
+- Returns the root entity (with `entity._dat` set)
+
+Children are created with normal constructors, passing `parent=`. See [[Entity]] for the tree/DAT invariants.
+
+## Prefix Conventions
+
+Single-letter prefixes for common entity types:
+
+| Prefix | Binds To | Example |
+|--------|----------|---------|
+| D | Data root (always available) | `D:runs/exp1.world` |
+| R | Current run DAT | `R:world.compartment` |
+| W | Current world | `W:compartment.glucose` |
+| E | Current experiment | `E:run1.world` |
+
+The `D:` prefix is always bound to the data root - every entity can be named with `D:` as an escape hatch.
+
+Keep prefixes few - too many creates confusion.
+
 ## See Also
 
 - [[Context]] - Parent container for IO
-- [[Entity-naming]] - Naming scheme and prefix system
-- [[Entity]] - Base class with to_dict() for serialization
+- [[Entity]] - Base class, tree invariants, serialization
 - [[ABIO DAT]] - Underlying DAT persistence

@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import Any, Type, TYPE_CHECKING
 
 from dvc_dat import Dat
 from dvc_dat import do as dvc_do
@@ -79,6 +79,45 @@ class Context:
         """
         return self.io.lookup(name)
 
+    def create_root(
+        self,
+        path: str,
+        entity_type: Type[Entity] | None = None,
+        **kwargs,
+    ) -> Entity:
+        """Create a new DAT with its root entity.
+
+        This creates a DAT at the specified path and attaches a root entity to it.
+        The root entity is the anchor for an entity tree - all other entities in
+        the tree have parent chains leading back to this root.
+
+        Cross-DAT references (e.g., a World referencing a Chemistry) are stored
+        as references in the spec, not as parent-child relationships. This allows
+        the same Chemistry to be referenced by multiple Worlds.
+
+        Args:
+            path: DAT path (e.g., "runs/exp1", "chem/kegg1")
+            entity_type: Type of root entity to create (default: Entity)
+            **kwargs: Passed to entity constructor (name, description, etc.)
+                      If name not provided, uses last component of path.
+
+        Returns:
+            The root entity (with DAT attached via entity._dat)
+
+        Example:
+            world = create_root("runs/exp1", World, description="My experiment")
+            cytoplasm = Compartment("cytoplasm", parent=world)
+            world.save()  # Persists entire tree to runs/exp1/entities.yaml
+        """
+        from .entity import Entity as EntityClass
+
+        if entity_type is None:
+            entity_type = EntityClass
+
+        name = kwargs.pop("name", path.rsplit("/", 1)[-1])
+        dat = Dat.create(path=path, spec={"dat": {"kind": "Dat"}})
+        return entity_type(name, dat=dat, **kwargs)
+
 
 # Global context variable
 _ctx: ContextVar[Context | None] = ContextVar("alienbio_context", default=None)
@@ -125,6 +164,18 @@ def save(obj: Any, path: str | Path) -> Dat:
 def lookup(name: str) -> Entity:
     """Look up an entity by PREFIX:path string."""
     return ctx().lookup(name)
+
+
+def create_root(
+    path: str,
+    entity_type: Type[Entity] | None = None,
+    **kwargs,
+) -> Entity:
+    """Create a new DAT with its root entity.
+
+    See Context.create_root for full documentation.
+    """
+    return ctx().create_root(path, entity_type, **kwargs)
 
 
 class _ContextProxy:

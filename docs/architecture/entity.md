@@ -144,16 +144,55 @@ world.to_str(0)     # "World"
 world.to_str(1)     # "World(Cytoplasm)"
 ```
 
-## Naming
+## Entity Trees and DAT Boundaries
 
-Entities derive their names from their position in the containment hierarchy. See [[Entity-naming]] for full details on:
-- Name resolution algorithm
-- DAT anchors
-- Prefix system (PREFIX:path format)
-- Display conventions
+Entities form trees anchored to DATs. Understanding this relationship is key to working with alienbio.
+
+### Core Invariants
+
+1. **Every entity has exactly one anchor**: Either `_parent` (link to containing entity) OR `_dat` (anchor to filesystem). Root entities have `_dat`; all others have `_parent`.
+
+2. **Each DAT has exactly one root entity**: The root is the entity with `_dat` set. All other entities in that DAT have `_parent` chains leading to this root.
+
+3. **Parent chains stay within a DAT**: Walking up `_parent` from any entity eventually reaches the root of that DAT.
+
+4. **Cross-DAT connections are references, not parent-child**: When an entity needs to reference another DAT's content (e.g., a World referencing a Chemistry), it stores a reference string, not a parent-child link.
+
+### Example Structure
+
+```
+DAT: runs/exp1
+└── Run (root, has _dat)
+    └── World (has _parent -> Run)
+        ├── Cytoplasm (has _parent -> World)
+        │   └── Glucose (has _parent -> Cytoplasm)
+        └── chemistry: <D:chem/kegg1>  ← reference, NOT child
+
+DAT: chem/kegg1
+└── Chemistry (root, has _dat)
+    ├── Molecule (has _parent -> Chemistry)
+    └── Reaction (has _parent -> Chemistry)
+```
+
+### Why This Matters
+
+- **Single parent**: An entity has exactly one parent, avoiding graph complexity
+- **Independent loading**: Each DAT can be loaded independently
+- **Shared references**: The same Chemistry can be referenced by multiple Worlds
+- **Clear boundaries**: The DAT defines what gets saved together
+
+### Name Resolution
+
+Full names are computed by walking up the parent chain to the DAT anchor:
+
+```python
+def full_name(self) -> str:
+    if self._dat is not None:
+        return self._dat.get_path_name()  # e.g., "runs/exp1"
+    return f"{self._parent.full_name}.{self._local_name}"  # e.g., "runs/exp1.world.cytoplasm"
+```
 
 ## See Also
 
-- [[Entity-naming]] - Naming scheme, prefixes, display format
-- [[IO]] - Prefix bindings, formatting, lookup, persistence
+- [[IO]] - Prefix bindings, formatting, lookup, persistence, create_root
 - [[ABIO DAT]] - DAT storage integration
