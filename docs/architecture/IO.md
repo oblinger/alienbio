@@ -33,6 +33,21 @@ Note: For data path, use `Dat.manager.sync_folder` (single source of truth).
 | load | Load Dat from data path |
 | save | Save object as Dat to data path |
 
+## Prefix Conventions
+
+Single-letter prefixes for common entity types:
+
+| Prefix | Binds To | Example |
+|--------|----------|---------|
+| D | Data root (always available) | `D:runs/exp1.world` |
+| R | Current run DAT | `R:world.compartment` |
+| W | Current world | `W:compartment.glucose` |
+| E | Current experiment | `E:run1.world` |
+
+The `D:` prefix is always bound to the data root - every entity can be named with `D:` as an escape hatch.
+
+Keep prefixes few - too many creates confusion.
+
 ## Reference Formats
 
 IO supports two reference formats:
@@ -277,21 +292,6 @@ The `create_root` function:
 - Returns the root entity (with `entity._dat` set)
 
 Children are created with normal constructors, passing `parent=`. See [[Entity]] for the tree/DAT invariants.
-
-## Prefix Conventions
-
-Single-letter prefixes for common entity types:
-
-| Prefix | Binds To | Example |
-|--------|----------|---------|
-| D | Data root (always available) | `D:runs/exp1.world` |
-| R | Current run DAT | `R:world.compartment` |
-| W | Current world | `W:compartment.glucose` |
-| E | Current experiment | `E:run1.world` |
-
-The `D:` prefix is always bound to the data root - every entity can be named with `D:` as an escape hatch.
-
-Keep prefixes few - too many creates confusion.
 
 ## See Also
 
