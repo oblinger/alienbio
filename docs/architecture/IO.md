@@ -1,47 +1,55 @@
 # IO
 **Subsystem**: [[ABIO infra]]
-Entity I/O: prefix bindings, printing, parsing, and persistence.
+Entity I/O: prefix bindings, formatting, lookup, and persistence.
 
 ## Description
 
 IO handles all external representation concerns for entities:
-- **Prefix bindings** - Maps short prefixes (R:, W:) to DAT anchors
+- **Prefix bindings** - Maps short prefixes (R:, W:) to Entity anchors
 - **Formatting** - Converts entities to PREFIX:path strings
-- **Parsing** - Converts PREFIX:path strings back to entities
+- **Lookup** - Finds entities by PREFIX:path strings
 - **Persistence** - Load/save entities via DAT
 
-IO is accessed through [[Context]] and provides the implementation for top-level `load`, `save`, and `parse` functions.
+IO is accessed through [[Context]] and provides the implementation for top-level `load`, `save`, and `lookup` functions.
 
 | Properties | Type | Description |
 |----------|------|-------------|
-| _prefixes | Dict[str, Entity] | Prefix -> target entity/DAT bindings |
+| _prefixes | Dict[str, Entity] | Prefix -> target entity bindings |
+| data_path | Path | Root path for data storage |
 
 | Methods | Description |
 |---------|-------------|
 | bind_prefix | Bind a prefix to a target entity |
+| unbind_prefix | Remove a prefix binding |
 | resolve_prefix | Get the entity bound to a prefix |
 | format | Convert entity to PREFIX:path string |
-| parse | Convert PREFIX:path string to entity |
-| load | Load entity from data path |
-| save | Save entity to data path |
+| lookup | Find entity by PREFIX:path string |
+| load | Load Dat from data path |
+| save | Save object as Dat to data path |
 
 ## Protocol Definition
 
 ```python
-from typing import Protocol, Dict, Any, Optional
+from typing import Dict, Any, Optional
+from pathlib import Path
 
-class IO(Protocol):
-    """Entity I/O: naming, printing, parsing, persistence."""
+class IO:
+    """Entity I/O: naming, formatting, lookup, persistence."""
 
     _prefixes: Dict[str, "Entity"]
+    _data_path: Path
 
     def bind_prefix(self, prefix: str, target: "Entity") -> None:
-        """Bind a prefix to a target entity/DAT.
+        """Bind a prefix to a target entity.
 
         Example:
-            io.bind_prefix("R", current_run_dat)
+            io.bind_prefix("R", current_run)
             io.bind_prefix("W", world)
         """
+        ...
+
+    def unbind_prefix(self, prefix: str) -> Optional["Entity"]:
+        """Remove a prefix binding. Returns the previously bound entity."""
         ...
 
     def resolve_prefix(self, prefix: str) -> "Entity":
@@ -54,29 +62,26 @@ class IO(Protocol):
     def format(self, entity: "Entity") -> str:
         """Format entity as PREFIX:path string.
 
-        Walks up entity's parent chain to find nearest DAT anchor,
-        then finds shortest prefix that matches.
+        Finds the shortest prefix that matches entity's ancestry,
+        then builds the path from there.
 
         Example:
-            io.format(glucose)  # -> "W:compartment.glucose"
+            io.format(glucose)  # -> "W:cytoplasm.glucose"
         """
         ...
 
-    def parse(self, string: str) -> "Entity":
-        """Parse PREFIX:path string to entity.
+    def lookup(self, string: str) -> "Entity":
+        """Look up entity by PREFIX:path string.
 
         Resolves prefix, then walks down path to find entity.
 
         Example:
-            io.parse("W:compartment.glucose")  # -> glucose entity
+            io.lookup("W:cytoplasm.glucose")  # -> glucose entity
         """
         ...
 
     def load(self, path: str) -> "Dat":
-        """Load a Dat from data path.
-
-        Path can be absolute or relative to data root.
-        """
+        """Load a Dat from data path."""
         ...
 
     def save(self, obj: Any, path: str) -> "Dat":
@@ -88,20 +93,6 @@ class IO(Protocol):
         ...
 ```
 
-## Default Prefix
-
-The `D:` prefix is always bound to the data root. This provides an escape hatch for naming any DAT-backed entity:
-
-```python
-# D: always works, even with no other prefixes bound
-io.format(some_entity)  # -> "D:runs/exp1.world1.compartment.glucose"
-
-# With shortcuts bound
-io.bind_prefix("R", run_dat)
-io.bind_prefix("W", world)
-io.format(some_entity)  # -> "W:compartment.glucose"
-```
-
 ## Usage
 
 ```python
@@ -110,28 +101,33 @@ ctx().io.bind_prefix("W", world)
 print(ctx().io.format(glucose))  # W:cytoplasm.glucose
 
 # Or via top-level functions (which delegate to ctx().io)
-from alienbio import parse, load, save
+from alienbio import lookup, load, save
 
-molecule = parse("W:cytoplasm.glucose")
+molecule = lookup("W:cytoplasm.glucose")
 dat = load("runs/exp1")
 save({"name": "result"}, "runs/exp1/results")
 ```
 
-## Integration with Entity
+## Format / Lookup Roundtrip
 
-Entities use IO for their string representation:
+`format` and `lookup` are inverses:
 
 ```python
-class Entity:
-    def __str__(self) -> str:
-        """Uses Context.current().io.format(self)"""
-        from alienbio import ctx
-        return ctx().io.format(self)
+io.bind_prefix("W", world)
+
+# format -> lookup roundtrip
+formatted = io.format(glucose)      # "W:cytoplasm.glucose"
+found = io.lookup(formatted)        # glucose entity
+assert found is glucose
+
+# Shortest prefix is used
+io.bind_prefix("C", cytoplasm)
+io.format(glucose)  # "C:glucose" (shorter than "W:cytoplasm.glucose")
 ```
 
 ## See Also
 
 - [[Context]] - Parent container for IO
 - [[Entity-naming]] - Naming scheme and prefix system
-- [[Entity]] - Base protocol using IO for display
+- [[Entity]] - Base class with to_dict() for serialization
 - [[ABIO DAT]] - Underlying DAT persistence

@@ -90,8 +90,10 @@ Entity references use prefix notation: `PREFIX:path.to.entity`
 ### String Representation
 
 Every entity implements `__str__` and `__repr__`:
-- `__str__`: Short prefix notation - `W:compartment.glucose`
+- `__str__`: Full name from DAT anchor - `runs/exp1.cytoplasm.glucose`
 - `__repr__`: Full reconstructible form with class and fields
+
+For prefix notation, use `ctx().io.format(entity)` or the global `lookup()` function.
 
 ### Examples
 
@@ -112,7 +114,11 @@ P:citric_acid                    # Pathway
 
 ## Serialization
 
-Entities serialize to YAML for storage:
+Entities serialize to dict (then YAML) for storage:
+
+```python
+entity.to_dict()  # -> {"name": "glucose", "description": "..."}
+```
 
 ```yaml
 name: glucose
@@ -122,11 +128,11 @@ atoms:
   O: 6
 ```
 
-The `serialize()` and `deserialize()` methods on [[Entity]] handle conversion. See [[ABIO DAT]] for how entities integrate with DAT storage.
+The `to_dict()` method on [[Entity]] returns a dict representation. Subclasses override to add their own fields. See [[IO]] for persistence via DAT.
 
 ## See Also
 
-- [[Entity]] - Base protocol with serialize/deserialize methods
-- [[IO]] - Prefix bindings, formatting, parsing, persistence
+- [[Entity]] - Base class with to_dict() method
+- [[IO]] - Prefix bindings, formatting, lookup, persistence
 - [[Context]] - Runtime pegboard containing IO
 - [[ABIO DAT]] - DAT storage integration
