@@ -43,8 +43,11 @@ Single-letter prefixes for common entity types:
 | R | Current run DAT | `R:world.compartment` |
 | W | Current world | `W:compartment.glucose` |
 | E | Current experiment | `E:run1.world` |
+| ORPHAN | Orphan root (auto-bound) | `ORPHAN:detached_entity` |
 
 The `D:` prefix is always bound to the data root - every entity can be named with `D:` as an escape hatch.
+
+The `ORPHAN:` prefix is automatically bound when entities are detached. If you see `ORPHAN:` in output, an entity has been detached from its tree.
 
 Keep prefixes few - too many creates confusion.
 

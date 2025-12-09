@@ -41,6 +41,26 @@ class _RootEntity:
         return self._children.copy()
 
 
+class _OrphanDat:
+    """Virtual DAT for orphaned entities.
+
+    Orphaned entities are detached from their original tree but remain
+    fully functional. They can be inspected, printed (showing ORPHAN:path),
+    and re-attached to another tree later.
+
+    This DAT cannot be saved - it exists only to keep orphaned entities valid.
+    """
+
+    def get_path_name(self) -> str:
+        return "<orphans>"
+
+    def get_path(self) -> str:
+        return "<orphans>"
+
+    def save(self) -> None:
+        raise ValueError("Cannot save orphan entities - re-attach them first")
+
+
 class IO:
     """Entity I/O: naming, formatting, lookup, and persistence.
 
@@ -61,6 +81,8 @@ class IO:
         self._path_entity_cache: Dict[str, Entity] = {}
         self._dat_entity_cache: Dict[str, Entity] = {}  # DAT path -> root entity
         self._root_entity: Optional[_RootEntity] = None
+        self._orphan_dat: Optional[_OrphanDat] = None
+        self._orphan_root: Optional[Entity] = None
 
     @property
     def _data_root(self) -> _RootEntity:
@@ -68,6 +90,20 @@ class IO:
         if self._root_entity is None:
             self._root_entity = _RootEntity()
         return self._root_entity
+
+    @property
+    def orphan_root(self) -> Entity:
+        """Lazy-initialized root entity for orphaned entities.
+
+        Detached entities are re-parented here instead of becoming invalid.
+        The ORPHAN: prefix is automatically bound to this root.
+        """
+        if self._orphan_root is None:
+            from .entity import Entity
+            self._orphan_dat = _OrphanDat()
+            self._orphan_root = Entity("orphans", dat=self._orphan_dat)
+            self._prefixes["ORPHAN"] = self._orphan_root
+        return self._orphan_root
 
     @property
     def prefixes(self) -> Dict[str, Entity | str]:
@@ -209,8 +245,9 @@ class IO:
 
         Example: </runs/exp1.cytoplasm.glucose>
         """
-        # Find the DAT anchor
-        dat = entity.find_dat_anchor()
+        # Get the root entity and its DAT (both O(1))
+        root = entity.root()
+        dat = root.dat()
         if dat is None:
             raise ValueError(
                 f"Entity {entity.local_name!r} has no DAT anchor for absolute ref"
@@ -218,15 +255,11 @@ class IO:
 
         dat_path = dat.get_path_name()
 
-        # Build entity path from DAT root to this entity
-        # Walk up from entity to find the entity that owns the DAT
+        # Build entity path from root to this entity
         entity_parts: list[str] = []
         current: Optional[Entity] = entity
 
-        while current is not None:
-            if current.dat is dat:
-                # Found the DAT owner - don't include its name in entity path
-                break
+        while current is not None and current is not root:
             entity_parts.append(current.local_name)
             current = current.parent
 

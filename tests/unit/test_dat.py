@@ -276,8 +276,8 @@ class MockMolecule(EntityBase, type_name="TM"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.formula = formula
 
-    def to_dict(self, recursive=False, _root_dat=None):
-        result = super().to_dict(recursive=recursive, _root_dat=_root_dat)
+    def to_dict(self, recursive=False, _root=None):
+        result = super().to_dict(recursive=recursive, _root=_root)
         if self.formula:
             result["formula"] = self.formula
         return result
@@ -292,8 +292,8 @@ class MockCompartment(EntityBase, type_name="TC"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.volume = volume
 
-    def to_dict(self, recursive=False, _root_dat=None):
-        result = super().to_dict(recursive=recursive, _root_dat=_root_dat)
+    def to_dict(self, recursive=False, _root=None):
+        result = super().to_dict(recursive=recursive, _root=_root)
         if self.volume:
             result["volume"] = self.volume
         return result
@@ -308,8 +308,8 @@ class MockReaction(EntityBase, type_name="TR"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.rate = rate
 
-    def to_dict(self, recursive=False, _root_dat=None):
-        result = super().to_dict(recursive=recursive, _root_dat=_root_dat)
+    def to_dict(self, recursive=False, _root=None):
+        result = super().to_dict(recursive=recursive, _root=_root)
         if self.rate:
             result["rate"] = self.rate
         return result

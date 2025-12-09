@@ -65,13 +65,14 @@ class Entity:
     Entities form a tree structure with bidirectional links:
     - _parent: link to containing entity
     - _children: dict of child entities by local name
-    - _dat: optional anchor to filesystem (DAT)
+    - _top: either a Dat (for root entities) or the root Entity (for non-roots)
 
+    The _top field enables O(1) access to both root() and dat().
     Names are derived by walking up the parent chain until a DAT anchor
     is found, then building the qualified path.
     """
 
-    __slots__ = ("_local_name", "_parent", "_children", "_dat", "description")
+    __slots__ = ("_local_name", "_parent", "_children", "_top", "description")
 
     def __init_subclass__(cls, type_name: Optional[str] = None, **kwargs) -> None:
         """Auto-register subclasses in the type registry.
@@ -124,10 +125,16 @@ class Entity:
         self._local_name = name
         self._parent: Optional[Entity] = None
         self._children: Dict[str, Entity] = {}
-        self._dat: Optional[Dat] = dat
         self.description = description
 
-        # Set parent (which also registers us as a child)
+        # Set _top: Dat for root entities, root Entity for non-roots
+        if dat is not None:
+            self._top: Entity | Dat = dat
+        else:
+            # Will be set properly in set_parent()
+            self._top = parent.root()  # type: ignore[union-attr]
+
+        # Set parent (which also registers us as a child and updates _top)
         if parent is not None:
             self.set_parent(parent)
 
@@ -146,33 +153,76 @@ class Entity:
         """Child entities by local name (read-only view)."""
         return self._children.copy()
 
-    @property
-    def dat(self) -> Optional[Dat]:
-        """DAT anchor to filesystem."""
-        return self._dat
+    def dat(self) -> Dat:
+        """Get the DAT anchor for this entity's tree.
+
+        O(1) operation using the _top field.
+        """
+        if not isinstance(self._top, Entity):
+            return self._top  # I am the root (_top is a Dat)
+        # _top is the root Entity, get its DAT
+        return self._top._top  # type: ignore[return-value]
+
+    def root(self) -> Entity:
+        """Get the root entity (the ancestor with the DAT anchor).
+
+        O(1) operation using the _top field.
+        """
+        if not isinstance(self._top, Entity):
+            return self  # I am the root (_top is a Dat)
+        return self._top  # Direct pointer to root
 
     def set_parent(self, parent: Optional[Entity]) -> None:
         """Set the parent entity.
 
         Handles registration/deregistration in parent's children dict.
+        Updates _top for this entity and all descendants.
+
+        If parent is None, reparents to orphan root (entities are never invalid).
         """
         # Remove from old parent's children
         if self._parent is not None:
             self._parent._children.pop(self._local_name, None)
 
+        # If parent is None, reparent to orphan root instead
+        if parent is None:
+            from .context import ctx
+            parent = ctx().io.orphan_root
+
         self._parent = parent
 
-        # Add to new parent's children
-        if parent is not None:
-            if self._local_name in parent._children:
-                raise ValueError(
-                    f"Parent already has child named {self._local_name!r}"
-                )
-            parent._children[self._local_name] = self
+        # Add to new parent's children and update _top
+        if self._local_name in parent._children:
+            raise ValueError(
+                f"Parent already has child named {self._local_name!r}"
+            )
+        parent._children[self._local_name] = self
+        # Update _top for this subtree to point to new root
+        self._update_top(parent.root())
 
-    def set_dat(self, dat: Optional[Dat]) -> None:
-        """Set the DAT anchor."""
-        self._dat = dat
+    def detach(self) -> None:
+        """Detach this entity from its parent.
+
+        The entity is reparented to the orphan root and remains fully valid.
+        It can be re-attached later using set_parent().
+
+        Prints as ORPHAN:name after detaching.
+        """
+        from .context import ctx
+        self.set_parent(ctx().io.orphan_root)
+
+    def _update_top(self, new_root: Entity) -> None:
+        """Update _top for this entity and all descendants.
+
+        Called when reparenting to maintain the _top invariant.
+        """
+        # Don't update if this entity has its own DAT (is a sub-root)
+        if not isinstance(self._top, Entity):
+            return
+
+        self._top = new_root
+        for child in self._children.values():
+            child._update_top(new_root)
 
     @property
     def full_name(self) -> str:
@@ -180,25 +230,18 @@ class Entity:
 
         Walks up the parent chain until a DAT anchor is found,
         then builds the path from there.
-
-        Raises:
-            ValueError: If no DAT anchor found in ancestry
         """
-        if self._dat is not None:
-            return self._dat.get_path_name()
-        if self._parent is None:
-            raise ValueError(
-                f"Entity {self._local_name!r} has no DAT anchor and no parent"
-            )
+        if not isinstance(self._top, Entity):
+            return self._top.get_path_name()  # I am root, _top is Dat
         return f"{self._parent.full_name}.{self._local_name}"
 
-    def to_dict(self, recursive: bool = False, _root_dat: Optional[Dat] = None) -> Dict[str, Any]:
+    def to_dict(self, recursive: bool = False, _root: Optional[Entity] = None) -> Dict[str, Any]:
         """Convert entity to dictionary representation for serialization.
 
         Args:
             recursive: If True, include children recursively
-            _root_dat: Internal - the DAT we're serializing from (to detect
-                       children with different DATs that need absolute refs)
+            _root: Internal - the root entity we're serializing from (to detect
+                   children with different roots that need absolute refs)
 
         Returns:
             Dict with entity fields suitable for YAML/JSON serialization.
@@ -211,21 +254,21 @@ class Entity:
             result["description"] = self.description
 
         if recursive and self._children:
-            # Track the root DAT for this serialization
-            if _root_dat is None:
-                _root_dat = self.find_dat_anchor()
+            # Track the root entity for this serialization
+            if _root is None:
+                _root = self.root()
 
             children_dict: Dict[str, Any] = {}
             for name, child in self._children.items():
-                child_dat = child.find_dat_anchor()
-                if child_dat is not None and child_dat is not _root_dat:
+                child_root = child.root()
+                if child_root is not _root:
                     # Child belongs to a different DAT - use absolute ref
                     # Import here to avoid circular import
                     from . import context
                     children_dict[name] = context.ctx().io.ref(child, absolute=True)
                 else:
                     # Same DAT - inline the child
-                    children_dict[name] = child.to_dict(recursive=True, _root_dat=_root_dat)
+                    children_dict[name] = child.to_dict(recursive=True, _root=_root)
             result["children"] = children_dict
 
         # Subclasses should override to add their own fields
@@ -259,44 +302,6 @@ class Entity:
         )
         return f"{self._local_name}({children_str})"
 
-    def add_child(self, child: Entity) -> Entity:
-        """Add a child entity.
-
-        Sets this entity as the child's parent.
-
-        Args:
-            child: Entity to add as child
-
-        Returns:
-            The child entity (for chaining)
-
-        Raises:
-            ValueError: If child name already exists
-        """
-        child.set_parent(self)
-        return child
-
-    def remove_child(self, name: str) -> Optional[Entity]:
-        """Remove a child entity by name.
-
-        Args:
-            name: Local name of child to remove
-
-        Returns:
-            The removed child, or None if not found
-        """
-        child = self._children.get(name)
-        if child is not None:
-            child._parent = None
-            del self._children[name]
-        return child
-
-    def root(self) -> Entity:
-        """Get the root entity (topmost ancestor)."""
-        if self._parent is None:
-            return self
-        return self._parent.root()
-
     def ancestors(self) -> Iterator[Entity]:
         """Iterate over ancestors from parent to root."""
         current = self._parent
@@ -310,37 +315,28 @@ class Entity:
             yield child
             yield from child.descendants()
 
-    def find_dat_anchor(self) -> Optional[Dat]:
-        """Find the nearest DAT anchor walking up the tree."""
-        if self._dat is not None:
-            return self._dat
-        if self._parent is not None:
-            return self._parent.find_dat_anchor()
-        return None
-
     def save(self) -> None:
-        """Save this entity's DAT to disk.
+        """Save this entity tree to disk.
 
-        Finds the nearest DAT anchor, then serializes the entire entity tree
-        rooted at that DAT to entities.yaml.
+        Must be called on the root entity (the one with the DAT anchor).
+        Serializes the entire entity tree to entities.yaml in the DAT folder.
 
         Raises:
-            ValueError: If entity has no DAT anchor
+            ValueError: If not called on a root entity
         """
         import yaml
         from pathlib import Path
 
-        dat = self.find_dat_anchor()
-        if dat is None:
+        if isinstance(self._top, Entity) or self._top is None:
             raise ValueError(
-                f"Entity {self._local_name!r} has no DAT anchor to save"
+                f"save() must be called on root entity. "
+                f"Use self.root().save() instead."
             )
 
-        # Find the root entity that owns this DAT
-        root_entity = self._find_dat_root_entity(dat)
+        dat = self._top
 
         # Serialize the entity tree
-        entity_data = root_entity.to_dict(recursive=True)
+        entity_data = self.to_dict(recursive=True)
 
         # Write to entities.yaml in DAT folder
         dat_path = Path(dat.get_path())
@@ -351,26 +347,13 @@ class Entity:
         # Also save the DAT's spec
         dat.save()
 
-    def _find_dat_root_entity(self, dat: Dat) -> Entity:
-        """Find the entity that directly owns the given DAT.
-
-        Walks up the tree to find the entity where entity.dat is dat.
-        """
-        current: Optional[Entity] = self
-        while current is not None:
-            if current._dat is dat:
-                return current
-            current = current._parent
-        # Should not happen if dat came from find_dat_anchor
-        return self
-
     def __repr__(self) -> str:
         """Full reconstructible representation."""
         parts = [f"name={self._local_name!r}"]
         if self.description:
             parts.append(f"description={self.description!r}")
-        if self._dat is not None:
-            parts.append(f"dat={self._dat.get_path_name()!r}")
+        if not isinstance(self._top, Entity) and self._top is not None:
+            parts.append(f"dat={self._top.get_path_name()!r}")
         if self._parent is not None:
             parts.append(f"parent={self._parent._local_name!r}")
         if self._children:

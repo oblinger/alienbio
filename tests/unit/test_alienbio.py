@@ -125,7 +125,7 @@ class TestCreateRoot:
             root = create_root(f"{tmpdir}/test_root")
 
             assert isinstance(root, Entity)
-            assert root.dat is not None
+            assert root.dat() is not None
             assert root.parent is None
             assert root.local_name == "test_root"
 
@@ -186,10 +186,10 @@ class TestCreateRoot:
             assert child.parent is root
             assert root.parent is None
 
-            # Root has DAT, children don't
-            assert root.dat is not None
-            assert child.dat is None
-            assert grandchild.dat is None
+            # All entities in tree can access the tree's DAT
+            assert root.dat() is not None
+            assert child.dat() is root.dat()
+            assert grandchild.dat() is root.dat()
 
     def test_create_root_save_persists_tree(self):
         """Saving root entity persists entire tree."""

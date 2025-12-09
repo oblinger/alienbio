@@ -363,7 +363,7 @@ class TestAbsoluteRef:
         # Create orphan entity with a mock dat that we'll remove
         dat = MockDat("temp")
         entity = Entity("orphan", dat=dat)
-        entity._dat = None  # Remove DAT to simulate orphan
+        entity._top = None  # Remove DAT to simulate orphan
 
         with pytest.raises(ValueError, match="no DAT anchor"):
             io.ref(entity, absolute=True)
