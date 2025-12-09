@@ -99,8 +99,8 @@ class IO:
             io.format(glucose)  # -> "W:cytoplasm.glucose"
         """
         if not self._prefixes:
-            # No prefixes bound, use qualified name directly
-            return entity.qualified_name
+            # No prefixes bound, use full name directly
+            return entity.full_name
 
         # Find which prefixes match this entity's ancestry
         matches: list[tuple[str, str]] = []  # (prefix, remaining_path)
@@ -111,8 +111,8 @@ class IO:
                 matches.append((prefix, path))
 
         if not matches:
-            # No prefix matches, use qualified name
-            return entity.qualified_name
+            # No prefix matches, use full name
+            return entity.full_name
 
         if prefer_short:
             # Sort by path length (shortest first)
@@ -142,7 +142,7 @@ class IO:
                 # Found the ancestor, return path
                 path_parts.reverse()
                 return ".".join(path_parts)
-            path_parts.append(current.name)
+            path_parts.append(current.local_name)
             current = current.parent
 
         # Ancestor not found in entity's ancestry

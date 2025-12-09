@@ -55,8 +55,8 @@ class Entity:
             self.set_parent(parent)
 
     @property
-    def name(self) -> str:
-        """Local name within parent's children dict."""
+    def local_name(self) -> str:
+        """Name within parent's children dict."""
         return self._local_name
 
     @property
@@ -98,8 +98,8 @@ class Entity:
         self._dat = dat
 
     @property
-    def qualified_name(self) -> str:
-        """Full path computed by walking up to DAT anchor.
+    def full_name(self) -> str:
+        """Full path from DAT anchor (e.g., 'runs/exp1.cytoplasm.glucose').
 
         Walks up the parent chain until a DAT anchor is found,
         then builds the path from there.
@@ -113,7 +113,7 @@ class Entity:
             raise ValueError(
                 f"Entity {self._local_name!r} has no DAT anchor and no parent"
             )
-        return f"{self._parent.qualified_name}.{self._local_name}"
+        return f"{self._parent.full_name}.{self._local_name}"
 
     def lookup(self, path: str) -> Entity:
         """Find child entity by relative dotted path.
@@ -214,8 +214,8 @@ class Entity:
         return f"Entity({', '.join(parts)})"
 
     def __str__(self) -> str:
-        """Short display form using qualified name."""
+        """Short display form using full name."""
         try:
-            return self.qualified_name
+            return self.full_name
         except ValueError:
             return f"<Entity:{self._local_name}>"

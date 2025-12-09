@@ -17,20 +17,24 @@ Every entity has these naming-related fields:
 | `_children` | Dict[str, Entity] | Child entities by local name |
 | `_dat` | Dat? | Optional anchor to filesystem |
 
+Properties:
+- `local_name` - Name within parent's children dict
+- `full_name` - Full path from DAT anchor (e.g., `runs/exp1.cytoplasm.glucose`)
+
 **Invariant**: An entity must have either `_dat` or `_parent` (or both). Orphan entities with neither are invalid.
 
 ## Name Resolution
 
-Qualified names are computed by walking up the parent chain:
+Full names are computed by walking up the parent chain:
 
 ```python
-def qualified_name(self) -> str:
+def full_name(self) -> str:
     """Walk up until we hit a DAT anchor, then build path."""
     if self._dat is not None:
         return self._dat.get_path_name()
     if self._parent is None:
         raise ValueError("Entity has no DAT anchor and no parent")
-    return f"{self._parent.qualified_name}.{self._local_name}"
+    return f"{self._parent.full_name}.{self._local_name}"
 ```
 
 When an entity has both `_parent` and `_dat`, it can be named two ways:

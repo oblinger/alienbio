@@ -115,7 +115,7 @@ class TestFormat:
     """Tests for entity formatting."""
 
     def test_format_with_no_prefixes(self):
-        """format() uses qualified name when no prefixes bound."""
+        """format() uses full name when no prefixes bound."""
         io = IO()
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -182,7 +182,7 @@ class TestFormat:
         assert result == "C:glucose"
 
     def test_format_no_matching_prefix(self):
-        """format() uses qualified name when no prefix matches."""
+        """format() uses full name when no prefix matches."""
         io = IO()
         dat1 = MockDat("runs/exp1")
         world1 = Entity("world1", dat=dat1)
@@ -196,7 +196,7 @@ class TestFormat:
 
         result = io.format(compartment)
 
-        # Falls back to qualified name
+        # Falls back to full name
         assert result == "runs/exp2.cytoplasm"
 
 

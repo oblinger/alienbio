@@ -25,7 +25,7 @@ class TestEntityCreation:
         """Entity can be created with a DAT anchor."""
         dat = MockDat("runs/exp1")
         entity = Entity("world", dat=dat)
-        assert entity.name == "world"
+        assert entity.local_name == "world"
         assert entity.dat is dat
         assert entity.parent is None
 
@@ -35,7 +35,7 @@ class TestEntityCreation:
         parent = Entity("world", dat=dat)
         child = Entity("compartment", parent=parent)
 
-        assert child.name == "compartment"
+        assert child.local_name == "compartment"
         assert child.parent is parent
         assert child.dat is None
 
@@ -157,34 +157,34 @@ class TestParentChildRelationship:
         assert child.parent is parent2
 
 
-class TestQualifiedName:
-    """Tests for qualified name resolution."""
+class TestFullName:
+    """Tests for full name resolution."""
 
-    def test_qualified_name_from_dat(self):
-        """Entity with DAT uses DAT path as qualified name."""
+    def test_full_name_from_dat(self):
+        """Entity with DAT uses DAT path as full name."""
         dat = MockDat("runs/exp1")
         entity = Entity("world", dat=dat)
 
-        assert entity.qualified_name == "runs/exp1"
+        assert entity.full_name == "runs/exp1"
 
-    def test_qualified_name_from_parent(self):
-        """Entity walks up to parent's qualified name."""
+    def test_full_name_from_parent(self):
+        """Entity walks up to parent's full name."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat)
         child = Entity("compartment", parent=parent)
 
-        assert child.qualified_name == "runs/exp1.compartment"
+        assert child.full_name == "runs/exp1.compartment"
 
-    def test_qualified_name_nested(self):
+    def test_full_name_nested(self):
         """Nested entities build dotted path."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         compartment = Entity("cytoplasm", parent=world)
         molecule = Entity("glucose", parent=compartment)
 
-        assert molecule.qualified_name == "runs/exp1.cytoplasm.glucose"
+        assert molecule.full_name == "runs/exp1.cytoplasm.glucose"
 
-    def test_qualified_name_no_anchor_raises(self):
+    def test_full_name_no_anchor_raises(self):
         """Entity with no DAT and no parent raises ValueError."""
         # This can't happen through normal construction, but test the property
         dat = MockDat("temp")
@@ -193,7 +193,7 @@ class TestQualifiedName:
         entity._parent = None
 
         with pytest.raises(ValueError, match="no DAT anchor and no parent"):
-            _ = entity.qualified_name
+            _ = entity.full_name
 
     def test_dual_anchored_uses_own_dat(self):
         """Entity with both parent and DAT uses its own DAT."""
@@ -204,7 +204,7 @@ class TestQualifiedName:
         child = Entity("cytoplasm", parent=parent, dat=child_dat)
 
         # Own DAT takes precedence
-        assert child.qualified_name == "compartments/cytoplasm"
+        assert child.full_name == "compartments/cytoplasm"
 
 
 class TestLookup:
@@ -353,8 +353,8 @@ class TestDatAnchor:
 class TestStringRepresentation:
     """Tests for __str__ and __repr__."""
 
-    def test_str_uses_qualified_name(self):
-        """__str__ returns qualified name."""
+    def test_str_uses_full_name(self):
+        """__str__ returns full name."""
         dat = MockDat("runs/exp1")
         entity = Entity("world", dat=dat)
 
@@ -369,7 +369,7 @@ class TestStringRepresentation:
         assert str(child) == "runs/exp1.compartment"
 
     def test_str_fallback_for_orphan(self):
-        """__str__ falls back to <Entity:name> for orphan."""
+        """__str__ falls back to <Entity:local_name> for orphan."""
         dat = MockDat("temp")
         entity = Entity("orphan", dat=dat)
         entity._dat = None
@@ -378,7 +378,7 @@ class TestStringRepresentation:
         assert str(entity) == "<Entity:orphan>"
 
     def test_repr_includes_all_fields(self):
-        """__repr__ includes name, description, dat, parent, children."""
+        """__repr__ includes local_name, description, dat, parent, children."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat, description="Main world")
         child = Entity("compartment", parent=parent)
