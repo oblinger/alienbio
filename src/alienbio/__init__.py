@@ -15,12 +15,16 @@ from .infra.context import (
     save,
     o,
 )
+from .infra.entity import Entity
+from .infra.io import IO
 
 __version__ = "0.1.0"
 
 __all__ = [
     "Context",
     "Dat",
+    "Entity",
+    "IO",
     "_ctx",
     "ctx",
     "set_context",
