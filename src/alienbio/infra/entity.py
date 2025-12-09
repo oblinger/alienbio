@@ -323,14 +323,21 @@ class Entity:
 
         Raises:
             ValueError: If not called on a root entity
+            ValueError: If called on orphan root (orphans cannot be saved)
         """
         import yaml
         from pathlib import Path
+        from .io import _OrphanDat
 
-        if isinstance(self._top, Entity) or self._top is None:
+        if isinstance(self._top, Entity):
             raise ValueError(
                 f"save() must be called on root entity. "
                 f"Use self.root().save() instead."
+            )
+
+        if isinstance(self._top, _OrphanDat):
+            raise ValueError(
+                "Cannot save orphan entities - re-attach them to a real DAT first"
             )
 
         dat = self._top

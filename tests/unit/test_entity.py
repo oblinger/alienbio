@@ -133,6 +133,89 @@ class TestParentChildRelationship:
         finally:
             set_context(None)
 
+    def test_orphan_root_lazy_loading(self):
+        """Orphan root is created lazily on first access."""
+        from alienbio import ctx, set_context, Context
+
+        set_context(Context())
+        try:
+            # Access orphan_root triggers lazy creation
+            orphan_root = ctx().io.orphan_root
+            assert orphan_root is not None
+            assert orphan_root.local_name == "orphans"
+            # ORPHAN prefix should be bound
+            assert "ORPHAN" in ctx().io.prefixes
+        finally:
+            set_context(None)
+
+    def test_save_on_orphan_raises(self):
+        """Saving orphan root raises ValueError."""
+        from alienbio import ctx, set_context, Context
+
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            parent = Entity("world", dat=dat)
+            child = Entity("orphan_child", parent=parent)
+
+            child.detach()
+
+            # Trying to save the orphan root should raise
+            with pytest.raises(ValueError, match="Cannot save orphan"):
+                ctx().io.orphan_root.save()
+
+            # Trying to save an orphaned child's root also raises
+            with pytest.raises(ValueError, match="Cannot save orphan"):
+                child.root().save()
+        finally:
+            set_context(None)
+
+    def test_reattach_orphaned_entity(self):
+        """Orphaned entity can be re-attached to a new parent."""
+        from alienbio import ctx, set_context, Context
+
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            parent1 = Entity("world1", dat=dat)
+            parent2 = Entity("world2", dat=dat)
+            child = Entity("movable", parent=parent1)
+
+            # Detach from parent1
+            child.detach()
+            assert child.parent is ctx().io.orphan_root
+
+            # Re-attach to parent2
+            child.set_parent(parent2)
+            assert child.parent is parent2
+            assert "movable" in parent2.children
+            assert "movable" not in ctx().io.orphan_root.children
+        finally:
+            set_context(None)
+
+    def test_detach_subtree_moves_all_descendants(self):
+        """Detaching a subtree moves entire subtree to orphan root."""
+        from alienbio import ctx, set_context, Context
+
+        set_context(Context())
+        try:
+            dat = MockDat("runs/exp1")
+            root = Entity("root", dat=dat)
+            child = Entity("child", parent=root)
+            grandchild = Entity("grandchild", parent=child)
+
+            # Detach child (which has grandchild)
+            child.detach()
+
+            # Child is now under orphan root
+            assert child.parent is ctx().io.orphan_root
+            # Grandchild still under child
+            assert grandchild.parent is child
+            # Grandchild's root is now orphan root
+            assert grandchild.root() is ctx().io.orphan_root
+        finally:
+            set_context(None)
+
     def test_duplicate_child_name_raises(self):
         """Adding child with duplicate name raises ValueError."""
         dat = MockDat("runs/exp1")
