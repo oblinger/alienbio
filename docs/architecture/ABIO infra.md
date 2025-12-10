@@ -5,10 +5,9 @@ Infrastructure: entity base classes, serialization, data management, and configu
 ## Entities
 Core data classes and identity patterns that all biology objects inherit from.
 - **[[Entity]]** - Base protocol for all biology objects.
-- **[[Expr]]** - Simple functional expressions for operations and declarations.
+- **[[Expr]]** - Functional expression trees for computations and rate equations.
+- **[[Interpreter]]** - Evaluates Expr trees, handles language dispatch and template expansion.
 - **[[IO]]** - Entity I/O: prefix bindings, formatting, parsing, persistence.
-- **[[Entity-naming]]** - Naming scheme, DAT anchors, prefix system, display format.
-
 ## Data Management
 - **[[ABIO Data]]** - Organization of the `data/` folder and intent-based categories.
 - **[[ABIO DAT]]** - dvc_dat integration, name resolution, and `_spec_.yaml` format.

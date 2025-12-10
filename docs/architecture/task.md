@@ -2,25 +2,49 @@
 **Subsystem**: [[ABIO execution]] > Interface
 Goal specification with scoring criteria.
 
-## Description
+## Overview
 Task defines what an agent should accomplish, including the setup, goal, scoring criteria, and constraints on available actions.
 
-| Properties | Type | Description |
+| Property | Type | Description |
 |----------|------|-------------|
-| name | str | Task identifier |
-| task_type | TaskType | Predict, diagnose, or cure |
-| world | World | Initial world setup |
-| available_measurements | list | What agent can observe |
-| available_actions | list | What agent can do |
+| `name` | str | Task identifier |
+| `task_type` | TaskType | Predict, diagnose, or cure |
+| `world` | World | Initial world setup |
+| `available_measurements` | List[Measurement] | What agent can observe |
+| `available_actions` | List[Action] | What agent can do |
 
-| Methods | Description |
-|---------|-------------|
-| score | Score the agent's result |
-| is_complete | Check if goal is achieved |
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `score(result)` | float | Score the agent's result |
+| `is_complete(world)` | bool | Check if goal is achieved |
 
-## Protocol Definition
+## Discussion
+
+### Task Types
+- **Predict**: Forecast future concentrations
+- **Diagnose**: Identify disease from symptoms
+- **Cure**: Restore healthy homeostasis
+
+### Usage Example
 ```python
-from typing import Protocol
+from alienbio import Task, TaskType
+
+task = Task(
+    name="diagnose_diabetes",
+    task_type=TaskType.DIAGNOSE,
+    world=patient_world,
+    available_measurements=[glucose_test, insulin_test],
+    available_actions=[],  # Diagnosis only
+)
+
+result = agent.solve(task)
+score = task.score(result)
+```
+
+## Protocol
+```python
+from typing import Protocol, List, Any
+from enum import Enum
 
 class TaskType(Enum):
     PREDICT = "predict"
@@ -33,8 +57,8 @@ class Task(Protocol):
     name: str
     task_type: TaskType
     world: World
-    available_measurements: list[Measurement]
-    available_actions: list[Action]
+    available_measurements: List[Measurement]
+    available_actions: List[Action]
 
     def score(self, result: Any) -> float:
         """Score the agent's result."""
@@ -45,20 +69,8 @@ class Task(Protocol):
         ...
 ```
 
-## Methods
-### score(result) -> float
-Score the agent's result.
-
-### is_complete(world) -> bool
-Check if goal is achieved.
-
-## Task Types
-- **Predict**: Forecast future concentrations
-- **Diagnose**: Identify disease from symptoms
-- **Cure**: Restore healthy homeostasis
-
 ## See Also
-- [[ABIO execution]]
 - [[Measurement]] - Observation tools
 - [[Action]] - Modification tools
 - [[Experiment]] - Runs tasks
+- [[ABIO execution]] - Parent subsystem

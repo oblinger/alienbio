@@ -77,7 +77,7 @@ class TestParentChildRelationship:
     """Tests for bidirectional parent-child links."""
 
     def test_parent_registers_child(self):
-        """Setting parent registers entity in parent's children."""
+        """Setting parent registers entity in parent's args."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat)
         child = Entity("compartment", parent=parent)
@@ -85,14 +85,14 @@ class TestParentChildRelationship:
         assert "compartment" in parent.children
         assert parent.children["compartment"] is child
 
-    def test_children_returns_copy(self):
+    def test_args_returns_copy(self):
         """Children property returns a copy, not the internal dict."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat)
         Entity("child1", parent=parent)
 
-        children = parent.children
-        children["fake"] = "value"
+        args = parent.children
+        args["fake"] = "value"
 
         assert "fake" not in parent.children
 
@@ -305,13 +305,13 @@ class TestToDict:
     """Tests for to_dict serialization."""
 
     def test_to_dict_basic(self):
-        """to_dict returns dict with type and name."""
+        """to_dict returns dict with head and name."""
         dat = MockDat("runs/exp1")
         entity = Entity("world", dat=dat)
 
         result = entity.to_dict()
 
-        assert result == {"type": "Entity", "name": "world"}
+        assert result == {"head": "Entity", "name": "world"}
 
     def test_to_dict_with_description(self):
         """to_dict includes description if present."""
@@ -320,10 +320,10 @@ class TestToDict:
 
         result = entity.to_dict()
 
-        assert result == {"type": "Entity", "name": "world", "description": "Main world"}
+        assert result == {"head": "Entity", "name": "world", "description": "Main world"}
 
     def test_to_dict_excludes_structural_fields(self):
-        """to_dict does not include parent, children, dat."""
+        """to_dict does not include parent, args, dat."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat)
         child = Entity("compartment", parent=parent)
@@ -331,7 +331,7 @@ class TestToDict:
         result = child.to_dict()
 
         assert "parent" not in result
-        assert "children" not in result
+        assert "args" not in result
         assert "dat" not in result
 
 
@@ -339,7 +339,7 @@ class TestToDictRecursive:
     """Tests for recursive to_dict serialization."""
 
     def test_to_dict_recursive_single_child(self):
-        """to_dict(recursive=True) includes children."""
+        """to_dict(recursive=True) includes args."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         Entity("cytoplasm", parent=world)
@@ -347,12 +347,12 @@ class TestToDictRecursive:
         result = world.to_dict(recursive=True)
 
         assert result["name"] == "world"
-        assert "children" in result
-        assert "cytoplasm" in result["children"]
-        assert result["children"]["cytoplasm"]["name"] == "cytoplasm"
+        assert "args" in result
+        assert "cytoplasm" in result["args"]
+        assert result["args"]["cytoplasm"]["name"] == "cytoplasm"
 
     def test_to_dict_recursive_nested(self):
-        """to_dict(recursive=True) recurses into nested children."""
+        """to_dict(recursive=True) recurses into nested args."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cytoplasm = Entity("cytoplasm", parent=world)
@@ -360,22 +360,22 @@ class TestToDictRecursive:
 
         result = world.to_dict(recursive=True)
 
-        assert "children" in result
-        assert "cytoplasm" in result["children"]
-        cyto_dict = result["children"]["cytoplasm"]
-        assert "children" in cyto_dict
-        assert "glucose" in cyto_dict["children"]
-        assert cyto_dict["children"]["glucose"]["name"] == "glucose"
+        assert "args" in result
+        assert "cytoplasm" in result["args"]
+        cyto_dict = result["args"]["cytoplasm"]
+        assert "args" in cyto_dict
+        assert "glucose" in cyto_dict["args"]
+        assert cyto_dict["args"]["glucose"]["name"] == "glucose"
 
-    def test_to_dict_recursive_no_children(self):
-        """to_dict(recursive=True) omits children key for leaf."""
+    def test_to_dict_recursive_no_args(self):
+        """to_dict(recursive=True) omits args key for leaf."""
         dat = MockDat("runs/exp1")
         entity = Entity("leaf", dat=dat)
 
         result = entity.to_dict(recursive=True)
 
-        assert result == {"type": "Entity", "name": "leaf"}
-        assert "children" not in result
+        assert result == {"head": "Entity", "name": "leaf"}
+        assert "args" not in result
 
     def test_to_dict_recursive_preserves_description(self):
         """to_dict(recursive=True) includes descriptions."""
@@ -386,18 +386,18 @@ class TestToDictRecursive:
         result = world.to_dict(recursive=True)
 
         assert result["description"] == "Main world"
-        assert result["children"]["cytoplasm"]["description"] == "Cell compartment"
+        assert result["args"]["cytoplasm"]["description"] == "Cell compartment"
 
-    def test_to_dict_non_recursive_omits_children(self):
-        """to_dict() without recursive=True omits children."""
+    def test_to_dict_non_recursive_omits_args(self):
+        """to_dict() without recursive=True omits args."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         Entity("cytoplasm", parent=world)
 
         result = world.to_dict()  # recursive=False by default
 
-        assert result == {"type": "Entity", "name": "world"}
-        assert "children" not in result
+        assert result == {"head": "Entity", "name": "world"}
+        assert "args" not in result
 
 
 class TestToStr:
@@ -410,8 +410,8 @@ class TestToStr:
 
         assert entity.to_str() == "glucose"
 
-    def test_to_str_with_children(self):
-        """to_str shows children in parentheses."""
+    def test_to_str_with_args(self):
+        """to_str shows args in parentheses."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         Entity("cytoplasm", parent=world)
@@ -422,7 +422,7 @@ class TestToStr:
         assert result == "world(cytoplasm, nucleus)"
 
     def test_to_str_nested(self):
-        """to_str recurses into children."""
+        """to_str recurses into args."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cytoplasm = Entity("cytoplasm", parent=world)
@@ -444,7 +444,7 @@ class TestToStr:
         assert result == "world"
 
     def test_to_str_depth_one(self):
-        """to_str with depth=1 shows immediate children only."""
+        """to_str with depth=1 shows immediate args only."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cytoplasm = Entity("cytoplasm", parent=world)
@@ -630,7 +630,7 @@ class TestStringRepresentation:
             set_context(None)
 
     def test_repr_includes_all_fields(self):
-        """__repr__ includes local_name, description, dat, parent, children."""
+        """__repr__ includes local_name, description, dat, parent, args."""
         dat = MockDat("runs/exp1")
         parent = Entity("world", dat=dat, description="Main world")
         child = Entity("compartment", parent=parent)
@@ -652,13 +652,13 @@ class TestStringRepresentation:
         assert "name='world'" in repr_str
         assert "dat='runs/exp1'" in repr_str
         assert "description" not in repr_str
-        assert "children" not in repr_str
+        assert "args" not in repr_str
         assert "parent" not in repr_str
 
 
-# Test subclasses for type registry testing
-class Molecule(Entity):
-    """Test subclass using class name as type."""
+# Test subclasses for head registry testing
+class SampleMol(Entity, head="SampleMol"):
+    """Test subclass using explicit head to avoid conflicts."""
 
     __slots__ = ("formula",)
 
@@ -666,15 +666,15 @@ class Molecule(Entity):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.formula = formula
 
-    def to_dict(self, recursive=False, _root=None):
-        result = super().to_dict(recursive=recursive, _root=_root)
+    def attributes(self):
+        result = super().attributes()
         if self.formula:
             result["formula"] = self.formula
         return result
 
 
-class Compartment(Entity, type_name="C"):
-    """Test subclass using short type_name."""
+class Compartment(Entity, head="C"):
+    """Test subclass using short head."""
 
     __slots__ = ("volume",)
 
@@ -682,15 +682,15 @@ class Compartment(Entity, type_name="C"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.volume = volume
 
-    def to_dict(self, recursive=False, _root=None):
-        result = super().to_dict(recursive=recursive, _root=_root)
+    def attributes(self):
+        result = super().attributes()
         if self.volume:
             result["volume"] = self.volume
         return result
 
 
-class Reaction(Entity, type_name="R"):
-    """Test subclass with short type_name for reactions."""
+class Reaction(Entity, head="R"):
+    """Test subclass with short head for reactions."""
 
     __slots__ = ("rate",)
 
@@ -698,98 +698,98 @@ class Reaction(Entity, type_name="R"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.rate = rate
 
-    def to_dict(self, recursive=False, _root=None):
-        result = super().to_dict(recursive=recursive, _root=_root)
+    def attributes(self):
+        result = super().attributes()
         if self.rate:
             result["rate"] = self.rate
         return result
 
 
 class TestTypeRegistry:
-    """Tests for entity type registration."""
+    """Tests for entity head registration."""
 
     def test_entity_registered_as_entity(self):
         """Base Entity is registered as 'Entity'."""
         assert get_entity_type("Entity") is Entity
 
     def test_subclass_registered_by_class_name(self):
-        """Subclass without type_name is registered by class name."""
-        assert get_entity_type("Molecule") is Molecule
+        """Subclass with head_name is registered by that name."""
+        assert get_entity_type("SampleMol") is SampleMol
 
-    def test_subclass_registered_by_type_name(self):
-        """Subclass with type_name is registered by that name."""
+    def test_subclass_registered_by_head_name(self):
+        """Subclass with head_name is registered by that name."""
         assert get_entity_type("C") is Compartment
         assert get_entity_type("R") is Reaction
 
     def test_get_entity_types_returns_all(self):
-        """get_entity_types returns all registered types."""
-        types = get_entity_types()
-        assert "Entity" in types
-        assert "Molecule" in types
-        assert "C" in types
-        assert "R" in types
+        """get_entity_types returns all registered heads."""
+        heads = get_entity_types()
+        assert "Entity" in heads
+        assert "SampleMol" in heads
+        assert "C" in heads
+        assert "R" in heads
 
-    def test_unknown_type_raises(self):
-        """get_entity_type raises KeyError for unknown type."""
-        with pytest.raises(KeyError, match="Unknown entity type"):
+    def test_unknown_head_raises(self):
+        """get_entity_type raises KeyError for unknown head."""
+        with pytest.raises(KeyError, match="Unknown entity head"):
             get_entity_type("NonexistentType")
 
 
 class TestSubclassSerialization:
     """Tests for subclass serialization."""
 
-    def test_molecule_to_dict_includes_type(self):
-        """Molecule.to_dict includes type='Molecule'."""
+    def test_molecule_to_dict_includes_head(self):
+        """SampleMol.to_dict includes head='SampleMol'."""
         dat = MockDat("runs/exp1")
-        mol = Molecule("glucose", dat=dat, formula="C6H12O6")
+        mol = SampleMol("glucose", dat=dat, formula="C6H12O6")
 
         result = mol.to_dict()
 
-        assert result["type"] == "Molecule"
+        assert result["head"] == "SampleMol"
         assert result["name"] == "glucose"
         assert result["formula"] == "C6H12O6"
 
-    def test_compartment_to_dict_includes_short_type(self):
-        """Compartment.to_dict includes type='C' (short name)."""
+    def test_compartment_to_dict_includes_short_head(self):
+        """Compartment.to_dict includes head='C' (short name)."""
         dat = MockDat("runs/exp1")
         comp = Compartment("cytoplasm", dat=dat, volume=1.5)
 
         result = comp.to_dict()
 
-        assert result["type"] == "C"
+        assert result["head"] == "C"
         assert result["name"] == "cytoplasm"
         assert result["volume"] == 1.5
 
-    def test_recursive_to_dict_preserves_types(self):
-        """Recursive to_dict preserves subclass types."""
+    def test_recursive_to_dict_preserves_heads(self):
+        """Recursive to_dict preserves subclass heads."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cyto = Compartment("cytoplasm", parent=world, volume=1.0)
-        Molecule("glucose", parent=cyto, formula="C6H12O6")
+        SampleMol("glucose", parent=cyto, formula="C6H12O6")
 
         result = world.to_dict(recursive=True)
 
-        assert result["type"] == "Entity"
-        assert result["children"]["cytoplasm"]["type"] == "C"
-        assert result["children"]["cytoplasm"]["children"]["glucose"]["type"] == "Molecule"
+        assert result["head"] == "Entity"
+        assert result["args"]["cytoplasm"]["head"] == "C"
+        assert result["args"]["cytoplasm"]["args"]["glucose"]["head"] == "SampleMol"
 
 
 class TestSubclassTree:
     """Tests for trees with mixed entity subclasses."""
 
     def test_mixed_entity_tree(self):
-        """Can create tree with mixed entity types."""
+        """Can create tree with mixed entity heads."""
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cyto = Compartment("cytoplasm", parent=world, volume=1.0)
-        glucose = Molecule("glucose", parent=cyto, formula="C6H12O6")
+        glucose = SampleMol("glucose", parent=cyto, formula="C6H12O6")
         rxn = Reaction("glycolysis", parent=cyto, rate=0.1)
 
         assert world.children["cytoplasm"] is cyto
         assert cyto.children["glucose"] is glucose
         assert cyto.children["glycolysis"] is rxn
         assert isinstance(cyto, Compartment)
-        assert isinstance(glucose, Molecule)
+        assert isinstance(glucose, SampleMol)
         assert isinstance(rxn, Reaction)
 
     def test_to_str_works_with_subclasses(self):
@@ -797,8 +797,8 @@ class TestSubclassTree:
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         cyto = Compartment("cytoplasm", parent=world)
-        Molecule("glucose", parent=cyto)
-        Molecule("atp", parent=cyto)
+        SampleMol("glucose", parent=cyto)
+        SampleMol("atp", parent=cyto)
 
         result = world.to_str()
 

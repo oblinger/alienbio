@@ -20,9 +20,33 @@ from .infra.context import (
 from .infra.entity import Entity
 from .infra.io import IO
 
+# Bio module exports
+from .bio import (
+    # Protocols (for type hints)
+    Atom,
+    Molecule,
+    Reaction,
+    Chemistry,
+    State,
+    Simulator,
+    # Implementation classes
+    AtomImpl,
+    MoleculeImpl,
+    ReactionImpl,
+    ChemistryImpl,
+    StateImpl,
+    SimpleSimulatorImpl,
+    # Abstract base class for subclassing
+    SimulatorBase,
+    # Atom utilities
+    COMMON_ATOMS,
+    get_atom,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
+    # Infrastructure
     "Context",
     "Dat",
     "Entity",
@@ -37,4 +61,23 @@ __all__ = [
     "save",
     "lookup",
     "o",
+    # Bio - Protocols (for type hints)
+    "Atom",
+    "Molecule",
+    "Reaction",
+    "Chemistry",
+    "State",
+    "Simulator",
+    # Bio - Implementation classes
+    "AtomImpl",
+    "MoleculeImpl",
+    "ReactionImpl",
+    "ChemistryImpl",
+    "StateImpl",
+    "SimpleSimulatorImpl",
+    # Bio - Abstract base class for subclassing
+    "SimulatorBase",
+    # Bio - Atom utilities
+    "COMMON_ATOMS",
+    "get_atom",
 ]

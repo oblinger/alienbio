@@ -267,7 +267,7 @@ class TestDataFolderOperations:
 from alienbio.infra.entity import Entity as EntityBase
 
 
-class MockMolecule(EntityBase, type_name="TM"):
+class MockMolecule(EntityBase, head="TM"):
     """Mock subclass for molecules."""
 
     __slots__ = ("formula",)
@@ -276,14 +276,14 @@ class MockMolecule(EntityBase, type_name="TM"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.formula = formula
 
-    def to_dict(self, recursive=False, _root=None):
-        result = super().to_dict(recursive=recursive, _root=_root)
+    def attributes(self):
+        result = super().attributes()
         if self.formula:
             result["formula"] = self.formula
         return result
 
 
-class MockCompartment(EntityBase, type_name="TC"):
+class MockCompartment(EntityBase, head="TC"):
     """Mock subclass for compartments."""
 
     __slots__ = ("volume",)
@@ -292,14 +292,14 @@ class MockCompartment(EntityBase, type_name="TC"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.volume = volume
 
-    def to_dict(self, recursive=False, _root=None):
-        result = super().to_dict(recursive=recursive, _root=_root)
+    def attributes(self):
+        result = super().attributes()
         if self.volume:
             result["volume"] = self.volume
         return result
 
 
-class MockReaction(EntityBase, type_name="TR"):
+class MockReaction(EntityBase, head="TR"):
     """Mock subclass for reactions."""
 
     __slots__ = ("rate",)
@@ -308,8 +308,8 @@ class MockReaction(EntityBase, type_name="TR"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self.rate = rate
 
-    def to_dict(self, recursive=False, _root=None):
-        result = super().to_dict(recursive=recursive, _root=_root)
+    def attributes(self):
+        result = super().attributes()
         if self.rate:
             result["rate"] = self.rate
         return result
@@ -353,11 +353,11 @@ class TestEntitySaveLoad:
             with open(entities_file) as f:
                 data = yaml.safe_load(f)
 
-            assert data["type"] == "Entity"
+            assert data["head"] == "Entity"
             assert data["name"] == "world"
 
-    def test_save_subclass_preserves_type(self):
-        """Saving a subclass preserves its type name."""
+    def test_save_subclass_preserves_head(self):
+        """Saving a subclass preserves its head name."""
         with tempfile.TemporaryDirectory() as tmpdir:
             import yaml
 
@@ -370,12 +370,12 @@ class TestEntitySaveLoad:
             with open(entities_file) as f:
                 data = yaml.safe_load(f)
 
-            assert data["type"] == "TC"  # Short type_name
+            assert data["head"] == "TC"  # Short head
             assert data["name"] == "cytoplasm"
             assert data["volume"] == 1.5
 
     def test_save_mixed_tree(self):
-        """Saving a tree with mixed types preserves all types."""
+        """Saving a tree with mixed types preserves all heads."""
         with tempfile.TemporaryDirectory() as tmpdir:
             import yaml
 
@@ -394,13 +394,13 @@ class TestEntitySaveLoad:
             with open(entities_file) as f:
                 data = yaml.safe_load(f)
 
-            assert data["type"] == "Entity"
-            assert data["children"]["cytoplasm"]["type"] == "TC"
-            assert data["children"]["cytoplasm"]["volume"] == 1.0
-            assert data["children"]["cytoplasm"]["children"]["glucose"]["type"] == "TM"
-            assert data["children"]["cytoplasm"]["children"]["glucose"]["formula"] == "C6H12O6"
-            assert data["children"]["cytoplasm"]["children"]["glycolysis"]["type"] == "TR"
-            assert data["children"]["cytoplasm"]["children"]["glycolysis"]["rate"] == 0.1
+            assert data["head"] == "Entity"
+            assert data["args"]["cytoplasm"]["head"] == "TC"
+            assert data["args"]["cytoplasm"]["volume"] == 1.0
+            assert data["args"]["cytoplasm"]["args"]["glucose"]["head"] == "TM"
+            assert data["args"]["cytoplasm"]["args"]["glucose"]["formula"] == "C6H12O6"
+            assert data["args"]["cytoplasm"]["args"]["glycolysis"]["head"] == "TR"
+            assert data["args"]["cytoplasm"]["args"]["glycolysis"]["rate"] == 0.1
 
 
 class TestEntityLoadWithTypes:
@@ -417,7 +417,7 @@ class TestEntityLoadWithTypes:
             # Write entities.yaml with a MockMolecule
             entities_file = Path(tmpdir) / "test" / "load1" / "entities.yaml"
             entity_data = {
-                "type": "TM",
+                "head": "TM",
                 "name": "glucose",
                 "formula": "C6H12O6",
             }
@@ -435,8 +435,8 @@ class TestEntityLoadWithTypes:
             # Note: formula won't be loaded yet because _create_entity_from_dict
             # doesn't handle custom fields - that's a future enhancement
 
-    def test_load_with_children(self):
-        """Loading entities.yaml with children creates tree."""
+    def test_load_with_args(self):
+        """Loading entities.yaml with args creates tree."""
         with tempfile.TemporaryDirectory() as tmpdir:
             import yaml
 
@@ -444,11 +444,11 @@ class TestEntityLoadWithTypes:
 
             entities_file = Path(tmpdir) / "test" / "load2" / "entities.yaml"
             entity_data = {
-                "type": "Entity",
+                "head": "Entity",
                 "name": "world",
-                "children": {
+                "args": {
                     "cytoplasm": {
-                        "type": "TC",
+                        "head": "TC",
                         "name": "cytoplasm",
                     }
                 }
