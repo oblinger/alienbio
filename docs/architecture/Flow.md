@@ -1,17 +1,16 @@
 # Flow
 **Subsystem**: [[ABIO biology]] > Transport
-Transport between compartments via membrane or lateral flows.
+Transport between compartments via membrane or general flows.
 
 ## Overview
-Flows move molecules (or instances) between compartments. They complement Reactions, which transform molecules within a compartment. The Flow hierarchy includes MembraneFlow (across parent-child membrane) and LateralFlow (between siblings).
+Flows move molecules (or instances) between compartments. They complement Reactions, which transform molecules within a compartment. The Flow hierarchy includes MembraneFlow (well-defined stoichiometry) and GeneralFlow (arbitrary edits, placeholder).
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `origin` | CompartmentId | Origin compartment (where flow is anchored) |
 | `name` | str | Human-readable name |
 | `is_membrane_flow` | bool | True if origin ↔ parent |
-| `is_lateral_flow` | bool | True if origin ↔ sibling |
-| `is_instance_transfer` | bool | True if transferring multiplicity |
+| `is_general_flow` | bool | True if arbitrary edits |
 
 | Method | Returns | Description |
 |--------|---------|-------------|
@@ -25,14 +24,14 @@ Flows move molecules (or instances) between compartments. They complement Reacti
 ```
 Flow (abstract base)
 ├── MembraneFlow - transport across parent-child membrane with stoichiometry
-└── LateralFlow - transport between sibling compartments
+└── GeneralFlow - arbitrary state modifications (placeholder)
 ```
 
 | Operation | Scope | Example |
 |-----------|-------|---------|
 | **Reaction** | Within compartment | A + B → C |
 | **MembraneFlow** | Across membrane | 2 Na⁺ + glucose cotransport |
-| **LateralFlow** | Between siblings | RBCs: arteries ↔ veins |
+| **GeneralFlow** | Arbitrary | Lateral flows, instance transfers, etc. |
 
 ### MembraneFlow
 Transport across parent-child membrane with stoichiometry. Like reactions, membrane flows can move multiple molecules together per event.
@@ -46,14 +45,18 @@ Direction convention:
 - **Positive** stoichiometry = molecules move **INTO** origin (from parent)
 - **Negative** stoichiometry = molecules move **OUT OF** origin (into parent)
 
-### LateralFlow
-Transport between sibling compartments (molecules or instances).
+### GeneralFlow (Placeholder)
+Catch-all for flows that don't fit the MembraneFlow pattern. This includes:
+- Lateral flows between siblings
+- Instance transfers (RBCs moving between compartments)
+- Any other arbitrary edits to the system
+
+**NOTE:** This is currently a placeholder. Full implementation will require a more general interpreter to handle arbitrary state modifications specified via Expr.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `target` | CompartmentId | Target compartment (sibling of origin) |
-| `molecule` | MoleculeId | Molecule transported (MULTIPLICITY_ID for instances) |
-| `rate_constant` | float | Base permeability/transport rate |
+| `description` | str | Description of what this flow does |
+| `apply_fn` | Callable | Function that modifies state (not serializable) |
 
 ### MembraneFlow Examples
 
@@ -96,45 +99,30 @@ na_k_pump = MembraneFlow(
 )
 ```
 
-### LateralFlow Examples
-
-**Instance Transfer:**
+### GeneralFlow Example (Placeholder)
 ```python
-from alienbio import LateralFlow, MULTIPLICITY_ID
+from alienbio import GeneralFlow
 
-rbc_flow = LateralFlow(
-    origin=arterial_rbc_id,
-    target=venous_rbc_id,
-    molecule=MULTIPLICITY_ID,
-    rate_constant=0.01,
-    name="rbc_circulation",
-)
-```
+# Arbitrary edit - needs more general interpreter for full support
+def custom_transfer(state, tree, dt):
+    # Custom logic here
+    pass
 
-**Molecule Diffusion Between Siblings:**
-```python
-gap_junction = LateralFlow(
-    origin=cell1_id,
-    target=cell2_id,
-    molecule=calcium_id,
-    rate_constant=0.1,
-    name="gap_junction_ca",
+flow = GeneralFlow(
+    origin=cell_id,
+    apply_fn=custom_transfer,
+    name="custom_flow",
+    description="Custom transfer logic",
 )
 ```
 
 ### Volume and Concentration Changes
-Flows compute molecule counts, then convert to concentration changes using volumes.
+Membrane flows compute molecule counts, then convert to concentration changes using volumes.
 
-**Membrane Flows:** Volume asymmetry causes different ΔC on each side:
+Volume asymmetry causes different ΔC on each side:
 ```
 PARENT (volume = 1000)      CHILD (volume = 1)
 ΔC = -100/1000 = -0.1       ΔC = +100/1 = +100
-```
-
-**Lateral Flows (Instances):** Both use parent's volume:
-```
-ΔC_source = -instances / parent_volume
-ΔC_dest   = +instances / parent_volume
 ```
 
 ### Membrane Model
@@ -161,16 +149,14 @@ stoichiometry:
   glucose: 1
 rate_constant: 10.0
 
-# LateralFlow
-type: lateral
-name: rbc_circulation
+# GeneralFlow (limited - apply_fn not serializable)
+type: general
+name: custom_flow
 origin: 1
-target: 2
-molecule: -1  # MULTIPLICITY_ID
-rate_constant: 0.01
+description: Custom transfer logic
 ```
 
-Note: Custom rate functions (`rate_fn`) cannot be serialized.
+Note: Custom rate/apply functions cannot be serialized. Full GeneralFlow support will need Expr-based specifications.
 
 ## Protocol
 ```python
@@ -196,13 +182,8 @@ class Flow(Protocol):
         ...
 
     @property
-    def is_lateral_flow(self) -> bool:
-        """True if this is a lateral flow (origin ↔ sibling)."""
-        ...
-
-    @property
-    def is_instance_transfer(self) -> bool:
-        """True if this transfers instances rather than molecules."""
+    def is_general_flow(self) -> bool:
+        """True if this is a general flow (arbitrary edits)."""
         ...
 
     def compute_flux(self, state: WorldState, tree: CompartmentTree) -> float:
@@ -224,3 +205,4 @@ class Flow(Protocol):
 - [[CompartmentTree]] - Topology for simulation
 - [[WorldState]] - Concentration and multiplicity storage
 - [[WorldSimulator]] - Applies flows during simulation
+- [[Interpreter]] - Will be needed for GeneralFlow Expr support

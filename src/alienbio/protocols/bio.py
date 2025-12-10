@@ -152,7 +152,7 @@ class Flow(Protocol):
     Flow hierarchy:
     - Flow (base): common interface for all flows
     - MembraneFlow: transport across parent-child membrane with stoichiometry
-    - LateralFlow: transport between sibling compartments
+    - GeneralFlow: arbitrary state modifications (placeholder)
 
     Each flow is anchored to an origin compartment.
     """
@@ -173,13 +173,8 @@ class Flow(Protocol):
         ...
 
     @property
-    def is_lateral_flow(self) -> bool:
-        """True if this is a lateral flow (origin ↔ sibling)."""
-        ...
-
-    @property
-    def is_instance_transfer(self) -> bool:
-        """True if this transfers instances (multiplicity) rather than molecules."""
+    def is_general_flow(self) -> bool:
+        """True if this is a general flow (arbitrary edits)."""
         ...
 
     def compute_flux(
@@ -224,28 +219,19 @@ class MembraneFlow(Flow, Protocol):
 
 
 @runtime_checkable
-class LateralFlow(Flow, Protocol):
-    """Protocol for lateral flows between siblings.
+class GeneralFlow(Flow, Protocol):
+    """Protocol for general flows (placeholder).
 
-    Lateral flows transport molecules or instances between compartments
-    that share the same parent.
+    GeneralFlow is a catch-all for flows that don't fit the MembraneFlow pattern.
+    This includes lateral flows, instance transfers, and arbitrary state edits.
 
-    Use molecule=MULTIPLICITY_ID (-1) to transfer instances rather than molecules.
+    NOTE: This is a placeholder. Full implementation will require a more
+    general interpreter to handle arbitrary state modifications.
     """
 
     @property
-    def target(self) -> CompartmentId:
-        """The target compartment (sibling of origin)."""
-        ...
-
-    @property
-    def molecule(self) -> MoleculeId:
-        """The molecule being transported (MULTIPLICITY_ID for instances)."""
-        ...
-
-    @property
-    def rate_constant(self) -> float:
-        """Base permeability/transport rate."""
+    def description(self) -> str:
+        """Description of what this flow does."""
         ...
 
 

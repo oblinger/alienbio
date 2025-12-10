@@ -3,39 +3,31 @@
 Flow hierarchy:
 - Flow (abstract base): common interface for all flows
 - MembraneFlow: transport across parent-child boundary with stoichiometry
-- LateralFlow: transport between siblings (instance or molecule transfer)
+- GeneralFlow: arbitrary state modifications (placeholder, needs general interpreter)
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .world_state import WorldStateImpl
     from .compartment_tree import CompartmentTreeImpl
 
 # Type aliases
-MoleculeId = int
 CompartmentId = int
-
-# Flow rate can be constant or function of concentrations
-FlowRateFunction = Callable[[float, float], float]  # (source_conc, target_conc) -> rate
-FlowRateValue = Union[float, FlowRateFunction]
-
-# Special molecule ID for multiplicity (instance count)
-MULTIPLICITY_ID = -1
 
 
 class Flow(ABC):
     """Abstract base class for all flows.
 
     Flows move molecules (or instances) between compartments. Each flow is
-    anchored to an origin compartment and transfers to a target.
+    anchored to an origin compartment.
 
     Subclasses:
     - MembraneFlow: transport across parent-child membrane with stoichiometry
-    - LateralFlow: transport between sibling compartments
+    - GeneralFlow: arbitrary state modifications (placeholder)
 
     Common interface:
     - origin: the compartment where this flow is anchored
@@ -78,14 +70,8 @@ class Flow(ABC):
 
     @property
     @abstractmethod
-    def is_lateral_flow(self) -> bool:
-        """True if this is a lateral flow (origin ↔ sibling)."""
-        ...
-
-    @property
-    @abstractmethod
-    def is_instance_transfer(self) -> bool:
-        """True if this transfers instances (multiplicity) rather than molecules."""
+    def is_general_flow(self) -> bool:
+        """True if this is a general flow (arbitrary edits)."""
         ...
 
     @abstractmethod
@@ -101,7 +87,7 @@ class Flow(ABC):
             tree: Compartment topology
 
         Returns:
-            Flux value (positive = into origin for membrane, origin→target for lateral)
+            Flux value (positive = into origin for membrane flows)
         """
         ...
 
@@ -206,13 +192,8 @@ class MembraneFlow(Flow):
         return True
 
     @property
-    def is_lateral_flow(self) -> bool:
-        """False - this is not a lateral flow."""
-        return False
-
-    @property
-    def is_instance_transfer(self) -> bool:
-        """False - membrane flows transfer molecules, not instances."""
+    def is_general_flow(self) -> bool:
+        """False - this is not a general flow."""
         return False
 
     def compute_flux(
@@ -298,80 +279,54 @@ class MembraneFlow(Flow):
         return f"MembraneFlow({self._name})"
 
 
-class LateralFlow(Flow):
-    """Transport between sibling compartments.
+class GeneralFlow(Flow):
+    """Arbitrary state modifications (placeholder).
 
-    A LateralFlow moves molecules or instances between compartments that
-    share the same parent. Common use cases:
-    - Instance transfer: RBCs moving from arteries to veins
-    - Molecule exchange: nutrients between adjacent cells
+    GeneralFlow is a catch-all for flows that don't fit the MembraneFlow pattern.
+    This includes:
+    - Lateral flows between siblings
+    - Instance transfers (RBCs moving between compartments)
+    - Any other arbitrary edits to the system
 
-    For instance transfers, use molecule=MULTIPLICITY_ID.
+    NOTE: This is currently a placeholder. Full implementation will require
+    a more general interpreter to handle arbitrary state modifications
+    specified via Expr or similar.
 
-    Example:
-        # RBC transfer from arteries to veins
-        rbc_flow = LateralFlow(
-            origin=arterial_rbc_id,
-            target=venous_rbc_id,
-            molecule=MULTIPLICITY_ID,  # transfer instances
-            rate_constant=0.01,
-            name="rbc_circulation",
-        )
-
-        # Molecule diffusion between adjacent cells
-        gap_junction = LateralFlow(
-            origin=cell1_id,
-            target=cell2_id,
-            molecule=calcium_id,
-            rate_constant=0.1,
-            name="gap_junction_ca",
-        )
+    For now, GeneralFlow stores an apply_fn that takes state and tree
+    and performs arbitrary modifications.
     """
 
-    __slots__ = ("_target", "_molecule", "_rate_constant", "_rate_fn")
+    __slots__ = ("_apply_fn", "_description")
 
     def __init__(
         self,
         origin: CompartmentId,
-        target: CompartmentId,
-        molecule: MoleculeId,
-        rate_constant: float = 1.0,
-        rate_fn: Optional[FlowRateFunction] = None,
+        apply_fn: Optional[Callable[[WorldStateImpl, CompartmentTreeImpl, float], None]] = None,
         name: str = "",
+        description: str = "",
     ) -> None:
-        """Initialize a lateral flow.
+        """Initialize a general flow.
 
         Args:
-            origin: The origin compartment
-            target: The target compartment (sibling of origin)
-            molecule: The molecule being transported (by ID), or MULTIPLICITY_ID
-            rate_constant: Base permeability/transport rate
-            rate_fn: Optional function (source_conc, target_conc) -> rate
+            origin: The compartment where this flow is conceptually anchored
+            apply_fn: Function (state, tree, dt) -> None that modifies state
             name: Human-readable name for this flow
+            description: Description of what this flow does
+
+        NOTE: This is a placeholder. Full implementation will need a more
+        general interpreter to support Expr-based specifications.
         """
         if not name:
-            name = f"lateral_{molecule}_{origin}_to_{target}"
+            name = f"general_flow_at_{origin}"
         super().__init__(origin, name)
 
-        self._target = target
-        self._molecule = molecule
-        self._rate_constant = rate_constant
-        self._rate_fn = rate_fn
+        self._apply_fn = apply_fn
+        self._description = description
 
     @property
-    def target(self) -> CompartmentId:
-        """The target compartment."""
-        return self._target
-
-    @property
-    def molecule(self) -> MoleculeId:
-        """The molecule being transported (MULTIPLICITY_ID for instances)."""
-        return self._molecule
-
-    @property
-    def rate_constant(self) -> float:
-        """Base permeability/transport rate."""
-        return self._rate_constant
+    def description(self) -> str:
+        """Description of what this flow does."""
+        return self._description
 
     @property
     def is_membrane_flow(self) -> bool:
@@ -379,44 +334,20 @@ class LateralFlow(Flow):
         return False
 
     @property
-    def is_lateral_flow(self) -> bool:
-        """True - this is a lateral flow."""
+    def is_general_flow(self) -> bool:
+        """True - this is a general flow."""
         return True
-
-    @property
-    def is_instance_transfer(self) -> bool:
-        """True if this transfers instances (multiplicity) rather than molecules."""
-        return self._molecule == MULTIPLICITY_ID
 
     def compute_flux(
         self,
         state: WorldStateImpl,
         tree: CompartmentTreeImpl,
     ) -> float:
-        """Compute flux from origin to target.
+        """General flows don't have a simple flux concept.
 
-        Positive flux = transfer from origin to target.
-
-        Args:
-            state: Current world state with concentrations
-            tree: Compartment topology
-
-        Returns:
-            Flux value
+        Returns 0.0 as placeholder. The actual work happens in apply().
         """
-        # Get concentrations (or multiplicities for instance transfers)
-        if self._molecule == MULTIPLICITY_ID:
-            source_val = state.get_multiplicity(self._origin)
-            dest_val = state.get_multiplicity(self._target)
-        else:
-            source_val = state.get(self._origin, self._molecule)
-            dest_val = state.get(self._target, self._molecule)
-
-        if self._rate_fn is not None:
-            return self._rate_fn(source_val, dest_val)
-        else:
-            # Simple diffusion / transfer based on gradient
-            return self._rate_constant * (source_val - dest_val)
+        return 0.0
 
     def apply(
         self,
@@ -431,45 +362,30 @@ class LateralFlow(Flow):
             tree: Compartment topology
             dt: Time step
         """
-        flux = self.compute_flux(state, tree) * dt
-
-        # Apply flux: origin loses, target gains
-        if self._molecule == MULTIPLICITY_ID:
-            source_val = state.get_multiplicity(self._origin)
-            dest_val = state.get_multiplicity(self._target)
-            state.set_multiplicity(self._origin, max(0.0, source_val - flux))
-            state.set_multiplicity(self._target, max(0.0, dest_val + flux))
-        else:
-            source_val = state.get(self._origin, self._molecule)
-            dest_val = state.get(self._target, self._molecule)
-            state.set(self._origin, self._molecule, max(0.0, source_val - flux))
-            state.set(self._target, self._molecule, max(0.0, dest_val + flux))
+        if self._apply_fn is not None:
+            self._apply_fn(state, tree, dt)
 
     def attributes(self) -> Dict[str, Any]:
-        """Semantic content for serialization."""
-        result: Dict[str, Any] = {
-            "type": "lateral",
+        """Semantic content for serialization.
+
+        NOTE: apply_fn cannot be serialized. Full implementation will
+        need Expr-based specification that can be serialized.
+        """
+        return {
+            "type": "general",
             "name": self._name,
             "origin": self._origin,
-            "target": self._target,
-            "molecule": self._molecule,
-            "rate_constant": self._rate_constant,
+            "description": self._description,
         }
-        # Note: rate_fn cannot be serialized
-        return result
 
     def __repr__(self) -> str:
         """Full representation."""
-        return (
-            f"LateralFlow(origin={self._origin}, target={self._target}, "
-            f"molecule={self._molecule}, rate={self._rate_constant})"
-        )
+        return f"GeneralFlow(origin={self._origin}, name={self._name!r})"
 
     def __str__(self) -> str:
         """Short representation."""
-        return f"LateralFlow({self._name})"
+        return f"GeneralFlow({self._name})"
 
 
 # Keep FlowImpl as alias for backwards compatibility during transition
-# TODO: Remove after updating all usages
-FlowImpl = LateralFlow
+FlowImpl = GeneralFlow

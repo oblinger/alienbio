@@ -20,7 +20,7 @@ Implementations:
 - Flow hierarchy:
   - Flow: abstract base class for all flows
   - MembraneFlow: transport across parent-child membrane with stoichiometry
-  - LateralFlow: transport between sibling compartments
+  - GeneralFlow: arbitrary state modifications (placeholder, needs interpreter)
 - ChemistryImpl: container for atoms, molecules, and reactions
 - CompartmentImpl: biological compartment with flows, concentrations, reactions
 - CompartmentTreeImpl: hierarchical compartment topology (simulation)
@@ -53,7 +53,7 @@ from .molecule import MoleculeImpl
 
 # Implementation classes - reactions and flows
 from .reaction import ReactionImpl
-from .flow import Flow, MembraneFlow, LateralFlow, FlowImpl, MULTIPLICITY_ID
+from .flow import Flow, MembraneFlow, GeneralFlow, FlowImpl
 
 # Implementation classes - containers and compartments
 from .chemistry import ChemistryImpl
@@ -87,8 +87,8 @@ __all__ = [
     "MoleculeImpl",
     "ReactionImpl",
     "MembraneFlow",
-    "LateralFlow",
-    "FlowImpl",  # Alias for LateralFlow (backwards compat)
+    "GeneralFlow",
+    "FlowImpl",  # Alias for GeneralFlow (backwards compat)
     "ChemistryImpl",
     "CompartmentImpl",
     "CompartmentTreeImpl",
@@ -102,6 +102,4 @@ __all__ = [
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
-    # Flow constants
-    "MULTIPLICITY_ID",
 ]
