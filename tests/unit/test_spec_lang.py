@@ -852,10 +852,10 @@ constants:
 
 
 class TestBioClass:
-    """Tests for Bio.load(), Bio.save(), Bio.sim() methods."""
+    """Tests for Bio.fetch(), Bio.store(), Bio.sim() methods."""
 
     def test_bio_load_scenario(self, temp_dir):
-        """Bio.load("catalog/scenarios/test") → Scenario object"""
+        """Bio.fetch("catalog/scenarios/test") → Scenario object"""
         # Create a test scenario file
         scenario_dir = temp_dir / "catalog" / "scenarios" / "test"
         scenario_dir.mkdir(parents=True)
@@ -866,12 +866,12 @@ scenario.test:
   constitution: "Test constitution"
 """)
 
-        result = Bio.load(str(scenario_dir))
+        result = Bio.fetch(str(scenario_dir))
         assert hasattr(result, "briefing")
         assert result.briefing == "Test briefing"
 
     def test_bio_load_chemistry(self, temp_dir):
-        """Bio.load("catalog/chemistries/test") → Chemistry object"""
+        """Bio.fetch("catalog/chemistries/test") → Chemistry object"""
         chem_dir = temp_dir / "catalog" / "chemistries" / "test"
         chem_dir.mkdir(parents=True)
         spec_file = chem_dir / "spec.yaml"
@@ -883,17 +883,17 @@ chemistry.test:
   reactions: {}
 """)
 
-        result = Bio.load(str(chem_dir))
+        result = Bio.fetch(str(chem_dir))
         assert hasattr(result, "molecules")
         assert "A" in result.molecules
 
     def test_bio_load_nonexistent_raises(self):
-        """Bio.load("nonexistent/path") → FileNotFoundError"""
+        """Bio.fetch("nonexistent/path") → FileNotFoundError"""
         with pytest.raises(FileNotFoundError):
-            Bio.load("/nonexistent/path/that/does/not/exist")
+            Bio.fetch("/nonexistent/path/that/does/not/exist")
 
     def test_bio_save_writes_yaml(self, temp_dir):
-        """Bio.save("path", obj) writes YAML with _type"""
+        """Bio.store("path", obj) writes YAML with _type"""
         @biotype
         @dataclass
         class SaveTest:
@@ -904,7 +904,7 @@ chemistry.test:
         save_path = temp_dir / "saved"
         save_path.mkdir()
 
-        Bio.save(str(save_path), obj)
+        Bio.store(str(save_path), obj)
 
         # Check file was written
         spec_file = save_path / "spec.yaml"
@@ -913,7 +913,7 @@ chemistry.test:
         assert content["_type"] == "savetest"
 
     def test_bio_save_load_round_trip(self, temp_dir):
-        """Bio.save then Bio.load round-trips correctly"""
+        """Bio.store then Bio.fetch round-trips correctly"""
         @biotype
         @dataclass
         class RoundTrip:
@@ -924,8 +924,8 @@ chemistry.test:
         path = temp_dir / "roundtrip"
         path.mkdir()
 
-        Bio.save(str(path), original)
-        loaded = Bio.load(str(path))
+        Bio.store(str(path), original)
+        loaded = Bio.fetch(str(path))
 
         assert loaded.name == original.name
         assert loaded.count == original.count
@@ -970,7 +970,7 @@ suite.test:
     permeability: !ref high_perm
 """)
 
-        result = Bio.load(str(spec_dir))
+        result = Bio.fetch(str(spec_dir))
         # Should have resolved everything
         assert result is not None
 
