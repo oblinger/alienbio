@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Any, Callable, TypeVar, overload
 from functools import wraps
+import inspect
 
 T = TypeVar("T")
 F = TypeVar("F", bound=Callable[..., Any])
@@ -99,6 +100,16 @@ def hydrate(data: dict[str, Any]) -> Any:
     for key, value in obj_data.items():
         if isinstance(value, dict) and "_type" in value:
             obj_data[key] = hydrate(value)
+
+    # Filter to only include fields that the class accepts
+    sig = inspect.signature(cls)
+    valid_params = set(sig.parameters.keys())
+    # Check if cls accepts **kwargs
+    has_var_keyword = any(
+        p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+    )
+    if not has_var_keyword:
+        obj_data = {k: v for k, v in obj_data.items() if k in valid_params}
 
     return cls(**obj_data)
 
