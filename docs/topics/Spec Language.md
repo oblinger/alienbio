@@ -193,9 +193,61 @@ Scenarios can extend other scenarios via prototype inheritance (deep merge throu
 
 ---
 
+## Jobs
+
+A `job.name:` declaration creates an executable DAT — a self-contained spec that includes both scenario definition and execution behavior.
+
+```yaml
+job.verify_hardcoded:
+  # The scenario to run
+  scenario:
+    chemistry: !fetch catalog.chemistries.simple
+    containers:
+      environment:
+        substrate: {A: 10.0, B: 10.0}
+
+  # Execution parameters
+  run:
+    steps: 100
+    until_quiet: {delta: 0.01, span: 10}
+
+  # Verification criteria
+  verify:
+    - assert: concentrations.C > 5.0
+    - assert: concentrations.A < 2.0
+    - scoring: !ref population_health
+      expect: ">= 0.8"
+```
+
+**Running a job:**
+```python
+from alienbio import Bio
+
+# Fetch and run
+job = Bio.fetch("jobs.verify_hardcoded")
+result = Bio.run(job)
+
+# Or fetch raw and inspect
+raw = Bio.fetch("jobs.verify_hardcoded", raw=True)
+```
+
+**Job structure:**
+
+| Field | Description |
+|-------|-------------|
+| `scenario` | Inline scenario or `!fetch` reference |
+| `run` | Execution parameters (steps, until_quiet, etc.) |
+| `verify` | Assertions and scoring expectations |
+| `include` | Python files to load (for custom functions) |
+
+Jobs use the DAT system for storage and resolution. See [[DAT]] for full documentation on mounting, paths, and the DAT lifecycle.
+
+---
+
 ## See Also
 
-- [[Bio]] — Loading and hydration (`Bio.load()`, `Bio.save()`)
+- [[Bio]] — Loading and hydration (`Bio.fetch()`, `Bio.store()`)
 - [[Scenario]] — The main runnable unit
 - [[WorldSimulator]] — Execution engine
 - [[Decorators]] — `@biotype` for custom types, `@scoring`/`@action`/`@measurement` for functions
+- [[DAT]] — Data artifact system (for job storage and resolution)
