@@ -1,17 +1,19 @@
 # Bio
 **Subsystem**: Infrastructure
 
-The Bio class provides loading, hydration, and persistence for alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language]].
+The Bio class provides fetching, hydration, and persistence for alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language]].
 
 ## Overview
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `load(specifier, raw=False)` | `Any` | Static. Load and hydrate object by specifier |
-| `save(specifier, obj)` | `None` | Static. Dehydrate and save object by specifier |
-| `sim(scenario)` | `WorldSimulator` | Static. Create WorldSimulator from a Scenario |
+| `fetch(specifier, raw=False)` | `Any` | Static. Fetch and hydrate object by specifier |
+| `store(specifier, obj, raw=False)` | `None` | Static. Dehydrate and store object by specifier |
+| `expand(specifier)` | `dict` | Static. Expand spec (includes, refs, defaults) without hydrating |
+| `sim(scenario)` | `Simulator` | Static. Create Simulator from a Scenario |
+| `run(job)` | `Result` | Static. Execute a job DAT |
 
-Bio is a utility class with static methods—no instances. The `load()` method returns typed objects (Scenario, Chemistry, etc.) hydrated via the `@biotype` registry.
+Bio is a utility class with static methods—no instances. The `fetch()` method returns typed objects (Scenario, Chemistry, etc.) hydrated via the `@biotype` registry.
 
 ---
 
@@ -20,7 +22,7 @@ Bio is a utility class with static methods—no instances. The `load()` method r
 A specifier identifies an object in the DAT hierarchy. It uses **slashes for DAT folders** and **dots for files within a folder**:
 
 ```
-catalog/scenarios/mutualism        → catalog/scenarios/mutualism/index.yaml
+catalog/scenarios/mutualism        → catalog/scenarios/mutualism/spec.yaml
 catalog/scenarios/mutualism.       → same (explicit index)
 catalog/scenarios/mutualism.hard   → catalog/scenarios/mutualism/hard.yaml
 catalog/chemistries.energy_ring    → catalog/chemistries/energy_ring.yaml (file, not folder)
@@ -29,7 +31,7 @@ catalog/chemistries.energy_ring    → catalog/chemistries/energy_ring.yaml (fil
 **Rules:**
 1. Slashes (`/`) navigate DAT folder hierarchy
 2. Dots (`.`) after the DAT path navigate the filesystem within that DAT folder
-3. If no dot suffix, load `index.yaml` by default
+3. If no dot suffix, load `spec.yaml` by default
 4. Each dotted segment becomes a folder, final segment is `{name}.yaml`
 
 **Nested folder example:**
@@ -42,57 +44,76 @@ catalog/experiments.suite1.baseline
 
 ## Static Methods
 
-### `Bio.load(specifier, raw=False)`
+### `Bio.fetch(specifier, raw=False)`
 
-Load and hydrate an object by specifier.
+Fetch and hydrate an object by specifier.
 
 ```python
-scenario = Bio.load("catalog/scenarios/mutualism")           # Scenario object
-chemistry = Bio.load("catalog/chemistries/energy_ring")      # Chemistry object
-data = Bio.load("catalog/scenarios/mutualism", raw=True)     # raw dict without hydration
+scenario = Bio.fetch("catalog/scenarios/mutualism")           # Scenario object
+chemistry = Bio.fetch("catalog/chemistries/energy_ring")      # Chemistry object
+data = Bio.fetch("catalog/scenarios/mutualism", raw=True)     # raw dict without processing
 ```
 
 **Behavior:**
 1. Parse specifier into DAT portion and dotted suffix
-2. Locate the YAML file (default: `index.yaml`)
+2. Locate the YAML file (default: `spec.yaml`)
 3. Load YAML content
-4. Process `include:` directives (load Python files, merge YAML)
-5. If `raw=True`, return dict as-is
-6. Otherwise, hydrate based on top-level `type.name:` declaration
-7. Return hydrated object (Scenario, Chemistry, etc.)
+4. If `raw=True`, return dict as-is (no processing)
+5. Otherwise: resolve includes, transform typed keys, resolve refs, expand defaults
+6. Hydrate based on `_type` field via `@biotype` registry
+7. Return hydrated object (Scenario, Chemistry, Job, etc.)
 
-### `Bio.save(specifier, obj)`
+### `Bio.store(specifier, obj, raw=False)`
 
-Dehydrate and save an object by specifier.
+Dehydrate and store an object by specifier.
 
 ```python
-Bio.save("catalog/scenarios/custom", my_scenario)            # save a Scenario
-Bio.save("catalog/chemistries/custom", my_chemistry)         # save a Chemistry
-Bio.save("catalog/experiments.suite1.baseline", scenario)    # specific file within folder
+Bio.store("catalog/scenarios/custom", my_scenario)            # store a Scenario
+Bio.store("catalog/chemistries/custom", my_chemistry)         # store a Chemistry
+Bio.store("data/results/run1", result_dict, raw=True)         # store raw dict
 ```
 
 **Behavior:**
-1. Dehydrate object to dict (recursively convert Python objects to YAML-serializable form)
-2. Add type declaration at top (`type.name:` syntax)
-3. Write to appropriate YAML file
+1. If `raw=True`, write obj directly to YAML
+2. Otherwise, dehydrate object to dict (add `_type` field)
+3. Write to `spec.yaml` in the specifier path
+
+### `Bio.expand(specifier)`
+
+Expand a spec without hydrating—useful for inspection and debugging.
+
+```python
+data = Bio.expand("catalog/scenarios/mutualism")
+# Returns dict with all includes resolved, refs substituted, defaults merged
+# but no hydration to typed objects
+```
 
 ### `Bio.sim(scenario)`
 
-Create a WorldSimulator from a Scenario.
+Create a Simulator from a Scenario.
 
 ```python
-scenario = Bio.load("catalog/scenarios/mutualism")
+scenario = Bio.fetch("catalog/scenarios/mutualism")
 sim = Bio.sim(scenario)
+```
+
+### `Bio.run(job)`
+
+Execute a job DAT and return results.
+
+```python
+job = Bio.fetch("jobs/hardcoded_test")
+result = Bio.run(job)
 ```
 
 ---
 
 ## Hydration
 
-When loading, Bio uses the `@biotype` registry to hydrate YAML into typed Python objects:
+When fetching, Bio uses the `@biotype` registry to hydrate YAML into typed Python objects:
 
 ```yaml
-# In file: mutualism.yaml
+# In file: spec.yaml
 scenario.mutualism:
   chemistry:
     molecules: {...}
@@ -106,12 +127,12 @@ scenario.mutualism:
 ```
 
 ```python
-scenario = Bio.load("catalog/scenarios/mutualism")
+scenario = Bio.fetch("catalog/scenarios/mutualism")
 print(type(scenario))  # <class 'Scenario'>
 print(scenario.chemistry.molecules)  # typed access
 ```
 
-The `include:` directive loads additional files during hydration:
+The `include:` directive loads additional files during expansion:
 
 ```yaml
 scenario.mutualism:
@@ -127,10 +148,10 @@ scenario.mutualism:
 
 ## Usage Examples
 
-### Loading and running a scenario
+### Fetching and running a scenario
 
 ```python
-scenario = Bio.load("catalog/scenarios/mutualism")
+scenario = Bio.fetch("catalog/scenarios/mutualism")
 sim = Bio.sim(scenario)
 while not sim.terminated:
     substrate = sim.measure("sample_substrate", "Lora")
@@ -140,27 +161,36 @@ while not sim.terminated:
 result = sim.results()
 ```
 
-### Loading individual components
+### Fetching individual components
 
 ```python
-chemistry = Bio.load("catalog/chemistries/energy_ring")  # Chemistry object
-scenario = Bio.load("catalog/scenarios/mutualism.hard")  # specific scenario variant
-data = Bio.load("catalog/scenarios/mutualism", raw=True) # raw dict for inspection
+chemistry = Bio.fetch("catalog/chemistries/energy_ring")  # Chemistry object
+scenario = Bio.fetch("catalog/scenarios/mutualism.hard")  # specific scenario variant
+data = Bio.fetch("catalog/scenarios/mutualism", raw=True) # raw dict for inspection
 ```
 
-### Saving objects
+### Running a job
 
 ```python
-Bio.save("catalog/scenarios/custom", my_scenario)
-Bio.save("catalog/chemistries/custom", my_chemistry)
+job = Bio.fetch("jobs/hardcoded_test")
+result = Bio.run(job)
+assert result.success
+```
+
+### Storing objects
+
+```python
+Bio.store("catalog/scenarios/custom", my_scenario)
+Bio.store("catalog/chemistries/custom", my_chemistry)
 ```
 
 ---
 
 ## See Also
 
-- [[Spec Language]] — YAML syntax (`!ev`, `!ref`, `!include`, typed elements)
+- [[Spec Language]] — YAML syntax (`!ev`, `!ref`, `!include`, typed elements, jobs)
 - [[Decorators]] — `@biotype` for hydration registry
 - [[Scenario]] — The main runnable unit
+- [[ABIO DAT]] — DAT system integration
 - [[IO]] — Runtime entity references (`W:`, `R:` prefixes)
 - [[ABIO Data]] — DAT folder structure

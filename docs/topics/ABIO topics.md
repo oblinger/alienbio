@@ -6,6 +6,9 @@ Cross-cutting topics that span multiple subsystems.
 - **[[ABIO DAT]]** - dvc_dat integration, name resolution, `_spec_.yaml` format
 - **[[alienbio]]** - Top-level module: do, create, load, save, parse, ctx, o
 
+## B
+- **[[Bio]]** - Higher-level biology interface: fetch, store, expand, sim, run
+
 ## D
 - **[[Decorators]]** - Python decorators: @biotype, @fn, @scoring, @action, @measurement, @rate
 - **[[Documentation]]** - Documentation standards and conventions
