@@ -1,6 +1,7 @@
-# ABIO SYS
+# ABIO SYS   [[ASP]] 
 Root architecture document for the Alien Biology system.
 
+- **[[ABIO Todo]]**		- Current detailed tasking list and notes.
 - **[[ABIO Roadmap]]** - Implementation milestones and planning.
 - **[[ABIO Files]]** 		- Directory layout for the project.
 - **[[ABIO Protocols]]** - Alphabetical index of all protocols.
@@ -10,3 +11,4 @@ Root architecture document for the Alien Biology system.
 - **[[ABIO infra]]** 		- Infrastructure: entity base classes, serialization, data management, configuration.
 - **[[ABIO biology]]** 	- Biology: molecules, reactions, pathways, containers, and generators.
 - **[[ABIO execution]]** - Execution: simulation engine, agent interface, experimentation framework.
+
