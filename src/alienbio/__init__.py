@@ -20,6 +20,27 @@ from .infra.context import (
 from .infra.entity import Entity
 from .infra.io import IO
 
+# Spec Language module exports
+from .spec_lang import (
+    Bio,
+    biotype,
+    fn,
+    scoring,
+    action,
+    measurement,
+    rate,
+    get_biotype,
+    get_action,
+    get_measurement,
+    get_scoring,
+    get_rate,
+    EvTag,
+    RefTag,
+    IncludeTag,
+    transform_typed_keys,
+    expand_defaults,
+)
+
 # Bio module exports
 from .bio import (
     # Protocols (for type hints)
@@ -61,6 +82,24 @@ __all__ = [
     "save",
     "lookup",
     "o",
+    # Spec Language
+    "Bio",
+    "biotype",
+    "fn",
+    "scoring",
+    "action",
+    "measurement",
+    "rate",
+    "get_biotype",
+    "get_action",
+    "get_measurement",
+    "get_scoring",
+    "get_rate",
+    "EvTag",
+    "RefTag",
+    "IncludeTag",
+    "transform_typed_keys",
+    "expand_defaults",
     # Bio - Protocols (for type hints)
     "Atom",
     "Molecule",

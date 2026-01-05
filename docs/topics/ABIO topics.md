@@ -7,13 +7,14 @@ Cross-cutting topics that span multiple subsystems.
 - **[[alienbio]]** - Top-level module: do, create, load, save, parse, ctx, o
 
 ## D
+- **[[Decorators]]** - Python decorators: @biotype, @fn, @scoring, @action, @measurement, @rate
 - **[[Documentation]]** - Documentation standards and conventions
-
-## E
-- **[[Entity-naming]]** - Entity naming, qualified paths, DAT anchors, display format
 
 ## R
 - **[[ABIO Roadmap]]** - Implementation milestones and planning
+
+## S
+- **[[Spec Language]]** - YAML syntax: typed elements, evaluation constructs, defaults inheritance
 
 ## T
 - **[[Testing]]** - Testing tiers (smoke, commit, release), test organization

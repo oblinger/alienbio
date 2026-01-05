@@ -6,6 +6,9 @@ Alphabetical listing of all protocols in the Alien Biology system.
 - **[[Action]]** - Agent action to perturb system state
 - **[[Atom]]** - Chemical element with symbol, name, and atomic weight
 
+## B
+- **[[Bio]]** - Loading, hydration, and persistence for biology objects in DAT folders
+
 ## C
 - **[[Chemistry]]** - Container for molecules and reactions forming a chemical system
 - **[[Compartment]]** - Nestable container for molecules, reactions, and child containers
@@ -40,6 +43,7 @@ Alphabetical listing of all protocols in the Alien Biology system.
 - **[[ReactionGenerator]]** - Factory for synthetic reactions
 
 ## S
+- **[[Scenario]]** - Complete runnable unit (chemistry, containers, interface, briefing, constitution)
 - **[[Simulator]]** - Execution engine for biology dynamics
 - **[[State]]** - Snapshot of molecule concentrations
 - **[[Step]]** - Single time advancement applying reactions
