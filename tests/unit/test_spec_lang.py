@@ -50,14 +50,6 @@ from alienbio.spec_lang.loader import deep_merge
 # =============================================================================
 
 
-@pytest.fixture(autouse=True)
-def clear_all_registries():
-    """Clear all registries before each test."""
-    clear_registries()
-    yield
-    clear_registries()
-
-
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for test files."""
@@ -65,8 +57,7 @@ def temp_dir():
         yield Path(tmpdir)
 
 
-# Scaffold biotypes for testing
-@biotype
+# Scaffold biotypes for testing (defined as plain dataclasses first)
 @dataclass
 class MockChemistry:
     """Mock chemistry for testing."""
@@ -74,7 +65,6 @@ class MockChemistry:
     reactions: dict | None = None
 
 
-@biotype
 @dataclass
 class MockWorld:
     """Mock world for testing."""
@@ -82,7 +72,6 @@ class MockWorld:
     containers: dict | None = None
 
 
-@biotype("scenario")
 @dataclass
 class MockScenario:
     """Mock scenario for testing."""
@@ -91,12 +80,29 @@ class MockScenario:
     constitution: str | None = None
 
 
-@biotype("suite")
 @dataclass
 class MockSuite:
     """Mock suite for testing."""
     defaults: dict | None = None
     scenarios: dict | None = None
+
+
+def _register_scaffold_biotypes():
+    """Register scaffold biotypes in the registry."""
+    biotype_registry["mockchemistry"] = MockChemistry
+    biotype_registry["mockworld"] = MockWorld
+    biotype_registry["scenario"] = MockScenario
+    biotype_registry["suite"] = MockSuite
+    biotype_registry["chemistry"] = MockChemistry  # alias
+
+
+@pytest.fixture(autouse=True)
+def clear_all_registries():
+    """Clear all registries before each test, then re-register scaffolds."""
+    clear_registries()
+    _register_scaffold_biotypes()
+    yield
+    clear_registries()
 
 
 # Test functions for decorators
@@ -151,7 +157,7 @@ class TestEvTag:
         tag = EvTag("mass_action(k=0.1)")
         result = tag.evaluate({"mass_action": sample_mass_action})
         assert callable(result)
-        assert result({"A": 1.0, "B": 2.0}) == 0.3
+        assert result({"A": 1.0, "B": 2.0}) == pytest.approx(0.3)
 
     def test_ev_lambda_expression(self):
         """!ev lambda c: c["ME1"] * 0.1 → lambda expression"""
