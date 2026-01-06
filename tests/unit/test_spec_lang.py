@@ -14,7 +14,6 @@ from typing import Any
 
 from alienbio.spec_lang import (
     Bio,
-    Job,
     biotype,
     fn,
     scoring,
@@ -95,7 +94,6 @@ def _register_scaffold_biotypes():
     biotype_registry["scenario"] = MockScenario
     biotype_registry["suite"] = MockSuite
     biotype_registry["chemistry"] = MockChemistry  # alias
-    biotype_registry["job"] = Job  # Built-in Job type for M1.6
 
 
 @pytest.fixture(autouse=True)
@@ -1185,12 +1183,12 @@ constants:
 
 
 # =============================================================================
-# Test Suite: Job DAT Loading (M1.6)
+# Test Suite: DAT Execution (M1.6)
 # =============================================================================
 
 
-class TestJobLoading:
-    """Tests for loading Job DATs via Dat.load() and dat.run()."""
+class TestDatExecution:
+    """Tests for executing bio scenarios via DAT (Jobs are just DATs with do: functions)."""
 
     def test_dat_load_hardcoded_test(self):
         """Dat.load loads the hardcoded_test DAT correctly."""
@@ -1215,7 +1213,7 @@ class TestJobLoading:
         success, result = dat.run()
 
         # Check success
-        assert success, "Job should pass all verifications"
+        assert success, "DAT should pass all verifications"
 
         # Check result structure
         assert "final_state" in result
