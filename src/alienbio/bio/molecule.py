@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING, Self
 
 from ..infra.entity import Entity
 from .atom import AtomImpl
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
+
 
 
 class MoleculeImpl(Entity, head="Molecule"):
@@ -52,6 +53,43 @@ class MoleculeImpl(Entity, head="Molecule"):
         self._atoms: Dict[AtomImpl, int] = atoms.copy() if atoms else {}
         self._bdepth = bdepth
         self._name = name if name is not None else local_name
+
+    @classmethod
+    def hydrate(
+        cls,
+        data: dict[str, Any],
+        *,
+        dat: Optional[Dat] = None,
+        parent: Optional[Entity] = None,
+        local_name: Optional[str] = None,
+    ) -> Self:
+        """Create a Molecule from a dict.
+
+        Args:
+            data: Dict with optional keys: name, bdepth, atoms, description
+            dat: DAT anchor (if root entity)
+            parent: Parent entity (if child)
+            local_name: Override name (defaults to data["name"])
+
+        Returns:
+            New MoleculeImpl instance
+        """
+        from ..infra.entity import _MockDat
+
+        name = local_name or data.get("name", "molecule")
+
+        # Create mock dat if needed
+        if dat is None and parent is None:
+            dat = _MockDat(f"mol/{name}")
+
+        return cls(
+            name,
+            parent=parent,
+            dat=dat,
+            description=data.get("description", ""),
+            bdepth=data.get("bdepth", 0),
+            # atoms not hydrated here - would need atom registry
+        )
 
     @property
     def atoms(self) -> Dict[AtomImpl, int]:

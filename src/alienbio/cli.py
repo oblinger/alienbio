@@ -1,20 +1,27 @@
-"""Bio CLI: Command-line interface for running Bio scenarios.
+"""Bio CLI: Command-line interface for Bio operations.
 
 Usage:
-    bio <job_path>           Run a job (scenario, suite, or report)
-    bio --help              Show help
-    bio --version           Show version
+    bio <command> [args...]     Run a command
+    bio <job_path>              Shortcut: run a job (same as 'bio run <path>')
+    bio --help                  Show help
+    bio --version               Show version
+
+Commands:
+    run <path>      Run a job (scenario, suite, or report)
+    fetch <path>    Fetch and display a spec (hydrated)
+    expand <path>   Expand a spec without hydrating
 
 Examples:
-    bio catalog/jobs/hardcoded_test
-    bio my_project/scenarios/mutualism
+    bio run catalog/jobs/hardcoded_test
+    bio catalog/jobs/hardcoded_test          # shortcut for 'bio run'
+    bio fetch catalog/scenarios/mutualism
+    bio expand catalog/scenarios/mutualism
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -27,15 +34,33 @@ def main(argv: list[str] | None = None) -> int:
         Exit code (0 for success, non-zero for failure)
     """
     from alienbio import __version__
+    from alienbio.commands import COMMANDS
 
     parser = argparse.ArgumentParser(
         prog="bio",
-        description="Run Bio scenarios, suites, and reports",
+        description="Bio CLI: Run scenarios, fetch specs, and more",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Commands:
+  run <path>      Run a job (scenario, suite, or report)
+  fetch <path>    Fetch and display a spec (hydrated)
+  expand <path>   Expand a spec without hydrating
+
+Examples:
+  bio run catalog/jobs/hardcoded_test
+  bio catalog/jobs/hardcoded_test          # shortcut for 'bio run'
+  bio fetch catalog/scenarios/mutualism
+""",
     )
     parser.add_argument(
-        "job_path",
+        "command",
         nargs="?",
-        help="Path to job folder (must contain index.yaml)",
+        help="Command to run (run, fetch, expand) or job path",
+    )
+    parser.add_argument(
+        "args",
+        nargs="*",
+        help="Command arguments",
     )
     parser.add_argument(
         "--version",
@@ -50,65 +75,17 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    if not args.job_path:
+    if not args.command:
         parser.print_help()
         return 1
 
-    return run_job(args.job_path, verbose=args.verbose)
+    # Check if command is a registered command
+    if args.command in COMMANDS:
+        return COMMANDS[args.command](args.args, verbose=args.verbose)
 
-
-def run_job(job_path: str, verbose: bool = False) -> int:
-    """Run a bio job from the given path.
-
-    Args:
-        job_path: Path to job folder containing index.yaml
-        verbose: Enable verbose output
-
-    Returns:
-        Exit code (0 for success, non-zero for failure)
-    """
-    from dvc_dat import Dat
-
-    path = Path(job_path)
-
-    # Handle relative paths - look in catalog/jobs if not found directly
-    if not path.exists():
-        # Try catalog/jobs prefix
-        catalog_path = Path("catalog/jobs") / path
-        if catalog_path.exists():
-            path = catalog_path
-        else:
-            print(f"Error: Job path not found: {job_path}", file=sys.stderr)
-            print(f"  Tried: {job_path}", file=sys.stderr)
-            print(f"  Tried: {catalog_path}", file=sys.stderr)
-            return 1
-
-    # Check for index.yaml
-    index_file = path / "index.yaml"
-    if not index_file.exists():
-        print(f"Error: No index.yaml found in: {path}", file=sys.stderr)
-        return 1
-
-    if verbose:
-        print(f"Running job: {path}")
-
-    # Load and run the DAT
-    try:
-        dat = Dat.load(str(path))
-        success, metadata = dat.run()
-
-        if success:
-            print(f"Job completed successfully")
-            return 0
-        else:
-            print(f"Job failed")
-            if "error" in metadata:
-                print(f"Error: {metadata['error']}", file=sys.stderr)
-            return 1
-
-    except Exception as e:
-        print(f"Error running job: {e}", file=sys.stderr)
-        return 1
+    # Otherwise, treat as job path (shortcut for 'bio run <path>')
+    # Pass command as first arg to run
+    return COMMANDS["run"]([args.command] + args.args, verbose=args.verbose)
 
 
 if __name__ == "__main__":

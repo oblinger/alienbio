@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING, Self
 
 from ..infra.entity import Entity
 
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 from .atom import AtomImpl
 from .molecule import MoleculeImpl
 from .reaction import ReactionImpl
+
 
 
 class ChemistryImpl(Entity, head="Chemistry"):
@@ -74,6 +75,75 @@ class ChemistryImpl(Entity, head="Chemistry"):
         self.atoms = atoms.copy() if atoms else {}
         self.molecules = molecules.copy() if molecules else {}
         self.reactions = reactions.copy() if reactions else {}
+
+    @classmethod
+    def hydrate(
+        cls,
+        data: dict[str, Any],
+        *,
+        dat: Optional[Dat] = None,
+        parent: Optional[Entity] = None,
+        local_name: Optional[str] = None,
+    ) -> Self:
+        """Create a Chemistry from a dict.
+
+        Recursively hydrates molecules and reactions from nested dicts.
+
+        Args:
+            data: Dict with keys: molecules, reactions, atoms, description
+                  Each molecule/reaction can be a dict that gets hydrated.
+            dat: DAT anchor (if root entity)
+            parent: Parent entity (if child)
+            local_name: Override name
+
+        Returns:
+            New ChemistryImpl with hydrated molecules and reactions
+        """
+        from ..infra.entity import _MockDat
+
+        name = local_name or data.get("name", "chemistry")
+
+        # Create mock dat if needed
+        if dat is None and parent is None:
+            dat = _MockDat(f"chem/{name}")
+
+        # Extract molecules and reactions data
+        molecules_data = data.get("molecules", {})
+        reactions_data = data.get("reactions", {})
+
+        # First pass: hydrate molecules
+        molecules: Dict[str, MoleculeImpl] = {}
+        for mol_key, mol_data in molecules_data.items():
+            if isinstance(mol_data, dict):
+                molecules[mol_key] = MoleculeImpl.hydrate(
+                    mol_data,
+                    local_name=mol_key,
+                )
+            else:
+                # Simple name, create basic molecule
+                molecules[mol_key] = MoleculeImpl.hydrate(
+                    {"name": mol_key},
+                    local_name=mol_key,
+                )
+
+        # Second pass: hydrate reactions (needs molecules)
+        reactions: Dict[str, ReactionImpl] = {}
+        for rxn_key, rxn_data in reactions_data.items():
+            if isinstance(rxn_data, dict):
+                reactions[rxn_key] = ReactionImpl.hydrate(
+                    rxn_data,
+                    molecules=molecules,
+                    local_name=rxn_key,
+                )
+
+        return cls(
+            name,
+            molecules=molecules,
+            reactions=reactions,
+            parent=parent,
+            dat=dat,
+            description=data.get("description", ""),
+        )
 
     def validate(self) -> list[str]:
         """Validate the chemistry for consistency.

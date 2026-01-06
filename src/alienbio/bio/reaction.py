@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Self, Union
 
 from ..infra.entity import Entity
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
-    from .molecule import Molecule
+    from .molecule import Molecule, MoleculeImpl
     from .state import State
+
 
 # Rate can be a constant or a function of state
 RateFunction = Callable[["State"], float]
@@ -64,6 +65,75 @@ class ReactionImpl(Entity, head="Reaction"):
         self._reactants: Dict[Molecule, float] = reactants.copy() if reactants else {}
         self._products: Dict[Molecule, float] = products.copy() if products else {}
         self._rate: RateValue = rate
+
+    @classmethod
+    def hydrate(
+        cls,
+        data: dict[str, Any],
+        *,
+        molecules: dict[str, "MoleculeImpl"],
+        dat: Optional[Dat] = None,
+        parent: Optional[Entity] = None,
+        local_name: Optional[str] = None,
+    ) -> Self:
+        """Create a Reaction from a dict.
+
+        Args:
+            data: Dict with keys: reactants, products, rate, name, description
+            molecules: Dict mapping molecule names to MoleculeImpl instances
+            dat: DAT anchor (if root entity)
+            parent: Parent entity (if child)
+            local_name: Override name (defaults to data key)
+
+        Returns:
+            New ReactionImpl instance
+        """
+        from ..infra.entity import _MockDat
+
+        name = local_name or data.get("name", "reaction")
+
+        # Create mock dat if needed
+        if dat is None and parent is None:
+            dat = _MockDat(f"rxn/{name}")
+
+        # Build reactants dict: {MoleculeImpl: coefficient}
+        reactants: Dict[Molecule, float] = {}
+        for r in data.get("reactants", []):
+            if isinstance(r, str):
+                # Just a name, coefficient 1
+                if r in molecules:
+                    reactants[molecules[r]] = 1
+            elif isinstance(r, dict):
+                # {name: coef} format
+                for mol_name, coef in r.items():
+                    if mol_name in molecules:
+                        reactants[molecules[mol_name]] = coef
+
+        # Build products dict: {MoleculeImpl: coefficient}
+        products: Dict[Molecule, float] = {}
+        for p in data.get("products", []):
+            if isinstance(p, str):
+                # Just a name, coefficient 1
+                if p in molecules:
+                    products[molecules[p]] = 1
+            elif isinstance(p, dict):
+                # {name: coef} format
+                for mol_name, coef in p.items():
+                    if mol_name in molecules:
+                        products[molecules[mol_name]] = coef
+
+        # Get rate (function or constant)
+        rate = data.get("rate", 1.0)
+
+        return cls(
+            name,
+            reactants=reactants,
+            products=products,
+            rate=rate,
+            parent=parent,
+            dat=dat,
+            description=data.get("description", ""),
+        )
 
     @property
     def reactants(self) -> Dict[Molecule, float]:
