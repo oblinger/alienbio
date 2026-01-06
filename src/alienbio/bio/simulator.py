@@ -79,17 +79,17 @@ class SimulatorBase(ABC):
         return timeline
 
 
-class SimpleSimulatorImpl(SimulatorBase):
-    """Implementation: Basic simulator applying reactions once per step.
+class ReferenceSimulatorImpl(SimulatorBase):
+    """Reference implementation: Basic simulator applying reactions once per step.
 
-    This is a simple implementation suitable for testing.
+    This is the reference implementation for testing and validation.
     For each reaction:
     - Compute rate (constant or from rate function)
     - Subtract rate * coefficient from each reactant
     - Add rate * coefficient to each product
 
-    Note: This is a naive implementation that doesn't handle
-    kinetics properly. Real simulations need proper ODE solvers.
+    Note: This is a simple Euler-style implementation. For more
+    accurate kinetics, use specialized simulators (JAX, etc.).
     """
 
     __slots__ = ()

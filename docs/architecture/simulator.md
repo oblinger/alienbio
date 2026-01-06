@@ -19,9 +19,9 @@ Simulator is the protocol for execution engines that advance biological state th
 
 ### Usage Example
 ```python
-from alienbio import SimpleSimulatorImpl, StateImpl
+from alienbio import ReferenceSimulatorImpl, StateImpl
 
-sim = SimpleSimulatorImpl(chemistry=chem, dt=0.1)
+sim = ReferenceSimulatorImpl(chemistry=chem, dt=0.1)
 state = StateImpl(chemistry=chem, initial={"glucose": 10.0})
 
 # Single step
