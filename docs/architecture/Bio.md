@@ -1,46 +1,26 @@
 # Bio
-**Subsystem**: Infrastructure
+**Subsystem**: [[ABIO infra]]
+Utility class for fetching, hydration, and persistence of alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language]]. For the command-line interface, see [[Bio CLI]].
 
-The Bio class provides fetching, hydration, and persistence for alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language]].
-
-## Command Line Interface
-
-The `bio` command provides direct access to Bio operations:
-
-```bash
-bio jobs/hardcoded_test              # Run a job (default action)
-bio fetch catalog/scenarios/mutualism  # Fetch and display
-bio expand catalog/scenarios/mutualism # Expand without hydrating
-bio --help                           # Show available commands
-```
-
-**Command resolution:**
-1. If first argument matches a registered command (`fetch`, `expand`, `run`, etc.), execute that command
-2. Otherwise, treat argument as a job specifier and run it
-
-This means `bio jobs/hardcoded_test` is equivalent to `bio run jobs/hardcoded_test`.
-
-## Python API
+## Overview
+Bio is a utility class with static methods—no instances. The `fetch()` method returns typed objects (Scenario, Chemistry, etc.) hydrated via the `@biotype` registry. The `store()` method dehydrates objects back to YAML.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `fetch(specifier, raw=False)` | `Any` | Static. Fetch and hydrate object by specifier |
-| `store(specifier, obj, raw=False)` | `None` | Static. Dehydrate and store object by specifier |
-| `expand(specifier)` | `dict` | Static. Expand spec (includes, refs, defaults) without hydrating |
-| `sim(scenario)` | `Simulator` | Static. Create Simulator from a Scenario |
-| `run(job)` | `Result` | Static. Execute a job DAT |
-| `hydrate(data)` | `Any` | Static. Convert dict with `_type` to typed object (advanced) |
-| `dehydrate(obj)` | `dict` | Static. Convert typed object to dict with `_type` (advanced) |
-
-Bio is a utility class with static methods—no instances. The `fetch()` method returns typed objects (Scenario, Chemistry, etc.) hydrated via the `@biotype` registry.
+| `fetch(bioref)` | `Any` | Fetch and hydrate object by bioref |
+| `store(bioref, obj, raw=False)` | `None` | Dehydrate and store object by bioref |
+| `expand(bioref)` | `dict` | Expand spec (includes, refs, defaults) without hydrating |
+| `sim(scenario)` | `Simulator` | Create Simulator from a Scenario |
+| `run(job)` | `Result` | Execute a job DAT |
+| `hydrate(data)` | `Any` | Convert dict with `_type` to typed object (advanced) |
+| `dehydrate(obj)` | `dict` | Convert typed object to dict with `_type` (advanced) |
 
 **Note:** `hydrate()` and `dehydrate()` are advanced methods. Most users should use `fetch()` and `store()` which handle the full pipeline.
 
----
+## Discussion
 
-## Specifier Syntax
-
-A specifier identifies an object in the DAT hierarchy. It uses **slashes for DAT folders** and **dots for files within a folder**:
+### Bioref Syntax
+A **bioref** identifies a fetchable biological object. It uses **slashes for DAT folders** and **dots for names within a module**:
 
 ```
 catalog/scenarios/mutualism        → catalog/scenarios/mutualism/spec.yaml
@@ -55,82 +35,19 @@ catalog/chemistries.energy_ring    → catalog/chemistries/energy_ring.yaml (fil
 3. If no dot suffix, load `spec.yaml` by default
 4. Each dotted segment becomes a folder, final segment is `{name}.yaml`
 
-**Nested folder example:**
-```
-catalog/experiments.suite1.baseline
-→ catalog/experiments/suite1/baseline.yaml
-```
-
----
-
-## Static Methods
-
-### `Bio.fetch(specifier, raw=False)`
-
-Fetch and hydrate an object by specifier.
+### Scope-Aware Fetching
+See [[Scope]] for details on lexical scoping and the module pattern.
 
 ```python
-scenario = Bio.fetch("catalog/scenarios/mutualism")           # Scenario object
-chemistry = Bio.fetch("catalog/chemistries/energy_ring")      # Chemistry object
-data = Bio.fetch("catalog/scenarios/mutualism", raw=True)     # raw dict without processing
+# Fetch specific scenario through bioref
+scenario = Bio.fetch("catalog/scenarios/mutualism/experiments.baseline")
+
+# Or load module and navigate manually
+module = Bio.fetch("catalog/scenarios/mutualism", as_scope=True)
+scenario = module["experiments"]["baseline"]
 ```
 
-**Behavior:**
-1. Parse specifier into DAT portion and dotted suffix
-2. Locate the YAML file (default: `spec.yaml`)
-3. Load YAML content
-4. If `raw=True`, return dict as-is (no processing)
-5. Otherwise: resolve includes, transform typed keys, resolve refs, expand defaults
-6. Hydrate based on `_type` field via `@biotype` registry
-7. Return hydrated object (Scenario, Chemistry, Job, etc.)
-
-### `Bio.store(specifier, obj, raw=False)`
-
-Dehydrate and store an object by specifier.
-
-```python
-Bio.store("catalog/scenarios/custom", my_scenario)            # store a Scenario
-Bio.store("catalog/chemistries/custom", my_chemistry)         # store a Chemistry
-Bio.store("data/results/run1", result_dict, raw=True)         # store raw dict
-```
-
-**Behavior:**
-1. If `raw=True`, write obj directly to YAML
-2. Otherwise, dehydrate object to dict (add `_type` field)
-3. Write to `spec.yaml` in the specifier path
-
-### `Bio.expand(specifier)`
-
-Expand a spec without hydrating—useful for inspection and debugging.
-
-```python
-data = Bio.expand("catalog/scenarios/mutualism")
-# Returns dict with all includes resolved, refs substituted, defaults merged
-# but no hydration to typed objects
-```
-
-### `Bio.sim(scenario)`
-
-Create a Simulator from a Scenario.
-
-```python
-scenario = Bio.fetch("catalog/scenarios/mutualism")
-sim = Bio.sim(scenario)
-```
-
-### `Bio.run(job)`
-
-Execute a job DAT and return results.
-
-```python
-job = Bio.fetch("jobs/hardcoded_test")
-result = Bio.run(job)
-```
-
----
-
-## Hydration
-
+### Hydration
 When fetching, Bio uses the `@biotype` registry to hydrate YAML into typed Python objects:
 
 ```yaml
@@ -143,8 +60,6 @@ scenario.mutualism:
   interface:
     actions: [add_feedstock, adjust_temp]
     measurements: [sample_substrate, population_count]
-  briefing: |
-    You are managing an ecosystem...
 ```
 
 ```python
@@ -153,24 +68,9 @@ print(type(scenario))  # <class 'Scenario'>
 print(scenario.chemistry.molecules)  # typed access
 ```
 
-The `include:` directive loads additional files during expansion:
+### Usage Examples
 
-```yaml
-scenario.mutualism:
-  include:
-    - functions.py          # registers @action, @measurement, @rate decorators
-    - base_chemistry.yaml   # merges chemistry definitions
-
-  chemistry: !ref base_chemistry
-  # ...
-```
-
----
-
-## Usage Examples
-
-### Fetching and running a scenario
-
+**Fetching and running a scenario:**
 ```python
 scenario = Bio.fetch("catalog/scenarios/mutualism")
 sim = Bio.sim(scenario)
@@ -182,36 +82,119 @@ while not sim.terminated:
 result = sim.results()
 ```
 
-### Fetching individual components
-
-```python
-chemistry = Bio.fetch("catalog/chemistries/energy_ring")  # Chemistry object
-scenario = Bio.fetch("catalog/scenarios/mutualism.hard")  # specific scenario variant
-data = Bio.fetch("catalog/scenarios/mutualism", raw=True) # raw dict for inspection
-```
-
-### Running a job
-
-```python
-job = Bio.fetch("jobs/hardcoded_test")
-result = Bio.run(job)
-assert result.success
-```
-
-### Storing objects
-
+**Storing objects:**
 ```python
 Bio.store("catalog/scenarios/custom", my_scenario)
 Bio.store("catalog/chemistries/custom", my_chemistry)
 ```
 
----
+## Method Details
+
+### `Bio.fetch(bioref, as_scope=False)`
+Fetch and hydrate an object by bioref.
+
+**Args:**
+- `bioref`: A bioref string identifying the object (see Bioref Syntax above)
+- `as_scope`: Return root Scope instead of hydrated object
+
+**Returns:** Hydrated object, or Scope if `as_scope=True`
+
+**Behavior:**
+1. Parse bioref into DAT path and name within module
+2. Load the DAT's `index.yaml`
+3. Resolve includes, transform typed keys, resolve refs, expand defaults
+4. Wire up scope parent chains (from `extends:` declarations)
+5. If `as_scope=True`: return the root Scope
+6. If name provided in bioref: navigate to that item in the scope tree
+7. Otherwise: expect exactly one top-level typed object, return it hydrated
+8. Hydrate based on `_type` field via `@biotype` registry
+
+**Raises:**
+- `ValueError`: If bioref has no name and module has 0 or 2+ top-level objects
+- `KeyError`: If name in bioref doesn't exist in module
+
+### `Bio.store(bioref, obj, raw=False)`
+Dehydrate and store an object by bioref.
+
+**Args:**
+- `bioref`: A bioref string for storage location
+- `obj`: Object to store
+- `raw`: If True, write obj directly without dehydration
+
+**Behavior:**
+1. If `raw=True`, write obj directly to YAML
+2. Otherwise, dehydrate object to dict (add `_type` field)
+3. Write to `index.yaml` in the DAT path
+
+### `Bio.expand(bioref)`
+Expand a spec without hydrating—useful for inspection and debugging.
+
+**Args:**
+- `bioref`: A bioref string identifying the object
+
+**Returns:** Dict with all includes resolved, refs substituted, defaults merged, but no hydration to typed objects.
+
+### `Bio.sim(scenario)`
+Create a Simulator from a Scenario.
+
+**Args:**
+- `scenario`: Scenario object to simulate
+
+**Returns:** Configured Simulator instance
+
+### `Bio.run(job)`
+Execute a job DAT and return results.
+
+**Args:**
+- `job`: Job object to execute
+
+**Returns:** Result object with success status and data
+
+## Protocol
+```python
+class Bio:
+    """Utility class for fetching, hydrating, and storing bio objects."""
+
+    @staticmethod
+    def fetch(bioref: str, as_scope: bool = False) -> Any:
+        """Fetch and hydrate object by bioref."""
+        ...
+
+    @staticmethod
+    def store(bioref: str, obj: Any, raw: bool = False) -> None:
+        """Dehydrate and store object by bioref."""
+        ...
+
+    @staticmethod
+    def expand(bioref: str) -> dict:
+        """Expand spec without hydrating."""
+        ...
+
+    @staticmethod
+    def sim(scenario: Scenario) -> Simulator:
+        """Create Simulator from Scenario."""
+        ...
+
+    @staticmethod
+    def run(job: Job) -> Result:
+        """Execute a job DAT."""
+        ...
+
+    @staticmethod
+    def hydrate(data: dict) -> Any:
+        """Convert dict with _type to typed object."""
+        ...
+
+    @staticmethod
+    def dehydrate(obj: Any) -> dict:
+        """Convert typed object to dict with _type."""
+        ...
+```
 
 ## See Also
-
-- [[Spec Language]] — YAML syntax (`!ev`, `!ref`, `!include`, typed elements, jobs)
+- [[Bio CLI]] — Command-line interface
+- [[Spec Language]] — YAML syntax (`!ev`, `!ref`, `!include`, typed elements)
+- [[Scope]] — Scope class for lexical scoping
 - [[Decorators]] — `@biotype` for hydration registry
 - [[Scenario]] — The main runnable unit
 - [[ABIO DAT]] — DAT system integration
-- [[IO]] — Runtime entity references (`W:`, `R:` prefixes)
-- [[ABIO Data]] — DAT folder structure

@@ -2,7 +2,7 @@
 **Subsystem**: [[ABIO biology]] > Generators
 Base protocol for synthetic biology factories.
 
-## Description
+## Overview
 Generator is the base protocol for factories that produce synthetic biology components matching statistical distributions captured from Earth biochemistry.
 
 | Properties | Type | Description |

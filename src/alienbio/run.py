@@ -108,7 +108,7 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     # Extract fields from scenario (handle both object and dict)
     if isinstance(scenario, dict):
         initial_state = scenario.get("initial_state", {})
-        run_config = scenario.get("run", {})
+        run_config = scenario.get("sim", {})
         verify = scenario.get("verify", [])
         scoring_fns = scenario.get("scoring", {})
         passing_score = scenario.get("passing_score", 0.5)
@@ -122,7 +122,7 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
             reactions = scenario.get("reactions", {})
     else:
         initial_state = getattr(scenario, "initial_state", {})
-        run_config = getattr(scenario, "run", {})
+        run_config = getattr(scenario, "sim", {})
         verify = getattr(scenario, "verify", [])
         scoring_fns = getattr(scenario, "scoring", {})
         passing_score = getattr(scenario, "passing_score", 0.5)

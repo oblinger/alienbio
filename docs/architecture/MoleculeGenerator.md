@@ -2,7 +2,7 @@
 **Subsystem**: [[ABIO biology]] > Molecules
 Factory for synthetic molecules.
 
-## Description
+## Overview
 MoleculeGenerator produces BioMolecules with configurable properties. Different named instances can match specific distributions (e.g., KEGG-like) or generate purely synthetic molecules.
 
 | Methods | Description |

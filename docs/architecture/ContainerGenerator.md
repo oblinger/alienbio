@@ -2,7 +2,7 @@
 **Subsystem**: [[ABIO biology]] > Containers
 Composable factory for BioContainers.
 
-## Description
+## Overview
 ContainerGenerator creates BioContainers by composing simpler generators. Generators are recursively composable: a ContainerGenerator uses MoleculeGenerators and ReactionGenerators internally, and can itself be used by other ContainerGenerators to build deeper hierarchies. This allows complex biological structures to emerge from simple, reusable building blocks.
 
 | Properties | Type | Description |

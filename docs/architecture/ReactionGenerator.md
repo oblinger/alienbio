@@ -2,7 +2,7 @@
 **Subsystem**: [[ABIO biology]] > Reactions
 Factory for synthetic reactions.
 
-## Description
+## Overview
 ReactionGenerator produces BioReactions with configurable kinetics and stoichiometry. Different named instances can match specific distributions (e.g., KEGG-like) or generate purely synthetic reactions.
 
 | Methods | Description |

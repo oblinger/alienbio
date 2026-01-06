@@ -2,7 +2,7 @@
 **Subsystem**: [[ABIO biology]] > Pathways
 Connected sequence of reactions (analytical abstraction).
 
-## Description
+## Overview
 A Pathway is a connected subgraph of the reaction network that performs a coherent metabolic function, such as a biosynthetic pathway, energy cycle, or signaling cascade.
 
 Pathway is an **analytical abstraction** - it's useful for understanding, generating, and describing reaction networks, but the simulation itself operates directly on Reactions without needing pathway information.
