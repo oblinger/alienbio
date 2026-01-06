@@ -55,35 +55,33 @@ All evaluation uses standard YAML tags (no special prefix syntax):
 
 **Examples:**
 ```yaml
-constants:
-  high_permeability: 0.8
-  standard_diffusion: {default: 0.1, membrane: 0.01}
+high_permeability: 0.8
+standard_diffusion: {default: 0.1, membrane: 0.01}
 
-molecules: !ev energy_ring(size=6)         # evaluate → list of molecules
-rate: !ev mass_action(k=0.1)               # evaluate → rate function
-rate: !ev lambda c: c["ME1"] * 0.1         # evaluate → rate function (inline)
-outflows: !ref standard_diffusion          # reference constant
-constitution: !include safety.md           # include file content
+scenario.example:
+  molecules: !ev energy_ring(size=6)         # evaluate → list of molecules
+  rate: !ev mass_action(k=0.1)               # evaluate → rate function
+  outflows: !ref standard_diffusion          # reference top-level value
+  constitution: !include safety.md           # include file content
 ```
 
 **Notes:**
 - `!ev` evaluates once at load/expansion time; result is used directly
 - For rate functions, the expression must produce a callable
-- No special `$` or `=` prefix syntax—everything uses YAML tags
+- `!ref` references any top-level key in the spec
 
 ---
 
-## Constants
+## Reusable Values
 
-Define reusable values at the top of a spec:
+Define reusable values at the top level of a spec:
 
 ```yaml
-constants:
-  high_permeability: 0.8
-  low_permeability: 0.1
-  standard_environment:
-    temp: 25
-    pH: 7.0
+high_permeability: 0.8
+low_permeability: 0.1
+standard_environment:
+  temp: 25
+  pH: 7.0
 
 scenario.example:
   containers:
@@ -92,7 +90,7 @@ scenario.example:
       environment: !ref standard_environment   # substitutes entire dict
 ```
 
-Constants are substituted during expansion, before hydration.
+Values are substituted during expansion, before hydration.
 
 ---
 
@@ -134,8 +132,7 @@ suite.experiments:
 A typical spec file:
 
 ```yaml
-constants:
-  high_permeability: 0.8
+high_permeability: 0.8
 
 suite.mutualism:
   defaults:
