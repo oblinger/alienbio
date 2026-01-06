@@ -3,7 +3,24 @@
 
 The Bio class provides fetching, hydration, and persistence for alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language]].
 
-## Overview
+## Command Line Interface
+
+The `bio` command provides direct access to Bio operations:
+
+```bash
+bio jobs/hardcoded_test              # Run a job (default action)
+bio fetch catalog/scenarios/mutualism  # Fetch and display
+bio expand catalog/scenarios/mutualism # Expand without hydrating
+bio --help                           # Show available commands
+```
+
+**Command resolution:**
+1. If first argument matches a registered command (`fetch`, `expand`, `run`, etc.), execute that command
+2. Otherwise, treat argument as a job specifier and run it
+
+This means `bio jobs/hardcoded_test` is equivalent to `bio run jobs/hardcoded_test`.
+
+## Python API
 
 | Method | Returns | Description |
 |--------|---------|-------------|
