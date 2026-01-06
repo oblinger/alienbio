@@ -103,7 +103,7 @@ By function: MC_energy  MC_krel  MC_kova  MC_growth  MC_signal  MC_repair  MC_sp
 ```
 
 ### Unknown (MX)
-AI must discover the function through investigation.
+We use these molecular names when we intend to provide no information to the AI about a molecule's function; in this case, the AI must infer its function through investigation.
 ```
 MX1  MX2  MX3  MX4  MX5  MX6  MX7  MX8  MX9  MX10  MX11  MX12  MX13  MX14  MX15  MX16  MX17  MX18  MX19  MX20
 ```
