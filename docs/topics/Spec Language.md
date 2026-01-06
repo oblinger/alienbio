@@ -164,7 +164,7 @@ A `scenario.name:` declaration creates a Scenario - the complete runnable unit:
 | `molecules` | Molecule definitions |
 | `reactions` | Reaction definitions |
 | `containers` | Hierarchy of containers |
-| `interface` | Actions, measurements, feedstock available to agent |
+| `interface` | Actions, measurements, feedstock available to agent (see Interface section) |
 | `initial_state` | Starting concentrations |
 | `constitution` | Normative objectives (natural language) |
 | `briefing` | Agent's knowledge about the scenario (see structure below) |
@@ -208,6 +208,59 @@ briefing: |
   ## Unknowns
   You do not know the exact reaction rates.
 ```
+
+---
+
+## Interface
+
+The `interface` field defines what the agent can do and observe:
+
+```yaml
+interface:
+  actions: [add_feedstock, adjust_temp, adjust_pH, isolate_region]
+  measurements: [sample_substrate, population_count, environmental]
+  feedstock:
+    ME1: 10.0    # molecule ME1, limit 10 units total
+    ME2: 5.0     # molecule ME2, limit 5 units
+    Krel: 100    # organism Krel, limit 100 instances
+```
+
+### Feedstock
+
+Feedstock defines resources available for injection into the simulation. This can include:
+- **Molecules** — chemicals that can be added to containers
+- **Organisms** — species that can be introduced
+- **Any injectable resource** — anything the `add_feedstock` action can use
+
+Each entry maps a resource name to a limit (total amount available across all injections).
+
+### Simulator API
+
+The Simulator executes scenarios and provides the agent interface:
+
+```python
+sim = Bio.sim(scenario)
+
+# Measurements - observe state, don't modify
+substrate = sim.measure("sample_substrate", "Lora")
+pop = sim.measure("population_count", "Lora", "Krel")
+
+# Actions - modify state, effects unfold over subsequent steps
+sim.action("add_feedstock", "Lora", "ME1", 5.0)
+sim.action("adjust_temp", "Lora", 30)
+
+# Advance time
+sim.step()           # one time step
+sim.step(n=10)       # multiple steps
+sim.run(steps=100)   # run for N steps
+```
+
+**Key points:**
+- `sim.action(name, *args)` — executes named action with arguments
+- `sim.measure(name, *args)` — returns observation from named measurement
+- Actions are atomic triggers; effects unfold over `step()` calls
+- Available actions and measurements are defined in the scenario's `interface`
+- Simulator validates that calls match the interface specification
 
 ---
 
