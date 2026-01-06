@@ -195,18 +195,15 @@ Scenarios can extend other scenarios via prototype inheritance (deep merge throu
 
 ## Jobs
 
-A Job is an executable DAT — a folder that contains both an execution spec and bio data. Jobs use the standard DAT format with two files:
-
-- **`_spec_.yaml`** — DAT execution spec (what to run)
-- **`index.yaml`** — Bio data spec (scenario, suite, or report)
+A Job is simply a DAT with a `do:` function that executes bio simulations. The DAT format is defined by dvc_dat — see [[ABIO DAT]] for details.
 
 ### DAT Structure
 
 ```
 catalog/jobs/hardcoded_test/
-  _spec_.yaml        # DAT spec: run alienbio.run
-  index.yaml         # Bio spec: the scenario to execute
-  functions.py       # Optional: custom rate/scoring functions
+  _spec_.yaml        # DAT spec: defines what to execute
+  index.yaml         # Bio data (by convention for alienbio.run)
+  functions.py       # Optional: custom functions
 ```
 
 ### The DAT Spec (`_spec_.yaml`)
@@ -214,13 +211,14 @@ catalog/jobs/hardcoded_test/
 The DAT spec defines what function to execute:
 
 ```yaml
-# catalog/jobs/hardcoded_test/_spec_.yaml
 dat:
   kind: Dat
   do: alienbio.run
 ```
 
-The `alienbio.run` function is the standard runner. It loads `index.yaml`, detects the type (scenario, suite, report), and executes appropriately.
+### Standard Runner: `alienbio.run`
+
+The `alienbio.run` function is a standard runner that by default looks for `index.yaml` in the DAT folder. You can use any `do:` function - the job is just a DAT.
 
 ### The Bio Spec (`index.yaml`)
 
