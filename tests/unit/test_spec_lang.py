@@ -1280,11 +1280,9 @@ class TestJobLoading:
         """Bio.expand returns dict with job structure intact."""
         data = Bio.expand("src/alienbio/catalog/jobs/hardcoded_test")
 
-        assert "hardcoded_test" in data
-        job_data = data["hardcoded_test"]
-
-        assert job_data["_type"] == "job"
-        assert "chemistry" in job_data
-        assert "initial_state" in job_data
-        assert "run" in job_data
-        assert "verify" in job_data
+        # With DAT format, _type is at top level (folder name is the identity)
+        assert data["_type"] == "job"
+        assert "chemistry" in data
+        assert "initial_state" in data
+        assert "run" in data
+        assert "verify" in data

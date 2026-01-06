@@ -195,52 +195,93 @@ Scenarios can extend other scenarios via prototype inheritance (deep merge throu
 
 ## Jobs
 
-A `job.name:` declaration creates an executable DAT — a self-contained spec that includes both scenario definition and execution behavior.
+A Job is an executable DAT — a self-contained spec that includes chemistry, execution parameters, and verification criteria. Jobs live in DAT folders under `catalog/jobs/`.
 
-```yaml
-job.verify_hardcoded:
-  # The scenario to run
-  scenario:
-    chemistry: !fetch catalog.chemistries.simple
-    containers:
-      environment:
-        substrate: {A: 10.0, B: 10.0}
+### DAT Format
 
-  # Execution parameters
-  run:
-    steps: 100
-    until_quiet: {delta: 0.01, span: 10}
+Each job is a folder containing `spec.yaml`. The folder name is the job's identity:
 
-  # Verification criteria
-  verify:
-    - assert: concentrations.C > 5.0
-    - assert: concentrations.A < 2.0
-    - scoring: !ref population_health
-      expect: ">= 0.8"
+```
+catalog/jobs/hardcoded_test/
+  spec.yaml          # Job definition
+  functions.py       # Optional: custom rate/scoring functions
 ```
 
-**Running a job:**
+The `spec.yaml` uses `_type: job` at the top level:
+
+```yaml
+# catalog/jobs/hardcoded_test/spec.yaml
+_type: job
+
+chemistry:
+  molecules:
+    A: {name: "Molecule A", bdepth: 0}
+    B: {name: "Molecule B", bdepth: 0}
+  reactions:
+    combine:
+      reactants: [A, B]
+      products: [C]
+      rate: !ev "lambda state: 0.1 * state['A'] * state['B']"
+
+initial_state:
+  A: 10.0
+  B: 10.0
+
+run:
+  steps: 100
+
+verify:
+  - assert: "state['C'] > 5.0"
+    message: "C should accumulate"
+
+scoring:
+  efficiency: !ev "lambda state: state['C'] / 10.0"
+```
+
+### Job Fields
+
+| Field | Description |
+|-------|-------------|
+| `_type` | Must be `job` |
+| `chemistry` | Molecules and reactions (inline or `!include`) |
+| `initial_state` | Starting concentrations |
+| `run` | Execution parameters (steps, until_quiet) |
+| `verify` | Assertions on final state |
+| `scoring` | Scoring functions to evaluate |
+| `include` | Python files to load (for custom functions) |
+
+### Running Jobs
+
 ```python
 from alienbio import Bio
 
 # Fetch and run
-job = Bio.fetch("jobs.verify_hardcoded")
+job = Bio.fetch("catalog/jobs/hardcoded_test")
 result = Bio.run(job)
 
-# Or fetch raw and inspect
-raw = Bio.fetch("jobs.verify_hardcoded", raw=True)
+# Check results
+assert result.success
+print(result.final_state)
+print(result.scores)
 ```
 
-**Job structure:**
+From CLI:
+```bash
+bio jobs/hardcoded_test              # Run job (default action)
+bio fetch jobs/hardcoded_test        # Fetch and display without running
+```
 
-| Field | Description |
-|-------|-------------|
-| `scenario` | Inline scenario or `!fetch` reference |
-| `run` | Execution parameters (steps, until_quiet, etc.) |
-| `verify` | Assertions and scoring expectations |
-| `include` | Python files to load (for custom functions) |
+### Inline Jobs
 
-Jobs use the DAT system for storage and resolution. See [[DAT]] for full documentation on mounting, paths, and the DAT lifecycle.
+For jobs defined inline within another spec, use typed element syntax:
+
+```yaml
+job.quick_test:
+  chemistry: !include base_chemistry.yaml
+  run: {steps: 10}
+```
+
+See [[ABIO DAT]] for DAT folder structure and mounting.
 
 ---
 
