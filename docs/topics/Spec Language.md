@@ -171,7 +171,7 @@ A `scenario.name:` declaration creates a Scenario - the complete runnable unit:
 | `scoring` | Evaluation functions (see Scoring section) |
 | `passing_score` | Threshold for success (default: 0.5) |
 | `verify` | Assertions on final state |
-| `run` | Execution config (steps, etc.) |
+| `sim` | Simulation config (see Sim section) |
 
 Scenarios can extend other scenarios via `extends:` or through suite `defaults:`.
 
@@ -261,6 +261,31 @@ sim.run(steps=100)   # run for N steps
 - Actions are atomic triggers; effects unfold over `step()` calls
 - Available actions and measurements are defined in the scenario's `interface`
 - Simulator validates that calls match the interface specification
+
+---
+
+## Sim
+
+The `sim:` section configures simulation execution:
+
+```yaml
+sim:
+  steps: 100                    # number of steps to run
+  time_step: 0.1                # time delta per step (default: 1.0)
+  simulator: SimpleSimulator    # simulator class (optional, has default)
+  terminate: !ev "lambda state: state['population'] <= 0"  # early stop condition
+```
+
+| Field | Description |
+|-------|-------------|
+| `steps` | Number of simulation steps to run |
+| `time_step` | Time delta per step (for rate calculations) |
+| `simulator` | Simulator class name (default: `SimpleSimulator`) |
+| `terminate` | Boolean expression evaluated each step; stops when true |
+
+**Termination:** The simulation runs for `steps` iterations unless `terminate` evaluates to true earlier. If no `terminate` is specified, runs for exactly `steps`.
+
+**Action timing:** Actions are instantaneous triggers - `sim.action()` returns immediately. Effects unfold over subsequent `step()` calls. (Future: completion predicates if needed.)
 
 ---
 
