@@ -35,7 +35,7 @@ scenario.hardcoded_test:
     C: 0.0
     D: 0.0
 
-  run:
+  sim:
     steps: 100
 
   verify:
