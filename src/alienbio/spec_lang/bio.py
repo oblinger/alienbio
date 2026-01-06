@@ -8,7 +8,7 @@ import yaml
 
 from .tags import EvTag, RefTag, IncludeTag
 from .loader import transform_typed_keys, expand_defaults
-from .decorators import hydrate, dehydrate
+from .decorators import hydrate as _hydrate, dehydrate as _dehydrate
 
 if TYPE_CHECKING:
     from alienbio.bio import Simulator
@@ -22,6 +22,8 @@ class Bio:
         store(specifier, obj) - Dehydrate and store a typed object
         expand(specifier) - Expand a spec (includes, refs, defaults) without hydrating
         sim(scenario) - Create a Simulator from a Scenario
+        hydrate(data) - Convert dict with _type to typed object (advanced)
+        dehydrate(obj) - Convert typed object to dict with _type (advanced)
     """
 
     @staticmethod
@@ -86,7 +88,7 @@ class Bio:
         if raw:
             data = obj
         else:
-            data = dehydrate(obj)
+            data = _dehydrate(obj)
 
         # Write YAML
         with open(spec_file, "w") as f:
@@ -153,6 +155,41 @@ class Bio:
         return SimpleSimulatorImpl(scenario)
 
     @staticmethod
+    def hydrate(data: dict[str, Any]) -> Any:
+        """Convert a dict with _type field to a typed object.
+
+        Advanced method for manual hydration. Most users should use fetch().
+
+        Args:
+            data: Dict with "_type" field and object data
+
+        Returns:
+            Instance of the registered biotype
+
+        Raises:
+            KeyError: If _type not registered
+            ValueError: If data doesn't have _type field
+        """
+        return _hydrate(data)
+
+    @staticmethod
+    def dehydrate(obj: Any) -> dict[str, Any]:
+        """Convert a biotype object to a dict with _type field.
+
+        Advanced method for manual dehydration. Most users should use store().
+
+        Args:
+            obj: Object with _biotype_name attribute (decorated with @biotype)
+
+        Returns:
+            Dict with "_type" field and object data
+
+        Raises:
+            ValueError: If object is not a biotype
+        """
+        return _dehydrate(obj)
+
+    @staticmethod
     def _process_and_hydrate(data: dict[str, Any], base_dir: str) -> Any:
         """Process raw data and hydrate to typed object."""
         # Process the data: resolve includes, transform typed keys, etc.
@@ -163,12 +200,12 @@ class Bio:
 
         # Check for top-level _type (e.g., from Bio.store)
         if "_type" in data:
-            return hydrate(data)
+            return _hydrate(data)
 
         # Find the first typed object and hydrate it
         for key, value in data.items():
             if isinstance(value, dict) and "_type" in value:
-                return hydrate(value)
+                return _hydrate(value)
 
         # If no typed object, return the raw data
         return data

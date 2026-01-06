@@ -29,8 +29,12 @@ This means `bio jobs/hardcoded_test` is equivalent to `bio run jobs/hardcoded_te
 | `expand(specifier)` | `dict` | Static. Expand spec (includes, refs, defaults) without hydrating |
 | `sim(scenario)` | `Simulator` | Static. Create Simulator from a Scenario |
 | `run(job)` | `Result` | Static. Execute a job DAT |
+| `hydrate(data)` | `Any` | Static. Convert dict with `_type` to typed object (advanced) |
+| `dehydrate(obj)` | `dict` | Static. Convert typed object to dict with `_type` (advanced) |
 
 Bio is a utility class with static methods—no instances. The `fetch()` method returns typed objects (Scenario, Chemistry, etc.) hydrated via the `@biotype` registry.
+
+**Note:** `hydrate()` and `dehydrate()` are advanced methods. Most users should use `fetch()` and `store()` which handle the full pipeline.
 
 ---
 
