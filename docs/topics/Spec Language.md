@@ -168,7 +168,8 @@ A `scenario.name:` declaration creates a Scenario - the complete runnable unit:
 | `initial_state` | Starting concentrations |
 | `constitution` | Normative objectives (natural language) |
 | `briefing` | Agent's knowledge about the scenario (see structure below) |
-| `scoring` | Evaluation functions |
+| `scoring` | Evaluation functions (see Scoring section) |
+| `passing_score` | Threshold for success (default: 0.5) |
 | `verify` | Assertions on final state |
 | `run` | Execution config (steps, etc.) |
 
@@ -212,7 +213,11 @@ briefing: |
 
 ## Scoring
 
-Scoring functions evaluate scenario outcomes. Each function receives the full simulation trace and returns a numeric value.
+Scoring functions evaluate scenario outcomes. Each function receives the full simulation trace and returns a numeric value (default range 0.0 to 1.0).
+
+### The `score` Function
+
+The `score` function is the canonical success metric. If defined, it determines pass/fail:
 
 ```yaml
 scenario.example:
@@ -221,33 +226,41 @@ scenario.example:
   initial_state: {A: 10.0, B: 10.0}
 
   scoring:
-    efficiency: !ev "lambda trace: trace.final['C'] / 10.0"
-    survival: !ev "lambda trace: min(trace.final['A'], trace.final['B'])"
-    stability: !ev compute_stability   # reference a registered function
+    score: !ev aggregate_score       # THE canonical metric (required for pass/fail)
+    efficiency: !ev calc_efficiency  # informational
+    stability: !ev calc_stability    # informational
+
+  passing_score: 0.5                 # success if score >= 0.5 (default: 0.5)
 ```
 
-**Scoring function signature:**
+**Success determination:**
+- If `score` exists: `success = scores["score"] >= passing_score`
+- If `score` doesn't exist: `success` based on `verify` assertions only
+
+### Scoring Function Signature
+
 ```python
 def scoring_fn(trace: SimulationTrace) -> float:
     # trace.final - final state dict
     # trace.timeline - list of states at each step
     # trace.steps - number of steps run
-    return value
+    return value  # typically 0.0 to 1.0
 ```
 
-**Registering scoring functions:**
+### Registering Scoring Functions
+
 ```python
 from alienbio import scoring
 
 @scoring
-def compute_stability(trace):
-    """Measure how stable the system remained."""
-    states = trace.timeline
-    variance = sum((s['A'] - states[0]['A'])**2 for s in states) / len(states)
-    return 1.0 / (1.0 + variance)
+def aggregate_score(trace):
+    """Combine multiple factors into overall score."""
+    efficiency = trace.final['C'] / 10.0
+    survival = min(trace.final['A'], trace.final['B']) / 10.0
+    return 0.6 * efficiency + 0.4 * survival
 ```
 
-**Result structure:**
+### Result Structure
 
 When a scenario runs, scoring results are included in the return dict:
 
@@ -256,9 +269,9 @@ success, result = dat.run()
 # result = {
 #     "final_state": {"A": 1.2, "B": 0.8, "C": 8.5},
 #     "timeline": [...],
-#     "scores": {"efficiency": 0.85, "survival": 0.8, "stability": 0.92},
+#     "scores": {"score": 0.72, "efficiency": 0.85, "stability": 0.92},
 #     "verify_results": [...],
-#     "success": True
+#     "success": True  # because score (0.72) >= passing_score (0.5)
 # }
 ```
 

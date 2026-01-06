@@ -47,5 +47,10 @@ scenario.hardcoded_test:
       message: "D should have accumulated"
 
   scoring:
+    # Canonical score function - determines pass/fail
+    score: !ev "lambda trace: 0.6 * (1.0 - (trace.final.get('A', 0) + trace.final.get('B', 0)) / 20.0) + 0.4 * (trace.final.get('D', 0) / 10.0)"
+    # Informational scores
     depletion: !ev "lambda state: 1.0 - (state.get('A', 0) + state.get('B', 0)) / 20.0"
     production: !ev "lambda state: state.get('D', 0) / 10.0"
+
+  passing_score: 0.5

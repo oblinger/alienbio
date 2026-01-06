@@ -86,6 +86,15 @@ def run(dat: "Dat") -> tuple[bool, dict[str, Any]]:
     return success, result
 
 
+class SimulationTrace:
+    """Trace of a simulation run, passed to scoring functions."""
+
+    def __init__(self, final: dict[str, float], timeline: list[dict[str, float]], steps: int):
+        self.final = final
+        self.timeline = timeline
+        self.steps = steps
+
+
 def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     """Run a single scenario and return results.
 
@@ -102,20 +111,29 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
         run_config = scenario.get("run", {})
         verify = scenario.get("verify", [])
         scoring_fns = scenario.get("scoring", {})
-        chemistry = scenario.get("chemistry", {})
+        passing_score = scenario.get("passing_score", 0.5)
+        # Support both flat (molecules, reactions) and nested (chemistry.molecules)
+        if "chemistry" in scenario:
+            chemistry = scenario["chemistry"]
+            molecules = chemistry.get("molecules", {}) if isinstance(chemistry, dict) else {}
+            reactions = chemistry.get("reactions", {}) if isinstance(chemistry, dict) else {}
+        else:
+            molecules = scenario.get("molecules", {})
+            reactions = scenario.get("reactions", {})
     else:
         initial_state = getattr(scenario, "initial_state", {})
         run_config = getattr(scenario, "run", {})
         verify = getattr(scenario, "verify", [])
         scoring_fns = getattr(scenario, "scoring", {})
-        chemistry = getattr(scenario, "chemistry", {})
+        passing_score = getattr(scenario, "passing_score", 0.5)
+        molecules = getattr(scenario, "molecules", {})
+        reactions = getattr(scenario, "reactions", {})
 
     steps = run_config.get("steps", 100) if isinstance(run_config, dict) else 100
 
     # Run simulation
     state = dict(initial_state)
     timeline = [dict(state)]
-    reactions = chemistry.get("reactions", {}) if isinstance(chemistry, dict) else {}
 
     for _ in range(steps):
         # Apply each reaction
@@ -135,15 +153,23 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
 
         timeline.append(dict(state))
 
-    # Compute scores
+    # Create trace for scoring functions
+    trace = SimulationTrace(final=state, timeline=timeline, steps=steps)
+
+    # Compute scores - pass trace to scoring functions
     scores = {}
     for name, fn in scoring_fns.items():
         if callable(fn):
-            scores[name] = fn(state)
+            # Try passing trace first, fall back to state for backwards compatibility
+            try:
+                scores[name] = fn(trace)
+            except (TypeError, AttributeError):
+                # Function might expect state dict directly (legacy)
+                scores[name] = fn(state)
 
     # Run verifications
     verify_results = []
-    all_passed = True
+    verify_passed = True
     for v in verify:
         assertion = v.get("assert", "") if isinstance(v, dict) else ""
         message = v.get("message", "") if isinstance(v, dict) else ""
@@ -152,24 +178,43 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
             passed = eval(assertion, {"state": state})
             verify_results.append({"assert": assertion, "passed": passed, "message": message})
             if not passed:
-                all_passed = False
+                verify_passed = False
         except Exception as e:
             verify_results.append({"assert": assertion, "passed": False, "error": str(e)})
-            all_passed = False
+            verify_passed = False
 
+    # Determine success:
+    # - If 'score' exists in scores, use score >= passing_score
+    # - Otherwise fall back to verify assertions
+    if "score" in scores:
+        success = scores["score"] >= passing_score
+    else:
+        success = verify_passed
+
+    # Write timeline to separate file (can be large)
+    import yaml
+    dat_path = Path(dat.path)
+    timeline_file = dat_path / "timeline.yaml"
+    with open(timeline_file, "w") as f:
+        yaml.dump(timeline, f, default_flow_style=False)
+
+    # Result dict (slim - no timeline)
     result = {
         "final_state": state,
-        "timeline": timeline,
         "scores": scores,
+        "passing_score": passing_score,
         "verify_results": verify_results,
-        "success": all_passed,
+        "success": success,
     }
 
     # Print summary
     print(f"=== Scenario Results ===")
     print(f"Final state: {state}")
     print(f"Scores: {scores}")
-    print(f"Verifications: {'PASSED' if all_passed else 'FAILED'}")
+    if "score" in scores:
+        print(f"Score: {scores['score']:.3f} (passing: {passing_score}) -> {'PASSED' if success else 'FAILED'}")
+    else:
+        print(f"Verifications: {'PASSED' if verify_passed else 'FAILED'}")
     for v in verify_results:
         status = "✓" if v.get("passed") else "✗"
         print(f"  {status} {v.get('assert')}: {v.get('message', '')}")
