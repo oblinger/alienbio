@@ -11,14 +11,10 @@ from .decorators import biotype_registry, action_registry, measurement_registry
 from .decorators import scoring_registry, rate_registry
 from .tags import EvTag, RefTag, IncludeTag
 from .loader import load_spec, transform_typed_keys, expand_defaults
-from .types import RunConfig, Verification
 
 __all__ = [
     # Bio class
     "Bio",
-    # Helper types
-    "RunConfig",
-    "Verification",
     # Decorators
     "biotype",
     "fn",
