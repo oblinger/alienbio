@@ -89,11 +89,8 @@ class MockSuite:
 
 def _register_scaffold_biotypes():
     """Register scaffold biotypes in the registry."""
-    biotype_registry["mockchemistry"] = MockChemistry
-    biotype_registry["mockworld"] = MockWorld
     biotype_registry["scenario"] = MockScenario
     biotype_registry["suite"] = MockSuite
-    biotype_registry["chemistry"] = MockChemistry  # alias
 
 
 @pytest.fixture(autouse=True)
@@ -373,29 +370,17 @@ def test_action(sim):
 class TestTypedKeys:
     """Tests for typed key parsing and transformation."""
 
-    def test_typed_key_world(self):
-        """world.foo: → {"foo": {"_type": "world", ...}}"""
-        data = {"world.foo": {"molecules": {}}}
+    def test_typed_key_scenario(self):
+        """scenario.foo: → {"foo": {"_type": "scenario", ...}}"""
+        data = {"scenario.foo": {"molecules": {}}}
         result = transform_typed_keys(data)
-        assert result == {"foo": {"_type": "world", "molecules": {}}}
+        assert result == {"foo": {"_type": "scenario", "molecules": {}}}
 
     def test_typed_key_suite(self):
         """suite.bar: → {"bar": {"_type": "suite", ...}}"""
         data = {"suite.bar": {"defaults": {}}}
         result = transform_typed_keys(data)
         assert result == {"bar": {"_type": "suite", "defaults": {}}}
-
-    def test_typed_key_scenario(self):
-        """scenario.baz: → {"baz": {"_type": "scenario", ...}}"""
-        data = {"scenario.baz": {"briefing": "Hello"}}
-        result = transform_typed_keys(data)
-        assert result == {"baz": {"_type": "scenario", "briefing": "Hello"}}
-
-    def test_typed_key_chemistry(self):
-        """chemistry.chem1: → {"chem1": {"_type": "chemistry", ...}}"""
-        data = {"chemistry.chem1": {"molecules": {}, "reactions": {}}}
-        result = transform_typed_keys(data)
-        assert result == {"chem1": {"_type": "chemistry", "molecules": {}, "reactions": {}}}
 
     def test_typed_key_unknown_passthrough(self):
         """unknown.thing: → keeps as-is (not a registered type)"""
@@ -422,29 +407,29 @@ class TestTypedKeys:
         }
 
     def test_typed_key_dotted_name(self):
-        """world.my.complex.name: → name is my.complex.name"""
-        data = {"world.my.complex.name": {"molecules": {}}}
+        """scenario.my.complex.name: → name is my.complex.name"""
+        data = {"scenario.my.complex.name": {"molecules": {}}}
         result = transform_typed_keys(data)
-        assert result == {"my.complex.name": {"_type": "world", "molecules": {}}}
+        assert result == {"my.complex.name": {"_type": "scenario", "molecules": {}}}
 
     def test_typed_key_preserves_other_keys(self):
         """Preserves other keys alongside typed keys"""
         data = {
             "constants": {"x": 1},
-            "world.myworld": {"molecules": {}},
+            "scenario.myscenario": {"molecules": {}},
         }
         result = transform_typed_keys(data)
         assert result == {
             "constants": {"x": 1},
-            "myworld": {"_type": "world", "molecules": {}},
+            "myscenario": {"_type": "scenario", "molecules": {}},
         }
 
     def test_typed_key_round_trip(self):
         """Round-trip: parse → serialize → parse yields same structure"""
-        original = {"world.foo": {"molecules": {"A": {}}}}
+        original = {"scenario.foo": {"molecules": {"A": {}}}}
         transformed = transform_typed_keys(original)
         # Would need inverse function for full round-trip
-        assert transformed["foo"]["_type"] == "world"
+        assert transformed["foo"]["_type"] == "scenario"
         assert transformed["foo"]["molecules"] == {"A": {}}
 
 
@@ -870,23 +855,6 @@ scenario.test:
         assert hasattr(result, "briefing")
         assert result.briefing == "Test briefing"
 
-    def test_bio_load_chemistry(self, temp_dir):
-        """Bio.fetch("catalog/chemistries/test") → Chemistry object"""
-        chem_dir = temp_dir / "catalog" / "chemistries" / "test"
-        chem_dir.mkdir(parents=True)
-        spec_file = chem_dir / "spec.yaml"
-        spec_file.write_text("""
-chemistry.test:
-  molecules:
-    A: {}
-    B: {}
-  reactions: {}
-""")
-
-        result = Bio.fetch(str(chem_dir))
-        assert hasattr(result, "molecules")
-        assert "A" in result.molecules
-
     def test_bio_load_nonexistent_raises(self):
         """Bio.fetch("nonexistent/path") → FileNotFoundError"""
         with pytest.raises(FileNotFoundError):
@@ -1159,13 +1127,13 @@ constants:
         """Mix of typed keys and regular keys"""
         data = {
             "constants": {"x": 1},
-            "world.foo": {"molecules": {}},
+            "scenario.foo": {"molecules": {}},
             "metadata": {"version": "1.0"},
             "suite.bar": {"defaults": {}},
         }
         result = transform_typed_keys(data)
         assert result["constants"] == {"x": 1}
-        assert result["foo"]["_type"] == "world"
+        assert result["foo"]["_type"] == "scenario"
         assert result["metadata"] == {"version": "1.0"}
         assert result["bar"]["_type"] == "suite"
 

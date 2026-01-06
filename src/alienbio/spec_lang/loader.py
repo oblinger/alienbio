@@ -21,7 +21,7 @@ def transform_typed_keys(data: dict[str, Any], type_registry: set[str] | None = 
         {"foo": {"_type": "world", "molecules": {}}}
     """
     if type_registry is None:
-        type_registry = {"world", "suite", "scenario", "chemistry"}
+        type_registry = {"suite", "scenario"}
 
     result: dict[str, Any] = {}
 

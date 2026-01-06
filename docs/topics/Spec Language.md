@@ -10,13 +10,10 @@ YAML syntax extensions for writing spec files.
 Use `type.name:` syntax to declare typed objects:
 
 ```yaml
-world.mutualism_ecosystem:
-  molecules: ...
-  reactions: ...
-
 suite.mutualism:
   defaults:
-    world: !ref mutualism_ecosystem
+    molecules: ...
+    reactions: ...
   scenario.baseline:
     framing: "Standard conditions"
   scenario.stressed:
@@ -30,18 +27,17 @@ suite.mutualism:
 
 **Internal representation:**
 ```python
-# world.mutualism_ecosystem: {...}
+# scenario.baseline: {...}
 # becomes:
-{"mutualism_ecosystem": {"_type": "world", ...}}
+{"baseline": {"_type": "scenario", ...}}
 ```
 
 **Built-in types:**
 
-| Type | Hydrates To | Purpose |
-|------|-------------|---------|
-| `scenario` | `Scenario` | Runnable unit (chemistry, containers, interface, briefing, constitution, scoring) |
-| `suite` | `Suite` | Container for scenarios or nested suites |
-| `chemistry` | `Chemistry` | Molecules and reactions |
+| Type | Purpose |
+|------|---------|
+| `scenario` | Runnable unit with all simulation and evaluation fields |
+| `suite` | Container for scenarios or nested suites |
 
 Custom types registered via `@biotype` decorator. See [[Decorators]].
 
@@ -89,7 +85,7 @@ constants:
     temp: 25
     pH: 7.0
 
-world.example:
+scenario.example:
   containers:
     membrane:
       permeability: !ref high_permeability     # substitutes 0.8
@@ -141,14 +137,11 @@ A typical spec file:
 constants:
   high_permeability: 0.8
 
-world.mutualism_ecosystem:
-  molecules: ...
-  reactions: ...
-  containers: ...
-
 suite.mutualism:
   defaults:
-    world: !ref mutualism_ecosystem
+    molecules: ...
+    reactions: ...
+    containers: ...
     constitution: |
       Protect both species...
     scoring:
@@ -171,17 +164,21 @@ A `scenario.name:` declaration creates a Scenario - the complete runnable unit:
 
 | Field | Description |
 |-------|-------------|
-| `chemistry` | Molecules and reactions |
-| `containers` | Hierarchy of ecosystems, regions, organisms |
+| `molecules` | Molecule definitions |
+| `reactions` | Reaction definitions |
+| `containers` | Hierarchy of containers |
 | `interface` | Actions, measurements, feedstock available to agent |
+| `initial_state` | Starting concentrations |
 | `constitution` | Normative objectives (natural language) |
 | `briefing` | Agent's knowledge about the scenario |
 | `framing` | Situational context |
-| `scoring` | Evaluation metrics (optional) |
+| `scoring` | Evaluation functions |
+| `verify` | Assertions on final state |
+| `run` | Execution config (steps, etc.) |
 
 Scenarios can extend other scenarios via prototype inheritance (deep merge through `defaults:`).
 
-**Runtime flow:** Scenario → `Bio.sim(scenario)` → WorldSimulator → WorldState
+**Runtime flow:** Scenario → `Bio.sim(scenario)` → Simulator → State
 
 ---
 
