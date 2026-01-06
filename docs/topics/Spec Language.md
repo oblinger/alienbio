@@ -195,37 +195,32 @@ Scenarios can extend other scenarios via prototype inheritance (deep merge throu
 
 ## Jobs
 
-A Job is simply a DAT with a `do:` function that executes bio simulations. The DAT format is defined by dvc_dat — see [[ABIO DAT]] for details.
-
-### DAT Structure
-
-```
-catalog/jobs/hardcoded_test/
-  _spec_.yaml        # DAT spec: defines what to execute
-  index.yaml         # Bio data (by convention for alienbio.run)
-  functions.py       # Optional: custom functions
-```
-
-### The DAT Spec (`_spec_.yaml`)
-
-The DAT spec defines what function to execute:
+A Job is simply a DAT with a `do:` function that executes bio simulations. See [[ABIO DAT]] for the DAT format.
 
 ```yaml
+# _spec_.yaml
 dat:
   kind: Dat
   do: alienbio.run
 ```
 
-### Standard Runner: `alienbio.run`
+```python
+from dvc_dat import Dat
 
-The `alienbio.run` function is a standard runner that by default looks for `index.yaml` in the DAT folder. You can use any `do:` function - the job is just a DAT.
+dat = Dat.load("catalog/jobs/hardcoded_test")
+success, result = dat.run()
+```
 
-### The Bio Spec (`index.yaml`)
+---
 
-The bio spec contains the scenario or suite using typed element syntax:
+## Standard Runner: `alienbio.run`
+
+The `alienbio.run` function is a standard runner for bio DATs. By default it looks for `index.yaml` in the DAT folder and executes the scenario or suite found there.
+
+### Convention: `index.yaml`
 
 ```yaml
-# catalog/jobs/hardcoded_test/index.yaml
+# index.yaml - bio data for alienbio.run
 scenario.hardcoded_test:
   chemistry:
     molecules:
@@ -262,30 +257,12 @@ scenario.hardcoded_test:
 | `verify` | Assertions on final state (Python expressions) |
 | `scoring` | Scoring functions to evaluate |
 
-### Running Jobs
-
-```python
-from dvc_dat import Dat
-
-# Load and run the DAT
-dat = Dat.load("catalog/jobs/hardcoded_test")
-success, result = dat.run()
-
-# Check results
-print(result["final_state"])
-print(result["scores"])
-print("Passed!" if success else "Failed!")
-```
-
 ### Result Structure
 
-The runner returns:
+The runner returns `(success, result)` where result contains:
 
 - **Scenario** → `{final_state, timeline, scores, verify_results, success}`
 - **Suite** → `{scenario_name: scenario_result, ...}`
-- **Report** → structured output (TBD)
-
-See [[ABIO DAT]] for more on DAT folder structure and mounting.
 
 ---
 
