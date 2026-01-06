@@ -1,5 +1,5 @@
-# Hardcoded Test Scenario
-# A simple scenario for verifying the simulation loop with hand-defined components.
+# Simple Reaction Scenario
+# A test fixture for verifying the simulation loop with basic chemistry.
 #
 # Chemistry:
 #   - Molecules: A, B, C, D
@@ -8,7 +8,7 @@
 # Initial state: A=10, B=10, C=0, D=0
 # Expected: A and B deplete, C increases then converts to D
 
-scenario.hardcoded_test:
+scenario.simple_reaction:
   chemistry:
     molecules:
       A: {name: "Molecule A", bdepth: 0}

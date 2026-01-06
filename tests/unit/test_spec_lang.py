@@ -1158,26 +1158,26 @@ constants:
 class TestDatExecution:
     """Tests for executing bio scenarios via DAT (Jobs are just DATs with do: functions)."""
 
-    def test_dat_load_hardcoded_test(self):
-        """Dat.load loads the hardcoded_test DAT correctly."""
+    def test_dat_load_simple_reaction(self):
+        """Dat.load loads the simple_reaction DAT correctly."""
         import os
         from dvc_dat import Dat
 
         os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
-        dat = Dat.load("catalog/jobs/hardcoded_test")
+        dat = Dat.load("fixtures/jobs/simple_reaction")
 
         # Check DAT loaded
         assert dat is not None
         spec = dat.get_spec()
         assert spec["dat"]["do"] == "alienbio.run"
 
-    def test_dat_run_hardcoded_test(self):
+    def test_dat_run_simple_reaction(self):
         """Dat.run() executes the scenario and returns results."""
         import os
         from dvc_dat import Dat
 
         os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
-        dat = Dat.load("catalog/jobs/hardcoded_test")
+        dat = Dat.load("fixtures/jobs/simple_reaction")
         success, result = dat.run()
 
         # Check success
@@ -1194,7 +1194,7 @@ class TestDatExecution:
         from dvc_dat import Dat
 
         os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
-        dat = Dat.load("catalog/jobs/hardcoded_test")
+        dat = Dat.load("fixtures/jobs/simple_reaction")
         success, result = dat.run()
 
         final = result["final_state"]
@@ -1210,7 +1210,7 @@ class TestDatExecution:
         from dvc_dat import Dat
 
         os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
-        dat = Dat.load("catalog/jobs/hardcoded_test")
+        dat = Dat.load("fixtures/jobs/simple_reaction")
         success, result = dat.run()
 
         scores = result["scores"]
@@ -1221,11 +1221,11 @@ class TestDatExecution:
 
     def test_bio_expand_index_yaml(self):
         """Bio.expand works directly on index.yaml file."""
-        data = Bio.expand("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
+        data = Bio.expand("tests/fixtures/jobs/simple_reaction/index.yaml")
 
         # Should have the scenario with _type
-        assert "hardcoded_test" in data
-        scenario = data["hardcoded_test"]
+        assert "simple_reaction" in data
+        scenario = data["simple_reaction"]
         assert scenario["_type"] == "scenario"
         assert "chemistry" in scenario
         assert "initial_state" in scenario
@@ -1233,7 +1233,7 @@ class TestDatExecution:
     def test_bio_fetch_index_yaml(self):
         """Bio.fetch loads and hydrates the index.yaml correctly."""
         # Fetch the index.yaml directly (not the DAT folder)
-        scenario = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
+        scenario = Bio.fetch("tests/fixtures/jobs/simple_reaction/index.yaml")
 
         # Should return a hydrated scenario object (MockScenario in tests)
         assert scenario is not None
