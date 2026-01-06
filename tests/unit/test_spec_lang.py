@@ -1239,3 +1239,202 @@ class TestDatExecution:
         assert scenario is not None
         # The scenario type is MockScenario from test fixtures
         assert hasattr(scenario, "_biotype_name") or isinstance(scenario, MockScenario)
+
+
+# =============================================================================
+# Test Suite: Scope Class (Lexical Scoping)
+# =============================================================================
+
+
+class TestScope:
+    """Tests for Scope class - lexical scoping with parent chain."""
+
+    def test_scope_basic_dict_operations(self):
+        """Scope behaves like a dict for local values."""
+        from alienbio.spec_lang import Scope
+
+        scope = Scope({"a": 1, "b": 2})
+        assert scope["a"] == 1
+        assert scope["b"] == 2
+        assert scope.get("a") == 1
+        assert scope.get("c", 99) == 99
+
+    def test_scope_parent_inheritance(self):
+        """Child scope inherits values from parent."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 10, "y": 20})
+        child = Scope({"z": 30}, parent=parent)
+
+        # Child sees its own values
+        assert child["z"] == 30
+        # Child inherits parent values
+        assert child["x"] == 10
+        assert child["y"] == 20
+
+    def test_scope_override_parent(self):
+        """Child can override parent values."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 10, "y": 20})
+        child = Scope({"y": 99}, parent=parent)
+
+        # x inherited from parent
+        assert child["x"] == 10
+        # y overridden in child
+        assert child["y"] == 99
+        # parent unchanged
+        assert parent["y"] == 20
+
+    def test_scope_chain_depth_3(self):
+        """Three-level scope chain works correctly."""
+        from alienbio.spec_lang import Scope
+
+        root = Scope({"a": 1}, name="root")
+        middle = Scope({"b": 2}, parent=root, name="middle")
+        leaf = Scope({"c": 3}, parent=middle, name="leaf")
+
+        # leaf sees all values
+        assert leaf["a"] == 1
+        assert leaf["b"] == 2
+        assert leaf["c"] == 3
+
+    def test_scope_keyerror_propagates(self):
+        """KeyError raised when key not in any scope."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1})
+        child = Scope({"y": 2}, parent=parent)
+
+        with pytest.raises(KeyError):
+            _ = child["z"]
+
+    def test_scope_contains(self):
+        """__contains__ checks entire chain."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1})
+        child = Scope({"y": 2}, parent=parent)
+
+        assert "x" in child
+        assert "y" in child
+        assert "z" not in child
+
+    def test_scope_local_keys(self):
+        """local_keys returns only keys defined in this scope."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1, "y": 2})
+        child = Scope({"y": 99, "z": 3}, parent=parent)
+
+        local = set(child.local_keys())
+        assert local == {"y", "z"}
+
+    def test_scope_all_keys(self):
+        """all_keys returns keys from entire chain."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1, "y": 2})
+        child = Scope({"y": 99, "z": 3}, parent=parent)
+
+        all_k = child.all_keys()
+        assert all_k == {"x", "y", "z"}
+
+    def test_scope_child_method(self):
+        """child() creates a new scope with parent link."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1})
+        child = parent.child({"y": 2})
+
+        assert child.parent is parent
+        assert child["x"] == 1
+        assert child["y"] == 2
+
+    def test_scope_child_with_name(self):
+        """child() can assign name to child scope."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1}, name="parent")
+        child = parent.child({"y": 2}, name="child")
+
+        assert child.name == "child"
+        assert child.parent.name == "parent"
+
+    def test_scope_resolve_returns_defining_scope(self):
+        """resolve() returns value and the scope that defines it."""
+        from alienbio.spec_lang import Scope
+
+        root = Scope({"a": 1}, name="root")
+        child = Scope({"b": 2}, parent=root, name="child")
+
+        val, defining = child.resolve("a")
+        assert val == 1
+        assert defining is root
+
+        val, defining = child.resolve("b")
+        assert val == 2
+        assert defining is child
+
+    def test_scope_resolve_keyerror(self):
+        """resolve() raises KeyError for missing key."""
+        from alienbio.spec_lang import Scope
+
+        scope = Scope({"x": 1})
+        with pytest.raises(KeyError):
+            scope.resolve("missing")
+
+    def test_scope_repr(self):
+        """repr shows name and parent info."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1}, name="parent")
+        child = parent.child({"y": 2}, name="child")
+
+        repr_str = repr(child)
+        assert "child" in repr_str
+        assert "parent" in repr_str
+
+    def test_scope_empty_parent(self):
+        """Scope with empty parent still works."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({})
+        child = parent.child({"x": 1})
+
+        assert child["x"] == 1
+        with pytest.raises(KeyError):
+            _ = child["y"]
+
+    def test_scope_get_with_default(self):
+        """get() returns default when key not found in chain."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1})
+        child = parent.child({"y": 2})
+
+        assert child.get("x") == 1
+        assert child.get("y") == 2
+        assert child.get("z") is None
+        assert child.get("z", "default") == "default"
+
+    def test_scope_dict_mutation(self):
+        """Scope can be mutated like a dict."""
+        from alienbio.spec_lang import Scope
+
+        scope = Scope({"x": 1})
+        scope["y"] = 2
+        assert scope["y"] == 2
+
+        del scope["x"]
+        assert "x" not in scope
+
+    def test_scope_iteration(self):
+        """Iterating scope yields local keys only."""
+        from alienbio.spec_lang import Scope
+
+        parent = Scope({"x": 1})
+        child = parent.child({"y": 2, "z": 3})
+
+        keys = list(child)
+        assert set(keys) == {"y", "z"}
