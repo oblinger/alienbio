@@ -4,3 +4,5 @@ mount_commands:
     folder: src/alienbio/catalog
   - at: fixtures
     module: tests.fixtures
+  - at: alienbio
+    module: alienbio

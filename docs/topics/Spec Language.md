@@ -195,93 +195,99 @@ Scenarios can extend other scenarios via prototype inheritance (deep merge throu
 
 ## Jobs
 
-A Job is an executable DAT — a self-contained spec that includes chemistry, execution parameters, and verification criteria. Jobs live in DAT folders under `catalog/jobs/`.
+A Job is an executable DAT — a folder that contains both an execution spec and bio data. Jobs use the standard DAT format with two files:
 
-### DAT Format
+- **`_spec_.yaml`** — DAT execution spec (what to run)
+- **`index.yaml`** — Bio data spec (scenario, suite, or report)
 
-Each job is a folder containing `spec.yaml`. The folder name is the job's identity:
+### DAT Structure
 
 ```
 catalog/jobs/hardcoded_test/
-  spec.yaml          # Job definition
+  _spec_.yaml        # DAT spec: run alienbio.run
+  index.yaml         # Bio spec: the scenario to execute
   functions.py       # Optional: custom rate/scoring functions
 ```
 
-The `spec.yaml` uses `_type: job` at the top level:
+### The DAT Spec (`_spec_.yaml`)
+
+The DAT spec defines what function to execute:
 
 ```yaml
-# catalog/jobs/hardcoded_test/spec.yaml
-_type: job
-
-chemistry:
-  molecules:
-    A: {name: "Molecule A", bdepth: 0}
-    B: {name: "Molecule B", bdepth: 0}
-  reactions:
-    combine:
-      reactants: [A, B]
-      products: [C]
-      rate: !ev "lambda state: 0.1 * state['A'] * state['B']"
-
-initial_state:
-  A: 10.0
-  B: 10.0
-
-run:
-  steps: 100
-
-verify:
-  - assert: "state['C'] > 5.0"
-    message: "C should accumulate"
-
-scoring:
-  efficiency: !ev "lambda state: state['C'] / 10.0"
+# catalog/jobs/hardcoded_test/_spec_.yaml
+dat:
+  kind: Dat
+  do: alienbio.run
 ```
 
-### Job Fields
+The `alienbio.run` function is the standard runner. It loads `index.yaml`, detects the type (scenario, suite, report), and executes appropriately.
+
+### The Bio Spec (`index.yaml`)
+
+The bio spec contains the scenario or suite using typed element syntax:
+
+```yaml
+# catalog/jobs/hardcoded_test/index.yaml
+scenario.hardcoded_test:
+  chemistry:
+    molecules:
+      A: {name: "Molecule A", bdepth: 0}
+      B: {name: "Molecule B", bdepth: 0}
+    reactions:
+      combine:
+        reactants: [A, B]
+        products: [C]
+        rate: !ev "lambda state: 0.1 * state['A'] * state['B']"
+
+  initial_state:
+    A: 10.0
+    B: 10.0
+
+  run:
+    steps: 100
+
+  verify:
+    - assert: "state['C'] > 5.0"
+      message: "C should accumulate"
+
+  scoring:
+    efficiency: !ev "lambda state: state['C'] / 10.0"
+```
+
+### Scenario Fields
 
 | Field | Description |
 |-------|-------------|
-| `_type` | Must be `job` |
-| `chemistry` | Molecules and reactions (inline or `!include`) |
+| `chemistry` | Molecules and reactions |
 | `initial_state` | Starting concentrations |
 | `run` | Execution parameters (steps, until_quiet) |
-| `verify` | Assertions on final state |
+| `verify` | Assertions on final state (Python expressions) |
 | `scoring` | Scoring functions to evaluate |
-| `include` | Python files to load (for custom functions) |
 
 ### Running Jobs
 
 ```python
-from alienbio import Bio
+from dvc_dat import Dat
 
-# Fetch and run
-job = Bio.fetch("catalog/jobs/hardcoded_test")
-result = Bio.run(job)
+# Load and run the DAT
+dat = Dat.load("catalog/jobs/hardcoded_test")
+success, result = dat.run()
 
 # Check results
-assert result.success
-print(result.final_state)
-print(result.scores)
+print(result["final_state"])
+print(result["scores"])
+print("Passed!" if success else "Failed!")
 ```
 
-From CLI:
-```bash
-bio jobs/hardcoded_test              # Run job (default action)
-bio fetch jobs/hardcoded_test        # Fetch and display without running
-```
+### Result Structure
 
-### Inline Jobs
+The runner returns:
 
-For jobs defined inline within another spec, use typed element syntax:
+- **Scenario** → `{final_state, timeline, scores, verify_results, success}`
+- **Suite** → `{scenario_name: scenario_result, ...}`
+- **Report** → structured output (TBD)
 
-```yaml
-job.quick_test:
-  chemistry: !include base_chemistry.yaml
-  run: {steps: 10}
-```
-
-See [[ABIO DAT]] for DAT folder structure and mounting.
+See [[ABIO DAT]] for more on DAT folder structure and mounting.
 
 ---
 

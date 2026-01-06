@@ -1190,99 +1190,86 @@ constants:
 
 
 class TestJobLoading:
-    """Tests for loading Job DATs."""
+    """Tests for loading Job DATs via Dat.load() and dat.run()."""
 
-    def test_fetch_hardcoded_test_job(self):
-        """Bio.fetch loads and hydrates the hardcoded_test job correctly."""
-        from alienbio.spec_lang import Job
+    def test_dat_load_hardcoded_test(self):
+        """Dat.load loads the hardcoded_test DAT correctly."""
+        import os
+        from dvc_dat import Dat
 
-        # Load the job using the catalog path
-        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+        os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
+        dat = Dat.load("catalog/jobs/hardcoded_test")
 
-        # Check type
-        assert isinstance(job, Job), f"Expected Job, got {type(job).__name__}"
+        # Check DAT loaded
+        assert dat is not None
+        spec = dat.get_spec()
+        assert spec["dat"]["do"] == "alienbio.run"
 
-        # Check chemistry molecules
-        assert job.molecule_names == ["A", "B", "C", "D"]
+    def test_dat_run_hardcoded_test(self):
+        """Dat.run() executes the scenario and returns results."""
+        import os
+        from dvc_dat import Dat
 
-        # Check chemistry reactions
-        assert job.reaction_names == ["combine_AB", "convert_C"]
+        os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
+        dat = Dat.load("catalog/jobs/hardcoded_test")
+        success, result = dat.run()
 
-        # Check run config
-        assert job.steps == 100
+        # Check success
+        assert success, "Job should pass all verifications"
 
-        # Check initial state
-        assert job.initial_state == {"A": 10.0, "B": 10.0, "C": 0.0, "D": 0.0}
+        # Check result structure
+        assert "final_state" in result
+        assert "scores" in result
+        assert "verify_results" in result
 
-        # Check verify section
-        assert len(job.verify) == 3
+    def test_scenario_simulation_results(self):
+        """Scenario simulation produces expected concentration changes."""
+        import os
+        from dvc_dat import Dat
 
-    def test_job_chemistry_structure(self):
-        """Job chemistry has correct molecule and reaction structure."""
-        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+        os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
+        dat = Dat.load("catalog/jobs/hardcoded_test")
+        success, result = dat.run()
 
-        # Check molecule structure
-        molecules = job.chemistry["molecules"]
-        assert molecules["A"]["name"] == "Molecule A"
-        assert molecules["A"]["bdepth"] == 0
-        assert molecules["C"]["bdepth"] == 1
-        assert molecules["D"]["bdepth"] == 2
+        final = result["final_state"]
+        # A and B should be depleted (started at 10 each)
+        assert final["A"] < 2.0, "A should be mostly depleted"
+        assert final["B"] < 2.0, "B should be mostly depleted"
+        # D should have accumulated
+        assert final["D"] > 5.0, "D should have accumulated"
 
-        # Check reaction structure
-        reactions = job.chemistry["reactions"]
-        assert reactions["combine_AB"]["name"] == "A + B -> C"
-        assert reactions["combine_AB"]["reactants"] == ["A", "B"]
-        assert reactions["combine_AB"]["products"] == ["C"]
+    def test_scoring_functions_computed(self):
+        """Scoring functions are computed correctly."""
+        import os
+        from dvc_dat import Dat
 
-    def test_job_rate_functions_callable(self):
-        """Job rate functions from !ev are callable."""
-        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+        os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
+        dat = Dat.load("catalog/jobs/hardcoded_test")
+        success, result = dat.run()
 
-        # Get rate function for combine_AB
-        rate_fn = job.chemistry["reactions"]["combine_AB"]["rate"]
-        assert callable(rate_fn)
+        scores = result["scores"]
+        # With A and B depleted, depletion score should be high
+        assert scores["depletion"] > 0.9, "Depletion score should be high"
+        # With D accumulated, production score should be high
+        assert scores["production"] > 0.9, "Production score should be high"
 
-        # Test rate function with sample state
-        state = {"A": 5.0, "B": 5.0}
-        rate = rate_fn(state)
-        assert rate == pytest.approx(0.1 * 5.0 * 5.0)  # k * A * B
+    def test_bio_expand_index_yaml(self):
+        """Bio.expand works directly on index.yaml file."""
+        data = Bio.expand("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
 
-    def test_job_verify_assertions(self):
-        """Job verify section contains assertions."""
-        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+        # Should have the scenario with _type
+        assert "hardcoded_test" in data
+        scenario = data["hardcoded_test"]
+        assert scenario["_type"] == "scenario"
+        assert "chemistry" in scenario
+        assert "initial_state" in scenario
 
-        verify = job.verify
-        assert verify[0]["assert"] == "state['A'] < 2.0"
-        assert verify[0]["message"] == "A should be mostly depleted"
-        assert verify[2]["assert"] == "state['D'] > 5.0"
+    def test_bio_fetch_index_yaml(self):
+        """Bio.fetch loads and hydrates the index.yaml correctly."""
+        # Fetch the index.yaml directly (not the DAT folder)
+        scenario = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
 
-    def test_job_scoring_functions(self):
-        """Job scoring functions from !ev are callable."""
-        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
-
-        scoring = job.scoring
-        assert "depletion" in scoring
-        assert "production" in scoring
-
-        # Test scoring function
-        depletion_fn = scoring["depletion"]
-        assert callable(depletion_fn)
-
-        # With initial state (A=10, B=10), depletion should be 0
-        initial_depletion = depletion_fn({"A": 10.0, "B": 10.0})
-        assert initial_depletion == pytest.approx(0.0)
-
-        # With depleted state, depletion should be higher
-        depleted_score = depletion_fn({"A": 2.0, "B": 2.0})
-        assert depleted_score == pytest.approx(0.8)
-
-    def test_job_expand_preserves_structure(self):
-        """Bio.expand returns dict with job structure intact."""
-        data = Bio.expand("src/alienbio/catalog/jobs/hardcoded_test")
-
-        # With DAT format, _type is at top level (folder name is the identity)
-        assert data["_type"] == "job"
-        assert "chemistry" in data
-        assert "initial_state" in data
-        assert "run" in data
-        assert "verify" in data
+        # Should return a hydrated scenario object (MockScenario in tests)
+        assert scenario is not None
+        # The scenario type is MockScenario from test fixtures
+        assert hasattr(scenario, "_biotype_name") or isinstance(scenario, MockScenario)
