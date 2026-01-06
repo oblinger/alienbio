@@ -141,7 +141,7 @@ def mass_action(ctx, k=0.1):
 
 | Decorator | Purpose | Registration | Called via |
 |-----------|---------|--------------|------------|
-| `@biotype` | Class hydration | type registry | `Bio.load()` |
+| `@biotype` | Class hydration | type registry | `Bio.fetch()` |
 | `@fn` | Base function | — | direct call |
 | `@scoring` | Evaluation metrics | scoring registry | `sim.results()` |
 | `@action` | Agent actions | action registry | `sim.action()` |

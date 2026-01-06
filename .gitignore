@@ -54,6 +54,10 @@ Thumbs.db
 # Data (managed by dvc_dat, not source controlled)
 data/
 
+# DAT execution results (generated)
+_result_.yaml
+timeline.yaml
+
 # Development symlinks (local only)
 src/dvc_dat
 

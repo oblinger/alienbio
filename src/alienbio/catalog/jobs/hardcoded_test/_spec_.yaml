@@ -1,0 +1,5 @@
+# Hardcoded Test Job
+# Runs the scenario in index.yaml and prints results
+dat:
+  kind: Dat
+  do: alienbio.run

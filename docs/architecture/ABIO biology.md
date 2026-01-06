@@ -2,6 +2,10 @@
 **Parent**: [[ABIO Sys]]
 Molecules, reactions, pathways, containers, and their generators.
 
+## Generators
+Base protocols for synthetic biology factories.
+- **[[Generator]]** - Base protocol for factories that produce synthetic biology components.
+
 ## Atoms and Molecules
 Chemical elements and compounds in the alien biology.
 - **[[Atom]]** - Chemical element with symbol, name, and atomic weight. Immutable value objects shared across molecules.

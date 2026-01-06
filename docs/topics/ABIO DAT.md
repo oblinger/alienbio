@@ -9,6 +9,8 @@ ABIO uses [dvc_dat](https://github.com/oblinger/dvc-dat) for data persistence. S
 **Key concepts:**
 - **Dotted names** (do-system): Reference source code templates via `do()` and `create()`
 - **Slash paths** (DAT storage): Reference data folders via `load()` and `save()`
+- **Bio class**: Higher-level interface for biology objects via `Bio.fetch()` and `Bio.store()` — see [[Bio]]
+- **Spec Language**: YAML syntax extensions (`!ev`, `!ref`, `!include`, typed keys, jobs) — see [[Spec Language]]
 
 ## Configuration
 
@@ -62,5 +64,8 @@ src/dvc_dat -> ../../dvc-dat/dvc_dat
 
 - [dvc_dat concepts](https://github.com/oblinger/dvc-dat/blob/main/docs/concepts.md) - Core mental model
 - [dvc_dat spec format](https://github.com/oblinger/dvc-dat/blob/main/docs/spec-format.md) - `_spec_.yaml` reference
+- [[Bio]] - Higher-level `Bio.fetch()`, `Bio.store()`, `Bio.run()` for biology objects
+- [[Spec Language]] - YAML syntax extensions (`!ev`, `!ref`, `!include`, typed keys, jobs)
+- [[Decorators]] - `@biotype` registration for hydration
 - [[ABIO Data]] - Organization of the `data/` folder
 - [[alienbio]] - Top-level operators API

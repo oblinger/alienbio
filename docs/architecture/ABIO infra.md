@@ -11,7 +11,9 @@ Core data classes and identity patterns that all biology objects inherit from.
 ## Data Management
 - **[[ABIO Data]]** - Organization of the `data/` folder and intent-based categories.
 - **[[ABIO DAT]]** - dvc_dat integration, name resolution, and `_spec_.yaml` format.
-- **[[prj/ABIO/docs/architecture/Spec|Spec]]** -  
+- **[[Bio]]** - Higher-level fetch/store/run for biology objects.
+- **[[Spec Language]]** - YAML syntax extensions (`!ev`, `!ref`, `!include`, typed keys, jobs).
+- **[[Decorators]]** - `@biotype` for hydration, `@scoring`/`@action`/`@measurement`/`@rate` for functions.  
 
 ## Installed Packages
 - **[pydantic](https://docs.pydantic.dev/)** - Data validation and settings management.

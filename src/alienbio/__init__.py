@@ -20,6 +20,9 @@ from .infra.context import (
 from .infra.entity import Entity
 from .infra.io import IO
 
+# Standard runner for DATs
+from .run import run
+
 # Spec Language module exports
 from .spec_lang import (
     Bio,
@@ -72,6 +75,7 @@ __all__ = [
     "Dat",
     "Entity",
     "IO",
+    "run",
     "_ctx",
     "ctx",
     "set_context",
