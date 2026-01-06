@@ -2,7 +2,7 @@
 **Subsystem**: [[ABIO execution]] > Experimentation
 Batch of experiments across variations.
 
-## Description
+## Overview
 Test represents a batch of experiments varying across worlds, agents, or task parameters, with aggregated statistics.
 
 | Properties | Type | Description |

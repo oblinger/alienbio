@@ -10,10 +10,17 @@ YAML syntax extensions for writing spec files.
 Use `type.name:` syntax to declare typed objects:
 
 ```yaml
-suite.mutualism:
-  defaults:
-    molecules: ...
-    reactions: ...
+world.ecosystem:
+  molecules: ...
+  reactions: ...
+  containers: ...
+
+scenario.base:
+  extends: ecosystem
+  interface: ...
+
+scope.experiments:
+  extends: base
   scenario.baseline:
     briefing: "Standard conditions"
   scenario.stressed:
@@ -22,7 +29,7 @@ suite.mutualism:
 
 **Parsing rules:**
 - First segment before `.` is looked up in type registry
-- If registered type: `suite.foo.bar` → type=`suite`, name=`foo.bar`
+- If registered type: `scope.foo.bar` → type=`scope`, name=`foo.bar`
 - If not a type: treated as regular dotted key
 
 **Internal representation:**
@@ -36,8 +43,9 @@ suite.mutualism:
 
 | Type | Purpose |
 |------|---------|
+| `world` | Physical substrate (molecules, reactions, containers) |
 | `scenario` | Runnable unit with all simulation and evaluation fields |
-| `suite` | Container for scenarios or nested suites |
+| `scope` | Container for grouping scenarios with shared inheritance |
 
 Custom types registered via `@biotype` decorator. See [[Decorators]].
 
@@ -94,55 +102,74 @@ Values are substituted during expansion, before hydration.
 
 ---
 
-## Defaults and Inheritance
+## Scope and Inheritance
 
-Suites define `defaults:` that cascade to children:
+The `extends:` keyword declares inheritance. Child scopes and scenarios inherit from their parent:
 
 ```yaml
-suite.experiments:
-  defaults:
-    world: !ref base_world
-    constitution: !include standard.md
+# Top-level constants
+base_world: !ref ecosystem
+standard_constitution: !include standard.md
 
-  suite.high_knowledge:
-    defaults:
-      briefing: !ev full_briefing()        # adds to parent defaults
+# World definition
+world.ecosystem:
+  molecules: ...
+  containers: ...
 
-    scenario.baseline: {}                   # inherits all defaults
-    scenario.time_pressure:
-      briefing: "Urgent situation"         # adds to inherited
+# Base scenario extends world
+scenario.base:
+  extends: ecosystem
+  interface: ...
+  constitution: !ref standard_constitution
 
-  suite.low_knowledge:
-    defaults:
-      briefing: !ev minimal_briefing()     # different briefing branch
+# Scope groups scenarios with shared inheritance
+scope.experiments:
+  extends: base
 
-    scenario.baseline: {}
+  scenario.baseline:              # inherits from experiments → base → ecosystem
+    briefing: "Full knowledge"
+
+  scenario.hidden:                # also inherits the full chain
+    briefing: "Partial knowledge"
 ```
 
-**Merge rules:**
-1. Child `defaults:` deep-merges with parent `defaults:`
-2. Scenario content deep-merges with accumulated defaults
-3. Scalars replace (no append)
+**Inheritance rules:**
+1. `extends:` wires up the parent scope chain
+2. Variable lookup climbs the chain until found
+3. Child values override parent values
 4. Explicit `key: ~` (YAML null) removes inherited value
+
+**Scope chain:** `baseline` → `experiments` → `base` → `ecosystem` → module root
+
+See [[architecture/Scope]] for details on lexical scoping.
 
 ---
 
 ## File Structure
 
-A typical spec file:
+A spec file is a **module** - a collection of named definitions with lexical scoping:
 
 ```yaml
+# Constants at module level
 high_permeability: 0.8
 
-suite.mutualism:
-  defaults:
-    molecules: ...
-    reactions: ...
-    containers: ...
-    constitution: |
-      Protect both species...
-    scoring:
-      health: !ev population_health
+# World definition
+world.ecosystem:
+  molecules: ...
+  reactions: ...
+  containers: ...
+
+# Base scenario extends world
+scenario.base:
+  extends: ecosystem
+  constitution: |
+    Protect both species...
+  scoring:
+    health: !ev population_health
+
+# Scope groups related scenarios
+scope.experiments:
+  extends: base
 
   scenario.baseline:
     briefing: |
@@ -152,6 +179,8 @@ suite.mutualism:
     briefing: |
       Partial knowledge...
 ```
+
+See [[Scope]] for the module pattern and inheritance chains.
 
 ---
 
@@ -173,7 +202,7 @@ A `scenario.name:` declaration creates a Scenario - the complete runnable unit:
 | `verify` | Assertions on final state |
 | `sim` | Simulation config (see Sim section) |
 
-Scenarios can extend other scenarios via `extends:` or through suite `defaults:`.
+Scenarios inherit from their parent scope. Use `extends:` to specify explicit inheritance.
 
 **Runtime flow:** Scenario → `Bio.sim(scenario)` → Simulator → State
 
@@ -355,36 +384,41 @@ success, result = dat.run()
 
 ---
 
-## Jobs
+## DAT Execution
 
-A Job is simply a DAT with a `do:` function that executes bio simulations. See [[ABIO DAT]] for the DAT format.
+A DAT folder contains a `_spec_.yaml` that specifies a `bio` command to run. The `command:` field is exactly what you would type at the command line.
 
 ```yaml
 # _spec_.yaml
 dat:
   kind: Dat
-  do: alienbio.run
+  do: bio
+  command: "report experiments"
 ```
 
+This is equivalent to `bio report experiments` at the command line. The target `experiments` refers to a `scope.experiments:` in the DAT's `index.yaml`.
+
+**Running via Python:**
 ```python
 from dvc_dat import Dat
 
-dat = Dat.load("catalog/jobs/hardcoded_test")
-success, result = dat.run()
+dat = Dat.load("catalog/scenarios/mutualism")
+success, result = dat.run()  # executes: bio report experiments
 ```
 
----
+**Running via command line:**
+```bash
+bio report catalog/scenarios/mutualism experiments
+```
 
-## Standard Runner: `alienbio.run`
-
-The `alienbio.run` function is a standard runner for bio DATs. By default it looks for `index.yaml` in the DAT folder and runs what it finds there (scenario, suite, or report).
-
-Returns `(success, result)` as expected by DAT. See [[Scenario]] for scenario fields and structure.
+The `bio` CLI is the single interface for execution. See [[Bio CLI]] for available commands.
 
 ---
 
 ## See Also
 
+- [[Bio CLI]] — Command-line interface
+- [[architecture/Scope]] — Scope class for lexical scoping
 - [[Bio]] — Loading and hydration (`Bio.fetch()`, `Bio.store()`)
 - [[Scenario]] — The main runnable unit
 - [[WorldSimulator]] — Execution engine

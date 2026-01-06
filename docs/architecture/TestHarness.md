@@ -2,7 +2,7 @@
 **Subsystem**: [[ABIO execution]] > Experimentation
 Execution runner for experiments with logging and result aggregation.
 
-## Description
+## Overview
 TestHarness manages experiment runs with proper timeout handling, logging, and result aggregation. It is attached to [[Context]] during test execution.
 
 | Properties | Type | Description |

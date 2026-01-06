@@ -2,7 +2,7 @@
 **Subsystem**: [[ABIO execution]] > Experimentation
 Single world setup with task, agent, and scoring.
 
-## Description
+## Overview
 Experiment represents a single experimental run: one world, one task, one agent, producing one result.
 
 | Properties | Type | Description |

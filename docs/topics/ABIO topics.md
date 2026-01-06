@@ -7,7 +7,7 @@ Cross-cutting topics that span multiple subsystems.
 - **[[alienbio]]** - Top-level module: do, create, load, save, parse, ctx, o
 
 ## B
-- **[[Bio]]** - Higher-level biology interface: fetch, store, expand, sim, run
+- **[[prj/ABIO/docs/architecture/Bio|Bio]]** - Higher-level biology interface: fetch, store, expand, sim, run
 
 ## D
 - **[[Decorators]]** - Python decorators: @biotype, @fn, @scoring, @action, @measurement, @rate
