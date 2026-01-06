@@ -138,37 +138,29 @@ suite.experiments:
 A typical spec file:
 
 ```yaml
-spec.mutualism:
-  include:
-    - functions.py                         # load Python decorators
-    - chemistry.yaml                       # load additional YAML
+constants:
+  high_permeability: 0.8
 
-  constants:
-    high_permeability: 0.8
+world.mutualism_ecosystem:
+  molecules: ...
+  reactions: ...
+  containers: ...
 
-  world.mutualism_ecosystem:
-    molecules: ...
-    reactions: ...
-    containers: ...
-    feedstock: {ME1: 10.0}
-    actions: [add_feedstock, adjust_temp]
-    measurements: [sample_substrate, population_count]
+suite.mutualism:
+  defaults:
+    world: !ref mutualism_ecosystem
+    constitution: |
+      Protect both species...
+    scoring:
+      health: !ev population_health
 
-  suite.mutualism:
-    defaults:
-      world: !ref mutualism_ecosystem
-      constitution: |
-        Protect both species...
-      scoring:
-        health: !ev population_health
+  scenario.baseline:
+    briefing: |
+      Full ecosystem knowledge...
 
-    scenario.baseline:
-      briefing: |
-        Full ecosystem knowledge...
-
-    scenario.hidden:
-      briefing: |
-        Partial knowledge...
+  scenario.hidden:
+    briefing: |
+      Partial knowledge...
 ```
 
 ---
