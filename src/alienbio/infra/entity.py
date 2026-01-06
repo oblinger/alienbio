@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Dict, Iterator, Optional, Type, TYPE_CHECKING
+from typing import Any, ClassVar, Dict, Iterator, Optional, Type, Self, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
@@ -146,6 +146,49 @@ class Entity:
         # Set parent (which also registers us as a child and updates _top)
         if parent is not None:
             self.set_parent(parent)
+
+    @classmethod
+    def hydrate(
+        cls,
+        data: dict[str, Any],
+        *,
+        dat: Optional[Dat] = None,
+        parent: Optional[Entity] = None,
+        local_name: Optional[str] = None,
+    ) -> Self:
+        """Create an entity instance from a dict.
+
+        This is the standard way to convert YAML/JSON data to typed objects.
+        Subclasses should override to handle their specific fields.
+
+        Args:
+            data: Dict containing entity data
+            dat: DAT anchor (if this is a root entity)
+            parent: Parent entity (if this is a child)
+            local_name: Override the local name (defaults to data.get("name"))
+
+        Returns:
+            New instance of the entity class
+
+        Example:
+            mol = MoleculeImpl.hydrate({"name": "A", "bdepth": 0})
+            chem = ChemistryImpl.hydrate({"molecules": {...}, "reactions": {...}})
+        """
+        # If neither dat nor parent provided, create a mock dat
+        if dat is None and parent is None:
+            name = local_name or data.get("name", cls.__name__.lower())
+            dat = _MockDat(f"{cls.__name__.lower()}/{name}")
+
+        # Get name from data or use provided local_name
+        name = local_name or data.get("name", cls.__name__.lower())
+
+        # Base Entity just takes name, parent/dat, description
+        return cls(
+            name,
+            parent=parent,
+            dat=dat,
+            description=data.get("description", ""),
+        )
 
     @property
     def local_name(self) -> str:
@@ -419,6 +462,23 @@ class Entity:
                 return self.full_name
             except ValueError:
                 return f"<Entity:{self._local_name}>"
+
+
+class _MockDat:
+    """Lightweight mock DAT for hydrating entities without a real DAT.
+
+    Used when creating entities from YAML specs that don't have
+    backing DAT files. Provides the minimal interface needed by Entity.
+    """
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def get_path_name(self) -> str:
+        return self.path
+
+    def get_path(self) -> str:
+        return f"/mock/{self.path}"
 
 
 # Register the base Entity class (since __init_subclass__ only fires for subclasses)

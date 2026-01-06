@@ -18,20 +18,6 @@ if TYPE_CHECKING:
     from dvc_dat import Dat
 
 
-class _MockDat:
-    """Lightweight mock DAT for creating entities from YAML specs.
-
-    Used when building Chemistry/State from dict specs that don't have
-    backing DAT files. Provides the minimal interface needed by Entity.
-    """
-
-    def __init__(self, path: str):
-        self.path = path
-
-    def get_path_name(self) -> str:
-        return self.path
-
-
 def run(dat: "Dat") -> tuple[bool, dict[str, Any]]:
     """Execute a Bio DAT.
 
@@ -109,95 +95,6 @@ class SimulationTrace:
         self.steps = steps
 
 
-def _build_chemistry_from_dict(scenario: dict[str, Any]) -> tuple[Any, dict[str, float]]:
-    """Build Chemistry and initial state from scenario dict.
-
-    Args:
-        scenario: Dict with chemistry.molecules, chemistry.reactions, initial_state
-
-    Returns:
-        Tuple of (ChemistryImpl, initial_state_dict)
-    """
-    from .bio import MoleculeImpl, ReactionImpl, ChemistryImpl
-
-    # Extract chemistry section
-    if "chemistry" in scenario:
-        chemistry_data = scenario["chemistry"]
-        molecules_data = chemistry_data.get("molecules", {})
-        reactions_data = chemistry_data.get("reactions", {})
-    else:
-        molecules_data = scenario.get("molecules", {})
-        reactions_data = scenario.get("reactions", {})
-
-    initial_state = scenario.get("initial_state", {})
-
-    # Build MoleculeImpl objects
-    # Note: local_name (e.g., "A") is used as both entity name and state key
-    # The human-readable "name" from YAML is ignored for now (would need separate display_name)
-    molecules: dict[str, MoleculeImpl] = {}
-    for mol_key, mol_data in molecules_data.items():
-        if isinstance(mol_data, dict):
-            molecules[mol_key] = MoleculeImpl(
-                mol_key,  # local_name - used as state key
-                bdepth=mol_data.get("bdepth", 0),
-                dat=_MockDat(f"mol/{mol_key}"),
-            )
-        else:
-            # Just a name, create simple molecule
-            molecules[mol_key] = MoleculeImpl(mol_key, dat=_MockDat(f"mol/{mol_key}"))
-
-    # Build ReactionImpl objects
-    reactions: dict[str, ReactionImpl] = {}
-    for rxn_name, rxn_data in reactions_data.items():
-        if isinstance(rxn_data, dict):
-            # Build reactants dict: {MoleculeImpl: coefficient}
-            reactants: dict[MoleculeImpl, int] = {}
-            for r in rxn_data.get("reactants", []):
-                if isinstance(r, str):
-                    # Just a name, coefficient 1
-                    if r in molecules:
-                        reactants[molecules[r]] = 1
-                elif isinstance(r, dict):
-                    # {name: coef} format
-                    for mol_name, coef in r.items():
-                        if mol_name in molecules:
-                            reactants[molecules[mol_name]] = coef
-
-            # Build products dict: {MoleculeImpl: coefficient}
-            products: dict[MoleculeImpl, int] = {}
-            for p in rxn_data.get("products", []):
-                if isinstance(p, str):
-                    # Just a name, coefficient 1
-                    if p in molecules:
-                        products[molecules[p]] = 1
-                elif isinstance(p, dict):
-                    # {name: coef} format
-                    for mol_name, coef in p.items():
-                        if mol_name in molecules:
-                            products[molecules[mol_name]] = coef
-
-            # Get rate (function or constant)
-            rate = rxn_data.get("rate", 0.0)
-
-            reactions[rxn_name] = ReactionImpl(
-                rxn_name,  # local_name (required positional) - use key, not human-readable name
-                reactants=reactants,
-                products=products,
-                rate=rate,
-                dat=_MockDat(f"rxn/{rxn_name}"),
-            )
-
-    # Build Chemistry
-    chemistry = ChemistryImpl(
-        "scenario_chemistry",  # name (required positional)
-        molecules=molecules,
-        reactions=reactions,
-        dat=_MockDat("chem/scenario"),
-    )
-
-    return chemistry, dict(initial_state)
-
-
 def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     """Run a single scenario and return results.
 
@@ -209,7 +106,7 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
         {final_state, timeline, scores, verify_results, success}
     """
     from .spec_lang import bio
-    from .bio import StateImpl
+    from .bio import ChemistryImpl, StateImpl
 
     # Extract config from scenario
     if isinstance(scenario, dict):
@@ -227,8 +124,10 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     dt = sim_config.get("dt", 1.0) if isinstance(sim_config, dict) else 1.0
     simulator_name = sim_config.get("simulator", "reference") if isinstance(sim_config, dict) else "reference"
 
-    # Build typed Chemistry and State from dict
-    chemistry, initial_state_dict = _build_chemistry_from_dict(scenario)
+    # Build typed Chemistry and State using class-based hydration
+    chemistry_data = scenario.get("chemistry", scenario)
+    chemistry = ChemistryImpl.hydrate(chemistry_data, local_name="scenario_chemistry")
+    initial_state_dict = scenario.get("initial_state", {})
     state = StateImpl(chemistry, initial=initial_state_dict)
 
     # Create simulator via Bio singleton registry
