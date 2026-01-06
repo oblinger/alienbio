@@ -1,21 +1,18 @@
 """Bio CLI: Command-line interface for Bio operations.
 
 Usage:
-    bio <command> [args...]     Run a command
-    bio <job_path>              Shortcut: run a job (same as 'bio run <path>')
-    bio --help                  Show help
-    bio --version               Show version
-
-Commands:
-    run <path>      Run a job (scenario, suite, or report)
-    fetch <path>    Fetch and display a spec (hydrated)
-    expand <path>   Expand a spec without hydrating
+    bio <path>              Run scenario and create report (default)
+    bio report <path>       Same as above - run and create Excel report
+    bio run <path>          Debug: run entity, print result dict
+    bio expand <path>       Debug: show processed spec
+    bio --help              Show help
+    bio --version           Show version
 
 Examples:
-    bio run catalog/jobs/hardcoded_test
-    bio catalog/jobs/hardcoded_test          # shortcut for 'bio run'
-    bio fetch catalog/scenarios/mutualism
-    bio expand catalog/scenarios/mutualism
+    bio catalog/jobs/hardcoded_test       # Create and open Excel report
+    bio report catalog/jobs/hardcoded_test
+    bio run catalog/jobs/hardcoded_test   # Debug: print result dict
+    bio expand catalog/jobs/hardcoded_test/index.yaml
 """
 
 from __future__ import annotations
@@ -38,24 +35,23 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="bio",
-        description="Bio CLI: Run scenarios, fetch specs, and more",
+        description="Bio CLI: Run scenarios and create reports",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
-  run <path>      Run a job (scenario, suite, or report)
-  fetch <path>    Fetch and display a spec (hydrated)
-  expand <path>   Expand a spec without hydrating
+  report <path>   Run scenario and create Excel report (default)
+  run <path>      Debug: run entity, print result dict
+  expand <path>   Debug: show processed spec without hydrating
 
 Examples:
-  bio run catalog/jobs/hardcoded_test
-  bio catalog/jobs/hardcoded_test          # shortcut for 'bio run'
-  bio fetch catalog/scenarios/mutualism
+  bio catalog/jobs/hardcoded_test       # Create and open Excel report
+  bio run catalog/jobs/hardcoded_test   # Debug: print result dict
 """,
     )
     parser.add_argument(
         "command",
         nargs="?",
-        help="Command to run (run, fetch, expand) or job path",
+        help="Command (report, run, expand) or path to run as report",
     )
     parser.add_argument(
         "args",
@@ -83,9 +79,8 @@ Examples:
     if args.command in COMMANDS:
         return COMMANDS[args.command](args.args, verbose=args.verbose)
 
-    # Otherwise, treat as job path (shortcut for 'bio run <path>')
-    # Pass command as first arg to run
-    return COMMANDS["run"]([args.command] + args.args, verbose=args.verbose)
+    # Otherwise, treat as path and run report (default behavior)
+    return COMMANDS["report"]([args.command] + args.args, verbose=args.verbose)
 
 
 if __name__ == "__main__":

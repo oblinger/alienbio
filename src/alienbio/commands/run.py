@@ -1,16 +1,25 @@
-"""Run command: Execute a bio job (scenario, suite, or report)."""
+"""Run command: Execute an entity's run() method and print results.
+
+This is a debugging tool - it runs the entity and prints the result dict
+(like a REPL). For production use, use `bio report` instead.
+"""
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
+import yaml
+
 
 def run_command(args: list[str], verbose: bool = False) -> int:
-    """Run a bio job from the given path.
+    """Run an entity and print the result dict.
+
+    This is for debugging - runs the entity's run() method and
+    prints whatever dict it returns.
 
     Args:
-        args: Command arguments [job_path]
+        args: Command arguments [path]
         verbose: Enable verbose output
 
     Returns:
@@ -19,8 +28,8 @@ def run_command(args: list[str], verbose: bool = False) -> int:
     from dvc_dat import Dat
 
     if not args:
-        print("Error: run command requires a job path", file=sys.stderr)
-        print("Usage: bio run <job_path>", file=sys.stderr)
+        print("Error: run command requires a path", file=sys.stderr)
+        print("Usage: bio run <path>", file=sys.stderr)
         return 1
 
     job_path = args[0]
@@ -32,9 +41,7 @@ def run_command(args: list[str], verbose: bool = False) -> int:
         if catalog_path.exists():
             path = catalog_path
         else:
-            print(f"Error: Job path not found: {job_path}", file=sys.stderr)
-            print(f"  Tried: {job_path}", file=sys.stderr)
-            print(f"  Tried: {catalog_path}", file=sys.stderr)
+            print(f"Error: Path not found: {job_path}", file=sys.stderr)
             return 1
 
     # Check for index.yaml
@@ -44,22 +51,20 @@ def run_command(args: list[str], verbose: bool = False) -> int:
         return 1
 
     if verbose:
-        print(f"Running job: {path}")
+        print(f"Running: {path}")
 
     # Load and run the DAT
     try:
         dat = Dat.load(str(path))
-        success, metadata = dat.run()
+        success, result = dat.run()
 
-        if success:
-            print("Job completed successfully")
-            return 0
-        else:
-            print("Job failed")
-            if "error" in metadata:
-                print(f"Error: {metadata['error']}", file=sys.stderr)
-            return 1
+        # Print the result dict (debug output)
+        print("--- Result ---")
+        print(yaml.dump(result, default_flow_style=False))
+        print(f"--- Success: {success} ---")
+
+        return 0 if success else 1
 
     except Exception as e:
-        print(f"Error running job: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         return 1
