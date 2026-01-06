@@ -210,6 +210,60 @@ briefing: |
 
 ---
 
+## Scoring
+
+Scoring functions evaluate scenario outcomes. Each function receives the full simulation trace and returns a numeric value.
+
+```yaml
+scenario.example:
+  molecules: ...
+  reactions: ...
+  initial_state: {A: 10.0, B: 10.0}
+
+  scoring:
+    efficiency: !ev "lambda trace: trace.final['C'] / 10.0"
+    survival: !ev "lambda trace: min(trace.final['A'], trace.final['B'])"
+    stability: !ev compute_stability   # reference a registered function
+```
+
+**Scoring function signature:**
+```python
+def scoring_fn(trace: SimulationTrace) -> float:
+    # trace.final - final state dict
+    # trace.timeline - list of states at each step
+    # trace.steps - number of steps run
+    return value
+```
+
+**Registering scoring functions:**
+```python
+from alienbio import scoring
+
+@scoring
+def compute_stability(trace):
+    """Measure how stable the system remained."""
+    states = trace.timeline
+    variance = sum((s['A'] - states[0]['A'])**2 for s in states) / len(states)
+    return 1.0 / (1.0 + variance)
+```
+
+**Result structure:**
+
+When a scenario runs, scoring results are included in the return dict:
+
+```python
+success, result = dat.run()
+# result = {
+#     "final_state": {"A": 1.2, "B": 0.8, "C": 8.5},
+#     "timeline": [...],
+#     "scores": {"efficiency": 0.85, "survival": 0.8, "stability": 0.92},
+#     "verify_results": [...],
+#     "success": True
+# }
+```
+
+---
+
 ## Jobs
 
 A Job is simply a DAT with a `do:` function that executes bio simulations. See [[ABIO DAT]] for the DAT format.
