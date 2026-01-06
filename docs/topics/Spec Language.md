@@ -215,54 +215,9 @@ success, result = dat.run()
 
 ## Standard Runner: `alienbio.run`
 
-The `alienbio.run` function is a standard runner for bio DATs. By default it looks for `index.yaml` in the DAT folder and executes the scenario or suite found there.
+The `alienbio.run` function is a standard runner for bio DATs. By default it looks for `index.yaml` in the DAT folder and runs what it finds there (scenario, suite, or report).
 
-### Convention: `index.yaml`
-
-```yaml
-# index.yaml - bio data for alienbio.run
-scenario.hardcoded_test:
-  chemistry:
-    molecules:
-      A: {name: "Molecule A", bdepth: 0}
-      B: {name: "Molecule B", bdepth: 0}
-    reactions:
-      combine:
-        reactants: [A, B]
-        products: [C]
-        rate: !ev "lambda state: 0.1 * state['A'] * state['B']"
-
-  initial_state:
-    A: 10.0
-    B: 10.0
-
-  run:
-    steps: 100
-
-  verify:
-    - assert: "state['C'] > 5.0"
-      message: "C should accumulate"
-
-  scoring:
-    efficiency: !ev "lambda state: state['C'] / 10.0"
-```
-
-### Scenario Fields
-
-| Field | Description |
-|-------|-------------|
-| `chemistry` | Molecules and reactions |
-| `initial_state` | Starting concentrations |
-| `run` | Execution parameters (steps, until_quiet) |
-| `verify` | Assertions on final state (Python expressions) |
-| `scoring` | Scoring functions to evaluate |
-
-### Result Structure
-
-The runner returns `(success, result)` where result contains:
-
-- **Scenario** → `{final_state, timeline, scores, verify_results, success}`
-- **Suite** → `{scenario_name: scenario_result, ...}`
+Returns `(success, result)` as expected by DAT. See [[Scenario]] for scenario fields and structure.
 
 ---
 
