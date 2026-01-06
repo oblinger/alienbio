@@ -14,6 +14,7 @@ from typing import Any
 
 from alienbio.spec_lang import (
     Bio,
+    Job,
     biotype,
     fn,
     scoring,
@@ -94,6 +95,7 @@ def _register_scaffold_biotypes():
     biotype_registry["scenario"] = MockScenario
     biotype_registry["suite"] = MockSuite
     biotype_registry["chemistry"] = MockChemistry  # alias
+    biotype_registry["job"] = Job  # Built-in Job type for M1.6
 
 
 @pytest.fixture(autouse=True)
@@ -1180,3 +1182,109 @@ constants:
         tag = RefTag("my_const_123")
         constants = {"my_const_123": "special"}
         assert tag.resolve(constants) == "special"
+
+
+# =============================================================================
+# Test Suite: Job DAT Loading (M1.6)
+# =============================================================================
+
+
+class TestJobLoading:
+    """Tests for loading Job DATs."""
+
+    def test_fetch_hardcoded_test_job(self):
+        """Bio.fetch loads and hydrates the hardcoded_test job correctly."""
+        from alienbio.spec_lang import Job
+
+        # Load the job using the catalog path
+        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+
+        # Check type
+        assert isinstance(job, Job), f"Expected Job, got {type(job).__name__}"
+
+        # Check chemistry molecules
+        assert job.molecule_names == ["A", "B", "C", "D"]
+
+        # Check chemistry reactions
+        assert job.reaction_names == ["combine_AB", "convert_C"]
+
+        # Check run config
+        assert job.steps == 100
+
+        # Check initial state
+        assert job.initial_state == {"A": 10.0, "B": 10.0, "C": 0.0, "D": 0.0}
+
+        # Check verify section
+        assert len(job.verify) == 3
+
+    def test_job_chemistry_structure(self):
+        """Job chemistry has correct molecule and reaction structure."""
+        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+
+        # Check molecule structure
+        molecules = job.chemistry["molecules"]
+        assert molecules["A"]["name"] == "Molecule A"
+        assert molecules["A"]["bdepth"] == 0
+        assert molecules["C"]["bdepth"] == 1
+        assert molecules["D"]["bdepth"] == 2
+
+        # Check reaction structure
+        reactions = job.chemistry["reactions"]
+        assert reactions["combine_AB"]["name"] == "A + B -> C"
+        assert reactions["combine_AB"]["reactants"] == ["A", "B"]
+        assert reactions["combine_AB"]["products"] == ["C"]
+
+    def test_job_rate_functions_callable(self):
+        """Job rate functions from !ev are callable."""
+        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+
+        # Get rate function for combine_AB
+        rate_fn = job.chemistry["reactions"]["combine_AB"]["rate"]
+        assert callable(rate_fn)
+
+        # Test rate function with sample state
+        state = {"A": 5.0, "B": 5.0}
+        rate = rate_fn(state)
+        assert rate == pytest.approx(0.1 * 5.0 * 5.0)  # k * A * B
+
+    def test_job_verify_assertions(self):
+        """Job verify section contains assertions."""
+        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+
+        verify = job.verify
+        assert verify[0]["assert"] == "state['A'] < 2.0"
+        assert verify[0]["message"] == "A should be mostly depleted"
+        assert verify[2]["assert"] == "state['D'] > 5.0"
+
+    def test_job_scoring_functions(self):
+        """Job scoring functions from !ev are callable."""
+        job = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test")
+
+        scoring = job.scoring
+        assert "depletion" in scoring
+        assert "production" in scoring
+
+        # Test scoring function
+        depletion_fn = scoring["depletion"]
+        assert callable(depletion_fn)
+
+        # With initial state (A=10, B=10), depletion should be 0
+        initial_depletion = depletion_fn({"A": 10.0, "B": 10.0})
+        assert initial_depletion == pytest.approx(0.0)
+
+        # With depleted state, depletion should be higher
+        depleted_score = depletion_fn({"A": 2.0, "B": 2.0})
+        assert depleted_score == pytest.approx(0.8)
+
+    def test_job_expand_preserves_structure(self):
+        """Bio.expand returns dict with job structure intact."""
+        data = Bio.expand("src/alienbio/catalog/jobs/hardcoded_test")
+
+        assert "hardcoded_test" in data
+        job_data = data["hardcoded_test"]
+
+        assert job_data["_type"] == "job"
+        assert "chemistry" in job_data
+        assert "initial_state" in job_data
+        assert "run" in job_data
+        assert "verify" in job_data
