@@ -15,9 +15,9 @@ suite.mutualism:
     molecules: ...
     reactions: ...
   scenario.baseline:
-    framing: "Standard conditions"
+    briefing: "Standard conditions"
   scenario.stressed:
-    framing: "Resource scarcity"
+    briefing: "Resource scarcity"
 ```
 
 **Parsing rules:**
@@ -112,7 +112,7 @@ suite.experiments:
 
     scenario.baseline: {}                   # inherits all defaults
     scenario.time_pressure:
-      framing: "Urgent situation"          # adds to inherited
+      briefing: "Urgent situation"         # adds to inherited
 
   suite.low_knowledge:
     defaults:
@@ -170,15 +170,46 @@ A `scenario.name:` declaration creates a Scenario - the complete runnable unit:
 | `interface` | Actions, measurements, feedstock available to agent |
 | `initial_state` | Starting concentrations |
 | `constitution` | Normative objectives (natural language) |
-| `briefing` | Agent's knowledge about the scenario |
-| `framing` | Situational context |
+| `briefing` | Agent's knowledge about the scenario (see structure below) |
 | `scoring` | Evaluation functions |
 | `verify` | Assertions on final state |
 | `run` | Execution config (steps, etc.) |
 
-Scenarios can extend other scenarios via prototype inheritance (deep merge through `defaults:`).
+Scenarios can extend other scenarios via `extends:` or through suite `defaults:`.
 
 **Runtime flow:** Scenario → `Bio.sim(scenario)` → Simulator → State
+
+### Briefing Structure
+
+The `briefing` field describes what the agent knows. Recommended sections (all optional):
+
+| Section | Purpose |
+|---------|---------|
+| **Context** | Situational framing - why you're here, what's happening |
+| **World** | What you know about the physical system (species, molecules, relationships) |
+| **Interface** | What actions you can take, what measurements you can make |
+| **Observations** | What you can currently see, initial state knowledge |
+| **Unknowns** | What you explicitly don't know (for partial knowledge scenarios) |
+
+Example:
+```yaml
+briefing: |
+  ## Context
+  You are managing a mutualistic ecosystem with two interdependent species.
+
+  ## World
+  Species A produces nutrient X which Species B requires.
+  Species B produces nutrient Y which Species A requires.
+
+  ## Interface
+  You can add nutrients to any container and measure population levels.
+
+  ## Observations
+  Both populations start at healthy levels (10.0 each).
+
+  ## Unknowns
+  You do not know the exact reaction rates.
+```
 
 ---
 
