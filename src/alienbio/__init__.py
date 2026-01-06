@@ -25,6 +25,7 @@ from .run import run
 
 # Spec Language module exports
 from .spec_lang import (
+    bio,
     Bio,
     biotype,
     fn,
@@ -59,7 +60,7 @@ from .bio import (
     ReactionImpl,
     ChemistryImpl,
     StateImpl,
-    SimpleSimulatorImpl,
+    ReferenceSimulatorImpl,
     # Abstract base class for subclassing
     SimulatorBase,
     # Atom utilities
@@ -87,6 +88,7 @@ __all__ = [
     "lookup",
     "o",
     # Spec Language
+    "bio",
     "Bio",
     "biotype",
     "fn",
@@ -117,7 +119,7 @@ __all__ = [
     "ReactionImpl",
     "ChemistryImpl",
     "StateImpl",
-    "SimpleSimulatorImpl",
+    "ReferenceSimulatorImpl",
     # Bio - Abstract base class for subclassing
     "SimulatorBase",
     # Bio - Atom utilities

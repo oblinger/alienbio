@@ -4,7 +4,7 @@ YAML tags, decorators, and Bio class for loading/saving biology specifications.
 See docs: [[Spec Language]], [[Decorators]], [[Bio]]
 """
 
-from .bio import Bio
+from .bio import Bio, bio
 from .decorators import biotype, fn, scoring, action, measurement, rate
 from .decorators import get_biotype, get_action, get_measurement, get_scoring, get_rate
 from .decorators import biotype_registry, action_registry, measurement_registry
@@ -14,7 +14,8 @@ from .loader import load_spec, transform_typed_keys, expand_defaults
 from .scope import Scope
 
 __all__ = [
-    # Bio class
+    # Bio singleton and class
+    "bio",
     "Bio",
     # Decorators
     "biotype",

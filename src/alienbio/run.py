@@ -18,6 +18,20 @@ if TYPE_CHECKING:
     from dvc_dat import Dat
 
 
+class _MockDat:
+    """Lightweight mock DAT for creating entities from YAML specs.
+
+    Used when building Chemistry/State from dict specs that don't have
+    backing DAT files. Provides the minimal interface needed by Entity.
+    """
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def get_path_name(self) -> str:
+        return self.path
+
+
 def run(dat: "Dat") -> tuple[bool, dict[str, Any]]:
     """Execute a Bio DAT.
 
@@ -36,7 +50,7 @@ def run(dat: "Dat") -> tuple[bool, dict[str, Any]]:
         FileNotFoundError: If index.yaml not found in DAT folder
         ValueError: If index.yaml contains unknown type
     """
-    from .spec_lang import Bio
+    from .spec_lang import bio
 
     # Get the DAT folder path
     dat_path = Path(dat.path)
@@ -46,7 +60,7 @@ def run(dat: "Dat") -> tuple[bool, dict[str, Any]]:
         raise FileNotFoundError(f"No index.yaml found in DAT: {dat_path}")
 
     # Load the raw expanded data (don't hydrate - we handle dicts directly)
-    content = Bio.expand(str(index_file))
+    content = bio.expand(str(index_file))
 
     # Find the typed object in the content
     scenario_data = None
@@ -95,6 +109,95 @@ class SimulationTrace:
         self.steps = steps
 
 
+def _build_chemistry_from_dict(scenario: dict[str, Any]) -> tuple[Any, dict[str, float]]:
+    """Build Chemistry and initial state from scenario dict.
+
+    Args:
+        scenario: Dict with chemistry.molecules, chemistry.reactions, initial_state
+
+    Returns:
+        Tuple of (ChemistryImpl, initial_state_dict)
+    """
+    from .bio import MoleculeImpl, ReactionImpl, ChemistryImpl
+
+    # Extract chemistry section
+    if "chemistry" in scenario:
+        chemistry_data = scenario["chemistry"]
+        molecules_data = chemistry_data.get("molecules", {})
+        reactions_data = chemistry_data.get("reactions", {})
+    else:
+        molecules_data = scenario.get("molecules", {})
+        reactions_data = scenario.get("reactions", {})
+
+    initial_state = scenario.get("initial_state", {})
+
+    # Build MoleculeImpl objects
+    # Note: local_name (e.g., "A") is used as both entity name and state key
+    # The human-readable "name" from YAML is ignored for now (would need separate display_name)
+    molecules: dict[str, MoleculeImpl] = {}
+    for mol_key, mol_data in molecules_data.items():
+        if isinstance(mol_data, dict):
+            molecules[mol_key] = MoleculeImpl(
+                mol_key,  # local_name - used as state key
+                bdepth=mol_data.get("bdepth", 0),
+                dat=_MockDat(f"mol/{mol_key}"),
+            )
+        else:
+            # Just a name, create simple molecule
+            molecules[mol_key] = MoleculeImpl(mol_key, dat=_MockDat(f"mol/{mol_key}"))
+
+    # Build ReactionImpl objects
+    reactions: dict[str, ReactionImpl] = {}
+    for rxn_name, rxn_data in reactions_data.items():
+        if isinstance(rxn_data, dict):
+            # Build reactants dict: {MoleculeImpl: coefficient}
+            reactants: dict[MoleculeImpl, int] = {}
+            for r in rxn_data.get("reactants", []):
+                if isinstance(r, str):
+                    # Just a name, coefficient 1
+                    if r in molecules:
+                        reactants[molecules[r]] = 1
+                elif isinstance(r, dict):
+                    # {name: coef} format
+                    for mol_name, coef in r.items():
+                        if mol_name in molecules:
+                            reactants[molecules[mol_name]] = coef
+
+            # Build products dict: {MoleculeImpl: coefficient}
+            products: dict[MoleculeImpl, int] = {}
+            for p in rxn_data.get("products", []):
+                if isinstance(p, str):
+                    # Just a name, coefficient 1
+                    if p in molecules:
+                        products[molecules[p]] = 1
+                elif isinstance(p, dict):
+                    # {name: coef} format
+                    for mol_name, coef in p.items():
+                        if mol_name in molecules:
+                            products[molecules[mol_name]] = coef
+
+            # Get rate (function or constant)
+            rate = rxn_data.get("rate", 0.0)
+
+            reactions[rxn_name] = ReactionImpl(
+                rxn_name,  # local_name (required positional) - use key, not human-readable name
+                reactants=reactants,
+                products=products,
+                rate=rate,
+                dat=_MockDat(f"rxn/{rxn_name}"),
+            )
+
+    # Build Chemistry
+    chemistry = ChemistryImpl(
+        "scenario_chemistry",  # name (required positional)
+        molecules=molecules,
+        reactions=reactions,
+        dat=_MockDat("chem/scenario"),
+    )
+
+    return chemistry, dict(initial_state)
+
+
 def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     """Run a single scenario and return results.
 
@@ -105,56 +208,41 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     Returns:
         {final_state, timeline, scores, verify_results, success}
     """
-    # Extract fields from scenario (handle both object and dict)
+    from .spec_lang import bio
+    from .bio import StateImpl
+
+    # Extract config from scenario
     if isinstance(scenario, dict):
-        initial_state = scenario.get("initial_state", {})
-        run_config = scenario.get("sim", {})
+        sim_config = scenario.get("sim", {})
         verify = scenario.get("verify", [])
         scoring_fns = scenario.get("scoring", {})
         passing_score = scenario.get("passing_score", 0.5)
-        # Support both flat (molecules, reactions) and nested (chemistry.molecules)
-        if "chemistry" in scenario:
-            chemistry = scenario["chemistry"]
-            molecules = chemistry.get("molecules", {}) if isinstance(chemistry, dict) else {}
-            reactions = chemistry.get("reactions", {}) if isinstance(chemistry, dict) else {}
-        else:
-            molecules = scenario.get("molecules", {})
-            reactions = scenario.get("reactions", {})
     else:
-        initial_state = getattr(scenario, "initial_state", {})
-        run_config = getattr(scenario, "sim", {})
+        sim_config = getattr(scenario, "sim", {})
         verify = getattr(scenario, "verify", [])
         scoring_fns = getattr(scenario, "scoring", {})
         passing_score = getattr(scenario, "passing_score", 0.5)
-        molecules = getattr(scenario, "molecules", {})
-        reactions = getattr(scenario, "reactions", {})
 
-    steps = run_config.get("steps", 100) if isinstance(run_config, dict) else 100
+    steps = sim_config.get("steps", 100) if isinstance(sim_config, dict) else 100
+    dt = sim_config.get("dt", 1.0) if isinstance(sim_config, dict) else 1.0
+    simulator_name = sim_config.get("simulator", "reference") if isinstance(sim_config, dict) else "reference"
+
+    # Build typed Chemistry and State from dict
+    chemistry, initial_state_dict = _build_chemistry_from_dict(scenario)
+    state = StateImpl(chemistry, initial=initial_state_dict)
+
+    # Create simulator via Bio singleton registry
+    sim = bio.create_simulator(chemistry, name=simulator_name, dt=dt)
 
     # Run simulation
-    state = dict(initial_state)
-    timeline = [dict(state)]
+    timeline_states = sim.run(state, steps=steps)
 
-    for _ in range(steps):
-        # Apply each reaction
-        for rxn_name, rxn in reactions.items():
-            rate_fn = rxn.get("rate") if isinstance(rxn, dict) else getattr(rxn, "rate", None)
-            if callable(rate_fn):
-                rate = rate_fn(state)
-                reactants = rxn.get("reactants", []) if isinstance(rxn, dict) else []
-                products = rxn.get("products", []) if isinstance(rxn, dict) else []
-
-                # Apply reaction: decrease reactants, increase products
-                for r in reactants:
-                    if r in state:
-                        state[r] = max(0, state[r] - rate)
-                for p in products:
-                    state[p] = state.get(p, 0) + rate
-
-        timeline.append(dict(state))
+    # Convert StateImpl timeline to dict timeline for scoring/verify
+    timeline = [dict(s.items()) for s in timeline_states]
+    final_state = timeline[-1]
 
     # Create trace for scoring functions
-    trace = SimulationTrace(final=state, timeline=timeline, steps=steps)
+    trace = SimulationTrace(final=final_state, timeline=timeline, steps=steps)
 
     # Compute scores - pass trace to scoring functions
     scores = {}
@@ -165,7 +253,7 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
                 scores[name] = fn(trace)
             except (TypeError, AttributeError):
                 # Function might expect state dict directly (legacy)
-                scores[name] = fn(state)
+                scores[name] = fn(final_state)
 
     # Run verifications
     verify_results = []
@@ -175,7 +263,7 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
         message = v.get("message", "") if isinstance(v, dict) else ""
         try:
             # Evaluate assertion with state in scope
-            passed = eval(assertion, {"state": state})
+            passed = eval(assertion, {"state": final_state})
             verify_results.append({"assert": assertion, "passed": passed, "message": message})
             if not passed:
                 verify_passed = False
@@ -200,7 +288,7 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
 
     # Result dict (slim - no timeline)
     result = {
-        "final_state": state,
+        "final_state": final_state,
         "scores": scores,
         "passing_score": passing_score,
         "verify_results": verify_results,
@@ -209,7 +297,7 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
 
     # Print summary
     print(f"=== Scenario Results ===")
-    print(f"Final state: {state}")
+    print(f"Final state: {final_state}")
     print(f"Scores: {scores}")
     if "score" in scores:
         print(f"Score: {scores['score']:.3f} (passing: {passing_score}) -> {'PASSED' if success else 'FAILED'}")

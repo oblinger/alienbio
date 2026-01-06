@@ -26,7 +26,7 @@ Implementations:
 - CompartmentTreeImpl: hierarchical compartment topology (simulation)
 - WorldStateImpl: multi-compartment concentration storage (simulation)
 - StateImpl: single-compartment concentrations (legacy)
-- SimpleSimulatorImpl: basic single-compartment simulator (legacy)
+- ReferenceSimulatorImpl: basic single-compartment simulator (legacy)
 - WorldSimulatorImpl: multi-compartment simulator with flows
 """
 
@@ -65,7 +65,7 @@ from .world_state import WorldStateImpl
 from .state import StateImpl
 
 # Implementation classes - simulation
-from .simulator import SimpleSimulatorImpl, SimulatorBase
+from .simulator import ReferenceSimulatorImpl, SimulatorBase
 from .world_simulator import WorldSimulatorImpl, ReactionSpec
 
 __all__ = [
@@ -94,7 +94,7 @@ __all__ = [
     "CompartmentTreeImpl",
     "WorldStateImpl",
     "StateImpl",
-    "SimpleSimulatorImpl",
+    "ReferenceSimulatorImpl",
     "WorldSimulatorImpl",
     "ReactionSpec",
     # Abstract base for subclassing

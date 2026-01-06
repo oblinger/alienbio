@@ -11,23 +11,84 @@ from .loader import transform_typed_keys, expand_defaults
 from .decorators import hydrate as _hydrate, dehydrate as _dehydrate
 
 if TYPE_CHECKING:
-    from alienbio.bio import Simulator
+    from alienbio.bio.simulator import SimulatorBase
+    from alienbio.bio.chemistry import ChemistryImpl
+    from alienbio.bio.state import StateImpl
 
 
 class Bio:
-    """Static utility class for biology specification operations.
+    """Top-level API for Alien Biology operations.
 
-    Methods:
-        fetch(specifier) - Fetch and hydrate a typed object from a specifier
-        store(specifier, obj) - Dehydrate and store a typed object
-        expand(specifier) - Expand a spec (includes, refs, defaults) without hydrating
-        sim(scenario) - Create a Simulator from a Scenario
-        hydrate(data) - Convert dict with _type to typed object (advanced)
-        dehydrate(obj) - Convert typed object to dict with _type (advanced)
+    Bio is a singleton that provides:
+    - fetch/store: Load and save typed objects from/to YAML specs
+    - expand: Process specs without hydrating
+    - create_simulator: Factory for creating simulators from chemistry
+    - register_simulator: Register custom simulator implementations
+
+    Usage:
+        from alienbio import bio
+
+        scenario = bio.fetch("catalog/scenarios/mutualism")
+        sim = bio.create_simulator(chemistry)
+
+        # Register custom implementation
+        bio.register_simulator("jax", JaxSimulatorImpl)
     """
 
-    @staticmethod
-    def fetch(specifier: str, *, raw: bool = False) -> Any:
+    def __init__(self) -> None:
+        """Initialize Bio with default registries."""
+        self._simulators: dict[str, type] = {}
+        self._default_simulator: str = "reference"
+        self._register_defaults()
+
+    def _register_defaults(self) -> None:
+        """Register default implementations."""
+        from alienbio.bio.simulator import ReferenceSimulatorImpl
+        self._simulators["reference"] = ReferenceSimulatorImpl
+
+    # =========================================================================
+    # Simulator Registry
+    # =========================================================================
+
+    def register_simulator(self, name: str, factory: type) -> None:
+        """Register a simulator implementation.
+
+        Args:
+            name: Name for the simulator (e.g., "reference", "jax")
+            factory: Simulator class (must accept chemistry as first arg)
+        """
+        self._simulators[name] = factory
+
+    def create_simulator(
+        self,
+        chemistry: "ChemistryImpl",
+        name: str | None = None,
+        **kwargs: Any,
+    ) -> "SimulatorBase":
+        """Create a simulator from the registry.
+
+        Args:
+            chemistry: Chemistry to simulate
+            name: Simulator name (default: "reference")
+            **kwargs: Additional args passed to simulator constructor
+
+        Returns:
+            Configured simulator instance
+
+        Raises:
+            KeyError: If simulator name not registered
+        """
+        name = name or self._default_simulator
+        if name not in self._simulators:
+            available = ", ".join(self._simulators.keys())
+            raise KeyError(f"Unknown simulator: {name!r}. Available: {available}")
+        return self._simulators[name](chemistry, **kwargs)
+
+    # =========================================================================
+    # Fetch / Store / Expand
+    # =========================================================================
+
+    def fetch(self, specifier: str, *, raw: bool = False) -> Any:
         """Fetch a typed object from a specifier path.
 
         Args:
@@ -65,10 +126,9 @@ class Bio:
             return data
 
         # Full processing: expand and hydrate
-        return Bio._process_and_hydrate(data, str(spec_file.parent))
+        return self._process_and_hydrate(data, str(spec_file.parent))
 
-    @staticmethod
-    def store(specifier: str, obj: Any, *, raw: bool = False) -> None:
+    def store(self, specifier: str, obj: Any, *, raw: bool = False) -> None:
         """Store a typed object to a specifier path.
 
         Args:
@@ -94,8 +154,7 @@ class Bio:
         with open(spec_file, "w") as f:
             yaml.dump(data, f, default_flow_style=False)
 
-    @staticmethod
-    def expand(specifier: str) -> dict[str, Any]:
+    def expand(self, specifier: str) -> dict[str, Any]:
         """Expand a spec: resolve includes, refs, defaults without hydrating.
 
         Args:
@@ -130,32 +189,18 @@ class Bio:
         base_dir = str(spec_file.parent)
 
         # Process the data: resolve includes, transform typed keys, etc.
-        data = Bio._resolve_includes(data, base_dir)
+        data = self._resolve_includes(data, base_dir)
         data = transform_typed_keys(data)
-        data = Bio._resolve_refs(data, data.get("constants", {}))
+        data = self._resolve_refs(data, data.get("constants", {}))
         data = expand_defaults(data)
 
         return data
 
-    @staticmethod
-    def sim(scenario: Any) -> "Simulator":
-        """Create a Simulator from a Scenario.
+    # =========================================================================
+    # Hydration (advanced)
+    # =========================================================================
 
-        Args:
-            scenario: Scenario object with chemistry, containers, etc.
-
-        Returns:
-            Simulator ready to run
-        """
-        # Import here to avoid circular imports
-        from alienbio.bio import SimpleSimulatorImpl
-
-        # Create a simple simulator from the scenario
-        # This is a basic implementation - can be enhanced later
-        return SimpleSimulatorImpl(scenario)
-
-    @staticmethod
-    def hydrate(data: dict[str, Any]) -> Any:
+    def hydrate(self, data: dict[str, Any]) -> Any:
         """Convert a dict with _type field to a typed object.
 
         Advanced method for manual hydration. Most users should use fetch().
@@ -172,8 +217,7 @@ class Bio:
         """
         return _hydrate(data)
 
-    @staticmethod
-    def dehydrate(obj: Any) -> dict[str, Any]:
+    def dehydrate(self, obj: Any) -> dict[str, Any]:
         """Convert a biotype object to a dict with _type field.
 
         Advanced method for manual dehydration. Most users should use store().
@@ -189,13 +233,16 @@ class Bio:
         """
         return _dehydrate(obj)
 
-    @staticmethod
-    def _process_and_hydrate(data: dict[str, Any], base_dir: str) -> Any:
+    # =========================================================================
+    # Internal helpers
+    # =========================================================================
+
+    def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
         """Process raw data and hydrate to typed object."""
         # Process the data: resolve includes, transform typed keys, etc.
-        data = Bio._resolve_includes(data, base_dir)
+        data = self._resolve_includes(data, base_dir)
         data = transform_typed_keys(data)
-        data = Bio._resolve_refs(data, data.get("constants", {}))
+        data = self._resolve_refs(data, data.get("constants", {}))
         data = expand_defaults(data)
 
         # Check for top-level _type (e.g., from Bio.store)
@@ -210,20 +257,18 @@ class Bio:
         # If no typed object, return the raw data
         return data
 
-    @staticmethod
-    def _resolve_includes(data: Any, base_dir: str) -> Any:
+    def _resolve_includes(self, data: Any, base_dir: str) -> Any:
         """Recursively resolve IncludeTags in data."""
         if isinstance(data, IncludeTag):
             return data.load(base_dir)
         elif isinstance(data, dict):
-            return {k: Bio._resolve_includes(v, base_dir) for k, v in data.items()}
+            return {k: self._resolve_includes(v, base_dir) for k, v in data.items()}
         elif isinstance(data, list):
-            return [Bio._resolve_includes(item, base_dir) for item in data]
+            return [self._resolve_includes(item, base_dir) for item in data]
         else:
             return data
 
-    @staticmethod
-    def _resolve_refs(data: Any, constants: dict[str, Any]) -> Any:
+    def _resolve_refs(self, data: Any, constants: dict[str, Any]) -> Any:
         """Recursively resolve RefTags and EvTags in data."""
         if isinstance(data, RefTag):
             return data.resolve(constants)
@@ -241,8 +286,57 @@ class Bio:
                 data = {**data, "constants": resolved_constants}
                 constants = resolved_constants
 
-            return {k: Bio._resolve_refs(v, constants) for k, v in data.items()}
+            return {k: self._resolve_refs(v, constants) for k, v in data.items()}
         elif isinstance(data, list):
-            return [Bio._resolve_refs(item, constants) for item in data]
+            return [self._resolve_refs(item, constants) for item in data]
         else:
             return data
+
+
+# =============================================================================
+# Module-level singleton
+# =============================================================================
+
+#: The global Bio instance. Use this for all operations.
+bio = Bio()
+
+
+# =============================================================================
+# Backwards compatibility: Static method aliases
+# =============================================================================
+# These allow existing code using Bio.fetch() to continue working
+
+class _BioCompat:
+    """Backwards-compatible static interface to Bio singleton."""
+
+    @staticmethod
+    def fetch(specifier: str, *, raw: bool = False) -> Any:
+        return bio.fetch(specifier, raw=raw)
+
+    @staticmethod
+    def store(specifier: str, obj: Any, *, raw: bool = False) -> None:
+        return bio.store(specifier, obj, raw=raw)
+
+    @staticmethod
+    def expand(specifier: str) -> dict[str, Any]:
+        return bio.expand(specifier)
+
+    @staticmethod
+    def hydrate(data: dict[str, Any]) -> Any:
+        return bio.hydrate(data)
+
+    @staticmethod
+    def dehydrate(obj: Any) -> dict[str, Any]:
+        return bio.dehydrate(obj)
+
+    @staticmethod
+    def sim(scenario: Any) -> "SimulatorBase":
+        """Create a Simulator from a Scenario (legacy interface)."""
+        # Legacy: scenario was passed directly
+        # New code should use bio.create_simulator(chemistry)
+        from alienbio.bio.simulator import ReferenceSimulatorImpl
+        return ReferenceSimulatorImpl(scenario)
+
+
+# Replace Bio class reference for backwards compatibility
+Bio = _BioCompat  # type: ignore

@@ -17,7 +17,7 @@ from alienbio import (
     ReactionImpl,
     ChemistryImpl,
     StateImpl,
-    SimpleSimulatorImpl,
+    ReferenceSimulatorImpl,
     # Atom utilities
     COMMON_ATOMS,
     get_atom,
@@ -628,7 +628,7 @@ class TestSimulator:
     """Tests for Simulator class."""
 
     def test_simple_simulator_step(self):
-        """SimpleSimulatorImpl applies reactions once."""
+        """ReferenceSimulatorImpl applies reactions once."""
         a = MoleculeImpl("A", dat=MockDat("mol/A"))
         b = MoleculeImpl("B", dat=MockDat("mol/B"))
         r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, rate=0.1, dat=MockDat("rxn/r1"))
@@ -641,7 +641,7 @@ class TestSimulator:
         )
 
         state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
-        sim = SimpleSimulatorImpl(chem, dt=1.0)
+        sim = ReferenceSimulatorImpl(chem, dt=1.0)
 
         new_state = sim.step(state)
 
@@ -662,7 +662,7 @@ class TestSimulator:
         )
 
         state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
-        sim = SimpleSimulatorImpl(chem, dt=1.0)
+        sim = ReferenceSimulatorImpl(chem, dt=1.0)
 
         new_state = sim.step(state)
 
@@ -684,7 +684,7 @@ class TestSimulator:
         )
 
         state = StateImpl(chem, initial={"A": 1.0, "B": 0.0})
-        sim = SimpleSimulatorImpl(chem, dt=1.0)
+        sim = ReferenceSimulatorImpl(chem, dt=1.0)
 
         new_state = sim.step(state)
 
@@ -705,7 +705,7 @@ class TestSimulator:
         )
 
         state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
-        sim = SimpleSimulatorImpl(chem, dt=1.0)
+        sim = ReferenceSimulatorImpl(chem, dt=1.0)
 
         timeline = sim.run(state, steps=10)
 
@@ -728,7 +728,7 @@ class TestSimulator:
         )
 
         state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
-        sim = SimpleSimulatorImpl(chem, dt=1.0)
+        sim = ReferenceSimulatorImpl(chem, dt=1.0)
 
         sim.run(state, steps=10)
 
@@ -750,7 +750,7 @@ class TestSimulator:
         state = StateImpl(chem, initial={"A": 10.0, "B": 0.0})
 
         # dt=0.5 should halve the effect
-        sim = SimpleSimulatorImpl(chem, dt=0.5)
+        sim = ReferenceSimulatorImpl(chem, dt=0.5)
         new_state = sim.step(state)
 
         assert new_state["A"] == pytest.approx(9.95)  # 10 - 0.1*0.5
@@ -793,7 +793,7 @@ class TestIntegration:
         state = StateImpl(chem, initial={"glucose": 10.0, "pyruvate": 0.0, "atp": 0.0})
 
         # Run simulation
-        sim = SimpleSimulatorImpl(chem, dt=1.0)
+        sim = ReferenceSimulatorImpl(chem, dt=1.0)
         timeline = sim.run(state, steps=50)
 
         # Check results

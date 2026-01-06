@@ -18,6 +18,9 @@ dependencies = [
     # dvc_dat: symlinked from ../dvc-dat during development (see M1.2 in roadmap)
 ]
 
+[project.scripts]
+bio = "alienbio.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
