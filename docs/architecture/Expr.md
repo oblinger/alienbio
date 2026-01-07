@@ -1,9 +1,56 @@
 # Expr
-**Subsystem**: [[ABIO infra]] > Entities
-Functional expression trees for representing computations, rate equations, and structured data.
 
-## Overview
-Expr provides a uniform way to represent functional expressions as data. Expression trees can be parsed from strings, serialized to YAML/JSON, and evaluated or compiled by an [[Interpreter]]. The format mirrors Python function call syntax for familiarity.
+# ============================================================
+# DO NOT IMPLEMENT — POSSIBLE FUTURE EXTENSION
+# ============================================================
+#
+# This document describes a structured expression tree format
+# that was considered but DEFERRED in favor of Python strings.
+#
+# Current approach: Use Python expression strings everywhere.
+# See [[Spec Evaluation]] for the actual implementation.
+#
+# This design is preserved because:
+# 1. It may be needed if we add a Rust-native backend
+# 2. The thinking about multi-backend support is valuable
+# 3. Dict/list forms may be useful for programmatic generation
+#
+# ============================================================
+
+**Subsystem**: [[ABIO infra]] > Entities  (See **[[Spec Evaluation]]**)
+
+**Status**: DEFERRED — Not implemented. Using Python strings instead.
+
+---
+
+## Why This Was Deferred
+
+We considered structured Expr trees for multi-backend support:
+- NumPy backend: interpret with np ops
+- JAX backend: interpret with jnp ops
+- Rust backend: interpret natively with SIMD
+
+**Decision**: Use Python expression strings instead because:
+
+1. **JAX compilation**: At simulator creation time, we generate a Python module containing all rate functions. JAX traces this module and compiles to GPU kernels. No per-step Python overhead.
+
+2. **Simpler architecture**: Strings are readable, familiar, and sufficient. No need for parallel interpreters.
+
+3. **Generated module is inspectable**: Humans can read the generated Python for debugging.
+
+4. **If we need Rust later**: We can parse Python strings → derive Expr trees → send to Rust. The Expr tree becomes an internal IR, not a user-facing format.
+
+See [[Simulator]] for details on the JAX compilation approach.
+
+---
+
+## Deferred Design (For Reference)
+
+The following documents what Expr *would* be if implemented.
+
+### Overview
+
+Expr is a simple data structure representing a functional expression. It has a `head` (function name) and arguments. Expression trees can be parsed from strings, serialized to YAML/JSON, and evaluated.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -11,173 +58,94 @@ Expr provides a uniform way to represent functional expressions as data. Express
 | `args` | Tuple[ExprArg, ...] | Positional arguments (may include nested Expr) |
 | `kwargs` | Dict[str, ExprArg] | Keyword arguments (may include nested Expr) |
 
-| Method       | Returns | Description                               |
-| ------------ | ------- | ----------------------------------------- |
-| `parse(s)`   | Expr    | (classmethod) Parse string into Expr tree |
-| `print()`    | str     | Format as Python-style function call      |
-| `__str__()`  | str     | Alias for `print()`                       |
-| `__repr__()` | str     | Debug representation                      |
+---
 
-## Discussion
-### String Format
+### The `_` Marker
 
-Expressions print as Python-style function calls:
+The underscore `_` is the universal marker indicating "this is an expression, not a constant."
 
-```python
-Expr("constant")                    # → "constant()"
-Expr("measure", "glucose")          # → "measure(glucose)"
-Expr("rate", k=0.5)                 # → "rate(k=0.5)"
-Expr("react", "A", "B", rate=1.2)   # → "react(A, B, rate=1.2)"
+| Form | Expression | Constant |
+|------|------------|----------|
+| Dict | `_` is first key | No `_` key |
+| List | `_` is first element | First element ≠ `_` |
+| String | `!_` YAML tag | No tag |
+| Number | — | Always constant |
+| Boolean | — | Always constant |
 
-# Nested expressions
-Expr("div", Expr("var", "S"), Expr("add", Expr("var", "S"), 0.5))
-# → "div(var(S), add(var(S), 0.5))"
-```
+---
 
-### Common Operations
+### Three Representations
 
-Standard operations available as Expr heads:
+All three forms map to the same `Expr` structure and are interchangeable.
 
-| Head | Args | Description |
-|------|------|-------------|
-| `var` | name | Variable reference |
-| `const` | value | Constant value |
-| `add` | a, b, ... | Sum |
-| `mul` | a, b, ... | Product |
-| `div` | a, b | Division |
-| `sub` | a, b | Subtraction |
-| `power` | base, exp | Exponentiation |
-| `neg` | a | Negation |
-| `exp` | a | e^a |
-| `log` | a | Natural log |
-| `min` | a, b | Minimum |
-| `max` | a, b | Maximum |
-| `if` | cond, then, else | Conditional |
-| `gt`, `lt`, `ge`, `le`, `eq` | a, b | Comparisons |
-| `and`, `or`, `not` | ... | Boolean logic |
+#### 1. Tagged String Form
 
-### Templates (Macros)
-
-Template functions expand parameterized expressions into full Expr trees:
-
-```python
-# Template definition (in catalog/rate_equations.py)
-def michaelis_menten(vmax: float, km: float) -> Expr:
-    """Michaelis-Menten: vmax * S / (km + S)"""
-    return Expr("mul", vmax,
-        Expr("div",
-            Expr("var", "S"),
-            Expr("add", km, Expr("var", "S"))))
-```
-
-Usage:
-```python
-# As string (parsed, then template expanded by Interpreter)
-rate = "michaelis_menten(vmax=10.0, km=5.0)"
-
-# As explicit Expr
-rate = Expr("michaelis_menten", vmax=10.0, km=5.0)
-```
-
-### Serialization
-
-Expr trees serialize naturally to YAML/JSON:
+Use YAML's tag syntax:
 
 ```yaml
-# As string (compact)
-rate: "michaelis_menten(vmax=10.0, km=5.0)"
+# Evaluate immediately
+k: !_ normal(0.1, 0.5)
 
-# As structured data (explicit)
-rate:
-  head: michaelis_menten
-  kwargs:
-    vmax: 10.0
-    km: 5.0
+# Preserve for later (e.g., rate expressions)
+rate: !quote Vmax * S / (Km + S)
 ```
 
-### Design Decisions
+#### 2. Dict Form
 
-**Why Expr over raw Python lambdas?**
-1. **Serialization**: Expr saves to YAML/JSON, lambdas cannot
-2. **Inspection**: Can analyze, transform, optimize Expr trees
-3. **Portability**: Compile to Lua/Rhai/WASM for Rust runtime
-4. **Safety**: Restricted operation set, no arbitrary code execution
+A dictionary with `_` as the first key:
 
-**Why Python-like syntax?**
-1. Users already know it
-2. Python's `ast` module handles parsing
-3. Natural mapping to Expr structure
-
-**Separation from Interpreter**: Expr is pure data representation. [[Interpreter]] handles evaluation, template expansion, and language dispatch.
-
-## Method Details
-
-### `parse(s: str) -> Expr`
-
-Parse a string into an Expr tree.
-
-**Args:**
-- `s`: String in Python-like function call syntax
-
-**Returns:** Expr tree
-
-**Raises:**
-- `ValueError`: If string cannot be parsed as valid Expr
-
-**Example:**
-```python
-Expr.parse("constant")
-# → Expr(head="constant", args=(), kwargs={})
-
-Expr.parse("michaelis_menten(vmax=10.0, km=5.0)")
-# → Expr(head="michaelis_menten", args=(), kwargs={"vmax": 10.0, "km": 5.0})
-
-Expr.parse("hill(2, k=0.5)")
-# → Expr(head="hill", args=(2,), kwargs={"k": 0.5})
+```yaml
+k:
+  _: normal
+  mean: 0.1
+  std: 0.5
 ```
 
-The parser uses Python's `ast` module on a restricted subset:
-- **Allowed**: identifiers, numbers, strings, booleans, function calls
-- **Rejected**: imports, assignments, operators, complex expressions
+Or inline: `{_: normal, mean: 0.1, std: 0.5}`
 
-Round-trip property: `Expr.parse(s).print()` produces equivalent string.
+Keys other than `_` are keyword arguments. Positional arguments use numeric keys:
 
-### `print() -> str`
-
-Format as Python-style function call.
-
-**Returns:** String representation
-
-**Example:**
-```python
-Expr("div", Expr("var", "S"), 5.0).print()
-# → "div(var(S), 5.0)"
+```yaml
+equation:
+  _: discrete
+  weights: [0.4, 0.4, 0.2]
+  1: {_: normal, mean: 0.1, std: 0.5}
+  2: {_: lognormal, mu: 1.0, sigma: 0.3}
+  3: {_: hill, Vmax: 1.0, n: 2}
 ```
 
-Future versions may add parameters for indentation and multiline formatting of complex expressions.
+#### 3. List Form
 
-### `__str__() -> str`
+A list with `_` as the first element:
 
-Alias for `print()`. Allows use with Python's `str()` function.
-
-### `__repr__() -> str`
-
-Debug representation showing the Expr structure explicitly.
-
-**Example:**
-```python
-repr(Expr("add", 1, 2))
-# → "Expr('add', args=(1, 2), kwargs={})"
+```yaml
+k: [_, normal, 0.1, 0.5]
 ```
 
-## Protocol
+---
+
+### Use Case: Rust Backend
+
+If we later need a Rust-native backend that can't use JAX:
+
+```
+User writes:     "Vmax * S / (Km + S)"  (Python string)
+                          ↓ Python AST parse (at sim creation)
+Internal IR:     Expr(head="div", args=[Expr("mul", ...), ...])
+                          ↓
+Rust:            Serialize Expr tree via PyO3, interpret with SIMD
+```
+
+This keeps user experience simple (strings) while enabling native performance.
+
+---
+
+### Protocol (If Implemented)
 
 ```python
 from typing import Any, Dict, Protocol, Tuple, Union
 
-# Expr nodes can contain literals or nested expressions
 ExprArg = Union['Expr', float, int, str, bool, None]
-
 
 class Expr(Protocol):
     """Functional expression tree node."""
@@ -205,19 +173,33 @@ class Expr(Protocol):
     def print(self) -> str:
         """Format as Python-style function call."""
         ...
-
-    def __str__(self) -> str:
-        """Alias for print()."""
-        ...
-
-    def __repr__(self) -> str:
-        """Debug representation."""
-        ...
 ```
+
+---
+
+### Design Rationale (Historical)
+
+**Why three representations were considered:**
+1. **Tagged string** for concise inline expressions: `!_ normal(50, 10)`
+2. **Dict form** for structured/nested cases with clear labeling
+3. **List form** for programmatic construction: `[_, "normal", 50, 10]`
+
+**Why Expr over raw Python lambdas:**
+1. **Serialization**: Expr saves to YAML/JSON, lambdas cannot
+2. **Inspection**: Can analyze, transform, optimize Expr trees
+3. **Portability**: Compile to Rust/WASM for native runtime
+4. **Safety**: Restricted operation set, no arbitrary code execution
+
+**Why we chose strings instead:**
+1. JAX compilation eliminates runtime overhead
+2. Generated Python modules are human-readable
+3. Simpler implementation
+4. Can derive Expr as internal IR if needed later
+
+---
 
 ## See Also
 
-- [[Interpreter]] - Evaluates Expr trees
-- [[Flow]] - Uses Expr for rate equations
-- [[Reaction]] - Uses Expr for rate equations
-- [[IO]] - do.load for template resolution
+- [[Spec Evaluation]] - Current implementation using Python strings
+- [[Simulator]] - JAX compilation approach
+- [[Spec Language]] - YAML syntax for specs

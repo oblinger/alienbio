@@ -5,7 +5,8 @@ Infrastructure: entity base classes, serialization, data management, and configu
 ## Entities
 Core data classes and identity patterns that all biology objects inherit from.
 - **[[Entity]]** - Base protocol for all biology objects.
-- **[[Expr]]** - Functional expression trees for computations and rate equations.
+- **[[Expr]]** - Expression tree data structure (syntax and serialization).
+- **[[Spec Evaluation]]** - Execution semantics (hydrate, eval, dehydrate).
 - **[[Interpreter]]** - Evaluates Expr trees, handles language dispatch and template expansion.
 - **[[IO]]** - Entity I/O: prefix bindings, formatting, parsing, persistence.
 ## Data Management

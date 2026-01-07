@@ -1,7 +1,9 @@
 # Spec Language
-**Parent**: [[ABIO Topics]]
+**Parent**: [[ABIO Topics]]  (See **[[Spec Evaluation]]**)
 
 YAML syntax extensions for writing spec files.
+
+**Related**: This document defines syntax; [[Spec Evaluation]] defines how specs are processed (hydrate, eval, dehydrate).
 
 ---
 
@@ -53,13 +55,14 @@ Custom types registered via `@biotype` decorator. See [[Decorators]].
 
 ## YAML Tags
 
-All evaluation uses standard YAML tags (no special prefix syntax):
+All evaluation uses standard YAML tags:
 
 | Tag | Description |
 |-----|-------------|
-| `!ev <EXPR>` | Evaluate Python expression, use result |
-| `!ref <NAME>` | Reference a named constant or object |
-| `!include <PATH>` | Include external file content |
+| `!_` | Evaluate Python expression immediately |
+| `!quote` | Preserve expression as string (for later compilation) |
+| `!ref` | Reference a named constant or object |
+| `!include` | Include external file content |
 
 **Examples:**
 ```yaml
@@ -67,16 +70,22 @@ high_permeability: 0.8
 standard_diffusion: {default: 0.1, membrane: 0.01}
 
 scenario.example:
-  molecules: !ev energy_ring(size=6)         # evaluate → list of molecules
-  rate: !ev mass_action(k=0.1)               # evaluate → rate function
+  molecules: !_ energy_ring(size=6)          # evaluate → list of molecules
+  count: !_ normal(50, 10)                   # evaluate → sampled number
   outflows: !ref standard_diffusion          # reference top-level value
   constitution: !include safety.md           # include file content
+
+reaction.glycolysis:
+  substrates: [Glucose, ATP]
+  products: [G6P, ADP]
+  rate: !quote k * S1 * S2                   # preserved for simulator compilation
 ```
 
 **Notes:**
-- `!ev` evaluates once at load/expansion time; result is used directly
-- For rate functions, the expression must produce a callable
+- `!_` evaluates once at load time; result is used directly
+- `!quote` preserves the expression string for later processing (e.g., rate expressions compiled at simulator creation)
 - `!ref` references any top-level key in the spec
+- See [[Spec Evaluation]] for details on each tag
 
 ---
 
@@ -165,7 +174,7 @@ scenario.base:
   constitution: |
     Protect both species...
   scoring:
-    health: !ev population_health
+    health: !_ population_health
 
 # Scope groups related scenarios
 scope.experiments:
@@ -302,7 +311,7 @@ sim:
   steps: 100                    # number of steps to run
   time_step: 0.1                # time delta per step (default: 1.0)
   simulator: SimpleSimulator    # simulator class (optional)
-  terminate: !ev "lambda state: state['population'] <= 0"  # early stop condition
+  terminate: !_ "lambda state: state['population'] <= 0"  # early stop condition
 ```
 
 | Field | Description |
@@ -333,9 +342,9 @@ scenario.example:
   initial_state: {A: 10.0, B: 10.0}
 
   scoring:
-    score: !ev aggregate_score       # THE canonical metric (required for pass/fail)
-    efficiency: !ev calc_efficiency  # informational
-    stability: !ev calc_stability    # informational
+    score: !_ aggregate_score        # THE canonical metric (required for pass/fail)
+    efficiency: !_ calc_efficiency   # informational
+    stability: !_ calc_stability     # informational
 
   passing_score: 0.5                 # success if score >= 0.5 (default: 0.5)
 ```
@@ -417,6 +426,9 @@ The `bio` CLI is the single interface for execution. See [[Bio CLI]] for availab
 
 ## See Also
 
+- [[Spec Evaluation]] — Execution semantics (hydrate, macro_expand, eval, dehydrate)
+- [[Expr]] — Deferred structured expression format (not currently implemented)
+- [[Simulator]] — JAX compilation of rate expressions
 - [[Bio CLI]] — Command-line interface
 - [[architecture/Scope]] — Scope class for lexical scoping
 - [[Bio]] — Loading and hydration (`Bio.fetch()`, `Bio.store()`)
