@@ -14,7 +14,10 @@ from .eval import (
     Evaluable, Quoted, Reference,
     hydrate, dehydrate,
     Context, eval_node, EvalError,
-    SAFE_BUILTINS, DEFAULT_FUNCTIONS, make_context,
+    SAFE_BUILTINS, make_context,
+)
+from .builtins import (
+    DEFAULT_FUNCTIONS,
     normal, uniform, lognormal, poisson, exponential, choice, discrete,
 )
 from .loader import load_spec, transform_typed_keys, expand_defaults
