@@ -30,12 +30,12 @@ from alienbio.spec_lang.eval import (
     Quoted,
     Reference,
     hydrate,
+    dehydrate,
 )
 
 # These are not yet implemented - stub versions below
 # from alienbio.spec_lang.eval import (
 #     Context,
-#     dehydrate,
 #     eval_node,
 #     SAFE_BUILTINS,
 # )
@@ -68,11 +68,6 @@ class Context:
 
 
 # Stub implementations for tests to reference (not yet implemented)
-
-
-def dehydrate(data):
-    """Convert Python objects back to serializable dict structure."""
-    raise NotImplementedError("dehydrate not yet implemented")
 
 
 def eval_node(node, ctx, strict=True):
@@ -442,28 +437,24 @@ class TestHydrateMixed:
 class TestDehydrate:
     """Test dehydration converts back to serializable form."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_evaluable(self):
         """Evaluable becomes {"!_": source}."""
         data = {"count": Evaluable(source="normal(50, 10)")}
         result = dehydrate(data)
         assert result == {"count": {"!_": "normal(50, 10)"}}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_quoted(self):
         """Quoted becomes {"!quote": source}."""
         data = {"rate": Quoted(source="k * S")}
         result = dehydrate(data)
         assert result == {"rate": {"!quote": "k * S"}}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_reference(self):
         """Reference becomes {"!ref": name}."""
         data = {"perm": Reference(name="high_permeability")}
         result = dehydrate(data)
         assert result == {"perm": {"!ref": "high_permeability"}}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_nested(self):
         """Dehydration handles nested structures."""
         data = {
@@ -476,7 +467,6 @@ class TestDehydrate:
         assert result["outer"]["count"] == {"!_": "42"}
         assert result["outer"]["rate"] == {"!quote": "k * S"}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_constants_unchanged(self):
         """Constants pass through dehydration unchanged."""
         data = {"x": 42, "y": "hello", "z": [1, 2, 3]}
@@ -487,7 +477,6 @@ class TestDehydrate:
 class TestDehydrateRoundTrip:
     """Test round-trip: dehydrate(hydrate(x)) ≈ x."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_roundtrip_simple(self):
         """Simple round-trip preserves structure."""
         original = {
@@ -500,7 +489,6 @@ class TestDehydrateRoundTrip:
         dehydrated = dehydrate(hydrated)
         assert dehydrated == original
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_roundtrip_nested(self):
         """Nested round-trip preserves structure."""
         original = {

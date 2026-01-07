@@ -240,3 +240,55 @@ def _hydrate_include(path: str, base_path: str | None) -> Any:
     else:
         # Default: return raw text
         return file_path.read_text()
+
+
+# =============================================================================
+# Dehydration (M1.8d)
+# =============================================================================
+
+
+def dehydrate(data: Any) -> Any:
+    """Convert Python objects back to serializable dict structure.
+
+    Transforms:
+        Evaluable(source) → {"!_": source}
+        Quoted(source) → {"!quote": source}
+        Reference(name) → {"!ref": name}
+
+    Also handles:
+        - Recursive descent into dicts and lists
+        - Constants (int, float, str, bool, None) pass through unchanged
+
+    Round-trip property: dehydrate(hydrate(x)) ≈ x
+
+    Args:
+        data: The data structure to dehydrate
+
+    Returns:
+        Serializable dict structure
+    """
+    return _dehydrate_node(data)
+
+
+def _dehydrate_node(node: Any) -> Any:
+    """Recursively dehydrate a single node."""
+    # Placeholder classes → dict format
+    if isinstance(node, Evaluable):
+        return {"!_": node.source}
+
+    if isinstance(node, Quoted):
+        return {"!quote": node.source}
+
+    if isinstance(node, Reference):
+        return {"!ref": node.name}
+
+    # Dict → recurse into values
+    if isinstance(node, dict):
+        return {k: _dehydrate_node(v) for k, v in node.items()}
+
+    # List → recurse into elements
+    if isinstance(node, list):
+        return [_dehydrate_node(item) for item in node]
+
+    # Scalar values (int, float, str, bool, None) → pass through
+    return node
