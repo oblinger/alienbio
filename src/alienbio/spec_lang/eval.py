@@ -118,3 +118,125 @@ def register_eval_tags() -> None:
 
 # Register tags on module import
 register_eval_tags()
+
+
+# =============================================================================
+# Hydration (M1.8c)
+# =============================================================================
+
+
+def hydrate(data: Any, base_path: str | None = None) -> Any:
+    """Convert dict structure to Python objects with placeholders.
+
+    Transforms:
+        {"!_": source} → Evaluable(source)
+        {"!quote": source} → Quoted(source)
+        {"!ref": name} → Reference(name)
+        {"!include": path} → file contents (recursively hydrated)
+
+    Also handles:
+        - Recursive descent into dicts and lists
+        - YAML tag objects (Evaluable, Quoted, Reference) pass through unchanged
+        - EvTag, RefTag, IncludeTag from legacy system are converted
+
+    Args:
+        data: The data structure to hydrate
+        base_path: Base directory for resolving !include paths
+
+    Returns:
+        Hydrated data with placeholders
+
+    Raises:
+        FileNotFoundError: If !include file doesn't exist
+    """
+    return _hydrate_node(data, base_path)
+
+
+def _hydrate_node(node: Any, base_path: str | None) -> Any:
+    """Recursively hydrate a single node."""
+    from pathlib import Path
+
+    # Already a placeholder - pass through
+    if isinstance(node, (Evaluable, Quoted, Reference)):
+        return node
+
+    # Legacy tag objects - convert to new placeholders
+    from .tags import EvTag, RefTag, IncludeTag
+
+    if isinstance(node, EvTag):
+        return Evaluable(source=node.expr)
+
+    if isinstance(node, RefTag):
+        return Reference(name=node.name)
+
+    if isinstance(node, IncludeTag):
+        return _hydrate_include(node.path, base_path)
+
+    # Dict - check for special keys or recurse
+    if isinstance(node, dict):
+        return _hydrate_dict(node, base_path)
+
+    # List - recurse into elements
+    if isinstance(node, list):
+        return [_hydrate_node(item, base_path) for item in node]
+
+    # Scalar values (int, float, str, bool, None) - pass through
+    return node
+
+
+def _hydrate_dict(d: dict, base_path: str | None) -> Any:
+    """Hydrate a dict, checking for special tag keys."""
+    # Single-key dicts with special tags
+    if len(d) == 1:
+        key = next(iter(d))
+        value = d[key]
+
+        if key == "!_":
+            return Evaluable(source=str(value))
+
+        if key == "!quote":
+            return Quoted(source=str(value))
+
+        if key == "!ref":
+            return Reference(name=str(value))
+
+        if key == "!include":
+            return _hydrate_include(str(value), base_path)
+
+    # Regular dict - recurse into values
+    return {k: _hydrate_node(v, base_path) for k, v in d.items()}
+
+
+def _hydrate_include(path: str, base_path: str | None) -> Any:
+    """Load and hydrate an included file."""
+    from pathlib import Path
+
+    # Resolve file path
+    if Path(path).is_absolute():
+        file_path = Path(path)
+    elif base_path:
+        file_path = Path(base_path) / path
+    else:
+        file_path = Path(path)
+
+    file_path = file_path.resolve()
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"Include file not found: {file_path}")
+
+    # Load based on file extension
+    suffix = file_path.suffix.lower()
+
+    if suffix == ".md":
+        # Markdown files return as string
+        return file_path.read_text()
+
+    elif suffix in (".yaml", ".yml"):
+        # YAML files are parsed and recursively hydrated
+        content = file_path.read_text()
+        data = yaml.safe_load(content)
+        return _hydrate_node(data, str(file_path.parent))
+
+    else:
+        # Default: return raw text
+        return file_path.read_text()
