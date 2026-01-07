@@ -9,6 +9,15 @@ import yaml
 from .tags import EvTag, RefTag, IncludeTag
 from .loader import transform_typed_keys, expand_defaults
 from .decorators import hydrate as _hydrate, dehydrate as _dehydrate
+from .eval import (
+    hydrate as eval_hydrate,
+    eval_node,
+    make_context,
+    Context,
+    Evaluable,
+    Quoted,
+    Reference,
+)
 
 if TYPE_CHECKING:
     from alienbio.bio.simulator import SimulatorBase
@@ -234,6 +243,102 @@ class Bio:
         return _dehydrate(obj)
 
     # =========================================================================
+    # Spec Evaluation (M1.8j)
+    # =========================================================================
+
+    def load_spec(self, specifier: str) -> Any:
+        """Load a spec file and return hydrated but unevaluated data.
+
+        This returns a spec with placeholders (Evaluable, Quoted, Reference)
+        that can be evaluated later with eval_spec(). This allows:
+        - Multiple instantiations from the same spec
+        - Different random seeds for different instantiations
+        - Deferred evaluation of expressions
+
+        Args:
+            specifier: Path like "catalog/scenarios/mutualism"
+
+        Returns:
+            Hydrated spec with placeholders (not yet evaluated)
+
+        Raises:
+            FileNotFoundError: If specifier path doesn't exist
+
+        Example:
+            spec = bio.load_spec("catalog/scenarios/test")
+            # Evaluate with seed 42
+            result1 = bio.eval_spec(spec, seed=42)
+            # Evaluate again with seed 123
+            result2 = bio.eval_spec(spec, seed=123)
+        """
+        path = Path(specifier)
+
+        if not path.exists():
+            raise FileNotFoundError(f"Specifier path not found: {specifier}")
+
+        # Find spec.yaml in the directory
+        if path.is_dir():
+            spec_file = path / "spec.yaml"
+            if not spec_file.exists():
+                raise FileNotFoundError(f"No spec.yaml found in: {specifier}")
+        else:
+            spec_file = path
+
+        # Load and parse YAML
+        content = spec_file.read_text()
+        data = yaml.safe_load(content)
+
+        if data is None:
+            return None
+
+        base_dir = str(spec_file.parent)
+
+        # Hydrate: convert tags to placeholders, resolve includes
+        return eval_hydrate(data, base_path=base_dir)
+
+    def eval_spec(
+        self,
+        spec: Any,
+        *,
+        seed: int | None = None,
+        bindings: dict[str, Any] | None = None,
+        ctx: Context | None = None,
+    ) -> Any:
+        """Evaluate a hydrated spec, resolving all placeholders.
+
+        Evaluates:
+        - Evaluable(!_) → execute Python expression
+        - Reference(!ref) → lookup in bindings
+        - Quoted(!quote) → return source string unchanged
+
+        Args:
+            spec: Hydrated spec from load_spec()
+            seed: Random seed for reproducibility (ignored if ctx provided)
+            bindings: Variables available to expressions (ignored if ctx provided)
+            ctx: Full evaluation context (overrides seed/bindings)
+
+        Returns:
+            Fully evaluated spec with concrete values
+
+        Example:
+            spec = bio.load_spec("catalog/scenarios/test")
+
+            # Evaluate with seed 42
+            result = bio.eval_spec(spec, seed=42)
+
+            # Evaluate with bindings
+            result = bio.eval_spec(spec, bindings={"k": 0.5})
+
+            # Evaluate with full context
+            ctx = make_context(seed=42, bindings={"k": 0.5})
+            result = bio.eval_spec(spec, ctx=ctx)
+        """
+        if ctx is None:
+            ctx = make_context(seed=seed, bindings=bindings)
+
+        return eval_node(spec, ctx)
+
+    # =========================================================================
     # Internal helpers
     # =========================================================================
 
@@ -328,6 +433,20 @@ class _BioCompat:
     @staticmethod
     def dehydrate(obj: Any) -> dict[str, Any]:
         return bio.dehydrate(obj)
+
+    @staticmethod
+    def load_spec(specifier: str) -> Any:
+        return bio.load_spec(specifier)
+
+    @staticmethod
+    def eval_spec(
+        spec: Any,
+        *,
+        seed: int | None = None,
+        bindings: dict[str, Any] | None = None,
+        ctx: Context | None = None,
+    ) -> Any:
+        return bio.eval_spec(spec, seed=seed, bindings=bindings, ctx=ctx)
 
     @staticmethod
     def sim(scenario: Any) -> "SimulatorBase":
