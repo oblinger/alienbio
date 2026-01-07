@@ -10,6 +10,7 @@ from .decorators import get_biotype, get_action, get_measurement, get_scoring, g
 from .decorators import biotype_registry, action_registry, measurement_registry
 from .decorators import scoring_registry, rate_registry
 from .tags import EvTag, RefTag, IncludeTag
+from .eval import Evaluable, Quoted, Reference, hydrate
 from .loader import load_spec, transform_typed_keys, expand_defaults
 from .scope import Scope
 
@@ -36,10 +37,15 @@ __all__ = [
     "measurement_registry",
     "scoring_registry",
     "rate_registry",
-    # Tags
+    # Tags (legacy)
     "EvTag",
     "RefTag",
     "IncludeTag",
+    # Evaluation system (new)
+    "Evaluable",
+    "Quoted",
+    "Reference",
+    "hydrate",
     # Loader functions
     "load_spec",
     "transform_typed_keys",

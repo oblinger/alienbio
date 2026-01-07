@@ -24,16 +24,17 @@ from typing import Any
 
 import numpy as np
 
-# These imports will fail until implementation exists.
-# Tests are written first as executable specification.
-# Uncomment and adjust as implementation progresses.
+# Import implemented classes - uncomment as implementation progresses
+from alienbio.spec_lang.eval import (
+    Evaluable,
+    Quoted,
+    Reference,
+    hydrate,
+)
 
+# These are not yet implemented - stub versions below
 # from alienbio.spec_lang.eval import (
-#     Evaluable,
-#     Quoted,
-#     Reference,
 #     Context,
-#     hydrate,
 #     dehydrate,
 #     eval_node,
 #     SAFE_BUILTINS,
@@ -43,25 +44,8 @@ import numpy as np
 
 
 # =============================================================================
-# Placeholder Classes (for test structure until implementation exists)
+# Stub Classes (for tests that need implementations not yet complete)
 # =============================================================================
-
-@dataclass
-class Evaluable:
-    """Placeholder for !_ expressions."""
-    source: str
-
-
-@dataclass
-class Quoted:
-    """Placeholder for !quote expressions."""
-    source: str
-
-
-@dataclass
-class Reference:
-    """Placeholder for !ref expressions."""
-    name: str
 
 
 class Context:
@@ -83,10 +67,7 @@ class Context:
         )
 
 
-# Stub implementations for tests to reference
-def hydrate(data, base_path=None):
-    """Convert dict structure to Python objects with placeholders."""
-    raise NotImplementedError("hydrate not yet implemented")
+# Stub implementations for tests to reference (not yet implemented)
 
 
 def dehydrate(data):
@@ -148,42 +129,34 @@ def seeded_ctx():
 class TestHydrateConstants:
     """Test that constant values pass through hydration unchanged."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_constant_int(self):
         """Integer constants pass through unchanged."""
         assert hydrate(42) == 42
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_constant_float(self):
         """Float constants pass through unchanged."""
         assert hydrate(3.14159) == 3.14159
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_constant_string(self):
         """String constants pass through unchanged."""
         assert hydrate("hello world") == "hello world"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_constant_bool_true(self):
         """True passes through unchanged."""
         assert hydrate(True) is True
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_constant_bool_false(self):
         """False passes through unchanged."""
         assert hydrate(False) is False
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_constant_none(self):
         """None passes through unchanged."""
         assert hydrate(None) is None
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_constant_empty_dict(self):
         """Empty dict passes through unchanged."""
         assert hydrate({}) == {}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_constant_empty_list(self):
         """Empty list passes through unchanged."""
         assert hydrate([]) == []
@@ -192,21 +165,18 @@ class TestHydrateConstants:
 class TestHydrateRecursive:
     """Test recursive hydration into dicts and lists."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_nested_dicts(self):
         """Hydration descends into nested dicts."""
         data = {"outer": {"inner": {"value": 42}}}
         result = hydrate(data)
         assert result["outer"]["inner"]["value"] == 42
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_nested_lists(self):
         """Hydration descends into nested lists."""
         data = [[1, 2], [3, 4], [5, 6]]
         result = hydrate(data)
         assert result == [[1, 2], [3, 4], [5, 6]]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_mixed_structure(self):
         """Hydration handles mixed dicts and lists."""
         data = {
@@ -217,7 +187,6 @@ class TestHydrateRecursive:
         assert result["items"][0]["name"] == "a"
         assert result["config"]["values"] == [1, 2, 3]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_deeply_nested(self):
         """Hydration handles deep nesting (10 levels)."""
         data = {"l1": {"l2": {"l3": {"l4": {"l5": {"l6": {"l7": {"l8": {"l9": {"l10": "deep"}}}}}}}}}}
@@ -228,7 +197,6 @@ class TestHydrateRecursive:
 class TestHydrateEvalTag:
     """Test !_ tag converts to Evaluable placeholder."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_eval_simple(self):
         """!_ tag becomes Evaluable placeholder."""
         # Simulating what YAML parser would produce for: value: !_ 2 + 3
@@ -237,7 +205,6 @@ class TestHydrateEvalTag:
         assert isinstance(result["value"], Evaluable)
         assert result["value"].source == "2 + 3"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_eval_function_call(self):
         """!_ with function call becomes Evaluable."""
         data = {"count": {"!_": "normal(50, 10)"}}
@@ -245,7 +212,6 @@ class TestHydrateEvalTag:
         assert isinstance(result["count"], Evaluable)
         assert result["count"].source == "normal(50, 10)"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_eval_complex_expression(self):
         """!_ with complex expression becomes Evaluable."""
         data = {"area": {"!_": "pi * radius * radius"}}
@@ -253,7 +219,6 @@ class TestHydrateEvalTag:
         assert isinstance(result["area"], Evaluable)
         assert result["area"].source == "pi * radius * radius"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_eval_conditional(self):
         """!_ with conditional expression becomes Evaluable."""
         data = {"ratio": {"!_": "x / y if y != 0 else 0"}}
@@ -261,7 +226,6 @@ class TestHydrateEvalTag:
         assert isinstance(result["ratio"], Evaluable)
         assert result["ratio"].source == "x / y if y != 0 else 0"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_eval_nested_in_dict(self):
         """!_ nested inside dict structure."""
         data = {
@@ -274,7 +238,6 @@ class TestHydrateEvalTag:
         result = hydrate(data)
         assert isinstance(result["scenario"]["molecules"]["count"], Evaluable)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_eval_in_list(self):
         """!_ inside a list."""
         data = {"values": [{"!_": "normal(1, 0.1)"}, {"!_": "normal(2, 0.2)"}]}
@@ -286,7 +249,6 @@ class TestHydrateEvalTag:
 class TestHydrateQuoteTag:
     """Test !quote tag converts to Quoted placeholder."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_quote_simple(self):
         """!quote tag becomes Quoted placeholder."""
         data = {"rate": {"!quote": "k * S"}}
@@ -294,7 +256,6 @@ class TestHydrateQuoteTag:
         assert isinstance(result["rate"], Quoted)
         assert result["rate"].source == "k * S"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_quote_michaelis_menten(self):
         """!quote with Michaelis-Menten rate."""
         data = {"rate": {"!quote": "Vmax * S / (Km + S)"}}
@@ -302,7 +263,6 @@ class TestHydrateQuoteTag:
         assert isinstance(result["rate"], Quoted)
         assert result["rate"].source == "Vmax * S / (Km + S)"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_quote_mass_action(self):
         """!quote with mass action rate."""
         data = {"rate": {"!quote": "k * S1 * S2"}}
@@ -310,14 +270,12 @@ class TestHydrateQuoteTag:
         assert isinstance(result["rate"], Quoted)
         assert result["rate"].source == "k * S1 * S2"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_quote_hill_equation(self):
         """!quote with Hill equation."""
         data = {"rate": {"!quote": "Vmax * S**n / (K**n + S**n)"}}
         result = hydrate(data)
         assert isinstance(result["rate"], Quoted)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_quote_preserves_whitespace(self):
         """!quote preserves expression exactly including whitespace."""
         expr = "  k  *  S  "
@@ -329,7 +287,6 @@ class TestHydrateQuoteTag:
 class TestHydrateRefTag:
     """Test !ref tag converts to Reference placeholder."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_ref_simple(self):
         """!ref tag becomes Reference placeholder."""
         data = {"permeability": {"!ref": "high_permeability"}}
@@ -337,7 +294,6 @@ class TestHydrateRefTag:
         assert isinstance(result["permeability"], Reference)
         assert result["permeability"].name == "high_permeability"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_ref_dotted_name(self):
         """!ref with dotted name."""
         data = {"config": {"!ref": "defaults.config.timeout"}}
@@ -345,7 +301,6 @@ class TestHydrateRefTag:
         assert isinstance(result["config"], Reference)
         assert result["config"].name == "defaults.config.timeout"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_ref_underscore_name(self):
         """!ref with underscores in name."""
         data = {"value": {"!ref": "my_const_123"}}
@@ -356,7 +311,6 @@ class TestHydrateRefTag:
 class TestHydrateIncludeTag:
     """Test !include tag resolves files during hydration."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_include_markdown(self, temp_dir):
         """!include reads markdown file as string."""
         md_file = temp_dir / "safety.md"
@@ -367,7 +321,6 @@ class TestHydrateIncludeTag:
 
         assert result["constitution"] == "# Safety Rules\n\nBe careful."
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_include_yaml(self, temp_dir):
         """!include reads and parses YAML file."""
         yaml_file = temp_dir / "config.yaml"
@@ -378,7 +331,6 @@ class TestHydrateIncludeTag:
 
         assert result["config"] == {"timeout": 30, "retries": 3}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_include_missing_file(self, temp_dir):
         """!include with missing file raises FileNotFoundError."""
         data = {"content": {"!include": "nonexistent.md"}}
@@ -386,7 +338,7 @@ class TestHydrateIncludeTag:
         with pytest.raises(FileNotFoundError):
             hydrate(data, base_path=str(temp_dir))
 
-    @pytest.mark.skip(reason="Implementation pending")
+    @pytest.mark.skip(reason="Nested YAML includes need IncludeTag registered")
     def test_hydrate_include_nested(self, temp_dir):
         """!include resolves nested includes."""
         inner_file = temp_dir / "inner.md"
@@ -441,7 +393,6 @@ class TestHydrateTypeInstantiation:
 class TestHydrateMixed:
     """Test hydration with mixed tags, types, and constants."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_mixed_all_tags(self):
         """Structure with all tag types together."""
         data = {
@@ -459,7 +410,6 @@ class TestHydrateMixed:
         assert result["timeout"] == 30
         assert result["name"] == "test"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_realistic_scenario(self, temp_dir):
         """Realistic scenario structure."""
         constitution_file = temp_dir / "constitution.md"
