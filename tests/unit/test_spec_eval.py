@@ -721,17 +721,16 @@ class TestEvalReference:
 class TestFunctionDecorator:
     """Test @function decorator and ctx injection."""
 
-    @pytest.mark.skip(reason="Implementation pending")
+    @pytest.mark.skip(reason="Needs @function decorator implementation")
     def test_function_decorator_registers(self):
         """@function adds function to registry."""
         # Would need function registry
         pass
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_ctx_injection(self, ctx):
         """ctx is auto-injected as last parameter."""
-        # Define a function that uses ctx
-        def normal(mean, std, ctx):
+        # Define a function that uses ctx (keyword-only)
+        def normal(mean, std, *, ctx):
             return ctx.rng.normal(mean, std)
 
         ctx.functions['normal'] = normal
@@ -740,10 +739,9 @@ class TestFunctionDecorator:
         # Should be a float near 50
         assert isinstance(result, (int, float))
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_normal_distribution(self, ctx):
         """normal(50, 10) returns float from normal distribution."""
-        def normal(mean, std, ctx):
+        def normal(mean, std, *, ctx):
             return ctx.rng.normal(mean, std)
 
         ctx.functions['normal'] = normal
@@ -756,10 +754,9 @@ class TestFunctionDecorator:
         mean = sum(results) / len(results)
         assert 40 < mean < 60  # Should be near 50
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_uniform_distribution(self, ctx):
         """uniform(0, 1) returns float in [0, 1]."""
-        def uniform(low, high, ctx):
+        def uniform(low, high, *, ctx):
             return ctx.rng.uniform(low, high)
 
         ctx.functions['uniform'] = uniform
@@ -769,7 +766,6 @@ class TestFunctionDecorator:
             result = eval_node(node, Context(rng=np.random.default_rng(seed), functions=ctx.functions))
             assert 0 <= result <= 1
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_discrete_choice(self, ctx):
         """discrete([0.5, 0.5], "a", "b") picks from choices."""
         def discrete(weights, *choices, ctx):
@@ -780,7 +776,6 @@ class TestFunctionDecorator:
         result = eval_node(node, ctx)
         assert result in ("a", "b")
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_choice(self, ctx):
         """choice("a", "b", "c") picks one uniformly."""
         def choice(*choices, ctx):
@@ -791,10 +786,9 @@ class TestFunctionDecorator:
         result = eval_node(node, ctx)
         assert result in ("a", "b", "c")
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_uses_ctx_rng(self, ctx):
         """Functions use ctx.rng for reproducibility."""
-        def normal(mean, std, ctx):
+        def normal(mean, std, *, ctx):
             return ctx.rng.normal(mean, std)
 
         # Same seed should give same result
@@ -807,10 +801,9 @@ class TestFunctionDecorator:
 
         assert result1 == result2
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_with_bindings(self, ctx):
         """!_ normal(mu, sigma) with bound variables."""
-        def normal(mean, std, ctx):
+        def normal(mean, std, *, ctx):
             return ctx.rng.normal(mean, std)
 
         ctx.functions['normal'] = normal
@@ -893,10 +886,9 @@ class TestContext:
 class TestMultipleInstantiations:
     """Test multiple evaluations with different seeds."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_same_seed_same_result(self, seeded_ctx):
         """Same seed produces identical results."""
-        def normal(mean, std, ctx):
+        def normal(mean, std, *, ctx):
             return ctx.rng.normal(mean, std)
 
         data = {"count": Evaluable(source="normal(50, 10)")}
@@ -911,10 +903,9 @@ class TestMultipleInstantiations:
 
         assert result1["count"] == result2["count"]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_different_seeds(self, seeded_ctx):
         """Different seeds produce different random values."""
-        def normal(mean, std, ctx):
+        def normal(mean, std, *, ctx):
             return ctx.rng.normal(mean, std)
 
         data = {"count": Evaluable(source="normal(50, 10)")}
@@ -929,13 +920,12 @@ class TestMultipleInstantiations:
         # Not all results should be the same
         assert len(set(results)) > 1
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_spec_unchanged(self):
         """Original spec not mutated by evaluation."""
         original_data = {"count": Evaluable(source="normal(50, 10)")}
         data_copy = copy.deepcopy(original_data)
 
-        def normal(mean, std, ctx):
+        def normal(mean, std, *, ctx):
             return ctx.rng.normal(mean, std)
 
         ctx = Context(rng=np.random.default_rng(42), functions={'normal': normal})
@@ -945,10 +935,9 @@ class TestMultipleInstantiations:
         assert isinstance(original_data["count"], Evaluable)
         assert original_data == data_copy
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_10_seeds(self):
         """Loop with 10 different seeds all produce valid results."""
-        def normal(mean, std, ctx):
+        def normal(mean, std, *, ctx):
             return ctx.rng.normal(mean, std)
 
         data = {

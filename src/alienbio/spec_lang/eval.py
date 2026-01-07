@@ -463,13 +463,35 @@ def _eval_node(node: Any, ctx: Context, strict: bool) -> Any:
     return node
 
 
+def _wrap_function(fn: Callable, ctx: Context) -> Callable:
+    """Wrap a function to auto-inject ctx as last parameter.
+
+    Functions registered in ctx.functions take ctx as their last parameter.
+    This wrapper creates a version that auto-injects ctx when called.
+
+    Args:
+        fn: Function that expects ctx as last parameter
+        ctx: Context to inject
+
+    Returns:
+        Wrapped function that auto-injects ctx
+    """
+    import functools
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        return fn(*args, ctx=ctx, **kwargs)
+
+    return wrapper
+
+
 def _eval_expression(source: str, ctx: Context) -> Any:
     """Evaluate a Python expression string.
 
     Builds namespace from:
     - SAFE_BUILTINS (min, max, abs, etc.)
     - ctx.bindings (user variables)
-    - ctx.functions (registered @function handlers)
+    - ctx.functions (registered @function handlers, with ctx auto-injected)
 
     Args:
         source: Python expression to evaluate
@@ -482,10 +504,16 @@ def _eval_expression(source: str, ctx: Context) -> Any:
         EvalError: If expression fails to evaluate
     """
     # Build evaluation namespace
+    # Wrap functions to auto-inject ctx
+    wrapped_functions = {
+        name: _wrap_function(fn, ctx)
+        for name, fn in ctx.functions.items()
+    }
+
     namespace = {
         **SAFE_BUILTINS,
         **ctx.bindings,
-        **ctx.functions,
+        **wrapped_functions,
     }
 
     try:
@@ -520,3 +548,142 @@ def _eval_reference(ref: Reference, ctx: Context, strict: bool) -> Any:
 
     # Non-strict mode: return Reference unchanged
     return ref
+
+
+# =============================================================================
+# Built-in Functions (M1.8h)
+# =============================================================================
+
+
+def normal(mean: float, std: float, *, ctx: Context) -> float:
+    """Sample from normal distribution.
+
+    Args:
+        mean: Mean of the distribution
+        std: Standard deviation
+        ctx: Evaluation context (auto-injected)
+
+    Returns:
+        Random sample from N(mean, std)
+    """
+    return float(ctx.rng.normal(mean, std))
+
+
+def uniform(low: float, high: float, *, ctx: Context) -> float:
+    """Sample from uniform distribution.
+
+    Args:
+        low: Lower bound
+        high: Upper bound
+        ctx: Evaluation context (auto-injected)
+
+    Returns:
+        Random sample from U(low, high)
+    """
+    return float(ctx.rng.uniform(low, high))
+
+
+def lognormal(mean: float, sigma: float, *, ctx: Context) -> float:
+    """Sample from lognormal distribution.
+
+    Args:
+        mean: Mean of the underlying normal distribution
+        sigma: Standard deviation of the underlying normal
+        ctx: Evaluation context (auto-injected)
+
+    Returns:
+        Random sample from LogN(mean, sigma)
+    """
+    return float(ctx.rng.lognormal(mean, sigma))
+
+
+def poisson(lam: float, *, ctx: Context) -> int:
+    """Sample from Poisson distribution.
+
+    Args:
+        lam: Rate parameter (lambda)
+        ctx: Evaluation context (auto-injected)
+
+    Returns:
+        Random sample from Poisson(lam)
+    """
+    return int(ctx.rng.poisson(lam))
+
+
+def exponential(scale: float, *, ctx: Context) -> float:
+    """Sample from exponential distribution.
+
+    Args:
+        scale: Scale parameter (1/rate)
+        ctx: Evaluation context (auto-injected)
+
+    Returns:
+        Random sample from Exp(1/scale)
+    """
+    return float(ctx.rng.exponential(scale))
+
+
+def choice(*choices, ctx: Context) -> Any:
+    """Choose uniformly from choices.
+
+    Args:
+        *choices: Values to choose from
+        ctx: Evaluation context (auto-injected)
+
+    Returns:
+        One of the choices, selected uniformly at random
+    """
+    return ctx.rng.choice(choices)
+
+
+def discrete(weights: list, *choices, ctx: Context) -> Any:
+    """Choose from choices with given weights.
+
+    Args:
+        weights: Probability weights (will be normalized)
+        *choices: Values to choose from
+        ctx: Evaluation context (auto-injected)
+
+    Returns:
+        One of the choices, selected according to weights
+    """
+    return ctx.rng.choice(choices, p=weights)
+
+
+# Default function registry with built-in distribution functions
+DEFAULT_FUNCTIONS: dict[str, Callable] = {
+    "normal": normal,
+    "uniform": uniform,
+    "lognormal": lognormal,
+    "poisson": poisson,
+    "exponential": exponential,
+    "choice": choice,
+    "discrete": discrete,
+}
+
+
+def make_context(
+    seed: int = 42,
+    bindings: dict[str, Any] | None = None,
+    functions: dict[str, Callable] | None = None,
+) -> Context:
+    """Create an evaluation context with defaults.
+
+    Args:
+        seed: Random seed for reproducibility
+        bindings: Variable bindings
+        functions: Custom functions (merged with defaults)
+
+    Returns:
+        Context ready for evaluation
+    """
+    # Merge custom functions with defaults
+    all_functions = {**DEFAULT_FUNCTIONS}
+    if functions:
+        all_functions.update(functions)
+
+    return Context(
+        rng=np.random.default_rng(seed),
+        bindings=bindings or {},
+        functions=all_functions,
+    )

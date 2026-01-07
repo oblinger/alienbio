@@ -13,6 +13,8 @@ from .tags import EvTag, RefTag, IncludeTag
 from .eval import (
     Evaluable, Quoted, Reference, hydrate, dehydrate,
     Context, eval_node, EvalError, SAFE_BUILTINS,
+    DEFAULT_FUNCTIONS, make_context,
+    normal, uniform, lognormal, poisson, exponential, choice, discrete,
 )
 from .loader import load_spec, transform_typed_keys, expand_defaults
 from .scope import Scope
@@ -51,9 +53,19 @@ __all__ = [
     "Context",
     "EvalError",
     "SAFE_BUILTINS",
+    "DEFAULT_FUNCTIONS",
     "hydrate",
     "dehydrate",
     "eval_node",
+    "make_context",
+    # Built-in distribution functions
+    "normal",
+    "uniform",
+    "lognormal",
+    "poisson",
+    "exponential",
+    "choice",
+    "discrete",
     # Loader functions
     "load_spec",
     "transform_typed_keys",
