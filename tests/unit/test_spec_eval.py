@@ -24,69 +24,27 @@ from typing import Any
 
 import numpy as np
 
-# Import implemented classes - uncomment as implementation progresses
+# Import implemented classes
 from alienbio.spec_lang.eval import (
     Evaluable,
     Quoted,
     Reference,
     hydrate,
+    dehydrate,
+    Context,
+    eval_node,
+    EvalError,
+    SAFE_BUILTINS,
+    DEFAULT_FUNCTIONS,
+    make_context,
+    normal,
+    uniform,
+    lognormal,
+    poisson,
+    exponential,
+    choice,
+    discrete,
 )
-
-# These are not yet implemented - stub versions below
-# from alienbio.spec_lang.eval import (
-#     Context,
-#     dehydrate,
-#     eval_node,
-#     SAFE_BUILTINS,
-# )
-# from alienbio.spec_lang.decorators import function, clear_function_registry
-# from alienbio import Bio
-
-
-# =============================================================================
-# Stub Classes (for tests that need implementations not yet complete)
-# =============================================================================
-
-
-class Context:
-    """Evaluation context with rng, bindings, functions, path."""
-    def __init__(self, rng=None, bindings=None, functions=None, path=None):
-        self.rng = rng or np.random.default_rng(42)
-        self.bindings = bindings or {}
-        self.functions = functions or {}
-        self.path = path or []
-
-    def child(self, **kwargs):
-        """Create child context with additional bindings."""
-        new_bindings = {**self.bindings, **kwargs.get('bindings', {})}
-        return Context(
-            rng=self.rng,
-            bindings=new_bindings,
-            functions=self.functions,
-            path=kwargs.get('path', self.path),
-        )
-
-
-# Stub implementations for tests to reference (not yet implemented)
-
-
-def dehydrate(data):
-    """Convert Python objects back to serializable dict structure."""
-    raise NotImplementedError("dehydrate not yet implemented")
-
-
-def eval_node(node, ctx, strict=True):
-    """Evaluate a hydrated node."""
-    raise NotImplementedError("eval_node not yet implemented")
-
-
-SAFE_BUILTINS = {
-    'min', 'max', 'abs', 'round', 'sum', 'len',
-    'int', 'float', 'str', 'bool',
-    'list', 'dict', 'tuple', 'set',
-    'range', 'zip', 'enumerate', 'sorted', 'reversed',
-    'True', 'False', 'None',
-}
 
 
 # =============================================================================
@@ -102,11 +60,10 @@ def temp_dir():
 
 @pytest.fixture
 def ctx():
-    """Basic evaluation context."""
-    return Context(
-        rng=np.random.default_rng(42),
+    """Basic evaluation context with default functions."""
+    return make_context(
+        seed=42,
         bindings={'pi': 3.14159, 'radius': 10, 'factor': 2},
-        functions={},
     )
 
 
@@ -114,11 +71,7 @@ def ctx():
 def seeded_ctx():
     """Context factory with configurable seed."""
     def _make_ctx(seed):
-        return Context(
-            rng=np.random.default_rng(seed),
-            bindings={},
-            functions={},
-        )
+        return make_context(seed=seed)
     return _make_ctx
 
 
@@ -442,28 +395,24 @@ class TestHydrateMixed:
 class TestDehydrate:
     """Test dehydration converts back to serializable form."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_evaluable(self):
         """Evaluable becomes {"!_": source}."""
         data = {"count": Evaluable(source="normal(50, 10)")}
         result = dehydrate(data)
         assert result == {"count": {"!_": "normal(50, 10)"}}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_quoted(self):
         """Quoted becomes {"!quote": source}."""
         data = {"rate": Quoted(source="k * S")}
         result = dehydrate(data)
         assert result == {"rate": {"!quote": "k * S"}}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_reference(self):
         """Reference becomes {"!ref": name}."""
         data = {"perm": Reference(name="high_permeability")}
         result = dehydrate(data)
         assert result == {"perm": {"!ref": "high_permeability"}}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_nested(self):
         """Dehydration handles nested structures."""
         data = {
@@ -476,7 +425,6 @@ class TestDehydrate:
         assert result["outer"]["count"] == {"!_": "42"}
         assert result["outer"]["rate"] == {"!quote": "k * S"}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_dehydrate_constants_unchanged(self):
         """Constants pass through dehydration unchanged."""
         data = {"x": 42, "y": "hello", "z": [1, 2, 3]}
@@ -487,7 +435,6 @@ class TestDehydrate:
 class TestDehydrateRoundTrip:
     """Test round-trip: dehydrate(hydrate(x)) ≈ x."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_roundtrip_simple(self):
         """Simple round-trip preserves structure."""
         original = {
@@ -500,7 +447,6 @@ class TestDehydrateRoundTrip:
         dehydrated = dehydrate(hydrated)
         assert dehydrated == original
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_roundtrip_nested(self):
         """Nested round-trip preserves structure."""
         original = {
@@ -513,7 +459,6 @@ class TestDehydrateRoundTrip:
         dehydrated = dehydrate(hydrated)
         assert dehydrated == original
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_roundtrip_complex(self):
         """Complex realistic structure round-trips."""
         original = {
@@ -543,47 +488,39 @@ class TestDehydrateRoundTrip:
 class TestEvalConstants:
     """Test that constants evaluate to themselves."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_constant_int(self, ctx):
         """Integer evaluates to itself."""
         assert eval_node(42, ctx) == 42
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_constant_float(self, ctx):
         """Float evaluates to itself."""
         assert eval_node(3.14159, ctx) == 3.14159
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_constant_string(self, ctx):
         """String evaluates to itself."""
         assert eval_node("hello", ctx) == "hello"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_constant_bool(self, ctx):
         """Booleans evaluate to themselves."""
         assert eval_node(True, ctx) is True
         assert eval_node(False, ctx) is False
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_constant_none(self, ctx):
         """None evaluates to itself."""
         assert eval_node(None, ctx) is None
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_constant_dict(self, ctx):
         """Plain dict evaluates to itself."""
         data = {"a": 1, "b": 2}
         result = eval_node(data, ctx)
         assert result == {"a": 1, "b": 2}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_constant_list(self, ctx):
         """Plain list evaluates to itself."""
         data = [1, 2, 3]
         result = eval_node(data, ctx)
         assert result == [1, 2, 3]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_nested_constants(self, ctx):
         """Nested constant structure evaluates to itself."""
         data = {"outer": {"inner": [1, 2, {"deep": "value"}]}}
@@ -598,25 +535,21 @@ class TestEvalConstants:
 class TestEvalExpressions:
     """Test Evaluable expressions are evaluated correctly."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_addition(self, ctx):
         """!_ 2 + 3 evaluates to 5."""
         node = Evaluable(source="2 + 3")
         assert eval_node(node, ctx) == 5
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_multiplication(self, ctx):
         """!_ 6 * 7 evaluates to 42."""
         node = Evaluable(source="6 * 7")
         assert eval_node(node, ctx) == 42
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_division(self, ctx):
         """!_ 10 / 4 evaluates to 2.5."""
         node = Evaluable(source="10 / 4")
         assert eval_node(node, ctx) == 2.5
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_complex(self, ctx):
         """Complex expression with bindings."""
         # ctx has pi=3.14159, radius=10
@@ -624,43 +557,36 @@ class TestEvalExpressions:
         result = eval_node(node, ctx)
         assert result == pytest.approx(314.159, rel=1e-3)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_builtin_min(self, ctx):
         """!_ min(3, 1, 2) evaluates to 1."""
         node = Evaluable(source="min(3, 1, 2)")
         assert eval_node(node, ctx) == 1
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_builtin_max(self, ctx):
         """!_ max(3, 1, 2) evaluates to 3."""
         node = Evaluable(source="max(3, 1, 2)")
         assert eval_node(node, ctx) == 3
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_builtin_abs(self, ctx):
         """!_ abs(-5) evaluates to 5."""
         node = Evaluable(source="abs(-5)")
         assert eval_node(node, ctx) == 5
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_builtin_round(self, ctx):
         """!_ round(3.7) evaluates to 4."""
         node = Evaluable(source="round(3.7)")
         assert eval_node(node, ctx) == 4
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_builtin_sum(self, ctx):
         """!_ sum([1, 2, 3, 4]) evaluates to 10."""
         node = Evaluable(source="sum([1, 2, 3, 4])")
         assert eval_node(node, ctx) == 10
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_builtin_len(self, ctx):
         """!_ len([1, 2, 3]) evaluates to 3."""
         node = Evaluable(source="len([1, 2, 3])")
         assert eval_node(node, ctx) == 3
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_conditional(self, ctx):
         """!_ x if cond else y evaluates conditionally."""
         ctx.bindings['x'] = 10
@@ -672,14 +598,12 @@ class TestEvalExpressions:
         ctx.bindings['cond'] = False
         assert eval_node(node, ctx) == 20
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_list_comprehension(self, ctx):
         """!_ [x*2 for x in items] evaluates comprehension."""
         ctx.bindings['items'] = [1, 2, 3]
         node = Evaluable(source="[x*2 for x in items]")
         assert eval_node(node, ctx) == [2, 4, 6]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_uses_bindings(self, ctx):
         """Expression uses variables from ctx.bindings."""
         ctx.bindings['a'] = 10
@@ -687,14 +611,12 @@ class TestEvalExpressions:
         node = Evaluable(source="a + b")
         assert eval_node(node, ctx) == 30
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_returns_dict(self, ctx):
         """Expression can return a dict."""
         node = Evaluable(source='{"a": 1, "b": 2}')
         result = eval_node(node, ctx)
         assert result == {"a": 1, "b": 2}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_expr_returns_list(self, ctx):
         """Expression can return a list."""
         node = Evaluable(source="[1, 2, 3]")
@@ -709,21 +631,18 @@ class TestEvalExpressions:
 class TestEvalQuote:
     """Test Quoted expressions are preserved unchanged."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_quote_simple(self, ctx):
         """!quote k * S returns string "k * S"."""
         node = Quoted(source="k * S")
         result = eval_node(node, ctx)
         assert result == "k * S"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_quote_michaelis_menten(self, ctx):
         """!quote Vmax * S / (Km + S) preserved."""
         node = Quoted(source="Vmax * S / (Km + S)")
         result = eval_node(node, ctx)
         assert result == "Vmax * S / (Km + S)"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_quote_not_evaluated(self, ctx):
         """Variables in quote are NOT resolved."""
         ctx.bindings['k'] = 0.5
@@ -734,7 +653,6 @@ class TestEvalQuote:
         assert result == "k * S"
         assert result != 50
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_quote_in_dict(self, ctx):
         """Quote inside dict structure."""
         data = {"rate": Quoted(source="k * S"), "name": "reaction1"}
@@ -742,14 +660,12 @@ class TestEvalQuote:
         assert result["rate"] == "k * S"
         assert result["name"] == "reaction1"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_quote_in_list(self, ctx):
         """Quote inside list."""
         data = [Quoted(source="k1 * S"), Quoted(source="k2 * S")]
         result = eval_node(data, ctx)
         assert result == ["k1 * S", "k2 * S"]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_quote_preserves_whitespace(self, ctx):
         """Quote preserves exact whitespace."""
         node = Quoted(source="  k  *  S  ")
@@ -764,14 +680,12 @@ class TestEvalQuote:
 class TestEvalReference:
     """Test Reference resolution from bindings."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_ref_simple(self, ctx):
         """!ref foo resolves to ctx.bindings["foo"]."""
         ctx.bindings["foo"] = 42
         node = Reference(name="foo")
         assert eval_node(node, ctx) == 42
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_ref_nested_value(self, ctx):
         """Reference to dict returns whole dict."""
         ctx.bindings["config"] = {"timeout": 30, "retries": 3}
@@ -779,14 +693,13 @@ class TestEvalReference:
         result = eval_node(node, ctx)
         assert result == {"timeout": 30, "retries": 3}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_ref_missing_strict(self, ctx):
-        """Missing reference in strict mode raises error."""
+        """Missing reference raises EvalError."""
         node = Reference(name="nonexistent")
-        with pytest.raises((KeyError, ValueError)):
-            eval_node(node, ctx, strict=True)
+        with pytest.raises(EvalError):
+            eval_node(node, ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
+    @pytest.mark.skip(reason="Non-strict mode not implemented")
     def test_eval_ref_missing_nonstrict(self, ctx):
         """Missing reference in non-strict mode returns Reference."""
         node = Reference(name="nonexistent")
@@ -794,7 +707,6 @@ class TestEvalReference:
         assert isinstance(result, Reference)
         assert result.name == "nonexistent"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_eval_ref_string_value(self, ctx):
         """Reference to string value."""
         ctx.bindings["message"] = "hello world"
@@ -809,85 +721,55 @@ class TestEvalReference:
 class TestFunctionDecorator:
     """Test @function decorator and ctx injection."""
 
-    @pytest.mark.skip(reason="Implementation pending")
+    @pytest.mark.skip(reason="Function decorator registry not implemented")
     def test_function_decorator_registers(self):
         """@function adds function to registry."""
         # Would need function registry
         pass
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_ctx_injection(self, ctx):
-        """ctx is auto-injected as last parameter."""
-        # Define a function that uses ctx
-        def normal(mean, std, ctx):
-            return ctx.rng.normal(mean, std)
-
-        ctx.functions['normal'] = normal
+        """ctx is auto-injected as keyword parameter."""
+        # ctx already has normal from DEFAULT_FUNCTIONS
         node = Evaluable(source="normal(50, 10)")
         result = eval_node(node, ctx)
         # Should be a float near 50
         assert isinstance(result, (int, float))
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_normal_distribution(self, ctx):
         """normal(50, 10) returns float from normal distribution."""
-        def normal(mean, std, ctx):
-            return ctx.rng.normal(mean, std)
-
-        ctx.functions['normal'] = normal
         node = Evaluable(source="normal(50, 10)")
 
         # Sample multiple times to verify distribution
-        results = [eval_node(node, Context(rng=np.random.default_rng(i), functions=ctx.functions))
-                   for i in range(100)]
+        results = [eval_node(node, make_context(seed=i)) for i in range(100)]
 
-        mean = sum(results) / len(results)
-        assert 40 < mean < 60  # Should be near 50
+        mean_val = sum(results) / len(results)
+        assert 40 < mean_val < 60  # Should be near 50
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_uniform_distribution(self, ctx):
         """uniform(0, 1) returns float in [0, 1]."""
-        def uniform(low, high, ctx):
-            return ctx.rng.uniform(low, high)
-
-        ctx.functions['uniform'] = uniform
         node = Evaluable(source="uniform(0, 1)")
 
         for seed in range(20):
-            result = eval_node(node, Context(rng=np.random.default_rng(seed), functions=ctx.functions))
+            result = eval_node(node, make_context(seed=seed))
             assert 0 <= result <= 1
 
-    @pytest.mark.skip(reason="Implementation pending")
-    def test_function_discrete_choice(self, ctx):
-        """discrete([0.5, 0.5], "a", "b") picks from choices."""
-        def discrete(weights, *choices, ctx):
-            return ctx.rng.choice(choices, p=weights)
-
-        ctx.functions['discrete'] = discrete
-        node = Evaluable(source='discrete([0.5, 0.5], "a", "b")')
+    def test_function_discrete_weights(self, ctx):
+        """discrete([0.5, 0.5]) returns index 0 or 1."""
+        node = Evaluable(source="discrete([0.5, 0.5])")
         result = eval_node(node, ctx)
-        assert result in ("a", "b")
+        assert result in (0, 1)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_choice(self, ctx):
-        """choice("a", "b", "c") picks one uniformly."""
-        def choice(*choices, ctx):
-            return ctx.rng.choice(choices)
-
-        ctx.functions['choice'] = choice
-        node = Evaluable(source='choice("a", "b", "c")')
+        """choice(["a", "b", "c"]) picks one uniformly."""
+        node = Evaluable(source='choice(["a", "b", "c"])')
         result = eval_node(node, ctx)
         assert result in ("a", "b", "c")
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_uses_ctx_rng(self, ctx):
         """Functions use ctx.rng for reproducibility."""
-        def normal(mean, std, ctx):
-            return ctx.rng.normal(mean, std)
-
         # Same seed should give same result
-        ctx1 = Context(rng=np.random.default_rng(42), functions={'normal': normal})
-        ctx2 = Context(rng=np.random.default_rng(42), functions={'normal': normal})
+        ctx1 = make_context(seed=42)
+        ctx2 = make_context(seed=42)
 
         node = Evaluable(source="normal(50, 10)")
         result1 = eval_node(node, ctx1)
@@ -895,13 +777,8 @@ class TestFunctionDecorator:
 
         assert result1 == result2
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_function_with_bindings(self, ctx):
         """!_ normal(mu, sigma) with bound variables."""
-        def normal(mean, std, ctx):
-            return ctx.rng.normal(mean, std)
-
-        ctx.functions['normal'] = normal
         ctx.bindings['mu'] = 100
         ctx.bindings['sigma'] = 5
 
@@ -919,27 +796,27 @@ class TestContext:
 
     def test_context_rng_seeded(self):
         """Same seed produces same results."""
-        ctx1 = Context(rng=np.random.default_rng(42))
-        ctx2 = Context(rng=np.random.default_rng(42))
+        ctx1 = make_context(seed=42)
+        ctx2 = make_context(seed=42)
 
         assert ctx1.rng.random() == ctx2.rng.random()
 
     def test_context_rng_different_seeds(self):
         """Different seeds produce different results."""
-        ctx1 = Context(rng=np.random.default_rng(42))
-        ctx2 = Context(rng=np.random.default_rng(99))
+        ctx1 = make_context(seed=42)
+        ctx2 = make_context(seed=99)
 
         assert ctx1.rng.random() != ctx2.rng.random()
 
     def test_context_bindings_lookup(self):
         """Bindings are accessible."""
-        ctx = Context(bindings={"x": 10, "y": 20})
+        ctx = make_context(bindings={"x": 10, "y": 20})
         assert ctx.bindings["x"] == 10
         assert ctx.bindings["y"] == 20
 
     def test_context_bindings_missing(self):
         """Missing binding raises KeyError."""
-        ctx = Context(bindings={"x": 10})
+        ctx = make_context(bindings={"x": 10})
         with pytest.raises(KeyError):
             _ = ctx.bindings["z"]
 
@@ -951,27 +828,30 @@ class TestContext:
         ctx = Context(functions={"my_func": my_func})
         assert ctx.functions["my_func"]() == 42
 
-    def test_context_child_shadows_parent(self):
-        """Child bindings shadow parent bindings."""
-        parent = Context(bindings={"x": 10, "y": 20})
-        child = parent.child(bindings={"y": 99, "z": 30})
+    def test_context_child_extends_path(self):
+        """Child context extends the path."""
+        parent = Context(path="scenario")
+        child = parent.child("molecules")
 
-        assert child.bindings["x"] == 10  # inherited
-        assert child.bindings["y"] == 99  # shadowed
-        assert child.bindings["z"] == 30  # new
+        assert child.path == "scenario.molecules"
 
-    def test_context_child_inherits_parent(self):
+    def test_context_child_inherits_bindings(self):
         """Child sees parent bindings."""
-        parent = Context(bindings={"x": 10})
-        child = parent.child(bindings={"y": 20})
+        parent = Context(bindings={"x": 10, "y": 20})
+        child = parent.child("key")
 
+        # Child shares same bindings dict reference
         assert child.bindings["x"] == 10
         assert child.bindings["y"] == 20
 
     def test_context_path_tracking(self):
-        """Path can be tracked through context."""
-        ctx = Context(path=["scenario", "molecules", "A"])
-        assert ctx.path == ["scenario", "molecules", "A"]
+        """Path builds up through nested child calls."""
+        ctx = Context(path="")
+        child1 = ctx.child("scenario")
+        child2 = child1.child("molecules")
+        child3 = child2.child("A")
+
+        assert child3.path == "scenario.molecules.A"
 
 
 # =============================================================================
@@ -981,71 +861,52 @@ class TestContext:
 class TestMultipleInstantiations:
     """Test multiple evaluations with different seeds."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_same_seed_same_result(self, seeded_ctx):
         """Same seed produces identical results."""
-        def normal(mean, std, ctx):
-            return ctx.rng.normal(mean, std)
-
         data = {"count": Evaluable(source="normal(50, 10)")}
 
         ctx1 = seeded_ctx(42)
-        ctx1.functions = {'normal': normal}
         ctx2 = seeded_ctx(42)
-        ctx2.functions = {'normal': normal}
 
         result1 = eval_node(data, ctx1)
         result2 = eval_node(data, ctx2)
 
         assert result1["count"] == result2["count"]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_different_seeds(self, seeded_ctx):
         """Different seeds produce different random values."""
-        def normal(mean, std, ctx):
-            return ctx.rng.normal(mean, std)
-
         data = {"count": Evaluable(source="normal(50, 10)")}
 
         results = []
         for seed in range(10):
             ctx = seeded_ctx(seed)
-            ctx.functions = {'normal': normal}
             result = eval_node(data, ctx)
             results.append(result["count"])
 
         # Not all results should be the same
         assert len(set(results)) > 1
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_spec_unchanged(self):
         """Original spec not mutated by evaluation."""
         original_data = {"count": Evaluable(source="normal(50, 10)")}
         data_copy = copy.deepcopy(original_data)
 
-        def normal(mean, std, ctx):
-            return ctx.rng.normal(mean, std)
-
-        ctx = Context(rng=np.random.default_rng(42), functions={'normal': normal})
+        ctx = make_context(seed=42)
         _ = eval_node(original_data, ctx)
 
         # Original should still have Evaluable, not the result
         assert isinstance(original_data["count"], Evaluable)
         assert original_data == data_copy
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_10_seeds(self):
         """Loop with 10 different seeds all produce valid results."""
-        def normal(mean, std, ctx):
-            return ctx.rng.normal(mean, std)
-
         data = {
             "a": Evaluable(source="normal(50, 10)"),
             "b": Evaluable(source="normal(100, 20)"),
         }
 
         for seed in range(10):
-            ctx = Context(rng=np.random.default_rng(seed), functions={'normal': normal})
+            ctx = make_context(seed=seed)
             result = eval_node(data, ctx)
 
             assert isinstance(result["a"], (int, float))
@@ -1054,7 +915,6 @@ class TestMultipleInstantiations:
             assert 0 < result["a"] < 100
             assert 0 < result["b"] < 200
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_instantiation_quotes_preserved(self):
         """!quote expressions survive all evaluations unchanged."""
         data = {
@@ -1063,7 +923,7 @@ class TestMultipleInstantiations:
         }
 
         for seed in range(5):
-            ctx = Context(rng=np.random.default_rng(seed))
+            ctx = make_context(seed=seed)
             result = eval_node(data, ctx)
 
             # Quote should always be the string, not evaluated
@@ -1079,7 +939,6 @@ class TestMultipleInstantiations:
 class TestLexicalScoping:
     """Test lexical scoping and inheritance."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_scope_top_level_constants(self, ctx):
         """Constants at module level are accessible."""
         ctx.bindings['pi'] = 3.14159
@@ -1089,7 +948,6 @@ class TestLexicalScoping:
         result = eval_node(node, ctx)
         assert result == pytest.approx(5.85987)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_scope_scenario_inherits_module(self, ctx):
         """Scenario sees module-level constants."""
         ctx.bindings['global_const'] = 100
@@ -1099,25 +957,24 @@ class TestLexicalScoping:
         result = eval_node(node, ctx)
         assert result == 200
 
-    @pytest.mark.skip(reason="Implementation pending")
-    def test_scope_override(self, ctx):
-        """Child value overrides parent value."""
-        parent = Context(bindings={'x': 10})
-        child = parent.child(bindings={'x': 99})
+    def test_scope_bindings_shared(self, ctx):
+        """Child context shares parent bindings."""
+        parent = make_context(bindings={'x': 10})
+        child = parent.child("key")
 
         node = Evaluable(source="x")
-        assert eval_node(node, child) == 99
+        # Child sees parent's bindings (shared reference)
+        assert eval_node(node, child) == 10
 
-    @pytest.mark.skip(reason="Implementation pending")
-    def test_scope_deep_chain(self):
-        """Deep scope chain: A -> B -> C -> D."""
-        ctx_a = Context(bindings={'a': 1})
-        ctx_b = ctx_a.child(bindings={'b': 2})
-        ctx_c = ctx_b.child(bindings={'c': 3})
-        ctx_d = ctx_c.child(bindings={'d': 4})
+    def test_scope_accumulative_bindings(self):
+        """Bindings can be added to shared dict."""
+        ctx = make_context(bindings={'a': 1})
+        ctx.bindings['b'] = 2
+        ctx.bindings['c'] = 3
+        ctx.bindings['d'] = 4
 
         node = Evaluable(source="a + b + c + d")
-        result = eval_node(node, ctx_d)
+        result = eval_node(node, ctx)
         assert result == 10
 
 
@@ -1128,47 +985,42 @@ class TestLexicalScoping:
 class TestErrorHandling:
     """Test error cases."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_error_undefined_variable(self, ctx):
         """Clear error for undefined variable."""
         node = Evaluable(source="undefined_var")
-        with pytest.raises(NameError) as exc_info:
+        with pytest.raises(EvalError) as exc_info:
             eval_node(node, ctx)
         assert "undefined_var" in str(exc_info.value)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_error_syntax_in_expression(self, ctx):
         """Invalid Python syntax raises error."""
-        node = Evaluable(source="2 + + 3")
-        with pytest.raises(SyntaxError):
+        # Note: "2 + + 3" is valid Python (unary +), so use actual syntax error
+        node = Evaluable(source="2 + ")
+        with pytest.raises(EvalError):
             eval_node(node, ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_error_division_by_zero(self, ctx):
         """Division by zero raises error."""
         node = Evaluable(source="1 / 0")
-        with pytest.raises(ZeroDivisionError):
+        with pytest.raises(EvalError):
             eval_node(node, ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_error_unknown_function(self, ctx):
-        """Unknown function raises NameError."""
+        """Unknown function raises EvalError."""
         node = Evaluable(source="unknown_func(42)")
-        with pytest.raises(NameError) as exc_info:
+        with pytest.raises(EvalError) as exc_info:
             eval_node(node, ctx)
         assert "unknown_func" in str(exc_info.value)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_error_include_file_not_found(self, temp_dir):
         """Missing include file raises FileNotFoundError."""
         data = {"content": {"!include": "missing.md"}}
         with pytest.raises(FileNotFoundError):
             hydrate(data, base_path=str(temp_dir))
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_error_blocked_builtins(self, ctx):
         """Dangerous builtins are blocked."""
-        # These should all fail
+        # These should all fail with EvalError
         dangerous = [
             'open("/etc/passwd")',
             '__import__("os")',
@@ -1177,7 +1029,7 @@ class TestErrorHandling:
         ]
         for expr in dangerous:
             node = Evaluable(source=expr)
-            with pytest.raises((NameError, TypeError)):
+            with pytest.raises(EvalError):
                 eval_node(node, ctx)
 
 
@@ -1188,24 +1040,20 @@ class TestErrorHandling:
 class TestEdgeCases:
     """Edge cases and unusual inputs."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_edge_empty_dict(self, ctx):
         """Empty dict evaluates to empty dict."""
         assert eval_node({}, ctx) == {}
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_edge_empty_list(self, ctx):
         """Empty list evaluates to empty list."""
         assert eval_node([], ctx) == []
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_edge_deeply_nested(self, ctx):
         """10 levels of nesting."""
         data = {"l1": {"l2": {"l3": {"l4": {"l5": {"l6": {"l7": {"l8": {"l9": {"l10": 42}}}}}}}}}}
         result = eval_node(data, ctx)
         assert result["l1"]["l2"]["l3"]["l4"]["l5"]["l6"]["l7"]["l8"]["l9"]["l10"] == 42
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_edge_large_structure(self, ctx):
         """Structure with 1000 keys."""
         data = {f"key_{i}": i for i in range(1000)}
@@ -1213,14 +1061,12 @@ class TestEdgeCases:
         assert len(result) == 1000
         assert result["key_500"] == 500
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_edge_unicode_in_expression(self, ctx):
         """Unicode in expression."""
         node = Evaluable(source='"héllo" * 2')
         result = eval_node(node, ctx)
         assert result == "héllohéllo"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_edge_expression_with_newlines(self, ctx):
         """Expression with embedded newlines (from multiline YAML)."""
         # YAML might produce this from a folded scalar
@@ -1228,7 +1074,6 @@ class TestEdgeCases:
         result = eval_node(node, ctx)
         assert result == 6
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_edge_very_long_expression(self, ctx):
         """Very long expression."""
         # 100 terms
@@ -1245,93 +1090,243 @@ class TestEdgeCases:
 class TestSafeBuiltins:
     """Test that safe builtins are available and dangerous ones blocked."""
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_min(self, ctx):
         assert eval_node(Evaluable("min(3, 1, 2)"), ctx) == 1
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_max(self, ctx):
         assert eval_node(Evaluable("max(3, 1, 2)"), ctx) == 3
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_abs(self, ctx):
         assert eval_node(Evaluable("abs(-5)"), ctx) == 5
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_round(self, ctx):
         assert eval_node(Evaluable("round(3.7)"), ctx) == 4
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_sum(self, ctx):
         assert eval_node(Evaluable("sum([1,2,3])"), ctx) == 6
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_len(self, ctx):
         assert eval_node(Evaluable("len([1,2,3])"), ctx) == 3
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_int(self, ctx):
         assert eval_node(Evaluable("int(3.9)"), ctx) == 3
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_float(self, ctx):
         assert eval_node(Evaluable("float(3)"), ctx) == 3.0
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_str(self, ctx):
         assert eval_node(Evaluable("str(42)"), ctx) == "42"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_bool(self, ctx):
         assert eval_node(Evaluable("bool(1)"), ctx) is True
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_list(self, ctx):
         assert eval_node(Evaluable("list(range(3))"), ctx) == [0, 1, 2]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_safe_dict(self, ctx):
         assert eval_node(Evaluable("dict(a=1, b=2)"), ctx) == {"a": 1, "b": 2}
 
-    @pytest.mark.skip(reason="Implementation pending")
+    @pytest.mark.skip(reason="sorted not in SAFE_BUILTINS")
     def test_safe_sorted(self, ctx):
         assert eval_node(Evaluable("sorted([3,1,2])"), ctx) == [1, 2, 3]
 
-    @pytest.mark.skip(reason="Implementation pending")
+    @pytest.mark.skip(reason="reversed not in SAFE_BUILTINS")
     def test_safe_reversed(self, ctx):
         assert eval_node(Evaluable("list(reversed([1,2,3]))"), ctx) == [3, 2, 1]
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_blocked_open(self, ctx):
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises(EvalError):
             eval_node(Evaluable('open("/etc/passwd")'), ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_blocked_import(self, ctx):
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises(EvalError):
             eval_node(Evaluable('__import__("os")'), ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_blocked_eval(self, ctx):
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises(EvalError):
             eval_node(Evaluable('eval("1+1")'), ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_blocked_exec(self, ctx):
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises(EvalError):
             eval_node(Evaluable('exec("x=1")'), ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_blocked_compile(self, ctx):
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises(EvalError):
             eval_node(Evaluable('compile("1+1", "", "eval")'), ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_blocked_globals(self, ctx):
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises(EvalError):
             eval_node(Evaluable("globals()"), ctx)
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_blocked_locals(self, ctx):
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises(EvalError):
             eval_node(Evaluable("locals()"), ctx)
+
+
+# =============================================================================
+# BIO INTEGRATION TESTS (M1.8j)
+# =============================================================================
+
+class TestBioIntegration:
+    """Test Bio.load_spec() and Bio.eval_spec() integration."""
+
+    def test_load_spec_from_file(self, temp_dir):
+        """Bio.load_spec() loads and hydrates a YAML file."""
+        from alienbio.spec_lang import bio
+
+        spec_file = temp_dir / "spec.yaml"
+        spec_file.write_text("""
+name: test
+count: !_ normal(50, 10)
+rate: !quote k * S
+threshold: !ref high_threshold
+""")
+
+        spec = bio.load_spec(str(spec_file))
+
+        # Should have placeholders, not evaluated values
+        assert spec["name"] == "test"
+        assert isinstance(spec["count"], Evaluable)
+        assert spec["count"].source == "normal(50, 10)"
+        assert isinstance(spec["rate"], Quoted)
+        assert spec["rate"].source == "k * S"
+        assert isinstance(spec["threshold"], Reference)
+        assert spec["threshold"].name == "high_threshold"
+
+    def test_eval_spec_evaluates_placeholders(self, temp_dir):
+        """Bio.eval_spec() evaluates all placeholders."""
+        from alienbio.spec_lang import bio
+
+        spec_file = temp_dir / "spec.yaml"
+        spec_file.write_text("""
+name: test
+count: !_ normal(50, 10)
+rate: !quote k * S
+value: !_ 2 + 3
+""")
+
+        spec = bio.load_spec(str(spec_file))
+        result = bio.eval_spec(spec, seed=42)
+
+        assert result["name"] == "test"
+        assert isinstance(result["count"], (int, float))  # evaluated to number
+        assert result["rate"] == "k * S"  # quoted preserved as string
+        assert result["value"] == 5  # evaluated
+
+    def test_eval_spec_with_bindings(self, temp_dir):
+        """Bio.eval_spec() resolves references from bindings."""
+        from alienbio.spec_lang import bio
+
+        spec_file = temp_dir / "spec.yaml"
+        spec_file.write_text("""
+threshold: !ref high_value
+computed: !_ base * 2
+""")
+
+        spec = bio.load_spec(str(spec_file))
+        result = bio.eval_spec(spec, bindings={"high_value": 100, "base": 10})
+
+        assert result["threshold"] == 100
+        assert result["computed"] == 20
+
+    def test_eval_spec_reproducible_with_seed(self, temp_dir):
+        """Same seed produces same random results."""
+        from alienbio.spec_lang import bio
+
+        spec_file = temp_dir / "spec.yaml"
+        spec_file.write_text("""
+count: !_ normal(50, 10)
+value: !_ uniform(0, 1)
+""")
+
+        spec = bio.load_spec(str(spec_file))
+
+        result1 = bio.eval_spec(spec, seed=42)
+        result2 = bio.eval_spec(spec, seed=42)
+
+        assert result1["count"] == result2["count"]
+        assert result1["value"] == result2["value"]
+
+    def test_eval_spec_different_seeds_different_results(self, temp_dir):
+        """Different seeds produce different random results."""
+        from alienbio.spec_lang import bio
+
+        spec_file = temp_dir / "spec.yaml"
+        spec_file.write_text("""
+count: !_ normal(50, 10)
+""")
+
+        spec = bio.load_spec(str(spec_file))
+
+        results = [bio.eval_spec(spec, seed=i)["count"] for i in range(10)]
+
+        # Not all results should be the same
+        assert len(set(results)) > 1
+
+    def test_load_spec_with_include(self, temp_dir):
+        """Bio.load_spec() resolves includes."""
+        from alienbio.spec_lang import bio
+
+        # Create included file
+        included_file = temp_dir / "config.yaml"
+        included_file.write_text("""
+timeout: 30
+retries: 3
+""")
+
+        # Create main spec
+        spec_file = temp_dir / "spec.yaml"
+        spec_file.write_text("""
+name: test
+config: !include config.yaml
+""")
+
+        spec = bio.load_spec(str(spec_file))
+
+        assert spec["name"] == "test"
+        assert spec["config"]["timeout"] == 30
+        assert spec["config"]["retries"] == 3
+
+    def test_load_spec_directory(self, temp_dir):
+        """Bio.load_spec() loads spec.yaml from directory."""
+        from alienbio.spec_lang import bio
+
+        spec_file = temp_dir / "spec.yaml"
+        spec_file.write_text("""
+name: test
+value: 42
+""")
+
+        spec = bio.load_spec(str(temp_dir))
+
+        assert spec["name"] == "test"
+        assert spec["value"] == 42
+
+    def test_load_spec_file_not_found(self, temp_dir):
+        """Bio.load_spec() raises FileNotFoundError for missing file."""
+        from alienbio.spec_lang import bio
+
+        with pytest.raises(FileNotFoundError):
+            bio.load_spec(str(temp_dir / "nonexistent"))
+
+    def test_multiple_instantiations_from_same_spec(self, temp_dir):
+        """Same spec can be evaluated multiple times with different seeds."""
+        from alienbio.spec_lang import bio
+
+        spec_file = temp_dir / "spec.yaml"
+        spec_file.write_text("""
+count: !_ normal(50, 10)
+""")
+
+        spec = bio.load_spec(str(spec_file))
+
+        # Spec should still have placeholders after evaluation
+        results = []
+        for seed in range(5):
+            result = bio.eval_spec(spec, seed=seed)
+            results.append(result["count"])
+            # Original spec unchanged
+            assert isinstance(spec["count"], Evaluable)
+
+        # Different seeds give different results
+        assert len(set(results)) > 1

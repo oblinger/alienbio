@@ -15,10 +15,11 @@ Pipeline:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Callable
 
 import yaml
+import numpy as np
 
 
 # =============================================================================
@@ -240,3 +241,351 @@ def _hydrate_include(path: str, base_path: str | None) -> Any:
     else:
         # Default: return raw text
         return file_path.read_text()
+
+
+# =============================================================================
+# Dehydration (M1.8d)
+# =============================================================================
+
+
+def dehydrate(data: Any) -> Any:
+    """Convert Python objects back to serializable dict structure.
+
+    Inverse of hydrate() - converts placeholder objects back to their
+    dict representation for YAML serialization.
+
+    Transforms:
+        Evaluable(source) → {"!_": source}
+        Quoted(source) → {"!quote": source}
+        Reference(name) → {"!ref": name}
+
+    Args:
+        data: The data structure to dehydrate
+
+    Returns:
+        Dehydrated data suitable for YAML serialization
+    """
+    return _dehydrate_node(data)
+
+
+def _dehydrate_node(node: Any) -> Any:
+    """Recursively dehydrate a single node."""
+    # Placeholder objects - convert to dict representation
+    if isinstance(node, Evaluable):
+        return {"!_": node.source}
+
+    if isinstance(node, Quoted):
+        return {"!quote": node.source}
+
+    if isinstance(node, Reference):
+        return {"!ref": node.name}
+
+    # Dict - recurse into values
+    if isinstance(node, dict):
+        return {k: _dehydrate_node(v) for k, v in node.items()}
+
+    # List - recurse into elements
+    if isinstance(node, list):
+        return [_dehydrate_node(item) for item in node]
+
+    # Scalar values (int, float, str, bool, None) - pass through
+    return node
+
+
+# =============================================================================
+# Evaluation Context (M1.8e)
+# =============================================================================
+
+
+# Safe builtins for expression evaluation
+SAFE_BUILTINS: dict[str, Any] = {
+    "abs": abs,
+    "all": all,
+    "any": any,
+    "bool": bool,
+    "dict": dict,
+    "float": float,
+    "int": int,
+    "len": len,
+    "list": list,
+    "max": max,
+    "min": min,
+    "pow": pow,
+    "range": range,
+    "round": round,
+    "str": str,
+    "sum": sum,
+    "tuple": tuple,
+    "zip": zip,
+    "True": True,
+    "False": False,
+    "None": None,
+}
+
+
+class EvalError(Exception):
+    """Error during spec evaluation."""
+
+    def __init__(self, message: str, path: str = ""):
+        self.path = path
+        super().__init__(f"{path}: {message}" if path else message)
+
+
+@dataclass
+class Context:
+    """Evaluation context for spec evaluation.
+
+    Carries state through the recursive evaluation process:
+    - rng: Random number generator for reproducible sampling
+    - bindings: Named values for !ref resolution
+    - functions: Callable functions available to !_ expressions
+    - path: Current location in the tree for error messages
+
+    Example:
+        ctx = Context(
+            rng=np.random.default_rng(42),
+            bindings={"k": 0.5, "permeability": 0.8},
+            functions={"normal": normal, "uniform": uniform}
+        )
+        result = eval_node(hydrated_spec, ctx)
+    """
+
+    rng: np.random.Generator = field(default_factory=np.random.default_rng)
+    bindings: dict[str, Any] = field(default_factory=dict)
+    functions: dict[str, Callable[..., Any]] = field(default_factory=dict)
+    path: str = ""
+
+    def child(self, key: str | int) -> "Context":
+        """Create child context with extended path."""
+        new_path = f"{self.path}.{key}" if self.path else str(key)
+        return Context(
+            rng=self.rng,
+            bindings=self.bindings,
+            functions=self.functions,
+            path=new_path,
+        )
+
+
+# =============================================================================
+# Evaluation (M1.8f)
+# =============================================================================
+
+
+def eval_node(node: Any, ctx: Context) -> Any:
+    """Recursively evaluate a hydrated spec node.
+
+    Processes placeholder objects:
+        Evaluable → execute expression and return result
+        Quoted → return source string unchanged
+        Reference → look up in ctx.bindings
+
+    Recursively evaluates:
+        dict → evaluate all values
+        list → evaluate all elements
+
+    Passes through:
+        Scalar values (int, float, str, bool, None)
+
+    Args:
+        node: The hydrated node to evaluate
+        ctx: Evaluation context
+
+    Returns:
+        Fully evaluated value
+
+    Raises:
+        EvalError: If evaluation fails (undefined reference, syntax error, etc.)
+    """
+    # Evaluable - execute the expression
+    if isinstance(node, Evaluable):
+        return _eval_expression(node.source, ctx)
+
+    # Quoted - return the source string unchanged
+    if isinstance(node, Quoted):
+        return node.source
+
+    # Reference - look up in bindings
+    if isinstance(node, Reference):
+        if node.name not in ctx.bindings:
+            raise EvalError(f"Undefined reference: {node.name!r}", ctx.path)
+        return ctx.bindings[node.name]
+
+    # Dict - recurse into values
+    if isinstance(node, dict):
+        return {k: eval_node(v, ctx.child(k)) for k, v in node.items()}
+
+    # List - recurse into elements
+    if isinstance(node, list):
+        return [eval_node(item, ctx.child(i)) for i, item in enumerate(node)]
+
+    # Scalar values - pass through
+    return node
+
+
+def _eval_expression(source: str, ctx: Context) -> Any:
+    """Evaluate a Python expression in a sandboxed environment.
+
+    The expression has access to:
+    - SAFE_BUILTINS (abs, min, max, etc.)
+    - ctx.bindings (named values)
+    - ctx.functions (wrapped with auto-injected ctx)
+
+    Args:
+        source: Python expression string
+        ctx: Evaluation context
+
+    Returns:
+        Result of evaluating the expression
+
+    Raises:
+        EvalError: If expression is invalid or evaluation fails
+    """
+    # Build namespace with safe builtins
+    namespace: dict[str, Any] = dict(SAFE_BUILTINS)
+
+    # Add bindings
+    namespace.update(ctx.bindings)
+
+    # Add functions with auto-injected ctx
+    for name, func in ctx.functions.items():
+        namespace[name] = _wrap_function(func, ctx)
+
+    try:
+        # Compile to detect syntax errors early
+        code = compile(source, "<spec>", "eval")
+        return eval(code, {"__builtins__": {}}, namespace)
+    except SyntaxError as e:
+        raise EvalError(f"Syntax error in expression {source!r}: {e}", ctx.path)
+    except NameError as e:
+        raise EvalError(f"Name error in expression {source!r}: {e}", ctx.path)
+    except Exception as e:
+        raise EvalError(f"Error evaluating {source!r}: {e}", ctx.path)
+
+
+# =============================================================================
+# Function Injection (M1.8g)
+# =============================================================================
+
+
+def _wrap_function(func: Callable[..., Any], ctx: Context) -> Callable[..., Any]:
+    """Wrap a function to auto-inject ctx as keyword argument.
+
+    Allows spec functions to receive the evaluation context without
+    the expression author having to pass it explicitly.
+
+    Example:
+        def normal(mean, std, *, ctx):
+            return ctx.rng.normal(mean, std)
+
+        wrapped = _wrap_function(normal, ctx)
+        wrapped(10, 2)  # ctx is auto-injected
+    """
+    import functools
+    import inspect
+
+    # Check if function accepts ctx keyword argument
+    sig = inspect.signature(func)
+    params = sig.parameters
+    has_ctx = "ctx" in params and params["ctx"].kind in (
+        inspect.Parameter.KEYWORD_ONLY,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    )
+
+    if not has_ctx:
+        # Function doesn't want ctx, return as-is
+        return func
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        kwargs["ctx"] = ctx
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+# =============================================================================
+# Built-in Functions (M1.8h)
+# =============================================================================
+
+
+def normal(mean: float, std: float, *, ctx: Context) -> float:
+    """Sample from normal distribution."""
+    return float(ctx.rng.normal(mean, std))
+
+
+def uniform(low: float, high: float, *, ctx: Context) -> float:
+    """Sample from uniform distribution."""
+    return float(ctx.rng.uniform(low, high))
+
+
+def lognormal(mean: float, sigma: float, *, ctx: Context) -> float:
+    """Sample from log-normal distribution."""
+    return float(ctx.rng.lognormal(mean, sigma))
+
+
+def poisson(lam: float, *, ctx: Context) -> int:
+    """Sample from Poisson distribution."""
+    return int(ctx.rng.poisson(lam))
+
+
+def exponential(scale: float, *, ctx: Context) -> float:
+    """Sample from exponential distribution."""
+    return float(ctx.rng.exponential(scale))
+
+
+def choice(options: list[Any], *, ctx: Context) -> Any:
+    """Choose uniformly from a list."""
+    idx = ctx.rng.integers(0, len(options))
+    return options[idx]
+
+
+def discrete(weights: list[float], *, ctx: Context) -> int:
+    """Sample index from discrete distribution with given weights."""
+    probs = np.array(weights, dtype=float)
+    probs = probs / probs.sum()
+    return int(ctx.rng.choice(len(weights), p=probs))
+
+
+# Default function registry
+DEFAULT_FUNCTIONS: dict[str, Callable[..., Any]] = {
+    "normal": normal,
+    "uniform": uniform,
+    "lognormal": lognormal,
+    "poisson": poisson,
+    "exponential": exponential,
+    "choice": choice,
+    "discrete": discrete,
+}
+
+
+def make_context(
+    seed: int | None = None,
+    bindings: dict[str, Any] | None = None,
+    functions: dict[str, Callable[..., Any]] | None = None,
+) -> Context:
+    """Create an evaluation context with default functions.
+
+    Convenience function that sets up a Context with:
+    - Seeded RNG for reproducibility
+    - Optional custom bindings
+    - DEFAULT_FUNCTIONS plus any custom functions
+
+    Args:
+        seed: Random seed for reproducibility (None for random)
+        bindings: Named values for !ref resolution
+        functions: Additional functions (merged with defaults)
+
+    Returns:
+        Configured Context ready for evaluation
+    """
+    rng = np.random.default_rng(seed)
+
+    all_functions = dict(DEFAULT_FUNCTIONS)
+    if functions:
+        all_functions.update(functions)
+
+    return Context(
+        rng=rng,
+        bindings=bindings or {},
+        functions=all_functions,
+    )
