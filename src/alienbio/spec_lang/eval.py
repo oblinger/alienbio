@@ -15,10 +15,11 @@ Pipeline:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Callable
 
 import yaml
+import numpy as np
 
 
 # =============================================================================
@@ -292,3 +293,230 @@ def _dehydrate_node(node: Any) -> Any:
 
     # Scalar values (int, float, str, bool, None) → pass through
     return node
+
+
+# =============================================================================
+# Context (M1.8e)
+# =============================================================================
+
+
+# Safe builtins allowed in expressions
+SAFE_BUILTINS: dict[str, Any] = {
+    # Math functions
+    "min": min,
+    "max": max,
+    "abs": abs,
+    "round": round,
+    "sum": sum,
+    "len": len,
+    "pow": pow,
+    # Type conversions
+    "int": int,
+    "float": float,
+    "str": str,
+    "bool": bool,
+    # Collections
+    "list": list,
+    "dict": dict,
+    "tuple": tuple,
+    "set": set,
+    # Iterators
+    "range": range,
+    "zip": zip,
+    "enumerate": enumerate,
+    "sorted": sorted,
+    "reversed": reversed,
+    "map": map,
+    "filter": filter,
+    # Constants
+    "True": True,
+    "False": False,
+    "None": None,
+}
+
+
+@dataclass
+class Context:
+    """Evaluation context with rng, bindings, functions, path.
+
+    Carries all state needed during spec evaluation:
+    - rng: seeded numpy RNG for reproducibility
+    - bindings: dict of variable name → value
+    - functions: dict of registered @function handlers
+    - path: list of keys for error messages (e.g., ["scenario", "molecules", "count"])
+
+    Example:
+        ctx = Context(rng=np.random.default_rng(42))
+        ctx = ctx.child(bindings={"pi": 3.14159})
+        result = eval_node(spec, ctx)
+    """
+
+    rng: np.random.Generator = field(default_factory=lambda: np.random.default_rng(42))
+    bindings: dict[str, Any] = field(default_factory=dict)
+    functions: dict[str, Callable] = field(default_factory=dict)
+    path: list[str] = field(default_factory=list)
+
+    def child(self, **kwargs) -> "Context":
+        """Create child context with additional/overridden attributes.
+
+        Child context inherits from parent but can shadow bindings.
+        RNG is shared (not copied) for consistent random sequences.
+
+        Args:
+            **kwargs: Attributes to override. Special handling for 'bindings'
+                      which merges with parent bindings.
+
+        Returns:
+            New Context with merged bindings and other attributes.
+        """
+        # Merge bindings (child shadows parent)
+        new_bindings = {**self.bindings, **kwargs.pop("bindings", {})}
+
+        # Copy other attributes, using kwargs overrides
+        return Context(
+            rng=kwargs.get("rng", self.rng),
+            bindings=new_bindings,
+            functions=kwargs.get("functions", self.functions),
+            path=kwargs.get("path", self.path),
+        )
+
+    def with_path(self, key: str) -> "Context":
+        """Create child context with extended path for error messages.
+
+        Args:
+            key: Key to append to path.
+
+        Returns:
+            New Context with extended path.
+        """
+        return Context(
+            rng=self.rng,
+            bindings=self.bindings,
+            functions=self.functions,
+            path=[*self.path, key],
+        )
+
+
+# =============================================================================
+# Evaluation (M1.8f)
+# =============================================================================
+
+
+class EvalError(Exception):
+    """Error during spec evaluation."""
+
+    def __init__(self, message: str, path: list[str] | None = None):
+        self.path = path or []
+        path_str = ".".join(self.path) if self.path else "<root>"
+        super().__init__(f"{message} (at {path_str})")
+
+
+def eval_node(node: Any, ctx: Context, strict: bool = True) -> Any:
+    """Evaluate a hydrated node.
+
+    Transforms:
+        Constants (str, int, float, bool, None) → return as-is
+        Evaluable(source) → Python eval(source, namespace)
+        Quoted(source) → return source string unchanged
+        Reference(name) → lookup in ctx.bindings
+        dict → recursively eval values
+        list → recursively eval elements
+
+    Args:
+        node: The hydrated data structure to evaluate
+        ctx: Evaluation context with rng, bindings, functions
+        strict: If True, raise error for missing references.
+                If False, return Reference unchanged.
+
+    Returns:
+        Evaluated data structure with all placeholders resolved.
+
+    Raises:
+        EvalError: If evaluation fails (e.g., missing reference in strict mode)
+    """
+    return _eval_node(node, ctx, strict)
+
+
+def _eval_node(node: Any, ctx: Context, strict: bool) -> Any:
+    """Recursively evaluate a single node."""
+    # Quoted → return source string unchanged
+    if isinstance(node, Quoted):
+        return node.source
+
+    # Evaluable → evaluate Python expression
+    if isinstance(node, Evaluable):
+        return _eval_expression(node.source, ctx)
+
+    # Reference → lookup in bindings
+    if isinstance(node, Reference):
+        return _eval_reference(node, ctx, strict)
+
+    # Dict → recursively eval values
+    if isinstance(node, dict):
+        return {k: _eval_node(v, ctx.with_path(k), strict) for k, v in node.items()}
+
+    # List → recursively eval elements
+    if isinstance(node, list):
+        return [_eval_node(item, ctx.with_path(str(i)), strict) for i, item in enumerate(node)]
+
+    # Constants (int, float, str, bool, None) → return as-is
+    return node
+
+
+def _eval_expression(source: str, ctx: Context) -> Any:
+    """Evaluate a Python expression string.
+
+    Builds namespace from:
+    - SAFE_BUILTINS (min, max, abs, etc.)
+    - ctx.bindings (user variables)
+    - ctx.functions (registered @function handlers)
+
+    Args:
+        source: Python expression to evaluate
+        ctx: Evaluation context
+
+    Returns:
+        Result of evaluating the expression
+
+    Raises:
+        EvalError: If expression fails to evaluate
+    """
+    # Build evaluation namespace
+    namespace = {
+        **SAFE_BUILTINS,
+        **ctx.bindings,
+        **ctx.functions,
+    }
+
+    try:
+        return eval(source, {"__builtins__": {}}, namespace)
+    except NameError as e:
+        raise EvalError(f"Undefined variable in expression '{source}': {e}", ctx.path) from e
+    except SyntaxError as e:
+        raise EvalError(f"Syntax error in expression '{source}': {e}", ctx.path) from e
+    except Exception as e:
+        raise EvalError(f"Error evaluating expression '{source}': {e}", ctx.path) from e
+
+
+def _eval_reference(ref: Reference, ctx: Context, strict: bool) -> Any:
+    """Resolve a reference from bindings.
+
+    Args:
+        ref: Reference to resolve
+        ctx: Evaluation context with bindings
+        strict: If True, raise error for missing reference
+
+    Returns:
+        The referenced value, or the Reference unchanged if non-strict
+
+    Raises:
+        EvalError: If reference not found and strict=True
+    """
+    if ref.name in ctx.bindings:
+        return ctx.bindings[ref.name]
+
+    if strict:
+        raise EvalError(f"Reference '{ref.name}' not found in bindings", ctx.path)
+
+    # Non-strict mode: return Reference unchanged
+    return ref
