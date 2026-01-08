@@ -264,7 +264,6 @@ class TestNestedInstantiation:
 class TestPortWiring:
     """Tests for port declaration and connection."""
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
     def test_port_declaration(self):
         """Template parses _ports_ with path, type, and direction."""
         from alienbio.generator import Template
@@ -315,7 +314,6 @@ class TestPortWiring:
         }))
         return registry
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_port_connection_at_instantiation(self, wiring_registry):
         """Port connection syntax wires ports together."""
         from alienbio.generator import Template, expand
@@ -335,7 +333,6 @@ class TestPortWiring:
         chain_build = expanded.reactions["r.krel.chain.build"]
         assert chain_build.get("energy_source") == "r.krel.energy.work"
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_port_type_mismatch_error(self, wiring_registry):
         """Connecting incompatible port types raises error."""
         from alienbio.generator import Template, expand, PortTypeMismatchError
@@ -353,7 +350,6 @@ class TestPortWiring:
         with pytest.raises(PortTypeMismatchError):
             expand(parent, namespace="x", registry=wiring_registry)
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_port_connection_missing_target(self, wiring_registry):
         """Connecting to non-existent port raises error."""
         from alienbio.generator import Template, expand, PortNotFoundError
@@ -370,7 +366,6 @@ class TestPortWiring:
         with pytest.raises(PortNotFoundError):
             expand(parent, namespace="x", registry=wiring_registry)
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_multiple_port_connections(self, wiring_registry):
         """Multiple port connections in same instantiation."""
         from alienbio.generator import Template, TemplateRegistry, expand
@@ -418,7 +413,6 @@ class TestPortWiring:
 class TestExpansionIntegration:
     """Integration tests for complex expansion scenarios."""
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_full_organism_expansion(self):
         """Expand a complete organism template with multiple sub-templates."""
         from alienbio.generator import Template, TemplateRegistry, expand
@@ -453,7 +447,7 @@ class TestExpansionIntegration:
         assert "r.Krel.chain1.step1" in expanded.reactions
         assert "r.Krel.chain2.step2" in expanded.reactions
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    @pytest.mark.skip(reason="Requires M2.4 distribution sampling (!ev evaluation)")
     def test_expansion_with_sampled_count(self):
         """Replication count can come from sampled parameter."""
         from alienbio.generator import Template, TemplateRegistry, expand

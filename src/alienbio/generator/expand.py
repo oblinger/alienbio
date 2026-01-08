@@ -12,7 +12,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..spec_lang import RefTag
-from .template import Template, TemplateRegistry
+from .template import Template, Port, TemplateRegistry
+from .exceptions import PortTypeMismatchError, PortNotFoundError
+
+
+@dataclass
+class ExpandedPort:
+    """A port with its namespaced path."""
+
+    port: Port
+    namespaced_path: str  # e.g., "r.krel.energy.work"
 
 
 @dataclass
@@ -24,7 +33,7 @@ class ExpandedTemplate:
 
     molecules: dict[str, dict[str, Any]] = field(default_factory=dict)
     reactions: dict[str, dict[str, Any]] = field(default_factory=dict)
-    ports: dict[str, Any] = field(default_factory=dict)
+    ports: dict[str, ExpandedPort] = field(default_factory=dict)
 
     def merge(self, other: ExpandedTemplate) -> None:
         """Merge another expanded template into this one."""
@@ -78,8 +87,29 @@ def expand(
         expanded_data = _namespace_molecule_refs(expanded_data, namespace, molecule_names)
         result.reactions[namespaced_name] = expanded_data
 
-    # Handle nested instantiation
+    # Expand ports with namespace prefix
+    for path, port in template.ports.items():
+        # Determine namespaced path based on port path
+        if path.startswith("reactions."):
+            rxn_name = path[len("reactions."):]
+            namespaced_path = f"r.{namespace}.{rxn_name}"
+        elif path.startswith("molecules."):
+            mol_name = path[len("molecules."):]
+            namespaced_path = f"m.{namespace}.{mol_name}"
+        else:
+            namespaced_path = f"{namespace}.{path}"
+
+        # Store port with full namespaced key for lookup
+        port_key = f"{namespace}.{path}"
+        result.ports[port_key] = ExpandedPort(port=port, namespaced_path=namespaced_path)
+
+    # Handle nested instantiation in two passes:
+    # Pass 1: Expand all templates without port connections
+    # Pass 2: Apply port connections (need all templates expanded first)
     if template.instantiate and registry:
+        # Pass 1: Collect expansions
+        expansions: list[tuple[str, dict[str, Any], ExpandedTemplate]] = []
+
         for key, inst_data in template.instantiate.items():
             # Parse _as_ syntax
             match = re.match(r"_as_\s+(\w+)(?:\{(\w+)\s+in\s+(\d+)\.\.(\w+)\})?", key)
@@ -103,6 +133,7 @@ def expand(
                         sub_result = _instantiate_nested(
                             inst_data, sub_namespace, registry, effective_params, seed
                         )
+                        expansions.append((sub_namespace, inst_data, sub_result))
                         result.merge(sub_result)
                 else:
                     # Single instantiation: _as_ name
@@ -110,7 +141,26 @@ def expand(
                     sub_result = _instantiate_nested(
                         inst_data, sub_namespace, registry, effective_params, seed
                     )
+                    expansions.append((sub_namespace, inst_data, sub_result))
                     result.merge(sub_result)
+
+        # Pass 2: Apply port connections now that all templates are expanded
+        for sub_namespace, inst_data, sub_result in expansions:
+            # Extract port connections from inst_data
+            port_connections = {
+                k: v for k, v in inst_data.items()
+                if k != "_template_"
+                and isinstance(v, str) and "." in v
+                and (k.startswith("reactions.") or k.startswith("molecules."))
+            }
+
+            if port_connections:
+                template_name = inst_data.get("_template_")
+                if template_name:
+                    sub_template = registry.get(template_name)
+                    _apply_port_connections(
+                        sub_result, port_connections, result, sub_namespace, namespace, sub_template
+                    )
 
     return result
 
@@ -121,8 +171,10 @@ def _instantiate_nested(
     registry: TemplateRegistry,
     parent_params: dict[str, Any],
     seed: int | None,
+    parent_result: ExpandedTemplate | None = None,
+    parent_namespace: str | None = None,
 ) -> ExpandedTemplate:
-    """Instantiate a nested template."""
+    """Instantiate a nested template with port wiring support."""
     template_name = inst_data.get("_template_")
     if not template_name:
         return ExpandedTemplate()
@@ -130,15 +182,89 @@ def _instantiate_nested(
     # Get the template
     template = registry.get(template_name)
 
-    # Build params: template defaults + parent overrides + instantiation overrides
-    inst_params = {
-        k: v for k, v in inst_data.items()
-        if k != "_template_"
-    }
+    # Separate port connections from params
+    # Port connections look like "reactions.build": "other.reactions.work"
+    inst_params = {}
+    port_connections: dict[str, str] = {}
+
+    for k, v in inst_data.items():
+        if k == "_template_":
+            continue
+        # Check if this is a port connection (value contains a dot and references another instance)
+        if isinstance(v, str) and "." in v and (
+            k.startswith("reactions.") or k.startswith("molecules.")
+        ):
+            port_connections[k] = v
+        else:
+            inst_params[k] = v
+
     # Resolve any refs in inst_params
     inst_params = _resolve_refs(inst_params, parent_params)
 
-    return expand(template, namespace, params=inst_params, registry=registry, seed=seed)
+    # Expand the template
+    result = expand(template, namespace, params=inst_params, registry=registry, seed=seed)
+
+    # Apply port connections
+    if port_connections and parent_result is not None and parent_namespace is not None:
+        _apply_port_connections(
+            result, port_connections, parent_result, namespace, parent_namespace, template
+        )
+
+    return result
+
+
+def _apply_port_connections(
+    result: ExpandedTemplate,
+    port_connections: dict[str, str],
+    parent_result: ExpandedTemplate,
+    namespace: str,
+    parent_namespace: str,
+    template: Template,
+) -> None:
+    """Apply port connections by updating target reactions with source references."""
+    for local_port_path, target_ref in port_connections.items():
+        # Parse target reference: "other_inst.reactions.work" or "other_inst.molecules.M1"
+        parts = target_ref.split(".", 1)
+        if len(parts) != 2:
+            raise PortNotFoundError(target_ref, f"in instantiation at {namespace}")
+
+        target_inst_name, target_path = parts
+
+        # Build the full port keys
+        local_port_key = f"{namespace}.{local_port_path}"
+        target_port_key = f"{parent_namespace}.{target_inst_name}.{target_path}"
+
+        # Lookup ports
+        local_expanded_port = result.ports.get(local_port_key)
+        target_expanded_port = parent_result.ports.get(target_port_key)
+
+        if target_expanded_port is None:
+            raise PortNotFoundError(target_ref, f"referenced from {namespace}")
+
+        # If local port exists, validate types
+        if local_expanded_port is not None:
+            local_port = local_expanded_port.port
+            target_port = target_expanded_port.port
+
+            if not local_port.compatible_with(target_port):
+                raise PortTypeMismatchError(
+                    local_port_path,
+                    f"{local_port.type}.{local_port.direction}",
+                    target_ref,
+                    f"{target_port.type}.{target_port.direction}",
+                )
+
+        # Apply the connection by updating the local reaction/molecule
+        if local_port_path.startswith("reactions."):
+            rxn_name = local_port_path[len("reactions."):]
+            namespaced_rxn = f"r.{namespace}.{rxn_name}"
+            if namespaced_rxn in result.reactions:
+                result.reactions[namespaced_rxn]["energy_source"] = target_expanded_port.namespaced_path
+        elif local_port_path.startswith("molecules."):
+            mol_name = local_port_path[len("molecules."):]
+            namespaced_mol = f"m.{namespace}.{mol_name}"
+            if namespaced_mol in result.molecules:
+                result.molecules[namespaced_mol]["source"] = target_expanded_port.namespaced_path
 
 
 def _resolve_refs(data: Any, params: dict[str, Any]) -> Any:
