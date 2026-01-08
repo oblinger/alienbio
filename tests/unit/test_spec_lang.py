@@ -189,10 +189,12 @@ class TestEvTag:
 
     def test_ev_yaml_parsing(self):
         """Test that !ev is properly parsed by YAML."""
+        from alienbio.spec_lang.eval import Evaluable
         yaml_str = "value: !ev 2+3"
         data = yaml.safe_load(yaml_str)
-        assert isinstance(data["value"], EvTag)
-        assert data["value"].expr == "2+3"
+        # New evaluation system produces Evaluable
+        assert isinstance(data["value"], Evaluable)
+        assert data["value"].source == "2+3"
 
 
 # =============================================================================
@@ -790,20 +792,27 @@ environment: !ref standard_env
 
     def test_constant_with_ev(self):
         """Define constant using !ev, reference gets evaluated result"""
+        from alienbio.spec_lang.eval import Evaluable, Reference, eval_node, make_context, hydrate
         yaml_str = """
 constants:
   computed: !ev 2 * 3 * 7
 value: !ref computed
 """
         data = yaml.safe_load(yaml_str)
-        # First evaluate the !ev in constants
-        ev_tag = data["constants"]["computed"]
-        computed_value = ev_tag.evaluate()
-        data["constants"]["computed"] = computed_value
+        # New evaluation system: !ev creates Evaluable
+        assert isinstance(data["constants"]["computed"], Evaluable)
 
-        # Then resolve the !ref
-        ref_tag = data["value"]
-        result = ref_tag.resolve(data["constants"])
+        # Hydrate to convert RefTag to Reference
+        hydrated = hydrate(data)
+        assert isinstance(hydrated["value"], Reference)
+
+        # Evaluate step by step:
+        ev_result = eval_node(hydrated["constants"]["computed"], make_context())
+        assert ev_result == 42
+
+        # Full evaluation with bindings
+        ctx = make_context(bindings={"computed": ev_result})
+        result = eval_node(hydrated["value"], ctx)
         assert result == 42
 
     def test_constant_file_level(self):
@@ -1059,7 +1068,9 @@ suite.level1:
         assert transformed is not None
 
     def test_error_messages_include_context(self, temp_dir):
-        """Error messages include file/line context"""
+        """Error messages include context when evaluation fails"""
+        from alienbio.spec_lang.eval import Evaluable, eval_node, make_context, EvalError
+
         spec_file = temp_dir / "bad_spec.yaml"
         spec_file.write_text("""
 world.test:
@@ -1070,14 +1081,15 @@ world.test:
       rate: !ev undefined_function()
 """)
 
-        # When evaluating the !ev, error should mention file/line
+        # When evaluating the !ev, error should mention undefined function
         data = yaml.safe_load(spec_file.read_text())
-        ev_tag = data["world.test"]["reactions"]["R1"]["rate"]
+        evaluable = data["world.test"]["reactions"]["R1"]["rate"]
+        assert isinstance(evaluable, Evaluable)
 
         try:
-            ev_tag.evaluate()
+            eval_node(evaluable, make_context())
             assert False, "Should have raised"
-        except NameError as e:
+        except EvalError as e:
             # Error message should be informative
             assert "undefined_function" in str(e)
 

@@ -3,14 +3,22 @@
 Tests for the evaluation pipeline: hydrate → eval → dehydrate.
 See [[Spec Evaluation]] for the specification.
 
+Tag semantics:
+- !_     : preserve expression (Quoted) - for rate equations, lambdas
+- !quote : alias for !_ (preserve expression)
+- !ev    : evaluate expression at instantiation time (Evaluable)
+- !ref   : lookup named value from bindings (Reference)
+- !include: read file contents (resolved during hydration)
+
+Design rationale:
+    Most expressions in specs are "code" - rate equations, scoring functions -
+    that shouldn't run at hydration. So !_ (the short form) preserves them.
+    The rarer case - "actually compute this now" - uses the explicit !ev.
+
 Key concepts tested:
-- !_ tag: evaluate Python expression immediately
-- !quote tag: preserve expression unchanged (for later compilation)
-- !ref tag: lookup named value from bindings
-- !include tag: read file contents (resolved during hydration)
-- Hydration: type instantiation + tag→placeholder conversion
+- Hydration: tag→placeholder conversion
 - Context: rng, bindings, functions, path
-- @function decorator: auto-inject ctx parameter
+- Evaluation: Evaluable executed, Quoted preserved, Reference resolved
 - Multiple instantiations: same spec, different seeds → different results
 """
 
@@ -147,53 +155,90 @@ class TestHydrateRecursive:
         assert result["l1"]["l2"]["l3"]["l4"]["l5"]["l6"]["l7"]["l8"]["l9"]["l10"] == "deep"
 
 
-class TestHydrateEvalTag:
-    """Test !_ tag converts to Evaluable placeholder."""
+class TestHydrateUnderscoreTag:
+    """Test !_ tag converts to Quoted placeholder (preserves expression)."""
 
-    def test_hydrate_eval_simple(self):
-        """!_ tag becomes Evaluable placeholder."""
-        # Simulating what YAML parser would produce for: value: !_ 2 + 3
-        data = {"value": {"!_": "2 + 3"}}
+    def test_hydrate_underscore_simple(self):
+        """!_ tag becomes Quoted placeholder (preserved for later)."""
+        # Simulating what YAML parser would produce for: value: !_ k * S
+        data = {"value": {"!_": "k * S"}}
         result = hydrate(data)
-        assert isinstance(result["value"], Evaluable)
-        assert result["value"].source == "2 + 3"
+        assert isinstance(result["value"], Quoted)
+        assert result["value"].source == "k * S"
 
-    def test_hydrate_eval_function_call(self):
-        """!_ with function call becomes Evaluable."""
-        data = {"count": {"!_": "normal(50, 10)"}}
+    def test_hydrate_underscore_rate_expression(self):
+        """!_ with rate expression becomes Quoted."""
+        data = {"rate": {"!_": "Vmax * S / (Km + S)"}}
         result = hydrate(data)
-        assert isinstance(result["count"], Evaluable)
-        assert result["count"].source == "normal(50, 10)"
+        assert isinstance(result["rate"], Quoted)
+        assert result["rate"].source == "Vmax * S / (Km + S)"
 
-    def test_hydrate_eval_complex_expression(self):
-        """!_ with complex expression becomes Evaluable."""
-        data = {"area": {"!_": "pi * radius * radius"}}
+    def test_hydrate_underscore_complex_expression(self):
+        """!_ with complex expression becomes Quoted."""
+        data = {"rate": {"!_": "k1 * S1 * S2 - k2 * P"}}
         result = hydrate(data)
-        assert isinstance(result["area"], Evaluable)
-        assert result["area"].source == "pi * radius * radius"
+        assert isinstance(result["rate"], Quoted)
+        assert result["rate"].source == "k1 * S1 * S2 - k2 * P"
 
-    def test_hydrate_eval_conditional(self):
-        """!_ with conditional expression becomes Evaluable."""
-        data = {"ratio": {"!_": "x / y if y != 0 else 0"}}
-        result = hydrate(data)
-        assert isinstance(result["ratio"], Evaluable)
-        assert result["ratio"].source == "x / y if y != 0 else 0"
-
-    def test_hydrate_eval_nested_in_dict(self):
+    def test_hydrate_underscore_nested_in_dict(self):
         """!_ nested inside dict structure."""
         data = {
-            "scenario": {
-                "molecules": {
-                    "count": {"!_": "normal(50, 10)"}
+            "reactions": {
+                "r1": {
+                    "rate": {"!_": "k * S"}
                 }
             }
         }
         result = hydrate(data)
-        assert isinstance(result["scenario"]["molecules"]["count"], Evaluable)
+        assert isinstance(result["reactions"]["r1"]["rate"], Quoted)
 
-    def test_hydrate_eval_in_list(self):
+    def test_hydrate_underscore_in_list(self):
         """!_ inside a list."""
-        data = {"values": [{"!_": "normal(1, 0.1)"}, {"!_": "normal(2, 0.2)"}]}
+        data = {"rates": [{"!_": "k1 * S"}, {"!_": "k2 * S"}]}
+        result = hydrate(data)
+        assert isinstance(result["rates"][0], Quoted)
+        assert isinstance(result["rates"][1], Quoted)
+
+
+class TestHydrateEvTag:
+    """Test !ev tag converts to Evaluable placeholder (evaluated at instantiation)."""
+
+    def test_hydrate_ev_simple(self):
+        """!ev tag becomes Evaluable placeholder."""
+        data = {"value": {"!ev": "2 + 3"}}
+        result = hydrate(data)
+        assert isinstance(result["value"], Evaluable)
+        assert result["value"].source == "2 + 3"
+
+    def test_hydrate_ev_function_call(self):
+        """!ev with function call becomes Evaluable."""
+        data = {"count": {"!ev": "normal(50, 10)"}}
+        result = hydrate(data)
+        assert isinstance(result["count"], Evaluable)
+        assert result["count"].source == "normal(50, 10)"
+
+    def test_hydrate_ev_complex_expression(self):
+        """!ev with complex expression becomes Evaluable."""
+        data = {"area": {"!ev": "pi * radius * radius"}}
+        result = hydrate(data)
+        assert isinstance(result["area"], Evaluable)
+        assert result["area"].source == "pi * radius * radius"
+
+    def test_hydrate_ev_nested_in_dict(self):
+        """!ev nested inside dict structure."""
+        data = {
+            "scenario": {
+                "params": {
+                    "count": {"!ev": "normal(50, 10)"}
+                }
+            }
+        }
+        result = hydrate(data)
+        assert isinstance(result["scenario"]["params"]["count"], Evaluable)
+
+    def test_hydrate_ev_in_list(self):
+        """!ev inside a list."""
+        data = {"values": [{"!ev": "normal(1, 0.1)"}, {"!ev": "normal(2, 0.2)"}]}
         result = hydrate(data)
         assert isinstance(result["values"][0], Evaluable)
         assert isinstance(result["values"][1], Evaluable)
@@ -349,16 +394,16 @@ class TestHydrateMixed:
     def test_hydrate_mixed_all_tags(self):
         """Structure with all tag types together."""
         data = {
-            "count": {"!_": "normal(50, 10)"},
-            "rate": {"!quote": "k * S"},
+            "rate": {"!_": "k * S"},          # !_ → Quoted (preserved)
+            "count": {"!ev": "normal(50, 10)"},  # !ev → Evaluable (computed)
             "permeability": {"!ref": "high_perm"},
             "timeout": 30,
             "name": "test",
         }
         result = hydrate(data)
 
-        assert isinstance(result["count"], Evaluable)
         assert isinstance(result["rate"], Quoted)
+        assert isinstance(result["count"], Evaluable)
         assert isinstance(result["permeability"], Reference)
         assert result["timeout"] == 30
         assert result["name"] == "test"
@@ -370,12 +415,12 @@ class TestHydrateMixed:
 
         data = {
             "scenario.mutualism": {
-                "molecules": {
-                    "count": {"!_": "normal(50, 10)"},
+                "params": {
+                    "count": {"!ev": "normal(50, 10)"},  # !ev for computed values
                 },
                 "reactions": {
                     "r1": {
-                        "rate": {"!quote": "k * S1 * S2"},
+                        "rate": {"!_": "k * S1 * S2"},  # !_ for rate expressions
                     }
                 },
                 "constitution": {"!include": "constitution.md"},
@@ -396,16 +441,16 @@ class TestDehydrate:
     """Test dehydration converts back to serializable form."""
 
     def test_dehydrate_evaluable(self):
-        """Evaluable becomes {"!_": source}."""
+        """Evaluable becomes {"!ev": source}."""
         data = {"count": Evaluable(source="normal(50, 10)")}
         result = dehydrate(data)
-        assert result == {"count": {"!_": "normal(50, 10)"}}
+        assert result == {"count": {"!ev": "normal(50, 10)"}}
 
     def test_dehydrate_quoted(self):
-        """Quoted becomes {"!quote": source}."""
+        """Quoted becomes {"!_": source}."""
         data = {"rate": Quoted(source="k * S")}
         result = dehydrate(data)
-        assert result == {"rate": {"!quote": "k * S"}}
+        assert result == {"rate": {"!_": "k * S"}}
 
     def test_dehydrate_reference(self):
         """Reference becomes {"!ref": name}."""
@@ -422,8 +467,8 @@ class TestDehydrate:
             }
         }
         result = dehydrate(data)
-        assert result["outer"]["count"] == {"!_": "42"}
-        assert result["outer"]["rate"] == {"!quote": "k * S"}
+        assert result["outer"]["count"] == {"!ev": "42"}
+        assert result["outer"]["rate"] == {"!_": "k * S"}
 
     def test_dehydrate_constants_unchanged(self):
         """Constants pass through dehydration unchanged."""
@@ -433,13 +478,17 @@ class TestDehydrate:
 
 
 class TestDehydrateRoundTrip:
-    """Test round-trip: dehydrate(hydrate(x)) ≈ x."""
+    """Test round-trip: dehydrate(hydrate(x)) ≈ x.
+
+    Note: !quote normalizes to !_ on roundtrip (both are Quoted).
+    Use canonical forms (!_ for preserved, !ev for evaluated) for exact roundtrip.
+    """
 
     def test_roundtrip_simple(self):
         """Simple round-trip preserves structure."""
         original = {
-            "count": {"!_": "normal(50, 10)"},
-            "rate": {"!quote": "k * S"},
+            "count": {"!ev": "normal(50, 10)"},  # Evaluable
+            "rate": {"!_": "k * S"},              # Quoted (canonical form)
             "perm": {"!ref": "high_perm"},
             "timeout": 30,
         }
@@ -451,8 +500,8 @@ class TestDehydrateRoundTrip:
         """Nested round-trip preserves structure."""
         original = {
             "scenario": {
-                "molecules": {"count": {"!_": "normal(50, 10)"}},
-                "reactions": {"rate": {"!quote": "k * S"}},
+                "params": {"count": {"!ev": "normal(50, 10)"}},
+                "reactions": {"rate": {"!_": "k * S"}},
             }
         }
         hydrated = hydrate(original)
@@ -464,13 +513,13 @@ class TestDehydrateRoundTrip:
         original = {
             "constants": {"high_perm": 0.8, "low_perm": 0.1},
             "scenario.test": {
-                "molecules": {
-                    "A": {"count": {"!_": "normal(100, 10)"}},
-                    "B": {"count": {"!_": "uniform(50, 150)"}},
+                "params": {
+                    "A_count": {"!ev": "normal(100, 10)"},
+                    "B_count": {"!ev": "uniform(50, 150)"},
                 },
                 "reactions": {
-                    "r1": {"rate": {"!quote": "k1 * S1 * S2"}},
-                    "r2": {"rate": {"!quote": "Vmax * S / (Km + S)"}},
+                    "r1": {"rate": {"!_": "k1 * S1 * S2"}},
+                    "r2": {"rate": {"!_": "Vmax * S / (Km + S)"}},
                 },
                 "permeability": {"!ref": "high_perm"},
             }
@@ -1177,8 +1226,8 @@ class TestBioIntegration:
         spec_file = temp_dir / "spec.yaml"
         spec_file.write_text("""
 name: test
-count: !_ normal(50, 10)
-rate: !quote k * S
+count: !ev normal(50, 10)
+rate: !_ k * S
 threshold: !ref high_threshold
 """)
 
@@ -1200,9 +1249,9 @@ threshold: !ref high_threshold
         spec_file = temp_dir / "spec.yaml"
         spec_file.write_text("""
 name: test
-count: !_ normal(50, 10)
-rate: !quote k * S
-value: !_ 2 + 3
+count: !ev normal(50, 10)
+rate: !_ k * S
+value: !ev 2 + 3
 """)
 
         spec = bio.load_spec(str(spec_file))
@@ -1210,7 +1259,7 @@ value: !_ 2 + 3
 
         assert result["name"] == "test"
         assert isinstance(result["count"], (int, float))  # evaluated to number
-        assert result["rate"] == "k * S"  # quoted preserved as string
+        assert result["rate"] == "k * S"  # !_ preserved as string
         assert result["value"] == 5  # evaluated
 
     def test_eval_spec_with_bindings(self, temp_dir):
@@ -1220,7 +1269,7 @@ value: !_ 2 + 3
         spec_file = temp_dir / "spec.yaml"
         spec_file.write_text("""
 threshold: !ref high_value
-computed: !_ base * 2
+computed: !ev base * 2
 """)
 
         spec = bio.load_spec(str(spec_file))
@@ -1235,8 +1284,8 @@ computed: !_ base * 2
 
         spec_file = temp_dir / "spec.yaml"
         spec_file.write_text("""
-count: !_ normal(50, 10)
-value: !_ uniform(0, 1)
+count: !ev normal(50, 10)
+value: !ev uniform(0, 1)
 """)
 
         spec = bio.load_spec(str(spec_file))
@@ -1253,7 +1302,7 @@ value: !_ uniform(0, 1)
 
         spec_file = temp_dir / "spec.yaml"
         spec_file.write_text("""
-count: !_ normal(50, 10)
+count: !ev normal(50, 10)
 """)
 
         spec = bio.load_spec(str(spec_file))
@@ -1315,7 +1364,7 @@ value: 42
 
         spec_file = temp_dir / "spec.yaml"
         spec_file.write_text("""
-count: !_ normal(50, 10)
+count: !ev normal(50, 10)
 """)
 
         spec = bio.load_spec(str(spec_file))

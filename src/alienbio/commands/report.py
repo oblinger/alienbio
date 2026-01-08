@@ -1,9 +1,9 @@
-"""Report command: Run a scenario and create an Excel report.
+"""Report command: Run a scenario and create a report.
 
 This is the primary CLI command for running scenarios. It:
 1. Runs the entity's run() method
-2. Creates an Excel/CSV report with results
-3. Opens the report file
+2. Prints results table to stdout
+3. Saves Excel file to temp directory (viewable via `just view-report`)
 """
 
 from __future__ import annotations
@@ -11,12 +11,16 @@ from __future__ import annotations
 import csv
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
+# Location to store path to last generated report
+LAST_REPORT_PATH = Path(tempfile.gettempdir()) / "alienbio_last_report_path.txt"
+
 
 def report_command(args: list[str], verbose: bool = False) -> int:
-    """Run a scenario and create an Excel report.
+    """Run a scenario and create a report.
 
     Args:
         args: Command arguments [path]
@@ -58,14 +62,16 @@ def report_command(args: list[str], verbose: bool = False) -> int:
         dat = Dat.load(str(path))
         success, result = dat.run()
 
-        # Create report file
-        report_path = path / "report.csv"
-        _write_report(result, report_path)
+        # Print table to stdout
+        _print_table(result, path.name)
 
-        print(f"Report written to: {report_path}")
+        # Save Excel to temp directory
+        excel_path = _save_excel(result, path.name)
+        _save_last_report_path(excel_path)
 
-        # Open the report
-        _open_file(report_path)
+        if verbose:
+            print(f"\nExcel report saved to: {excel_path}")
+            print("Run `just view-report` to open in spreadsheet app")
 
         return 0 if success else 1
 
@@ -74,18 +80,80 @@ def report_command(args: list[str], verbose: bool = False) -> int:
         return 1
 
 
-def _write_report(result: dict[str, Any], path: Path) -> None:
-    """Write results to a CSV report file.
+def _print_table(result: dict[str, Any], scenario_name: str) -> None:
+    """Print results as a formatted table to stdout.
 
     Args:
         result: Result dict from running the entity
-        path: Path to write the report
+        scenario_name: Name of the scenario for the header
     """
-    with open(path, "w", newline="") as f:
+    # Overall status
+    success = result.get("success", False)
+    status = "PASSED" if success else "FAILED"
+
+    print(f"\n{'=' * 60}")
+    print(f"  Scenario: {scenario_name}")
+    print(f"  Status: {status}")
+    print(f"{'=' * 60}")
+
+    # Final state table
+    if "final_state" in result:
+        print("\n  Final State:")
+        print(f"  {'-' * 30}")
+        print(f"  {'Molecule':<15} {'Concentration':>12}")
+        print(f"  {'-' * 30}")
+        for mol, conc in result["final_state"].items():
+            print(f"  {mol:<15} {conc:>12.4f}")
+
+    # Scores table
+    if "scores" in result:
+        print("\n  Scores:")
+        print(f"  {'-' * 30}")
+        print(f"  {'Metric':<15} {'Value':>12}")
+        print(f"  {'-' * 30}")
+        for name, value in result["scores"].items():
+            if isinstance(value, float):
+                print(f"  {name:<15} {value:>12.4f}")
+            else:
+                print(f"  {name:<15} {str(value):>12}")
+
+        # Show passing threshold
+        if "passing_score" in result:
+            print(f"  {'-' * 30}")
+            print(f"  {'Passing':<15} {result['passing_score']:>12.4f}")
+
+    # Verification results
+    if "verify_results" in result and result["verify_results"]:
+        print("\n  Verifications:")
+        print(f"  {'-' * 50}")
+        for v in result["verify_results"]:
+            passed = v.get("passed", False)
+            mark = "+" if passed else "x"
+            msg = v.get("message", v.get("assert", ""))
+            print(f"  [{mark}] {msg}")
+
+    print()
+
+
+def _save_excel(result: dict[str, Any], scenario_name: str) -> Path:
+    """Save results to an Excel file in temp directory.
+
+    Args:
+        result: Result dict from running the entity
+        scenario_name: Name of the scenario for the filename
+
+    Returns:
+        Path to the saved Excel file
+    """
+    # Use CSV format (Excel-compatible) to avoid openpyxl dependency
+    temp_dir = Path(tempfile.gettempdir())
+    excel_path = temp_dir / f"alienbio_{scenario_name}_report.csv"
+
+    with open(excel_path, "w", newline="") as f:
         writer = csv.writer(f)
 
         # Header
-        writer.writerow(["Scenario Report"])
+        writer.writerow(["Scenario Report", scenario_name])
         writer.writerow([])
 
         # Final state
@@ -123,6 +191,44 @@ def _write_report(result: dict[str, Any], path: Path) -> None:
 
         # Overall success
         writer.writerow(["Success", "PASS" if result.get("success") else "FAIL"])
+
+    return excel_path
+
+
+def _save_last_report_path(path: Path) -> None:
+    """Save the path to the last generated report.
+
+    Args:
+        path: Path to the report file
+    """
+    LAST_REPORT_PATH.write_text(str(path))
+
+
+def view_report_command(args: list[str], verbose: bool = False) -> int:
+    """Open the last generated report in the default spreadsheet application.
+
+    Args:
+        args: Command arguments (unused)
+        verbose: Enable verbose output
+
+    Returns:
+        Exit code (0 for success, non-zero for failure)
+    """
+    if not LAST_REPORT_PATH.exists():
+        print("No report has been generated yet.", file=sys.stderr)
+        print("Run `bio report <path>` first.", file=sys.stderr)
+        return 1
+
+    report_path = Path(LAST_REPORT_PATH.read_text().strip())
+
+    if not report_path.exists():
+        print(f"Report file not found: {report_path}", file=sys.stderr)
+        print("The temp file may have been cleaned up. Run the report again.", file=sys.stderr)
+        return 1
+
+    print(f"Opening: {report_path}")
+    _open_file(report_path)
+    return 0
 
 
 def _open_file(path: Path) -> None:

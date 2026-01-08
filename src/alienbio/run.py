@@ -105,8 +105,13 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     Returns:
         {final_state, timeline, scores, verify_results, success}
     """
-    from .spec_lang import bio
+    from .spec_lang import bio, eval_node, make_context
     from .bio import ChemistryImpl, StateImpl
+
+    # Evaluate the scenario to convert Evaluable objects to values
+    # This turns !ev "lambda x: ..." into actual lambda functions
+    ctx = make_context()
+    scenario = eval_node(scenario, ctx)
 
     # Extract config from scenario
     if isinstance(scenario, dict):
