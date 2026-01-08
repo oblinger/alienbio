@@ -11,6 +11,7 @@ This module provides:
 from __future__ import annotations
 
 from .template import Template, Port, TemplateRegistry
+from .expand import expand, ExpandedTemplate
 from .exceptions import (
     TemplateNotFoundError,
     PortTypeMismatchError,
@@ -25,6 +26,9 @@ __all__ = [
     "Template",
     "Port",
     "TemplateRegistry",
+    # Expansion
+    "expand",
+    "ExpandedTemplate",
     # Exceptions
     "TemplateNotFoundError",
     "PortTypeMismatchError",

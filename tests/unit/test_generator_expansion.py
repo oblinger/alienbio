@@ -23,7 +23,6 @@ import yaml
 class TestSingleTemplateExpansion:
     """Tests for basic template expansion with namespace prefixing."""
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_expand_simple_template(self):
         """Expanded template has namespaced molecule and reaction names."""
         from alienbio.generator import Template, expand
@@ -37,7 +36,6 @@ class TestSingleTemplateExpansion:
         assert "m.krel.M1" in expanded.molecules
         assert "r.krel.r1" in expanded.reactions
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_expand_with_params(self):
         """Parameter values are substituted during expansion."""
         from alienbio.generator import Template, expand
@@ -50,7 +48,6 @@ class TestSingleTemplateExpansion:
 
         assert expanded.reactions["r.krel.r1"]["rate"] == 0.5
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_expand_resolves_refs(self):
         """!ref expressions are resolved to parameter values."""
         from alienbio.generator import Template, expand
@@ -64,7 +61,6 @@ class TestSingleTemplateExpansion:
         # Should be resolved, not still "!ref k"
         assert expanded.reactions["r.x.r1"]["rate"] == 0.1
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_expand_default_params(self):
         """Template _params_ provide defaults when not overridden."""
         from alienbio.generator import Template, expand
@@ -79,7 +75,6 @@ class TestSingleTemplateExpansion:
         assert expanded.reactions["r.x.r1"]["rate"] == 0.5
         assert expanded.reactions["r.x.r1"]["eff"] == 0.8  # Default
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_expand_updates_reaction_references(self):
         """Molecule names in reactions are also namespaced."""
         from alienbio.generator import Template, expand
@@ -96,7 +91,6 @@ class TestSingleTemplateExpansion:
         assert rxn["reactants"] == ["m.krel.M1"]
         assert rxn["products"] == ["m.krel.M2"]
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_expand_preserves_other_fields(self):
         """Non-name fields in molecules/reactions are preserved."""
         from alienbio.generator import Template, expand
@@ -134,7 +128,7 @@ class TestNestedInstantiation:
                 "ME2": {"role": "energy"}
             },
             "reactions": {
-                "activation": {"reactants": ["ME1"], "products": ["ME2"]}
+                "activation": {"reactants": ["ME1"], "products": ["ME2"], "rate": "!ref rate"}
             }
         }))
         registry.register("anabolic_chain", Template.parse({
@@ -151,7 +145,6 @@ class TestNestedInstantiation:
         }))
         return registry
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_nested_instantiation(self, simple_registry):
         """_instantiate_ with _as_ creates namespaced sub-templates."""
         from alienbio.generator import Template, expand
@@ -167,7 +160,6 @@ class TestNestedInstantiation:
         assert "m.krel.energy.ME2" in expanded.molecules
         assert "r.krel.energy.activation" in expanded.reactions
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_nested_param_override(self, simple_registry):
         """Nested instantiation can override parent template params."""
         from alienbio.generator import Template, expand
@@ -183,7 +175,6 @@ class TestNestedInstantiation:
         rxn = expanded.reactions["r.krel.energy.activation"]
         assert rxn.get("rate") == 0.5 or "rate" in str(rxn)
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_replication(self, simple_registry):
         """_as_ with {i in range} creates multiple instances."""
         from alienbio.generator import Template, expand
@@ -201,7 +192,6 @@ class TestNestedInstantiation:
         # No un-indexed version
         assert "m.krel.chain.MS1" not in expanded.molecules
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_replication_indices_concatenate(self, simple_registry):
         """Indices concatenate without dots: chain1, not chain.1."""
         from alienbio.generator import Template, expand
@@ -216,7 +206,6 @@ class TestNestedInstantiation:
         assert "m.x.p1.M1" in expanded.molecules  # p1, not p.1
         assert "m.x.p2.M1" in expanded.molecules
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_replication_zero_count(self, simple_registry):
         """Replication with count 0 creates no instances."""
         from alienbio.generator import Template, expand
@@ -231,7 +220,6 @@ class TestNestedInstantiation:
         # Should have no molecules from simple template
         assert not any("p" in k for k in expanded.molecules)
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_multiple_nested(self, simple_registry):
         """Multiple _as_ blocks in same _instantiate_."""
         from alienbio.generator import Template, expand
@@ -247,7 +235,6 @@ class TestNestedInstantiation:
         assert "m.x.energy.ME1" in expanded.molecules
         assert "m.x.chain.MS1" in expanded.molecules
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_deeply_nested(self, simple_registry):
         """Templates can instantiate templates that instantiate templates."""
         from alienbio.generator import Template, expand
