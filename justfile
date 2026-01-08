@@ -32,12 +32,25 @@ clean:
     find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
 # Generate SVG diagrams from .dot files
-docs:
+diagrams:
     @echo "Generating diagrams..."
     @for f in docs/diagrams/*.dot; do \
         dot -Tsvg "$$f" -o "$${f%.dot}.svg"; \
         echo "Generated $${f%.dot}.svg"; \
     done
+
+# Build documentation site with MkDocs
+docs: diagrams
+    @echo "Building documentation..."
+    uv run mkdocs build
+
+# Serve documentation locally with live reload
+docs-serve:
+    uv run mkdocs serve
+
+# Deploy docs to GitHub Pages
+docs-deploy:
+    uv run mkdocs gh-deploy
 
 # Build Rust simulator
 build-rust:
@@ -46,3 +59,7 @@ build-rust:
 # Run main entry point
 run *ARGS:
     uv run python -m alienbio {{ARGS}}
+
+# View the last generated report in spreadsheet app
+view-report:
+    uv run python -m alienbio view-report

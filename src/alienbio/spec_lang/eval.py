@@ -4,10 +4,18 @@ Placeholder classes and evaluation functions for the spec language.
 See [[Spec Evaluation]] for full specification.
 
 Tags:
-    !_      - Evaluate Python expression immediately (becomes Evaluable)
-    !quote  - Preserve expression unchanged (becomes Quoted)
+    !_      - Preserve expression as-is (becomes Quoted) - for rate equations, lambdas
+    !ev     - Evaluate expression at instantiation time (becomes Evaluable)
+    !quote  - Alias for !_ (preserve expression unchanged)
     !ref    - Reference named value (becomes Reference)
     !include - Include file content (handled during hydration)
+
+Design rationale:
+    Most expressions in specs are "code" - rate equations, scoring functions -
+    that shouldn't run at hydration. They're lambdas waiting to be compiled or
+    called later. So !_ (the short form) preserves them as structure.
+
+    The rarer case - "actually compute this now" - gets the more explicit !ev.
 
 Pipeline:
     YAML → fetch → dict_tree → hydrate → object_tree → eval → result
@@ -29,13 +37,16 @@ import numpy as np
 
 @dataclass
 class Evaluable:
-    """Placeholder for !_ expressions.
+    """Placeholder for !ev expressions - evaluated at instantiation time.
 
-    Created during hydration when a !_ tag is encountered.
-    Evaluated later by eval_node() to produce a concrete value.
+    Created during hydration when a !ev tag is encountered.
+    Evaluated by eval_node() to produce a concrete value.
+
+    Use !ev for values that should be computed when the spec is instantiated,
+    such as random samples, computed parameters, etc.
 
     Example:
-        YAML: count: !_ normal(50, 10)
+        YAML: count: !ev normal(50, 10)
         After hydrate: {"count": Evaluable(source="normal(50, 10)")}
         After eval: {"count": 47.3}  # sampled value
     """
@@ -48,16 +59,19 @@ class Evaluable:
 
 @dataclass
 class Quoted:
-    """Placeholder for !quote expressions.
+    """Placeholder for !_ expressions - preserved as expression strings.
 
-    Created during hydration when a !quote tag is encountered.
+    Created during hydration when a !_ or !quote tag is encountered.
     Preserved through evaluation - returns the source string unchanged.
-    Used for rate expressions that get compiled at simulator creation time.
+    Used for rate equations, scoring functions, and other "code" that
+    gets compiled or called later (not at instantiation time).
+
+    The !_ tag is the common case - most expressions in specs are lambdas.
 
     Example:
-        YAML: rate: !quote k * S
+        YAML: rate: !_ k * S
         After hydrate: {"rate": Quoted(source="k * S")}
-        After eval: {"rate": "k * S"}  # preserved as string
+        After eval: {"rate": "k * S"}  # preserved for later compilation
     """
 
     source: str
@@ -90,28 +104,36 @@ class Reference:
 # =============================================================================
 
 
-def evaluable_constructor(loader: yaml.Loader, node: yaml.Node) -> Evaluable:
-    """YAML constructor for !_ tag."""
-    value = loader.construct_scalar(node)  # type: ignore
-    return Evaluable(source=str(value))
-
-
 def quoted_constructor(loader: yaml.Loader, node: yaml.Node) -> Quoted:
-    """YAML constructor for !quote tag."""
+    """YAML constructor for !_ and !quote tags - preserves expression."""
     value = loader.construct_scalar(node)  # type: ignore
     return Quoted(source=str(value))
 
 
+def evaluable_constructor(loader: yaml.Loader, node: yaml.Node) -> Evaluable:
+    """YAML constructor for !ev tag - evaluates at instantiation."""
+    value = loader.construct_scalar(node)  # type: ignore
+    return Evaluable(source=str(value))
+
+
 def reference_constructor(loader: yaml.Loader, node: yaml.Node) -> Reference:
-    """YAML constructor for !ref tag (new style)."""
+    """YAML constructor for !ref tag."""
     value = loader.construct_scalar(node)  # type: ignore
     return Reference(name=str(value))
 
 
 def register_eval_tags() -> None:
-    """Register evaluation YAML tags with the loader."""
-    yaml.add_constructor("!_", evaluable_constructor, Loader=yaml.SafeLoader)
+    """Register evaluation YAML tags with the loader.
+
+    Tags:
+        !_     → Quoted (preserve expression for later compilation)
+        !quote → Quoted (alias for !_)
+        !ev    → Evaluable (evaluate at instantiation time)
+        !ref   → Reference (lookup in bindings)
+    """
+    yaml.add_constructor("!_", quoted_constructor, Loader=yaml.SafeLoader)
     yaml.add_constructor("!quote", quoted_constructor, Loader=yaml.SafeLoader)
+    yaml.add_constructor("!ev", evaluable_constructor, Loader=yaml.SafeLoader)
     # Note: !ref is also registered in tags.py as RefTag
     # We register Reference here for the new evaluation system
     # Both can coexist - the last registration wins for SafeLoader
@@ -193,10 +215,13 @@ def _hydrate_dict(d: dict, base_path: str | None) -> Any:
         value = d[key]
 
         if key == "!_":
-            return Evaluable(source=str(value))
+            return Quoted(source=str(value))  # Preserve expression
 
         if key == "!quote":
-            return Quoted(source=str(value))
+            return Quoted(source=str(value))  # Alias for !_
+
+        if key == "!ev":
+            return Evaluable(source=str(value))  # Evaluate at instantiation
 
         if key == "!ref":
             return Reference(name=str(value))
@@ -255,8 +280,8 @@ def dehydrate(data: Any) -> Any:
     dict representation for YAML serialization.
 
     Transforms:
-        Evaluable(source) → {"!_": source}
-        Quoted(source) → {"!quote": source}
+        Evaluable(source) → {"!ev": source}  (evaluate at instantiation)
+        Quoted(source) → {"!_": source}      (preserve expression)
         Reference(name) → {"!ref": name}
 
     Args:
@@ -272,10 +297,10 @@ def _dehydrate_node(node: Any) -> Any:
     """Recursively dehydrate a single node."""
     # Placeholder objects - convert to dict representation
     if isinstance(node, Evaluable):
-        return {"!_": node.source}
+        return {"!ev": node.source}
 
     if isinstance(node, Quoted):
-        return {"!quote": node.source}
+        return {"!_": node.source}
 
     if isinstance(node, Reference):
         return {"!ref": node.name}
