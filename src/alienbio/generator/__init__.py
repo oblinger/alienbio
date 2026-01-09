@@ -16,15 +16,9 @@ from .template import (
     parse_port,
     ports_compatible,
     TemplateRegistry,
-    # Backwards compatibility (deprecated)
-    Template,
-    Port,
 )
 from .expand import (
     apply_template,
-    # Backwards compatibility (deprecated)
-    expand,
-    ExpandedTemplate,
 )
 from .exceptions import (
     TemplateNotFoundError,
@@ -45,28 +39,23 @@ from .guards import (
     get_species_from_path,
     build_dependency_graph,
     detect_cycles,
-    # Backwards compatibility (deprecated)
-    GuardContext,
-    expand_with_guards,
 )
 from .visibility import (
     generate_opaque_names,
     apply_fraction_known,
     generate_visibility_mapping,
     apply_visibility,
-    # Backwards compatibility (deprecated)
-    VisibleScenario,
 )
 
 __all__ = [
-    # Template parsing (new API)
+    # Template parsing
     "parse_template",
     "parse_port",
     "ports_compatible",
     "TemplateRegistry",
-    # Template application (new API)
+    # Template application
     "apply_template",
-    # Guards (new API)
+    # Guards
     "guard",
     "make_guard_context",
     "run_guard",
@@ -77,7 +66,7 @@ __all__ = [
     "get_species_from_path",
     "build_dependency_graph",
     "detect_cycles",
-    # Visibility (new API)
+    # Visibility
     "generate_opaque_names",
     "apply_fraction_known",
     "generate_visibility_mapping",
@@ -89,12 +78,4 @@ __all__ = [
     "GuardViolation",
     "MissingParameterError",
     "CircularReferenceError",
-    # Backwards compatibility (deprecated)
-    "Template",
-    "Port",
-    "expand",
-    "ExpandedTemplate",
-    "GuardContext",
-    "expand_with_guards",
-    "VisibleScenario",
 ]

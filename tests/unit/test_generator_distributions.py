@@ -63,57 +63,57 @@ class TestDistributionInParams:
     @pytest.fixture
     def registry(self):
         """Registry with templates for distribution tests."""
-        from alienbio.generator import Template, TemplateRegistry
+        from alienbio.generator import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
-        registry.register("simple", Template.parse({
+        registry.register("simple", parse_template({
             "molecules": {"M1": {"value": "!ref rate"}}
         }))
         return registry
 
-    
+
     def test_param_with_distribution(self, registry):
         """Template param with !ev distribution is sampled."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {"rate": "!ev lognormal(0.1, 0.3)"},
             "reactions": {"r1": {"rate": "!ref rate"}}
         })
 
-        exp1 = expand(template, namespace="x", seed=42)
-        exp2 = expand(template, namespace="x", seed=43)
+        exp1 = apply_template(template, namespace="x", seed=42)
+        exp2 = apply_template(template, namespace="x", seed=43)
 
         # Different seeds = different sampled values
-        rate1 = exp1.reactions["r.x.r1"]["rate"]
-        rate2 = exp2.reactions["r.x.r1"]["rate"]
+        rate1 = exp1["reactions"]["r.x.r1"]["rate"]
+        rate2 = exp2["reactions"]["r.x.r1"]["rate"]
         assert rate1 != rate2
         assert rate1 > 0  # lognormal is always positive
         assert rate2 > 0
 
-    
+
     def test_same_seed_same_result(self):
         """Same seed produces identical sampled values."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {"rate": "!ev lognormal(0.1, 0.3)"},
             "reactions": {"r1": {"rate": "!ref rate"}}
         })
 
-        exp1 = expand(template, namespace="x", seed=42)
-        exp2 = expand(template, namespace="x", seed=42)
+        exp1 = apply_template(template, namespace="x", seed=42)
+        exp2 = apply_template(template, namespace="x", seed=42)
 
-        rate1 = exp1.reactions["r.x.r1"]["rate"]
-        rate2 = exp2.reactions["r.x.r1"]["rate"]
+        rate1 = exp1["reactions"]["r.x.r1"]["rate"]
+        rate2 = exp2["reactions"]["r.x.r1"]["rate"]
         assert rate1 == rate2
 
-    
+
     def test_multiple_distributions_same_template(self):
         """Multiple distribution params are independently sampled."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {
                 "rate1": "!ev normal(1.0, 0.1)",
                 "rate2": "!ev normal(2.0, 0.1)"
@@ -124,9 +124,9 @@ class TestDistributionInParams:
             }
         })
 
-        expanded = expand(template, namespace="x", seed=42)
-        r1 = expanded.reactions["r.x.r1"]["rate"]
-        r2 = expanded.reactions["r.x.r2"]["rate"]
+        expanded = apply_template(template, namespace="x", seed=42)
+        r1 = expanded["reactions"]["r.x.r1"]["rate"]
+        r2 = expanded["reactions"]["r.x.r2"]["rate"]
 
         # Should be around 1.0 and 2.0 respectively
         assert 0.5 < r1 < 1.5
@@ -136,12 +136,12 @@ class TestDistributionInParams:
 class TestDistributionInMolecules:
     """Tests for distributions in molecule definitions."""
 
-    
+
     def test_ev_in_molecule_field(self):
         """Molecule field with !ev is evaluated."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "molecules": {
                 "M1": {
                     "role": "energy",
@@ -150,16 +150,16 @@ class TestDistributionInMolecules:
             }
         })
 
-        expanded = expand(template, namespace="x", seed=42)
-        conc = expanded.molecules["m.x.M1"]["initial_conc"]
+        expanded = apply_template(template, namespace="x", seed=42)
+        conc = expanded["molecules"]["m.x.M1"]["initial_conc"]
         assert 0.1 <= conc <= 1.0
 
     @pytest.mark.skip(reason="Molecule name expansion with {i in range} syntax not yet implemented")
     def test_ev_with_index(self):
         """!ev can use loop index variable."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "molecules": {
                 "M{i in 1..3}": {
                     "role": "structural",
@@ -168,17 +168,17 @@ class TestDistributionInMolecules:
             }
         })
 
-        expanded = expand(template, namespace="x", seed=42)
-        assert expanded.molecules["m.x.M1"]["description"] == "Molecule 1"
-        assert expanded.molecules["m.x.M2"]["description"] == "Molecule 2"
-        assert expanded.molecules["m.x.M3"]["description"] == "Molecule 3"
+        expanded = apply_template(template, namespace="x", seed=42)
+        assert expanded["molecules"]["m.x.M1"]["description"] == "Molecule 1"
+        assert expanded["molecules"]["m.x.M2"]["description"] == "Molecule 2"
+        assert expanded["molecules"]["m.x.M3"]["description"] == "Molecule 3"
 
     @pytest.mark.skip(reason="Molecule name expansion with {i in range} syntax not yet implemented")
     def test_ev_computed_from_index(self):
         """!ev can compute values from index."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "molecules": {
                 "M{i in 1..3}": {
                     "depth": "!ev i * 10"
@@ -186,10 +186,10 @@ class TestDistributionInMolecules:
             }
         })
 
-        expanded = expand(template, namespace="x", seed=42)
-        assert expanded.molecules["m.x.M1"]["depth"] == 10
-        assert expanded.molecules["m.x.M2"]["depth"] == 20
-        assert expanded.molecules["m.x.M3"]["depth"] == 30
+        expanded = apply_template(template, namespace="x", seed=42)
+        assert expanded["molecules"]["m.x.M1"]["depth"] == 10
+        assert expanded["molecules"]["m.x.M2"]["depth"] == 20
+        assert expanded["molecules"]["m.x.M3"]["depth"] == 30
 
 
 class TestDistributionInLoopRanges:
@@ -198,73 +198,73 @@ class TestDistributionInLoopRanges:
     @pytest.fixture
     def registry(self):
         """Registry with simple template."""
-        from alienbio.generator import Template, TemplateRegistry
+        from alienbio.generator import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
-        registry.register("simple", Template.parse({
+        registry.register("simple", parse_template({
             "molecules": {"M1": {}}
         }))
         return registry
 
-    
+
     def test_distribution_in_loop_range(self, registry):
         """Loop count can come from sampled distribution."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {"count": "!ev round(normal(3, 0.5))"},
             "_instantiate_": {
                 "_as_ p{i in 1..count}": {"_template_": "simple"}
             }
         })
 
-        expanded = expand(template, namespace="x", seed=42, registry=registry)
-        mol_count = len([k for k in expanded.molecules if k.startswith("m.x.p")])
+        expanded = apply_template(template, namespace="x", seed=42, registry=registry)
+        mol_count = len([k for k in expanded["molecules"] if k.startswith("m.x.p")])
         # Should be approximately 3 (±1 or 2)
         assert 1 <= mol_count <= 5
 
-    
+
     def test_distribution_loop_reproducible(self, registry):
         """Sampled loop count is reproducible with same seed."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {"count": "!ev round(normal(3, 0.5))"},
             "_instantiate_": {
                 "_as_ p{i in 1..count}": {"_template_": "simple"}
             }
         })
 
-        exp1 = expand(template, namespace="x", seed=42, registry=registry)
-        exp2 = expand(template, namespace="x", seed=42, registry=registry)
+        exp1 = apply_template(template, namespace="x", seed=42, registry=registry)
+        exp2 = apply_template(template, namespace="x", seed=42, registry=registry)
 
-        count1 = len([k for k in exp1.molecules if k.startswith("m.x.p")])
-        count2 = len([k for k in exp2.molecules if k.startswith("m.x.p")])
+        count1 = len([k for k in exp1["molecules"] if k.startswith("m.x.p")])
+        count2 = len([k for k in exp2["molecules"] if k.startswith("m.x.p")])
         assert count1 == count2
 
-    
+
     def test_poisson_loop_count(self, registry):
         """Poisson distribution for count (always non-negative integer)."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {"count": "!ev poisson(3)"},
             "_instantiate_": {
                 "_as_ p{i in 1..count}": {"_template_": "simple"}
             }
         })
 
-        expanded = expand(template, namespace="x", seed=42, registry=registry)
-        mol_count = len([k for k in expanded.molecules if k.startswith("m.x.p")])
+        expanded = apply_template(template, namespace="x", seed=42, registry=registry)
+        mol_count = len([k for k in expanded["molecules"] if k.startswith("m.x.p")])
         assert mol_count >= 0  # Poisson can be 0
         assert isinstance(mol_count, int)
 
-    
+
     def test_nested_distribution_dependencies(self, registry):
         """Distributions can depend on previously sampled values."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {
                 "base": "!ev round(uniform(2, 4))",
                 "extra": "!ev round(base * uniform(0.5, 1.5))"
@@ -275,9 +275,9 @@ class TestDistributionInLoopRanges:
             }
         })
 
-        expanded = expand(template, namespace="x", seed=42, registry=registry)
-        base_count = len([k for k in expanded.molecules if ".base" in k])
-        extra_count = len([k for k in expanded.molecules if ".extra" in k])
+        expanded = apply_template(template, namespace="x", seed=42, registry=registry)
+        base_count = len([k for k in expanded["molecules"] if ".base" in k])
+        extra_count = len([k for k in expanded["molecules"] if ".extra" in k])
 
         assert 2 <= base_count <= 4
         # extra depends on base, so roughly 1-6
@@ -287,40 +287,40 @@ class TestDistributionInLoopRanges:
 class TestDistributionEdgeCases:
     """Edge cases for distribution handling."""
 
-    
+
     def test_zero_variance_normal(self):
         """Normal with std=0 returns mean exactly."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {"rate": "!ev normal(0.5, 0)"},
             "reactions": {"r1": {"rate": "!ref rate"}}
         })
 
-        expanded = expand(template, namespace="x", seed=42)
-        assert expanded.reactions["r.x.r1"]["rate"] == 0.5
+        expanded = apply_template(template, namespace="x", seed=42)
+        assert expanded["reactions"]["r.x.r1"]["rate"] == 0.5
 
-    
+
     def test_uniform_single_value(self):
         """Uniform with low==high returns that value."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {"rate": "!ev uniform(0.5, 0.5)"},
             "reactions": {"r1": {"rate": "!ref rate"}}
         })
 
-        expanded = expand(template, namespace="x", seed=42)
-        assert expanded.reactions["r.x.r1"]["rate"] == 0.5
+        expanded = apply_template(template, namespace="x", seed=42)
+        assert expanded["reactions"]["r.x.r1"]["rate"] == 0.5
 
     def test_choice_single_option(self):
         """choice() with one option returns that option."""
-        from alienbio.generator import Template, expand
+        from alienbio.generator import parse_template, apply_template
 
-        template = Template.parse({
+        template = parse_template({
             "_params_": {"color": "!ev choice(['red'])"},
             "molecules": {"M1": {"color": "!ref color"}}
         })
 
-        expanded = expand(template, namespace="x", seed=42)
-        assert expanded.molecules["m.x.M1"]["color"] == "red"
+        expanded = apply_template(template, namespace="x", seed=42)
+        assert expanded["molecules"]["m.x.M1"]["color"] == "red"

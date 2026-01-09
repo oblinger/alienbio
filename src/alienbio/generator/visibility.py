@@ -228,20 +228,3 @@ def _update_references(data: Any, name_map: dict[str, str]) -> Any:
         return [_update_references(item, name_map) for item in data]
 
     return data
-
-
-# =============================================================================
-# Backwards Compatibility (deprecated)
-# =============================================================================
-
-
-class VisibleScenario:
-    """Deprecated: apply_visibility() now returns a dict."""
-
-    def __init__(
-        self,
-        molecules: dict | None = None,
-        reactions: dict | None = None,
-    ):
-        self.molecules = molecules or {}
-        self.reactions = reactions or {}

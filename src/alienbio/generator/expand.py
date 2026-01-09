@@ -15,27 +15,6 @@ from .template import TemplateRegistry, ports_compatible
 from .exceptions import PortTypeMismatchError, PortNotFoundError
 
 
-def _to_template_dict(template: Any) -> dict[str, Any]:
-    """Convert a Template object or dict to a template dict.
-
-    Handles backwards compatibility with the deprecated Template class.
-    """
-    if isinstance(template, dict):
-        return template
-    # Handle deprecated Template class
-    if hasattr(template, "params"):
-        return {
-            "name": getattr(template, "name", None),
-            "params": template.params,
-            "ports": {k: {"type": v.type, "direction": v.direction, "path": v.path}
-                      for k, v in template.ports.items()},
-            "molecules": template.molecules,
-            "reactions": template.reactions,
-            "instantiate": template.instantiate,
-        }
-    return template
-
-
 def apply_template(
     template: dict[str, Any],
     namespace: str,
@@ -170,7 +149,7 @@ def apply_template(
             if port_connections:
                 template_name = inst_data.get("_template_")
                 if template_name:
-                    sub_template = _to_template_dict(registry.get(template_name))
+                    sub_template = registry.get(template_name)
                     _apply_port_connections(
                         result, port_connections, sub_namespace, namespace,
                         sub_template, sub_ports, _ports
@@ -196,7 +175,7 @@ def _instantiate_nested(
         return {"molecules": {}, "reactions": {}}, {}
 
     # Get the template and convert if needed
-    template = _to_template_dict(registry.get(template_name))
+    template = registry.get(template_name)
 
     # Separate port connections from params
     inst_params = {}
@@ -321,7 +300,7 @@ def _apply_template_with_ports(
             if port_connections:
                 template_name = inst_data.get("_template_")
                 if template_name:
-                    sub_template = _to_template_dict(registry.get(template_name))
+                    sub_template = registry.get(template_name)
                     _apply_port_connections(
                         result, port_connections, sub_namespace, namespace,
                         sub_template, sub_ports, _ports
@@ -487,44 +466,3 @@ def _namespace_molecule_refs(
         return [_namespace_molecule_refs(item, namespace, molecule_names) for item in data]
     else:
         return data
-
-
-# =============================================================================
-# Backwards Compatibility (deprecated)
-# =============================================================================
-
-
-def expand(
-    template: Any,
-    namespace: str,
-    params: dict[str, Any] | None = None,
-    registry: TemplateRegistry | None = None,
-    seed: int | None = None,
-    _ctx: Context | None = None,
-) -> "ExpandedTemplate":
-    """Deprecated: Use apply_template() instead."""
-    template_dict = _to_template_dict(template)
-    result = apply_template(template_dict, namespace, params, registry, seed, _ctx)
-    return ExpandedTemplate(
-        molecules=result["molecules"],
-        reactions=result["reactions"],
-    )
-
-
-class ExpandedTemplate:
-    """Deprecated: apply_template() now returns a dict."""
-
-    def __init__(
-        self,
-        molecules: dict | None = None,
-        reactions: dict | None = None,
-        ports: dict | None = None,
-    ):
-        self.molecules = molecules or {}
-        self.reactions = reactions or {}
-        self.ports = ports or {}
-
-    def merge(self, other: "ExpandedTemplate") -> None:
-        self.molecules.update(other.molecules)
-        self.reactions.update(other.reactions)
-        self.ports.update(other.ports)
