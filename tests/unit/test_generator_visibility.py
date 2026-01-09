@@ -23,7 +23,7 @@ import pytest
 class TestOpaqueNameGeneration:
     """Tests for generating opaque names from internal names."""
 
-    @pytest.mark.skip(reason="generate_opaque_names() not yet implemented")
+    
     def test_generate_molecule_names(self):
         """Generate opaque names for molecules with M prefix."""
         from alienbio.generator import generate_opaque_names
@@ -37,7 +37,7 @@ class TestOpaqueNameGeneration:
         # All unique
         assert len(set(mapping.values())) == len(mapping)
 
-    @pytest.mark.skip(reason="generate_opaque_names() not yet implemented")
+    
     def test_generate_reaction_names(self):
         """Generate opaque names for reactions with RX prefix."""
         from alienbio.generator import generate_opaque_names
@@ -48,7 +48,7 @@ class TestOpaqueNameGeneration:
         assert mapping["r.Krel.energy.work"].startswith("RX")
         assert mapping["r.Kova.consume"].startswith("RX")
 
-    @pytest.mark.skip(reason="generate_opaque_names() not yet implemented")
+    
     def test_reproducible_mapping(self):
         """Same seed produces same opaque names."""
         from alienbio.generator import generate_opaque_names
@@ -59,7 +59,7 @@ class TestOpaqueNameGeneration:
 
         assert map1 == map2
 
-    @pytest.mark.skip(reason="generate_opaque_names() not yet implemented")
+    
     def test_different_seeds_different_mapping(self):
         """Different seeds produce different opaque names."""
         from alienbio.generator import generate_opaque_names
@@ -71,7 +71,7 @@ class TestOpaqueNameGeneration:
         # Values should differ (with high probability)
         assert list(map1.values()) != list(map2.values())
 
-    @pytest.mark.skip(reason="generate_opaque_names() not yet implemented")
+    
     def test_empty_list(self):
         """Empty list produces empty mapping."""
         from alienbio.generator import generate_opaque_names
@@ -79,7 +79,7 @@ class TestOpaqueNameGeneration:
         mapping = generate_opaque_names([], seed=42)
         assert mapping == {}
 
-    @pytest.mark.skip(reason="generate_opaque_names() not yet implemented")
+    
     def test_single_item(self):
         """Single item produces single mapping."""
         from alienbio.generator import generate_opaque_names
@@ -89,7 +89,7 @@ class TestOpaqueNameGeneration:
         assert "m.X" in mapping
         assert mapping["m.X"].startswith("M")
 
-    @pytest.mark.skip(reason="generate_opaque_names() not yet implemented")
+    
     def test_opaque_names_are_short(self):
         """Opaque names should be reasonably short."""
         from alienbio.generator import generate_opaque_names
@@ -110,7 +110,7 @@ class TestOpaqueNameGeneration:
 class TestVisibilityFraction:
     """Tests for applying fraction_known to determine visible vs hidden."""
 
-    @pytest.mark.skip(reason="apply_fraction_known() not yet implemented")
+    
     def test_fraction_known(self):
         """Fraction known splits items into visible and hidden."""
         from alienbio.generator import apply_fraction_known
@@ -122,7 +122,7 @@ class TestVisibilityFraction:
         assert len(hidden) == 3
         assert set(visible) | set(hidden) == set(items)
 
-    @pytest.mark.skip(reason="apply_fraction_known() not yet implemented")
+    
     def test_fraction_zero_all_hidden(self):
         """Fraction 0.0 hides all items."""
         from alienbio.generator import apply_fraction_known
@@ -133,7 +133,7 @@ class TestVisibilityFraction:
         assert len(visible) == 0
         assert len(hidden) == 3
 
-    @pytest.mark.skip(reason="apply_fraction_known() not yet implemented")
+    
     def test_fraction_one_all_visible(self):
         """Fraction 1.0 shows all items."""
         from alienbio.generator import apply_fraction_known
@@ -144,7 +144,7 @@ class TestVisibilityFraction:
         assert len(visible) == 3
         assert len(hidden) == 0
 
-    @pytest.mark.skip(reason="apply_fraction_known() not yet implemented")
+    
     def test_fraction_reproducible(self):
         """Same seed produces same split."""
         from alienbio.generator import apply_fraction_known
@@ -156,7 +156,7 @@ class TestVisibilityFraction:
         assert v1 == v2
         assert h1 == h2
 
-    @pytest.mark.skip(reason="apply_fraction_known() not yet implemented")
+    
     def test_fraction_different_seeds(self):
         """Different seeds produce different splits."""
         from alienbio.generator import apply_fraction_known
@@ -168,7 +168,7 @@ class TestVisibilityFraction:
         # Should be different (with high probability)
         assert v1 != v2
 
-    @pytest.mark.skip(reason="apply_fraction_known() not yet implemented")
+    
     def test_fraction_empty_list(self):
         """Empty list produces empty visible and hidden."""
         from alienbio.generator import apply_fraction_known
@@ -177,7 +177,7 @@ class TestVisibilityFraction:
         assert visible == []
         assert hidden == []
 
-    @pytest.mark.skip(reason="apply_fraction_known() not yet implemented")
+    
     def test_fraction_rounds_correctly(self):
         """Fraction rounds to nearest integer count."""
         from alienbio.generator import apply_fraction_known
@@ -196,7 +196,7 @@ class TestVisibilityFraction:
 class TestVisibilityMapping:
     """Tests for generating complete visibility mapping."""
 
-    @pytest.mark.skip(reason="generate_visibility_mapping() not yet implemented")
+    
     def test_visibility_mapping_structure(self):
         """Visibility mapping has correct structure."""
         from alienbio.generator import generate_visibility_mapping
@@ -217,7 +217,7 @@ class TestVisibilityMapping:
         # Should track hidden elements
         assert "_hidden_" in mapping
 
-    @pytest.mark.skip(reason="generate_visibility_mapping() not yet implemented")
+    
     def test_hidden_dependencies(self):
         """Hidden dependencies are tracked in _hidden_."""
         from alienbio.generator import generate_visibility_mapping
@@ -235,7 +235,7 @@ class TestVisibilityMapping:
         # All molecules should be in hidden list
         assert len(mapping["_hidden_"]["molecules"]) == 3
 
-    @pytest.mark.skip(reason="generate_visibility_mapping() not yet implemented")
+    
     def test_visibility_mapping_reproducible(self):
         """Same seed produces same mapping."""
         from alienbio.generator import generate_visibility_mapping
@@ -254,7 +254,7 @@ class TestVisibilityMapping:
 
         assert map1 == map2
 
-    @pytest.mark.skip(reason="generate_visibility_mapping() not yet implemented")
+    
     def test_visibility_per_entity_type(self):
         """Different visibility fractions per entity type."""
         from alienbio.generator import generate_visibility_mapping
@@ -281,7 +281,7 @@ class TestVisibilityMapping:
 class TestApplyVisibility:
     """Tests for applying visibility mapping to scenario."""
 
-    @pytest.mark.skip(reason="apply_visibility() not yet implemented")
+    
     def test_apply_visibility_renames_molecules(self):
         """Molecules are renamed according to mapping."""
         from alienbio.generator import apply_visibility
@@ -294,7 +294,7 @@ class TestApplyVisibility:
         assert "m.Krel.ME1" not in visible.molecules
         assert visible.molecules["M1"]["role"] == "energy"
 
-    @pytest.mark.skip(reason="apply_visibility() not yet implemented")
+    
     def test_apply_visibility_updates_reactions(self):
         """Reaction references are updated with new molecule names."""
         from alienbio.generator import apply_visibility
@@ -310,7 +310,7 @@ class TestApplyVisibility:
         assert visible.reactions["RX1"]["reactants"] == ["M1"]
         assert visible.reactions["RX1"]["products"] == ["M2"]
 
-    @pytest.mark.skip(reason="apply_visibility() not yet implemented")
+    
     def test_apply_visibility_removes_hidden(self):
         """Hidden elements are removed from visible scenario."""
         from alienbio.generator import apply_visibility
@@ -330,7 +330,7 @@ class TestApplyVisibility:
         assert "M2" in visible.molecules
         assert len(visible.molecules) == 2  # m.C is hidden
 
-    @pytest.mark.skip(reason="apply_visibility() not yet implemented")
+    
     def test_apply_visibility_preserves_other_fields(self):
         """Non-name fields in molecules/reactions are preserved."""
         from alienbio.generator import apply_visibility
@@ -353,7 +353,7 @@ class TestApplyVisibility:
         assert mol["description"] == "High energy carrier"
         assert mol["initial_conc"] == 1.0
 
-    @pytest.mark.skip(reason="apply_visibility() not yet implemented")
+    
     def test_apply_visibility_handles_complex_reactions(self):
         """Complex reactions with multiple reactants/products are updated."""
         from alienbio.generator import apply_visibility
@@ -378,7 +378,7 @@ class TestApplyVisibility:
         assert rxn["stoichiometry"]["M1"] == -1
         assert rxn["stoichiometry"]["M2"] == -2
 
-    @pytest.mark.skip(reason="apply_visibility() not yet implemented")
+    
     def test_apply_visibility_empty_scenario(self):
         """Empty scenario produces empty visible scenario."""
         from alienbio.generator import apply_visibility
@@ -399,7 +399,7 @@ class TestApplyVisibility:
 class TestVisibilityIntegration:
     """Integration tests for visibility mapping pipeline."""
 
-    @pytest.mark.skip(reason="visibility pipeline not yet implemented")
+    
     def test_full_visibility_pipeline(self):
         """Full pipeline: generate mapping then apply to scenario."""
         from alienbio.generator import (
@@ -437,7 +437,7 @@ class TestVisibilityIntegration:
         for name in visible.reactions:
             assert not name.startswith("r.")
 
-    @pytest.mark.skip(reason="visibility pipeline not yet implemented")
+    
     def test_partial_visibility_hides_correctly(self):
         """Partial visibility hides some elements."""
         from alienbio.generator import (
@@ -460,7 +460,7 @@ class TestVisibilityIntegration:
 
         assert len(visible.molecules) == 2
 
-    @pytest.mark.skip(reason="visibility pipeline not yet implemented")
+    
     def test_ground_truth_preserved(self):
         """Ground truth mapping is preserved for debugging."""
         from alienbio.generator import (

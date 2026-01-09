@@ -23,7 +23,6 @@ from pathlib import Path
 class TestTemplateDataStructures:
     """Tests for Template and Port classes."""
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
     def test_template_has_params(self):
         """Template parses _params_ section into params dict."""
         from alienbio.generator import Template
@@ -35,7 +34,7 @@ class TestTemplateDataStructures:
         assert t.params["rate"] == 0.1
         assert t.params["count"] == 5
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
+    
     def test_template_has_ports(self):
         """Template parses _ports_ section with type and direction."""
         from alienbio.generator import Template
@@ -51,7 +50,7 @@ class TestTemplateDataStructures:
         assert t.ports["molecules.M1"].type == "molecule"
         assert t.ports["molecules.M1"].direction == "in"
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
+    
     def test_template_has_molecules_and_reactions(self):
         """Template parses molecules and reactions sections."""
         from alienbio.generator import Template
@@ -70,7 +69,7 @@ class TestTemplateDataStructures:
         assert "r1" in t.reactions
         assert t.molecules["M1"]["role"] == "energy"
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
+    
     def test_template_empty_sections(self):
         """Template handles missing optional sections."""
         from alienbio.generator import Template
@@ -81,7 +80,7 @@ class TestTemplateDataStructures:
         assert t.reactions == {}
         assert "M1" in t.molecules
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
+    
     def test_template_name_from_typed_key(self):
         """Template extracts name from template.name: syntax."""
         from alienbio.generator import Template
@@ -95,7 +94,7 @@ class TestTemplateDataStructures:
         t = Template.parse(data[key], name="energy_cycle")
         assert t.name == "energy_cycle"
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
+    
     def test_template_with_instantiate_block(self):
         """Template can have _instantiate_ section for nesting."""
         from alienbio.generator import Template
@@ -113,7 +112,7 @@ class TestTemplateDataStructures:
 class TestPortClass:
     """Tests for Port data class."""
 
-    @pytest.mark.skip(reason="Port class not yet implemented")
+    
     def test_port_from_string_out(self):
         """Port.parse handles 'type.out' format."""
         from alienbio.generator import Port
@@ -123,7 +122,7 @@ class TestPortClass:
         assert p.direction == "out"
         assert p.path == "reactions.work"
 
-    @pytest.mark.skip(reason="Port class not yet implemented")
+    
     def test_port_from_string_in(self):
         """Port.parse handles 'type.in' format."""
         from alienbio.generator import Port
@@ -132,7 +131,7 @@ class TestPortClass:
         assert p.type == "molecule"
         assert p.direction == "in"
 
-    @pytest.mark.skip(reason="Port class not yet implemented")
+    
     def test_port_invalid_direction(self):
         """Port.parse raises on invalid direction."""
         from alienbio.generator import Port
@@ -140,7 +139,7 @@ class TestPortClass:
         with pytest.raises(ValueError, match="direction"):
             Port.parse("energy.sideways", path="x")
 
-    @pytest.mark.skip(reason="Port class not yet implemented")
+    
     def test_port_equality(self):
         """Ports with same attributes are equal."""
         from alienbio.generator import Port
@@ -149,7 +148,7 @@ class TestPortClass:
         p2 = Port.parse("energy.out", path="reactions.work")
         assert p1 == p2
 
-    @pytest.mark.skip(reason="Port class not yet implemented")
+    
     def test_port_compatible(self):
         """Ports are compatible if types match and directions are in/out."""
         from alienbio.generator import Port
@@ -159,7 +158,7 @@ class TestPortClass:
         assert out_port.compatible_with(in_port)
         assert in_port.compatible_with(out_port)
 
-    @pytest.mark.skip(reason="Port class not yet implemented")
+    
     def test_port_incompatible_type(self):
         """Ports with different types are incompatible."""
         from alienbio.generator import Port
@@ -177,7 +176,7 @@ class TestPortClass:
 class TestTemplateRegistry:
     """Tests for TemplateRegistry class."""
 
-    @pytest.mark.skip(reason="TemplateRegistry class not yet implemented")
+    
     def test_template_registration(self):
         """Registry stores and retrieves templates by name."""
         from alienbio.generator import Template, TemplateRegistry
@@ -187,7 +186,7 @@ class TestTemplateRegistry:
         registry.register("my_template", template)
         assert registry.get("my_template") is template
 
-    @pytest.mark.skip(reason="TemplateRegistry class not yet implemented")
+    
     def test_template_not_found(self):
         """Registry raises TemplateNotFoundError for missing templates."""
         from alienbio.generator import TemplateRegistry, TemplateNotFoundError
@@ -196,7 +195,7 @@ class TestTemplateRegistry:
         with pytest.raises(TemplateNotFoundError):
             registry.get("nonexistent")
 
-    @pytest.mark.skip(reason="TemplateRegistry class not yet implemented")
+    
     def test_template_not_found_message(self):
         """TemplateNotFoundError includes the template name."""
         from alienbio.generator import TemplateRegistry, TemplateNotFoundError
@@ -206,7 +205,7 @@ class TestTemplateRegistry:
             registry.get("my_missing_template")
         assert "my_missing_template" in str(exc.value)
 
-    @pytest.mark.skip(reason="TemplateRegistry class not yet implemented")
+    
     def test_registry_contains(self):
         """Registry supports 'in' operator for checking existence."""
         from alienbio.generator import Template, TemplateRegistry
@@ -218,7 +217,7 @@ class TestTemplateRegistry:
         assert "exists" in registry
         assert "missing" not in registry
 
-    @pytest.mark.skip(reason="TemplateRegistry class not yet implemented")
+    
     def test_template_from_yaml_file(self, tmp_path):
         """Registry loads templates from YAML files."""
         from alienbio.generator import TemplateRegistry
@@ -243,7 +242,7 @@ template.energy_cycle:
         registry = TemplateRegistry.from_directory(tmp_path / "templates")
         assert "primitives/energy_cycle" in registry
 
-    @pytest.mark.skip(reason="TemplateRegistry class not yet implemented")
+    
     def test_template_nested_path(self, tmp_path):
         """Registry handles nested directory paths."""
         from alienbio.generator import TemplateRegistry
@@ -259,7 +258,7 @@ template.autotroph:
         registry = TemplateRegistry.from_directory(tmp_path / "templates")
         assert "organisms/producers/autotroph" in registry
 
-    @pytest.mark.skip(reason="TemplateRegistry class not yet implemented")
+    
     def test_registry_list_all(self):
         """Registry lists all registered template names."""
         from alienbio.generator import Template, TemplateRegistry
@@ -272,7 +271,7 @@ template.autotroph:
         names = registry.list_all()
         assert set(names) == {"a", "b", "c"}
 
-    @pytest.mark.skip(reason="TemplateRegistry class not yet implemented")
+    
     def test_registry_overwrite(self):
         """Registering same name overwrites previous template."""
         from alienbio.generator import Template, TemplateRegistry
@@ -297,7 +296,7 @@ template.autotroph:
 class TestTemplateYAMLParsing:
     """Integration tests for parsing templates from YAML strings."""
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
+    
     def test_parse_full_template(self):
         """Parse a complete template with all sections."""
         from alienbio.generator import Template
@@ -326,7 +325,7 @@ class TestTemplateYAMLParsing:
         assert len(t.reactions) == 1
         assert "reactions.work" in t.ports
 
-    @pytest.mark.skip(reason="Template class not yet implemented")
+    
     def test_parse_template_with_instantiate(self):
         """Parse template with nested instantiation."""
         from alienbio.generator import Template

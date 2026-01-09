@@ -24,7 +24,7 @@ import yaml
 class TestGuardDecorator:
     """Tests for @guard decorator and basic infrastructure."""
 
-    @pytest.mark.skip(reason="@guard decorator not yet implemented")
+    
     def test_guard_decorator(self):
         """@guard decorator marks function as a guard."""
         from alienbio.generator import guard
@@ -36,7 +36,7 @@ class TestGuardDecorator:
         assert hasattr(my_guard, '_is_guard')
         assert my_guard._is_guard == True
 
-    @pytest.mark.skip(reason="@guard decorator not yet implemented")
+    
     def test_guard_passes(self):
         """Guard that returns True passes."""
         from alienbio.generator import guard, run_guard, GuardContext
@@ -49,7 +49,7 @@ class TestGuardDecorator:
         result = run_guard(always_pass, {}, context)
         assert result == True
 
-    @pytest.mark.skip(reason="GuardViolation not yet implemented")
+    
     def test_guard_violation(self):
         """Guard that raises GuardViolation fails with details."""
         from alienbio.generator import guard, run_guard, GuardViolation, GuardContext
@@ -64,7 +64,7 @@ class TestGuardDecorator:
         assert "Nope" in str(exc.value)
         assert exc.value.details["reason"] == "test"
 
-    @pytest.mark.skip(reason="GuardContext not yet implemented")
+    
     def test_guard_context_has_scenario(self):
         """GuardContext provides scenario, namespace, seed, attempt."""
         from alienbio.generator import guard, run_guard, GuardContext
@@ -94,7 +94,7 @@ class TestGuardDecorator:
 class TestGuardViolationDetails:
     """Tests for GuardViolation exception details."""
 
-    @pytest.mark.skip(reason="GuardViolation not yet implemented")
+    
     def test_violation_message(self):
         """GuardViolation has message."""
         from alienbio.generator import GuardViolation
@@ -102,7 +102,7 @@ class TestGuardViolationDetails:
         exc = GuardViolation("Something went wrong")
         assert str(exc) == "Something went wrong"
 
-    @pytest.mark.skip(reason="GuardViolation not yet implemented")
+    
     def test_violation_details(self):
         """GuardViolation carries details dict."""
         from alienbio.generator import GuardViolation
@@ -114,7 +114,7 @@ class TestGuardViolationDetails:
         assert exc.details["molecule"] == "m.x.M1"
         assert exc.details["reason"] == "creates dependency"
 
-    @pytest.mark.skip(reason="GuardViolation not yet implemented")
+    
     def test_violation_prune_list(self):
         """GuardViolation can specify elements to prune."""
         from alienbio.generator import GuardViolation
@@ -141,7 +141,7 @@ class TestNoNewSpeciesDependencies:
             }
         }
 
-    @pytest.mark.skip(reason="no_new_species_dependencies not yet implemented")
+    
     def test_no_new_species_dependencies_passes(self, mock_scenario):
         """Reaction within single species namespace passes."""
         from alienbio.generator import no_new_species_dependencies, GuardContext
@@ -159,7 +159,7 @@ class TestNoNewSpeciesDependencies:
         result = no_new_species_dependencies(expanded, context)
         assert result == True
 
-    @pytest.mark.skip(reason="no_new_species_dependencies not yet implemented")
+    
     def test_no_new_species_dependencies_fails(self, mock_scenario):
         """Reaction linking two species fails."""
         from alienbio.generator import no_new_species_dependencies, GuardContext, GuardViolation
@@ -178,7 +178,7 @@ class TestNoNewSpeciesDependencies:
             no_new_species_dependencies(expanded, context)
         assert "cross-species" in str(exc.value).lower()
 
-    @pytest.mark.skip(reason="no_new_species_dependencies not yet implemented")
+    
     def test_background_reactions_ok(self):
         """Reactions in background namespace don't link species."""
         from alienbio.generator import no_new_species_dependencies, GuardContext
@@ -200,7 +200,7 @@ class TestNoNewSpeciesDependencies:
 class TestNoNewCycles:
     """Tests for no_new_cycles guard."""
 
-    @pytest.mark.skip(reason="no_new_cycles not yet implemented")
+    
     def test_no_new_cycles_linear_passes(self):
         """Linear pathway passes."""
         from alienbio.generator import no_new_cycles, GuardContext
@@ -216,7 +216,7 @@ class TestNoNewCycles:
         result = no_new_cycles(expanded, context)
         assert result == True
 
-    @pytest.mark.skip(reason="no_new_cycles not yet implemented")
+    
     def test_no_new_cycles_fails(self):
         """Circular pathway fails."""
         from alienbio.generator import no_new_cycles, GuardContext, GuardViolation
@@ -233,7 +233,7 @@ class TestNoNewCycles:
             no_new_cycles(expanded, context)
         assert "cycle" in str(exc.value).lower()
 
-    @pytest.mark.skip(reason="no_new_cycles not yet implemented")
+    
     def test_self_loop_is_cycle(self):
         """Reaction consuming and producing same molecule is a cycle."""
         from alienbio.generator import no_new_cycles, GuardContext, GuardViolation
@@ -252,7 +252,7 @@ class TestNoNewCycles:
 class TestNoEssential:
     """Tests for no_essential guard."""
 
-    @pytest.mark.skip(reason="no_essential not yet implemented")
+    
     def test_no_essential_passes(self):
         """Molecule not in reproduction_threshold passes."""
         from alienbio.generator import no_essential, GuardContext
@@ -272,7 +272,7 @@ class TestNoEssential:
         result = no_essential(expanded, context)
         assert result == True
 
-    @pytest.mark.skip(reason="no_essential not yet implemented")
+    
     def test_no_essential_fails(self):
         """New molecule referenced in reproduction_threshold fails."""
         from alienbio.generator import no_essential, GuardContext, GuardViolation
@@ -310,7 +310,7 @@ class TestGuardModes:
             "molecules": {"M1": {}}
         })
 
-    @pytest.mark.skip(reason="expand_with_guards not yet implemented")
+    
     def test_reject_mode(self, simple_template):
         """reject mode fails immediately on violation."""
         from alienbio.generator import guard, expand_with_guards, GuardViolation
@@ -327,7 +327,7 @@ class TestGuardModes:
                 namespace="x"
             )
 
-    @pytest.mark.skip(reason="expand_with_guards not yet implemented")
+    
     def test_retry_mode_succeeds(self, simple_template):
         """retry mode resamples until guard passes."""
         from alienbio.generator import guard, expand_with_guards, GuardViolation
@@ -353,7 +353,7 @@ class TestGuardModes:
         assert result is not None
         assert len(attempts) == 3  # 0, 1, 2
 
-    @pytest.mark.skip(reason="expand_with_guards not yet implemented")
+    
     def test_retry_mode_exhausted(self, simple_template):
         """retry mode fails after max_attempts."""
         from alienbio.generator import guard, expand_with_guards, GuardViolation
@@ -373,7 +373,7 @@ class TestGuardModes:
         error_msg = str(exc.value).lower()
         assert "max_attempts" in error_msg or "exhausted" in error_msg
 
-    @pytest.mark.skip(reason="expand_with_guards not yet implemented")
+    
     def test_prune_mode(self):
         """prune mode removes violating elements."""
         from alienbio.generator import guard, expand_with_guards, GuardViolation, Template
@@ -402,7 +402,7 @@ class TestGuardModes:
         assert "m.x.small" in result.molecules
         assert "m.x.big" not in result.molecules
 
-    @pytest.mark.skip(reason="expand_with_guards not yet implemented")
+    
     def test_retry_increments_seed(self, simple_template):
         """Each retry attempt uses different seed."""
         from alienbio.generator import guard, expand_with_guards, GuardViolation
@@ -520,7 +520,7 @@ scenario_generator_spec:
 class TestGuardHelpers:
     """Tests for guard helper functions."""
 
-    @pytest.mark.skip(reason="get_species_from_path not yet implemented")
+    
     def test_get_species_from_path(self):
         """Extract species name from molecule/reaction path."""
         from alienbio.generator import get_species_from_path
@@ -530,7 +530,7 @@ class TestGuardHelpers:
         assert get_species_from_path("m.bg.X1") is None  # bg is not a species
         assert get_species_from_path("M1") is None  # No namespace
 
-    @pytest.mark.skip(reason="build_dependency_graph not yet implemented")
+    
     def test_build_dependency_graph(self):
         """Build graph of molecule dependencies from reactions."""
         from alienbio.generator import build_dependency_graph
@@ -546,7 +546,7 @@ class TestGuardHelpers:
         # M3 depends on M2
         assert "M3" in graph.get("M2", [])
 
-    @pytest.mark.skip(reason="detect_cycles not yet implemented")
+    
     def test_detect_cycles(self):
         """Detect cycles in dependency graph."""
         from alienbio.generator import detect_cycles

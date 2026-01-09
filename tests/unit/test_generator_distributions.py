@@ -71,7 +71,7 @@ class TestDistributionInParams:
         }))
         return registry
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_param_with_distribution(self, registry):
         """Template param with !ev distribution is sampled."""
         from alienbio.generator import Template, expand
@@ -91,7 +91,7 @@ class TestDistributionInParams:
         assert rate1 > 0  # lognormal is always positive
         assert rate2 > 0
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_same_seed_same_result(self):
         """Same seed produces identical sampled values."""
         from alienbio.generator import Template, expand
@@ -108,7 +108,7 @@ class TestDistributionInParams:
         rate2 = exp2.reactions["r.x.r1"]["rate"]
         assert rate1 == rate2
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_multiple_distributions_same_template(self):
         """Multiple distribution params are independently sampled."""
         from alienbio.generator import Template, expand
@@ -136,7 +136,7 @@ class TestDistributionInParams:
 class TestDistributionInMolecules:
     """Tests for distributions in molecule definitions."""
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_ev_in_molecule_field(self):
         """Molecule field with !ev is evaluated."""
         from alienbio.generator import Template, expand
@@ -154,7 +154,7 @@ class TestDistributionInMolecules:
         conc = expanded.molecules["m.x.M1"]["initial_conc"]
         assert 0.1 <= conc <= 1.0
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    @pytest.mark.skip(reason="Molecule name expansion with {i in range} syntax not yet implemented")
     def test_ev_with_index(self):
         """!ev can use loop index variable."""
         from alienbio.generator import Template, expand
@@ -173,7 +173,7 @@ class TestDistributionInMolecules:
         assert expanded.molecules["m.x.M2"]["description"] == "Molecule 2"
         assert expanded.molecules["m.x.M3"]["description"] == "Molecule 3"
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    @pytest.mark.skip(reason="Molecule name expansion with {i in range} syntax not yet implemented")
     def test_ev_computed_from_index(self):
         """!ev can compute values from index."""
         from alienbio.generator import Template, expand
@@ -206,7 +206,7 @@ class TestDistributionInLoopRanges:
         }))
         return registry
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_distribution_in_loop_range(self, registry):
         """Loop count can come from sampled distribution."""
         from alienbio.generator import Template, expand
@@ -223,7 +223,7 @@ class TestDistributionInLoopRanges:
         # Should be approximately 3 (±1 or 2)
         assert 1 <= mol_count <= 5
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_distribution_loop_reproducible(self, registry):
         """Sampled loop count is reproducible with same seed."""
         from alienbio.generator import Template, expand
@@ -242,7 +242,7 @@ class TestDistributionInLoopRanges:
         count2 = len([k for k in exp2.molecules if k.startswith("m.x.p")])
         assert count1 == count2
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_poisson_loop_count(self, registry):
         """Poisson distribution for count (always non-negative integer)."""
         from alienbio.generator import Template, expand
@@ -259,7 +259,7 @@ class TestDistributionInLoopRanges:
         assert mol_count >= 0  # Poisson can be 0
         assert isinstance(mol_count, int)
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_nested_distribution_dependencies(self, registry):
         """Distributions can depend on previously sampled values."""
         from alienbio.generator import Template, expand
@@ -287,7 +287,7 @@ class TestDistributionInLoopRanges:
 class TestDistributionEdgeCases:
     """Edge cases for distribution handling."""
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_zero_variance_normal(self):
         """Normal with std=0 returns mean exactly."""
         from alienbio.generator import Template, expand
@@ -300,7 +300,7 @@ class TestDistributionEdgeCases:
         expanded = expand(template, namespace="x", seed=42)
         assert expanded.reactions["r.x.r1"]["rate"] == 0.5
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
+    
     def test_uniform_single_value(self):
         """Uniform with low==high returns that value."""
         from alienbio.generator import Template, expand
@@ -313,13 +313,12 @@ class TestDistributionEdgeCases:
         expanded = expand(template, namespace="x", seed=42)
         assert expanded.reactions["r.x.r1"]["rate"] == 0.5
 
-    @pytest.mark.skip(reason="expand() not yet implemented")
     def test_choice_single_option(self):
         """choice() with one option returns that option."""
         from alienbio.generator import Template, expand
 
         template = Template.parse({
-            "_params_": {"color": "!ev choice('red')"},
+            "_params_": {"color": "!ev choice(['red'])"},
             "molecules": {"M1": {"color": "!ref color"}}
         })
 
