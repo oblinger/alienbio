@@ -1,14 +1,14 @@
-"""Template classes for generator system.
+"""Template parsing and registry for generator system.
 
 Provides:
-- Port: Connection point with type and direction
-- Template: Reusable scenario fragment
+- parse_port(): Parse port specification to dict
+- ports_compatible(): Check if two ports can connect
+- parse_template(): Parse template data to dict
 - TemplateRegistry: Storage and lookup for templates
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -17,123 +17,101 @@ import yaml
 from .exceptions import TemplateNotFoundError
 
 
-@dataclass
-class Port:
-    """A connection point for wiring templates together.
+# =============================================================================
+# Port Functions
+# =============================================================================
 
-    Ports have a type (e.g., "energy", "molecule") and direction (in/out).
-    Ports can only connect if types match and directions are complementary.
+
+def parse_port(spec: str, path: str) -> dict[str, str]:
+    """Parse a port specification string.
+
+    Args:
+        spec: Format "type.direction", e.g., "energy.out"
+        path: The path within the template, e.g., "reactions.work"
+
+    Returns:
+        Port dict with keys: type, direction, path
+
+    Raises:
+        ValueError: If spec format is invalid or direction not in/out
     """
-
-    type: str
-    direction: str  # "in" or "out"
-    path: str  # Path within template, e.g., "reactions.work"
-
-    @classmethod
-    def parse(cls, spec: str, path: str) -> Port:
-        """Parse a port specification string.
-
-        Args:
-            spec: Format "type.direction", e.g., "energy.out"
-            path: The path within the template, e.g., "reactions.work"
-
-        Returns:
-            Port instance
-
-        Raises:
-            ValueError: If spec format is invalid or direction not in/out
-        """
-        parts = spec.split(".")
-        if len(parts) != 2:
-            raise ValueError(
-                f"Invalid port spec '{spec}': expected 'type.direction' format"
-            )
-
-        port_type, direction = parts
-        if direction not in ("in", "out"):
-            raise ValueError(
-                f"Invalid port direction '{direction}': must be 'in' or 'out'"
-            )
-
-        return cls(type=port_type, direction=direction, path=path)
-
-    def compatible_with(self, other: Port) -> bool:
-        """Check if this port can connect to another port.
-
-        Ports are compatible if:
-        - They have the same type
-        - They have opposite directions (in connects to out)
-        """
-        if self.type != other.type:
-            return False
-        # Opposite directions: in<->out
-        return (self.direction == "in" and other.direction == "out") or (
-            self.direction == "out" and other.direction == "in"
+    parts = spec.split(".")
+    if len(parts) != 2:
+        raise ValueError(
+            f"Invalid port spec '{spec}': expected 'type.direction' format"
         )
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Port):
-            return NotImplemented
-        return (
-            self.type == other.type
-            and self.direction == other.direction
-            and self.path == other.path
+    port_type, direction = parts
+    if direction not in ("in", "out"):
+        raise ValueError(
+            f"Invalid port direction '{direction}': must be 'in' or 'out'"
         )
 
-    def __hash__(self) -> int:
-        return hash((self.type, self.direction, self.path))
+    return {"type": port_type, "direction": direction, "path": path}
 
 
-@dataclass
-class Template:
-    """A reusable scenario fragment with parameters and ports.
+def ports_compatible(port1: dict[str, str], port2: dict[str, str]) -> bool:
+    """Check if two ports can connect.
 
-    Templates can contain:
-    - params: Default parameter values
-    - molecules: Molecule definitions
-    - reactions: Reaction definitions
-    - ports: Connection points for wiring
-    - instantiate: Nested template instantiations
+    Ports are compatible if:
+    - They have the same type
+    - They have opposite directions (in connects to out)
+
+    Args:
+        port1: First port dict
+        port2: Second port dict
+
+    Returns:
+        True if ports are compatible
     """
+    if port1["type"] != port2["type"]:
+        return False
+    # Opposite directions: in<->out
+    return (port1["direction"] == "in" and port2["direction"] == "out") or (
+        port1["direction"] == "out" and port2["direction"] == "in"
+    )
 
-    name: str | None = None
-    params: dict[str, Any] = field(default_factory=dict)
-    ports: dict[str, Port] = field(default_factory=dict)
-    molecules: dict[str, dict[str, Any]] = field(default_factory=dict)
-    reactions: dict[str, dict[str, Any]] = field(default_factory=dict)
-    instantiate: dict[str, dict[str, Any]] = field(default_factory=dict)
 
-    @classmethod
-    def parse(cls, data: dict[str, Any], name: str | None = None) -> Template:
-        """Parse a template from a dictionary.
+# =============================================================================
+# Template Functions
+# =============================================================================
 
-        Args:
-            data: Template data dictionary
-            name: Optional template name
 
-        Returns:
-            Template instance
-        """
-        # Extract special sections
-        params = data.get("_params_", {})
-        ports_raw = data.get("_ports_", {})
-        molecules = data.get("molecules", {})
-        reactions = data.get("reactions", {})
-        instantiate = data.get("_instantiate_", {})
+def parse_template(data: dict[str, Any], name: str | None = None) -> dict[str, Any]:
+    """Parse a template from a dictionary.
 
-        # Parse ports
-        ports: dict[str, Port] = {}
-        for path, spec in ports_raw.items():
-            ports[path] = Port.parse(spec, path)
+    Args:
+        data: Template data dictionary
+        name: Optional template name
 
-        return cls(
-            name=name,
-            params=params,
-            ports=ports,
-            molecules=molecules,
-            reactions=reactions,
-            instantiate=instantiate,
-        )
+    Returns:
+        Template dict with keys: name, params, ports, molecules, reactions, instantiate
+    """
+    # Extract special sections
+    params = data.get("_params_", {})
+    ports_raw = data.get("_ports_", {})
+    molecules = data.get("molecules", {})
+    reactions = data.get("reactions", {})
+    instantiate = data.get("_instantiate_", {})
+
+    # Parse ports
+    ports: dict[str, dict[str, str]] = {}
+    for path, spec in ports_raw.items():
+        ports[path] = parse_port(spec, path)
+
+    return {
+        "name": name,
+        "params": params,
+        "ports": ports,
+        "molecules": molecules,
+        "reactions": reactions,
+        "instantiate": instantiate,
+    }
+
+
+# =============================================================================
+# Template Registry
+# =============================================================================
 
 
 class TemplateRegistry:
@@ -144,25 +122,25 @@ class TemplateRegistry:
     """
 
     def __init__(self) -> None:
-        self._templates: dict[str, Template] = {}
+        self._templates: dict[str, dict[str, Any]] = {}
 
-    def register(self, name: str, template: Template) -> None:
+    def register(self, name: str, template: dict[str, Any]) -> None:
         """Register a template with the given name.
 
         Args:
             name: Template name (can be path-like, e.g., "primitives/energy_cycle")
-            template: Template instance to register
+            template: Template dict to register
         """
         self._templates[name] = template
 
-    def get(self, name: str) -> Template:
+    def get(self, name: str) -> dict[str, Any]:
         """Get a template by name.
 
         Args:
             name: Template name
 
         Returns:
-            Template instance
+            Template dict
 
         Raises:
             TemplateNotFoundError: If template is not registered
@@ -217,8 +195,8 @@ class TemplateRegistry:
             for key, value in data.items():
                 if key.startswith("template."):
                     # Extract name from key
-                    template_name = key[len("template.") :]
-                    template = Template.parse(value, name=template_name)
+                    template_name = key[len("template."):]
+                    template = parse_template(value, name=template_name)
                     # Use directory path + template name
                     full_name = str(rel_path.parent / template_name)
                     if full_name.startswith("."):
@@ -226,8 +204,79 @@ class TemplateRegistry:
                     registry.register(full_name, template)
                 else:
                     # Assume entire file is a template
-                    template = Template.parse(data)
+                    template = parse_template(data)
                     registry.register(template_path, template)
                     break  # Only process once if not template.name: format
 
         return registry
+
+
+# =============================================================================
+# Backwards Compatibility (deprecated)
+# =============================================================================
+
+# For backwards compatibility during transition - these will be removed
+class Port:
+    """Deprecated: Use parse_port() and ports_compatible() instead."""
+
+    def __init__(self, type: str, direction: str, path: str):
+        self.type = type
+        self.direction = direction
+        self.path = path
+
+    @classmethod
+    def parse(cls, spec: str, path: str) -> "Port":
+        d = parse_port(spec, path)
+        return cls(type=d["type"], direction=d["direction"], path=d["path"])
+
+    def compatible_with(self, other: "Port") -> bool:
+        return ports_compatible(
+            {"type": self.type, "direction": self.direction, "path": self.path},
+            {"type": other.type, "direction": other.direction, "path": other.path},
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Port):
+            return NotImplemented
+        return (
+            self.type == other.type
+            and self.direction == other.direction
+            and self.path == other.path
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.type, self.direction, self.path))
+
+
+class Template:
+    """Deprecated: Use parse_template() instead."""
+
+    def __init__(
+        self,
+        name: str | None = None,
+        params: dict | None = None,
+        ports: dict | None = None,
+        molecules: dict | None = None,
+        reactions: dict | None = None,
+        instantiate: dict | None = None,
+    ):
+        self.name = name
+        self.params = params or {}
+        self.ports = ports or {}
+        self.molecules = molecules or {}
+        self.reactions = reactions or {}
+        self.instantiate = instantiate or {}
+
+    @classmethod
+    def parse(cls, data: dict[str, Any], name: str | None = None) -> "Template":
+        d = parse_template(data, name)
+        # Convert port dicts back to Port objects for backwards compat
+        ports = {path: Port(**port_dict) for path, port_dict in d["ports"].items()}
+        return cls(
+            name=d["name"],
+            params=d["params"],
+            ports=ports,
+            molecules=d["molecules"],
+            reactions=d["reactions"],
+            instantiate=d["instantiate"],
+        )

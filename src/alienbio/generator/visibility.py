@@ -10,10 +10,7 @@ Provides:
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
 from typing import Any
-
-from .expand import ExpandedTemplate
 
 
 def generate_opaque_names(
@@ -92,14 +89,14 @@ def apply_fraction_known(
 
 
 def generate_visibility_mapping(
-    expanded: Any,  # ExpandedTemplate or MockExpanded
+    expanded: Any,  # dict or object with molecules/reactions
     visibility_spec: dict[str, dict[str, Any]],
     seed: int | None = None,
 ) -> dict[str, Any]:
     """Generate a complete visibility mapping for a scenario.
 
     Args:
-        expanded: Expanded template with molecules and reactions
+        expanded: Applied template with molecules and reactions (dict or object)
         visibility_spec: Config for visibility per entity type, e.g.:
             {
                 "molecules": {"fraction_known": 0.8},
@@ -115,10 +112,18 @@ def generate_visibility_mapping(
     mapping: dict[str, Any] = {}
     hidden: dict[str, list[str]] = {"molecules": [], "reactions": []}
 
+    # Get molecules and reactions (handle both dict and object)
+    if isinstance(expanded, dict):
+        molecules = expanded.get("molecules", {})
+        reactions = expanded.get("reactions", {})
+    else:
+        molecules = getattr(expanded, "molecules", {})
+        reactions = getattr(expanded, "reactions", {})
+
     # Process molecules
     mol_spec = visibility_spec.get("molecules", {"fraction_known": 1.0})
     mol_fraction = mol_spec.get("fraction_known", 1.0)
-    mol_names = list(expanded.molecules.keys())
+    mol_names = list(molecules.keys())
 
     visible_mols, hidden_mols = apply_fraction_known(mol_names, mol_fraction, seed)
     hidden["molecules"] = hidden_mols
@@ -130,7 +135,7 @@ def generate_visibility_mapping(
     # Process reactions
     rxn_spec = visibility_spec.get("reactions", {"fraction_known": 1.0})
     rxn_fraction = rxn_spec.get("fraction_known", 1.0)
-    rxn_names = list(expanded.reactions.keys())
+    rxn_names = list(reactions.keys())
 
     # Use different seed component for reactions
     rxn_seed = seed + 1000 if seed is not None else None
@@ -145,30 +150,23 @@ def generate_visibility_mapping(
     return mapping
 
 
-@dataclass
-class VisibleScenario:
-    """A scenario with visibility applied."""
-    molecules: dict[str, dict[str, Any]] = field(default_factory=dict)
-    reactions: dict[str, dict[str, Any]] = field(default_factory=dict)
-
-
 def apply_visibility(
-    scenario: Any,  # ExpandedTemplate, MockScenario, or similar
+    scenario: Any,  # dict or object with molecules/reactions
     mapping: dict[str, Any],
-) -> VisibleScenario:
+) -> dict[str, Any]:
     """Apply visibility mapping to create an agent-visible scenario.
 
     Renames molecules and reactions according to the mapping,
     updates all references, and removes hidden elements.
 
     Args:
-        scenario: Scenario with molecules and reactions
+        scenario: Scenario with molecules and reactions (dict or object)
         mapping: Visibility mapping from generate_visibility_mapping()
 
     Returns:
-        VisibleScenario with renamed and filtered content
+        Dict with "molecules" and "reactions" keys, renamed and filtered
     """
-    result = VisibleScenario()
+    result: dict[str, Any] = {"molecules": {}, "reactions": {}}
     hidden = mapping.get("_hidden_", {"molecules": [], "reactions": []})
     hidden_mols = set(hidden.get("molecules", []))
     hidden_rxns = set(hidden.get("reactions", []))
@@ -176,8 +174,16 @@ def apply_visibility(
     # Build reverse mapping for reference updates (internal -> opaque)
     name_map = {k: v for k, v in mapping.items() if not k.startswith("_")}
 
+    # Get molecules and reactions (handle both dict and object)
+    if isinstance(scenario, dict):
+        molecules = scenario.get("molecules", {})
+        reactions = scenario.get("reactions", {})
+    else:
+        molecules = getattr(scenario, "molecules", {})
+        reactions = getattr(scenario, "reactions", {})
+
     # Process molecules
-    for mol_name, mol_data in scenario.molecules.items():
+    for mol_name, mol_data in molecules.items():
         if mol_name in hidden_mols:
             continue
         if mol_name not in name_map:
@@ -186,10 +192,10 @@ def apply_visibility(
         opaque_name = name_map[mol_name]
         # Deep copy and update any references in the data
         new_data = _update_references(mol_data, name_map)
-        result.molecules[opaque_name] = new_data
+        result["molecules"][opaque_name] = new_data
 
     # Process reactions
-    for rxn_name, rxn_data in scenario.reactions.items():
+    for rxn_name, rxn_data in reactions.items():
         if rxn_name in hidden_rxns:
             continue
         if rxn_name not in name_map:
@@ -198,7 +204,7 @@ def apply_visibility(
         opaque_name = name_map[rxn_name]
         # Deep copy and update references
         new_data = _update_references(rxn_data, name_map)
-        result.reactions[opaque_name] = new_data
+        result["reactions"][opaque_name] = new_data
 
     return result
 
@@ -222,3 +228,20 @@ def _update_references(data: Any, name_map: dict[str, str]) -> Any:
         return [_update_references(item, name_map) for item in data]
 
     return data
+
+
+# =============================================================================
+# Backwards Compatibility (deprecated)
+# =============================================================================
+
+
+class VisibleScenario:
+    """Deprecated: apply_visibility() now returns a dict."""
+
+    def __init__(
+        self,
+        molecules: dict | None = None,
+        reactions: dict | None = None,
+    ):
+        self.molecules = molecules or {}
+        self.reactions = reactions or {}

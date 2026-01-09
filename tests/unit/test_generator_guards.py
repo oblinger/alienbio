@@ -336,8 +336,9 @@ class TestGuardModes:
 
         @guard
         def flaky(expanded, context):
-            attempts.append(context.attempt)
-            if context.attempt < 2:
+            attempt = context["attempt"] if isinstance(context, dict) else context.attempt
+            attempts.append(attempt)
+            if attempt < 2:
                 raise GuardViolation("Not yet")
             return True
 
@@ -411,7 +412,8 @@ class TestGuardModes:
 
         @guard
         def track_seeds(expanded, context):
-            seeds.append(context.seed)
+            seed = context["seed"] if isinstance(context, dict) else context.seed
+            seeds.append(seed)
             if len(seeds) < 3:
                 raise GuardViolation("Not yet")
             return True
