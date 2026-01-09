@@ -39,26 +39,26 @@ class TestGuardDecorator:
     
     def test_guard_passes(self):
         """Guard that returns True passes."""
-        from alienbio.generator import guard, run_guard, GuardContext
+        from alienbio.generator import guard, run_guard, make_guard_context
 
         @guard
         def always_pass(expanded, context):
             return True
 
-        context = GuardContext(scenario=None, namespace="x", seed=42, attempt=0)
+        context = make_guard_context(scenario=None, namespace="x", seed=42, attempt=0)
         result = run_guard(always_pass, {}, context)
         assert result == True
 
     
     def test_guard_violation(self):
         """Guard that raises GuardViolation fails with details."""
-        from alienbio.generator import guard, run_guard, GuardViolation, GuardContext
+        from alienbio.generator import guard, run_guard, GuardViolation, make_guard_context
 
         @guard
         def always_fail(expanded, context):
             raise GuardViolation("Nope", details={"reason": "test"})
 
-        context = GuardContext(scenario=None, namespace="x", seed=42, attempt=0)
+        context = make_guard_context(scenario=None, namespace="x", seed=42, attempt=0)
         with pytest.raises(GuardViolation) as exc:
             run_guard(always_fail, {}, context)
         assert "Nope" in str(exc.value)
@@ -66,8 +66,8 @@ class TestGuardDecorator:
 
     
     def test_guard_context_has_scenario(self):
-        """GuardContext provides scenario, namespace, seed, attempt."""
-        from alienbio.generator import guard, run_guard, GuardContext
+        """Guard context dict provides scenario, namespace, seed, attempt."""
+        from alienbio.generator import guard, run_guard, make_guard_context
 
         received_context = None
 
@@ -77,7 +77,7 @@ class TestGuardDecorator:
             received_context = context
             return True
 
-        context = GuardContext(
+        context = make_guard_context(
             scenario={"name": "test"},
             namespace="krel",
             seed=42,
@@ -85,10 +85,10 @@ class TestGuardDecorator:
         )
         run_guard(check_context, {}, context)
 
-        assert received_context.scenario is not None
-        assert received_context.namespace == "krel"
-        assert received_context.seed == 42
-        assert received_context.attempt == 0
+        assert received_context["scenario"] is not None
+        assert received_context["namespace"] == "krel"
+        assert received_context["seed"] == 42
+        assert received_context["attempt"] == 0
 
 
 class TestGuardViolationDetails:
@@ -144,7 +144,7 @@ class TestNoNewSpeciesDependencies:
     
     def test_no_new_species_dependencies_passes(self, mock_scenario):
         """Reaction within single species namespace passes."""
-        from alienbio.generator import no_new_species_dependencies, GuardContext
+        from alienbio.generator import no_new_species_dependencies, make_guard_context
 
         expanded = {
             "reactions": {
@@ -154,7 +154,7 @@ class TestNoNewSpeciesDependencies:
                 }
             }
         }
-        context = GuardContext(scenario=mock_scenario, namespace="x", seed=42, attempt=0)
+        context = make_guard_context(scenario=mock_scenario, namespace="x", seed=42, attempt=0)
 
         result = no_new_species_dependencies(expanded, context)
         assert result == True
@@ -162,7 +162,7 @@ class TestNoNewSpeciesDependencies:
     
     def test_no_new_species_dependencies_fails(self, mock_scenario):
         """Reaction linking two species fails."""
-        from alienbio.generator import no_new_species_dependencies, GuardContext, GuardViolation
+        from alienbio.generator import no_new_species_dependencies, make_guard_context, GuardViolation
 
         expanded = {
             "reactions": {
@@ -172,7 +172,7 @@ class TestNoNewSpeciesDependencies:
                 }
             }
         }
-        context = GuardContext(scenario=mock_scenario, namespace="x", seed=42, attempt=0)
+        context = make_guard_context(scenario=mock_scenario, namespace="x", seed=42, attempt=0)
 
         with pytest.raises(GuardViolation) as exc:
             no_new_species_dependencies(expanded, context)
@@ -181,7 +181,7 @@ class TestNoNewSpeciesDependencies:
     
     def test_background_reactions_ok(self):
         """Reactions in background namespace don't link species."""
-        from alienbio.generator import no_new_species_dependencies, GuardContext
+        from alienbio.generator import no_new_species_dependencies, make_guard_context
 
         expanded = {
             "reactions": {
@@ -191,7 +191,7 @@ class TestNoNewSpeciesDependencies:
                 }
             }
         }
-        context = GuardContext(scenario={}, namespace="bg", seed=42, attempt=0)
+        context = make_guard_context(scenario={}, namespace="bg", seed=42, attempt=0)
 
         result = no_new_species_dependencies(expanded, context)
         assert result == True
@@ -203,7 +203,7 @@ class TestNoNewCycles:
     
     def test_no_new_cycles_linear_passes(self):
         """Linear pathway passes."""
-        from alienbio.generator import no_new_cycles, GuardContext
+        from alienbio.generator import no_new_cycles, make_guard_context
 
         expanded = {
             "reactions": {
@@ -211,7 +211,7 @@ class TestNoNewCycles:
                 "r2": {"reactants": ["M2"], "products": ["M3"]},
             }
         }
-        context = GuardContext(scenario={}, namespace="x", seed=42, attempt=0)
+        context = make_guard_context(scenario={}, namespace="x", seed=42, attempt=0)
 
         result = no_new_cycles(expanded, context)
         assert result == True
@@ -219,7 +219,7 @@ class TestNoNewCycles:
     
     def test_no_new_cycles_fails(self):
         """Circular pathway fails."""
-        from alienbio.generator import no_new_cycles, GuardContext, GuardViolation
+        from alienbio.generator import no_new_cycles, make_guard_context, GuardViolation
 
         expanded = {
             "reactions": {
@@ -227,7 +227,7 @@ class TestNoNewCycles:
                 "r2": {"reactants": ["M2"], "products": ["M1"]},  # Cycle!
             }
         }
-        context = GuardContext(scenario={}, namespace="x", seed=42, attempt=0)
+        context = make_guard_context(scenario={}, namespace="x", seed=42, attempt=0)
 
         with pytest.raises(GuardViolation) as exc:
             no_new_cycles(expanded, context)
@@ -236,14 +236,14 @@ class TestNoNewCycles:
     
     def test_self_loop_is_cycle(self):
         """Reaction consuming and producing same molecule is a cycle."""
-        from alienbio.generator import no_new_cycles, GuardContext, GuardViolation
+        from alienbio.generator import no_new_cycles, make_guard_context, GuardViolation
 
         expanded = {
             "reactions": {
                 "r1": {"reactants": ["M1"], "products": ["M1"]},
             }
         }
-        context = GuardContext(scenario={}, namespace="x", seed=42, attempt=0)
+        context = make_guard_context(scenario={}, namespace="x", seed=42, attempt=0)
 
         with pytest.raises(GuardViolation):
             no_new_cycles(expanded, context)
@@ -255,7 +255,7 @@ class TestNoEssential:
     
     def test_no_essential_passes(self):
         """Molecule not in reproduction_threshold passes."""
-        from alienbio.generator import no_essential, GuardContext
+        from alienbio.generator import no_essential, make_guard_context
 
         scenario = {
             "organisms": {
@@ -267,7 +267,7 @@ class TestNoEssential:
         expanded = {
             "molecules": {"m.bg.X1": {"role": "inert"}}
         }
-        context = GuardContext(scenario=scenario, namespace="bg", seed=42, attempt=0)
+        context = make_guard_context(scenario=scenario, namespace="bg", seed=42, attempt=0)
 
         result = no_essential(expanded, context)
         assert result == True
@@ -275,7 +275,7 @@ class TestNoEssential:
     
     def test_no_essential_fails(self):
         """New molecule referenced in reproduction_threshold fails."""
-        from alienbio.generator import no_essential, GuardContext, GuardViolation
+        from alienbio.generator import no_essential, make_guard_context, GuardViolation
 
         scenario = {
             "organisms": {
@@ -287,7 +287,7 @@ class TestNoEssential:
         expanded = {
             "molecules": {"m.bg.X1": {"role": "inert"}}
         }
-        context = GuardContext(scenario=scenario, namespace="bg", seed=42, attempt=0)
+        context = make_guard_context(scenario=scenario, namespace="bg", seed=42, attempt=0)
 
         with pytest.raises(GuardViolation):
             no_essential(expanded, context)
@@ -304,23 +304,23 @@ class TestGuardModes:
     @pytest.fixture
     def simple_template(self):
         """Template for mode testing."""
-        from alienbio.generator import Template
+        from alienbio.generator import parse_template
 
-        return Template.parse({
+        return parse_template({
             "molecules": {"M1": {}}
         })
 
     
     def test_reject_mode(self, simple_template):
         """reject mode fails immediately on violation."""
-        from alienbio.generator import guard, expand_with_guards, GuardViolation
+        from alienbio.generator import guard, apply_template_with_guards, GuardViolation
 
         @guard
         def always_fail(expanded, context):
             raise GuardViolation("Nope")
 
         with pytest.raises(GuardViolation):
-            expand_with_guards(
+            apply_template_with_guards(
                 simple_template,
                 guards=[always_fail],
                 mode="reject",
@@ -330,18 +330,19 @@ class TestGuardModes:
     
     def test_retry_mode_succeeds(self, simple_template):
         """retry mode resamples until guard passes."""
-        from alienbio.generator import guard, expand_with_guards, GuardViolation
+        from alienbio.generator import guard, apply_template_with_guards, GuardViolation
 
         attempts = []
 
         @guard
         def flaky(expanded, context):
-            attempts.append(context.attempt)
-            if context.attempt < 2:
+            attempt = context["attempt"]
+            attempts.append(attempt)
+            if attempt < 2:
                 raise GuardViolation("Not yet")
             return True
 
-        result = expand_with_guards(
+        result = apply_template_with_guards(
             simple_template,
             guards=[flaky],
             mode="retry",
@@ -356,14 +357,14 @@ class TestGuardModes:
     
     def test_retry_mode_exhausted(self, simple_template):
         """retry mode fails after max_attempts."""
-        from alienbio.generator import guard, expand_with_guards, GuardViolation
+        from alienbio.generator import guard, apply_template_with_guards, GuardViolation
 
         @guard
         def always_fail(expanded, context):
             raise GuardViolation("Nope")
 
         with pytest.raises(GuardViolation) as exc:
-            expand_with_guards(
+            apply_template_with_guards(
                 simple_template,
                 guards=[always_fail],
                 mode="retry",
@@ -376,9 +377,9 @@ class TestGuardModes:
     
     def test_prune_mode(self):
         """prune mode removes violating elements."""
-        from alienbio.generator import guard, expand_with_guards, GuardViolation, Template
+        from alienbio.generator import guard, apply_template_with_guards, GuardViolation, parse_template
 
-        template = Template.parse({
+        template = parse_template({
             "molecules": {
                 "small": {"size": 1},
                 "big": {"size": 100}
@@ -392,31 +393,32 @@ class TestGuardModes:
                 raise GuardViolation("Too big", prune=violations)
             return True
 
-        result = expand_with_guards(
+        result = apply_template_with_guards(
             template,
             guards=[no_big_molecules],
             mode="prune",
             namespace="x"
         )
 
-        assert "m.x.small" in result.molecules
-        assert "m.x.big" not in result.molecules
+        assert "m.x.small" in result["molecules"]
+        assert "m.x.big" not in result["molecules"]
 
     
     def test_retry_increments_seed(self, simple_template):
         """Each retry attempt uses different seed."""
-        from alienbio.generator import guard, expand_with_guards, GuardViolation
+        from alienbio.generator import guard, apply_template_with_guards, GuardViolation
 
         seeds = []
 
         @guard
         def track_seeds(expanded, context):
-            seeds.append(context.seed)
+            seed = context["seed"]
+            seeds.append(seed)
             if len(seeds) < 3:
                 raise GuardViolation("Not yet")
             return True
 
-        expand_with_guards(
+        apply_template_with_guards(
             simple_template,
             guards=[track_seeds],
             mode="retry",

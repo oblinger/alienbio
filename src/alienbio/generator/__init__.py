@@ -1,18 +1,25 @@
 """Generator module for template-based scenario generation.
 
 This module provides:
-- Template: Reusable scenario fragments with parameters and ports
-- Port: Connection points for wiring templates together
-- TemplateRegistry: Storage and lookup for named templates
-- expand(): Template expansion with namespace prefixing
+- parse_template(): Parse template data to dict
+- parse_port(), ports_compatible(): Port handling functions
+- TemplateRegistry: Storage and lookup for templates
+- apply_template(): Apply template to produce namespaced molecules/reactions
 - Guards: Validation system for generated content
-- Bio.generate(): Full pipeline from spec to scenario
+- Visibility: Opaque name generation and partial visibility
 """
 
 from __future__ import annotations
 
-from .template import Template, Port, TemplateRegistry
-from .expand import expand, ExpandedTemplate
+from .template import (
+    parse_template,
+    parse_port,
+    ports_compatible,
+    TemplateRegistry,
+)
+from .expand import (
+    apply_template,
+)
 from .exceptions import (
     TemplateNotFoundError,
     PortTypeMismatchError,
@@ -23,9 +30,9 @@ from .exceptions import (
 )
 from .guards import (
     guard,
-    GuardContext,
+    make_guard_context,
     run_guard,
-    expand_with_guards,
+    apply_template_with_guards,
     no_new_species_dependencies,
     no_new_cycles,
     no_essential,
@@ -38,22 +45,21 @@ from .visibility import (
     apply_fraction_known,
     generate_visibility_mapping,
     apply_visibility,
-    VisibleScenario,
 )
 
 __all__ = [
-    # Core classes
-    "Template",
-    "Port",
+    # Template parsing
+    "parse_template",
+    "parse_port",
+    "ports_compatible",
     "TemplateRegistry",
-    # Expansion
-    "expand",
-    "ExpandedTemplate",
+    # Template application
+    "apply_template",
     # Guards
     "guard",
-    "GuardContext",
+    "make_guard_context",
     "run_guard",
-    "expand_with_guards",
+    "apply_template_with_guards",
     "no_new_species_dependencies",
     "no_new_cycles",
     "no_essential",
@@ -65,7 +71,6 @@ __all__ = [
     "apply_fraction_known",
     "generate_visibility_mapping",
     "apply_visibility",
-    "VisibleScenario",
     # Exceptions
     "TemplateNotFoundError",
     "PortTypeMismatchError",

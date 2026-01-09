@@ -2,19 +2,17 @@
 
 Provides:
 - @guard: Decorator to mark functions as guards
-- GuardContext: Context passed to guard functions
 - run_guard(): Execute a guard function
-- expand_with_guards(): Expand template with guard validation
+- apply_template_with_guards(): Apply template with guard validation
 - Built-in guards: no_new_species_dependencies, no_new_cycles, no_essential
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from .template import Template, TemplateRegistry
-from .expand import expand, ExpandedTemplate
+from .template import TemplateRegistry
+from .expand import apply_template
 from .exceptions import GuardViolation
 
 
@@ -26,7 +24,7 @@ from .exceptions import GuardViolation
 def guard(func: Callable) -> Callable:
     """Decorator to mark a function as a guard.
 
-    Guards are functions that validate expanded templates.
+    Guards are functions that validate applied templates.
     They should return True if validation passes, or raise
     GuardViolation if it fails.
     """
@@ -34,33 +32,42 @@ def guard(func: Callable) -> Callable:
     return func
 
 
-@dataclass
-class GuardContext:
-    """Context passed to guard functions.
+def make_guard_context(
+    scenario: dict[str, Any] | None = None,
+    namespace: str = "",
+    seed: int = 0,
+    attempt: int = 0,
+) -> dict[str, Any]:
+    """Create a guard context dict.
 
-    Attributes:
+    Args:
         scenario: The full scenario being built (may be partial)
-        namespace: Current namespace being expanded
-        seed: Random seed used for this expansion
+        namespace: Current namespace being applied
+        seed: Random seed used for this application
         attempt: Current retry attempt (0-indexed)
+
+    Returns:
+        Guard context dict
     """
-    scenario: dict[str, Any] | None
-    namespace: str
-    seed: int
-    attempt: int = 0
+    return {
+        "scenario": scenario,
+        "namespace": namespace,
+        "seed": seed,
+        "attempt": attempt,
+    }
 
 
 def run_guard(
-    guard_func: Callable[[dict, GuardContext], bool],
-    expanded: dict,
-    context: GuardContext,
+    guard_func: Callable[[dict, dict], bool],
+    applied: dict,
+    context: dict,
 ) -> bool:
     """Execute a guard function.
 
     Args:
         guard_func: The guard function to run
-        expanded: Expanded template data (as dict)
-        context: Guard context
+        applied: Applied template data (dict with molecules, reactions)
+        context: Guard context dict
 
     Returns:
         True if guard passes
@@ -68,11 +75,11 @@ def run_guard(
     Raises:
         GuardViolation: If guard fails
     """
-    return guard_func(expanded, context)
+    return guard_func(applied, context)
 
 
-def expand_with_guards(
-    template: Template,
+def apply_template_with_guards(
+    template: dict[str, Any],
     guards: list[Callable],
     mode: str = "reject",
     namespace: str = "x",
@@ -80,24 +87,24 @@ def expand_with_guards(
     max_attempts: int = 10,
     registry: TemplateRegistry | None = None,
     scenario: dict[str, Any] | None = None,
-) -> ExpandedTemplate:
-    """Expand a template with guard validation.
+) -> dict[str, Any]:
+    """Apply a template with guard validation.
 
     Args:
-        template: Template to expand
+        template: Template dict to apply
         guards: List of guard functions to run
         mode: How to handle violations:
             - "reject": Fail immediately
-            - "retry": Re-expand with different seed
+            - "retry": Re-apply with different seed
             - "prune": Remove violating elements
-        namespace: Namespace prefix for expansion
+        namespace: Namespace prefix for application
         seed: Random seed
         max_attempts: Maximum retry attempts (for retry mode)
-        registry: Template registry for nested expansion
+        registry: Template registry for nested application
         scenario: Current scenario state (for guards that need it)
 
     Returns:
-        Expanded template that passes all guards
+        Applied template dict that passes all guards
 
     Raises:
         GuardViolation: If guards fail in reject mode, or max_attempts exceeded in retry mode
@@ -105,16 +112,10 @@ def expand_with_guards(
     current_seed = seed if seed is not None else 0
 
     for attempt in range(max_attempts):
-        # Expand the template
-        result = expand(template, namespace, registry=registry, seed=current_seed)
+        # Apply the template
+        result = apply_template(template, namespace, registry=registry, seed=current_seed)
 
-        # Convert to dict for guard functions
-        expanded_dict = {
-            "molecules": result.molecules,
-            "reactions": result.reactions,
-        }
-
-        context = GuardContext(
+        context = make_guard_context(
             scenario=scenario,
             namespace=namespace,
             seed=current_seed,
@@ -124,7 +125,7 @@ def expand_with_guards(
         try:
             # Run all guards
             for guard_func in guards:
-                run_guard(guard_func, expanded_dict, context)
+                run_guard(guard_func, result, context)
 
             # All guards passed
             return result
@@ -139,10 +140,10 @@ def expand_with_guards(
             elif mode == "prune":
                 # Remove violating elements
                 for item in e.prune:
-                    if item in result.molecules:
-                        del result.molecules[item]
-                    if item in result.reactions:
-                        del result.reactions[item]
+                    if item in result["molecules"]:
+                        del result["molecules"][item]
+                    if item in result["reactions"]:
+                        del result["reactions"][item]
                 return result
             else:
                 raise ValueError(f"Unknown guard mode: {mode}")
@@ -256,13 +257,13 @@ def detect_cycles(graph: dict[str, list[str]]) -> list[list[str]]:
 
 
 @guard
-def no_new_species_dependencies(expanded: dict, context: GuardContext) -> bool:
+def no_new_species_dependencies(applied: dict, context: dict) -> bool:
     """Guard that prevents cross-species dependencies.
 
     Ensures reactions don't mix molecules from different species namespaces.
     Background (bg) molecules are allowed in any reaction.
     """
-    for rxn_name, rxn_data in expanded.get("reactions", {}).items():
+    for rxn_name, rxn_data in applied.get("reactions", {}).items():
         reactants = rxn_data.get("reactants", [])
         products = rxn_data.get("products", [])
 
@@ -285,13 +286,13 @@ def no_new_species_dependencies(expanded: dict, context: GuardContext) -> bool:
 
 
 @guard
-def no_new_cycles(expanded: dict, context: GuardContext) -> bool:
+def no_new_cycles(applied: dict, context: dict) -> bool:
     """Guard that prevents cyclic dependencies between molecules.
 
     Detects if any reaction creates a cycle where a molecule
     directly or indirectly produces itself.
     """
-    reactions = expanded.get("reactions", {})
+    reactions = applied.get("reactions", {})
     graph = build_dependency_graph(reactions)
     cycles = detect_cycles(graph)
 
@@ -305,23 +306,24 @@ def no_new_cycles(expanded: dict, context: GuardContext) -> bool:
 
 
 @guard
-def no_essential(expanded: dict, context: GuardContext) -> bool:
+def no_essential(applied: dict, context: dict) -> bool:
     """Guard that prevents new essential molecules.
 
     Ensures newly created molecules are not referenced in any
     organism's reproduction_threshold (which would make them essential).
     """
-    if context.scenario is None:
+    scenario = context.get("scenario")
+    if scenario is None:
         return True
 
     # Get all essential molecule references from reproduction thresholds
     essential_refs = set()
-    for org_name, org_data in context.scenario.get("organisms", {}).items():
+    for org_name, org_data in scenario.get("organisms", {}).items():
         threshold = org_data.get("reproduction_threshold", {})
         essential_refs.update(threshold.keys())
 
     # Check if any new molecule is essential
-    new_molecules = set(expanded.get("molecules", {}).keys())
+    new_molecules = set(applied.get("molecules", {}).keys())
     essential_new = new_molecules & essential_refs
 
     if essential_new:

@@ -286,39 +286,39 @@ class TestApplyVisibility:
         """Molecules are renamed according to mapping."""
         from alienbio.generator import apply_visibility
 
-        scenario = MockScenario(molecules={"m.Krel.ME1": {"role": "energy"}})
+        scenario = {"molecules": {"m.Krel.ME1": {"role": "energy"}}, "reactions": {}}
         mapping = {"m.Krel.ME1": "M1"}
         visible = apply_visibility(scenario, mapping)
 
-        assert "M1" in visible.molecules
-        assert "m.Krel.ME1" not in visible.molecules
-        assert visible.molecules["M1"]["role"] == "energy"
+        assert "M1" in visible["molecules"]
+        assert "m.Krel.ME1" not in visible["molecules"]
+        assert visible["molecules"]["M1"]["role"] == "energy"
 
     
     def test_apply_visibility_updates_reactions(self):
         """Reaction references are updated with new molecule names."""
         from alienbio.generator import apply_visibility
 
-        scenario = MockScenario(
-            molecules={"m.Krel.M1": {}, "m.Krel.M2": {}},
-            reactions={"r.Krel.r1": {"reactants": ["m.Krel.M1"], "products": ["m.Krel.M2"]}}
-        )
+        scenario = {
+            "molecules": {"m.Krel.M1": {}, "m.Krel.M2": {}},
+            "reactions": {"r.Krel.r1": {"reactants": ["m.Krel.M1"], "products": ["m.Krel.M2"]}}
+        }
         mapping = {"m.Krel.M1": "M1", "m.Krel.M2": "M2", "r.Krel.r1": "RX1"}
         visible = apply_visibility(scenario, mapping)
 
-        assert "RX1" in visible.reactions
-        assert visible.reactions["RX1"]["reactants"] == ["M1"]
-        assert visible.reactions["RX1"]["products"] == ["M2"]
+        assert "RX1" in visible["reactions"]
+        assert visible["reactions"]["RX1"]["reactants"] == ["M1"]
+        assert visible["reactions"]["RX1"]["products"] == ["M2"]
 
     
     def test_apply_visibility_removes_hidden(self):
         """Hidden elements are removed from visible scenario."""
         from alienbio.generator import apply_visibility
 
-        scenario = MockScenario(
-            molecules={"m.A": {}, "m.B": {}, "m.C": {}},
-            reactions={}
-        )
+        scenario = {
+            "molecules": {"m.A": {}, "m.B": {}, "m.C": {}},
+            "reactions": {}
+        }
         mapping = {
             "m.A": "M1",
             "m.B": "M2",
@@ -326,29 +326,29 @@ class TestApplyVisibility:
         }
         visible = apply_visibility(scenario, mapping)
 
-        assert "M1" in visible.molecules
-        assert "M2" in visible.molecules
-        assert len(visible.molecules) == 2  # m.C is hidden
+        assert "M1" in visible["molecules"]
+        assert "M2" in visible["molecules"]
+        assert len(visible["molecules"]) == 2  # m.C is hidden
 
     
     def test_apply_visibility_preserves_other_fields(self):
         """Non-name fields in molecules/reactions are preserved."""
         from alienbio.generator import apply_visibility
 
-        scenario = MockScenario(
-            molecules={
+        scenario = {
+            "molecules": {
                 "m.Krel.ME1": {
                     "role": "energy",
                     "description": "High energy carrier",
                     "initial_conc": 1.0
                 }
             },
-            reactions={}
-        )
+            "reactions": {}
+        }
         mapping = {"m.Krel.ME1": "M1"}
         visible = apply_visibility(scenario, mapping)
 
-        mol = visible.molecules["M1"]
+        mol = visible["molecules"]["M1"]
         assert mol["role"] == "energy"
         assert mol["description"] == "High energy carrier"
         assert mol["initial_conc"] == 1.0
@@ -358,9 +358,9 @@ class TestApplyVisibility:
         """Complex reactions with multiple reactants/products are updated."""
         from alienbio.generator import apply_visibility
 
-        scenario = MockScenario(
-            molecules={"m.A": {}, "m.B": {}, "m.C": {}},
-            reactions={
+        scenario = {
+            "molecules": {"m.A": {}, "m.B": {}, "m.C": {}},
+            "reactions": {
                 "r.r1": {
                     "reactants": ["m.A", "m.B"],
                     "products": ["m.C"],
@@ -368,11 +368,11 @@ class TestApplyVisibility:
                     "stoichiometry": {"m.A": -1, "m.B": -2, "m.C": 1}
                 }
             }
-        )
+        }
         mapping = {"m.A": "M1", "m.B": "M2", "m.C": "M3", "r.r1": "RX1"}
         visible = apply_visibility(scenario, mapping)
 
-        rxn = visible.reactions["RX1"]
+        rxn = visible["reactions"]["RX1"]
         assert set(rxn["reactants"]) == {"M1", "M2"}
         assert rxn["products"] == ["M3"]
         assert rxn["stoichiometry"]["M1"] == -1
@@ -383,12 +383,12 @@ class TestApplyVisibility:
         """Empty scenario produces empty visible scenario."""
         from alienbio.generator import apply_visibility
 
-        scenario = MockScenario(molecules={}, reactions={})
+        scenario = {"molecules": {}, "reactions": {}}
         mapping = {}
         visible = apply_visibility(scenario, mapping)
 
-        assert visible.molecules == {}
-        assert visible.reactions == {}
+        assert visible["molecules"] == {}
+        assert visible["reactions"] == {}
 
 
 # =============================================================================
@@ -408,17 +408,17 @@ class TestVisibilityIntegration:
         )
 
         # Start with expanded scenario
-        scenario = MockScenario(
-            molecules={
+        scenario = {
+            "molecules": {
                 "m.Krel.energy.ME1": {"role": "energy"},
                 "m.Krel.energy.ME2": {"role": "energy"},
                 "m.Kova.MB1": {"role": "structural"}
             },
-            reactions={
+            "reactions": {
                 "r.Krel.energy.work": {"reactants": ["m.Krel.energy.ME1"], "products": ["m.Krel.energy.ME2"]},
                 "r.Kova.build": {"reactants": ["m.Kova.MB1"], "products": []}
             }
-        )
+        }
 
         visibility_spec = {
             "molecules": {"fraction_known": 1.0},
@@ -429,12 +429,12 @@ class TestVisibilityIntegration:
         visible = apply_visibility(scenario, mapping)
 
         # All should be visible with opaque names
-        assert len(visible.molecules) == 3
-        assert len(visible.reactions) == 2
+        assert len(visible["molecules"]) == 3
+        assert len(visible["reactions"]) == 2
         # No internal names
-        for name in visible.molecules:
+        for name in visible["molecules"]:
             assert not name.startswith("m.")
-        for name in visible.reactions:
+        for name in visible["reactions"]:
             assert not name.startswith("r.")
 
     
@@ -445,10 +445,10 @@ class TestVisibilityIntegration:
             apply_visibility,
         )
 
-        scenario = MockScenario(
-            molecules={"m.A": {}, "m.B": {}, "m.C": {}, "m.D": {}},
-            reactions={}
-        )
+        scenario = {
+            "molecules": {"m.A": {}, "m.B": {}, "m.C": {}, "m.D": {}},
+            "reactions": {}
+        }
 
         visibility_spec = {
             "molecules": {"fraction_known": 0.5},  # Half visible
@@ -458,7 +458,7 @@ class TestVisibilityIntegration:
         mapping = generate_visibility_mapping(scenario, visibility_spec, seed=42)
         visible = apply_visibility(scenario, mapping)
 
-        assert len(visible.molecules) == 2
+        assert len(visible["molecules"]) == 2
 
     
     def test_ground_truth_preserved(self):
