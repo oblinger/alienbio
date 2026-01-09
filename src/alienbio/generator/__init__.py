@@ -46,6 +46,10 @@ from .visibility import (
     generate_visibility_mapping,
     apply_visibility,
 )
+from .pipeline import (
+    generate,
+    GeneratedScenario,
+)
 
 __all__ = [
     # Template parsing
@@ -71,6 +75,9 @@ __all__ = [
     "apply_fraction_known",
     "generate_visibility_mapping",
     "apply_visibility",
+    # Pipeline
+    "generate",
+    "GeneratedScenario",
     # Exceptions
     "TemplateNotFoundError",
     "PortTypeMismatchError",

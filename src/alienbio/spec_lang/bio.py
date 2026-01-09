@@ -342,6 +342,52 @@ class Bio:
     # Internal helpers
     # =========================================================================
 
+    # =========================================================================
+    # Scenario Generation (M2.7)
+    # =========================================================================
+
+    def generate(
+        self,
+        spec: str | dict[str, Any],
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """Generate a scenario from a generator spec.
+
+        Full pipeline:
+        1. Parse spec to find _instantiate_ blocks
+        2. Apply templates with namespace prefixing
+        3. Apply guards (from _guards_ section)
+        4. Apply visibility mapping (from _visibility_ section)
+
+        Args:
+            spec: Generator spec dict or path to spec file
+            seed: Random seed for reproducibility
+            registry: Template registry for resolving template references
+            params: Parameter overrides
+
+        Returns:
+            GeneratedScenario with visible and ground truth data
+
+        Raises:
+            TemplateNotFoundError: If a referenced template doesn't exist
+            CircularReferenceError: If templates reference each other circularly
+            GuardViolation: If guards fail in reject mode
+
+        Example:
+            scenario = bio.generate(spec, seed=42)
+            print(scenario.molecules)
+            print(scenario._ground_truth_)
+        """
+        from alienbio.generator import generate as gen_generate
+
+        # If spec is a string, treat it as a path
+        if isinstance(spec, str):
+            spec = self.fetch(spec, raw=True)
+
+        return gen_generate(spec, seed=seed, registry=registry, params=params)
+
     def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
         """Process raw data and hydrate to typed object."""
         # Process the data: resolve includes, transform typed keys, etc.
@@ -455,6 +501,15 @@ class _BioCompat:
         # New code should use bio.create_simulator(chemistry)
         from alienbio.bio.simulator import ReferenceSimulatorImpl
         return ReferenceSimulatorImpl(scenario)
+
+    @staticmethod
+    def generate(
+        spec: str | dict[str, Any],
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        return bio.generate(spec, seed=seed, registry=registry, params=params)
 
 
 # Replace Bio class reference for backwards compatibility
