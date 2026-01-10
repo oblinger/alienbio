@@ -343,9 +343,86 @@ class Bio:
     # =========================================================================
 
     # =========================================================================
-    # Scenario Generation (M2.7)
+    # Scenario Instantiation (M2.7)
     # =========================================================================
 
+    def _instantiate(
+        self,
+        spec: str | dict[str, Any],
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """Instantiate a scenario from a generator spec.
+
+        Internal method. Use run() for the public API.
+
+        Args:
+            spec: Generator spec dict or path to spec file
+            seed: Random seed for reproducibility
+            registry: Template registry for resolving template references
+            params: Parameter overrides
+
+        Returns:
+            Scenario with visible and ground truth data
+        """
+        from alienbio.generator import instantiate as gen_instantiate
+
+        # If spec is a string, treat it as a path
+        if isinstance(spec, str):
+            spec = self.fetch(spec, raw=True)
+
+        return gen_instantiate(spec, seed=seed, registry=registry, params=params)
+
+    def run(
+        self,
+        target: str,
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """Run a recipe or DAT.
+
+        Determines whether target is a recipe (dotted name) or a DAT (path):
+        - If target has dots before the first slash (or no slash), it's a recipe.
+          Performs lookup + instantiate, then runs the resulting scenario.
+        - If target has no dots before the first slash, it's a DAT path.
+          Loads and runs the existing DAT.
+
+        Args:
+            target: Recipe name (e.g., "generators.b10") or DAT path
+            seed: Random seed for reproducibility (for recipes)
+            registry: Template registry for resolving template references
+            params: Parameter overrides
+
+        Returns:
+            Scenario with visible and ground truth data
+
+        Example:
+            # Run a recipe (dots before slash = recipe name)
+            scenario = bio.run("generators.b10", seed=42)
+
+            # Run a DAT (no dots before slash = path)
+            scenario = bio.run("data/results/run_42")
+        """
+        # Detect if target is a recipe or DAT path
+        slash_idx = target.find("/")
+        if slash_idx == -1:
+            # No slash - check for dots
+            has_dots = "." in target
+        else:
+            # Check for dots before the first slash
+            prefix = target[:slash_idx]
+            has_dots = "." in prefix
+
+        if has_dots:
+            # Recipe name: lookup + instantiate
+            return self._instantiate(target, seed=seed, registry=registry, params=params)
+        else:
+            # DAT path: load and return
+            return self.fetch(target)
+
+    # Backwards-compatible alias
     def generate(
         self,
         spec: str | dict[str, Any],
@@ -355,11 +432,7 @@ class Bio:
     ) -> Any:
         """Generate a scenario from a generator spec.
 
-        Full pipeline:
-        1. Parse spec to find _instantiate_ blocks
-        2. Apply templates with namespace prefixing
-        3. Apply guards (from _guards_ section)
-        4. Apply visibility mapping (from _visibility_ section)
+        DEPRECATED: Use run() for new code.
 
         Args:
             spec: Generator spec dict or path to spec file
@@ -368,25 +441,9 @@ class Bio:
             params: Parameter overrides
 
         Returns:
-            GeneratedScenario with visible and ground truth data
-
-        Raises:
-            TemplateNotFoundError: If a referenced template doesn't exist
-            CircularReferenceError: If templates reference each other circularly
-            GuardViolation: If guards fail in reject mode
-
-        Example:
-            scenario = bio.generate(spec, seed=42)
-            print(scenario.molecules)
-            print(scenario._ground_truth_)
+            Scenario with visible and ground truth data
         """
-        from alienbio.generator import generate as gen_generate
-
-        # If spec is a string, treat it as a path
-        if isinstance(spec, str):
-            spec = self.fetch(spec, raw=True)
-
-        return gen_generate(spec, seed=seed, registry=registry, params=params)
+        return self._instantiate(spec, seed=seed, registry=registry, params=params)
 
     def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
         """Process raw data and hydrate to typed object."""
@@ -510,6 +567,15 @@ class _BioCompat:
         params: dict[str, Any] | None = None,
     ) -> Any:
         return bio.generate(spec, seed=seed, registry=registry, params=params)
+
+    @staticmethod
+    def run(
+        target: str,
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        return bio.run(target, seed=seed, registry=registry, params=params)
 
 
 # Replace Bio class reference for backwards compatibility

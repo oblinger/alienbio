@@ -1,8 +1,8 @@
-"""Generator pipeline: full template-to-scenario generation.
+"""Generator pipeline: full template-to-scenario instantiation.
 
 Provides:
-- generate(): Full pipeline from spec to scenario
-- GeneratedScenario: Result container with ground truth and visibility mapping
+- instantiate(): Full pipeline from spec to scenario
+- Scenario: Result container with ground truth and visibility mapping
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ from .exceptions import TemplateNotFoundError, CircularReferenceError
 
 
 @dataclass
-class GeneratedScenario:
-    """Result of scenario generation.
+class Scenario:
+    """Result of template instantiation.
 
     Contains the visible scenario (with opaque names) plus
     ground truth and visibility mapping for debugging/scoring.
@@ -30,7 +30,7 @@ class GeneratedScenario:
         reactions: Visible reactions (opaque names)
         _ground_truth_: Full scenario with internal names
         _visibility_mapping_: Map from internal to opaque names
-        _seed: Random seed used for generation
+        _seed: Random seed used for instantiation
         _metadata_: Optional metadata from spec
     """
 
@@ -42,13 +42,13 @@ class GeneratedScenario:
     _metadata_: dict[str, Any] = field(default_factory=dict)
 
 
-def generate(
+def instantiate(
     spec: dict[str, Any],
     seed: int = 0,
     registry: TemplateRegistry | None = None,
     params: dict[str, Any] | None = None,
-) -> GeneratedScenario:
-    """Generate a scenario from a generator spec.
+) -> Scenario:
+    """Instantiate a scenario from a generator spec.
 
     Full pipeline:
     1. Parse spec to find _instantiate_ blocks
@@ -63,7 +63,7 @@ def generate(
         params: Parameter overrides
 
     Returns:
-        GeneratedScenario with visible and ground truth data
+        Scenario with visible and ground truth data
 
     Raises:
         TemplateNotFoundError: If a referenced template doesn't exist
@@ -110,7 +110,7 @@ def generate(
     # Apply visibility to create the visible scenario
     visible = apply_visibility(ground_truth, visibility_mapping)
 
-    return GeneratedScenario(
+    return Scenario(
         molecules=visible["molecules"],
         reactions=visible["reactions"],
         _ground_truth_=ground_truth,
