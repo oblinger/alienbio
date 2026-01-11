@@ -6,6 +6,27 @@ Working notes and design decisions. Tasks are tracked in [[ABIO Roadmap]].
 
 ---
 
+## Open Questions
+
+Questions to resolve before/during implementation.
+
+### M1.5 Questions
+
+1. **Tag class inventory**: Docs say remove `EvTag`, `RefTag`, `IncludeTag` and keep `Evaluable`, `Quoted`, `Reference`. Need to verify which classes actually exist in `tags.py` before cleanup.
+
+2. **generator → build rename timing**: Roadmap says rename `src/alienbio/generator/` → `src/alienbio/build/`. Should this be done early in M1.5 (before other changes) or late (after consolidation)?
+
+3. **Scenario class location**: Currently `Scenario` dataclass lives in `generator/pipeline.py`. Should it move to `protocols/` or stay where it is?
+
+4. **Backward compatibility duration**: `Bio.generate()` is kept as alias for `_instantiate()`. How long should we maintain backward-compat aliases before removing them?
+
+### M2 Questions
+
+5. **Bio.run() vs Bio.fetch() routing**: I implemented simple "dots before slash" detection in `Bio.run()`. The `ABIO Fetch.md` doc shows more complex routing (absolute path, relative path, Python modules, configured roots). Should `Bio.run()` use the same routing logic as `fetch()`?
+
+6. **Bio.lookup() scope**: Docs mention `lookup()` handles "Python modules → cwd filesystem". What's the full enumeration of lookup cases? (Marked in roadmap as "Work with user to enumerate all lookup cases")
+
+---
 
 ## 2026-01-10  Design Decisions (Resolved)
 
