@@ -1,5 +1,6 @@
+[[ABIO docs]] → [[ABIO Topics]]
+
 # Decorators
-**Parent**: [[ABIO Topics]]
 **Module**: `alienbio.spec_lang`
 
 Python decorators for registering functions and classes in the ABIO system. All decorators and YAML tag implementations live in the `spec_lang` module.

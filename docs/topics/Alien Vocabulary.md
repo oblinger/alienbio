@@ -1,5 +1,6 @@
+[[ABIO docs]] → [[ABIO Topics]]
+
 # Alien Vocabulary
-**Parent**: [[ABIO Topics]]
 
 Naming conventions and word lists for alien biology domains. Names are ordered by desirability—use names from the top of each list first.
 

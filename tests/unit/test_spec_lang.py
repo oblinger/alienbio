@@ -239,20 +239,23 @@ class TestRefTag:
 
     def test_ref_yaml_parsing(self):
         """Test that !ref is properly parsed by YAML."""
+        from alienbio.spec_lang.eval import Reference
         yaml_str = "value: !ref my_constant"
         data = yaml.safe_load(yaml_str)
-        assert isinstance(data["value"], RefTag)
+        assert isinstance(data["value"], Reference)
         assert data["value"].name == "my_constant"
 
     def test_ref_combined_with_ev(self):
         """!ref combined with !ev in namespace"""
-        # This tests that refs can be resolved and used in ev expressions
-        ref_tag = RefTag("my_const")
-        constants = {"my_const": 10}
-        resolved = ref_tag.resolve(constants)
+        from alienbio.spec_lang.eval import Evaluable, Reference, eval_node, make_context
+        # Reference is resolved via eval system
+        ref = Reference(name="my_const")
+        ctx = make_context(bindings={"my_const": 10})
+        resolved = eval_node(ref, ctx)
 
-        ev_tag = EvTag("x * 2")
-        result = ev_tag.evaluate({"x": resolved})
+        ev = Evaluable(source="x * 2")
+        ctx2 = make_context(bindings={"x": resolved})
+        result = eval_node(ev, ctx2)
         assert result == 20
 
 
@@ -771,9 +774,12 @@ constants:
   high_permeability: 0.8
 value: !ref high_permeability
 """
+        from alienbio.spec_lang.eval import Reference, eval_node, make_context
         data = yaml.safe_load(yaml_str)
-        ref_tag = data["value"]
-        result = ref_tag.resolve(data["constants"])
+        ref = data["value"]
+        assert isinstance(ref, Reference)
+        ctx = make_context(bindings=data["constants"])
+        result = eval_node(ref, ctx)
         assert result == 0.8
 
     def test_constant_dict(self):
@@ -785,9 +791,12 @@ constants:
     pH: 7.0
 environment: !ref standard_env
 """
+        from alienbio.spec_lang.eval import Reference, eval_node, make_context
         data = yaml.safe_load(yaml_str)
-        ref_tag = data["environment"]
-        result = ref_tag.resolve(data["constants"])
+        ref = data["environment"]
+        assert isinstance(ref, Reference)
+        ctx = make_context(bindings=data["constants"])
+        result = eval_node(ref, ctx)
         assert result == {"temp": 25, "pH": 7.0}
 
     def test_constant_with_ev(self):

@@ -342,6 +342,74 @@ class Bio:
     # Internal helpers
     # =========================================================================
 
+    # =========================================================================
+    # Scenario Instantiation (M2.7)
+    # =========================================================================
+
+    def build(
+        self,
+        spec: str | dict[str, Any],
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """Build a scenario from a spec.
+
+        Template instantiation: expand templates into a concrete scenario.
+
+        Args:
+            spec: Spec dict or specifier string (fetched first if string)
+            seed: Random seed for reproducibility
+            registry: Template registry for resolving template references
+            params: Parameter overrides
+
+        Returns:
+            Scenario with visible and ground truth data
+        """
+        from alienbio.build import instantiate as build_instantiate
+
+        # If spec is a string, fetch it first
+        if isinstance(spec, str):
+            spec = self.fetch(spec, raw=True)
+
+        return build_instantiate(spec, seed=seed, registry=registry, params=params)
+
+    def run(
+        self,
+        target: str | dict[str, Any],
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """Run a target: build if needed, then execute.
+
+        Args:
+            target: Specifier string, dict spec, or DAT
+            seed: Random seed for reproducibility
+            registry: Template registry for resolving template references
+            params: Parameter overrides
+
+        Returns:
+            Execution result
+
+        Behavior:
+        - If target is a string: calls build(target), then executes
+        - If target is a dict: calls build(dict), then executes
+        - If target is a DAT: executes directly
+        """
+        # If string, build first (which fetches)
+        if isinstance(target, str):
+            scenario = self.build(target, seed=seed, registry=registry, params=params)
+        elif isinstance(target, dict):
+            scenario = self.build(target, seed=seed, registry=registry, params=params)
+        else:
+            # Already a scenario/DAT
+            scenario = target
+
+        # TODO: Execute the scenario
+        # For now, just return the built scenario
+        return scenario
+
     def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
         """Process raw data and hydrate to typed object."""
         # Process the data: resolve includes, transform typed keys, etc.
@@ -455,6 +523,24 @@ class _BioCompat:
         # New code should use bio.create_simulator(chemistry)
         from alienbio.bio.simulator import ReferenceSimulatorImpl
         return ReferenceSimulatorImpl(scenario)
+
+    @staticmethod
+    def build(
+        spec: str | dict[str, Any],
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        return bio.build(spec, seed=seed, registry=registry, params=params)
+
+    @staticmethod
+    def run(
+        target: str | dict[str, Any],
+        seed: int = 0,
+        registry: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        return bio.run(target, seed=seed, registry=registry, params=params)
 
 
 # Replace Bio class reference for backwards compatibility

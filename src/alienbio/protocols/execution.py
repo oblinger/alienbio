@@ -17,10 +17,35 @@ tied to Chemistry operations.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Protocol, runtime_checkable
 
 # Import shared protocols
 from .bio import State, Chemistry
+
+
+@dataclass
+class Scenario:
+    """Result of template instantiation (build phase).
+
+    Contains the visible scenario (with opaque names) plus
+    ground truth and visibility mapping for debugging/scoring.
+
+    Attributes:
+        molecules: Visible molecules (opaque names)
+        reactions: Visible reactions (opaque names)
+        _ground_truth_: Full scenario with internal names
+        _visibility_mapping_: Map from internal to opaque names
+        _seed: Random seed used for instantiation
+        _metadata_: Optional metadata from spec
+    """
+
+    molecules: dict[str, Any] = field(default_factory=dict)
+    reactions: dict[str, Any] = field(default_factory=dict)
+    _ground_truth_: dict[str, Any] = field(default_factory=dict)
+    _visibility_mapping_: dict[str, Any] = field(default_factory=dict)
+    _seed: int = 0
+    _metadata_: dict[str, Any] = field(default_factory=dict)
 
 
 @runtime_checkable

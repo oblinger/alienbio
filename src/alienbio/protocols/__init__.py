@@ -26,11 +26,11 @@ from .bio import (
     Simulator,
 )
 
+# Execution protocols
+from .execution import Scenario
+
 # Infra protocols (to be implemented)
 # from .infra import Entity, IO, Expr, Context
-
-# Execution protocols (to be implemented)
-# from .execution import Timeline, World, Task, Action, Measurement
 
 __all__ = [
     # Bio protocols
@@ -45,4 +45,6 @@ __all__ = [
     "WorldState",
     "State",
     "Simulator",
+    # Execution
+    "Scenario",
 ]

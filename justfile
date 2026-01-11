@@ -33,10 +33,11 @@ clean:
 
 # Generate SVG diagrams from .dot files
 diagrams:
-    @echo "Generating diagrams..."
-    @for f in docs/diagrams/*.dot; do \
-        dot -Tsvg "$$f" -o "$${f%.dot}.svg"; \
-        echo "Generated $${f%.dot}.svg"; \
+    #!/usr/bin/env bash
+    shopt -s nullglob
+    for f in docs/diagrams/*.dot; do
+        dot -Tsvg "$f" -o "${f%.dot}.svg"
+        echo "Generated ${f%.dot}.svg"
     done
 
 # Build documentation site with MkDocs
@@ -48,9 +49,17 @@ docs: diagrams
 docs-serve:
     uv run mkdocs serve
 
-# Deploy docs to GitHub Pages
-docs-deploy:
-    uv run mkdocs gh-deploy
+# Website repo path for deployment
+website_repo := "/Users/oblinger/ob/proj/oblinger.github.io"
+
+# Deploy docs to personal website (copies to oblinger.github.io/abio-docs/)
+docs-deploy: docs
+    @echo "Deploying to website repo..."
+    rm -rf {{website_repo}}/abio-docs
+    cp -r site {{website_repo}}/abio-docs
+    @echo ""
+    @echo "✓ Copied to {{website_repo}}/abio-docs/"
+    @echo "  To publish: cd {{website_repo}} && git add abio-docs && git commit -m 'Update abio docs' && git push"
 
 # Build Rust simulator
 build-rust:
