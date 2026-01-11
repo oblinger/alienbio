@@ -1,0 +1,123 @@
+site_name: AlienBio Documentation
+site_description: Documentation for the AlienBio project
+site_url: https://oblinger.github.io/abio-docs/
+repo_url: https://github.com/oblinger/alienbio
+
+theme:
+  name: material
+  palette:
+    # Light mode (default)
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  # Convert Obsidian-style [[wikilinks]] to standard markdown links
+  - roamlinks
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            heading_level: 2
+            members_order: source
+            docstring_style: google
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Architecture:
+    - Overview: architecture/ABIO Sys.md
+    - Data Model: architecture/ABIO Data.md
+    - Execution: architecture/ABIO execution.md
+    - Files: architecture/ABIO Files.md
+    - Infrastructure: architecture/ABIO infra.md
+    - Protocols: architecture/ABIO Protocols.md
+    - Biology: architecture/ABIO biology.md
+  - Classes:
+    - Core:
+      - Atom: architecture/Atom.md
+      - Molecule: architecture/Molecule.md
+      - Reaction: architecture/Reaction.md
+      - Pathway: architecture/Pathway.md
+      - Chemistry: architecture/Chemistry.md
+      - Bio: architecture/Bio.md
+    - Containers:
+      - Compartment: architecture/Compartment.md
+      - CompartmentTree: architecture/CompartmentTree.md
+      - Context: architecture/Context.md
+      - Scope: architecture/Scope.md
+    - Entities:
+      - Entity: architecture/entity.md
+      - Action: architecture/action.md
+      - Experiment: architecture/experiment.md
+    - Simulation:
+      - WorldState: architecture/WorldState.md
+      - WorldSimulator: architecture/WorldSimulator.md
+      - Flow: architecture/Flow.md
+      - State: architecture/state.md
+      - Step: architecture/step.md
+    - Generators:
+      - Generator: architecture/generator.md
+      - ContainerGenerator: architecture/ContainerGenerator.md
+      - MoleculeGenerator: architecture/MoleculeGenerator.md
+      - ReactionGenerator: architecture/ReactionGenerator.md
+    - Interpreter:
+      - Expr: architecture/Expr.md
+      - Interpreter: architecture/Interpreter.md
+      - IO: architecture/IO.md
+    - Testing:
+      - TestHarness: architecture/TestHarness.md
+      - Task: architecture/task.md
+      - Test: architecture/test.md
+      - Measurement: architecture/measurement.md
+  - Topics:
+    - Spec Language: topics/Spec Language.md
+    - Generator Spec: topics/Generator Spec Language.md
+    - Testing: topics/Testing.md
+    - Decorators: topics/Decorators.md
+    - CLI: topics/Bio CLI.md
+    - Alien Vocabulary: topics/Alien Vocabulary.md
+  - API Reference:
+    - Overview: api/index.md
+    - Bio: api/bio.md
+    - Infra: api/infra.md
+    - Protocols: api/protocols.md
+    - Spec Language: api/spec_lang.md
+    - CLI: api/cli.md

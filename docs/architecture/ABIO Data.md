@@ -1,5 +1,6 @@
+ [[Architecture Docs]] → [[ABIO infra]]
+
 # ABIO Data
-**Parent**: [[ABIO infra]]
 Organization of the `data/` folder and intent-based categories.
 
 - The `data/` folder contains all persistent data managed by the [[ABIO DAT]] system. 

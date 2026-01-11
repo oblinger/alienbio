@@ -1,5 +1,6 @@
+ [[Architecture Docs]]
+
 # ABIO biology
-**Parent**: [[ABIO Sys]]
 Molecules, reactions, pathways, containers, and their generators.
 
 ## Generators

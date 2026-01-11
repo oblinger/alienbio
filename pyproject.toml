@@ -26,6 +26,10 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.1",
     "pyright>=1.1",
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.24",
+    "mkdocs-awesome-pages-plugin>=2.9",
+    "mkdocs-roamlinks-plugin>=0.3",
 ]
 
 [build-system]

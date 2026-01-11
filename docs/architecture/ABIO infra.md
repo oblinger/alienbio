@@ -1,5 +1,6 @@
+ [[Architecture Docs]]
+
 # ABIO infra
-**Parent**: [[ABIO Sys]]
 Infrastructure: entity base classes, serialization, data management, and configuration.
 
 ## Entities
@@ -12,7 +13,7 @@ Core data classes and identity patterns that all biology objects inherit from.
 - **[[ABIO Data]]** - Organization of the `data/` folder and intent-based categories.
 - **[[ABIO DAT]]** - dvc_dat integration, name resolution, and `_spec_.yaml` format.
 - **[[Bio]]** - Higher-level fetch/store/run for biology objects.
-- **[[Spec Language]]** - YAML syntax extensions (`!ev`, `!ref`, `!include`, typed keys, jobs).
+- **[[Spec Language Reference]]** — YAML syntax extensions (`!ev`, `!_`, `!ref`, `!include`, typed keys).
 - **[[Decorators]]** - `@biotype` for hydration, `@scoring`/`@action`/`@measurement`/`@rate` for functions.  
 
 ## Installed Packages

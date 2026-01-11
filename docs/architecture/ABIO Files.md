@@ -1,5 +1,6 @@
+ [[Architecture Docs]]
+
 # ABIO Files
-**Parent**: [[ABIO Sys]]
 Directory layout for the alienbio project.
 
 ```
