@@ -127,16 +127,14 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
 
     steps = sim_config.get("steps", 100) if isinstance(sim_config, dict) else 100
     dt = sim_config.get("dt", 1.0) if isinstance(sim_config, dict) else 1.0
-    simulator_name = sim_config.get("simulator", "reference") if isinstance(sim_config, dict) else "reference"
-
     # Build typed Chemistry and State using class-based hydration
     chemistry_data = scenario.get("chemistry", scenario)
     chemistry = ChemistryImpl.hydrate(chemistry_data, local_name="scenario_chemistry")
     initial_state_dict = scenario.get("initial_state", {})
     state = StateImpl(chemistry, initial=initial_state_dict)
 
-    # Create simulator via Bio singleton registry
-    sim = bio.create_simulator(chemistry, name=simulator_name, dt=dt)
+    # Create simulator via Bio pegboard (bio.Simulator class)
+    sim = bio.Simulator(chemistry, dt=dt)
 
     # Run simulation
     timeline_states = sim.run(state, steps=steps)

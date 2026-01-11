@@ -8,7 +8,6 @@ import yaml
 
 from .tags import EvTag, RefTag, IncludeTag
 from .loader import transform_typed_keys, expand_defaults
-from .decorators import construct, deconstruct
 from .eval import (
     hydrate,
     eval_node,
@@ -28,77 +27,29 @@ if TYPE_CHECKING:
 class Bio:
     """Top-level API for Alien Biology operations.
 
+    Bio acts as a "pegboard" holding references to implementation classes.
+    The module singleton `bio` is used by default; create new instances
+    for sandboxing or customization.
+
     Usage:
         from alienbio import Bio, bio
 
-        bio.fetch(...)        # Use the module singleton (for CLI, general use)
-        my_bio = Bio()        # Create a new instance (for sandboxing)
-        my_bio.fetch(...)
+        bio.fetch(...)        # Use the module singleton
+        bio.sim(scenario)     # Create simulator using default Simulator class
 
-    Provides:
-    - fetch/store: Load and save typed objects from/to YAML specs
-    - expand: Process specs without hydrating
-    - create_simulator: Factory for creating simulators from chemistry
-    - register_simulator: Register custom simulator implementations
+        # Customize for sandboxing:
+        my_bio = Bio()
+        my_bio.Simulator = JaxSimulator
+        my_bio.sim(scenario)  # Uses JaxSimulator
 
-    Usage:
-        from alienbio import bio
-
-        scenario = bio.fetch("catalog/scenarios/mutualism")
-        sim = bio.create_simulator(chemistry)
-
-        # Register custom implementation
-        bio.register_simulator("jax", JaxSimulatorImpl)
+    Pegboard attributes (can be overridden per-instance):
+        Simulator: Class used by sim() to create simulators
     """
 
     def __init__(self) -> None:
-        """Initialize Bio with default registries."""
-        self._simulators: dict[str, type] = {}
-        self._default_simulator: str = "reference"
-        self._register_defaults()
-
-    def _register_defaults(self) -> None:
-        """Register default implementations."""
+        """Initialize Bio with default implementations."""
         from alienbio.bio.simulator import ReferenceSimulatorImpl
-        self._simulators["reference"] = ReferenceSimulatorImpl
-
-    # =========================================================================
-    # Simulator Registry
-    # =========================================================================
-
-    def register_simulator(self, name: str, factory: type) -> None:
-        """Register a simulator implementation.
-
-        Args:
-            name: Name for the simulator (e.g., "reference", "jax")
-            factory: Simulator class (must accept chemistry as first arg)
-        """
-        self._simulators[name] = factory
-
-    def create_simulator(
-        self,
-        chemistry: "ChemistryImpl",
-        name: str | None = None,
-        **kwargs: Any,
-    ) -> "SimulatorBase":
-        """Create a simulator from the registry.
-
-        Args:
-            chemistry: Chemistry to simulate
-            name: Simulator name (default: "reference")
-            **kwargs: Additional args passed to simulator constructor
-
-        Returns:
-            Configured simulator instance
-
-        Raises:
-            KeyError: If simulator name not registered
-        """
-        name = name or self._default_simulator
-        if name not in self._simulators:
-            available = ", ".join(self._simulators.keys())
-            raise KeyError(f"Unknown simulator: {name!r}. Available: {available}")
-        return self._simulators[name](chemistry, **kwargs)
+        self.Simulator: type = ReferenceSimulatorImpl
 
     # =========================================================================
     # Fetch / Store / Expand
@@ -160,11 +111,14 @@ class Bio:
 
         spec_file = path / "spec.yaml"
 
-        # Dehydrate object to dict (unless raw)
-        if raw:
+        # Convert object to dict (unless raw or already a dict)
+        if raw or isinstance(obj, dict):
             data = obj
+        elif hasattr(obj, 'to_dict'):
+            data = obj.to_dict()
         else:
-            data = deconstruct(obj)
+            # Fall back to storing object attributes
+            data = {k: v for k, v in vars(obj).items() if not k.startswith('_')}
 
         # Write YAML
         with open(spec_file, "w") as f:
@@ -212,42 +166,6 @@ class Bio:
 
         return data
 
-    # =========================================================================
-    # Hydration (advanced)
-    # =========================================================================
-
-    def hydrate(self, data: dict[str, Any]) -> Any:
-        """Convert a dict with _type field to a typed object.
-
-        Advanced method for manual hydration. Most users should use fetch().
-
-        Args:
-            data: Dict with "_type" field and object data
-
-        Returns:
-            Instance of the registered biotype
-
-        Raises:
-            KeyError: If _type not registered
-            ValueError: If data doesn't have _type field
-        """
-        return construct(data)
-
-    def dehydrate(self, obj: Any) -> dict[str, Any]:
-        """Convert a biotype object to a dict with _type field.
-
-        Advanced method for manual dehydration. Most users should use store().
-
-        Args:
-            obj: Object with _biotype_name attribute (decorated with @biotype)
-
-        Returns:
-            Dict with "_type" field and object data
-
-        Raises:
-            ValueError: If object is not a biotype
-        """
-        return deconstruct(obj)
 
     # =========================================================================
     # Spec Evaluation (M1.8j)
@@ -420,8 +338,8 @@ class Bio:
     def sim(self, scenario: Any) -> "SimulatorBase":
         """Create a Simulator from a Scenario.
 
-        This is a convenience method for creating a reference simulator
-        directly from a scenario object.
+        Uses self.Simulator class (defaults to ReferenceSimulatorImpl).
+        Override self.Simulator to use a different implementation.
 
         Args:
             scenario: Scenario object with chemistry configuration
@@ -429,27 +347,16 @@ class Bio:
         Returns:
             Configured simulator instance
         """
-        from alienbio.bio.simulator import ReferenceSimulatorImpl
-        return ReferenceSimulatorImpl(scenario)
+        return self.Simulator(scenario)
 
     def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
-        """Process raw data and hydrate to typed object."""
+        """Process raw data: resolve includes, refs, defaults."""
         # Process the data: resolve includes, transform typed keys, etc.
         data = self._resolve_includes(data, base_dir)
         data = transform_typed_keys(data)
         data = self._resolve_refs(data, data.get("constants", {}))
         data = expand_defaults(data)
 
-        # Check for top-level _type (e.g., from Bio.store)
-        if "_type" in data:
-            return construct(data)
-
-        # Find the first typed object and hydrate it
-        for key, value in data.items():
-            if isinstance(value, dict) and "_type" in value:
-                return construct(value)
-
-        # If no typed object, return the raw data
         return data
 
     def _resolve_includes(self, data: Any, base_dir: str) -> Any:

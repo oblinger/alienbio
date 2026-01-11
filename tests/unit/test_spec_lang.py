@@ -859,7 +859,7 @@ class TestBioClass:
     """Tests for bio.fetch(), bio.store(), bio.sim() methods."""
 
     def test_bio_load_scenario(self, temp_dir):
-        """bio.fetch("catalog/scenarios/test") → Scenario object"""
+        """bio.fetch("catalog/scenarios/test") returns processed dict"""
         # Create a test scenario file
         scenario_dir = temp_dir / "catalog" / "scenarios" / "test"
         scenario_dir.mkdir(parents=True)
@@ -871,8 +871,10 @@ scenario.test:
 """)
 
         result = bio.fetch(str(scenario_dir))
-        assert hasattr(result, "briefing")
-        assert result.briefing == "Test briefing"
+        # Result is now a dict (no automatic hydration to typed objects)
+        assert isinstance(result, dict)
+        assert "test" in result
+        assert result["test"]["briefing"] == "Test briefing"
 
     def test_bio_load_nonexistent_raises(self):
         """bio.fetch("nonexistent/path") → FileNotFoundError"""
@@ -880,12 +882,14 @@ scenario.test:
             bio.fetch("/nonexistent/path/that/does/not/exist")
 
     def test_bio_save_writes_yaml(self, temp_dir):
-        """bio.store("path", obj) writes YAML with _type"""
-        @biotype
+        """bio.store("path", obj) writes YAML"""
         @dataclass
         class SaveTest:
             name: str
             value: int
+
+            def to_dict(self):
+                return {"name": self.name, "value": self.value}
 
         obj = SaveTest(name="test", value=42)
         save_path = temp_dir / "saved"
@@ -897,25 +901,29 @@ scenario.test:
         spec_file = save_path / "spec.yaml"
         assert spec_file.exists()
         content = yaml.safe_load(spec_file.read_text())
-        assert content["_type"] == "savetest"
+        assert content["name"] == "test"
+        assert content["value"] == 42
 
     def test_bio_save_load_round_trip(self, temp_dir):
         """bio.store then bio.fetch round-trips correctly"""
-        @biotype
         @dataclass
         class RoundTrip:
             name: str
             count: int
+
+            def to_dict(self):
+                return {"name": self.name, "count": self.count}
 
         original = RoundTrip(name="original", count=99)
         path = temp_dir / "roundtrip"
         path.mkdir()
 
         bio.store(str(path), original)
-        loaded = bio.fetch(str(path))
+        loaded = bio.fetch(str(path), raw=True)
 
-        assert loaded.name == original.name
-        assert loaded.count == original.count
+        # Loaded is a dict now
+        assert loaded["name"] == original.name
+        assert loaded["count"] == original.count
 
     def test_bio_sim_creates_simulator(self):
         """bio.sim(scenario) → WorldSimulator instance"""
@@ -1253,14 +1261,14 @@ class TestDatExecution:
         assert "initial_state" in scenario
 
     def test_bio_fetch_index_yaml(self):
-        """bio.fetch loads and hydrates the index.yaml correctly."""
+        """bio.fetch loads the index.yaml correctly."""
         # Fetch the index.yaml directly (not the DAT folder)
         scenario = bio.fetch("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
 
-        # Should return a hydrated scenario object (MockScenario in tests)
+        # Should return a processed dict (no automatic hydration to typed objects)
         assert scenario is not None
-        # The scenario type is MockScenario from test fixtures
-        assert hasattr(scenario, "_biotype_name") or isinstance(scenario, MockScenario)
+        assert isinstance(scenario, dict)
+        assert "hardcoded_test" in scenario
 
 
 # =============================================================================
