@@ -26,47 +26,40 @@ if TYPE_CHECKING:
 
 
 class _BioMeta(type):
-    """Metaclass for Bio singleton pattern.
+    """Metaclass for Bio class-level method delegation.
 
-    Enables both class-level and instance-level method calls:
-        Bio.fetch(...)     # class-level call delegates to singleton
-        bio.fetch(...)     # instance call (bio is the singleton)
-        Bio()              # returns the singleton, not a new instance
+    Enables class-level calls that delegate to the module singleton:
+        Bio.fetch(...)     # delegates to module-level `bio` singleton
+        bio.fetch(...)     # direct instance call
+        Bio()              # creates a new instance (for sandboxing)
     """
 
-    _instance: "Bio | None" = None
-
-    def __call__(cls, *args: Any, **kwargs: Any) -> "Bio":
-        """Return the singleton instance, creating it if needed."""
-        if cls._instance is None:
-            cls._instance = super().__call__(*args, **kwargs)
-        return cls._instance
-
     def __getattribute__(cls, name: str) -> Any:
-        """Intercept all class-level attribute access.
+        """Intercept class-level attribute access.
 
-        For methods and public attributes, delegate to the singleton instance.
-        This allows Bio.fetch() to work as if it were a static method.
+        For methods and public attributes, delegate to the module-level
+        `bio` singleton. This allows Bio.fetch() to work conveniently.
         """
         # These attributes must come from the metaclass/class itself
-        if name in ("_instance", "__class__", "__dict__", "__mro__", "__bases__",
-                    "__name__", "__qualname__", "__module__", "__doc__"):
+        if name in ("__class__", "__dict__", "__mro__", "__bases__",
+                    "__name__", "__qualname__", "__module__", "__doc__",
+                    "__call__", "__new__", "__init__"):
             return super().__getattribute__(name)
 
-        # Get or create singleton
-        instance = super().__getattribute__("_instance")
-        if instance is None:
-            instance = super().__call__()
-            super().__setattr__("_instance", instance)
-
-        # Delegate to instance
-        return getattr(instance, name)
+        # Delegate to module-level singleton
+        # Import here to avoid circular import during class definition
+        from alienbio.spec_lang.bio import bio
+        return getattr(bio, name)
 
 
 class Bio(metaclass=_BioMeta):
     """Top-level API for Alien Biology operations.
 
-    Bio is a singleton that provides:
+    Bio can be used in two ways:
+    1. Via the module singleton: `bio.fetch(...)` or `Bio.fetch(...)`
+    2. As a sandbox: `my_bio = Bio()` for isolated operations
+
+    Provides:
     - fetch/store: Load and save typed objects from/to YAML specs
     - expand: Process specs without hydrating
     - create_simulator: Factory for creating simulators from chemistry
