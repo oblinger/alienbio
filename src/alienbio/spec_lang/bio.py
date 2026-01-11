@@ -39,17 +39,17 @@ class Bio:
 
         # Customize for sandboxing:
         my_bio = Bio()
-        my_bio.Simulator = JaxSimulator
+        my_bio._simulator_factory = JaxSimulator
         my_bio.sim(scenario)  # Uses JaxSimulator
 
     Pegboard attributes (can be overridden per-instance):
-        Simulator: Class used by sim() to create simulators
+        _simulator_factory: Class used by sim() to create simulators
     """
 
     def __init__(self) -> None:
         """Initialize Bio with default implementations."""
         from alienbio.bio.simulator import ReferenceSimulatorImpl
-        self.Simulator: type = ReferenceSimulatorImpl
+        self._simulator_factory: "type[Simulator]" = ReferenceSimulatorImpl
 
     # =========================================================================
     # Fetch / Store / Expand
@@ -338,8 +338,8 @@ class Bio:
     def sim(self, scenario: Any) -> "Simulator":
         """Create a Simulator from a Scenario.
 
-        Uses self.Simulator class (defaults to ReferenceSimulatorImpl).
-        Override self.Simulator to use a different implementation.
+        Uses self._simulator_factory (defaults to ReferenceSimulatorImpl).
+        Override _simulator_factory to use a different implementation.
 
         Args:
             scenario: Scenario object with chemistry configuration
@@ -347,7 +347,7 @@ class Bio:
         Returns:
             Configured simulator instance
         """
-        return self.Simulator(scenario)
+        return self._simulator_factory(scenario)
 
     def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
         """Process raw data: resolve includes, refs, defaults."""

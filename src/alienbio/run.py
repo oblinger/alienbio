@@ -133,8 +133,8 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     initial_state_dict = scenario.get("initial_state", {})
     state = StateImpl(chemistry, initial=initial_state_dict)
 
-    # Create simulator via Bio pegboard (bio.Simulator class)
-    sim = bio.Simulator(chemistry, dt=dt)
+    # Create simulator via Bio pegboard
+    sim = bio._simulator_factory(chemistry, dt=dt)
 
     # Run simulation
     timeline_states = sim.run(state, steps=steps)
