@@ -19,7 +19,7 @@ from .eval import (
 )
 
 if TYPE_CHECKING:
-    from alienbio.bio.simulator import SimulatorBase
+    from alienbio.protocols.bio import Simulator
     from alienbio.bio.chemistry import ChemistryImpl
     from alienbio.bio.state import StateImpl
 
@@ -335,7 +335,7 @@ class Bio:
         # For now, just return the built scenario
         return scenario
 
-    def sim(self, scenario: Any) -> "SimulatorBase":
+    def sim(self, scenario: Any) -> "Simulator":
         """Create a Simulator from a Scenario.
 
         Uses self.Simulator class (defaults to ReferenceSimulatorImpl).

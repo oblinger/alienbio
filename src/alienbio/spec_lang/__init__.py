@@ -9,7 +9,6 @@ from .decorators import biotype, fn, scoring, action, measurement, rate
 from .decorators import get_biotype, get_action, get_measurement, get_scoring, get_rate
 from .decorators import biotype_registry, action_registry, measurement_registry
 from .decorators import scoring_registry, rate_registry
-# construct/deconstruct removed - use to_dict()/from_dict() methods on classes instead
 from .tags import EvTag, RefTag, IncludeTag, Include
 from .eval import (
     Evaluable, Quoted, Reference,
@@ -52,10 +51,7 @@ __all__ = [
     "RefTag",
     "IncludeTag",
     "Include",
-    # Biotype construction
-    "construct",
-    "deconstruct",
-    # Evaluation system (new)
+    # Evaluation system
     "Evaluable",
     "Quoted",
     "Reference",

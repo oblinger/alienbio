@@ -3,7 +3,6 @@
 from __future__ import annotations
 from typing import Any, Callable, TypeVar, overload
 from functools import wraps
-import inspect
 
 T = TypeVar("T")
 F = TypeVar("F", bound=Callable[..., Any])
@@ -72,82 +71,6 @@ def get_biotype(name: str) -> type:
     if name not in biotype_registry:
         raise KeyError(f"Unknown biotype: {name}")
     return biotype_registry[name]
-
-
-def construct(data: dict[str, Any]) -> Any:
-    """Construct a typed object from a dict with _type field.
-
-    This is the inverse of deconstruct(). Given a dict with a "_type" field
-    naming a registered biotype, instantiates the corresponding class.
-
-    Args:
-        data: Dict with "_type" field and object data
-
-    Returns:
-        Instance of the registered biotype
-
-    Raises:
-        KeyError: If _type not registered
-        ValueError: If data doesn't have _type field
-    """
-    if "_type" not in data:
-        raise ValueError("Data must have '_type' field for construction")
-
-    type_name = data["_type"]
-    cls = get_biotype(type_name)
-
-    # Remove _type from data before instantiation
-    obj_data = {k: v for k, v in data.items() if k != "_type"}
-
-    # Recursively construct nested dicts with _type
-    for key, value in obj_data.items():
-        if isinstance(value, dict) and "_type" in value:
-            obj_data[key] = construct(value)
-
-    # Filter to only include fields that the class accepts
-    sig = inspect.signature(cls)
-    valid_params = set(sig.parameters.keys())
-    # Check if cls accepts **kwargs
-    has_var_keyword = any(
-        p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-    )
-    if not has_var_keyword:
-        obj_data = {k: v for k, v in obj_data.items() if k in valid_params}
-
-    return cls(**obj_data)
-
-
-def deconstruct(obj: Any) -> dict[str, Any]:
-    """Deconstruct a biotype object to a dict with _type field.
-
-    This is the inverse of construct(). Given a biotype object,
-    returns a dict representation suitable for YAML serialization.
-
-    Args:
-        obj: Object with _biotype_name attribute (decorated with @biotype)
-
-    Returns:
-        Dict with "_type" field and object data
-    """
-    if not hasattr(obj, "_biotype_name"):
-        raise ValueError(f"Object {type(obj)} is not a biotype")
-
-    result: dict[str, Any] = {"_type": obj._biotype_name}
-
-    # Get object attributes (excluding private/dunder)
-    for key, value in vars(obj).items():
-        if not key.startswith("_"):
-            if hasattr(value, "_biotype_name"):
-                result[key] = deconstruct(value)
-            else:
-                result[key] = value
-
-    return result
-
-
-# Backward compatibility aliases
-hydrate = construct
-dehydrate = deconstruct
 
 
 # --- Function decorators ---

@@ -39,8 +39,6 @@ from alienbio.spec_lang import (
 )
 from alienbio.spec_lang.decorators import (
     clear_registries,
-    hydrate,
-    dehydrate,
     FnMeta,
 )
 from alienbio.spec_lang.loader import deep_merge
@@ -466,106 +464,6 @@ class TestBiotypeDecorator:
 
         assert "my_custom_type" in biotype_registry
         assert biotype_registry["my_custom_type"] == AnotherType
-
-    def test_hydrate_from_dict(self):
-        """Hydrate: {"_type": "chemistry", ...} → Chemistry instance"""
-        @biotype
-        @dataclass
-        class SimpleType:
-            name: str
-            count: int
-
-        data = {"_type": "simpletype", "name": "test", "count": 42}
-        result = hydrate(data)
-
-        assert isinstance(result, SimpleType)
-        assert result.name == "test"
-        assert result.count == 42
-
-    def test_hydrate_nested_biotypes(self):
-        """Hydrate with nested biotypes: World containing Chemistry"""
-        @biotype
-        @dataclass
-        class Inner:
-            value: int
-
-        @biotype
-        @dataclass
-        class Outer:
-            inner: Inner
-
-        data = {
-            "_type": "outer",
-            "inner": {"_type": "inner", "value": 99},
-        }
-        result = hydrate(data)
-
-        assert isinstance(result, Outer)
-        assert isinstance(result.inner, Inner)
-        assert result.inner.value == 99
-
-    def test_hydrate_unknown_type_raises(self):
-        """Hydrate unknown _type → raises error"""
-        data = {"_type": "completely_unknown", "value": 1}
-        with pytest.raises(KeyError):
-            hydrate(data)
-
-    def test_hydrate_missing_type_raises(self):
-        """Hydrate without _type → raises error"""
-        data = {"value": 1}
-        with pytest.raises(ValueError):
-            hydrate(data)
-
-    def test_dehydrate_to_dict(self):
-        """Dehydrate: Chemistry instance → {"_type": "chemistry", ...}"""
-        @biotype
-        @dataclass
-        class DehydrateTest:
-            name: str
-            value: int
-
-        obj = DehydrateTest(name="test", value=42)
-        result = dehydrate(obj)
-
-        assert result["_type"] == "dehydratetest"
-        assert result["name"] == "test"
-        assert result["value"] == 42
-
-    def test_hydrate_dehydrate_round_trip(self):
-        """Round-trip: dict → hydrate → dehydrate → same dict"""
-        @biotype
-        @dataclass
-        class RoundTripType:
-            a: int
-            b: str
-
-        original = {"_type": "roundtriptype", "a": 1, "b": "hello"}
-        hydrated = hydrate(original)
-        dehydrated = dehydrate(hydrated)
-
-        assert dehydrated == original
-
-    def test_biotype_with_pydantic_validation(self):
-        """Biotype with Pydantic validation: invalid field → ValidationError"""
-        pytest.skip("Pydantic integration TBD")
-
-    def test_biotype_inheritance(self):
-        """Biotype inheritance: child class with parent biotype"""
-        @biotype
-        @dataclass
-        class ParentType:
-            base_value: int
-
-        @biotype
-        @dataclass
-        class ChildType(ParentType):
-            extra_value: str
-
-        assert "childtype" in biotype_registry
-        data = {"_type": "childtype", "base_value": 1, "extra_value": "test"}
-        result = hydrate(data)
-        assert result.base_value == 1
-        assert result.extra_value == "test"
 
 
 # =============================================================================
