@@ -49,7 +49,7 @@ class TestRegionGeneration:
     @pytest.mark.skip(reason="M2.10 not yet implemented")
     def test_generate_regions(self):
         """Generate N regions from regions.count parameter."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateRegistry
 
         spec = {
@@ -60,7 +60,7 @@ class TestRegionGeneration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
+        scenario = bio.build(spec, seed=42, registry=TemplateRegistry())
 
         # Should have 3 regions
         assert len(scenario.regions) == 3
@@ -68,7 +68,7 @@ class TestRegionGeneration:
     @pytest.mark.skip(reason="M2.10 not yet implemented")
     def test_regions_have_ids(self):
         """Generated regions have unique IDs."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateRegistry
 
         spec = {
@@ -79,7 +79,7 @@ class TestRegionGeneration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
+        scenario = bio.build(spec, seed=42, registry=TemplateRegistry())
 
         region_ids = [r.id for r in scenario.regions]
         assert len(region_ids) == len(set(region_ids))  # All unique
@@ -87,7 +87,7 @@ class TestRegionGeneration:
     @pytest.mark.skip(reason="M2.10 not yet implemented")
     def test_regions_have_substrate_concentrations(self):
         """Generated regions have initial substrate concentrations."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateRegistry
 
         spec = {
@@ -101,7 +101,7 @@ class TestRegionGeneration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
+        scenario = bio.build(spec, seed=42, registry=TemplateRegistry())
 
         for region in scenario.regions:
             assert "nutrient" in region.substrates
@@ -118,7 +118,7 @@ class TestPopulationGeneration:
     @pytest.mark.skip(reason="M2.10 not yet implemented")
     def test_generate_populations(self):
         """Generate organism populations in regions."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -140,7 +140,7 @@ class TestPopulationGeneration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should have organisms assigned to regions
         total_organisms = sum(len(r.organisms) for r in scenario.regions)
@@ -149,7 +149,7 @@ class TestPopulationGeneration:
     @pytest.mark.skip(reason="M2.10 not yet implemented")
     def test_populations_sampled_from_distribution(self):
         """Populations sampled from distribution."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -174,7 +174,7 @@ class TestPopulationGeneration:
         # Run multiple times to check variation
         counts = []
         for seed in range(42, 52):
-            scenario = Bio.build(spec, seed=seed, registry=registry)
+            scenario = bio.build(spec, seed=seed, registry=registry)
             count = sum(len(r.organisms) for r in scenario.regions)
             counts.append(count)
 
@@ -184,7 +184,7 @@ class TestPopulationGeneration:
     @pytest.mark.skip(reason="M2.10 not yet implemented")
     def test_populations_assigned_to_correct_species(self):
         """Populations assigned to correct species."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -210,7 +210,7 @@ class TestPopulationGeneration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should have organisms of both species
         species_names = set()

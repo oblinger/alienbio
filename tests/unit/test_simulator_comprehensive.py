@@ -3,7 +3,7 @@
 This module provides thorough test coverage for:
 1. ReferenceSimulatorImpl - the Chemistry/State-based simulator
 2. _run_scenario() - the dict-based DAT execution path
-3. Integration tests via Bio.run()
+3. Integration tests via bio.run()
 
 Test categories:
 - Basic simulation mechanics (step, run, timeline)
@@ -467,12 +467,12 @@ class TestRunScenarioDict:
 
 
 # =============================================================================
-# Part 3: Integration Tests via Bio.run()
+# Part 3: Integration Tests via bio.run()
 # =============================================================================
 
 
 class TestBioRunIntegration:
-    """Integration tests using Bio.run() with actual DAT execution."""
+    """Integration tests using bio.run() with actual DAT execution."""
 
     @pytest.mark.skip(reason="Requires DAT setup - run manually")
     def test_hardcoded_test_job(self):
@@ -480,7 +480,7 @@ class TestBioRunIntegration:
         from alienbio.spec_lang import Bio
 
         # This would run the actual hardcoded_test job
-        result = Bio.run("jobs/hardcoded_test")
+        result = bio.run("jobs/hardcoded_test")
 
         assert result["success"] is True
         assert result["scores"]["score"] >= 0.5

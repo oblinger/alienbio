@@ -2,10 +2,10 @@
 
 Coverage:
 - Bio.cd() — current DAT tracking and path resolution
-- Bio.fetch() — specifier routing, hydration options
-- Bio.run() — routing for string/dict/Scenario inputs
-- Bio.store() — dehydration and storage
-- Bio.build() — scenario instantiation
+- bio.fetch() — specifier routing, hydration options
+- bio.run() — routing for string/dict/Scenario inputs
+- bio.store() — dehydration and storage
+- bio.build() — scenario instantiation
 """
 
 import pytest
@@ -88,19 +88,19 @@ def temp_dir():
 
 
 # =============================================================================
-# Bio.fetch() Tests — Specifier Routing
+# bio.fetch() Tests — Specifier Routing
 # =============================================================================
 
 
 class TestBioFetchRouting:
-    """Tests for Bio.fetch() specifier routing."""
+    """Tests for bio.fetch() specifier routing."""
 
     def test_fetch_absolute_path(self, temp_dir):
         """fetch('/absolute/path') loads from absolute path."""
         yaml_file = temp_dir / "test.yaml"
         yaml_file.write_text("key: value\n")
 
-        result = Bio.fetch(str(yaml_file), raw=True)
+        result = bio.fetch(str(yaml_file), raw=True)
         assert result["key"] == "value"
 
     def test_fetch_dat_folder_loads_spec(self, temp_dir):
@@ -110,7 +110,7 @@ class TestBioFetchRouting:
         # Current implementation looks for spec.yaml, not index.yaml
         (dat_dir / "spec.yaml").write_text("name: mydat\nvalue: 123\n")
 
-        result = Bio.fetch(str(dat_dir), raw=True)
+        result = bio.fetch(str(dat_dir), raw=True)
         assert result["name"] == "mydat"
         assert result["value"] == 123
 
@@ -121,7 +121,7 @@ class TestBioFetchRouting:
         dat_dir.mkdir()
         (dat_dir / "index.yaml").write_text("name: mydat\nvalue: 123\n")
 
-        result = Bio.fetch(str(dat_dir), raw=True)
+        result = bio.fetch(str(dat_dir), raw=True)
         assert result["name"] == "mydat"
         assert result["value"] == 123
 
@@ -136,20 +136,20 @@ class TestBioFetchRouting:
     @pytest.mark.skip(reason="Python module lookup not yet implemented")
     def test_fetch_python_module(self):
         """fetch('alienbio.bio.Chemistry') returns Python class."""
-        result = Bio.fetch("alienbio.bio.Chemistry")
+        result = bio.fetch("alienbio.bio.Chemistry")
         from alienbio.bio import Chemistry
         assert result == Chemistry
 
 
 class TestBioFetchHydration:
-    """Tests for Bio.fetch() hydration options."""
+    """Tests for bio.fetch() hydration options."""
 
     def test_fetch_raw_returns_dict(self, temp_dir):
         """fetch(..., raw=True) returns raw dict."""
         yaml_file = temp_dir / "test.yaml"
         yaml_file.write_text("key: value\n")
 
-        result = Bio.fetch(str(yaml_file), raw=True)
+        result = bio.fetch(str(yaml_file), raw=True)
         assert isinstance(result, dict)
         assert result["key"] == "value"
 
@@ -165,7 +165,7 @@ world.test:
     M1: {role: energy}
 """)
 
-        result = Bio.fetch(str(yaml_file), hydrate=False)
+        result = bio.fetch(str(yaml_file), hydrate=False)
         assert isinstance(result, Scope)
 
 
@@ -184,7 +184,7 @@ nested:
 """)
 
         # Should load index.yaml then dereference .nested.key
-        result = Bio.fetch(f"{dat_dir}.nested.key", raw=True)
+        result = bio.fetch(f"{dat_dir}.nested.key", raw=True)
         assert result == "found_it"
 
     @pytest.mark.skip(reason="Dotted path dereferencing not yet implemented")
@@ -198,17 +198,17 @@ a:
     c: deep_value
 """)
 
-        result = Bio.fetch(f"{dat_dir}.a.b.c", raw=True)
+        result = bio.fetch(f"{dat_dir}.a.b.c", raw=True)
         assert result == "deep_value"
 
 
 # =============================================================================
-# Bio.run() Tests — Routing
+# bio.run() Tests — Routing
 # =============================================================================
 
 
 class TestBioRunRouting:
-    """Tests for Bio.run() routing logic."""
+    """Tests for bio.run() routing logic."""
 
     def test_run_with_dict_calls_build(self):
         """run(dict) calls build() on the dict."""
@@ -225,7 +225,7 @@ class TestBioRunRouting:
             }
         }
 
-        result = Bio.run(spec, seed=42, registry=registry)
+        result = bio.run(spec, seed=42, registry=registry)
 
         # Should return a Scenario
         assert isinstance(result, Scenario)
@@ -242,7 +242,7 @@ class TestBioRunRouting:
             _metadata_={}
         )
 
-        result = Bio.run(scenario, seed=42)
+        result = bio.run(scenario, seed=42)
 
         # Should return the same scenario (execution not yet implemented)
         assert result is scenario
@@ -262,34 +262,34 @@ _instantiate_:
 
 
 # =============================================================================
-# Bio.store() Tests
+# bio.store() Tests
 # =============================================================================
 
 
 class TestBioStore:
-    """Tests for Bio.store() dehydration and storage."""
+    """Tests for bio.store() dehydration and storage."""
 
-    @pytest.mark.skip(reason="Bio.store currently requires biotype objects, not plain dicts")
+    @pytest.mark.skip(reason="bio.store currently requires biotype objects, not plain dicts")
     def test_store_writes_yaml(self, temp_dir):
         """store(path, obj) writes YAML file."""
         obj = {"key": "value", "number": 42}
         path = temp_dir / "output.yaml"
 
-        Bio.store(str(path), obj)
+        bio.store(str(path), obj)
 
         assert path.exists()
         content = yaml.safe_load(path.read_text())
         assert content["key"] == "value"
         assert content["number"] == 42
 
-    @pytest.mark.skip(reason="Bio.store currently requires biotype objects, not plain dicts")
+    @pytest.mark.skip(reason="bio.store currently requires biotype objects, not plain dicts")
     def test_store_round_trip(self, temp_dir):
         """store then fetch returns equivalent data."""
         original = {"name": "test", "values": [1, 2, 3]}
         path = temp_dir / "roundtrip.yaml"
 
-        Bio.store(str(path), original)
-        loaded = Bio.fetch(str(path), raw=True)
+        bio.store(str(path), original)
+        loaded = bio.fetch(str(path), raw=True)
 
         assert loaded["name"] == original["name"]
         assert loaded["values"] == original["values"]
@@ -308,7 +308,7 @@ class TestBioStore:
         )
         path = temp_dir / "molecule.yaml"
 
-        Bio.store(str(path), mol)
+        bio.store(str(path), mol)
 
         assert path.exists()
         content = yaml.safe_load(path.read_text())
@@ -321,7 +321,7 @@ class TestBioStore:
         obj = {"key": "value", "number": 42}
         path = temp_dir / "output.yaml"
 
-        Bio.store(str(path), obj, raw=True)
+        bio.store(str(path), obj, raw=True)
 
         assert path.exists()
         content = yaml.safe_load(path.read_text())
@@ -330,17 +330,17 @@ class TestBioStore:
 
 
 # =============================================================================
-# Bio.build() Tests — Already well-covered in test_build_pipeline.py
+# bio.build() Tests — Already well-covered in test_build_pipeline.py
 # These are additional edge case tests
 # =============================================================================
 
 
 class TestBioBuildEdgeCases:
-    """Additional edge case tests for Bio.build()."""
+    """Additional edge case tests for bio.build()."""
 
     def test_build_with_empty_spec(self):
         """build() with empty spec returns empty scenario."""
-        result = Bio.build({}, seed=42)
+        result = bio.build({}, seed=42)
 
         assert isinstance(result, Scenario)
         assert len(result.molecules) == 0
@@ -353,7 +353,7 @@ class TestBioBuildEdgeCases:
             "reactions": {}
         }
 
-        result = Bio.build(spec, seed=42)
+        result = bio.build(spec, seed=42)
 
         # Should create scenario from direct spec
         assert isinstance(result, Scenario)
@@ -367,7 +367,7 @@ molecules:
   M1: {role: energy}
 """)
 
-        result = Bio.build(str(spec_file), seed=42)
+        result = bio.build(str(spec_file), seed=42)
         assert isinstance(result, Scenario)
 
 
@@ -397,9 +397,9 @@ scenario.test:
 """)
 
         # Workflow
-        spec = Bio.fetch(str(spec_file))
-        scenario = Bio.build(spec, seed=42)
-        result = Bio.run(scenario)
+        spec = bio.fetch(str(spec_file))
+        scenario = bio.build(spec, seed=42)
+        result = bio.run(scenario)
 
         assert isinstance(result, Scenario)
 
@@ -416,8 +416,8 @@ scenario.test:
         )
 
         dat_path = temp_dir / "output_dat"
-        Bio.store(str(dat_path), scenario)
+        bio.store(str(dat_path), scenario)
 
-        loaded = Bio.fetch(str(dat_path))
+        loaded = bio.fetch(str(dat_path))
         assert isinstance(loaded, Scenario)
         assert loaded._seed == 42

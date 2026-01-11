@@ -25,39 +25,15 @@ if TYPE_CHECKING:
     from alienbio.bio.state import StateImpl
 
 
-class _BioMeta(type):
-    """Metaclass for Bio class-level method delegation.
-
-    Enables class-level calls that delegate to the module singleton:
-        Bio.fetch(...)     # delegates to module-level `bio` singleton
-        bio.fetch(...)     # direct instance call
-        Bio()              # creates a new instance (for sandboxing)
-    """
-
-    def __getattribute__(cls, name: str) -> Any:
-        """Intercept class-level attribute access.
-
-        For methods and public attributes, delegate to the module-level
-        `bio` singleton. This allows Bio.fetch() to work conveniently.
-        """
-        # These attributes must come from the metaclass/class itself
-        if name in ("__class__", "__dict__", "__mro__", "__bases__",
-                    "__name__", "__qualname__", "__module__", "__doc__",
-                    "__call__", "__new__", "__init__"):
-            return super().__getattribute__(name)
-
-        # Delegate to module-level singleton
-        # Import here to avoid circular import during class definition
-        from alienbio.spec_lang.bio import bio
-        return getattr(bio, name)
-
-
-class Bio(metaclass=_BioMeta):
+class Bio:
     """Top-level API for Alien Biology operations.
 
-    Bio can be used in two ways:
-    1. Via the module singleton: `bio.fetch(...)` or `Bio.fetch(...)`
-    2. As a sandbox: `my_bio = Bio()` for isolated operations
+    Usage:
+        from alienbio import Bio, bio
+
+        bio.fetch(...)        # Use the module singleton (for CLI, general use)
+        my_bio = Bio()        # Create a new instance (for sandboxing)
+        my_bio.fetch(...)
 
     Provides:
     - fetch/store: Load and save typed objects from/to YAML specs

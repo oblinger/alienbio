@@ -350,14 +350,14 @@ class TestB10Expansion:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_expand_produces_molecules(self):
         """Expansion creates expected molecules with namespace prefixes."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         # Load templates and spec
         templates = yaml.safe_load(TEMPLATES_YAML)
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
 
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # Check that expected molecules exist (may have more from background)
         for mol in EXPECTED_MOLECULES:
@@ -366,11 +366,11 @@ class TestB10Expansion:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_expand_produces_reactions(self):
         """Expansion creates expected reactions with namespace prefixes."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # Check that expected reactions exist
         for rxn in EXPECTED_REACTIONS:
@@ -379,11 +379,11 @@ class TestB10Expansion:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_molecule_count_reasonable(self):
         """Total molecule count is in expected range."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # ~17 from templates + ~5 from background = ~22
         assert 15 <= len(scenario.molecules) <= 30
@@ -391,11 +391,11 @@ class TestB10Expansion:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_reaction_count_reasonable(self):
         """Total reaction count is in expected range."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # ~15 from templates + ~8 from background = ~23
         assert 12 <= len(scenario.reactions) <= 30
@@ -407,11 +407,11 @@ class TestB10PortWiring:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_chain_wired_to_energy(self):
         """Anabolic chains have energy_source pointing to energy.work."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # chain1.build1 should reference energy.work
         build1 = scenario.reactions.get("r.Krel.chain1.build1")
@@ -421,11 +421,11 @@ class TestB10PortWiring:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_consumer_needs_waste(self):
         """Consumer's consume_waste reaction references producer's waste."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         consume = scenario.reactions.get("r.Kova.consume_waste")
         assert consume is not None
@@ -439,11 +439,11 @@ class TestB10Visibility:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_visibility_mapping_exists(self):
         """Scenario has _visibility_mapping_ attribute."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         assert hasattr(scenario, "_visibility_mapping_")
         assert isinstance(scenario._visibility_mapping_, dict)
@@ -451,11 +451,11 @@ class TestB10Visibility:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_hidden_dependencies_tracked(self):
         """Hidden dependencies are in _hidden_ list."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         hidden = scenario._visibility_mapping_.get("_hidden_", [])
         assert len(hidden) > 0
@@ -465,11 +465,11 @@ class TestB10Visibility:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_opaque_names_generated(self):
         """Molecules get opaque names (ME1, ME2, etc.)."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         mapping = scenario._visibility_mapping_
         # Internal names should map to simple opaque names
@@ -484,11 +484,11 @@ class TestB10GroundTruth:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_ground_truth_preserved(self):
         """Scenario has _ground_truth_ with internal names."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         assert hasattr(scenario, "_ground_truth_")
         gt = scenario._ground_truth_
@@ -504,13 +504,13 @@ class TestB10Reproducibility:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_same_seed_same_output(self):
         """Same seed produces identical scenario."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
 
-        s1 = Bio.build(spec_data["scenario_generator_spec"], seed=42)
-        s2 = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        s1 = bio.build(spec_data["scenario_generator_spec"], seed=42)
+        s2 = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         assert s1.molecules == s2.molecules
         assert s1.reactions == s2.reactions
@@ -519,13 +519,13 @@ class TestB10Reproducibility:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_different_seed_different_output(self):
         """Different seeds produce different sampled values."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
 
-        s1 = Bio.build(spec_data["scenario_generator_spec"], seed=42)
-        s2 = Bio.build(spec_data["scenario_generator_spec"], seed=43)
+        s1 = bio.build(spec_data["scenario_generator_spec"], seed=42)
+        s2 = bio.build(spec_data["scenario_generator_spec"], seed=43)
 
         # At least some reactions should have different rates
         s1_rates = [r.get("rate") for r in s1.reactions.values() if "rate" in r]
@@ -540,11 +540,11 @@ class TestB10Guards:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_background_respects_no_new_species_dependencies(self):
         """Background reactions don't create cross-species dependencies."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        scenario = bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # Find background reactions (r.bg.*)
         bg_reactions = {k: v for k, v in scenario._ground_truth_.reactions.items()

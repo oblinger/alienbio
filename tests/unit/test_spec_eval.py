@@ -1217,10 +1217,10 @@ class TestSafeBuiltins:
 # =============================================================================
 
 class TestBioIntegration:
-    """Test Bio.load_spec() and Bio.eval_spec() integration."""
+    """Test bio.load_spec() and bio.eval_spec() integration."""
 
     def test_load_spec_from_file(self, temp_dir):
-        """Bio.load_spec() loads and hydrates a YAML file."""
+        """bio.load_spec() loads and hydrates a YAML file."""
         from alienbio.spec_lang import bio
 
         spec_file = temp_dir / "spec.yaml"
@@ -1243,7 +1243,7 @@ threshold: !ref high_threshold
         assert spec["threshold"].name == "high_threshold"
 
     def test_eval_spec_evaluates_placeholders(self, temp_dir):
-        """Bio.eval_spec() evaluates all placeholders."""
+        """bio.eval_spec() evaluates all placeholders."""
         from alienbio.spec_lang import bio
 
         spec_file = temp_dir / "spec.yaml"
@@ -1263,7 +1263,7 @@ value: !ev 2 + 3
         assert result["value"] == 5  # evaluated
 
     def test_eval_spec_with_bindings(self, temp_dir):
-        """Bio.eval_spec() resolves references from bindings."""
+        """bio.eval_spec() resolves references from bindings."""
         from alienbio.spec_lang import bio
 
         spec_file = temp_dir / "spec.yaml"
@@ -1313,7 +1313,7 @@ count: !ev normal(50, 10)
         assert len(set(results)) > 1
 
     def test_load_spec_with_include(self, temp_dir):
-        """Bio.load_spec() resolves includes."""
+        """bio.load_spec() resolves includes."""
         from alienbio.spec_lang import bio
 
         # Create included file
@@ -1337,7 +1337,7 @@ config: !include config.yaml
         assert spec["config"]["retries"] == 3
 
     def test_load_spec_directory(self, temp_dir):
-        """Bio.load_spec() loads spec.yaml from directory."""
+        """bio.load_spec() loads spec.yaml from directory."""
         from alienbio.spec_lang import bio
 
         spec_file = temp_dir / "spec.yaml"
@@ -1352,7 +1352,7 @@ value: 42
         assert spec["value"] == 42
 
     def test_load_spec_file_not_found(self, temp_dir):
-        """Bio.load_spec() raises FileNotFoundError for missing file."""
+        """bio.load_spec() raises FileNotFoundError for missing file."""
         from alienbio.spec_lang import bio
 
         with pytest.raises(FileNotFoundError):

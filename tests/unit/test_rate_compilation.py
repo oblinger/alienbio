@@ -2,7 +2,7 @@
 
 Tests for simulator creation from scenarios with rate expressions.
 Rate expressions use !quote to preserve them through evaluation,
-then get compiled to callable functions at Bio.sim() time.
+then get compiled to callable functions at bio.sim() time.
 
 See [[Simulator]] and [[Spec Evaluation]] for specifications.
 
@@ -10,7 +10,7 @@ Key concepts tested:
 - Rate expressions: !quote k * S → compiled to callable
 - Constants baked in: Vmax, Km from spec scope
 - Substrate variables: S, S1, S2 bound to concentrations
-- Bio.sim(scenario) integration
+- bio.sim(scenario) integration
 - Reproducibility with seeded RNG
 """
 
@@ -79,7 +79,7 @@ class Bio:
 
     @staticmethod
     def sim(scenario: Any) -> CompiledSimulator:
-        raise NotImplementedError("Bio.sim not yet implemented")
+        raise NotImplementedError("bio.sim not yet implemented")
 
     @staticmethod
     def eval(spec: Any, ctx: Any) -> Any:
@@ -302,7 +302,7 @@ class TestRateSubstrateVariables:
         """Substrate variables bound based on reaction definition."""
         # This would test the full integration where the simulator
         # binds S1, S2 based on the reaction's substrates list
-        pass  # Integration test with Bio.sim
+        pass  # Integration test with bio.sim
 
 
 class TestRateProductVariables:
@@ -335,11 +335,11 @@ class TestRateProductVariables:
 # =============================================================================
 
 class TestSimCreatesFromScenario:
-    """Test Bio.sim(scenario) creates simulator correctly."""
+    """Test bio.sim(scenario) creates simulator correctly."""
 
     @pytest.mark.skip(reason="Implementation pending")
     def test_sim_creates_from_scenario(self):
-        """Bio.sim(scenario) returns a working simulator."""
+        """bio.sim(scenario) returns a working simulator."""
         scenario = Scenario(
             name="test",
             molecules={"A": {}, "B": {}},
@@ -354,7 +354,7 @@ class TestSimCreatesFromScenario:
             scope={}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
 
         assert sim is not None
         assert hasattr(sim, 'step')
@@ -377,7 +377,7 @@ class TestSimCreatesFromScenario:
             scope={"k": 0.1}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
         state = sim.initial_state()
 
         # Step should work (rate was compiled)
@@ -396,7 +396,7 @@ class TestSimCreatesFromScenario:
             scope={}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
         state = sim.initial_state()
 
         assert state["A"] == 100.0
@@ -420,7 +420,7 @@ class TestSimCreatesFromScenario:
             scope={}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
         state = sim.initial_state()
 
         state1 = sim.step(state)
@@ -447,7 +447,7 @@ class TestSimCreatesFromScenario:
             scope={}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
         state = sim.initial_state()
 
         history = sim.run(state, steps=100)
@@ -467,7 +467,7 @@ class TestSimCreatesFromScenario:
             scope={}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
 
         # Should have action method
         assert hasattr(sim, 'action')
@@ -484,7 +484,7 @@ class TestSimCreatesFromScenario:
             scope={}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
 
         # Should have measure method
         assert hasattr(sim, 'measure')
@@ -515,7 +515,7 @@ class TestSimulationCorrectness:
             scope={}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
         state = sim.initial_state()
         history = sim.run(state, steps=100)
 
@@ -546,7 +546,7 @@ class TestSimulationCorrectness:
             scope={"kf": 0.1, "kr": 0.1}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
         state = sim.initial_state()
         history = sim.run(state, steps=500)
 
@@ -572,7 +572,7 @@ class TestSimulationCorrectness:
             scope={}
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
         state = sim.initial_state()
 
         # Run a bit
@@ -608,10 +608,10 @@ class TestSimulationCorrectness:
         )
 
         # Run twice with same seed
-        sim1 = Bio.sim(scenario)
+        sim1 = bio.sim(scenario)
         history1 = sim1.run(sim1.initial_state(), steps=50)
 
-        sim2 = Bio.sim(scenario)
+        sim2 = bio.sim(scenario)
         history2 = sim2.run(sim2.initial_state(), steps=50)
 
         # Should be identical
@@ -648,7 +648,7 @@ class TestSimulationCorrectness:
 # =============================================================================
 
 class TestBioSimIntegration:
-    """Integration tests for Bio.load() -> Bio.sim() -> run."""
+    """Integration tests for Bio.load() -> bio.sim() -> run."""
 
     @pytest.mark.skip(reason="Implementation pending")
     def test_load_eval_sim_pipeline(self):
@@ -662,7 +662,7 @@ class TestBioSimIntegration:
         scenario = Bio.eval(spec, ctx)
 
         # Create simulator (compiles rate expressions)
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
 
         # Run simulation
         state = sim.initial_state()
@@ -681,7 +681,7 @@ class TestBioSimIntegration:
         for seed in range(10):
             ctx = Context(rng=np.random.default_rng(seed))
             scenario = Bio.eval(spec, ctx)
-            sim = Bio.sim(scenario)
+            sim = bio.sim(scenario)
             history = sim.run(sim.initial_state(), steps=50)
             results.append(history[-1])
 
@@ -704,7 +704,7 @@ class TestBioSimIntegration:
 
         ctx = Context(rng=np.random.default_rng(42))
         # After eval, rate should still be a string (was Quoted)
-        # Bio.sim will compile it
+        # bio.sim will compile it
 
         # This tests that Bio.eval preserves Quoted -> string
-        # and Bio.sim compiles string -> callable
+        # and bio.sim compiles string -> callable

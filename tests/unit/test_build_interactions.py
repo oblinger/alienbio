@@ -40,7 +40,7 @@ class TestInteractionParsing:
     @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_interaction_wires_species(self):
         """Interaction template wires two species together."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -81,7 +81,7 @@ class TestInteractionParsing:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should have molecules from both species
         gt = scenario._ground_truth_
@@ -103,7 +103,7 @@ class TestPortRequirements:
     @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_requires_validation_passes(self):
         """Requires validation passes when ports are available."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -128,13 +128,13 @@ class TestPortRequirements:
         }
 
         # Should succeed - energy.out is available
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
         assert scenario is not None
 
     @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_requires_validation_fails(self):
         """Requires validation fails when required port is missing."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry, PortNotFoundError
 
         registry = TemplateRegistry()
@@ -153,7 +153,7 @@ class TestPortRequirements:
 
         # Should fail - no energy.out available
         with pytest.raises(PortNotFoundError):
-            Bio.build(spec, seed=42, registry=registry)
+            bio.build(spec, seed=42, registry=registry)
 
 
 # =============================================================================
@@ -167,7 +167,7 @@ class TestModifyAndSet:
     @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_modify_changes_reactants(self):
         """_modify_ changes reactants in existing reaction."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -189,7 +189,7 @@ class TestModifyAndSet:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Reaction rate should be modified
         gt = scenario._ground_truth_
@@ -198,7 +198,7 @@ class TestModifyAndSet:
     @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_modify_adds_reactant(self):
         """_modify_ can add to reactants list."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -220,7 +220,7 @@ class TestModifyAndSet:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         gt = scenario._ground_truth_
         # Catalyst should be added to reactants
@@ -229,7 +229,7 @@ class TestModifyAndSet:
     @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_modify_path_validation(self):
         """_modify_ raises error for invalid path."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -249,4 +249,4 @@ class TestModifyAndSet:
         }
 
         with pytest.raises(KeyError):
-            Bio.build(spec, seed=42, registry=registry)
+            bio.build(spec, seed=42, registry=registry)
