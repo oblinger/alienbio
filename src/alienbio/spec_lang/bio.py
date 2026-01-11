@@ -8,12 +8,12 @@ import yaml
 
 from .tags import EvTag, RefTag, IncludeTag
 from .loader import transform_typed_keys, expand_defaults
-from .decorators import hydrate as _hydrate, dehydrate as _dehydrate
+from .decorators import construct, deconstruct
 from .eval import (
-    hydrate as eval_hydrate,
+    hydrate,
     eval_node,
     make_context,
-    Context,
+    EvalContext,
     Evaluable,
     Quoted,
     Reference,
@@ -25,7 +25,45 @@ if TYPE_CHECKING:
     from alienbio.bio.state import StateImpl
 
 
-class Bio:
+class _BioMeta(type):
+    """Metaclass for Bio singleton pattern.
+
+    Enables both class-level and instance-level method calls:
+        Bio.fetch(...)     # class-level call delegates to singleton
+        bio.fetch(...)     # instance call (bio is the singleton)
+        Bio()              # returns the singleton, not a new instance
+    """
+
+    _instance: "Bio | None" = None
+
+    def __call__(cls, *args: Any, **kwargs: Any) -> "Bio":
+        """Return the singleton instance, creating it if needed."""
+        if cls._instance is None:
+            cls._instance = super().__call__(*args, **kwargs)
+        return cls._instance
+
+    def __getattribute__(cls, name: str) -> Any:
+        """Intercept all class-level attribute access.
+
+        For methods and public attributes, delegate to the singleton instance.
+        This allows Bio.fetch() to work as if it were a static method.
+        """
+        # These attributes must come from the metaclass/class itself
+        if name in ("_instance", "__class__", "__dict__", "__mro__", "__bases__",
+                    "__name__", "__qualname__", "__module__", "__doc__"):
+            return super().__getattribute__(name)
+
+        # Get or create singleton
+        instance = super().__getattribute__("_instance")
+        if instance is None:
+            instance = super().__call__()
+            super().__setattr__("_instance", instance)
+
+        # Delegate to instance
+        return getattr(instance, name)
+
+
+class Bio(metaclass=_BioMeta):
     """Top-level API for Alien Biology operations.
 
     Bio is a singleton that provides:
@@ -157,7 +195,7 @@ class Bio:
         if raw:
             data = obj
         else:
-            data = _dehydrate(obj)
+            data = deconstruct(obj)
 
         # Write YAML
         with open(spec_file, "w") as f:
@@ -224,7 +262,7 @@ class Bio:
             KeyError: If _type not registered
             ValueError: If data doesn't have _type field
         """
-        return _hydrate(data)
+        return construct(data)
 
     def dehydrate(self, obj: Any) -> dict[str, Any]:
         """Convert a biotype object to a dict with _type field.
@@ -240,7 +278,7 @@ class Bio:
         Raises:
             ValueError: If object is not a biotype
         """
-        return _dehydrate(obj)
+        return deconstruct(obj)
 
     # =========================================================================
     # Spec Evaluation (M1.8j)
@@ -294,7 +332,7 @@ class Bio:
         base_dir = str(spec_file.parent)
 
         # Hydrate: convert tags to placeholders, resolve includes
-        return eval_hydrate(data, base_path=base_dir)
+        return hydrate(data, base_path=base_dir)
 
     def eval_spec(
         self,
@@ -302,7 +340,7 @@ class Bio:
         *,
         seed: int | None = None,
         bindings: dict[str, Any] | None = None,
-        ctx: Context | None = None,
+        ctx: EvalContext | None = None,
     ) -> Any:
         """Evaluate a hydrated spec, resolving all placeholders.
 
@@ -410,6 +448,21 @@ class Bio:
         # For now, just return the built scenario
         return scenario
 
+    def sim(self, scenario: Any) -> "SimulatorBase":
+        """Create a Simulator from a Scenario.
+
+        This is a convenience method for creating a reference simulator
+        directly from a scenario object.
+
+        Args:
+            scenario: Scenario object with chemistry configuration
+
+        Returns:
+            Configured simulator instance
+        """
+        from alienbio.bio.simulator import ReferenceSimulatorImpl
+        return ReferenceSimulatorImpl(scenario)
+
     def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
         """Process raw data and hydrate to typed object."""
         # Process the data: resolve includes, transform typed keys, etc.
@@ -420,12 +473,12 @@ class Bio:
 
         # Check for top-level _type (e.g., from Bio.store)
         if "_type" in data:
-            return _hydrate(data)
+            return construct(data)
 
         # Find the first typed object and hydrate it
         for key, value in data.items():
             if isinstance(value, dict) and "_type" in value:
-                return _hydrate(value)
+                return construct(value)
 
         # If no typed object, return the raw data
         return data
@@ -471,77 +524,5 @@ class Bio:
 # =============================================================================
 
 #: The global Bio instance. Use this for all operations.
+#: Both `bio.fetch()` and `Bio.fetch()` work - they access the same singleton.
 bio = Bio()
-
-
-# =============================================================================
-# Backwards compatibility: Static method aliases
-# =============================================================================
-# These allow existing code using Bio.fetch() to continue working
-
-class _BioCompat:
-    """Backwards-compatible static interface to Bio singleton."""
-
-    @staticmethod
-    def fetch(specifier: str, *, raw: bool = False) -> Any:
-        return bio.fetch(specifier, raw=raw)
-
-    @staticmethod
-    def store(specifier: str, obj: Any, *, raw: bool = False) -> None:
-        return bio.store(specifier, obj, raw=raw)
-
-    @staticmethod
-    def expand(specifier: str) -> dict[str, Any]:
-        return bio.expand(specifier)
-
-    @staticmethod
-    def hydrate(data: dict[str, Any]) -> Any:
-        return bio.hydrate(data)
-
-    @staticmethod
-    def dehydrate(obj: Any) -> dict[str, Any]:
-        return bio.dehydrate(obj)
-
-    @staticmethod
-    def load_spec(specifier: str) -> Any:
-        return bio.load_spec(specifier)
-
-    @staticmethod
-    def eval_spec(
-        spec: Any,
-        *,
-        seed: int | None = None,
-        bindings: dict[str, Any] | None = None,
-        ctx: Context | None = None,
-    ) -> Any:
-        return bio.eval_spec(spec, seed=seed, bindings=bindings, ctx=ctx)
-
-    @staticmethod
-    def sim(scenario: Any) -> "SimulatorBase":
-        """Create a Simulator from a Scenario (legacy interface)."""
-        # Legacy: scenario was passed directly
-        # New code should use bio.create_simulator(chemistry)
-        from alienbio.bio.simulator import ReferenceSimulatorImpl
-        return ReferenceSimulatorImpl(scenario)
-
-    @staticmethod
-    def build(
-        spec: str | dict[str, Any],
-        seed: int = 0,
-        registry: Any = None,
-        params: dict[str, Any] | None = None,
-    ) -> Any:
-        return bio.build(spec, seed=seed, registry=registry, params=params)
-
-    @staticmethod
-    def run(
-        target: str | dict[str, Any],
-        seed: int = 0,
-        registry: Any = None,
-        params: dict[str, Any] | None = None,
-    ) -> Any:
-        return bio.run(target, seed=seed, registry=registry, params=params)
-
-
-# Replace Bio class reference for backwards compatibility
-Bio = _BioCompat  # type: ignore

@@ -74,8 +74,11 @@ def get_biotype(name: str) -> type:
     return biotype_registry[name]
 
 
-def hydrate(data: dict[str, Any]) -> Any:
-    """Convert a dict with _type field to a typed object.
+def construct(data: dict[str, Any]) -> Any:
+    """Construct a typed object from a dict with _type field.
+
+    This is the inverse of deconstruct(). Given a dict with a "_type" field
+    naming a registered biotype, instantiates the corresponding class.
 
     Args:
         data: Dict with "_type" field and object data
@@ -88,7 +91,7 @@ def hydrate(data: dict[str, Any]) -> Any:
         ValueError: If data doesn't have _type field
     """
     if "_type" not in data:
-        raise ValueError("Data must have '_type' field for hydration")
+        raise ValueError("Data must have '_type' field for construction")
 
     type_name = data["_type"]
     cls = get_biotype(type_name)
@@ -96,10 +99,10 @@ def hydrate(data: dict[str, Any]) -> Any:
     # Remove _type from data before instantiation
     obj_data = {k: v for k, v in data.items() if k != "_type"}
 
-    # Recursively hydrate nested dicts with _type
+    # Recursively construct nested dicts with _type
     for key, value in obj_data.items():
         if isinstance(value, dict) and "_type" in value:
-            obj_data[key] = hydrate(value)
+            obj_data[key] = construct(value)
 
     # Filter to only include fields that the class accepts
     sig = inspect.signature(cls)
@@ -114,11 +117,14 @@ def hydrate(data: dict[str, Any]) -> Any:
     return cls(**obj_data)
 
 
-def dehydrate(obj: Any) -> dict[str, Any]:
-    """Convert a biotype object to a dict with _type field.
+def deconstruct(obj: Any) -> dict[str, Any]:
+    """Deconstruct a biotype object to a dict with _type field.
+
+    This is the inverse of construct(). Given a biotype object,
+    returns a dict representation suitable for YAML serialization.
 
     Args:
-        obj: Object with _biotype_name attribute
+        obj: Object with _biotype_name attribute (decorated with @biotype)
 
     Returns:
         Dict with "_type" field and object data
@@ -132,11 +138,16 @@ def dehydrate(obj: Any) -> dict[str, Any]:
     for key, value in vars(obj).items():
         if not key.startswith("_"):
             if hasattr(value, "_biotype_name"):
-                result[key] = dehydrate(value)
+                result[key] = deconstruct(value)
             else:
                 result[key] = value
 
     return result
+
+
+# Backward compatibility aliases
+hydrate = construct
+dehydrate = deconstruct
 
 
 # --- Function decorators ---
