@@ -1,9 +1,18 @@
 """YAML tag implementations for spec language.
 
 Tags:
-    !ev <expr>     - Evaluate Python expression
-    !ref <name>    - Reference a named constant
-    !include <path> - Include external file content
+    !ev <expr>     - Evaluate Python expression (creates Evaluable)
+    !ref <name>    - Reference a named constant (creates Reference)
+    !include <path> - Include external file content (creates Include)
+    !_ <expr>      - Quoted expression for later evaluation (creates Quoted)
+
+Placeholder classes (from eval.py):
+    Evaluable - holds expression, resolved at eval time
+    Reference - holds name, resolved during hydration
+    Quoted    - holds expression string, preserved for later contextual evaluation
+
+Include class (defined here):
+    Include   - holds path, resolved during hydration (has load() method)
 """
 
 from __future__ import annotations
@@ -11,87 +20,21 @@ from typing import Any
 from pathlib import Path
 import yaml
 
-
-class EvTag:
-    """Represents an !ev tag value before evaluation."""
-
-    def __init__(self, expr: str):
-        self.expr = expr
-
-    def __repr__(self) -> str:
-        return f"EvTag({self.expr!r})"
-
-    def evaluate(self, namespace: dict[str, Any] | None = None) -> Any:
-        """Evaluate the expression in the given namespace.
-
-        Args:
-            namespace: Dict of names available during evaluation
-
-        Returns:
-            Result of evaluating the expression
-
-        Raises:
-            NameError: If expression references undefined name
-            SyntaxError: If expression has invalid syntax
-            Exception: Any exception raised during evaluation
-        """
-        ns = namespace or {}
-
-        # Security: block dangerous builtins
-        blocked = {"open", "exec", "eval", "__import__", "compile", "globals", "locals"}
-        safe_builtins = {k: v for k, v in __builtins__.items() if k not in blocked}  # type: ignore
-
-        eval_ns = {"__builtins__": safe_builtins, **ns}
-
-        return eval(self.expr, eval_ns)
+# Import placeholder classes from eval module
+from .eval import Evaluable, Quoted, Reference
 
 
-class RefTag:
-    """Represents a !ref tag value before resolution."""
+class Include:
+    """Placeholder for !include tag - file to include.
 
-    def __init__(self, name: str):
-        self.name = name
-
-    def __repr__(self) -> str:
-        return f"RefTag({self.name!r})"
-
-    def resolve(self, constants: dict[str, Any]) -> Any:
-        """Resolve the reference from constants.
-
-        Supports dotted paths: "nested.path.value"
-
-        Args:
-            constants: Dict of available constants
-
-        Returns:
-            The referenced value
-
-        Raises:
-            KeyError: If reference cannot be resolved
-        """
-        parts = self.name.split(".")
-        value = constants
-
-        for part in parts:
-            if isinstance(value, dict) and part in value:
-                value = value[part]
-            else:
-                raise KeyError(f"Cannot resolve reference: {self.name}")
-
-        return value
-
-
-class IncludeTag:
-    """Represents an !include tag value before loading."""
-
-    # Track files being loaded to detect circular includes
-    _loading_files: set[str] = set()
+    Resolved during hydration (phase 1).
+    """
 
     def __init__(self, path: str):
         self.path = path
 
     def __repr__(self) -> str:
-        return f"IncludeTag({self.path!r})"
+        return f"Include({self.path!r})"
 
     def load(self, base_dir: str | None = None, _seen: set[str] | None = None) -> Any:
         """Load the included file.
@@ -139,7 +82,7 @@ class IncludeTag:
         elif suffix in (".yaml", ".yml"):
             content = file_path.read_text()
             data = yaml.safe_load(content)
-            # Recursively resolve any IncludeTags in the loaded data
+            # Recursively resolve any Includes in the loaded data
             return self._resolve_includes(data, str(file_path.parent), _seen)
 
         elif suffix == ".py":
@@ -155,8 +98,8 @@ class IncludeTag:
     def _resolve_includes(
         self, data: Any, base_dir: str, _seen: set[str]
     ) -> Any:
-        """Recursively resolve IncludeTags in loaded data."""
-        if isinstance(data, IncludeTag):
+        """Recursively resolve Includes in loaded data."""
+        if isinstance(data, Include):
             return data.load(base_dir, _seen)
         elif isinstance(data, dict):
             return {k: self._resolve_includes(v, base_dir, _seen) for k, v in data.items()}
@@ -166,31 +109,64 @@ class IncludeTag:
             return data
 
 
+# --- Backward compatibility aliases ---
+# Old tag class names that some code may still use
+
+class EvTag(Evaluable):
+    """Backward compat alias for Evaluable."""
+    def __init__(self, expr: str):
+        super().__init__(source=expr)
+
+    @property
+    def expr(self) -> str:
+        return self.source
+
+    def evaluate(self, namespace: dict[str, Any] | None = None) -> Any:
+        """Evaluate the expression in the given namespace."""
+        ns = namespace or {}
+        blocked = {"open", "exec", "eval", "__import__", "compile", "globals", "locals"}
+        safe_builtins = {k: v for k, v in __builtins__.items() if k not in blocked}  # type: ignore
+        eval_ns = {"__builtins__": safe_builtins, **ns}
+        return eval(self.source, eval_ns)
+
+
+class RefTag(Reference):
+    """Backward compat alias for Reference."""
+    def __init__(self, name: str):
+        super().__init__(name=name)
+
+    def resolve(self, constants: dict[str, Any]) -> Any:
+        """Resolve the reference from constants."""
+        parts = self.name.split(".")
+        value = constants
+        for part in parts:
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            else:
+                raise KeyError(f"Cannot resolve reference: {self.name}")
+        return value
+
+
+# Alias for Include
+IncludeTag = Include
+
+
 # --- YAML constructors ---
+# Note: eval.py also registers constructors, but we re-register here
+# to ensure Include is used for !include
 
 
-def ev_constructor(loader: yaml.Loader, node: yaml.Node) -> EvTag:
-    """YAML constructor for !ev tag."""
-    value = loader.construct_scalar(node)  # type: ignore
-    return EvTag(str(value))
-
-
-def ref_constructor(loader: yaml.Loader, node: yaml.Node) -> RefTag:
-    """YAML constructor for !ref tag."""
-    value = loader.construct_scalar(node)  # type: ignore
-    return RefTag(str(value))
-
-
-def include_constructor(loader: yaml.Loader, node: yaml.Node) -> IncludeTag:
+def include_constructor(loader: yaml.Loader, node: yaml.Node) -> Include:
     """YAML constructor for !include tag."""
     value = loader.construct_scalar(node)  # type: ignore
-    return IncludeTag(str(value))
+    return Include(str(value))
 
 
 def register_yaml_tags() -> None:
-    """Register all custom YAML tags with the loader."""
-    yaml.add_constructor("!ev", ev_constructor, Loader=yaml.SafeLoader)
-    yaml.add_constructor("!ref", ref_constructor, Loader=yaml.SafeLoader)
+    """Register !include tag with the loader.
+
+    Note: !ev, !ref, !_, !quote are registered in eval.py
+    """
     yaml.add_constructor("!include", include_constructor, Loader=yaml.SafeLoader)
 
 

@@ -134,9 +134,7 @@ def register_eval_tags() -> None:
     yaml.add_constructor("!_", quoted_constructor, Loader=yaml.SafeLoader)
     yaml.add_constructor("!quote", quoted_constructor, Loader=yaml.SafeLoader)
     yaml.add_constructor("!ev", evaluable_constructor, Loader=yaml.SafeLoader)
-    # Note: !ref is also registered in tags.py as RefTag
-    # We register Reference here for the new evaluation system
-    # Both can coexist - the last registration wins for SafeLoader
+    yaml.add_constructor("!ref", reference_constructor, Loader=yaml.SafeLoader)
 
 
 # Register tags on module import
