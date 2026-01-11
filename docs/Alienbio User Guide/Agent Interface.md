@@ -737,7 +737,7 @@ from alienbio import Bio
 from alienbio.agent import AgentSession, run_experiment
 
 # Load or generate scenario
-scenario = Bio.generate("catalog/scenarios/mutualism/hidden_dependency", seed=42)
+scenario = Bio.build("catalog/scenarios/mutualism/hidden_dependency", seed=42)
 
 # Create agent
 agent = SomeAgent()

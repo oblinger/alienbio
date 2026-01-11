@@ -1,4 +1,4 @@
-"""Generator module for template-based scenario generation.
+"""Build module for template-based scenario generation.
 
 This module provides:
 - parse_template(): Parse template data to dict
@@ -7,9 +7,12 @@ This module provides:
 - apply_template(): Apply template to produce namespaced molecules/reactions
 - Guards: Validation system for generated content
 - Visibility: Opaque name generation and partial visibility
+- instantiate(): Full pipeline from spec to Scenario
 """
 
 from __future__ import annotations
+
+from alienbio.protocols import Scenario
 
 from .template import (
     parse_template,
@@ -48,7 +51,6 @@ from .visibility import (
 )
 from .pipeline import (
     instantiate,
-    Scenario,
 )
 
 __all__ = [

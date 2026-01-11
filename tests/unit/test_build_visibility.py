@@ -26,7 +26,7 @@ class TestOpaqueNameGeneration:
     
     def test_generate_molecule_names(self):
         """Generate opaque names for molecules with M prefix."""
-        from alienbio.generator import generate_opaque_names
+        from alienbio.build import generate_opaque_names
 
         molecules = ["m.Krel.energy.ME1", "m.Krel.energy.ME2", "m.Kova.MB1"]
         mapping = generate_opaque_names(molecules, prefix="M", seed=42)
@@ -40,7 +40,7 @@ class TestOpaqueNameGeneration:
     
     def test_generate_reaction_names(self):
         """Generate opaque names for reactions with RX prefix."""
-        from alienbio.generator import generate_opaque_names
+        from alienbio.build import generate_opaque_names
 
         reactions = ["r.Krel.energy.work", "r.Kova.consume"]
         mapping = generate_opaque_names(reactions, prefix="RX", seed=42)
@@ -51,7 +51,7 @@ class TestOpaqueNameGeneration:
     
     def test_reproducible_mapping(self):
         """Same seed produces same opaque names."""
-        from alienbio.generator import generate_opaque_names
+        from alienbio.build import generate_opaque_names
 
         molecules = ["m.A", "m.B", "m.C"]
         map1 = generate_opaque_names(molecules, seed=42)
@@ -62,7 +62,7 @@ class TestOpaqueNameGeneration:
     
     def test_different_seeds_different_mapping(self):
         """Different seeds produce different opaque names."""
-        from alienbio.generator import generate_opaque_names
+        from alienbio.build import generate_opaque_names
 
         molecules = ["m.A", "m.B", "m.C"]
         map1 = generate_opaque_names(molecules, seed=42)
@@ -74,7 +74,7 @@ class TestOpaqueNameGeneration:
     
     def test_empty_list(self):
         """Empty list produces empty mapping."""
-        from alienbio.generator import generate_opaque_names
+        from alienbio.build import generate_opaque_names
 
         mapping = generate_opaque_names([], seed=42)
         assert mapping == {}
@@ -82,7 +82,7 @@ class TestOpaqueNameGeneration:
     
     def test_single_item(self):
         """Single item produces single mapping."""
-        from alienbio.generator import generate_opaque_names
+        from alienbio.build import generate_opaque_names
 
         mapping = generate_opaque_names(["m.X"], prefix="M", seed=42)
         assert len(mapping) == 1
@@ -92,7 +92,7 @@ class TestOpaqueNameGeneration:
     
     def test_opaque_names_are_short(self):
         """Opaque names should be reasonably short."""
-        from alienbio.generator import generate_opaque_names
+        from alienbio.build import generate_opaque_names
 
         molecules = ["m.Krel.energy.ME1", "m.Krel.energy.ME2"]
         mapping = generate_opaque_names(molecules, prefix="M", seed=42)
@@ -113,7 +113,7 @@ class TestVisibilityFraction:
     
     def test_fraction_known(self):
         """Fraction known splits items into visible and hidden."""
-        from alienbio.generator import apply_fraction_known
+        from alienbio.build import apply_fraction_known
 
         items = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]  # 10 items
         visible, hidden = apply_fraction_known(items, fraction=0.7, seed=42)
@@ -125,7 +125,7 @@ class TestVisibilityFraction:
     
     def test_fraction_zero_all_hidden(self):
         """Fraction 0.0 hides all items."""
-        from alienbio.generator import apply_fraction_known
+        from alienbio.build import apply_fraction_known
 
         items = ["a", "b", "c"]
         visible, hidden = apply_fraction_known(items, fraction=0.0, seed=42)
@@ -136,7 +136,7 @@ class TestVisibilityFraction:
     
     def test_fraction_one_all_visible(self):
         """Fraction 1.0 shows all items."""
-        from alienbio.generator import apply_fraction_known
+        from alienbio.build import apply_fraction_known
 
         items = ["a", "b", "c"]
         visible, hidden = apply_fraction_known(items, fraction=1.0, seed=42)
@@ -147,7 +147,7 @@ class TestVisibilityFraction:
     
     def test_fraction_reproducible(self):
         """Same seed produces same split."""
-        from alienbio.generator import apply_fraction_known
+        from alienbio.build import apply_fraction_known
 
         items = ["a", "b", "c", "d", "e"]
         v1, h1 = apply_fraction_known(items, fraction=0.6, seed=42)
@@ -159,7 +159,7 @@ class TestVisibilityFraction:
     
     def test_fraction_different_seeds(self):
         """Different seeds produce different splits."""
-        from alienbio.generator import apply_fraction_known
+        from alienbio.build import apply_fraction_known
 
         items = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
         v1, _ = apply_fraction_known(items, fraction=0.5, seed=42)
@@ -171,7 +171,7 @@ class TestVisibilityFraction:
     
     def test_fraction_empty_list(self):
         """Empty list produces empty visible and hidden."""
-        from alienbio.generator import apply_fraction_known
+        from alienbio.build import apply_fraction_known
 
         visible, hidden = apply_fraction_known([], fraction=0.5, seed=42)
         assert visible == []
@@ -180,7 +180,7 @@ class TestVisibilityFraction:
     
     def test_fraction_rounds_correctly(self):
         """Fraction rounds to nearest integer count."""
-        from alienbio.generator import apply_fraction_known
+        from alienbio.build import apply_fraction_known
 
         items = ["a", "b", "c"]  # 3 items
         # 0.5 * 3 = 1.5, should round to 1 or 2
@@ -199,7 +199,7 @@ class TestVisibilityMapping:
     
     def test_visibility_mapping_structure(self):
         """Visibility mapping has correct structure."""
-        from alienbio.generator import generate_visibility_mapping
+        from alienbio.build import generate_visibility_mapping
 
         expanded = MockExpanded(
             molecules={"m.Krel.M1": {}, "m.Kova.M2": {}},
@@ -220,7 +220,7 @@ class TestVisibilityMapping:
     
     def test_hidden_dependencies(self):
         """Hidden dependencies are tracked in _hidden_."""
-        from alienbio.generator import generate_visibility_mapping
+        from alienbio.build import generate_visibility_mapping
 
         expanded = MockExpanded(
             molecules={"m.A": {}, "m.B": {}, "m.C": {}},
@@ -238,7 +238,7 @@ class TestVisibilityMapping:
     
     def test_visibility_mapping_reproducible(self):
         """Same seed produces same mapping."""
-        from alienbio.generator import generate_visibility_mapping
+        from alienbio.build import generate_visibility_mapping
 
         expanded = MockExpanded(
             molecules={"m.A": {}, "m.B": {}},
@@ -257,7 +257,7 @@ class TestVisibilityMapping:
     
     def test_visibility_per_entity_type(self):
         """Different visibility fractions per entity type."""
-        from alienbio.generator import generate_visibility_mapping
+        from alienbio.build import generate_visibility_mapping
 
         expanded = MockExpanded(
             molecules={"m.A": {}, "m.B": {}, "m.C": {}, "m.D": {}},
@@ -284,7 +284,7 @@ class TestApplyVisibility:
     
     def test_apply_visibility_renames_molecules(self):
         """Molecules are renamed according to mapping."""
-        from alienbio.generator import apply_visibility
+        from alienbio.build import apply_visibility
 
         scenario = {"molecules": {"m.Krel.ME1": {"role": "energy"}}, "reactions": {}}
         mapping = {"m.Krel.ME1": "M1"}
@@ -297,7 +297,7 @@ class TestApplyVisibility:
     
     def test_apply_visibility_updates_reactions(self):
         """Reaction references are updated with new molecule names."""
-        from alienbio.generator import apply_visibility
+        from alienbio.build import apply_visibility
 
         scenario = {
             "molecules": {"m.Krel.M1": {}, "m.Krel.M2": {}},
@@ -313,7 +313,7 @@ class TestApplyVisibility:
     
     def test_apply_visibility_removes_hidden(self):
         """Hidden elements are removed from visible scenario."""
-        from alienbio.generator import apply_visibility
+        from alienbio.build import apply_visibility
 
         scenario = {
             "molecules": {"m.A": {}, "m.B": {}, "m.C": {}},
@@ -333,7 +333,7 @@ class TestApplyVisibility:
     
     def test_apply_visibility_preserves_other_fields(self):
         """Non-name fields in molecules/reactions are preserved."""
-        from alienbio.generator import apply_visibility
+        from alienbio.build import apply_visibility
 
         scenario = {
             "molecules": {
@@ -356,7 +356,7 @@ class TestApplyVisibility:
     
     def test_apply_visibility_handles_complex_reactions(self):
         """Complex reactions with multiple reactants/products are updated."""
-        from alienbio.generator import apply_visibility
+        from alienbio.build import apply_visibility
 
         scenario = {
             "molecules": {"m.A": {}, "m.B": {}, "m.C": {}},
@@ -381,7 +381,7 @@ class TestApplyVisibility:
     
     def test_apply_visibility_empty_scenario(self):
         """Empty scenario produces empty visible scenario."""
-        from alienbio.generator import apply_visibility
+        from alienbio.build import apply_visibility
 
         scenario = {"molecules": {}, "reactions": {}}
         mapping = {}
@@ -402,7 +402,7 @@ class TestVisibilityIntegration:
     
     def test_full_visibility_pipeline(self):
         """Full pipeline: generate mapping then apply to scenario."""
-        from alienbio.generator import (
+        from alienbio.build import (
             generate_visibility_mapping,
             apply_visibility,
         )
@@ -440,7 +440,7 @@ class TestVisibilityIntegration:
     
     def test_partial_visibility_hides_correctly(self):
         """Partial visibility hides some elements."""
-        from alienbio.generator import (
+        from alienbio.build import (
             generate_visibility_mapping,
             apply_visibility,
         )
@@ -463,7 +463,7 @@ class TestVisibilityIntegration:
     
     def test_ground_truth_preserved(self):
         """Ground truth mapping is preserved for debugging."""
-        from alienbio.generator import (
+        from alienbio.build import (
             generate_visibility_mapping,
             apply_visibility,
         )

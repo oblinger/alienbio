@@ -27,7 +27,7 @@ class TestDistributionEvaluation:
     @pytest.mark.skip(reason="Generator context not yet implemented")
     def test_discrete_choice_with_labels(self):
         """discrete() works with labeled choices."""
-        from alienbio.generator import GeneratorContext, eval_expr
+        from alienbio.build import GeneratorContext, eval_expr
 
         ctx = GeneratorContext(seed=42)
         result = eval_expr("discrete(['a', 'b', 'c'], [0.5, 0.3, 0.2])", ctx)
@@ -36,7 +36,7 @@ class TestDistributionEvaluation:
     @pytest.mark.skip(reason="Generator context not yet implemented")
     def test_choice_uniform(self):
         """choice() picks uniformly from options."""
-        from alienbio.generator import GeneratorContext, eval_expr
+        from alienbio.build import GeneratorContext, eval_expr
 
         ctx = GeneratorContext(seed=42)
         result = eval_expr("choice('red', 'green', 'blue')", ctx)
@@ -45,7 +45,7 @@ class TestDistributionEvaluation:
     @pytest.mark.skip(reason="Generator context not yet implemented")
     def test_range_expression(self):
         """range() expressions work in generator context."""
-        from alienbio.generator import GeneratorContext, eval_expr
+        from alienbio.build import GeneratorContext, eval_expr
 
         ctx = GeneratorContext(seed=42)
         result = eval_expr("list(range(1, 4))", ctx)
@@ -63,7 +63,7 @@ class TestDistributionInParams:
     @pytest.fixture
     def registry(self):
         """Registry with templates for distribution tests."""
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("simple", parse_template({
@@ -74,7 +74,7 @@ class TestDistributionInParams:
 
     def test_param_with_distribution(self, registry):
         """Template param with !ev distribution is sampled."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"rate": "!ev lognormal(0.1, 0.3)"},
@@ -94,7 +94,7 @@ class TestDistributionInParams:
 
     def test_same_seed_same_result(self):
         """Same seed produces identical sampled values."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"rate": "!ev lognormal(0.1, 0.3)"},
@@ -111,7 +111,7 @@ class TestDistributionInParams:
 
     def test_multiple_distributions_same_template(self):
         """Multiple distribution params are independently sampled."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {
@@ -139,7 +139,7 @@ class TestDistributionInMolecules:
 
     def test_ev_in_molecule_field(self):
         """Molecule field with !ev is evaluated."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "molecules": {
@@ -157,7 +157,7 @@ class TestDistributionInMolecules:
     @pytest.mark.skip(reason="Molecule name expansion with {i in range} syntax not yet implemented")
     def test_ev_with_index(self):
         """!ev can use loop index variable."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "molecules": {
@@ -176,7 +176,7 @@ class TestDistributionInMolecules:
     @pytest.mark.skip(reason="Molecule name expansion with {i in range} syntax not yet implemented")
     def test_ev_computed_from_index(self):
         """!ev can compute values from index."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "molecules": {
@@ -198,7 +198,7 @@ class TestDistributionInLoopRanges:
     @pytest.fixture
     def registry(self):
         """Registry with simple template."""
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("simple", parse_template({
@@ -209,7 +209,7 @@ class TestDistributionInLoopRanges:
 
     def test_distribution_in_loop_range(self, registry):
         """Loop count can come from sampled distribution."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"count": "!ev round(normal(3, 0.5))"},
@@ -226,7 +226,7 @@ class TestDistributionInLoopRanges:
 
     def test_distribution_loop_reproducible(self, registry):
         """Sampled loop count is reproducible with same seed."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"count": "!ev round(normal(3, 0.5))"},
@@ -245,7 +245,7 @@ class TestDistributionInLoopRanges:
 
     def test_poisson_loop_count(self, registry):
         """Poisson distribution for count (always non-negative integer)."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"count": "!ev poisson(3)"},
@@ -262,7 +262,7 @@ class TestDistributionInLoopRanges:
 
     def test_nested_distribution_dependencies(self, registry):
         """Distributions can depend on previously sampled values."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {
@@ -290,7 +290,7 @@ class TestDistributionEdgeCases:
 
     def test_zero_variance_normal(self):
         """Normal with std=0 returns mean exactly."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"rate": "!ev normal(0.5, 0)"},
@@ -303,7 +303,7 @@ class TestDistributionEdgeCases:
 
     def test_uniform_single_value(self):
         """Uniform with low==high returns that value."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"rate": "!ev uniform(0.5, 0.5)"},
@@ -315,7 +315,7 @@ class TestDistributionEdgeCases:
 
     def test_choice_single_option(self):
         """choice() with one option returns that option."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"color": "!ev choice(['red'])"},

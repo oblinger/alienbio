@@ -25,7 +25,7 @@ class TestTemplateDataStructures:
 
     def test_template_has_params(self):
         """Template parses _params_ section into params dict."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         t = parse_template({
             "_params_": {"rate": 0.1, "count": 5},
@@ -36,7 +36,7 @@ class TestTemplateDataStructures:
 
     def test_template_has_ports(self):
         """Template parses _ports_ section with type and direction."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         t = parse_template({
             "_ports_": {
@@ -51,7 +51,7 @@ class TestTemplateDataStructures:
 
     def test_template_has_molecules_and_reactions(self):
         """Template parses molecules and reactions sections."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         t = parse_template({
             "molecules": {
@@ -69,7 +69,7 @@ class TestTemplateDataStructures:
 
     def test_template_empty_sections(self):
         """Template handles missing optional sections."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         t = parse_template({"molecules": {"M1": {}}})
         assert t["params"] == {}
@@ -79,7 +79,7 @@ class TestTemplateDataStructures:
 
     def test_template_name_from_typed_key(self):
         """Template extracts name from template.name: syntax."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         data = yaml.safe_load("""
         template.energy_cycle:
@@ -92,7 +92,7 @@ class TestTemplateDataStructures:
 
     def test_template_with_instantiate_block(self):
         """Template can have _instantiate_ section for nesting."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         t = parse_template({
             "_instantiate_": {
@@ -109,7 +109,7 @@ class TestPortClass:
 
     def test_port_from_string_out(self):
         """parse_port handles 'type.out' format."""
-        from alienbio.generator import parse_port
+        from alienbio.build import parse_port
 
         p = parse_port("energy.out", path="reactions.work")
         assert p["type"] == "energy"
@@ -118,7 +118,7 @@ class TestPortClass:
 
     def test_port_from_string_in(self):
         """parse_port handles 'type.in' format."""
-        from alienbio.generator import parse_port
+        from alienbio.build import parse_port
 
         p = parse_port("molecule.in", path="molecules.M1")
         assert p["type"] == "molecule"
@@ -126,14 +126,14 @@ class TestPortClass:
 
     def test_port_invalid_direction(self):
         """parse_port raises on invalid direction."""
-        from alienbio.generator import parse_port
+        from alienbio.build import parse_port
 
         with pytest.raises(ValueError, match="direction"):
             parse_port("energy.sideways", path="x")
 
     def test_port_equality(self):
         """Ports with same attributes are equal."""
-        from alienbio.generator import parse_port
+        from alienbio.build import parse_port
 
         p1 = parse_port("energy.out", path="reactions.work")
         p2 = parse_port("energy.out", path="reactions.work")
@@ -141,7 +141,7 @@ class TestPortClass:
 
     def test_port_compatible(self):
         """Ports are compatible if types match and directions are in/out."""
-        from alienbio.generator import parse_port, ports_compatible
+        from alienbio.build import parse_port, ports_compatible
 
         out_port = parse_port("energy.out", path="r.work")
         in_port = parse_port("energy.in", path="r.consume")
@@ -150,7 +150,7 @@ class TestPortClass:
 
     def test_port_incompatible_type(self):
         """Ports with different types are incompatible."""
-        from alienbio.generator import parse_port, ports_compatible
+        from alienbio.build import parse_port, ports_compatible
 
         energy_port = parse_port("energy.out", path="r.work")
         molecule_port = parse_port("molecule.in", path="m.M1")
@@ -167,7 +167,7 @@ class TestTemplateRegistry:
 
     def test_template_registration(self):
         """Registry stores and retrieves templates by name."""
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         template = parse_template({"molecules": {"M1": {}}})
@@ -176,7 +176,7 @@ class TestTemplateRegistry:
 
     def test_template_not_found(self):
         """Registry raises TemplateNotFoundError for missing templates."""
-        from alienbio.generator import TemplateRegistry, TemplateNotFoundError
+        from alienbio.build import TemplateRegistry, TemplateNotFoundError
 
         registry = TemplateRegistry()
         with pytest.raises(TemplateNotFoundError):
@@ -184,7 +184,7 @@ class TestTemplateRegistry:
 
     def test_template_not_found_message(self):
         """TemplateNotFoundError includes the template name."""
-        from alienbio.generator import TemplateRegistry, TemplateNotFoundError
+        from alienbio.build import TemplateRegistry, TemplateNotFoundError
 
         registry = TemplateRegistry()
         with pytest.raises(TemplateNotFoundError) as exc:
@@ -193,7 +193,7 @@ class TestTemplateRegistry:
 
     def test_registry_contains(self):
         """Registry supports 'in' operator for checking existence."""
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         template = parse_template({"molecules": {}})
@@ -204,7 +204,7 @@ class TestTemplateRegistry:
 
     def test_template_from_yaml_file(self, tmp_path):
         """Registry loads templates from YAML files."""
-        from alienbio.generator import TemplateRegistry
+        from alienbio.build import TemplateRegistry
 
         # Create template file
         template_dir = tmp_path / "templates" / "primitives"
@@ -228,7 +228,7 @@ template.energy_cycle:
 
     def test_template_nested_path(self, tmp_path):
         """Registry handles nested directory paths."""
-        from alienbio.generator import TemplateRegistry
+        from alienbio.build import TemplateRegistry
 
         # Create nested template
         nested_dir = tmp_path / "templates" / "organisms" / "producers"
@@ -243,7 +243,7 @@ template.autotroph:
 
     def test_registry_list_all(self):
         """Registry lists all registered template names."""
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("a", parse_template({}))
@@ -255,7 +255,7 @@ template.autotroph:
 
     def test_registry_overwrite(self):
         """Registering same name overwrites previous template."""
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         t1 = parse_template({"molecules": {"M1": {}}})
@@ -279,7 +279,7 @@ class TestTemplateYAMLParsing:
 
     def test_parse_full_template(self):
         """Parse a complete template with all sections."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         yaml_str = """
         _params_:
@@ -307,7 +307,7 @@ class TestTemplateYAMLParsing:
 
     def test_parse_template_with_instantiate(self):
         """Parse template with nested instantiation."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         yaml_str = """
         _params_:

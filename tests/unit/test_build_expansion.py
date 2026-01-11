@@ -26,7 +26,7 @@ class TestSingleTemplateExpansion:
     
     def test_expand_simple_template(self):
         """Expanded template has namespaced molecule and reaction names."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "molecules": {"M1": {"role": "energy"}},
@@ -40,7 +40,7 @@ class TestSingleTemplateExpansion:
     
     def test_expand_with_params(self):
         """Parameter values are substituted during expansion."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"rate": 0.1},
@@ -53,7 +53,7 @@ class TestSingleTemplateExpansion:
     
     def test_expand_resolves_refs(self):
         """!ref expressions are resolved to parameter values."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"k": 0.1},
@@ -67,7 +67,7 @@ class TestSingleTemplateExpansion:
     
     def test_expand_default_params(self):
         """Template _params_ provide defaults when not overridden."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "_params_": {"rate": 0.1, "efficiency": 0.8},
@@ -82,7 +82,7 @@ class TestSingleTemplateExpansion:
     
     def test_expand_updates_reaction_references(self):
         """Molecule names in reactions are also namespaced."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "molecules": {"M1": {}, "M2": {}},
@@ -99,7 +99,7 @@ class TestSingleTemplateExpansion:
     
     def test_expand_preserves_other_fields(self):
         """Non-name fields in molecules/reactions are preserved."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         template = parse_template({
             "molecules": {
@@ -124,7 +124,7 @@ class TestNestedInstantiation:
     @pytest.fixture
     def simple_registry(self):
         """Registry with a simple template for testing."""
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("energy_cycle", parse_template({
@@ -154,7 +154,7 @@ class TestNestedInstantiation:
     
     def test_nested_instantiation(self, simple_registry):
         """_instantiate_ with _as_ creates namespaced sub-templates."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         parent = parse_template({
             "_instantiate_": {
@@ -170,7 +170,7 @@ class TestNestedInstantiation:
     
     def test_nested_param_override(self, simple_registry):
         """Nested instantiation can override parent template params."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         parent = parse_template({
             "_instantiate_": {
@@ -186,7 +186,7 @@ class TestNestedInstantiation:
     
     def test_replication(self, simple_registry):
         """_as_ with {i in range} creates multiple instances."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         parent = parse_template({
             "_instantiate_": {
@@ -204,7 +204,7 @@ class TestNestedInstantiation:
     
     def test_replication_indices_concatenate(self, simple_registry):
         """Indices concatenate without dots: chain1, not chain.1."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         parent = parse_template({
             "_instantiate_": {
@@ -219,7 +219,7 @@ class TestNestedInstantiation:
     
     def test_replication_zero_count(self, simple_registry):
         """Replication with count 0 creates no instances."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         parent = parse_template({
             "_instantiate_": {
@@ -234,7 +234,7 @@ class TestNestedInstantiation:
     
     def test_multiple_nested(self, simple_registry):
         """Multiple _as_ blocks in same _instantiate_."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         parent = parse_template({
             "_instantiate_": {
@@ -250,7 +250,7 @@ class TestNestedInstantiation:
     
     def test_deeply_nested(self, simple_registry):
         """Templates can instantiate templates that instantiate templates."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         # Add a template that uses nested instantiation
         simple_registry.register("composite", parse_template({
@@ -280,7 +280,7 @@ class TestPortWiring:
     
     def test_port_declaration(self):
         """Template parses _ports_ with path, type, and direction."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         template = parse_template({
             "_ports_": {
@@ -297,7 +297,7 @@ class TestPortWiring:
     @pytest.fixture
     def wiring_registry(self):
         """Registry with templates that have ports for wiring tests."""
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("energy_cycle", parse_template({
@@ -331,7 +331,7 @@ class TestPortWiring:
     
     def test_port_connection_at_instantiation(self, wiring_registry):
         """Port connection syntax wires ports together."""
-        from alienbio.generator import parse_template, apply_template
+        from alienbio.build import parse_template, apply_template
 
         parent = parse_template({
             "_instantiate_": {
@@ -351,7 +351,7 @@ class TestPortWiring:
     
     def test_port_type_mismatch_error(self, wiring_registry):
         """Connecting incompatible port types raises error."""
-        from alienbio.generator import parse_template, apply_template, PortTypeMismatchError
+        from alienbio.build import parse_template, apply_template, PortTypeMismatchError
 
         parent = parse_template({
             "_instantiate_": {
@@ -369,7 +369,7 @@ class TestPortWiring:
     
     def test_port_connection_missing_target(self, wiring_registry):
         """Connecting to non-existent port raises error."""
-        from alienbio.generator import parse_template, apply_template, PortNotFoundError
+        from alienbio.build import parse_template, apply_template, PortNotFoundError
 
         parent = parse_template({
             "_instantiate_": {
@@ -386,7 +386,7 @@ class TestPortWiring:
     
     def test_multiple_port_connections(self, wiring_registry):
         """Multiple port connections in same instantiation."""
-        from alienbio.generator import parse_template, TemplateRegistry, apply_template
+        from alienbio.build import parse_template, TemplateRegistry, apply_template
 
         # Create template with multiple ports
         registry = TemplateRegistry()
@@ -434,7 +434,7 @@ class TestExpansionIntegration:
     
     def test_full_organism_expansion(self):
         """Expand a complete organism template with multiple sub-templates."""
-        from alienbio.generator import parse_template, TemplateRegistry, apply_template
+        from alienbio.build import parse_template, TemplateRegistry, apply_template
 
         registry = TemplateRegistry()
         registry.register("energy_cycle", parse_template({
@@ -468,7 +468,7 @@ class TestExpansionIntegration:
 
     def test_expansion_with_sampled_count(self):
         """Replication count can come from sampled parameter."""
-        from alienbio.generator import parse_template, TemplateRegistry, apply_template
+        from alienbio.build import parse_template, TemplateRegistry, apply_template
 
         registry = TemplateRegistry()
         registry.register("simple", parse_template({

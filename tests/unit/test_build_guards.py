@@ -27,7 +27,7 @@ class TestGuardDecorator:
     
     def test_guard_decorator(self):
         """@guard decorator marks function as a guard."""
-        from alienbio.generator import guard
+        from alienbio.build import guard
 
         @guard
         def my_guard(expanded, context):
@@ -39,7 +39,7 @@ class TestGuardDecorator:
     
     def test_guard_passes(self):
         """Guard that returns True passes."""
-        from alienbio.generator import guard, run_guard, make_guard_context
+        from alienbio.build import guard, run_guard, make_guard_context
 
         @guard
         def always_pass(expanded, context):
@@ -52,7 +52,7 @@ class TestGuardDecorator:
     
     def test_guard_violation(self):
         """Guard that raises GuardViolation fails with details."""
-        from alienbio.generator import guard, run_guard, GuardViolation, make_guard_context
+        from alienbio.build import guard, run_guard, GuardViolation, make_guard_context
 
         @guard
         def always_fail(expanded, context):
@@ -67,7 +67,7 @@ class TestGuardDecorator:
     
     def test_guard_context_has_scenario(self):
         """Guard context dict provides scenario, namespace, seed, attempt."""
-        from alienbio.generator import guard, run_guard, make_guard_context
+        from alienbio.build import guard, run_guard, make_guard_context
 
         received_context = None
 
@@ -97,7 +97,7 @@ class TestGuardViolationDetails:
     
     def test_violation_message(self):
         """GuardViolation has message."""
-        from alienbio.generator import GuardViolation
+        from alienbio.build import GuardViolation
 
         exc = GuardViolation("Something went wrong")
         assert str(exc) == "Something went wrong"
@@ -105,7 +105,7 @@ class TestGuardViolationDetails:
     
     def test_violation_details(self):
         """GuardViolation carries details dict."""
-        from alienbio.generator import GuardViolation
+        from alienbio.build import GuardViolation
 
         exc = GuardViolation("Failed", details={
             "molecule": "m.x.M1",
@@ -117,7 +117,7 @@ class TestGuardViolationDetails:
     
     def test_violation_prune_list(self):
         """GuardViolation can specify elements to prune."""
-        from alienbio.generator import GuardViolation
+        from alienbio.build import GuardViolation
 
         exc = GuardViolation("Too big", prune=["m.x.big1", "m.x.big2"])
         assert exc.prune == ["m.x.big1", "m.x.big2"]
@@ -144,7 +144,7 @@ class TestNoNewSpeciesDependencies:
     
     def test_no_new_species_dependencies_passes(self, mock_scenario):
         """Reaction within single species namespace passes."""
-        from alienbio.generator import no_new_species_dependencies, make_guard_context
+        from alienbio.build import no_new_species_dependencies, make_guard_context
 
         expanded = {
             "reactions": {
@@ -162,7 +162,7 @@ class TestNoNewSpeciesDependencies:
     
     def test_no_new_species_dependencies_fails(self, mock_scenario):
         """Reaction linking two species fails."""
-        from alienbio.generator import no_new_species_dependencies, make_guard_context, GuardViolation
+        from alienbio.build import no_new_species_dependencies, make_guard_context, GuardViolation
 
         expanded = {
             "reactions": {
@@ -181,7 +181,7 @@ class TestNoNewSpeciesDependencies:
     
     def test_background_reactions_ok(self):
         """Reactions in background namespace don't link species."""
-        from alienbio.generator import no_new_species_dependencies, make_guard_context
+        from alienbio.build import no_new_species_dependencies, make_guard_context
 
         expanded = {
             "reactions": {
@@ -203,7 +203,7 @@ class TestNoNewCycles:
     
     def test_no_new_cycles_linear_passes(self):
         """Linear pathway passes."""
-        from alienbio.generator import no_new_cycles, make_guard_context
+        from alienbio.build import no_new_cycles, make_guard_context
 
         expanded = {
             "reactions": {
@@ -219,7 +219,7 @@ class TestNoNewCycles:
     
     def test_no_new_cycles_fails(self):
         """Circular pathway fails."""
-        from alienbio.generator import no_new_cycles, make_guard_context, GuardViolation
+        from alienbio.build import no_new_cycles, make_guard_context, GuardViolation
 
         expanded = {
             "reactions": {
@@ -236,7 +236,7 @@ class TestNoNewCycles:
     
     def test_self_loop_is_cycle(self):
         """Reaction consuming and producing same molecule is a cycle."""
-        from alienbio.generator import no_new_cycles, make_guard_context, GuardViolation
+        from alienbio.build import no_new_cycles, make_guard_context, GuardViolation
 
         expanded = {
             "reactions": {
@@ -255,7 +255,7 @@ class TestNoEssential:
     
     def test_no_essential_passes(self):
         """Molecule not in reproduction_threshold passes."""
-        from alienbio.generator import no_essential, make_guard_context
+        from alienbio.build import no_essential, make_guard_context
 
         scenario = {
             "organisms": {
@@ -275,7 +275,7 @@ class TestNoEssential:
     
     def test_no_essential_fails(self):
         """New molecule referenced in reproduction_threshold fails."""
-        from alienbio.generator import no_essential, make_guard_context, GuardViolation
+        from alienbio.build import no_essential, make_guard_context, GuardViolation
 
         scenario = {
             "organisms": {
@@ -304,7 +304,7 @@ class TestGuardModes:
     @pytest.fixture
     def simple_template(self):
         """Template for mode testing."""
-        from alienbio.generator import parse_template
+        from alienbio.build import parse_template
 
         return parse_template({
             "molecules": {"M1": {}}
@@ -313,7 +313,7 @@ class TestGuardModes:
     
     def test_reject_mode(self, simple_template):
         """reject mode fails immediately on violation."""
-        from alienbio.generator import guard, apply_template_with_guards, GuardViolation
+        from alienbio.build import guard, apply_template_with_guards, GuardViolation
 
         @guard
         def always_fail(expanded, context):
@@ -330,7 +330,7 @@ class TestGuardModes:
     
     def test_retry_mode_succeeds(self, simple_template):
         """retry mode resamples until guard passes."""
-        from alienbio.generator import guard, apply_template_with_guards, GuardViolation
+        from alienbio.build import guard, apply_template_with_guards, GuardViolation
 
         attempts = []
 
@@ -357,7 +357,7 @@ class TestGuardModes:
     
     def test_retry_mode_exhausted(self, simple_template):
         """retry mode fails after max_attempts."""
-        from alienbio.generator import guard, apply_template_with_guards, GuardViolation
+        from alienbio.build import guard, apply_template_with_guards, GuardViolation
 
         @guard
         def always_fail(expanded, context):
@@ -377,7 +377,7 @@ class TestGuardModes:
     
     def test_prune_mode(self):
         """prune mode removes violating elements."""
-        from alienbio.generator import guard, apply_template_with_guards, GuardViolation, parse_template
+        from alienbio.build import guard, apply_template_with_guards, GuardViolation, parse_template
 
         template = parse_template({
             "molecules": {
@@ -406,7 +406,7 @@ class TestGuardModes:
     
     def test_retry_increments_seed(self, simple_template):
         """Each retry attempt uses different seed."""
-        from alienbio.generator import guard, apply_template_with_guards, GuardViolation
+        from alienbio.build import guard, apply_template_with_guards, GuardViolation
 
         seeds = []
 
@@ -442,7 +442,7 @@ class TestGuardsInYAML:
     @pytest.mark.skip(reason="load_generator_spec not yet implemented")
     def test_global_guards(self):
         """_guards_ section lists guard names."""
-        from alienbio.generator import load_generator_spec
+        from alienbio.build import load_generator_spec
 
         yaml_str = """
 scenario_generator_spec:
@@ -461,7 +461,7 @@ scenario_generator_spec:
     @pytest.mark.skip(reason="load_generator_spec not yet implemented")
     def test_guard_with_params(self):
         """Guard can have parameters."""
-        from alienbio.generator import load_generator_spec
+        from alienbio.build import load_generator_spec
 
         yaml_str = """
 scenario_generator_spec:
@@ -477,7 +477,7 @@ scenario_generator_spec:
     @pytest.mark.skip(reason="load_generator_spec not yet implemented")
     def test_guard_with_mode(self):
         """Guard can specify mode and max_attempts."""
-        from alienbio.generator import load_generator_spec
+        from alienbio.build import load_generator_spec
 
         yaml_str = """
 scenario_generator_spec:
@@ -496,7 +496,7 @@ scenario_generator_spec:
     @pytest.mark.skip(reason="load_generator_spec not yet implemented")
     def test_guard_mixed_syntax(self):
         """Guards can mix simple names and detailed configs."""
-        from alienbio.generator import load_generator_spec
+        from alienbio.build import load_generator_spec
 
         yaml_str = """
 scenario_generator_spec:
@@ -525,7 +525,7 @@ class TestGuardHelpers:
     
     def test_get_species_from_path(self):
         """Extract species name from molecule/reaction path."""
-        from alienbio.generator import get_species_from_path
+        from alienbio.build import get_species_from_path
 
         assert get_species_from_path("m.Krel.energy.ME1") == "Krel"
         assert get_species_from_path("r.Kova.chain.build") == "Kova"
@@ -535,7 +535,7 @@ class TestGuardHelpers:
     
     def test_build_dependency_graph(self):
         """Build graph of molecule dependencies from reactions."""
-        from alienbio.generator import build_dependency_graph
+        from alienbio.build import build_dependency_graph
 
         reactions = {
             "r1": {"reactants": ["M1"], "products": ["M2"]},
@@ -551,7 +551,7 @@ class TestGuardHelpers:
     
     def test_detect_cycles(self):
         """Detect cycles in dependency graph."""
-        from alienbio.generator import detect_cycles
+        from alienbio.build import detect_cycles
 
         # No cycle
         graph1 = {"A": ["B"], "B": ["C"]}

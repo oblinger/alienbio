@@ -346,19 +346,19 @@ class Bio:
     # Scenario Instantiation (M2.7)
     # =========================================================================
 
-    def _instantiate(
+    def build(
         self,
         spec: str | dict[str, Any],
         seed: int = 0,
         registry: Any = None,
         params: dict[str, Any] | None = None,
     ) -> Any:
-        """Instantiate a scenario from a generator spec.
+        """Build a scenario from a spec.
 
-        Internal method. Use run() for the public API.
+        Template instantiation: expand templates into a concrete scenario.
 
         Args:
-            spec: Generator spec dict or path to spec file
+            spec: Spec dict or specifier string (fetched first if string)
             seed: Random seed for reproducibility
             registry: Template registry for resolving template references
             params: Parameter overrides
@@ -366,84 +366,49 @@ class Bio:
         Returns:
             Scenario with visible and ground truth data
         """
-        from alienbio.generator import instantiate as gen_instantiate
+        from alienbio.build import instantiate as build_instantiate
 
-        # If spec is a string, treat it as a path
+        # If spec is a string, fetch it first
         if isinstance(spec, str):
             spec = self.fetch(spec, raw=True)
 
-        return gen_instantiate(spec, seed=seed, registry=registry, params=params)
+        return build_instantiate(spec, seed=seed, registry=registry, params=params)
 
     def run(
         self,
-        target: str,
+        target: str | dict[str, Any],
         seed: int = 0,
         registry: Any = None,
         params: dict[str, Any] | None = None,
     ) -> Any:
-        """Run a recipe or DAT.
-
-        Determines whether target is a recipe (dotted name) or a DAT (path):
-        - If target has dots before the first slash (or no slash), it's a recipe.
-          Performs lookup + instantiate, then runs the resulting scenario.
-        - If target has no dots before the first slash, it's a DAT path.
-          Loads and runs the existing DAT.
+        """Run a target: build if needed, then execute.
 
         Args:
-            target: Recipe name (e.g., "generators.b10") or DAT path
-            seed: Random seed for reproducibility (for recipes)
-            registry: Template registry for resolving template references
-            params: Parameter overrides
-
-        Returns:
-            Scenario with visible and ground truth data
-
-        Example:
-            # Run a recipe (dots before slash = recipe name)
-            scenario = bio.run("generators.b10", seed=42)
-
-            # Run a DAT (no dots before slash = path)
-            scenario = bio.run("data/results/run_42")
-        """
-        # Detect if target is a recipe or DAT path
-        slash_idx = target.find("/")
-        if slash_idx == -1:
-            # No slash - check for dots
-            has_dots = "." in target
-        else:
-            # Check for dots before the first slash
-            prefix = target[:slash_idx]
-            has_dots = "." in prefix
-
-        if has_dots:
-            # Recipe name: lookup + instantiate
-            return self._instantiate(target, seed=seed, registry=registry, params=params)
-        else:
-            # DAT path: load and return
-            return self.fetch(target)
-
-    # Backwards-compatible alias
-    def generate(
-        self,
-        spec: str | dict[str, Any],
-        seed: int = 0,
-        registry: Any = None,
-        params: dict[str, Any] | None = None,
-    ) -> Any:
-        """Generate a scenario from a generator spec.
-
-        DEPRECATED: Use run() for new code.
-
-        Args:
-            spec: Generator spec dict or path to spec file
+            target: Specifier string, dict spec, or DAT
             seed: Random seed for reproducibility
             registry: Template registry for resolving template references
             params: Parameter overrides
 
         Returns:
-            Scenario with visible and ground truth data
+            Execution result
+
+        Behavior:
+        - If target is a string: calls build(target), then executes
+        - If target is a dict: calls build(dict), then executes
+        - If target is a DAT: executes directly
         """
-        return self._instantiate(spec, seed=seed, registry=registry, params=params)
+        # If string, build first (which fetches)
+        if isinstance(target, str):
+            scenario = self.build(target, seed=seed, registry=registry, params=params)
+        elif isinstance(target, dict):
+            scenario = self.build(target, seed=seed, registry=registry, params=params)
+        else:
+            # Already a scenario/DAT
+            scenario = target
+
+        # TODO: Execute the scenario
+        # For now, just return the built scenario
+        return scenario
 
     def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
         """Process raw data and hydrate to typed object."""
@@ -560,17 +525,17 @@ class _BioCompat:
         return ReferenceSimulatorImpl(scenario)
 
     @staticmethod
-    def generate(
+    def build(
         spec: str | dict[str, Any],
         seed: int = 0,
         registry: Any = None,
         params: dict[str, Any] | None = None,
     ) -> Any:
-        return bio.generate(spec, seed=seed, registry=registry, params=params)
+        return bio.build(spec, seed=seed, registry=registry, params=params)
 
     @staticmethod
     def run(
-        target: str,
+        target: str | dict[str, Any],
         seed: int = 0,
         registry: Any = None,
         params: dict[str, Any] | None = None,

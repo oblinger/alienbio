@@ -279,7 +279,7 @@ class TestB10TemplatesParsing:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_parse_energy_cycle_template(self):
         """energy_cycle template has correct structure."""
-        from alienbio.generator import Template
+        from alienbio.build import Template
         import yaml
 
         templates = yaml.safe_load(TEMPLATES_YAML)
@@ -299,7 +299,7 @@ class TestB10TemplatesParsing:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_parse_anabolic_chain_template(self):
         """anabolic_chain template has replication syntax."""
-        from alienbio.generator import Template
+        from alienbio.build import Template
         import yaml
 
         templates = yaml.safe_load(TEMPLATES_YAML)
@@ -312,7 +312,7 @@ class TestB10TemplatesParsing:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_parse_producer_metabolism_template(self):
         """producer_metabolism template has nested instantiation."""
-        from alienbio.generator import Template
+        from alienbio.build import Template
         import yaml
 
         templates = yaml.safe_load(TEMPLATES_YAML)
@@ -330,7 +330,7 @@ class TestB10GeneratorSpec:
     @pytest.mark.skip(reason="Generator not implemented yet")
     def test_parse_generator_spec(self):
         """Generator spec parses with all sections."""
-        from alienbio.generator import load_generator_spec
+        from alienbio.build import load_generator_spec
         import yaml
 
         data = yaml.safe_load(GENERATOR_SPEC_YAML)
@@ -357,7 +357,7 @@ class TestB10Expansion:
         templates = yaml.safe_load(TEMPLATES_YAML)
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
 
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # Check that expected molecules exist (may have more from background)
         for mol in EXPECTED_MOLECULES:
@@ -370,7 +370,7 @@ class TestB10Expansion:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # Check that expected reactions exist
         for rxn in EXPECTED_REACTIONS:
@@ -383,7 +383,7 @@ class TestB10Expansion:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # ~17 from templates + ~5 from background = ~22
         assert 15 <= len(scenario.molecules) <= 30
@@ -395,7 +395,7 @@ class TestB10Expansion:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # ~15 from templates + ~8 from background = ~23
         assert 12 <= len(scenario.reactions) <= 30
@@ -411,7 +411,7 @@ class TestB10PortWiring:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # chain1.build1 should reference energy.work
         build1 = scenario.reactions.get("r.Krel.chain1.build1")
@@ -425,7 +425,7 @@ class TestB10PortWiring:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         consume = scenario.reactions.get("r.Kova.consume_waste")
         assert consume is not None
@@ -443,7 +443,7 @@ class TestB10Visibility:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         assert hasattr(scenario, "_visibility_mapping_")
         assert isinstance(scenario._visibility_mapping_, dict)
@@ -455,7 +455,7 @@ class TestB10Visibility:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         hidden = scenario._visibility_mapping_.get("_hidden_", [])
         assert len(hidden) > 0
@@ -469,7 +469,7 @@ class TestB10Visibility:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         mapping = scenario._visibility_mapping_
         # Internal names should map to simple opaque names
@@ -488,7 +488,7 @@ class TestB10GroundTruth:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         assert hasattr(scenario, "_ground_truth_")
         gt = scenario._ground_truth_
@@ -509,8 +509,8 @@ class TestB10Reproducibility:
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
 
-        s1 = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
-        s2 = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        s1 = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        s2 = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         assert s1.molecules == s2.molecules
         assert s1.reactions == s2.reactions
@@ -524,8 +524,8 @@ class TestB10Reproducibility:
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
 
-        s1 = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
-        s2 = Bio.generate(spec_data["scenario_generator_spec"], seed=43)
+        s1 = Bio.build(spec_data["scenario_generator_spec"], seed=42)
+        s2 = Bio.build(spec_data["scenario_generator_spec"], seed=43)
 
         # At least some reactions should have different rates
         s1_rates = [r.get("rate") for r in s1.reactions.values() if "rate" in r]
@@ -544,7 +544,7 @@ class TestB10Guards:
         import yaml
 
         spec_data = yaml.safe_load(GENERATOR_SPEC_YAML)
-        scenario = Bio.generate(spec_data["scenario_generator_spec"], seed=42)
+        scenario = Bio.build(spec_data["scenario_generator_spec"], seed=42)
 
         # Find background reactions (r.bg.*)
         bg_reactions = {k: v for k, v in scenario._ground_truth_.reactions.items()

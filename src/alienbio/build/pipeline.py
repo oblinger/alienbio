@@ -1,45 +1,21 @@
-"""Generator pipeline: full template-to-scenario instantiation.
+"""Build pipeline: full template-to-scenario instantiation.
 
 Provides:
 - instantiate(): Full pipeline from spec to scenario
-- Scenario: Result container with ground truth and visibility mapping
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
 from typing import Any
+
+from alienbio.protocols import Scenario
 
 from .template import TemplateRegistry, parse_template
 from .expand import apply_template
 from .guards import apply_template_with_guards
 from .visibility import generate_visibility_mapping, apply_visibility
 from .exceptions import TemplateNotFoundError, CircularReferenceError
-
-
-@dataclass
-class Scenario:
-    """Result of template instantiation.
-
-    Contains the visible scenario (with opaque names) plus
-    ground truth and visibility mapping for debugging/scoring.
-
-    Attributes:
-        molecules: Visible molecules (opaque names)
-        reactions: Visible reactions (opaque names)
-        _ground_truth_: Full scenario with internal names
-        _visibility_mapping_: Map from internal to opaque names
-        _seed: Random seed used for instantiation
-        _metadata_: Optional metadata from spec
-    """
-
-    molecules: dict[str, Any] = field(default_factory=dict)
-    reactions: dict[str, Any] = field(default_factory=dict)
-    _ground_truth_: dict[str, Any] = field(default_factory=dict)
-    _visibility_mapping_: dict[str, Any] = field(default_factory=dict)
-    _seed: int = 0
-    _metadata_: dict[str, Any] = field(default_factory=dict)
 
 
 def instantiate(

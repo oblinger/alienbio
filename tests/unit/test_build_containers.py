@@ -25,7 +25,7 @@ class TestContainerParsing:
     @pytest.mark.skip(reason="M2.10 not yet implemented")
     def test_parse_container_parameters(self):
         """Parse container parameters section."""
-        from alienbio.generator import parse_containers
+        from alienbio.build import parse_containers
 
         containers = parse_containers({
             "regions": {"count": 3},
@@ -50,7 +50,7 @@ class TestRegionGeneration:
     def test_generate_regions(self):
         """Generate N regions from regions.count parameter."""
         from alienbio import Bio
-        from alienbio.generator import TemplateRegistry
+        from alienbio.build import TemplateRegistry
 
         spec = {
             "parameters": {
@@ -60,7 +60,7 @@ class TestRegionGeneration:
             }
         }
 
-        scenario = Bio.generate(spec, seed=42, registry=TemplateRegistry())
+        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
 
         # Should have 3 regions
         assert len(scenario.regions) == 3
@@ -69,7 +69,7 @@ class TestRegionGeneration:
     def test_regions_have_ids(self):
         """Generated regions have unique IDs."""
         from alienbio import Bio
-        from alienbio.generator import TemplateRegistry
+        from alienbio.build import TemplateRegistry
 
         spec = {
             "parameters": {
@@ -79,7 +79,7 @@ class TestRegionGeneration:
             }
         }
 
-        scenario = Bio.generate(spec, seed=42, registry=TemplateRegistry())
+        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
 
         region_ids = [r.id for r in scenario.regions]
         assert len(region_ids) == len(set(region_ids))  # All unique
@@ -88,7 +88,7 @@ class TestRegionGeneration:
     def test_regions_have_substrate_concentrations(self):
         """Generated regions have initial substrate concentrations."""
         from alienbio import Bio
-        from alienbio.generator import TemplateRegistry
+        from alienbio.build import TemplateRegistry
 
         spec = {
             "parameters": {
@@ -101,7 +101,7 @@ class TestRegionGeneration:
             }
         }
 
-        scenario = Bio.generate(spec, seed=42, registry=TemplateRegistry())
+        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
 
         for region in scenario.regions:
             assert "nutrient" in region.substrates
@@ -119,7 +119,7 @@ class TestPopulationGeneration:
     def test_generate_populations(self):
         """Generate organism populations in regions."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("species", parse_template({
@@ -140,7 +140,7 @@ class TestPopulationGeneration:
             }
         }
 
-        scenario = Bio.generate(spec, seed=42, registry=registry)
+        scenario = Bio.build(spec, seed=42, registry=registry)
 
         # Should have organisms assigned to regions
         total_organisms = sum(len(r.organisms) for r in scenario.regions)
@@ -150,7 +150,7 @@ class TestPopulationGeneration:
     def test_populations_sampled_from_distribution(self):
         """Populations sampled from distribution."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("species", parse_template({
@@ -174,7 +174,7 @@ class TestPopulationGeneration:
         # Run multiple times to check variation
         counts = []
         for seed in range(42, 52):
-            scenario = Bio.generate(spec, seed=seed, registry=registry)
+            scenario = Bio.build(spec, seed=seed, registry=registry)
             count = sum(len(r.organisms) for r in scenario.regions)
             counts.append(count)
 
@@ -185,7 +185,7 @@ class TestPopulationGeneration:
     def test_populations_assigned_to_correct_species(self):
         """Populations assigned to correct species."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("producer", parse_template({
@@ -210,7 +210,7 @@ class TestPopulationGeneration:
             }
         }
 
-        scenario = Bio.generate(spec, seed=42, registry=registry)
+        scenario = Bio.build(spec, seed=42, registry=registry)
 
         # Should have organisms of both species
         species_names = set()

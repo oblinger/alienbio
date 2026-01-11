@@ -25,7 +25,7 @@ class TestInteractionParsing:
     @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_parse_interaction_template(self):
         """Parse interaction with _template_ and between: fields."""
-        from alienbio.generator import parse_interaction
+        from alienbio.build import parse_interaction
 
         interaction = parse_interaction({
             "_template_": "cross_feeding",
@@ -41,7 +41,7 @@ class TestInteractionParsing:
     def test_interaction_wires_species(self):
         """Interaction template wires two species together."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
 
@@ -81,7 +81,7 @@ class TestInteractionParsing:
             }
         }
 
-        scenario = Bio.generate(spec, seed=42, registry=registry)
+        scenario = Bio.build(spec, seed=42, registry=registry)
 
         # Should have molecules from both species
         gt = scenario._ground_truth_
@@ -104,7 +104,7 @@ class TestPortRequirements:
     def test_requires_validation_passes(self):
         """Requires validation passes when ports are available."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("provider", parse_template({
@@ -128,14 +128,14 @@ class TestPortRequirements:
         }
 
         # Should succeed - energy.out is available
-        scenario = Bio.generate(spec, seed=42, registry=registry)
+        scenario = Bio.build(spec, seed=42, registry=registry)
         assert scenario is not None
 
     @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_requires_validation_fails(self):
         """Requires validation fails when required port is missing."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry, PortNotFoundError
+        from alienbio.build import parse_template, TemplateRegistry, PortNotFoundError
 
         registry = TemplateRegistry()
         registry.register("dependent", parse_template({
@@ -153,7 +153,7 @@ class TestPortRequirements:
 
         # Should fail - no energy.out available
         with pytest.raises(PortNotFoundError):
-            Bio.generate(spec, seed=42, registry=registry)
+            Bio.build(spec, seed=42, registry=registry)
 
 
 # =============================================================================
@@ -168,7 +168,7 @@ class TestModifyAndSet:
     def test_modify_changes_reactants(self):
         """_modify_ changes reactants in existing reaction."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("base", parse_template({
@@ -189,7 +189,7 @@ class TestModifyAndSet:
             }
         }
 
-        scenario = Bio.generate(spec, seed=42, registry=registry)
+        scenario = Bio.build(spec, seed=42, registry=registry)
 
         # Reaction rate should be modified
         gt = scenario._ground_truth_
@@ -199,7 +199,7 @@ class TestModifyAndSet:
     def test_modify_adds_reactant(self):
         """_modify_ can add to reactants list."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("base", parse_template({
@@ -220,7 +220,7 @@ class TestModifyAndSet:
             }
         }
 
-        scenario = Bio.generate(spec, seed=42, registry=registry)
+        scenario = Bio.build(spec, seed=42, registry=registry)
 
         gt = scenario._ground_truth_
         # Catalyst should be added to reactants
@@ -230,7 +230,7 @@ class TestModifyAndSet:
     def test_modify_path_validation(self):
         """_modify_ raises error for invalid path."""
         from alienbio import Bio
-        from alienbio.generator import parse_template, TemplateRegistry
+        from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
         registry.register("base", parse_template({
@@ -249,4 +249,4 @@ class TestModifyAndSet:
         }
 
         with pytest.raises(KeyError):
-            Bio.generate(spec, seed=42, registry=registry)
+            Bio.build(spec, seed=42, registry=registry)
