@@ -1,10 +1,11 @@
-"""Tests for M2 — Bio Fetch & Lookup features.
+"""Tests for Bio class API.
 
 Coverage:
 - Bio.cd() — current DAT tracking and path resolution
 - Bio.fetch() — specifier routing, hydration options
 - Bio.run() — routing for string/dict/Scenario inputs
 - Bio.store() — dehydration and storage
+- Bio.build() — scenario instantiation
 """
 
 import pytest
