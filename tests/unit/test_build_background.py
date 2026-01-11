@@ -60,7 +60,7 @@ class TestBackgroundMolecules:
     @pytest.mark.skip(reason="M2.9 not yet implemented")
     def test_background_generates_molecules(self):
         """Background generates approximately N molecules."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateRegistry
 
         spec = {
@@ -69,7 +69,7 @@ class TestBackgroundMolecules:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
+        scenario = bio.build(spec, seed=42, registry=TemplateRegistry())
 
         # Should have approximately 10 background molecules
         gt = scenario._ground_truth_
@@ -79,7 +79,7 @@ class TestBackgroundMolecules:
     @pytest.mark.skip(reason="M2.9 not yet implemented")
     def test_background_molecules_use_bg_namespace(self):
         """Background molecules use m.bg.* namespace."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateRegistry
 
         spec = {
@@ -88,7 +88,7 @@ class TestBackgroundMolecules:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
+        scenario = bio.build(spec, seed=42, registry=TemplateRegistry())
 
         gt = scenario._ground_truth_
         for mol in gt["molecules"]:
@@ -98,7 +98,7 @@ class TestBackgroundMolecules:
     @pytest.mark.skip(reason="M2.9 not yet implemented")
     def test_background_molecule_count_from_distribution(self):
         """Background molecule count sampled from distribution."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateRegistry
 
         spec = {
@@ -110,7 +110,7 @@ class TestBackgroundMolecules:
         # Run multiple times to check variation
         counts = []
         for seed in range(42, 52):
-            scenario = Bio.build(spec, seed=seed, registry=TemplateRegistry())
+            scenario = bio.build(spec, seed=seed, registry=TemplateRegistry())
             gt = scenario._ground_truth_
             bg_mols = [m for m in gt["molecules"] if m.startswith("m.bg.")]
             counts.append(len(bg_mols))
@@ -130,7 +130,7 @@ class TestBackgroundReactions:
     @pytest.mark.skip(reason="M2.9 not yet implemented")
     def test_background_generates_reactions(self):
         """Background generates reactions between background molecules."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateRegistry
 
         spec = {
@@ -140,7 +140,7 @@ class TestBackgroundReactions:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
+        scenario = bio.build(spec, seed=42, registry=TemplateRegistry())
 
         gt = scenario._ground_truth_
         bg_rxns = [r for r in gt["reactions"] if r.startswith("r.bg.")]
@@ -149,7 +149,7 @@ class TestBackgroundReactions:
     @pytest.mark.skip(reason="M2.9 not yet implemented")
     def test_background_reactions_use_bg_molecules(self):
         """Background reactions only use background molecules."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateRegistry
 
         spec = {
@@ -159,7 +159,7 @@ class TestBackgroundReactions:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=TemplateRegistry())
+        scenario = bio.build(spec, seed=42, registry=TemplateRegistry())
 
         gt = scenario._ground_truth_
         for rxn_name, rxn_data in gt["reactions"].items():
@@ -172,7 +172,7 @@ class TestBackgroundReactions:
     @pytest.mark.skip(reason="M2.9 not yet implemented")
     def test_background_respects_no_species_dependencies(self):
         """Background reactions don't link different species."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -192,7 +192,7 @@ class TestBackgroundReactions:
             "_guards_": ["no_new_species_dependencies"]
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Background reactions should not link Krel and Kova
         gt = scenario._ground_truth_

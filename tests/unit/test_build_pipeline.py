@@ -4,7 +4,7 @@ These tests define expected behavior for the complete generator pipeline,
 from template specification to final scenario.
 
 Test categories:
-- G6.1: Bio.build() API
+- G6.1: bio.build() API
 - G6.2: End-to-End Pipeline
 - G6.3: Error Handling & Debugging
 """
@@ -16,12 +16,12 @@ import yaml
 
 
 # =============================================================================
-# G6.1 - Bio.build() API
+# G6.1 - bio.build() API
 # =============================================================================
 
 
 class TestBioGenerateAPI:
-    """Tests for the Bio.build() function."""
+    """Tests for the bio.build() function."""
 
     @pytest.fixture
     def simple_registry(self):
@@ -37,15 +37,15 @@ class TestBioGenerateAPI:
         return registry
 
     def test_bio_generate_basic(self, simple_registry):
-        """Bio.build() produces a valid scenario."""
-        from alienbio import Bio
+        """bio.build() produces a valid scenario."""
+        from alienbio import Bio, bio
 
         spec = {
             "_instantiate_": {
                 "_as_ x": {"_template_": "simple"}
             }
         }
-        scenario = Bio.build(spec, seed=42, registry=simple_registry)
+        scenario = bio.build(spec, seed=42, registry=simple_registry)
 
         assert scenario is not None
         assert hasattr(scenario, 'molecules')
@@ -55,44 +55,44 @@ class TestBioGenerateAPI:
 
     def test_bio_generate_reproducible(self, simple_registry):
         """Same seed produces identical scenarios."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
 
         spec = {
             "_instantiate_": {
                 "_as_ x": {"_template_": "simple"}
             }
         }
-        s1 = Bio.build(spec, seed=42, registry=simple_registry)
-        s2 = Bio.build(spec, seed=42, registry=simple_registry)
+        s1 = bio.build(spec, seed=42, registry=simple_registry)
+        s2 = bio.build(spec, seed=42, registry=simple_registry)
 
         assert s1.molecules == s2.molecules
         assert s1.reactions == s2.reactions
 
     def test_bio_generate_different_seeds(self, simple_registry):
         """Different seeds produce scenarios with different _seed values."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
 
         spec = {
             "_instantiate_": {
                 "_as_ x": {"_template_": "simple"}
             }
         }
-        s1 = Bio.build(spec, seed=42, registry=simple_registry)
-        s2 = Bio.build(spec, seed=43, registry=simple_registry)
+        s1 = bio.build(spec, seed=42, registry=simple_registry)
+        s2 = bio.build(spec, seed=43, registry=simple_registry)
 
         # Different seeds should be tracked
         assert s1._seed != s2._seed
 
     def test_bio_generate_ground_truth(self, simple_registry):
         """Ground truth is preserved in _ground_truth_."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
 
         spec = {
             "_instantiate_": {
                 "_as_ x": {"_template_": "simple"}
             }
         }
-        scenario = Bio.build(spec, seed=42, registry=simple_registry)
+        scenario = bio.build(spec, seed=42, registry=simple_registry)
 
         # Ground truth should have internal names
         assert hasattr(scenario, '_ground_truth_')
@@ -104,14 +104,14 @@ class TestBioGenerateAPI:
 
     def test_bio_generate_visibility_mapping(self, simple_registry):
         """Visibility mapping is preserved for debugging."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
 
         spec = {
             "_instantiate_": {
                 "_as_ x": {"_template_": "simple"}
             }
         }
-        scenario = Bio.build(spec, seed=42, registry=simple_registry)
+        scenario = bio.build(spec, seed=42, registry=simple_registry)
 
         assert hasattr(scenario, '_visibility_mapping_')
         mapping = scenario._visibility_mapping_
@@ -120,22 +120,22 @@ class TestBioGenerateAPI:
         assert isinstance(mapping, dict)
 
     def test_bio_generate_from_dict(self, simple_registry):
-        """Bio.build() works with dict spec directly."""
-        from alienbio import Bio
+        """bio.build() works with dict spec directly."""
+        from alienbio import Bio, bio
 
         spec = {
             "_instantiate_": {
                 "_as_ energy": {"_template_": "simple"}
             }
         }
-        scenario = Bio.build(spec, seed=42, registry=simple_registry)
+        scenario = bio.build(spec, seed=42, registry=simple_registry)
 
         assert scenario is not None
         assert len(scenario.molecules) > 0
 
     def test_bio_generate_with_params(self):
-        """Bio.build() accepts parameter overrides."""
-        from alienbio import Bio
+        """bio.build() accepts parameter overrides."""
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -153,9 +153,9 @@ class TestBioGenerateAPI:
         }
 
         # Generate with default params
-        s1 = Bio.build(spec, seed=42, registry=registry)
+        s1 = bio.build(spec, seed=42, registry=registry)
         # Generate with overridden params
-        s2 = Bio.build(spec, seed=42, registry=registry, params={"rate": 0.9})
+        s2 = bio.build(spec, seed=42, registry=registry, params={"rate": 0.9})
 
         # Both should succeed
         assert s1 is not None
@@ -172,7 +172,7 @@ class TestEndToEndPipeline:
 
     def test_pipeline_template_to_scenario(self):
         """Pipeline converts template spec to valid scenario."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         # Define a simple template
@@ -200,14 +200,14 @@ class TestEndToEndPipeline:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         assert len(scenario.molecules) == 2
         assert len(scenario.reactions) == 1
 
     def test_pipeline_multi_template(self):
         """Pipeline handles multiple template instantiations."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -223,14 +223,14 @@ class TestEndToEndPipeline:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should have molecules from both instantiations
         assert len(scenario._ground_truth_["molecules"]) == 2
 
     def test_pipeline_nested_templates(self):
         """Pipeline handles nested template instantiation."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -255,14 +255,14 @@ class TestEndToEndPipeline:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should have molecule from inner template
         assert len(scenario._ground_truth_["molecules"]) >= 1
 
     def test_pipeline_with_guards(self):
         """Pipeline applies guards during generation."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -278,12 +278,12 @@ class TestEndToEndPipeline:
         }
 
         # Should succeed (no cycles)
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
         assert scenario is not None
 
     def test_pipeline_with_visibility(self):
         """Pipeline applies visibility mapping."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -302,7 +302,7 @@ class TestEndToEndPipeline:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Visible molecules should not have internal prefixes
         for name in scenario.molecules:
@@ -310,7 +310,7 @@ class TestEndToEndPipeline:
 
     def test_pipeline_preserves_metadata(self):
         """Pipeline preserves metadata through generation."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -328,7 +328,7 @@ class TestEndToEndPipeline:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         assert scenario._metadata_["author"] == "test"
         assert scenario._metadata_["version"] == "1.0"
@@ -344,7 +344,7 @@ class TestErrorHandling:
 
     def test_template_not_found_error(self):
         """Clear error when template doesn't exist."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateNotFoundError, TemplateRegistry
 
         spec = {
@@ -355,13 +355,13 @@ class TestErrorHandling:
 
         registry = TemplateRegistry()
         with pytest.raises(TemplateNotFoundError) as exc:
-            Bio.build(spec, seed=42, registry=registry)
+            bio.build(spec, seed=42, registry=registry)
         assert "nonexistent_template" in str(exc.value)
 
     @pytest.mark.skip(reason="Cross-instantiation port wiring requires M2.8 Interactions")
     def test_port_type_error_message(self):
         """Helpful error when port types don't match."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import PortTypeMismatchError, parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -385,7 +385,7 @@ class TestErrorHandling:
         }
 
         with pytest.raises(PortTypeMismatchError) as exc:
-            Bio.build(spec, seed=42, registry=registry)
+            bio.build(spec, seed=42, registry=registry)
         # Error should mention the port types
         error_str = str(exc.value).lower()
         assert "energy" in error_str or "molecule" in error_str
@@ -393,7 +393,7 @@ class TestErrorHandling:
     @pytest.mark.skip(reason="Custom guard definition not yet implemented")
     def test_guard_violation_error(self):
         """Clear error when guard is violated."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import GuardViolation
 
         # Spec that should fail guard (to be determined by implementation)
@@ -407,12 +407,12 @@ class TestErrorHandling:
         }
 
         with pytest.raises(GuardViolation):
-            Bio.build(spec, seed=42)
+            bio.build(spec, seed=42)
 
     @pytest.mark.skip(reason="Required param validation not yet implemented")
     def test_missing_param_error(self):
         """Clear error when required param is missing."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry, MissingParameterError
 
         registry = TemplateRegistry()
@@ -429,13 +429,13 @@ class TestErrorHandling:
         }
 
         with pytest.raises(MissingParameterError) as exc:
-            Bio.build(spec, seed=42, registry=registry)
+            bio.build(spec, seed=42, registry=registry)
         assert "required_rate" in str(exc.value)
 
     @pytest.mark.skip(reason="Error path context not yet implemented")
     def test_error_includes_context_path(self):
         """Errors include path context for debugging."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import TemplateNotFoundError
 
         spec = {
@@ -448,7 +448,7 @@ class TestErrorHandling:
         }
 
         try:
-            Bio.build(spec, seed=42)
+            bio.build(spec, seed=42)
         except Exception as e:
             # Error should indicate where in the spec the problem occurred
             assert "outer" in str(e) or hasattr(e, 'path')
@@ -456,7 +456,7 @@ class TestErrorHandling:
     @pytest.mark.skip(reason="Circular detection in nested templates requires expand.py changes")
     def test_circular_template_reference(self):
         """Detect circular template references."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry, CircularReferenceError
 
         registry = TemplateRegistry()
@@ -472,7 +472,7 @@ class TestErrorHandling:
         spec = {"_instantiate_": {"_as_ x": {"_template_": "A"}}}
 
         with pytest.raises(CircularReferenceError):
-            Bio.build(spec, seed=42, registry=registry)
+            bio.build(spec, seed=42, registry=registry)
 
 
 # =============================================================================
@@ -485,7 +485,7 @@ class TestPipelineIntegration:
 
     def test_mutualism_scenario_generation(self):
         """Generate a mutualism scenario with two species."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -511,7 +511,7 @@ class TestPipelineIntegration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should have molecules from both organisms
         assert len(scenario.molecules) > 0
@@ -522,7 +522,7 @@ class TestPipelineIntegration:
 
     def test_replication_with_varied_params(self):
         """Replicated instances can have varied parameters."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -539,14 +539,14 @@ class TestPipelineIntegration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should have molecules from 3 chain instances
         assert len(scenario._ground_truth_["molecules"]) == 6  # 2 per chain * 3
 
     def test_full_organism_generation(self):
         """Generate a complete organism with energy and metabolism."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -582,16 +582,16 @@ class TestPipelineIntegration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should have functional organism
         assert len(scenario.molecules) > 0
         assert len(scenario.reactions) > 0
 
-    @pytest.mark.skip(reason="Bio.sim integration not yet implemented")
+    @pytest.mark.skip(reason="bio.sim integration not yet implemented")
     def test_scenario_is_simulatable(self):
         """Generated scenario can be simulated."""
-        from alienbio import Bio
+        from alienbio import Bio, bio
         from alienbio.build import parse_template, TemplateRegistry
 
         registry = TemplateRegistry()
@@ -606,8 +606,8 @@ class TestPipelineIntegration:
             }
         }
 
-        scenario = Bio.build(spec, seed=42, registry=registry)
+        scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should be able to run simulation
-        result = Bio.sim(scenario, steps=10)
+        result = bio.sim(scenario, steps=10)
         assert len(result.timeline) == 11  # Initial + 10 steps

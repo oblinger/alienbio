@@ -14,6 +14,7 @@ from typing import Any
 
 from alienbio.spec_lang import (
     Bio,
+    bio,
     biotype,
     fn,
     scoring,
@@ -855,10 +856,10 @@ constants:
 
 
 class TestBioClass:
-    """Tests for Bio.fetch(), Bio.store(), Bio.sim() methods."""
+    """Tests for bio.fetch(), bio.store(), bio.sim() methods."""
 
     def test_bio_load_scenario(self, temp_dir):
-        """Bio.fetch("catalog/scenarios/test") → Scenario object"""
+        """bio.fetch("catalog/scenarios/test") → Scenario object"""
         # Create a test scenario file
         scenario_dir = temp_dir / "catalog" / "scenarios" / "test"
         scenario_dir.mkdir(parents=True)
@@ -869,17 +870,17 @@ scenario.test:
   constitution: "Test constitution"
 """)
 
-        result = Bio.fetch(str(scenario_dir))
+        result = bio.fetch(str(scenario_dir))
         assert hasattr(result, "briefing")
         assert result.briefing == "Test briefing"
 
     def test_bio_load_nonexistent_raises(self):
-        """Bio.fetch("nonexistent/path") → FileNotFoundError"""
+        """bio.fetch("nonexistent/path") → FileNotFoundError"""
         with pytest.raises(FileNotFoundError):
-            Bio.fetch("/nonexistent/path/that/does/not/exist")
+            bio.fetch("/nonexistent/path/that/does/not/exist")
 
     def test_bio_save_writes_yaml(self, temp_dir):
-        """Bio.store("path", obj) writes YAML with _type"""
+        """bio.store("path", obj) writes YAML with _type"""
         @biotype
         @dataclass
         class SaveTest:
@@ -890,7 +891,7 @@ scenario.test:
         save_path = temp_dir / "saved"
         save_path.mkdir()
 
-        Bio.store(str(save_path), obj)
+        bio.store(str(save_path), obj)
 
         # Check file was written
         spec_file = save_path / "spec.yaml"
@@ -899,7 +900,7 @@ scenario.test:
         assert content["_type"] == "savetest"
 
     def test_bio_save_load_round_trip(self, temp_dir):
-        """Bio.store then Bio.fetch round-trips correctly"""
+        """bio.store then bio.fetch round-trips correctly"""
         @biotype
         @dataclass
         class RoundTrip:
@@ -910,14 +911,14 @@ scenario.test:
         path = temp_dir / "roundtrip"
         path.mkdir()
 
-        Bio.store(str(path), original)
-        loaded = Bio.fetch(str(path))
+        bio.store(str(path), original)
+        loaded = bio.fetch(str(path))
 
         assert loaded.name == original.name
         assert loaded.count == original.count
 
     def test_bio_sim_creates_simulator(self):
-        """Bio.sim(scenario) → WorldSimulator instance"""
+        """bio.sim(scenario) → WorldSimulator instance"""
         @biotype("scenario")
         @dataclass
         class SimScenario:
@@ -929,7 +930,7 @@ scenario.test:
             containers={},
         )
 
-        sim = Bio.sim(scenario)
+        sim = bio.sim(scenario)
         # Should return a WorldSimulator (or similar)
         assert hasattr(sim, "step") or hasattr(sim, "run")
 
@@ -956,7 +957,7 @@ suite.test:
     permeability: !ref high_perm
 """)
 
-        result = Bio.fetch(str(spec_dir))
+        result = bio.fetch(str(spec_dir))
         # Should have resolved everything
         assert result is not None
 
@@ -1241,8 +1242,8 @@ class TestDatExecution:
         assert scores["production"] > 0.9, "Production score should be high"
 
     def test_bio_expand_index_yaml(self):
-        """Bio.expand works directly on index.yaml file."""
-        data = Bio.expand("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
+        """bio.expand works directly on index.yaml file."""
+        data = bio.expand("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
 
         # Should have the scenario with _type
         assert "hardcoded_test" in data
@@ -1252,9 +1253,9 @@ class TestDatExecution:
         assert "initial_state" in scenario
 
     def test_bio_fetch_index_yaml(self):
-        """Bio.fetch loads and hydrates the index.yaml correctly."""
+        """bio.fetch loads and hydrates the index.yaml correctly."""
         # Fetch the index.yaml directly (not the DAT folder)
-        scenario = Bio.fetch("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
+        scenario = bio.fetch("src/alienbio/catalog/jobs/hardcoded_test/index.yaml")
 
         # Should return a hydrated scenario object (MockScenario in tests)
         assert scenario is not None

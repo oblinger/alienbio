@@ -142,17 +142,3 @@ def expand_defaults(data: dict[str, Any], inherited_defaults: dict[str, Any] | N
     return result
 
 
-def load_spec(path: str) -> dict[str, Any]:
-    """Load and process a spec file.
-
-    Args:
-        path: Path to YAML spec file
-
-    Returns:
-        Fully processed spec with types transformed, defaults expanded,
-        refs resolved, and includes loaded
-
-    Raises:
-        FileNotFoundError: If path doesn't exist
-    """
-    raise NotImplementedError("load_spec not yet implemented")

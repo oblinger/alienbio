@@ -9,18 +9,19 @@ from .decorators import biotype, fn, scoring, action, measurement, rate
 from .decorators import get_biotype, get_action, get_measurement, get_scoring, get_rate
 from .decorators import biotype_registry, action_registry, measurement_registry
 from .decorators import scoring_registry, rate_registry
+from .decorators import construct, deconstruct
 from .tags import EvTag, RefTag, IncludeTag, Include
 from .eval import (
     Evaluable, Quoted, Reference,
     hydrate, dehydrate,
-    Context, eval_node, EvalError,
+    EvalContext, Context, eval_node, EvalError,
     SAFE_BUILTINS, make_context,
 )
 from .builtins import (
     DEFAULT_FUNCTIONS,
     normal, uniform, lognormal, poisson, exponential, choice, discrete,
 )
-from .loader import load_spec, transform_typed_keys, expand_defaults
+from .loader import transform_typed_keys, expand_defaults
 from .scope import Scope
 
 __all__ = [
@@ -51,13 +52,17 @@ __all__ = [
     "RefTag",
     "IncludeTag",
     "Include",
+    # Biotype construction
+    "construct",
+    "deconstruct",
     # Evaluation system (new)
     "Evaluable",
     "Quoted",
     "Reference",
     "hydrate",
     "dehydrate",
-    "Context",
+    "EvalContext",
+    "Context",  # backward compat alias for EvalContext
     "eval_node",
     "EvalError",
     "SAFE_BUILTINS",
@@ -72,7 +77,6 @@ __all__ = [
     "choice",
     "discrete",
     # Loader functions
-    "load_spec",
     "transform_typed_keys",
     "expand_defaults",
     # Scope

@@ -355,7 +355,7 @@ class EvalError(Exception):
 
 
 @dataclass
-class Context:
+class EvalContext:
     """Evaluation context for spec evaluation.
 
     Carries state through the recursive evaluation process:
@@ -365,7 +365,7 @@ class Context:
     - path: Current location in the tree for error messages
 
     Example:
-        ctx = Context(
+        ctx = EvalContext(
             rng=np.random.default_rng(42),
             bindings={"k": 0.5, "permeability": 0.8},
             functions={"normal": normal, "uniform": uniform}
@@ -378,10 +378,10 @@ class Context:
     functions: dict[str, Callable[..., Any]] = field(default_factory=dict)
     path: str = ""
 
-    def child(self, key: str | int) -> "Context":
+    def child(self, key: str | int) -> "EvalContext":
         """Create child context with extended path."""
         new_path = f"{self.path}.{key}" if self.path else str(key)
-        return Context(
+        return EvalContext(
             rng=self.rng,
             bindings=self.bindings,
             functions=self.functions,
@@ -389,12 +389,16 @@ class Context:
         )
 
 
+# Backward compatibility alias
+Context = EvalContext
+
+
 # =============================================================================
 # Evaluation (M1.8f)
 # =============================================================================
 
 
-def eval_node(node: Any, ctx: Context) -> Any:
+def eval_node(node: Any, ctx: EvalContext) -> Any:
     """Recursively evaluate a hydrated spec node.
 
     Processes placeholder objects:
@@ -445,7 +449,7 @@ def eval_node(node: Any, ctx: Context) -> Any:
     return node
 
 
-def _eval_expression(source: str, ctx: Context) -> Any:
+def _eval_expression(source: str, ctx: EvalContext) -> Any:
     """Evaluate a Python expression in a sandboxed environment.
 
     The expression has access to:
@@ -490,7 +494,7 @@ def _eval_expression(source: str, ctx: Context) -> Any:
 # =============================================================================
 
 
-def _wrap_function(func: Callable[..., Any], ctx: Context) -> Callable[..., Any]:
+def _wrap_function(func: Callable[..., Any], ctx: EvalContext) -> Callable[..., Any]:
     """Wrap a function to auto-inject ctx as keyword argument.
 
     Allows spec functions to receive the evaluation context without
@@ -546,7 +550,7 @@ def make_context(
     seed: int | None = None,
     bindings: dict[str, Any] | None = None,
     functions: dict[str, Callable[..., Any]] | None = None,
-) -> Context:
+) -> EvalContext:
     """Create an evaluation context with default functions.
 
     Convenience function that sets up a Context with:
@@ -560,7 +564,7 @@ def make_context(
         functions: Additional functions (merged with defaults)
 
     Returns:
-        Configured Context ready for evaluation
+        Configured EvalContext ready for evaluation
     """
     rng = np.random.default_rng(seed)
 
@@ -568,7 +572,7 @@ def make_context(
     if functions:
         all_functions.update(functions)
 
-    return Context(
+    return EvalContext(
         rng=rng,
         bindings=bindings or {},
         functions=all_functions,
