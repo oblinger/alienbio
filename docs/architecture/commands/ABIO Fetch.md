@@ -182,22 +182,6 @@ scenario.mutualism:
 
 Both formats go through the same processing pipeline after loading.
 
-### The `!py` Tag
-
-YAML files can reference Python code using the `!py` tag. The tag resolves **relative to the YAML file's location**:
-
-```yaml
-# mute/chem/energy_ring.yaml
-chemistry.energy_ring:
-  reactions:
-    synthesis: !py reactions.synthesis_rate  # loads mute/chem/reactions.py
-```
-
-The `!py` tag:
-- Looks for a `.py` file in the same directory as the YAML
-- Imports the module and accesses the specified attribute
-- Supports dotted paths: `!py module.subattr.value`
-
 ### Processing Pipeline
 
 Both YAML files and Python globals go through the same pipeline:
