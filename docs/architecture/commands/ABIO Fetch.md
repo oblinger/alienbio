@@ -28,12 +28,14 @@ bio fetch experiments/sweep
 ```python
 from alienbio import bio
 
-# Load a DAT (returns dict with all content from index.yaml)
-dat: dict = bio.fetch("catalog/scenarios/mutualism")
-
-# Load a typed object within a DAT (dots navigate into the structure)
-scenario: Scenario = bio.fetch("catalog/scenarios/mutualism.baseline")
+run: dict = bio.fetch("data/experiments/run_001")                   # data directory — run results
+scenario: Scenario = bio.fetch("data/experiments/run_001.scenario") # dig into structure
+scenario: Scenario = bio.fetch("catalog.scenarios.mutualism")       # source tree — template
 ```
+
+**Two fetch sources:**
+- **Data directory** (paths with `/`) — Concrete results from completed runs
+- **Source code tree** (dotted names) — Catalog of scenario templates
 
 ### Options
 
