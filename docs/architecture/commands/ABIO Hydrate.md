@@ -1,16 +1,16 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.hydrate()
+# bio.hydrate()
 
 Transform a raw dict into a structured tree with scopes and placeholders.
 
 ## Synopsis
 
 ```python
-from alienbio import Bio
+from alienbio import bio
 
-entity: Entity = Bio.hydrate(raw: dict)
-raw: dict = Bio.dehydrate(entity: Entity)
+entity: Entity = bio.hydrate(raw: dict)
+raw: dict = bio.dehydrate(entity: Entity)
 ```
 
 ## Description
@@ -62,13 +62,13 @@ After this phase, the tree contains typed Python objects (World, Scenario, etc.)
 
 ## Dehydration
 
-`Bio.dehydrate()` reverses hydration, converting an Entity back to a serializable dict:
+`bio.dehydrate()` reverses hydration, converting an Entity back to a serializable dict:
 
 ```python
 # Round-trip
-raw = Bio.fetch("spec.yaml", raw=True)
-entity = Bio.hydrate(raw)
-restored = Bio.dehydrate(entity)
+raw = bio.fetch("spec.yaml", raw=True)
+entity = bio.hydrate(raw)
+restored = bio.dehydrate(entity)
 # raw == restored (structurally)
 ```
 
@@ -81,8 +81,8 @@ restored = Bio.dehydrate(entity)
 
 **Inspect hydration result:**
 ```python
-raw = Bio.fetch("mutualism.yaml", raw=True)
-scenario = Bio.hydrate(raw)
+raw = bio.fetch("mutualism.yaml", raw=True)
+scenario = bio.hydrate(raw)
 
 print(type(scenario))  # → Scenario
 print(scenario.interface.actions)  # → ['add_feedstock', ...]
@@ -91,9 +91,9 @@ print(scenario.interface.actions)  # → ['add_feedstock', ...]
 **Manual processing:**
 ```python
 # Low-level control over pipeline
-raw = Bio.fetch("spec.yaml", raw=True)
-entity = Bio.hydrate(raw)
-expanded = Bio.build(entity)
+raw = bio.fetch("spec.yaml", raw=True)
+entity = bio.hydrate(raw)
+expanded = bio.build(entity)
 result = expanded.eval()
 ```
 
@@ -101,5 +101,5 @@ result = expanded.eval()
 
 - [[ABIO Fetch|fetch]] — Previous stage: load from source
 - [[ABIO Build|build]] — Next stage: template expansion
-- [[modules/Scope|Scope]] — Scope tree structure
+- [Scope](../modules/Scope.md) — Scope tree structure
 - [[Spec Language Reference]] — Complete language specification

@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.build()
+# bio.build()
 
 Build a spec into a DAT folder or an in-memory object.
 
@@ -13,7 +13,7 @@ bio build <name> [options]
 ```
 
 ```python
-result = Bio.build("name", seed=42)
+result = bio.build("name", seed=42)
 ```
 
 ---
@@ -36,7 +36,7 @@ The behavior depends on what the dotted name refers to:
 If the name refers to a DAT spec (has `path:` and `build:` fields):
 
 1. Creates the folder using the `path:` template
-2. Recursively calls `Bio.build()` for each entry in `build:`
+2. Recursively calls `bio.build()` for each entry in `build:`
 3. Writes generated content to the DAT folder
 
 ```bash
@@ -52,8 +52,8 @@ If the name refers to a biological object (scenario, generator, etc.):
 2. Returns an in-memory dictionary structure
 
 ```python
-scenario = Bio.build("scenarios.mutualism")   # in-memory dict
-sim = Bio.sim(scenario)                        # run simulator on it
+scenario = bio.build("scenarios.mutualism")   # in-memory dict
+sim = bio.sim(scenario)                        # run simulator on it
 ```
 
 This is how scenarios get built for direct simulation without creating a DAT folder.

@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.run()
+# bio.run()
 
 Run a scenario or experiment.
 
@@ -72,13 +72,13 @@ bio run experiments.mutualism
 ## Python API
 
 ```python
-from alienbio import Bio
+from alienbio import bio
 
 # Equivalent to CLI
-result = Bio.run("scenarios.baseline", agent="claude", seed=42)
+result = bio.run("scenarios.baseline", agent="claude", seed=42)
 
 # Run existing DAT
-result = Bio.run("data/scenarios/baseline_s42/", agent="claude")
+result = bio.run("data/scenarios/baseline_s42/", agent="claude")
 ```
 
 ## See Also

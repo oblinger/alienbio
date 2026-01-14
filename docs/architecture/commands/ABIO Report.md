@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.report()
+# bio.report()
 
 Generate reports from experimental results. Wraps the DAT `dat_report` function to produce Excel spreadsheets from experiment data.
 
@@ -201,5 +201,5 @@ This produces Excel files with:
 ## See Also
 
 - [[ABIO Run|run]] — run experiments
-- [[classes/execution/Experiment|Experiment]] — experiment class and run behavior
+- [Experiment](../classes/execution/experiment.md) — experiment class and run behavior
 - [[Execution Guide]] — execution model overview

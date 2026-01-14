@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.cd()
+# bio.cd()
 
 Get or set the current DAT context.
 
@@ -58,7 +58,7 @@ bio run scenarios.baseline --seed 42
 
 ## See Also
 
-- [[classes/infra/DAT|DAT]] — DAT folder structure
-- [[commands/ABIO Fetch|fetch()]] — Load specs (uses current DAT for relative paths)
-- [[commands/ABIO Run|run()]] — Run scenarios
-- [[classes/infra/Bio|Bio]] — Bio class overview
+- [DAT](../classes/infra/DAT.md) — DAT folder structure
+- [fetch()](ABIO Fetch.md) — Load specs (uses current DAT for relative paths)
+- [run()](ABIO Run.md) — Run scenarios
+- [Bio](../classes/infra/Bio.md) — Bio class overview

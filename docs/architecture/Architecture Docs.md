@@ -8,8 +8,8 @@ Comprehensive specification of the Alien Biology system's design and operation.
 ## Alienbio Specification Languages
 
 - **[[Spec Language Reference]]** — Core language: YAML foundation with tags, scopes, hydration, and evaluation
-- **[[commands/ABIO Scenario|Scenario]]** — Runnable world (molecules, reactions, interface, scoring)
-- **[[commands/ABIO Experiment|Experiment]]** — Multi-run experiment over axes
+- **[Scenario](commands/ABIO Scenario.md)** — Runnable world (molecules, reactions, interface, scoring)
+- **[Experiment](commands/ABIO Experiment.md)** — Multi-run experiment over axes
 
 ## Indexes
 

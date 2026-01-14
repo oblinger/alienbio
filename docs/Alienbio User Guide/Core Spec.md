@@ -158,7 +158,7 @@ scope.experiments:
 
 **Scope chain:** `baseline` → `experiments` → `base` → `ecosystem` → module root
 
-See [[modules/Scope|Scope]] for details on lexical scoping.
+See [Scope](../architecture/modules/Scope.md) for details on lexical scoping.
 
 ---
 
@@ -254,13 +254,13 @@ scope.experiments:
       Partial knowledge...
 ```
 
-See [[modules/Scope|Scope]] for the module pattern and inheritance chains.
+See [Scope](../architecture/modules/Scope.md) for the module pattern and inheritance chains.
 
 ---
 
 ## See Also
 
-- [[commands/ABIO Scenario|Scenario]] — Scenarios, interface, scoring
+- [Scenario](../architecture/commands/ABIO Scenario.md) — Scenarios, interface, scoring
 - [[Generator Spec]] — Template-based scenario generation
 - [[Execution Guide]] — CLI, agents, running experiments
 - [[Spec Language Reference]] — Complete language specification (architecture)

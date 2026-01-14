@@ -24,6 +24,88 @@ import yaml
 from .eval import Evaluable, Quoted, Reference
 
 
+class PyRef:
+    """Placeholder for !py tag - local Python reference.
+
+    Resolved during hydration. Looks up Python code relative to the
+    source file location.
+
+    Examples:
+        !py rate_fn           # loads rate_fn from module in same dir
+        !py helpers.compute   # loads helpers.py, gets compute attr
+    """
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def __repr__(self) -> str:
+        return f"PyRef({self.path!r})"
+
+    def resolve(self, base_dir: str) -> Any:
+        """Resolve the Python reference relative to base_dir.
+
+        Args:
+            base_dir: Directory containing the source file
+
+        Returns:
+            The resolved Python object (function, class, value, etc.)
+
+        Raises:
+            ImportError: If module not found
+            AttributeError: If attribute not found in module
+        """
+        import importlib.util
+        import sys
+
+        parts = self.path.split(".")
+
+        if len(parts) == 1:
+            # Simple name like "rate_fn" - look for any .py file with this function
+            # First try: same name as the YAML file
+            # For now, require explicit module: !py module.attr
+            raise ValueError(
+                f"!py requires module.attr format, got: {self.path}. "
+                f"Use !py filename.function_name"
+            )
+
+        # module.attr format
+        module_name = parts[0]
+        attr_path = parts[1:]
+
+        # Build path to .py file
+        py_file = Path(base_dir) / f"{module_name}.py"
+
+        if not py_file.exists():
+            raise ImportError(f"Python file not found: {py_file}")
+
+        # Load the module dynamically
+        spec = importlib.util.spec_from_file_location(module_name, py_file)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load module from: {py_file}")
+
+        module = importlib.util.module_from_spec(spec)
+
+        # Add to sys.modules temporarily for nested imports
+        old_module = sys.modules.get(module_name)
+        sys.modules[module_name] = module
+
+        try:
+            spec.loader.exec_module(module)
+
+            # Navigate to the attribute
+            result = module
+            for attr in attr_path:
+                result = getattr(result, attr)
+
+            return result
+        finally:
+            # Restore sys.modules state
+            if old_module is None:
+                sys.modules.pop(module_name, None)
+            else:
+                sys.modules[module_name] = old_module
+
+
 class Include:
     """Placeholder for !include tag - file to include.
 
@@ -162,12 +244,19 @@ def include_constructor(loader: yaml.Loader, node: yaml.Node) -> Include:
     return Include(str(value))
 
 
+def py_constructor(loader: yaml.Loader, node: yaml.Node) -> PyRef:
+    """YAML constructor for !py tag."""
+    value = loader.construct_scalar(node)  # type: ignore
+    return PyRef(str(value))
+
+
 def register_yaml_tags() -> None:
-    """Register !include tag with the loader.
+    """Register custom YAML tags with the loader.
 
     Note: !ev, !ref, !_, !quote are registered in eval.py
     """
     yaml.add_constructor("!include", include_constructor, Loader=yaml.SafeLoader)
+    yaml.add_constructor("!py", py_constructor, Loader=yaml.SafeLoader)
 
 
 # Register tags on module import

@@ -2,7 +2,7 @@
 
 # Bio
 
-Environment class for fetching, hydration, and persistence of alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language Reference]]. For the command-line interface, see [[ABIO Commands|Commands]].
+Environment class for fetching, hydration, and persistence of alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language Reference]]. For the command-line interface, see [Commands](../../ABIO Commands.md).
 
 ---
 
@@ -46,12 +46,12 @@ Bio is an environment class that can be instantiated for isolated sandboxes or u
 
 **Instance pattern** — Create isolated environments in your code:
 ```python
-bio = Bio()                    # fresh environment
+bio = Bio()                    # fresh environment, anonymous DAT
 scenario = bio.fetch("catalog/scenarios/mutualism")
 bio.run("catalog/jobs/test")
 
-bio2 = Bio()                   # independent environment
-bio2.fetch("catalog/worlds/other")
+bio2 = Bio(dat="experiments/baseline")  # environment wrapping specific DAT
+bio2.fetch("scenarios/test")
 ```
 
 **Singleton pattern** — Use the module-level singleton for CLI and simple scripts:
@@ -67,22 +67,22 @@ Each Bio instance owns its own DAT context and scope chain, enabling:
 
 ### Methods
 
-See [[commands/ABIO Commands|Commands]] for detailed documentation on each method.
+See [Commands](../../ABIO Commands.md) for detailed documentation on each method.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| [[commands/ABIO Fetch\|fetch(specifier)]] | `Any` | Load, expand, and **hydrate** → typed object |
-| [[commands/ABIO Lookup\|lookup(name)]] | `Any` | Resolve dotted name (Python modules → cwd) |
-| [[commands/ABIO Build\|build(target)]] | `Any` | Template instantiation → built scenario |
-| [[commands/ABIO Run\|run(target)]] | `Result` | Execute a runnable → result |
-| [[commands/ABIO Report\|report(results, ...)]] | `None` | Generate formatted report from results |
+| [fetch(specifier)](../../commands/ABIO Fetch.md) | `Any` | Load, expand, and **hydrate** → typed object |
+| [lookup(name)](../../commands/ABIO Lookup.md) | `Any` | Resolve dotted name (Python modules → cwd) |
+| [build(target)](../../commands/ABIO Build.md) | `Any` | Template instantiation → built scenario |
+| [run(target)](../../commands/ABIO Run.md) | `Result` | Execute a runnable → result |
+| [report(results, ...)](../../commands/ABIO Report.md) | `None` | Generate formatted report from results |
 | `store(specifier, obj)` | `None` | Dehydrate and store object |
 | `cd(path=None)` | `Path` | Get/set current DAT context |
-| [[commands/ABIO Sim\|create_simulator(...)]] | `Simulator` | Create Simulator from Chemistry |
-| [[commands/ABIO Agent\|register_agent(...)]] | `None` | Register an agent implementation |
-| [[commands/ABIO Agent\|create_agent(...)]] | `Agent` | Create agent instance for scenario |
-| [[commands/ABIO Hydrate\|hydrate(data)]] | `Any` | Convert dict with `_type` to typed object (advanced) |
-| [[commands/ABIO Dehydrate\|dehydrate(obj)]] | `dict` | Convert typed object to dict with `_type` (advanced) |
+| [create_simulator(...)](../../commands/ABIO Sim.md) | `Simulator` | Create Simulator from Chemistry |
+| [register_agent(...)](../../commands/ABIO Agent.md) | `None` | Register an agent implementation |
+| [create_agent(...)](../../commands/ABIO Agent.md) | `Agent` | Create agent instance for scenario |
+| [hydrate(data)](../../commands/ABIO Hydrate.md) | `Any` | Convert dict with `_type` to typed object (advanced) |
+| [dehydrate(obj)](../../commands/ABIO Dehydrate.md) | `dict` | Convert typed object to dict with `_type` (advanced) |
 
 ### Implicit Chaining
 
@@ -113,7 +113,7 @@ A **specifier** identifies a fetchable object. Two styles:
 | Style | Example | Routing |
 |-------|---------|---------|
 | **Path** (has `/`) | `catalog/scenarios/mutualism` | Direct DAT load |
-| **Dotted** (no `/`) | `x1.results.summary` | [[commands/ABIO Lookup\|Bio.lookup()]] |
+| **Dotted** (no `/`) | `x1.results.summary` | [Bio.lookup()](../../commands/ABIO Lookup.md) |
 
 ```python
 # Path-style: direct DAT load
@@ -125,7 +125,7 @@ bio.fetch("x1.results.summary")
 # → Python modules first, then cwd filesystem
 ```
 
-See [[commands/ABIO Lookup|Bio.lookup()]] for full resolution rules.
+See [Bio.lookup()](../../commands/ABIO Lookup.md) for full resolution rules.
 
 ### Scope-Aware Fetching
 See [[Scope]] for details on lexical scoping and the module pattern.
@@ -337,7 +337,7 @@ bio.report(results, format="excel")           # opens in spreadsheet app
 - Axis values (e.g., `temperature`, `initial_ME1`)
 - Metadata (`seed`, `steps`, etc.)
 
-See [[classes/execution/Experiment|Experiment]] for how results are generated.
+See [Experiment](../execution/experiment.md) for how results are generated.
 
 ## Protocol
 ```python
@@ -347,8 +347,13 @@ class Bio:
     Instantiate for isolated sandboxes, or use the module-level `bio` singleton.
     """
 
-    def __init__(self) -> None:
-        """Create a new Bio environment with fresh DAT context and scope chain."""
+    def __init__(self, dat: str | DAT | None = None) -> None:
+        """Create a new Bio environment.
+
+        Args:
+            dat: Optional DAT name (string) or DAT object. If None, anonymous DAT
+                 created lazily on first access via bio.dat property.
+        """
         ...
 
     def fetch(self, specifier: str, raw: bool = False) -> Any:
@@ -393,6 +398,11 @@ class Bio:
 
     def dehydrate(self, obj: Any) -> dict:
         """Convert typed object to dict with _type."""
+        ...
+
+    @property
+    def dat(self) -> DAT:
+        """Current DAT. Creates anonymous DAT on first access if none specified."""
         ...
 
 

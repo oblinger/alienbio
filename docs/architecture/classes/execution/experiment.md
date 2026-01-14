@@ -116,7 +116,7 @@ The Experiment produces data; the Report formats it:
 Experiment.run() → list[dict] → bio.report() → formatted output
 ```
 
-See [[classes/infra/Bio#bio.report()|Bio.report()]] for report generation.
+See [Bio.report()](../infra/Bio.md#bioreport) for report generation.
 
 ## Protocol
 
@@ -139,6 +139,6 @@ class Experiment:
 
 ## See Also
 
-- [[classes/infra/Bio|Bio]] — `bio.run()` executes experiments
+- [Bio](../infra/Bio.md) — `bio.run()` executes experiments
 - [[Scenario]] — Individual scenarios within experiments
 - [[Task]] — Goal specification for agent evaluation

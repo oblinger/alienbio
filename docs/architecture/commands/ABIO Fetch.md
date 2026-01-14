@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.fetch()
+# bio.fetch()
 
 Load and hydrate specs from DAT folders or Python modules.
 
@@ -81,8 +81,11 @@ bio fetch experiments/sweep
 ```python
 from alienbio import bio
 
-# Load and hydrate a spec
-scenario = bio.fetch("catalog/scenarios/mutualism")
+# Load a DAT (returns dict with all content from index.yaml)
+dat: dict = bio.fetch("catalog/scenarios/mutualism")
+
+# Load a typed object within a DAT (dots navigate into the structure)
+scenario: Scenario = bio.fetch("catalog/scenarios/mutualism.baseline")
 ```
 
 ### Options
@@ -90,6 +93,27 @@ scenario = bio.fetch("catalog/scenarios/mutualism")
 | Option | Description |
 |--------|-------------|
 | `hydrate=False` | Return Scope object without hydrating to typed objects |
+
+---
+
+## Processing Pipeline
+
+Fetch loads and processes data in two phases:
+
+```
+1. Load & Resolve Tags
+   - Load source (YAML file or Python global)
+   - Parse YAML (if "yaml: " string format)
+   - Recursively resolve tags (!include, !ref, !py, !ev)
+
+2. Hydrate
+   - Convert to typed objects (Scenario, Chemistry, etc.)
+   - Wire up scope chains
+```
+
+Tag resolution happens in a single recursive pass — if an `!include` brings in content with more tags, those are resolved before continuing.
+
+Use `hydrate=False` to get the resolved dict without converting to typed objects.
 
 ---
 
@@ -101,18 +125,22 @@ Fetch resolves specifier strings by checking these rules in order:
 |------|------|-------|
 | Begins with `/` | Absolute path | Loads within DAT at absolute path |
 | Begins with `./` | Relative path | Loads within DAT relative to cwd |
-| Has slashes | DAT path | Loads within DAT at path |
+| Has slashes | DAT path | Loads DAT; dots after path dig into content |
 | First segment in `sys.modules` | Python module | Dereferences within the loaded module |
 | Under a configured root | Configured root | Loads within DAT under root |
 | Not found locally | Remote sync | Fetches from remote storage *(planned)* |
 
 ```python
-bio.fetch("/data/experiments/run1")           # absolute path
-bio.fetch("./experiments/test1")              # relative path
-bio.fetch("catalog/scenarios/mutualism")      # DAT path
-bio.fetch("alienbio.bio.Chemistry")           # Python module
-bio.fetch("scenarios.mutualism.baseline")     # configured root
+bio.fetch("/data/experiments/run1")                      # absolute path → DAT
+bio.fetch("./experiments/test1")                         # relative path → DAT
+bio.fetch("catalog/scenarios/mutualism")                 # DAT path → loads index.yaml
+bio.fetch("catalog/scenarios/mutualism.baseline")        # DAT + dig → scenario object
+bio.fetch("catalog/scenarios/mutualism.config.timeout")  # DAT + deep dig → value
+bio.fetch("alienbio.bio.Chemistry")                      # Python module
+bio.fetch("scenarios.mutualism.baseline")                # configured root (no slashes)
 ```
+
+Within source roots, when both `name.yaml` and `name.py` exist, YAML is checked first.
 
 ### Loading Within a DAT
 
@@ -135,79 +163,97 @@ bio.fetch("catalog/scenarios/mutualism.experiments.baseline")
 
 ---
 
-## Configuration
+## Data Sources
 
-Fetch uses `.dataconfig.yaml` to locate data. Bio-specific config goes in the `dat` section:
+Fetch can load data from two sources: **YAML files** or **Python module globals**.
+
+### YAML Files
+
+Fetch locates `.yaml` files in configured roots and loads them.
 
 ```yaml
-# .dataconfig.yaml
-local_prefix: data/
-dat:
-  bio_roots:
-    - ./catalog
-    - ~/.alienbio/catalog
+# scenarios/mutualism.yaml
+scenario.mutualism:
+  name: Mutualism Demo
+  chemistry: !ref mute.chem.energy_ring
 ```
 
-When resolving dotted names (no slashes), Bio scans `bio_roots` in order after checking Python modules.
+### Python Module Globals
 
-See [[classes/infra/DAT|DAT]] for full configuration details.
+Python modules can export data as globals. Two formats are supported:
+
+```python
+# scenarios/mutualism.py
+
+# Dict format - used directly
+MUTUALISM = {
+    "scenario.mutualism": {
+        "name": "Mutualism Demo",
+        "chemistry": "!ref mute.chem.energy_ring"
+    }
+}
+
+# YAML string format - parsed first
+MUTUALISM_YAML = """yaml:
+scenario.mutualism:
+  name: Mutualism Demo
+  chemistry: !ref mute.chem.energy_ring
+"""
+```
+
+Both formats go through the same processing pipeline after loading (see [[#Processing Pipeline]]).
 
 ---
 
 ## Examples
 
-### Loading Scenarios and Chemistries
+Examples below assume this configuration (see [[ABIO DAT]] for details):
 
-```python
-# Load a scenario DAT
-scenario: Scenario = bio.fetch("catalog/scenarios/mutualism")
-# → loads catalog/scenarios/mutualism/index.yaml
-# → hydrates to Scenario object
-
-# Load a chemistry
-chemistry: Chemistry = bio.fetch("catalog/chemistries/energy_ring")
-# → loads catalog/chemistries/energy_ring.yaml
-
-# Load a variant file within a DAT folder
-hard_mode: Scenario = bio.fetch("catalog/scenarios/mutualism/hard")
-# → loads catalog/scenarios/mutualism/hard.yaml
+```yaml
+# .dataconfig.yaml
+dat:
+  source_roots:
+    - path: ~/bio/catalog
 ```
 
-### Getting Nested Content
+### Loading from DAT Paths
 
 ```python
-# Get a specific experiment from a scenario
-baseline: Scenario = bio.fetch("catalog/scenarios/mutualism.experiments.baseline")
+# Load a DAT (returns entire index.yaml content)
+dat: dict = bio.fetch("~/bio/data/runs/exp_001")
+# → loads ~/bio/data/runs/exp_001/index.yaml
 
-# Get results from the 'sweep' experimental run
-summary: dict = bio.fetch("./sweep.results.summary")
+# Load a scenario from a DAT with dig
+scenario: Scenario = bio.fetch("~/bio/data/runs/exp_001.scenario")
+# → loads index.yaml, digs into ["scenario"], hydrates
+```
 
-# Get a config value from a Python module
-timeout: int = bio.fetch("myapp.config.SETTINGS.timeout")
+### Loading from Source Roots
+
+```python
+# Dotted path resolves through source roots
+scenario: Scenario = bio.fetch("scenarios.mutualism")
+# → finds ~/bio/catalog/scenarios/mutualism.yaml
+# → hydrates to Scenario
+
+# Dig into nested content
+baseline: dict = bio.fetch("scenarios.mutualism.experiments.baseline")
+# → loads scenarios/mutualism.yaml
+# → digs into ["experiments"]["baseline"]
 ```
 
 ### Without Hydration
 
 ```python
-# Get Scope without hydrating to typed objects
-scope: Scope = bio.fetch("catalog/scenarios/mutualism", hydrate=False)
-baseline: dict = scope["experiments"]["baseline"]
-variant: Scope = scope["base"].child({"rate": 0.5})
+# Get raw dict without converting to typed objects
+raw: dict = bio.fetch("scenarios.mutualism", hydrate=False)
 ```
-
----
-
-### Hydration
-
-After loading YAML, fetch hydrates the result — resolving tags, wiring up scope chains, and converting to typed objects. See [[commands/ABIO Hydrate|hydrate()]] for details.
-
-Use `hydrate=False` to skip hydration and get a Scope object instead.
 
 ---
 
 ## See Also
 
-- [[classes/infra/DAT|DAT]] — DAT configuration and folder structure
-- [[classes/infra/Bio|Bio]] — Bio class overview
-- [[commands/ABIO Hydrate|hydrate()]] — Hydration details
+- [DAT](../classes/infra/DAT.md) — DAT configuration and folder structure
+- [Bio](../classes/infra/Bio.md) — Bio class overview
+- [hydrate()](ABIO Hydrate.md) — Hydration details
 

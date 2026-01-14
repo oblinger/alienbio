@@ -6,7 +6,7 @@ from typing import Any, TYPE_CHECKING
 
 import yaml
 
-from .tags import EvTag, RefTag, IncludeTag
+from .tags import EvTag, RefTag, IncludeTag, PyRef
 from .loader import transform_typed_keys, expand_defaults
 from .eval import (
     hydrate,
@@ -22,6 +22,25 @@ if TYPE_CHECKING:
     from alienbio.protocols.bio import Simulator
     from alienbio.bio.chemistry import ChemistryImpl
     from alienbio.bio.state import StateImpl
+
+
+class SourceRoot:
+    """Configuration for a source root directory.
+
+    A source root maps a filesystem path to a Python module prefix,
+    enabling fetch() to find both YAML files and Python module globals.
+
+    Attributes:
+        path: Filesystem path to search for YAML files
+        module: Optional Python module prefix for Python global lookups
+    """
+
+    def __init__(self, path: str | Path, module: str | None = None):
+        self.path = Path(path).resolve()
+        self.module = module
+
+    def __repr__(self) -> str:
+        return f"SourceRoot({self.path!r}, module={self.module!r})"
 
 
 class Bio:
@@ -42,14 +61,159 @@ class Bio:
         my_bio._simulator_factory = JaxSimulator
         my_bio.sim(scenario)  # Uses JaxSimulator
 
+        # Configure source roots:
+        bio.add_source_root("./catalog", module="myproject.catalog")
+
     Pegboard attributes (can be overridden per-instance):
         _simulator_factory: Class used by sim() to create simulators
+        _source_roots: List of SourceRoot for dotted name resolution
     """
 
     def __init__(self) -> None:
         """Initialize Bio with default implementations."""
         from alienbio.bio.simulator import ReferenceSimulatorImpl
         self._simulator_factory: "type[Simulator]" = ReferenceSimulatorImpl
+        self._source_roots: list[SourceRoot] = []
+
+    def add_source_root(self, path: str | Path, module: str | None = None) -> None:
+        """Add a source root for spec resolution.
+
+        Args:
+            path: Filesystem path to search for YAML files
+            module: Optional Python module prefix for Python global lookups
+
+        Example:
+            bio.add_source_root("./catalog", module="myproject.catalog")
+            bio.add_source_root("~/.alienbio/std", module="alienbio.std")
+        """
+        expanded_path = Path(path).expanduser()
+        self._source_roots.append(SourceRoot(expanded_path, module))
+
+    def _load_from_python_global(
+        self, module_path: str, global_name: str
+    ) -> tuple[Any, str] | None:
+        """Try to load data from a Python module global.
+
+        Args:
+            module_path: Full module path like "myproject.catalog.mute.mol"
+            global_name: Global variable name like "ME_BASIC" or "TEMPLATE"
+
+        Returns:
+            Tuple of (data, base_dir) if found, None otherwise.
+            base_dir is the directory containing the Python file.
+        """
+        import importlib
+        import sys
+
+        try:
+            module = importlib.import_module(module_path)
+        except ImportError:
+            return None
+
+        # Try the specific global name first
+        if hasattr(module, global_name):
+            value = getattr(module, global_name)
+        # Try uppercase version
+        elif hasattr(module, global_name.upper()):
+            value = getattr(module, global_name.upper())
+        else:
+            return None
+
+        # Get base directory from module file
+        module_file = getattr(module, "__file__", None)
+        if module_file:
+            base_dir = str(Path(module_file).parent)
+        else:
+            base_dir = "."
+
+        # Handle "yaml: " string format
+        if isinstance(value, str) and value.startswith("yaml:"):
+            yaml_content = value[5:].lstrip()  # Remove "yaml:" prefix
+            data = yaml.safe_load(yaml_content)
+            return data, base_dir
+
+        # Handle dict format directly
+        if isinstance(value, dict):
+            return value, base_dir
+
+        return None
+
+    def _resolve_dotted_in_source_root(
+        self, dotted_path: str, root: SourceRoot
+    ) -> tuple[Any, str] | None:
+        """Try to resolve a dotted path within a source root.
+
+        Checks for YAML file first, then Python module global.
+
+        Args:
+            dotted_path: Path like "mute.mol.energy.ME_basic" or single "config"
+            root: Source root to search in
+
+        Returns:
+            Tuple of (data, base_dir) if found, None otherwise.
+        """
+        parts = dotted_path.split(".") if "." in dotted_path else [dotted_path]
+
+        # Try YAML file resolution (greedy: try longest path first)
+        for i in range(len(parts), 0, -1):
+            # Convert dot path to filesystem path
+            yaml_path = root.path / "/".join(parts[:i])
+
+            # Try as .yaml file
+            yaml_file = yaml_path.with_suffix(".yaml")
+            if yaml_file.exists():
+                content = yaml_file.read_text()
+                data = yaml.safe_load(content)
+                base_dir = str(yaml_file.parent)
+
+                # Dig into remaining path
+                remaining = parts[i:]
+                for key in remaining:
+                    if isinstance(data, dict) and key in data:
+                        data = data[key]
+                    else:
+                        return None  # Key not found
+
+                return data, base_dir
+
+            # Try as directory with index.yaml
+            index_file = yaml_path / "index.yaml"
+            if index_file.exists():
+                content = index_file.read_text()
+                data = yaml.safe_load(content)
+                base_dir = str(index_file.parent)
+
+                # Dig into remaining path
+                remaining = parts[i:]
+                for key in remaining:
+                    if isinstance(data, dict) and key in data:
+                        data = data[key]
+                    else:
+                        return None  # Key not found
+
+                return data, base_dir
+
+        # No YAML found, try Python module global if module prefix configured
+        if root.module is not None:  # Allow empty string module
+            # Build module path: root.module + all but last part
+            module_parts = parts[:-1]
+            global_name = parts[-1]
+
+            if root.module:
+                if module_parts:
+                    full_module = f"{root.module}.{'.'.join(module_parts)}"
+                else:
+                    full_module = root.module
+            else:
+                # Empty module prefix - use parts directly
+                full_module = ".".join(module_parts) if module_parts else None
+
+            if full_module:
+                result = self._load_from_python_global(full_module, global_name)
+                if result is not None:
+                    return result
+
+        return None
 
     # =========================================================================
     # Fetch / Store / Expand
@@ -58,8 +222,12 @@ class Bio:
     def fetch(self, specifier: str, *, raw: bool = False) -> Any:
         """Fetch a typed object from a specifier path.
 
+        Routing:
+        - Contains "/" → filesystem/DAT path
+        - All dots → source root resolution (YAML first, then Python globals)
+
         Args:
-            specifier: Path like "catalog/scenarios/mutualism"
+            specifier: Path like "catalog/scenarios/mutualism" or dotted "mute.mol.energy.ME1"
             raw: If True, return raw YAML data without processing/hydration
 
         Returns:
@@ -68,6 +236,20 @@ class Bio:
         Raises:
             FileNotFoundError: If specifier path doesn't exist
         """
+        # Route based on specifier format
+        if "/" not in specifier and self._source_roots:
+            # No slash and source roots configured → try source root resolution
+            # This handles both "mute.mol.energy" and single-segment "config"
+            try:
+                return self._fetch_from_source_roots(specifier, raw=raw)
+            except FileNotFoundError as e:
+                # If specifier has dots, it's definitely a dotted path - don't try filesystem
+                if "." in specifier:
+                    raise
+                # Single-segment: fall through to filesystem resolution
+                pass
+
+        # Filesystem/DAT path resolution
         path = Path(specifier)
 
         if not path.exists():
@@ -94,6 +276,43 @@ class Bio:
 
         # Full processing: expand and hydrate
         return self._process_and_hydrate(data, str(spec_file.parent))
+
+    def _fetch_from_source_roots(self, dotted_path: str, *, raw: bool = False) -> Any:
+        """Fetch from configured source roots using dotted path.
+
+        Searches source roots in order, checking YAML files first,
+        then Python module globals.
+
+        Args:
+            dotted_path: Path like "mute.mol.energy.ME1"
+            raw: If True, return raw data without processing
+
+        Returns:
+            Loaded and optionally processed data
+
+        Raises:
+            FileNotFoundError: If not found in any source root
+        """
+        searched = []
+
+        for root in self._source_roots:
+            result = self._resolve_dotted_in_source_root(dotted_path, root)
+            if result is not None:
+                data, base_dir = result
+
+                if raw:
+                    return data
+
+                # Process if it's a dict (could be a primitive from dig)
+                if isinstance(data, dict):
+                    return self._process_and_hydrate(data, base_dir)
+                return data
+
+            searched.append(str(root.path))
+
+        raise FileNotFoundError(
+            f"'{dotted_path}' not found in source roots: {searched}"
+        )
 
     def store(self, specifier: str, obj: Any, *, raw: bool = False) -> None:
         """Store a typed object to a specifier path.
@@ -350,11 +569,19 @@ class Bio:
         return self._simulator_factory(scenario)
 
     def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
-        """Process raw data: resolve includes, refs, defaults."""
-        # Process the data: resolve includes, transform typed keys, etc.
+        """Process raw data: resolve includes, refs, py refs, defaults.
+
+        Processing pipeline:
+        1. Resolve !include tags (inline other files)
+        2. Transform typed keys (key.Type: → key: {_type: Type, ...})
+        3. Resolve !ref tags (cross-references)
+        4. Resolve !py tags (local Python access)
+        5. Expand defaults
+        """
         data = self._resolve_includes(data, base_dir)
         data = transform_typed_keys(data)
         data = self._resolve_refs(data, data.get("constants", {}))
+        data = self._resolve_py_refs(data, base_dir)
         data = expand_defaults(data)
 
         return data
@@ -391,6 +618,25 @@ class Bio:
             return {k: self._resolve_refs(v, constants) for k, v in data.items()}
         elif isinstance(data, list):
             return [self._resolve_refs(item, constants) for item in data]
+        else:
+            return data
+
+    def _resolve_py_refs(self, data: Any, base_dir: str) -> Any:
+        """Recursively resolve PyRef tags in data.
+
+        Args:
+            data: Data structure potentially containing PyRef placeholders
+            base_dir: Directory to resolve relative Python imports from
+
+        Returns:
+            Data with PyRef placeholders resolved to actual Python objects
+        """
+        if isinstance(data, PyRef):
+            return data.resolve(base_dir)
+        elif isinstance(data, dict):
+            return {k: self._resolve_py_refs(v, base_dir) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._resolve_py_refs(item, base_dir) for item in data]
         else:
             return data
 
