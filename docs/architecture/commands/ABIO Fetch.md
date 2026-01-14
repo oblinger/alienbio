@@ -81,8 +81,11 @@ bio fetch experiments/sweep
 ```python
 from alienbio import bio
 
-# Load and hydrate a spec
-scenario = bio.fetch("catalog/scenarios/mutualism")
+# Load a DAT (returns dict with all content from index.yaml)
+dat: dict = bio.fetch("catalog/scenarios/mutualism")
+
+# Load a typed object within a DAT (dots navigate into the structure)
+scenario: Scenario = bio.fetch("catalog/scenarios/mutualism.baseline")
 ```
 
 ### Options
