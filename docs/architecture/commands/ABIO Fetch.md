@@ -144,9 +144,9 @@ bio.fetch("catalog/scenarios/mutualism.experiments.baseline")
 
 Fetch can load data from two sources: **YAML files** or **Python module globals**.
 
-### YAML Files (Primary)
+### YAML Files
 
-The standard source. Fetch locates `.yaml` files in configured roots and loads them.
+Fetch locates `.yaml` files in configured roots and loads them.
 
 ```yaml
 # scenarios/mutualism.yaml
