@@ -96,6 +96,27 @@ scenario: Scenario = bio.fetch("catalog/scenarios/mutualism.baseline")
 
 ---
 
+## Processing Pipeline
+
+Fetch loads and processes data in two phases:
+
+```
+1. Load & Resolve Tags
+   - Load source (YAML file or Python global)
+   - Parse YAML (if "yaml: " string format)
+   - Recursively resolve tags (!include, !ref, !py, !ev)
+
+2. Hydrate
+   - Convert to typed objects (Scenario, Chemistry, etc.)
+   - Wire up scope chains
+```
+
+Tag resolution happens in a single recursive pass — if an `!include` brings in content with more tags, those are resolved before continuing.
+
+Use `hydrate=False` to get the resolved dict without converting to typed objects.
+
+---
+
 ## Resolution Order
 
 Fetch resolves specifier strings by checking these rules in order:
@@ -180,25 +201,7 @@ scenario.mutualism:
 """
 ```
 
-Both formats go through the same processing pipeline after loading.
-
-### Processing Pipeline
-
-Both YAML files and Python globals go through the same pipeline:
-
-```
-Load source (YAML file or Python global)
-    ↓
-Parse YAML string (if Python "yaml: " format)
-    ↓
-Resolve !include tags (inline other files)
-    ↓
-Resolve !ref tags (cross-references)
-    ↓
-Resolve !py tags (local Python access)
-    ↓
-Hydrate to typed objects
-```
+Both formats go through the same processing pipeline after loading (see [[#Processing Pipeline]]).
 
 ---
 
