@@ -52,4 +52,4 @@ These Python builtins are available in expressions:
 ## See Also
 
 - [[Spec Language Reference]] — YAML syntax and evaluation
-- [[modules/Scope|Scope]] — Scope and evaluation context
+- [Scope](modules/Scope.md) — Scope and evaluation context

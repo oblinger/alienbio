@@ -37,7 +37,7 @@ These modules have been reviewed and match documentation:
 Clean up technical debt before building new features. All items reference existing code.
 
 **Key docs with implementation notes:**
-- [[classes/infra/Bio|Bio.md]] — Bio class refactoring steps, hydration consolidation
+- [Bio.md](classes/infra/Bio.md) — Bio class refactoring steps, hydration consolidation
 - [[Spec Language Reference]] — Tag system consolidation, Context class cleanup
 
 ### Code Refactoring
@@ -48,9 +48,9 @@ Clean up technical debt before building new features. All items reference existi
    - [ ] Export `bio` singleton from `alienbio.__init__`
    - [ ] Update CLI commands to use singleton `bio` instance
 
-2. **Consolidate hydration**
-   - [ ] Remove or deprecate `eval.hydrate()`
-   - [ ] Consolidate `decorators.hydrate()` logic into `Bio.hydrate()`
+2. **Consolidate hydration** (see TODO 2026-01-14 #7)
+   - [ ] Move `hydrate`/`dehydrate` to module-level functions in `alienbio/__init__.py`
+   - [ ] Update Bio.fetch() to call module-level hydrate()
    - [ ] Ensure each Entity subclass has `hydrate(data, ...)` classmethod
 
 3. **Remove old tag system**
@@ -72,6 +72,18 @@ Clean up technical debt before building new features. All items reference existi
 6. **Remove loader stub**
    - [ ] Remove `loader.py` stub `load_spec()`
 
+7. **Factory pattern** (see TODO 2026-01-14 #7)
+   - [ ] Implement `@factory` decorator in `alienbio/decorators.py`
+   - [ ] Implement factory registry on Bio (`_factories`, `_factory_defaults`)
+   - [ ] Update existing `*Impl` classes with `@factory` decorators
+   - [ ] Add `impl` parameter to `build()`
+
+8. **Module exports cleanup** (see TODO 2026-01-14 #9)
+   - [ ] Refactor `alienbio/__init__.py` to use curated `__all__`
+   - [ ] Export main API: `bio`, `Bio`, `hydrate`, `dehydrate`
+   - [ ] Export core protocols: `Entity`, `Scenario`, `Chemistry`, `Simulator`, `State`
+   - [ ] Keep `*Impl` classes importable but NOT in `__all__`
+
 ### Documentation Updates (for existing code)
 
 - [ ] Document `Entity.ancestors()`, `descendants()`, `local_name`, `parent`, `children`
@@ -84,14 +96,34 @@ Clean up technical debt before building new features. All items reference existi
 - [ ] Document `IncludeTag` .py file execution (security note)
 - [ ] Clarify Protocol vs `*Impl` naming pattern
 
+### Factory Pattern Documentation (see TODO 2026-01-14 #6)
+
+- [ ] Create new doc: `docs/architecture/Factory Pattern.md`
+- [ ] Document `@factory` decorator usage and registration
+- [ ] Document implementation resolution order (build param → spec field → config default)
+- [ ] Document config file format for defaults
+- [ ] Add examples for creating custom implementations
+- [ ] Update Bio.md to reference factory pattern doc
+
+---
+
+## M1.6 — Fetch Foundation (Current)
+
+Front-loaded from M2 while design is fresh. Execute TODO 2026-01-14 items in order:
+
+1. **#10 YAML/Python Fetch Implementation** — `!py` tag, source_roots config, Python globals as data
+2. **#3 Fetch String Resolution** — Routing logic, dig operation, source root scanning
+3. **#2 ORM Pattern** — DAT caching, `Bio(dat=...)` constructor
+4. **#4 Fetch User Documentation** — Update docs to match implementation
+
 ---
 
 ## M2 — Bio Fetch & Lookup
 
-Bio class methods for loading and navigating specs. Testable independently.
+Bio class methods for loading and navigating specs. Builds on M1.6.
 
 **Key docs with implementation notes:**
-- [[commands/ABIO Fetch|Fetch]] — Specifier routing logic, hydration order
+- [Fetch](commands/ABIO Fetch.md) — Specifier routing logic, hydration order, data sources
 
 ### Code
 
@@ -101,25 +133,51 @@ Bio class methods for loading and navigating specs. Testable independently.
    - [ ] Update `fetch()`, `store()` to resolve relative paths against current DAT
    - [ ] CLI: `bio cd` prints current, `bio cd path` changes it
 
-2. **Bio.lookup()**
-   - [ ] Create `lookup(dotted_name)` function
-   - [ ] Handle: folder navigation, YAML loading, Python module loading
-   - [ ] Work with user to enumerate all lookup cases
+2. **ORM Pattern** (see TODO 2026-01-14 #2)
+   - [ ] Document DAT ORM pattern (single in-memory instance per DAT)
+   - [ ] Implement DAT caching layer for fetch()
+   - [ ] Implement `Bio(dat=...)` constructor parameter (accepts string or DAT object)
+   - [ ] Document `bio.dat` accessor with lazy anonymous DAT creation
+   - [ ] Define anonymous DAT spec constant location in config
 
-3. **Bio.fetch() enhancements**
+3. **Fetch string resolution** (see TODO 2026-01-14 #3)
+   - [ ] Implement routing logic (`/` → DAT, dots → module or source root)
+   - [ ] Implement DAT name parsing (extract name + dig path)
+   - [ ] Implement module access (import + attribute dig)
+   - [ ] Implement source root scanning (YAML file discovery)
+   - [ ] Implement shared dig operation (dict key / attribute access)
+   - [ ] Implement ORM caching for DAT access
+   - [ ] Enable and pass all tests in `test_fetch_resolution.py`
+   - [ ] Handle edge cases (empty string, unicode, whitespace, etc.)
+
+4. **YAML/Python coexistence** (see TODO 2026-01-14 #10)
+   - [ ] Implement source_roots config with path + module pairs
+   - [ ] Implement `!py` tag resolution (local to source file)
+   - [ ] Implement Python module global loading (dict and "yaml: " string)
+   - [ ] Update fetch() to check both YAML files and Python globals
+   - [ ] Add tests for YAML/Python coexistence scenarios
+
+5. **Bio.fetch() enhancements**
    - [ ] Detect dots-before-slash and route to lookup()
    - [ ] Implement "loads within DAT" pattern (load YAML → dereference → hydrate)
    - [ ] Support `hydrate=False` option
 
-4. **Bio.store()**
+6. **Bio.store()**
    - [ ] Implement dehydration and storage
    - [ ] (Remote sync planned for Later)
 
 ### Documentation
 
-- [ ] Verify [[commands/ABIO Fetch|Fetch]] examples
-- [ ] Verify [[commands/ABIO Cd|Cd]] documentation
-- [ ] Verify [[commands/ABIO Store|Store]] documentation
+- [ ] Verify [Fetch](commands/ABIO Fetch.md) examples match implementation
+- [ ] Verify [Cd](commands/ABIO Cd.md) documentation
+- [ ] Verify [Store](commands/ABIO Store.md) documentation
+
+### DAT Name Convention Verification (see TODO 2026-01-14 #1)
+
+- [ ] Review all documentation to ensure DAT names (full names) are used, not filesystem paths
+- [ ] Review code to verify cross-component APIs use DAT names
+- [ ] Verify persisted data stores DAT names, not paths
+- [ ] Check that paths starting with `/` are handled as filesystem path escape hatch
 
 ---
 
@@ -146,7 +204,7 @@ Template instantiation and scenario building. Builds on M2.
 
 ### Documentation
 
-- [ ] Verify [[commands/ABIO Build|Build]] template instantiation docs
+- [ ] Verify [Build](commands/ABIO Build.md) template instantiation docs
 - [ ] Document generator/template.py, expand.py, guards.py, visibility.py
 - [ ] Document generator exceptions
 
@@ -158,22 +216,28 @@ Running scenarios and collecting results. Builds on M3.
 
 ### Code
 
-1. **Bio.run()**
+1. **Entity.run() base** (see TODO 2026-01-14 #7)
+   - [ ] Implement `Entity.run()` base method with NotImplementedError
+   - [ ] Add `run()` methods to Scenario, Experiment, Report classes
+   - [ ] Each returns domain-specific result (SimulationTrace, list[dict], Path)
+
+2. **Bio.run()**
    - [ ] Update `run()` to call `build()` when given string, then execute
+   - [ ] Wrap entity.run() result in dict with metadata (success, dat, elapsed)
    - [ ] Define `Runnable` protocol for objects that can be run
 
-2. **Scenario execution**
+3. **Scenario execution**
    - [ ] `_run_scenario()`: build Chemistry, create State, run simulator, compute scores
    - [ ] `SimulationTrace` class with `final`, `timeline`, `steps`
 
-3. **Scoring**
+4. **Scoring**
    - [ ] Scoring function evaluation with trace context
    - [ ] Verification checks
 
 ### Documentation
 
-- [ ] Verify [[commands/ABIO Run|Run]] implicit chaining docs
-- [ ] Add [[classes/execution/Runnable|Runnable]] class documentation
+- [ ] Verify [Run](commands/ABIO Run.md) implicit chaining docs
+- [ ] Add [Runnable](classes/execution/Runnable.md) class documentation
 - [ ] Document `run.py` module
 
 ---
@@ -199,8 +263,8 @@ Agent registration and interaction. Builds on M4.
 
 ### Documentation
 
-- [ ] Verify [[commands/ABIO Agent|Agent]] documentation
-- [ ] Add [[classes/execution/Agent|Agent]] class documentation
+- [ ] Verify [Agent](commands/ABIO Agent.md) documentation
+- [ ] Add [Agent](classes/execution/Agent.md) class documentation
 - [ ] Update [[Agent Interface]] with registration pattern
 
 ---
@@ -226,8 +290,8 @@ Multi-run experiments with result aggregation. Builds on M5.
 
 ### Documentation
 
-- [ ] Verify [[commands/ABIO Report|Report]] DAT integration
-- [ ] Verify [[classes/execution/Experiment|Experiment]] documentation
+- [ ] Verify [Report](commands/ABIO Report.md) DAT integration
+- [ ] Verify [Experiment](classes/execution/experiment.md) documentation
 
 ---
 
@@ -256,6 +320,26 @@ Extended biology features for complex ecosystems.
 - [ ] Document `CompartmentImpl`, `CompartmentTreeImpl`
 - [ ] Document `Flow`, `MembraneFlow`, `GeneralFlow`
 - [ ] Document `WorldStateImpl`, `WorldSimulatorImpl`
+
+---
+
+## Cross-Cutting: Documentation Audit
+
+Tasks that can be done alongside any milestone. See TODO 2026-01-14 for details.
+
+### Documentation Integration Audit (see TODO 2026-01-14 #5)
+
+- [ ] Scan all resolved questions (#1-13) in ABIO Todo.md
+- [ ] For each resolution, verify details are integrated into relevant system docs
+- [ ] Ensure no design decisions are lost in planning doc only
+- [ ] Cross-reference: planning doc should point to where details live in real docs
+
+### Pipeline Documentation Consistency (see TODO 2026-01-14 #8)
+
+- [ ] Verify all docs use consistent pipeline: fetch → hydrate → build → eval
+- [ ] Update Bio.md methods table to NOT include hydrate/dehydrate (module-level now)
+- [ ] Update ABIO Hydrate.md to note it's module-level and called by fetch by default
+- [ ] Ensure Spec Language Reference matches Core Spec on tag resolution timing
 
 ---
 

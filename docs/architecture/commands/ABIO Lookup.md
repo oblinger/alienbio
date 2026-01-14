@@ -2,7 +2,7 @@
 
 # Bio.lookup()
 
-Internal name resolution used by [[commands/ABIO Fetch|fetch()]].
+Internal name resolution used by [fetch()](ABIO Fetch.md).
 
 ---
 
@@ -12,7 +12,7 @@ Internal name resolution used by [[commands/ABIO Fetch|fetch()]].
 
 **Most users should use `fetch()` directly** — it handles all specifier types and calls `lookup()` automatically when needed.
 
-See [[commands/ABIO Fetch|fetch() → Resolution Order]] for the complete resolution rules.
+See [fetch() → Resolution Order](ABIO Fetch.md#resolution-order) for the complete resolution rules.
 
 ---
 
@@ -42,6 +42,6 @@ When `lookup(name)` is called:
 
 ## See Also
 
-- [[commands/ABIO Fetch|fetch()]] — Main entry point (calls lookup internally)
-- [[classes/infra/DAT|DAT]] — DAT configuration
-- [[modules/Scope|Scope]] — Scope.lookup() for scope-tree resolution
+- [fetch()](ABIO Fetch.md) — Main entry point (calls lookup internally)
+- [DAT](../classes/infra/DAT.md) — DAT configuration
+- [Scope](../modules/Scope.md) — Scope.lookup() for scope-tree resolution

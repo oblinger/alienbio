@@ -1,4 +1,4 @@
- [[Architecture Docs]]
+[[Architecture Docs]]
 
 # Commands
 
@@ -6,18 +6,18 @@ Bio class methods and CLI commands.
 
 All operations are methods on the `Bio` class. Those marked with CLI are also available as `bio <command>` at the command line.
 
-| Method                                       | CLI | Description                                 |
-| -------------------------------------------- |:---:| ------------------------------------------- |
-| [[commands/ABIO Run\|Bio.run()]]             |  ✓  | Execute a scenario or experiment            |
-| [[commands/ABIO Build\|Bio.build()]]         |  ✓  | Build a spec into a DAT or in-memory object |
-| [[commands/ABIO Fetch\|Bio.fetch()]]         |  ✓  | Retrieve a spec or DAT by name              |
-| [[commands/ABIO Store\|Bio.store()]]         |  ✓  | Sync a DAT to remote storage                |
-| [[commands/ABIO Report\|Bio.report()]]       |  ✓  | Generate reports from results               |
-| [[commands/ABIO Cd\|Bio.cd()]]               |  ✓  | Get/set current DAT                         |
-| [[commands/ABIO Agent\|Bio.agent]]           |  ✓  | Agent management (list, add, test, remove)  |
-| [[commands/ABIO Sim\|Bio.sim()]]             |     | Create a simulator from a scenario          |
-| [[commands/ABIO Hydrate\|Bio.hydrate()]]     |     | Convert parsed YAML to typed Entity         |
-| [[commands/ABIO Dehydrate\|Bio.dehydrate()]] |     | Convert Entity back to serializable dict    |
+| Method | CLI | Description |
+| ------ |:---:| ----------- |
+| [Bio.run()](commands/ABIO Run.md) | ✓ | Execute a scenario or experiment |
+| [Bio.build()](commands/ABIO Build.md) | ✓ | Build a spec into a DAT or in-memory object |
+| [Bio.fetch()](commands/ABIO Fetch.md) | ✓ | Retrieve a spec or DAT by name |
+| [Bio.store()](commands/ABIO Store.md) | ✓ | Sync a DAT to remote storage |
+| [Bio.report()](commands/ABIO Report.md) | ✓ | Generate reports from results |
+| [Bio.cd()](commands/ABIO Cd.md) | ✓ | Get/set current DAT |
+| [Bio.agent](commands/ABIO Agent.md) | ✓ | Agent management (list, add, test, remove) |
+| [Bio.sim()](commands/ABIO Sim.md) |   | Create a simulator from a scenario |
+| [Bio.hydrate()](commands/ABIO Hydrate.md) |   | Convert parsed YAML to typed Entity |
+| [Bio.dehydrate()](commands/ABIO Dehydrate.md) |   | Convert Entity back to serializable dict |
 
 ---
 

@@ -52,14 +52,15 @@ docs-serve:
 # Website repo path for deployment
 website_repo := "/Users/oblinger/ob/proj/oblinger.github.io"
 
-# Deploy docs to personal website (copies to oblinger.github.io/abio-docs/)
+# Deploy docs to personal website (builds, copies, commits, pushes)
 docs-deploy: docs
     @echo "Deploying to website repo..."
     rm -rf {{website_repo}}/abio-docs
     cp -r site {{website_repo}}/abio-docs
+    @echo "Committing and pushing..."
+    cd {{website_repo}} && git add abio-docs && git commit -m "Update abio docs" && git push
     @echo ""
-    @echo "✓ Copied to {{website_repo}}/abio-docs/"
-    @echo "  To publish: cd {{website_repo}} && git add abio-docs && git commit -m 'Update abio docs' && git push"
+    @echo "✓ Deployed to https://oblinger.github.io/abio-docs/"
 
 # Build Rust simulator
 build-rust:

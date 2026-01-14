@@ -63,7 +63,7 @@ bio.fetch("catalog.scenarios.mutualism")
 # → then tries filesystem: catalog/scenarios/mutualism/index.yaml
 ```
 
-See [[commands/ABIO Lookup|lookup()]] for full resolution rules.
+See [lookup()](../../commands/ABIO Lookup.md) for full resolution rules.
 
 ---
 
@@ -95,7 +95,7 @@ When Bio resolves a dotted name like `scenarios.mutualism`, it checks:
 1. **Python modules** — `sys.modules` for first segment
 2. **bio_roots** — scans each root in order, converting dots to path separators
 
-See [[commands/ABIO Fetch|fetch()]] for the complete resolution order.
+See [fetch()](../../commands/ABIO Fetch.md) for the complete resolution order.
 
 ---
 
@@ -202,6 +202,6 @@ bio.fetch("myproject.agents.LLMAgent")       # Python module (must be imported)
 
 ## See Also
 
-- [[commands/ABIO Lookup|lookup()]] — Name resolution
-- [[commands/ABIO Fetch|fetch()]] — Load and hydrate specs
-- [[classes/infra/Bio|Bio]] — Bio class overview
+- [lookup()](../../commands/ABIO Lookup.md) — Name resolution
+- [fetch()](../../commands/ABIO Fetch.md) — Load and hydrate specs
+- [Bio](Bio.md) — Bio class overview

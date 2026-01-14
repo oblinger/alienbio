@@ -135,6 +135,91 @@ bio.fetch("catalog/scenarios/mutualism.experiments.baseline")
 
 ---
 
+## Data Sources
+
+Fetch can load data from two sources: **YAML files** or **Python module globals**.
+
+### YAML Files (Primary)
+
+The standard source. Fetch locates `.yaml` files in configured roots and loads them.
+
+```yaml
+# scenarios/mutualism.yaml
+scenario.mutualism:
+  name: Mutualism Demo
+  chemistry: !ref mute.chem.energy_ring
+```
+
+### Python Module Globals
+
+Python modules can export data as globals. Two formats are supported:
+
+```python
+# scenarios/mutualism.py
+
+# Dict format - used directly
+MUTUALISM = {
+    "scenario.mutualism": {
+        "name": "Mutualism Demo",
+        "chemistry": "!ref mute.chem.energy_ring"
+    }
+}
+
+# YAML string format - parsed first
+MUTUALISM_YAML = """yaml:
+scenario.mutualism:
+  name: Mutualism Demo
+  chemistry: !ref mute.chem.energy_ring
+"""
+```
+
+Both formats go through the same processing pipeline after loading.
+
+### Resolution Priority
+
+When both `scenarios/mutualism.yaml` and `scenarios/mutualism.py` exist:
+
+1. **YAML takes precedence** — the `.yaml` file is loaded
+2. Python module is only checked if no YAML file is found
+
+This keeps YAML as the primary declarative format while allowing Python when computation is needed.
+
+### The `!py` Tag
+
+YAML files can reference Python code using the `!py` tag. The tag resolves **relative to the YAML file's location**:
+
+```yaml
+# mute/chem/energy_ring.yaml
+chemistry.energy_ring:
+  reactions:
+    synthesis: !py reactions.synthesis_rate  # loads mute/chem/reactions.py
+```
+
+The `!py` tag:
+- Looks for a `.py` file in the same directory as the YAML
+- Imports the module and accesses the specified attribute
+- Supports dotted paths: `!py module.subattr.value`
+
+### Processing Pipeline
+
+Both YAML files and Python globals go through the same pipeline:
+
+```
+Load source (YAML file or Python global)
+    ↓
+Parse YAML string (if Python "yaml: " format)
+    ↓
+Resolve !include tags (inline other files)
+    ↓
+Resolve !ref tags (cross-references)
+    ↓
+Resolve !py tags (local Python access)
+    ↓
+Hydrate to typed objects
+```
+
+---
+
 ## Configuration
 
 Fetch uses `.dataconfig.yaml` to locate data. Bio-specific config goes in the `dat` section:
@@ -143,14 +228,30 @@ Fetch uses `.dataconfig.yaml` to locate data. Bio-specific config goes in the `d
 # .dataconfig.yaml
 local_prefix: data/
 dat:
-  bio_roots:
-    - ./catalog
-    - ~/.alienbio/catalog
+  source_roots:
+    # Each root has a filesystem path and optional Python module prefix
+    - path: ./catalog
+      module: myproject.catalog
+    - path: ~/.alienbio/catalog
+      module: alienbio.catalog
 ```
 
-When resolving dotted names (no slashes), Bio scans `bio_roots` in order after checking Python modules.
+### Source Roots
 
-See [[classes/infra/DAT|DAT]] for full configuration details.
+Each source root pairs a filesystem path with an optional Python module prefix:
+
+| Field | Description |
+|-------|-------------|
+| `path` | Filesystem directory to search for YAML files |
+| `module` | Python module prefix for Python global lookups |
+
+When resolving `mute.org.autotroph.krel`:
+
+1. Check for YAML file at `<path>/mute/org/autotroph/krel.yaml`
+2. If not found, check `<module>.mute.org.autotroph` for a `KREL` global
+3. Continue to next root if neither found
+
+See [DAT](../classes/infra/DAT.md) for full configuration details.
 
 ---
 
@@ -199,7 +300,7 @@ variant: Scope = scope["base"].child({"rate": 0.5})
 
 ### Hydration
 
-After loading YAML, fetch hydrates the result — resolving tags, wiring up scope chains, and converting to typed objects. See [[commands/ABIO Hydrate|hydrate()]] for details.
+After loading YAML, fetch hydrates the result — resolving tags, wiring up scope chains, and converting to typed objects. See [hydrate()](ABIO Hydrate.md) for details.
 
 Use `hydrate=False` to skip hydration and get a Scope object instead.
 
@@ -207,7 +308,7 @@ Use `hydrate=False` to skip hydration and get a Scope object instead.
 
 ## See Also
 
-- [[classes/infra/DAT|DAT]] — DAT configuration and folder structure
-- [[classes/infra/Bio|Bio]] — Bio class overview
-- [[commands/ABIO Hydrate|hydrate()]] — Hydration details
+- [DAT](../classes/infra/DAT.md) — DAT configuration and folder structure
+- [Bio](../classes/infra/Bio.md) — Bio class overview
+- [hydrate()](ABIO Hydrate.md) — Hydration details
 

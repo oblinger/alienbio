@@ -2,6 +2,7 @@ site_name: AlienBio Documentation
 site_description: Documentation for the AlienBio project
 site_url: https://oblinger.github.io/abio-docs/
 repo_url: https://github.com/oblinger/alienbio
+use_directory_urls: false
 
 theme:
   name: material
@@ -62,8 +63,14 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - User Guide:
+    - Overview: Alienbio User Guide/Alienbio User Guide.md
+    - Core Spec: Alienbio User Guide/Core Spec.md
+    - Generator Spec: Alienbio User Guide/Generator Spec.md
+    - Execution Guide: Alienbio User Guide/Execution Guide.md
+    - Agent Interface: Alienbio User Guide/Agent Interface.md
   - Architecture:
-    - Overview: architecture/ABIO Sys.md
+    - Overview: architecture/Architecture Docs.md
     - Data Model: architecture/ABIO Data.md
     - Execution: architecture/ABIO execution.md
     - Files: architecture/ABIO Files.md
@@ -71,49 +78,58 @@ nav:
     - Protocols: architecture/ABIO Protocols.md
     - Biology: architecture/ABIO biology.md
   - Classes:
-    - Core:
-      - Atom: architecture/Atom.md
-      - Molecule: architecture/Molecule.md
-      - Reaction: architecture/Reaction.md
-      - Pathway: architecture/Pathway.md
-      - Chemistry: architecture/Chemistry.md
-      - Bio: architecture/Bio.md
-    - Containers:
-      - Compartment: architecture/Compartment.md
-      - CompartmentTree: architecture/CompartmentTree.md
-      - Context: architecture/Context.md
-      - Scope: architecture/Scope.md
-    - Entities:
-      - Entity: architecture/entity.md
-      - Action: architecture/action.md
-      - Experiment: architecture/experiment.md
-    - Simulation:
-      - WorldState: architecture/WorldState.md
-      - WorldSimulator: architecture/WorldSimulator.md
-      - Flow: architecture/Flow.md
-      - State: architecture/state.md
-      - Step: architecture/step.md
+    - Biology:
+      - Atom: architecture/classes/biology/Atom.md
+      - Molecule: architecture/classes/biology/Molecule.md
+      - Reaction: architecture/classes/biology/Reaction.md
+      - Pathway: architecture/classes/biology/Pathway.md
+      - Chemistry: architecture/classes/biology/Chemistry.md
+      - Flow: architecture/classes/biology/Flow.md
+      - WorldState: architecture/classes/biology/WorldState.md
+      - WorldSimulator: architecture/classes/biology/WorldSimulator.md
+      - Compartment: architecture/classes/biology/Compartment.md
+      - CompartmentTree: architecture/classes/biology/CompartmentTree.md
+    - Execution:
+      - Context: architecture/classes/execution/Context.md
+      - State: architecture/classes/execution/state.md
+      - Simulator: architecture/classes/execution/simulator.md
+      - Action: architecture/classes/execution/action.md
+      - Measurement: architecture/classes/execution/measurement.md
+      - Experiment: architecture/classes/execution/experiment.md
+      - Task: architecture/classes/execution/task.md
+      - Test: architecture/classes/execution/test.md
+      - TestHarness: architecture/classes/execution/TestHarness.md
+      - Timeline: architecture/classes/execution/timeline.md
+      - World: architecture/classes/execution/world.md
+      - Step: architecture/classes/execution/step.md
+    - Infrastructure:
+      - Bio: architecture/classes/infra/Bio.md
+      - Entity: architecture/classes/infra/entity.md
+      - DAT: architecture/classes/infra/DAT.md
+      - IO: architecture/classes/infra/IO.md
+      - Expr: architecture/classes/infra/Expr.md
+      - Interpreter: architecture/classes/infra/Interpreter.md
     - Generators:
-      - Generator: architecture/generator.md
-      - ContainerGenerator: architecture/ContainerGenerator.md
-      - MoleculeGenerator: architecture/MoleculeGenerator.md
-      - ReactionGenerator: architecture/ReactionGenerator.md
-    - Interpreter:
-      - Expr: architecture/Expr.md
-      - Interpreter: architecture/Interpreter.md
-      - IO: architecture/IO.md
-    - Testing:
-      - TestHarness: architecture/TestHarness.md
-      - Task: architecture/task.md
-      - Test: architecture/test.md
-      - Measurement: architecture/measurement.md
-  - Topics:
-    - Spec Language: topics/Spec Language.md
-    - Generator Spec: topics/Generator Spec Language.md
-    - Testing: topics/Testing.md
-    - Decorators: topics/Decorators.md
-    - CLI: topics/Bio CLI.md
-    - Alien Vocabulary: topics/Alien Vocabulary.md
+      - Generator: architecture/classes/biology/generator.md
+      - ContainerGenerator: architecture/classes/biology/ContainerGenerator.md
+      - MoleculeGenerator: architecture/classes/biology/MoleculeGenerator.md
+      - ReactionGenerator: architecture/classes/biology/ReactionGenerator.md
+  - Commands:
+    - bio agent: architecture/commands/ABIO Agent.md
+    - bio build: architecture/commands/ABIO Build.md
+    - bio cd: architecture/commands/ABIO Cd.md
+    - bio experiment: architecture/commands/ABIO Experiment.md
+    - bio fetch: architecture/commands/ABIO Fetch.md
+    - bio hydrate: architecture/commands/ABIO Hydrate.md
+    - bio dehydrate: architecture/commands/ABIO Dehydrate.md
+    - bio lookup: architecture/commands/ABIO Lookup.md
+    - bio report: architecture/commands/ABIO Report.md
+    - bio run: architecture/commands/ABIO Run.md
+    - bio scenario: architecture/commands/ABIO Scenario.md
+    - bio sim: architecture/commands/ABIO Sim.md
+    - bio store: architecture/commands/ABIO Store.md
+  - Modules:
+    - Scope: architecture/modules/Scope.md
   - API Reference:
     - Overview: api/index.md
     - Bio: api/bio.md

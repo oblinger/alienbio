@@ -47,7 +47,7 @@ The `lookup(dotted_name)` method resolves dotted names through a layered search:
 
 1. **Walk scope tree** — Look for first segment in current scope → parent → ... → root
 2. **If found in scope** — Dereference remaining segments from that object
-3. **If not found** — Fall back to [[commands/ABIO Lookup|Bio.lookup()]]
+3. **If not found** — Fall back to [Bio.lookup()](../commands/ABIO Lookup.md)
 
 ```python
 # Local scope lookup
@@ -64,7 +64,7 @@ scope.lookup("alienbio.bio.Chemistry")
 - Scope tree is checked first, then Bio.lookup() as fallback
 - `eval()` uses `lookup()` to resolve variable names in expressions
 
-See [[commands/ABIO Lookup|Bio.lookup()]] for the global resolution order (Python modules → cwd filesystem).
+See [Bio.lookup()](../commands/ABIO Lookup.md) for the global resolution order (Python modules → cwd filesystem).
 
 ### In Spec Files
 Every typed element becomes a Scope. The `extends:` keyword wires up the parent chain:
@@ -169,7 +169,7 @@ child = parent.child({"y": 2}, name="child")
 ```
 
 ### `lookup(dotted_name: str) -> Any`
-Resolve a dotted name through the scope tree, falling back to [[commands/ABIO Lookup|Bio.lookup()]].
+Resolve a dotted name through the scope tree, falling back to [Bio.lookup()](../commands/ABIO Lookup.md).
 
 **Resolution order:**
 1. Walk scope tree for first segment (current → parent → ... → root)
@@ -186,7 +186,7 @@ scope.lookup("chemistry.molecules.ME1")  # → ME1 from local chemistry
 scope.lookup("alienbio.bio.Chemistry")   # → Chemistry class (via Bio.lookup)
 ```
 
-See [[commands/ABIO Lookup|Bio.lookup()]] for global resolution details.
+See [Bio.lookup()](../commands/ABIO Lookup.md) for global resolution details.
 
 ### `eval(expr: str) -> Any`
 Evaluate an expression in this scope's context. Uses `lookup()` to resolve variable names.

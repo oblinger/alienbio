@@ -12,9 +12,29 @@ Alien Biology provides a way to measure complex, agentic reasoning/learning that
 
 ## Documentation
 
-- [Architecture](architecture/ABIO Sys.md) - System architecture and design
-- [Topics](topics/Spec Language.md) - Deep dives on specific topics
-- [API Reference](api/index.md) - Auto-generated Python API docs
+### User Guide
+
+Getting started with AlienBio: core spec format, generator specs, execution, and agent interface.
+
+- [User Guide Overview](Alienbio User Guide/Alienbio User Guide.md)
+- [Core Spec](Alienbio User Guide/Core Spec.md) - Scenario specification format
+- [Generator Spec](Alienbio User Guide/Generator Spec.md) - Template-based generation
+- [Execution Guide](Alienbio User Guide/Execution Guide.md) - Running experiments
+- [Agent Interface](Alienbio User Guide/Agent Interface.md) - Agent API
+
+### Architecture
+
+System architecture, data model, protocols, and design decisions.
+
+- [Architecture Overview](architecture/Architecture Docs.md)
+- [Data Model](architecture/ABIO Data.md)
+- [Protocols](architecture/ABIO Protocols.md)
+
+### API Reference
+
+Auto-generated Python API documentation from source code.
+
+- [API Reference](api/index.md)
 
 ## Quick Start
 
@@ -28,8 +48,7 @@ uv sync
 
 # Run tests
 just test
+
+# Run a scenario
+bio run catalog/jobs/hardcoded_test
 ```
-
-## API Reference
-
-See the [Architecture](architecture/) section for class and module documentation.

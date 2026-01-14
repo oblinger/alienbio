@@ -7,8 +7,7 @@ User-facing documentation for working with alienbio. See [[Architecture Docs]] f
 ## Contents
 
 - [[Core Spec]] — YAML foundations: tags, scoping, inheritance
-- [[commands/ABIO Scenario|Scenario]] — Scenarios, interface, scoring
+- [Scenario](../architecture/commands/ABIO Scenario.md) — Scenarios, interface, scoring
 - [[Generator Spec]] — Template-based scenario generation
 - [[Execution Guide]] — CLI, agents, running experiments
 - [[Agent Interface]] — Detailed agent interaction protocol
-- [[commands/ABIO Commands|Commands]] — CLI command reference

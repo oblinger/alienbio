@@ -10,8 +10,11 @@ Cross-cutting topics that span multiple subsystems.
 - **[[alienbio]]** - Top-level module: do, create, load, save, parse, ctx, o
 
 ## B
-- **[[prj/ABIO/docs/architecture/Bio|Bio]]** - Higher-level biology interface: fetch, store, expand, sim, run
+- **[Bio](../architecture/classes/infra/Bio.md)** - Higher-level biology interface: fetch, store, expand, sim, run
 - **[[Bio CLI]]** - Command-line interface: bio report, bio run, bio generate
+
+## C
+- **[[Catalog Naming Scheme]]** - Standard naming for catalog biological entity templates
 
 ## D
 - **[[Decorators]]** - Python decorators: @biotype, @fn, @scoring, @action, @measurement, @rate
