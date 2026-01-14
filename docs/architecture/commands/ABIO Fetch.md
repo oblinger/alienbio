@@ -119,6 +119,8 @@ bio.fetch("alienbio.bio.Chemistry")                      # Python module
 bio.fetch("scenarios.mutualism.baseline")                # configured root (no slashes)
 ```
 
+Within source roots, when both `name.yaml` and `name.py` exist, YAML is checked first.
+
 ### Loading Within a DAT
 
 When we say "loads within DAT", fetch:
@@ -179,15 +181,6 @@ scenario.mutualism:
 ```
 
 Both formats go through the same processing pipeline after loading.
-
-### Resolution Priority
-
-When both `scenarios/mutualism.yaml` and `scenarios/mutualism.py` exist:
-
-1. **YAML takes precedence** — the `.yaml` file is loaded
-2. Python module is only checked if no YAML file is found
-
-This keeps YAML as the primary declarative format while allowing Python when computation is needed.
 
 ### The `!py` Tag
 
