@@ -64,16 +64,37 @@ class Bio:
         # Configure source roots:
         bio.add_source_root("./catalog", module="myproject.catalog")
 
+        # Create Bio bound to a specific DAT:
+        sandbox = Bio(dat="experiments/baseline")
+        sandbox = Bio(dat=dat_obj)  # From DAT object
+
     Pegboard attributes (can be overridden per-instance):
         _simulator_factory: Class used by sim() to create simulators
         _source_roots: List of SourceRoot for dotted name resolution
+
+    ORM Pattern:
+        - DATs are cached: same DAT name returns the same object
+        - First fetch loads DAT into memory; subsequent fetches return cached instance
+        - This ensures consistent state across multiple references to the same DAT
     """
 
-    def __init__(self) -> None:
-        """Initialize Bio with default implementations."""
+    # Class-level DAT cache (shared across all Bio instances)
+    _dat_cache: dict[str, Any] = {}
+
+    def __init__(self, *, dat: str | Any | None = None) -> None:
+        """Initialize Bio with default implementations.
+
+        Args:
+            dat: Optional DAT to bind this Bio to. Can be:
+                - String (DAT name): Will be fetched when needed
+                - DAT object: Used directly
+                - None: Anonymous DAT created lazily via bio.dat accessor
+        """
         from alienbio.bio.simulator import ReferenceSimulatorImpl
         self._simulator_factory: "type[Simulator]" = ReferenceSimulatorImpl
         self._source_roots: list[SourceRoot] = []
+        self._dat_ref: str | Any | None = dat  # String path or DAT object
+        self._dat_object: Any = None  # Resolved DAT object (lazily loaded)
 
     def add_source_root(self, path: str | Path, module: str | None = None) -> None:
         """Add a source root for spec resolution.
@@ -88,6 +109,45 @@ class Bio:
         """
         expanded_path = Path(path).expanduser()
         self._source_roots.append(SourceRoot(expanded_path, module))
+
+    @property
+    def dat(self) -> Any:
+        """Get this Bio's bound DAT, creating an anonymous one if needed.
+
+        Returns:
+            The DAT object bound to this Bio. If no DAT was specified in the
+            constructor and none has been created yet, creates an anonymous DAT.
+
+        Example:
+            bio = Bio()
+            bio.dat  # Creates anonymous DAT on first access
+            bio.dat  # Returns same DAT object
+        """
+        if self._dat_object is not None:
+            return self._dat_object
+
+        if self._dat_ref is None:
+            # Create anonymous DAT
+            # TODO: Implement anonymous DAT creation
+            self._dat_object = {}
+            return self._dat_object
+
+        if isinstance(self._dat_ref, str):
+            # Fetch DAT by name (uses ORM cache)
+            self._dat_object = self.fetch(self._dat_ref)
+            return self._dat_object
+
+        # DAT object was passed directly
+        self._dat_object = self._dat_ref
+        return self._dat_object
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear the DAT cache.
+
+        Useful for testing or when DAT files have changed on disk.
+        """
+        cls._dat_cache.clear()
 
     def _load_from_python_global(
         self, module_path: str, global_name: str
@@ -263,6 +323,13 @@ class Bio:
         else:
             spec_file = path
 
+        # ORM caching: use resolved path as cache key
+        cache_key = str(spec_file.resolve())
+
+        # Check cache for processed data (not raw)
+        if not raw and cache_key in Bio._dat_cache:
+            return Bio._dat_cache[cache_key]
+
         # Load and parse YAML
         content = spec_file.read_text()
         data = yaml.safe_load(content)
@@ -270,12 +337,17 @@ class Bio:
         if data is None:
             return None
 
-        # Raw mode: return unparsed YAML data
+        # Raw mode: return unparsed YAML data (not cached)
         if raw:
             return data
 
         # Full processing: expand and hydrate
-        return self._process_and_hydrate(data, str(spec_file.parent))
+        result = self._process_and_hydrate(data, str(spec_file.parent))
+
+        # Cache the processed result
+        Bio._dat_cache[cache_key] = result
+
+        return result
 
     def _fetch_from_source_roots(self, dotted_path: str, *, raw: bool = False) -> Any:
         """Fetch from configured source roots using dotted path.
