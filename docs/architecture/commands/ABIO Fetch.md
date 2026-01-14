@@ -104,17 +104,19 @@ Fetch resolves specifier strings by checking these rules in order:
 |------|------|-------|
 | Begins with `/` | Absolute path | Loads within DAT at absolute path |
 | Begins with `./` | Relative path | Loads within DAT relative to cwd |
-| Has slashes | DAT path | Loads within DAT at path |
+| Has slashes | DAT path | Loads DAT; dots after path dig into content |
 | First segment in `sys.modules` | Python module | Dereferences within the loaded module |
 | Under a configured root | Configured root | Loads within DAT under root |
 | Not found locally | Remote sync | Fetches from remote storage *(planned)* |
 
 ```python
-bio.fetch("/data/experiments/run1")           # absolute path
-bio.fetch("./experiments/test1")              # relative path
-bio.fetch("catalog/scenarios/mutualism")      # DAT path
-bio.fetch("alienbio.bio.Chemistry")           # Python module
-bio.fetch("scenarios.mutualism.baseline")     # configured root
+bio.fetch("/data/experiments/run1")                      # absolute path → DAT
+bio.fetch("./experiments/test1")                         # relative path → DAT
+bio.fetch("catalog/scenarios/mutualism")                 # DAT path → loads index.yaml
+bio.fetch("catalog/scenarios/mutualism.baseline")        # DAT + dig → scenario object
+bio.fetch("catalog/scenarios/mutualism.config.timeout")  # DAT + deep dig → value
+bio.fetch("alienbio.bio.Chemistry")                      # Python module
+bio.fetch("scenarios.mutualism.baseline")                # configured root (no slashes)
 ```
 
 ### Loading Within a DAT
