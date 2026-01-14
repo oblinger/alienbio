@@ -6,59 +6,6 @@ Load and hydrate specs from DAT folders or Python modules.
 
 ---
 
-## Implementation Notes
-
-**READ THIS FIRST** if implementing fetch/lookup.
-
-### Specifier Routing (M2)
-
-`fetch()` must detect specifier type and route appropriately:
-
-```python
-def fetch(self, specifier: str, hydrate: bool = True) -> Any:
-    if specifier.startswith('/'):
-        # Absolute path → load within DAT at absolute path
-        return self._load_within_dat(specifier, hydrate)
-    elif specifier.startswith('./'):
-        # Relative path → load within DAT relative to current DAT
-        return self._load_within_dat(self._current_dat / specifier[2:], hydrate)
-    elif '/' in specifier:
-        # Has slashes → DAT path
-        return self._load_within_dat(specifier, hydrate)
-    elif specifier.split('.')[0] in sys.modules:
-        # First segment is loaded Python module → dereference into module
-        return self._lookup_python(specifier)
-    else:
-        # Check configured bio_roots, then try remote (later)
-        return self._lookup_roots(specifier, hydrate)
-```
-
-### Critical: Hydration Order
-
-The "load within DAT" operation must hydrate AFTER dereferencing:
-
-1. Load YAML into raw dict (no hydration yet)
-2. Dereference remaining dots using `gets()` to navigate into dict
-3. Hydrate the result
-
-If you hydrate before dereferencing, typed objects don't support dict-like navigation.
-
-### Suggested Internal Functions
-
-```python
-def _load_within_dat(self, dat_path: str, hydrate: bool = True) -> Any:
-    """Load from DAT, optionally dereference dots, then hydrate."""
-    # Split path into DAT folder and dotted name within
-    # Load index.yaml as raw dict
-    # If dots remain, navigate into dict with gets()
-    # If hydrate=True, hydrate the result
-    ...
-```
-
-See [[ABIO Roadmap#M2 — Bio Fetch & Lookup]] for full task list.
-
----
-
 ## CLI
 
 ```bash
@@ -92,7 +39,7 @@ scenario: Scenario = bio.fetch("catalog/scenarios/mutualism.baseline")
 
 | Option | Description |
 |--------|-------------|
-| `hydrate=False` | Return Scope object without hydrating to typed objects |
+| `raw=True` | Return unprocessed dict without resolving tags or hydrating |
 
 ---
 
@@ -113,7 +60,25 @@ Fetch loads and processes data in two phases:
 
 Tag resolution happens in a single recursive pass — if an `!include` brings in content with more tags, those are resolved before continuing.
 
-Use `hydrate=False` to get the resolved dict without converting to typed objects.
+Use `raw=True` to get the unprocessed dict without resolving tags or hydrating.
+
+---
+
+## Caching (ORM Pattern)
+
+Fetch uses an ORM-style caching pattern: the same DAT path always returns the same object instance.
+
+```python
+dat1 = bio.fetch("experiments/baseline")
+dat2 = bio.fetch("experiments/baseline")
+assert dat1 is dat2  # Same object from cache
+```
+
+**Key points:**
+- Cache key is the resolved filesystem path
+- Only processed results are cached (`raw=True` bypasses cache)
+- Use `Bio.clear_cache()` to force reload from disk
+- Cache is class-level (shared across all Bio instances)
 
 ---
 
@@ -242,11 +207,11 @@ baseline: dict = bio.fetch("scenarios.mutualism.experiments.baseline")
 # → digs into ["experiments"]["baseline"]
 ```
 
-### Without Hydration
+### Without Processing
 
 ```python
-# Get raw dict without converting to typed objects
-raw: dict = bio.fetch("scenarios.mutualism", hydrate=False)
+# Get raw dict without resolving tags or hydrating
+raw: dict = bio.fetch("scenarios.mutualism", raw=True)
 ```
 
 ---
