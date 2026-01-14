@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.agent
+# bio.agent
 
 Manage agent registrations.
 

@@ -31,7 +31,7 @@ scenarios.mutualism:
 
 Scenarios inherit from their parent scope. Use `extends:` to specify explicit inheritance.
 
-**Runtime flow:** Scenario → `Bio.sim(scenario)` → Simulator → State
+**Runtime flow:** Scenario → `bio.sim(scenario)` → Simulator → State
 
 ### Briefing Structure
 
@@ -95,8 +95,8 @@ Each entry maps a resource name to a limit (total amount available across all in
 The Simulator executes scenarios and provides the agent interface:
 
 ```python
-scenario = Bio.build("scenarios.mutualism")   # build in-memory scenario
-sim = Bio.sim(scenario)                        # create simulator
+scenario = bio.build("scenarios.mutualism")   # build in-memory scenario
+sim = bio.sim(scenario)                        # create simulator
 
 # Measurements - observe state, don't modify
 substrate = sim.measure("sample_substrate", "Lora")
@@ -185,7 +185,7 @@ def aggregate_score(trace: SimulationTrace) -> float:
 When a scenario is run, the return value is a dictionary of scoring results:
 
 ```python
-result = Bio.run("scenarios.mutualism")
+result = bio.run("scenarios.mutualism")
 result["scores"]     # {"score": 0.72, "efficiency": 0.85, "stability": 0.92}
 result["success"]    # True (if score >= passing_score)
 result["final_state"] # {"A": 1.2, "B": 0.8, "C": 8.5}

@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.store()
+# bio.store()
 
 Sync a DAT to remote storage.
 

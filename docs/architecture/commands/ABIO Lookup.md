@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.lookup()
+# bio.lookup()
 
 Internal name resolution used by [fetch()](ABIO Fetch.md).
 

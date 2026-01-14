@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.fetch()
+# bio.fetch()
 
 Load and hydrate specs from DAT folders or Python modules.
 

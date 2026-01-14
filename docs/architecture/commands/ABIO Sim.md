@@ -1,6 +1,6 @@
  [[Architecture Docs]] → [[ABIO Commands|Commands]]
 
-# Bio.sim()
+# bio.sim()
 
 Simulator configuration and execution. The `sim:` section in a scenario controls how the simulation runs.
 
@@ -49,8 +49,8 @@ If not specified, runs for exactly `steps` iterations.
 ## Python API
 
 ```python
-scenario = Bio.build("scenarios.mutualism")
-sim = Bio.sim(scenario)
+scenario = bio.build("scenarios.mutualism")
+sim = bio.sim(scenario)
 
 # Step-by-step execution
 sim.step()              # advance one step

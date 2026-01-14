@@ -8,16 +8,16 @@ All operations are methods on the `Bio` class. Those marked with CLI are also av
 
 | Method | CLI | Description |
 | ------ |:---:| ----------- |
-| [Bio.run()](commands/ABIO Run.md) | ✓ | Execute a scenario or experiment |
-| [Bio.build()](commands/ABIO Build.md) | ✓ | Build a spec into a DAT or in-memory object |
-| [Bio.fetch()](commands/ABIO Fetch.md) | ✓ | Retrieve a spec or DAT by name |
-| [Bio.store()](commands/ABIO Store.md) | ✓ | Sync a DAT to remote storage |
-| [Bio.report()](commands/ABIO Report.md) | ✓ | Generate reports from results |
-| [Bio.cd()](commands/ABIO Cd.md) | ✓ | Get/set current DAT |
-| [Bio.agent](commands/ABIO Agent.md) | ✓ | Agent management (list, add, test, remove) |
-| [Bio.sim()](commands/ABIO Sim.md) |   | Create a simulator from a scenario |
-| [Bio.hydrate()](commands/ABIO Hydrate.md) |   | Convert parsed YAML to typed Entity |
-| [Bio.dehydrate()](commands/ABIO Dehydrate.md) |   | Convert Entity back to serializable dict |
+| [[ABIO Run\|bio.run()]] | ✓ | Execute a scenario or experiment |
+| [[ABIO Build\|bio.build()]] | ✓ | Build a spec into a DAT or in-memory object |
+| [[ABIO Fetch\|bio.fetch()]] | ✓ | Retrieve a spec or DAT by name |
+| [[ABIO Store\|bio.store()]] | ✓ | Sync a DAT to remote storage |
+| [[ABIO Report\|bio.report()]] | ✓ | Generate reports from results |
+| [[ABIO Cd\|bio.cd()]] | ✓ | Get/set current DAT |
+| [[ABIO Agent\|bio.agent]] | ✓ | Agent management (list, add, test, remove) |
+| [[ABIO Sim\|bio.sim()]] |   | Create a simulator from a scenario |
+| [[ABIO Hydrate\|bio.hydrate()]] |   | Convert parsed YAML to typed Entity |
+| [[ABIO Dehydrate\|bio.dehydrate()]] |   | Convert Entity back to serializable dict |
 
 ---
 
