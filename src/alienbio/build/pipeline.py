@@ -11,7 +11,7 @@ from typing import Any
 
 from alienbio.protocols import Scenario
 
-from .template import TemplateRegistry, parse_template, parse_interaction, parse_background
+from .template import TemplateRegistry, parse_template, parse_interaction, parse_background, parse_containers
 from .expand import apply_template
 from .guards import apply_template_with_guards
 from .visibility import generate_visibility_mapping, apply_visibility
@@ -99,6 +99,10 @@ def instantiate(
             background_spec, ground_truth, guards, seed
         )
 
+    # Process container generation
+    containers_spec = spec.get("parameters", {}).get("containers", {})
+    regions = _process_containers(containers_spec, ground_truth, seed)
+
     # Generate visibility mapping
     visibility_mapping = generate_visibility_mapping(ground_truth, visibility_spec, seed=seed)
 
@@ -108,6 +112,7 @@ def instantiate(
     return Scenario(
         molecules=visible["molecules"],
         reactions=visible["reactions"],
+        regions=regions,
         _ground_truth_=ground_truth,
         _visibility_mapping_=visibility_mapping,
         _seed=seed,
@@ -535,3 +540,91 @@ def _process_background(
             }
 
     return ground_truth
+
+
+def _process_containers(
+    containers_spec: dict[str, Any],
+    ground_truth: dict[str, Any],
+    seed: int,
+) -> list:
+    """Process container specification to generate regions and populations.
+
+    Args:
+        containers_spec: Dict with regions and populations config
+        ground_truth: Current ground truth (to find species)
+        seed: Random seed
+
+    Returns:
+        List of Region objects
+    """
+    import random
+    from alienbio.protocols import Region, Organism
+    from ..spec_lang.eval import Evaluable, eval_node, make_context
+
+    if not containers_spec:
+        return []
+
+    rng = random.Random(seed)
+    ctx = make_context(seed=seed)
+
+    parsed = parse_containers(containers_spec)
+    regions_config = parsed["regions"]
+    populations_config = parsed["populations"]
+
+    # Determine region count
+    region_count = regions_config.get("count", 0)
+    if isinstance(region_count, str) and region_count.startswith("!ev "):
+        expr = region_count[4:].strip()
+        region_count = int(round(eval_node(Evaluable(source=expr), ctx)))
+    elif isinstance(region_count, Evaluable):
+        region_count = int(round(eval_node(region_count, ctx)))
+    else:
+        region_count = int(region_count)
+
+    # Get initial substrates config
+    initial_substrates = regions_config.get("initial_substrates", {})
+
+    # Extract species from ground truth (look for namespaces in molecules)
+    species_names = set()
+    for mol_name in ground_truth.get("molecules", {}):
+        # Format: m.{species}.{molecule}
+        parts = mol_name.split(".")
+        if len(parts) >= 2 and parts[0] == "m" and parts[1] not in ("bg",):
+            species_names.add(parts[1])
+
+    # Determine population count per species per region
+    pop_spec = populations_config.get("per_species_per_region", 0)
+
+    # Generate regions
+    regions = []
+    for r_idx in range(region_count):
+        region_id = f"region_{r_idx}"
+        organisms = []
+
+        # Generate organisms for each species in this region
+        for species in sorted(species_names):
+            # Evaluate population count (may be distribution)
+            if isinstance(pop_spec, str) and pop_spec.startswith("!ev "):
+                expr = pop_spec[4:].strip()
+                # Create new context for each evaluation to get different samples
+                pop_ctx = make_context(seed=seed + r_idx * 1000 + hash(species) % 1000)
+                pop_count = int(round(eval_node(Evaluable(source=expr), pop_ctx)))
+            elif isinstance(pop_spec, Evaluable):
+                pop_ctx = make_context(seed=seed + r_idx * 1000 + hash(species) % 1000)
+                pop_count = int(round(eval_node(pop_spec, pop_ctx)))
+            else:
+                pop_count = int(pop_spec)
+
+            # Create organisms
+            for o_idx in range(pop_count):
+                org_id = f"org_{species}_{r_idx}_{o_idx}"
+                organisms.append(Organism(id=org_id, species=species))
+
+        region = Region(
+            id=region_id,
+            substrates=dict(initial_substrates),
+            organisms=organisms,
+        )
+        regions.append(region)
+
+    return regions

@@ -177,6 +177,33 @@ def parse_background(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def parse_containers(data: dict[str, Any]) -> dict[str, Any]:
+    """Parse a container generation specification.
+
+    Container generation creates regions and organism populations.
+
+    Args:
+        data: Container spec with regions and populations config
+
+    Returns:
+        Dict with regions and populations config
+
+    Example:
+        parse_containers({
+            "regions": {"count": 3},
+            "populations": {"per_species_per_region": 10}
+        })
+        # Returns: {
+        #     "regions": {"count": 3, ...},
+        #     "populations": {"per_species_per_region": 10}
+        # }
+    """
+    return {
+        "regions": data.get("regions", {}),
+        "populations": data.get("populations", {}),
+    }
+
+
 # =============================================================================
 # Template Registry
 # =============================================================================
