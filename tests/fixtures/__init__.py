@@ -7,7 +7,22 @@ loaded via the do-system:
 2. YAML string spec (experiment_template)
 3. Callable functions (process_data, compute_metric)
 4. Proper DAT specs with dat: section (runnable_experiment)
+5. H1-H5 experiment scenarios (scenarios.py)
 """
+
+# H1-H5 experiment scenarios
+from .scenarios import (
+    H1_MINIMAL,
+    H1_SMALL,
+    H2_SINGLE_REACTION,
+    H2_MULTI_REACTION,
+    H3_SIMPLE_SEQUENCE,
+    H4_DIRECT_INTERVENTION,
+    H4_INDIRECT_INTERVENTION,
+    H5_HIDDEN_REACTION,
+    SIMPLE_SCENARIO,
+    TIMING_SCENARIO,
+)
 
 # =============================================================================
 # Plain dict fixtures - basic data structures
