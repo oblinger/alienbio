@@ -953,3 +953,57 @@ class TestDotsBeforeSlash:
         # This should fail since "nonexistent.path" can't be resolved
         with pytest.raises(FileNotFoundError):
             bio.fetch("nonexistent.path/something")
+
+
+# =============================================================================
+# Built-in Catalog Source Root Tests
+# =============================================================================
+
+class TestCatalogSourceRoot:
+    """Test automatic catalog source root configuration."""
+
+    def test_bio_has_catalog_source_root(self):
+        """Bio automatically adds catalog as a source root."""
+        from alienbio.spec_lang.bio import Bio
+
+        bio = Bio()
+        # Check that at least one source root exists and points to catalog
+        catalog_roots = [r for r in bio._source_roots if "catalog" in str(r.path)]
+        assert len(catalog_roots) > 0, "Bio should auto-configure catalog source root"
+
+    def test_fetch_catalog_test_scenario(self):
+        """bio.fetch('test.scenarios.simple') loads from catalog."""
+        from alienbio.spec_lang.bio import Bio
+
+        Bio.clear_cache()
+        bio = Bio()
+
+        result = bio.fetch("test.scenarios.simple", raw=True)
+        assert result is not None
+        assert result.get("name") == "test_scenario"
+        assert "interface" in result
+        assert "actions" in result["interface"]
+
+    def test_fetch_catalog_prefix_registry(self):
+        """bio.fetch('_index') loads prefix registry from catalog."""
+        from alienbio.spec_lang.bio import Bio
+
+        Bio.clear_cache()
+        bio = Bio()
+
+        result = bio.fetch("_index", raw=True)
+        assert result is not None
+        assert "prefixes" in result
+        assert "test" in result["prefixes"]
+        assert "mute" in result["prefixes"]
+
+    def test_fetch_catalog_timing_scenario(self):
+        """bio.fetch('test.scenarios.timing') loads timing scenario."""
+        from alienbio.spec_lang.bio import Bio
+
+        Bio.clear_cache()
+        bio = Bio()
+
+        result = bio.fetch("test.scenarios.timing", raw=True)
+        assert result is not None
+        assert result.get("name") == "timing_test"

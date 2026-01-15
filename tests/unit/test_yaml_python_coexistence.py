@@ -97,11 +97,12 @@ class TestSourceRootConfig:
     def test_add_source_root(self):
         """Can add source roots to Bio instance."""
         bio = Bio()
-        assert len(bio._source_roots) == 0
+        # Bio auto-configures catalog as source root, so start with 1
+        initial_count = len(bio._source_roots)
 
         bio.add_source_root("/tmp/catalog", module="myproject.catalog")
-        assert len(bio._source_roots) == 1
-        assert bio._source_roots[0].module == "myproject.catalog"
+        assert len(bio._source_roots) == initial_count + 1
+        assert bio._source_roots[-1].module == "myproject.catalog"
 
     def test_source_root_path_expansion(self):
         """Source root paths are expanded."""
@@ -114,12 +115,14 @@ class TestSourceRootConfig:
     def test_multiple_source_roots(self):
         """Multiple source roots are searched in order."""
         bio = Bio()
+        initial_count = len(bio._source_roots)
         bio.add_source_root("/first")
         bio.add_source_root("/second")
 
-        assert len(bio._source_roots) == 2
-        assert str(bio._source_roots[0].path) == "/first"
-        assert str(bio._source_roots[1].path) == "/second"
+        assert len(bio._source_roots) == initial_count + 2
+        # New roots are added after auto-configured ones
+        assert str(bio._source_roots[-2].path) == "/first"
+        assert str(bio._source_roots[-1].path) == "/second"
 
 
 # =============================================================================
@@ -369,10 +372,10 @@ class TestErrorHandling:
         assert "root2" in str(exc_info.value)
 
     def test_empty_source_roots_falls_through(self, tmp_path):
-        """Without source roots, dotted path tries filesystem."""
+        """With source roots, non-existent dotted path raises error."""
         bio = Bio()
-        # No source roots configured
+        # Bio auto-configures catalog source root
 
-        # Should fall through to filesystem resolution
-        with pytest.raises(FileNotFoundError, match="Specifier path not found"):
+        # Should raise error for non-existent path
+        with pytest.raises(FileNotFoundError, match="not found in source roots"):
             bio.fetch("some.dotted.path")

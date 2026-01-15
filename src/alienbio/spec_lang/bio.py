@@ -136,6 +136,21 @@ class Bio:
         self._agent: Any = None
         self._chem: Any = None
 
+        # Auto-configure catalog source root
+        self._add_catalog_source_root()
+
+    def _add_catalog_source_root(self) -> None:
+        """Add the built-in catalog as a source root.
+
+        Finds the catalog directory relative to the alienbio package and
+        adds it as a source root for dotted-path resolution.
+        """
+        import alienbio
+        package_dir = Path(alienbio.__file__).parent.parent.parent  # src/alienbio -> src -> project
+        catalog_dir = package_dir / "catalog"
+        if catalog_dir.exists():
+            self._source_roots.append(SourceRoot(catalog_dir, module=None))
+
     # =========================================================================
     # Component Pegboard
     # =========================================================================
