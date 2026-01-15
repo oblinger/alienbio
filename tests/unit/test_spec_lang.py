@@ -823,22 +823,26 @@ scenario.test:
         assert loaded["name"] == original.name
         assert loaded["count"] == original.count
 
-    def test_bio_sim_creates_simulator(self):
-        """bio.sim(scenario) → WorldSimulator instance"""
-        @biotype("scenario")
-        @dataclass
-        class SimScenario:
-            chemistry: dict
-            containers: dict
+    def test_bio_sim_pegboard(self):
+        """bio.sim is a pegboard property for the active Simulator."""
+        from alienbio import Simulator, Bio
 
-        scenario = SimScenario(
-            chemistry={"molecules": {}, "reactions": {}},
-            containers={},
-        )
+        # Fresh Bio instance
+        fresh_bio = Bio()
 
-        sim = bio.sim(scenario)
-        # Should return a WorldSimulator (or similar)
-        assert hasattr(sim, "step") or hasattr(sim, "run")
+        # sim starts as None
+        assert fresh_bio.sim is None
+
+        # Can create and assign a simulator via bio.create()
+        # Note: Simulator may not be registered yet, so we test the pegboard pattern
+        from alienbio.bio.simulator import ReferenceSimulatorImpl
+        chemistry = {"molecules": {}, "reactions": {}}
+        sim = ReferenceSimulatorImpl(chemistry)
+        fresh_bio.sim = sim
+
+        # sim is now set
+        assert fresh_bio.sim is sim
+        assert hasattr(fresh_bio.sim, "step") or hasattr(fresh_bio.sim, "run")
 
     def test_bio_load_complex_spec(self, temp_dir):
         """Load with typed keys, defaults, refs, includes all working together"""

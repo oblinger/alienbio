@@ -5,7 +5,7 @@ from dvc_dat import Dat
 from .infra import imports  # noqa: F401 - ensures do-referenced modules are loaded
 
 from .infra.entity import Entity
-from .infra.io import IO, io, set_io
+from .infra.io import IO
 
 # Standard runner for DATs
 from .run import run
@@ -77,8 +77,6 @@ __all__ = [
     "Dat",
     "Entity",
     "IO",
-    "io",
-    "set_io",
     "run",
     # Bio singleton and class
     "bio",

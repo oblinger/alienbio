@@ -262,3 +262,41 @@ def get_rate(name: str) -> Callable:
     if name not in rate_registry:
         raise KeyError(f"Unknown rate function: {name}")
     return rate_registry[name]
+
+
+# --- Factory decorator ---
+
+
+def factory(
+    name: str,
+    protocol: type,
+    default: bool = False,
+) -> Callable[[type[T]], type[T]]:
+    """Register an implementation class for a protocol.
+
+    Args:
+        name: Implementation name (e.g., "reference", "fast")
+        protocol: Protocol class this implements (e.g., Simulator, IO)
+        default: If True, set as default for this protocol
+
+    Usage:
+        @factory(name="reference", protocol=Simulator)
+        class ReferenceSimulatorImpl(Simulator):
+            def __init__(self, spec=None):
+                ...
+
+        @factory(name="fast", protocol=Simulator)
+        class FastSimulatorImpl(Simulator):
+            ...
+
+    Create instances via bio.create():
+        bio.sim = bio.create(Simulator, spec=chemistry)
+        bio.sim = bio.create(Simulator, name="fast", spec=chemistry)
+    """
+    from .bio import register_factory as _register_factory
+
+    def decorator(cls: type[T]) -> type[T]:
+        _register_factory(protocol, name, cls, default=default)
+        return cls
+
+    return decorator

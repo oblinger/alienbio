@@ -140,7 +140,10 @@ Registers an implementation class for a protocol. Multiple implementations can e
 @factory(name="reference", protocol=Simulator)
 class ReferenceSimulatorImpl(Simulator):
     """Reference implementation - accurate but slow."""
-    ...
+
+    def __init__(self, spec=None):
+        self.chemistry = spec
+        ...
 
 @factory(name="fast", protocol=Simulator)
 class FastSimulatorImpl(Simulator):
@@ -153,30 +156,39 @@ class FastSimulatorImpl(Simulator):
 | `name` | Implementation name (e.g., "reference", "fast") |
 | `protocol` | Protocol class this implements |
 
-**Resolution order** when building typed objects:
+**Creating instances with `bio.create()`:**
 
-1. `impl` parameter to `build()` — programmatic override
-2. `impl` field in spec — spec-defined choice
-3. Default from config — user's configured default
+```python
+from alienbio import bio
 
-**Spec syntax:**
+# Create with default implementation
+sim = bio.create(Simulator, spec=chemistry)
 
-```yaml
-scenario.test:
-  chemistry:
-    type: Chemistry
-    impl: fast         # optional - selects implementation
-    molecules: ...
+# Create with specific implementation
+sim = bio.create(Simulator, name="fast", spec=chemistry)
+
+# Assign to pegboard for global access
+bio.sim = bio.create(Simulator, spec=chemistry)
+
+# Ensure pattern (only create if not set)
+bio.sim = bio.sim or bio.create(Simulator, spec=chemistry)
 ```
+
+**Resolution order:**
+
+1. `name` parameter — explicit programmatic choice
+2. Config default — `~/.config/alienbio/defaults.yaml`
+3. Error — no silent fallback
 
 **Config defaults:**
 
 ```yaml
-# ~/.config/alienbio/config.yaml
-defaults:
-  Simulator: reference
-  Chemistry: standard
+# ~/.config/alienbio/defaults.yaml
+Simulator: reference
+Chemistry: standard
 ```
+
+See [[Factory Pegboard API]] for full documentation.
 
 ---
 
@@ -190,7 +202,7 @@ defaults:
 | `@action` | Agent actions | action registry | `sim.action()` |
 | `@measurement` | Agent observations | measurement registry | `sim.measure()` |
 | `@rate` | Reaction rates | rate registry | reaction evaluation |
-| `@factory` | Multiple implementations | factory registry | `Bio.build()` |
+| `@factory` | Multiple implementations | factory registry | `bio.create()` |
 
 ---
 
@@ -209,3 +221,4 @@ The registries are global singletons. Registration happens at decoration time (m
 - [[Spec Language]] — YAML syntax and tags (`!ev`, `!ref`, `!include`)
 - [[Bio]] — Loading and hydration
 - [[Entity]] — Base class for hydratable types
+- [[Factory Pegboard API]] — Factory pattern and Bio pegboard
