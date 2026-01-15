@@ -27,6 +27,19 @@ result = bio.build("name", seed=42)
 
 ---
 
+## Call Chain
+
+When given a string, `build()` calls `fetch()` first:
+
+```
+build(string) → fetch(string) → template expansion
+build(dict)   → template expansion directly
+```
+
+This is part of the implicit chaining: `run → build → fetch`.
+
+---
+
 ## What Gets Built
 
 The behavior depends on what the dotted name refers to:

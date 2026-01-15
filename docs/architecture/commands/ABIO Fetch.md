@@ -181,19 +181,19 @@ Examples below assume this configuration (see [[ABIO DAT]] for details):
 # .dataconfig.yaml
 dat:
   source_roots:
-    - path: ~/bio/catalog
+    - path: catalog
 ```
 
 ### Loading from DAT Paths
 
 ```python
-# Load a DAT (returns entire index.yaml content)
-dat: dict = bio.fetch("~/bio/data/runs/exp_001")
-# → loads ~/bio/data/runs/exp_001/index.yaml
+# Load a DAT (returns entire spec.yaml content)
+dat: dict = bio.fetch("data/runs/exp_001")
+# → loads data/runs/exp_001/spec.yaml
 
 # Load a scenario from a DAT with dig
-scenario: Scenario = bio.fetch("~/bio/data/runs/exp_001.scenario")
-# → loads index.yaml, digs into ["scenario"], hydrates
+scenario: Scenario = bio.fetch("data/runs/exp_001.scenario")
+# → loads spec.yaml, digs into ["scenario"], hydrates
 ```
 
 ### Loading from Source Roots

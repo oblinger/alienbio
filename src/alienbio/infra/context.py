@@ -16,11 +16,15 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Context:
+class RuntimeContext:
     """Runtime pegboard for alienbio.
 
     Holds configuration, connections, and references to all major subsystems.
     Stored in a ContextVar for thread/async safety.
+
+    Note: This is distinct from spec_lang.eval.EvalContext which is for
+    spec evaluation. RuntimeContext is for runtime operations (DAT management,
+    entity I/O, etc.).
 
     Note: For data path, use Dat.manager.sync_folder (single source of truth).
     """
@@ -119,24 +123,28 @@ class Context:
         return entity_type(name, dat=dat, **kwargs)
 
 
+# Backward compat alias (prefer RuntimeContext for new code)
+Context = RuntimeContext
+
+
 # Global context variable
-_ctx: ContextVar[Context | None] = ContextVar("alienbio_context", default=None)
+_ctx: ContextVar[RuntimeContext | None] = ContextVar("alienbio_context", default=None)
 
 
-def ctx() -> Context:
+def ctx() -> RuntimeContext:
     """Access the runtime context.
 
-    Returns the current Context from the ContextVar.
-    Creates a default Context if none exists.
+    Returns the current RuntimeContext from the ContextVar.
+    Creates a default RuntimeContext if none exists.
     """
     context = _ctx.get()
     if context is None:
-        context = Context()
+        context = RuntimeContext()
         _ctx.set(context)
     return context
 
 
-def set_context(context: Context | None) -> None:
+def set_context(context: RuntimeContext | None) -> None:
     """Set the runtime context."""
     _ctx.set(context)
 
@@ -173,7 +181,7 @@ def create_root(
 ) -> Entity:
     """Create a new DAT with its root entity.
 
-    See Context.create_root for full documentation.
+    See RuntimeContext.create_root for full documentation.
     """
     return ctx().create_root(path, entity_type, **kwargs)
 

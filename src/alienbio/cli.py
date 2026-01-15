@@ -2,13 +2,15 @@
 
 Usage:
     bio <path>              Run scenario and create report (default)
+    bio build <path>        Build spec (resolve includes, refs, defaults)
     bio cd                  Print current DAT path
     bio cd <path>           Set current DAT path
+    bio expand <path>       Show processed spec (same as build)
     bio fetch <specifier>   Fetch and display a spec
-    bio store <specifier>   Store data from stdin to spec path
+    bio hydrate <path>      Fully evaluate spec (resolve all placeholders)
     bio report <path>       Run scenario and create Excel report
     bio run <path>          Debug: run entity, print result dict
-    bio expand <path>       Debug: show processed spec
+    bio store <specifier>   Store data from stdin to spec path
     bio --help              Show help
     bio --version           Show version
 
@@ -16,7 +18,8 @@ Examples:
     bio catalog/jobs/hardcoded_test       # Create and open Excel report
     bio cd data/experiments/run1          # Set current DAT
     bio fetch catalog/scenarios/mutualism # Display spec as YAML
-    echo '{name: test}' | bio store ./test  # Store data to relative path
+    bio hydrate catalog/jobs/test --seed 42  # Evaluate with seed
+    echo '{name: test}' | bio store ./test   # Store data to relative path
 """
 
 from __future__ import annotations
@@ -43,17 +46,20 @@ def main(argv: list[str] | None = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
+  build <path>    Build spec (resolve includes, refs, defaults)
   cd              Print current DAT path
   cd <path>       Set current DAT path
+  expand <path>   Show processed spec (same as build)
   fetch <spec>    Fetch and display a spec (--raw, --json)
-  store <spec>    Store data from stdin to spec path (--raw)
+  hydrate <path>  Fully evaluate spec (resolve all placeholders)
   report <path>   Run scenario and create Excel report (default)
   run <path>      Debug: run entity, print result dict
-  expand <path>   Debug: show processed spec without hydrating
+  store <spec>    Store data from stdin to spec path (--raw)
 
 Examples:
   bio cd data/experiments/run1          # Set current DAT
   bio fetch catalog/scenarios/mutualism # Display spec as YAML
+  bio hydrate catalog/jobs/test --seed 42  # Evaluate with seed
   echo '{key: val}' | bio store ./test  # Store to relative path
   bio catalog/jobs/hardcoded_test       # Create and open Excel report
 """,

@@ -56,6 +56,27 @@ class Evaluable:
     def __repr__(self) -> str:
         return f"Evaluable({self.source!r})"
 
+    @property
+    def expr(self) -> str:
+        """Alias for source (backward compat with EvTag)."""
+        return self.source
+
+    def evaluate(self, namespace: dict[str, Any] | None = None) -> Any:
+        """Evaluate the expression in a sandboxed namespace.
+
+        Args:
+            namespace: Dict of names available during evaluation
+
+        Returns:
+            Result of evaluating the expression
+        """
+        ns = namespace or {}
+        blocked = {"open", "exec", "eval", "__import__", "compile", "globals", "locals"}
+        builtins = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+        safe_builtins = {k: v for k, v in builtins.items() if k not in blocked}
+        eval_ns = {"__builtins__": safe_builtins, **ns}
+        return eval(self.source, eval_ns)
+
 
 @dataclass
 class Quoted:
@@ -97,6 +118,29 @@ class Reference:
 
     def __repr__(self) -> str:
         return f"Reference({self.name!r})"
+
+    def resolve(self, constants: dict[str, Any]) -> Any:
+        """Resolve the reference from a constants dict.
+
+        Supports dotted paths like "settings.threshold".
+
+        Args:
+            constants: Dict of named values to look up in
+
+        Returns:
+            The resolved value
+
+        Raises:
+            KeyError: If name not found in constants
+        """
+        parts = self.name.split(".")
+        value: Any = constants
+        for part in parts:
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            else:
+                raise KeyError(f"Cannot resolve reference: {self.name}")
+        return value
 
 
 # =============================================================================
@@ -150,15 +194,15 @@ def hydrate(data: Any, base_path: str | None = None) -> Any:
     """Convert dict structure to Python objects with placeholders.
 
     Transforms:
-        {"!_": source} → Evaluable(source)
-        {"!quote": source} → Quoted(source)
-        {"!ref": name} → Reference(name)
-        {"!include": path} → file contents (recursively hydrated)
+        {"!_": source} → Quoted(source)       (preserve expression)
+        {"!ev": source} → Evaluable(source)   (evaluate at instantiation)
+        {"!ref": name} → Reference(name)      (lookup in bindings)
+        {"!include": path} → file contents    (recursively hydrated)
 
     Also handles:
         - Recursive descent into dicts and lists
-        - YAML tag objects (Evaluable, Quoted, Reference) pass through unchanged
-        - EvTag, RefTag, IncludeTag from legacy system are converted
+        - YAML tag objects (Evaluable, Quoted, Reference, Include) pass through
+        - Include objects are loaded and their contents hydrated
 
     Args:
         data: The data structure to hydrate
@@ -176,21 +220,14 @@ def hydrate(data: Any, base_path: str | None = None) -> Any:
 def _hydrate_node(node: Any, base_path: str | None) -> Any:
     """Recursively hydrate a single node."""
     from pathlib import Path
+    from .tags import Include
 
-    # Already a placeholder - pass through
+    # Already a placeholder - pass through unchanged
     if isinstance(node, (Evaluable, Quoted, Reference)):
         return node
 
-    # Legacy tag objects - convert to new placeholders
-    from .tags import EvTag, RefTag, IncludeTag
-
-    if isinstance(node, EvTag):
-        return Evaluable(source=node.expr)
-
-    if isinstance(node, RefTag):
-        return Reference(name=node.name)
-
-    if isinstance(node, IncludeTag):
+    # Include placeholder - load and hydrate the file contents
+    if isinstance(node, Include):
         return _hydrate_include(node.path, base_path)
 
     # Dict - check for special keys or recurse

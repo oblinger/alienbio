@@ -2,90 +2,98 @@
 **Topic**: [[ABIO Topics]]
 Top-level module providing access to the alienbio runtime.
 
-## Functions
+## Public API
 
-| Function | Description |
-|----------|-------------|
-| `do(name)` | Resolve dotted name to object |
-| `create(spec)` | Instantiate from prototype specification |
-| `load(path)` | Load entity from data path |
-| `save(obj, path)` | Save entity to data path |
-| `parse(string)` | Reconstruct entity from string |
-| `ctx()` | Access runtime context |
-| `o` | Proxy for context attribute access |
+The `alienbio` module exports a curated set of symbols via `__all__`:
+
+```python
+__all__ = [
+    "bio", "Bio",
+    "hydrate", "dehydrate",
+    "Entity", "Scenario", "Chemistry", "Simulator", "State",
+]
+```
+
+### Main API
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `bio` | `Bio` | Module-level singleton for CLI and simple scripts |
+| `Bio` | class | Environment class for sandboxes and testing |
+
+### Module-level Functions
+
+| Export | Description |
+|--------|-------------|
+| `hydrate(data)` | Convert dict with `_type` to typed object (advanced) |
+| `dehydrate(obj)` | Convert typed object to dict with `_type` (advanced) |
+
+### Core Protocols
+
+| Export | Description |
+|--------|-------------|
+| `Entity` | Base class for all hydratable types |
+| `Scenario` | Main runnable unit |
+| `Chemistry` | Molecule and reaction definitions |
+| `Simulator` | Simulation engine protocol |
+| `State` | Simulation state protocol |
 
 ## Usage
 
-```python
-from alienbio import do, load, save, create, parse, ctx, o
-
-# Resolve named objects
-molecule = do("catalog.kegg1.molecule_gen")
-dataset = do("data.upstream.kegg.2024.1")
-
-# Load and save entities
-dataset = load("data/upstream/kegg/2024.1")
-save(molecules, "data/derived/kegg1/molecules")
-
-# Instantiate from prototypes
-gen = create("catalog.kegg1.molecule_gen")
-mol = create({"_proto": "catalog.kegg1.molecule_gen", "params": {...}})
-
-# Parse string representations
-mol = parse("M:glucose")
-
-# Access context directly
-config = ctx().config
-simulator = ctx().simulator
-
-# Access via proxy
-o.simulator.step()
-```
-
-## Context Access
-
-The runtime context is stored in a `ContextVar` for thread/async safety. Three access patterns:
-
-1. **Wrapper functions** (`do`, `load`, `save`, `create`) - delegate to context, excellent IDE support
-2. **Direct access** (`ctx()`) - returns full Context object
-3. **Proxy object** (`o`) - attribute delegation for less common operations
-
-## Implementation
-
-All exports are defined in `alienbio/__init__.py`:
+### Simple Usage (Singleton)
 
 ```python
-from contextvars import ContextVar
+from alienbio import bio
 
-_ctx: ContextVar["Context"] = ContextVar("alienbio_context")
+# Fetch and run
+scenario = bio.fetch("catalog/scenarios/mutualism")
+result = bio.run("scenarios.baseline", seed=42)
 
-def ctx() -> "Context":
-    return _ctx.get()
-
-def do(name: str):
-    return _ctx.get().do(name)
-
-def load(path: str):
-    return _ctx.get().load(path)
-
-def save(obj, path: str):
-    return _ctx.get().save(obj, path)
-
-def create(spec):
-    return _ctx.get().create(spec)
-
-def parse(string: str):
-    return _ctx.get().parse(string)
-
-class _ContextProxy:
-    def __getattr__(self, name):
-        return getattr(_ctx.get(), name)
-
-o = _ContextProxy()
+# Build without running
+built = bio.build("scenarios.test")
 ```
+
+### Sandbox Usage (Instance)
+
+```python
+from alienbio import Bio
+
+# Create isolated environment
+sandbox = Bio()
+scenario = sandbox.fetch("catalog/scenarios/test")
+result = sandbox.run(scenario)
+```
+
+### Type Hints
+
+```python
+from alienbio import Entity, Scenario, Chemistry
+
+class MyEntity(Entity):
+    """Custom entity type."""
+    ...
+
+def process_scenario(s: Scenario) -> dict:
+    """Type-hinted function."""
+    ...
+```
+
+### Advanced: Implementation Classes
+
+Implementation classes are importable but NOT in `__all__`:
+
+```python
+from alienbio import ReferenceSimulatorImpl  # works
+from alienbio import *  # does NOT include ReferenceSimulatorImpl
+```
+
+## Star Import
+
+`from alienbio import *` imports only the curated public API — not implementation classes or internal utilities.
 
 ## See Also
 
-- [[Context]] - Runtime pegboard protocol
-- [[ABIO DAT]] - dvc_dat integration and data management
-- [[Entity-naming]] - Entity naming and display format
+- [[Bio]] — Bio class API and methods
+- [[Entity]] — Base class for hydratable types
+- [[Decorators]] — `@factory` and other decorators
+- [[ABIO DAT]] — dvc_dat integration for data storage

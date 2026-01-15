@@ -191,46 +191,12 @@ class Include:
             return data
 
 
-# --- Backward compatibility aliases ---
-# Old tag class names that some code may still use
+# --- Backward compatibility aliases (deprecated) ---
+# Use Evaluable, Reference, Include directly instead
 
-class EvTag(Evaluable):
-    """Backward compat alias for Evaluable."""
-    def __init__(self, expr: str):
-        super().__init__(source=expr)
-
-    @property
-    def expr(self) -> str:
-        return self.source
-
-    def evaluate(self, namespace: dict[str, Any] | None = None) -> Any:
-        """Evaluate the expression in the given namespace."""
-        ns = namespace or {}
-        blocked = {"open", "exec", "eval", "__import__", "compile", "globals", "locals"}
-        safe_builtins = {k: v for k, v in __builtins__.items() if k not in blocked}  # type: ignore
-        eval_ns = {"__builtins__": safe_builtins, **ns}
-        return eval(self.source, eval_ns)
-
-
-class RefTag(Reference):
-    """Backward compat alias for Reference."""
-    def __init__(self, name: str):
-        super().__init__(name=name)
-
-    def resolve(self, constants: dict[str, Any]) -> Any:
-        """Resolve the reference from constants."""
-        parts = self.name.split(".")
-        value = constants
-        for part in parts:
-            if isinstance(value, dict) and part in value:
-                value = value[part]
-            else:
-                raise KeyError(f"Cannot resolve reference: {self.name}")
-        return value
-
-
-# Alias for Include
-IncludeTag = Include
+EvTag = Evaluable                                                    # deprecated
+RefTag = Reference                                                   # deprecated
+IncludeTag = Include                                                 # deprecated
 
 
 # --- YAML constructors ---

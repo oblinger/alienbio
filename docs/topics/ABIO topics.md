@@ -27,7 +27,11 @@ Cross-cutting topics that span multiple subsystems.
 - **[[ABIO Roadmap]]** - Generator implementation roadmap (templates, expansion, guards, visibility)
 
 ## S
+- **[[Skinning]]** - See [[Generator Spec#Visibility Specification]] — presenting scenarios with different name mappings (transparent vs opaque)
 - **[[Spec Language]]** - YAML syntax: typed elements, evaluation constructs, defaults inheritance
 
 ## T
 - **[[Testing]]** - Testing tiers (smoke, commit, release), test organization
+
+## V
+- **[[Visibility]]** - See [[Skinning]], [[Generator Spec#Visibility Specification]] — what the AI can observe, name mapping
