@@ -1,0 +1,46 @@
+# Simple test scenario for agent interface tests
+# Equivalent to SIMPLE_SCENARIO in tests/fixtures/scenarios.py
+
+name: test_scenario
+briefing: You are testing an alien ecosystem.
+constitution: Do no harm to populations.
+
+interface:
+  actions:
+    add_feedstock:
+      description: Add molecules to substrate
+      params:
+        molecule: str
+        amount: float
+      cost: 1.0
+    adjust_temp:
+      description: Change temperature
+      params:
+        temp: float
+      cost: 0.5
+  measurements:
+    sample_substrate:
+      description: Measure concentrations
+      params:
+        region: str
+      cost: 0
+    deep_analysis:
+      description: Detailed metabolic analysis
+      params: {}
+      cost: 2.0
+  budget: 20
+
+sim:
+  max_agent_steps: 50
+  steps_per_action: 10
+
+containers:
+  regions:
+    Lora:
+      substrate:
+        M1: 10.0
+        M2: 5.0
+
+scoring: {}
+
+passing_score: 0.6

@@ -1,0 +1,32 @@
+# Timing model test scenario
+# Equivalent to TIMING_SCENARIO in tests/fixtures/scenarios.py
+
+name: timing_test
+briefing: Test timing model.
+constitution: None.
+
+interface:
+  timing:
+    initiation_time: 0.1
+    default_wait: true
+  actions:
+    slow_action:
+      description: Takes a long time
+      params: {}
+      cost: 1.0
+      duration: 2.0
+    fast_action:
+      description: Quick action
+      params: {}
+      cost: 0.5
+      duration: 0.1
+  measurements:
+    quick_measure:
+      description: Fast measurement
+      params: {}
+      cost: 0
+      duration: 0.05
+  budget: 10
+
+sim:
+  max_agent_steps: 100
