@@ -47,6 +47,7 @@ from .timeline import Timeline, TimelineEvent
 from .trace import Trace, ActionObservationRecord
 from .session import AgentSession
 from .agents import Agent, RandomAgent, ScriptedAgent, OracleAgent, HumanAgent
+from .llm_agent import ConversationalLLMAgent
 from .experiment import run_experiment
 
 __all__ = [
@@ -69,6 +70,7 @@ __all__ = [
     "ScriptedAgent",
     "OracleAgent",
     "HumanAgent",
+    "ConversationalLLMAgent",
     # Orchestration
     "run_experiment",
 ]
