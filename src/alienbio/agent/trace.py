@@ -100,6 +100,14 @@ class Trace:
         self._records.append(record)
 
     @property
+    def actions(self) -> list[Action]:
+        """Return list of all actions taken in order.
+
+        This is a convenience property for analyzing agent behavior.
+        """
+        return [r.action for r in self._records]
+
+    @property
     def final(self) -> Optional[dict[str, Any]]:
         """Return the final state from the last observation, or None if empty.
 
