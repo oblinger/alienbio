@@ -9,7 +9,7 @@ from .decorators import biotype, fn, scoring, action, measurement, rate
 from .decorators import get_biotype, get_action, get_measurement, get_scoring, get_rate
 from .decorators import biotype_registry, action_registry, measurement_registry
 from .decorators import scoring_registry, rate_registry
-from .tags import EvTag, RefTag, IncludeTag, Include
+from .tags import Include
 from .eval import (
     Evaluable, Quoted, Reference,
     hydrate, dehydrate,
@@ -46,10 +46,7 @@ __all__ = [
     "measurement_registry",
     "scoring_registry",
     "rate_registry",
-    # Tags (legacy aliases)
-    "EvTag",
-    "RefTag",
-    "IncludeTag",
+    # Tags
     "Include",
     # Evaluation system
     "Evaluable",
