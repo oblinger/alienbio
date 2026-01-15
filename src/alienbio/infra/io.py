@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
@@ -9,6 +10,37 @@ from dvc_dat import Dat
 
 if TYPE_CHECKING:
     from .entity import Entity
+
+
+# Module-level IO singleton via ContextVar for thread/async safety
+_io_var: ContextVar[Optional["IO"]] = ContextVar("alienbio_io", default=None)
+
+
+def io() -> "IO":
+    """Get the current IO instance.
+
+    Returns the IO from the ContextVar, creating a default instance if needed.
+    This is the primary way to access entity I/O functionality.
+
+    Returns:
+        The current IO instance
+    """
+    instance = _io_var.get()
+    if instance is None:
+        instance = IO()
+        _io_var.set(instance)
+    return instance
+
+
+def set_io(instance: Optional["IO"]) -> None:
+    """Set the current IO instance.
+
+    Use this in tests to inject a fresh IO instance.
+
+    Args:
+        instance: IO instance to set, or None to clear
+    """
+    _io_var.set(instance)
 
 
 class _RootEntity:

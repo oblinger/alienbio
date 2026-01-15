@@ -4,22 +4,8 @@ from dvc_dat import Dat
 
 from .infra import imports  # noqa: F401 - ensures do-referenced modules are loaded
 
-from .infra.context import (
-    RuntimeContext,
-    Context,                                                         # deprecated alias
-    _ctx,
-    ctx,
-    set_context,
-    do,
-    create,
-    create_root,
-    load,
-    save,
-    lookup,
-    o,
-)
 from .infra.entity import Entity
-from .infra.io import IO
+from .infra.io import IO, io, set_io
 
 # Standard runner for DATs
 from .run import run
@@ -88,22 +74,12 @@ __version__ = "0.1.0"
 
 __all__ = [
     # Infrastructure
-    "RuntimeContext",
-    "Context",                                                       # deprecated, use RuntimeContext
     "Dat",
     "Entity",
     "IO",
+    "io",
+    "set_io",
     "run",
-    "_ctx",
-    "ctx",
-    "set_context",
-    "do",
-    "create",
-    "create_root",
-    "load",
-    "save",
-    "lookup",
-    "o",
     # Bio singleton and class
     "bio",
     "Bio",

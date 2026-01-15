@@ -262,8 +262,8 @@ class Entity:
 
         # If parent is None, reparent to orphan root instead
         if parent is None:
-            from .context import ctx
-            parent = ctx().io.orphan_root
+            from .io import io
+            parent = io().orphan_root
 
         self._parent = parent
 
@@ -284,8 +284,8 @@ class Entity:
 
         Prints as ORPHAN:name after detaching.
         """
-        from .context import ctx
-        self.set_parent(ctx().io.orphan_root)
+        from .io import io
+        self.set_parent(io().orphan_root)
 
     def _update_top(self, new_root: Entity) -> None:
         """Update _top for this entity and all descendants.
@@ -344,9 +344,8 @@ class Entity:
                 child_root = child.root()
                 if child_root is not _root:
                     # Child belongs to a different DAT - use absolute ref
-                    # Import here to avoid circular import
-                    from . import context
-                    args_dict[name] = context.ctx().io.ref(child, absolute=True)
+                    from .io import io
+                    args_dict[name] = io().ref(child, absolute=True)
                 else:
                     # Same DAT - inline the child
                     args_dict[name] = child.to_dict(recursive=True, _root=_root)
@@ -448,14 +447,14 @@ class Entity:
         return f"Entity({', '.join(parts)})"
 
     def __str__(self) -> str:
-        """Short display form using PREFIX:path if context available.
+        """Short display form using PREFIX:path if IO available.
 
-        Falls back to full_name if no context or prefix matches.
+        Falls back to full_name if no IO or prefix matches.
         """
         try:
-            from .context import ctx
+            from .io import io
 
-            return ctx().io.ref(self)
+            return io().ref(self)
         except Exception:
             # Fall back to full_name if context not available
             try:

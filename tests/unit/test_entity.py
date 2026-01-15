@@ -112,10 +112,10 @@ class TestParentChildRelationship:
 
     def test_detach_moves_to_orphan_root(self):
         """detach() moves child to orphan root."""
-        from alienbio import ctx, set_context, Context
+        from alienbio import io, set_io, IO
 
         # Use fresh context to avoid naming collisions
-        set_context(Context())
+        set_io(IO())
         try:
             dat = MockDat("runs/exp1")
             parent = Entity("world", dat=dat)
@@ -126,33 +126,33 @@ class TestParentChildRelationship:
             # Child is no longer under original parent
             assert "compartment" not in parent.children
             # Child is now under orphan root
-            assert child.parent is ctx().io.orphan_root
-            assert "compartment" in ctx().io.orphan_root.children
+            assert child.parent is io().orphan_root
+            assert "compartment" in io().orphan_root.children
             # Child remains valid
             assert child.dat() is not None
         finally:
-            set_context(None)
+            set_io(None)
 
     def test_orphan_root_lazy_loading(self):
         """Orphan root is created lazily on first access."""
-        from alienbio import ctx, set_context, Context
+        from alienbio import io, set_io, IO
 
-        set_context(Context())
+        set_io(IO())
         try:
             # Access orphan_root triggers lazy creation
-            orphan_root = ctx().io.orphan_root
+            orphan_root = io().orphan_root
             assert orphan_root is not None
             assert orphan_root.local_name == "orphans"
             # ORPHAN prefix should be bound
-            assert "ORPHAN" in ctx().io.prefixes
+            assert "ORPHAN" in io().prefixes
         finally:
-            set_context(None)
+            set_io(None)
 
     def test_save_on_orphan_raises(self):
         """Saving orphan root raises ValueError."""
-        from alienbio import ctx, set_context, Context
+        from alienbio import io, set_io, IO
 
-        set_context(Context())
+        set_io(IO())
         try:
             dat = MockDat("runs/exp1")
             parent = Entity("world", dat=dat)
@@ -162,19 +162,19 @@ class TestParentChildRelationship:
 
             # Trying to save the orphan root should raise
             with pytest.raises(ValueError, match="Cannot save orphan"):
-                ctx().io.orphan_root.save()
+                io().orphan_root.save()
 
             # Trying to save an orphaned child's root also raises
             with pytest.raises(ValueError, match="Cannot save orphan"):
                 child.root().save()
         finally:
-            set_context(None)
+            set_io(None)
 
     def test_reattach_orphaned_entity(self):
         """Orphaned entity can be re-attached to a new parent."""
-        from alienbio import ctx, set_context, Context
+        from alienbio import io, set_io, IO
 
-        set_context(Context())
+        set_io(IO())
         try:
             dat = MockDat("runs/exp1")
             parent1 = Entity("world1", dat=dat)
@@ -183,21 +183,21 @@ class TestParentChildRelationship:
 
             # Detach from parent1
             child.detach()
-            assert child.parent is ctx().io.orphan_root
+            assert child.parent is io().orphan_root
 
             # Re-attach to parent2
             child.set_parent(parent2)
             assert child.parent is parent2
             assert "movable" in parent2.children
-            assert "movable" not in ctx().io.orphan_root.children
+            assert "movable" not in io().orphan_root.children
         finally:
-            set_context(None)
+            set_io(None)
 
     def test_detach_subtree_moves_all_descendants(self):
         """Detaching a subtree moves entire subtree to orphan root."""
-        from alienbio import ctx, set_context, Context
+        from alienbio import io, set_io, IO
 
-        set_context(Context())
+        set_io(IO())
         try:
             dat = MockDat("runs/exp1")
             root = Entity("root", dat=dat)
@@ -208,13 +208,13 @@ class TestParentChildRelationship:
             child.detach()
 
             # Child is now under orphan root
-            assert child.parent is ctx().io.orphan_root
+            assert child.parent is io().orphan_root
             # Grandchild still under child
             assert grandchild.parent is child
             # Grandchild's root is now orphan root
-            assert grandchild.root() is ctx().io.orphan_root
+            assert grandchild.root() is io().orphan_root
         finally:
-            set_context(None)
+            set_io(None)
 
     def test_duplicate_child_name_raises(self):
         """Adding child with duplicate name raises ValueError."""
@@ -273,10 +273,10 @@ class TestFullName:
 
     def test_detached_entity_has_orphan_full_name(self):
         """Detached entity has full_name from orphan DAT."""
-        from alienbio import set_context, Context
+        from alienbio import set_io, IO
 
         # Use fresh context to avoid naming collisions in orphan root
-        set_context(Context())
+        set_io(IO())
         try:
             dat = MockDat("runs/exp1")
             parent = Entity("world", dat=dat)
@@ -287,7 +287,7 @@ class TestFullName:
             # Full name now comes from orphan root
             assert child.full_name == "<orphans>.compartment"
         finally:
-            set_context(None)
+            set_io(None)
 
     def test_dual_anchored_uses_own_dat(self):
         """Entity with both parent and DAT uses its own DAT."""
@@ -557,11 +557,11 @@ class TestDatAccess:
 
     def test_dat_on_detached_returns_orphan_dat(self):
         """dat() returns orphan DAT for detached entities."""
-        from alienbio import set_context, Context
+        from alienbio import set_io, IO
         from alienbio.infra.io import _OrphanDat
 
         # Use fresh context to avoid naming collisions
-        set_context(Context())
+        set_io(IO())
         try:
             dat = MockDat("runs/exp1")
             world = Entity("world", dat=dat)
@@ -573,7 +573,7 @@ class TestDatAccess:
             # Detached entities have the orphan DAT
             assert isinstance(child.dat(), _OrphanDat)
         finally:
-            set_context(None)
+            set_io(None)
 
     def test_root_returns_self_for_root(self):
         """root() returns self for root entity."""
@@ -613,10 +613,10 @@ class TestStringRepresentation:
 
     def test_str_for_orphan_uses_orphan_prefix(self):
         """__str__ uses ORPHAN: prefix for detached entities."""
-        from alienbio import ctx, set_context, Context
+        from alienbio import io, set_io, IO
 
         # Set up a context
-        set_context(Context())
+        set_io(IO())
         try:
             dat = MockDat("runs/exp1")
             parent = Entity("world", dat=dat)
@@ -627,7 +627,7 @@ class TestStringRepresentation:
             # Should show ORPHAN:myentity
             assert str(child) == "ORPHAN:myentity"
         finally:
-            set_context(None)
+            set_io(None)
 
     def test_repr_includes_all_fields(self):
         """__repr__ includes local_name, description, dat, parent, args."""

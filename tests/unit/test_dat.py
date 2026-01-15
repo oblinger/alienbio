@@ -5,8 +5,29 @@ from pathlib import Path
 
 import pytest
 
-from alienbio import Context, Dat, create, ctx, do, load, save, set_context
-from dvc_dat import do as dvc_do
+from alienbio import Dat
+from dvc_dat import do, Dat as DvcDat
+
+
+def save(obj, path):
+    """Helper to save object as Dat (replaces old context.save)."""
+    spec = obj if isinstance(obj, dict) else {"value": obj}
+    return Dat.create(path=str(path), spec=spec)
+
+
+def load(path):
+    """Helper to load Dat (replaces old context.load)."""
+    return Dat.load(str(path))
+
+
+def create(spec, path):
+    """Helper to create Dat from spec (replaces old context.create).
+
+    Uses do.load() to get spec without executing dat.do function.
+    """
+    if isinstance(spec, str):
+        spec = do.load(spec)
+    return Dat.create(path=str(path), spec=spec)
 
 
 class TestDoResolves:
@@ -158,8 +179,8 @@ class TestCallableFunctions:
     """Tests for loading and calling Python functions via do-system."""
 
     def test_do_load_returns_function(self):
-        """dvc_do.load() returns a function without calling it."""
-        fn = dvc_do.load("fixtures.process_data")
+        """do.load() returns a function without calling it."""
+        fn = do.load("fixtures.process_data")
         assert callable(fn)
 
     def test_do_calls_function_with_args(self):
@@ -176,8 +197,8 @@ class TestCallableFunctions:
         assert result["first"] is None
 
     def test_do_load_compute_metric_function(self):
-        """dvc_do.load() can load compute_metric function."""
-        fn = dvc_do.load("fixtures.compute_metric")
+        """do.load() can load compute_metric function."""
+        fn = do.load("fixtures.compute_metric")
         assert callable(fn)
         # Call without dat parameter
         result = fn(multiplier=2)
