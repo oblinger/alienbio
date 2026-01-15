@@ -7,9 +7,9 @@ import pytest
 
 from alienbio.infra.entity import (
     Entity,
-    get_entity_type,
-    get_entity_types,
-    register_entity_type,
+    get_entity_class,
+    get_registered_heads,
+    register_head,
 )
 
 
@@ -686,29 +686,29 @@ class TestTypeRegistry:
 
     def test_entity_registered_as_entity(self):
         """Base Entity is registered as 'Entity'."""
-        assert get_entity_type("Entity") is Entity
+        assert get_entity_class("Entity") is Entity
 
     def test_subclass_registered_by_class_name(self):
         """Subclass with head_name is registered by that name."""
-        assert get_entity_type("SampleMol") is SampleMol
+        assert get_entity_class("SampleMol") is SampleMol
 
     def test_subclass_registered_by_head_name(self):
         """Subclass with head_name is registered by that name."""
-        assert get_entity_type("C") is Compartment
-        assert get_entity_type("R") is Reaction
+        assert get_entity_class("C") is Compartment
+        assert get_entity_class("R") is Reaction
 
-    def test_get_entity_types_returns_all(self):
-        """get_entity_types returns all registered heads."""
-        heads = get_entity_types()
+    def test_get_registered_heads_returns_all(self):
+        """get_registered_heads returns all registered heads."""
+        heads = get_registered_heads()
         assert "Entity" in heads
         assert "SampleMol" in heads
         assert "C" in heads
         assert "R" in heads
 
     def test_unknown_head_raises(self):
-        """get_entity_type raises KeyError for unknown head."""
+        """get_entity_class raises KeyError for unknown head."""
         with pytest.raises(KeyError, match="Unknown entity head"):
-            get_entity_type("NonexistentType")
+            get_entity_class("NonexistentType")
 
 
 class TestSubclassSerialization:

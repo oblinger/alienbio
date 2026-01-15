@@ -657,8 +657,8 @@ class TestBioSimIntegration:
         spec = Bio.load("fixtures/test_scenario.yaml")
 
         # Eval with seed
-        from alienbio.spec_lang.eval import Context
-        ctx = Context(rng=np.random.default_rng(42))
+        from alienbio.spec_lang.eval import EvalContext
+        ctx = EvalContext(rng=np.random.default_rng(42))
         scenario = Bio.eval(spec, ctx)
 
         # Create simulator (compiles rate expressions)
@@ -675,11 +675,11 @@ class TestBioSimIntegration:
         """Same spec, different seeds, different scenarios."""
         spec = Bio.load("fixtures/test_scenario.yaml")
 
-        from alienbio.spec_lang.eval import Context
+        from alienbio.spec_lang.eval import EvalContext
 
         results = []
         for seed in range(10):
-            ctx = Context(rng=np.random.default_rng(seed))
+            ctx = EvalContext(rng=np.random.default_rng(seed))
             scenario = Bio.eval(spec, ctx)
             sim = bio.sim(scenario)
             history = sim.run(sim.initial_state(), steps=50)
@@ -692,7 +692,7 @@ class TestBioSimIntegration:
     @pytest.mark.skip(reason="Implementation pending")
     def test_quotes_survive_eval(self):
         """!quote expressions survive Bio.eval and reach simulator."""
-        from alienbio.spec_lang.eval import Context, Quoted
+        from alienbio.spec_lang.eval import EvalContext, Quoted
 
         spec = {
             "reactions": {

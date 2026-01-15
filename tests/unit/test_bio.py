@@ -24,7 +24,7 @@ from alienbio import (
     # Other
     Entity,
 )
-from alienbio.infra.entity import get_entity_type
+from alienbio.infra.entity import get_entity_class
 
 
 class MockDat:
@@ -171,7 +171,7 @@ class TestMolecule:
 
     def test_molecule_type_registered(self):
         """MoleculeImpl registered as 'Molecule'."""
-        cls = get_entity_type("Molecule")
+        cls = get_entity_class("Molecule")
         assert cls is MoleculeImpl
 
 
@@ -299,7 +299,7 @@ class TestReaction:
 
     def test_reaction_type_registered(self):
         """ReactionImpl registered as 'Reaction'."""
-        cls = get_entity_type("Reaction")
+        cls = get_entity_class("Reaction")
         assert cls is ReactionImpl
 
 
@@ -446,7 +446,7 @@ class TestChemistry:
 
     def test_chemistry_type_registered(self):
         """ChemistryImpl registered as 'Chemistry'."""
-        cls = get_entity_type("Chemistry")
+        cls = get_entity_class("Chemistry")
         assert cls is ChemistryImpl
 
 

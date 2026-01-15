@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..spec_lang.eval import Evaluable, Quoted, Reference, eval_node, make_context, Context
+from ..spec_lang.eval import Evaluable, Quoted, Reference, eval_node, make_context, EvalContext
 from .template import TemplateRegistry, ports_compatible
 from .exceptions import PortTypeMismatchError, PortNotFoundError
 
@@ -20,7 +20,7 @@ def apply_template(
     params: dict[str, Any] | None = None,
     registry: TemplateRegistry | None = None,
     seed: int | None = None,
-    _ctx: Context | None = None,
+    _ctx: EvalContext | None = None,
 ) -> dict[str, Any]:
     """Apply a template with namespace prefixing.
 
@@ -162,7 +162,7 @@ def _instantiate_nested(
     namespace: str,
     registry: TemplateRegistry,
     parent_params: dict[str, Any],
-    ctx: Context,
+    ctx: EvalContext,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Instantiate a nested template.
 
@@ -204,7 +204,7 @@ def _apply_template_with_ports(
     namespace: str,
     params: dict[str, Any] | None,
     registry: TemplateRegistry | None,
-    ctx: Context,
+    ctx: EvalContext,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Internal: apply template and also return ports for wiring."""
     # Merge params with template defaults
@@ -363,10 +363,10 @@ def _apply_port_connections(
                 result["molecules"][namespaced_mol]["source"] = target_expanded_port["namespaced_path"]
 
 
-def _eval_params(params: dict[str, Any], ctx: Context) -> dict[str, Any]:
+def _eval_params(params: dict[str, Any], ctx: EvalContext) -> dict[str, Any]:
     """Evaluate !ev expressions in params, with dependency ordering."""
     result = {}
-    eval_ctx = Context(
+    eval_ctx = EvalContext(
         rng=ctx.rng,
         bindings=dict(ctx.bindings),
         functions=ctx.functions,
@@ -381,11 +381,11 @@ def _eval_params(params: dict[str, Any], ctx: Context) -> dict[str, Any]:
     return result
 
 
-def _resolve_and_eval(data: Any, params: dict[str, Any], ctx: Context) -> Any:
+def _resolve_and_eval(data: Any, params: dict[str, Any], ctx: EvalContext) -> Any:
     """Recursively resolve !ref and evaluate !ev expressions in data."""
     # Handle Evaluable (!ev)
     if isinstance(data, Evaluable):
-        eval_ctx = Context(
+        eval_ctx = EvalContext(
             rng=ctx.rng,
             bindings={**ctx.bindings, **params},
             functions=ctx.functions,
@@ -405,7 +405,7 @@ def _resolve_and_eval(data: Any, params: dict[str, Any], ctx: Context) -> Any:
     if isinstance(data, str):
         if data.startswith("!ev "):
             expr = data[4:].strip()
-            eval_ctx = Context(
+            eval_ctx = EvalContext(
                 rng=ctx.rng,
                 bindings={**ctx.bindings, **params},
                 functions=ctx.functions,
