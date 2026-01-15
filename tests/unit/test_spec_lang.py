@@ -1127,7 +1127,7 @@ class TestDatExecution:
         import os
         from dvc_dat import Dat
 
-        os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
+        os.chdir("/Users/oblinger/ob/proj/Alien Biology/Alien Biology Framework/alienbio")
         dat = Dat.load("catalog/jobs/hardcoded_test")
 
         # Check DAT loaded
@@ -1140,7 +1140,7 @@ class TestDatExecution:
         import os
         from dvc_dat import Dat
 
-        os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
+        os.chdir("/Users/oblinger/ob/proj/Alien Biology/Alien Biology Framework/alienbio")
         dat = Dat.load("catalog/jobs/hardcoded_test")
         success, result = dat.run()
 
@@ -1157,7 +1157,7 @@ class TestDatExecution:
         import os
         from dvc_dat import Dat
 
-        os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
+        os.chdir("/Users/oblinger/ob/proj/Alien Biology/Alien Biology Framework/alienbio")
         dat = Dat.load("catalog/jobs/hardcoded_test")
         success, result = dat.run()
 
@@ -1173,7 +1173,7 @@ class TestDatExecution:
         import os
         from dvc_dat import Dat
 
-        os.chdir("/Users/oblinger/ob/proj/abio/alienbio")
+        os.chdir("/Users/oblinger/ob/proj/Alien Biology/Alien Biology Framework/alienbio")
         dat = Dat.load("catalog/jobs/hardcoded_test")
         success, result = dat.run()
 

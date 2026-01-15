@@ -50,6 +50,7 @@ from .agents import Agent, RandomAgent, ScriptedAgent, OracleAgent, HumanAgent
 from .llm_agent import ConversationalLLMAgent
 from .claude_sdk_agent import ClaudeAgentSDKBinding
 from .experiment import run_experiment
+from .results_storage import save_results, load_results, list_results, aggregate_results
 
 __all__ = [
     # Core types
@@ -75,4 +76,9 @@ __all__ = [
     "ClaudeAgentSDKBinding",
     # Orchestration
     "run_experiment",
+    # Results storage
+    "save_results",
+    "load_results",
+    "list_results",
+    "aggregate_results",
 ]
