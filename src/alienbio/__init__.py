@@ -66,6 +66,9 @@ from .bio import (
     get_atom,
 )
 
+# Config module - API key management
+from . import config
+
 __version__ = "0.1.0"
 
 __all__ = [
