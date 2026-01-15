@@ -150,6 +150,33 @@ def parse_interaction(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def parse_background(data: dict[str, Any]) -> dict[str, Any]:
+    """Parse a background generation specification.
+
+    Background generation creates random filler molecules and reactions.
+
+    Args:
+        data: Background spec with molecules and reactions config
+
+    Returns:
+        Dict with molecules and reactions config
+
+    Example:
+        parse_background({
+            "molecules": {"count": 10},
+            "reactions": {"count": 5}
+        })
+        # Returns: {
+        #     "molecules": {"count": 10},
+        #     "reactions": {"count": 5}
+        # }
+    """
+    return {
+        "molecules": data.get("molecules", {}),
+        "reactions": data.get("reactions", {}),
+    }
+
+
 # =============================================================================
 # Template Registry
 # =============================================================================

@@ -22,7 +22,7 @@ import pytest
 class TestBackgroundParsing:
     """Tests for parsing background: section."""
 
-    @pytest.mark.skip(reason="M2.9 not yet implemented")
+    
     def test_parse_background_section(self):
         """Parse background section with molecule and reaction counts."""
         from alienbio.build import parse_background
@@ -35,7 +35,7 @@ class TestBackgroundParsing:
         assert bg["molecules"]["count"] == 10
         assert bg["reactions"]["count"] == 5
 
-    @pytest.mark.skip(reason="M2.9 not yet implemented")
+    
     def test_parse_background_with_distribution(self):
         """Parse background with distribution for count."""
         from alienbio.build import parse_background
@@ -57,7 +57,7 @@ class TestBackgroundParsing:
 class TestBackgroundMolecules:
     """Tests for background molecule generation."""
 
-    @pytest.mark.skip(reason="M2.9 not yet implemented")
+    
     def test_background_generates_molecules(self):
         """Background generates approximately N molecules."""
         from alienbio import Bio, bio
@@ -76,7 +76,7 @@ class TestBackgroundMolecules:
         bg_mols = [m for m in gt["molecules"] if m.startswith("m.bg.")]
         assert len(bg_mols) == 10
 
-    @pytest.mark.skip(reason="M2.9 not yet implemented")
+    
     def test_background_molecules_use_bg_namespace(self):
         """Background molecules use m.bg.* namespace."""
         from alienbio import Bio, bio
@@ -95,7 +95,7 @@ class TestBackgroundMolecules:
             if "bg" in mol:
                 assert mol.startswith("m.bg.")
 
-    @pytest.mark.skip(reason="M2.9 not yet implemented")
+    
     def test_background_molecule_count_from_distribution(self):
         """Background molecule count sampled from distribution."""
         from alienbio import Bio, bio
@@ -127,7 +127,7 @@ class TestBackgroundMolecules:
 class TestBackgroundReactions:
     """Tests for background reaction generation."""
 
-    @pytest.mark.skip(reason="M2.9 not yet implemented")
+    
     def test_background_generates_reactions(self):
         """Background generates reactions between background molecules."""
         from alienbio import Bio, bio
@@ -146,7 +146,7 @@ class TestBackgroundReactions:
         bg_rxns = [r for r in gt["reactions"] if r.startswith("r.bg.")]
         assert len(bg_rxns) == 3
 
-    @pytest.mark.skip(reason="M2.9 not yet implemented")
+    
     def test_background_reactions_use_bg_molecules(self):
         """Background reactions only use background molecules."""
         from alienbio import Bio, bio
@@ -169,7 +169,7 @@ class TestBackgroundReactions:
                 for product in rxn_data.get("products", []):
                     assert product.startswith("m.bg.")
 
-    @pytest.mark.skip(reason="M2.9 not yet implemented")
+    
     def test_background_respects_no_species_dependencies(self):
         """Background reactions don't link different species."""
         from alienbio import Bio, bio
