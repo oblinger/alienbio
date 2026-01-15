@@ -389,7 +389,7 @@ class Bio:
         if not path.exists():
             path.mkdir(parents=True)
 
-        spec_file = path / "spec.yaml"
+        spec_file = path / "index.yaml"
 
         # Convert object to dict
         if raw:
@@ -421,9 +421,9 @@ class Bio:
             raise FileNotFoundError(f"Specifier path not found: {specifier}")
 
         if path.is_dir():
-            spec_file = path / "spec.yaml"
+            spec_file = path / "index.yaml"
             if not spec_file.exists():
-                raise FileNotFoundError(f"No spec.yaml found in: {specifier}")
+                raise FileNotFoundError(f"No index.yaml found in: {specifier}")
         else:
             spec_file = path
 
@@ -461,9 +461,9 @@ class Bio:
             raise FileNotFoundError(f"Specifier path not found: {specifier}")
 
         if path.is_dir():
-            spec_file = path / "spec.yaml"
+            spec_file = path / "index.yaml"
             if not spec_file.exists():
-                raise FileNotFoundError(f"No spec.yaml found in: {specifier}")
+                raise FileNotFoundError(f"No index.yaml found in: {specifier}")
         else:
             spec_file = path
 

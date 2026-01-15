@@ -335,6 +335,8 @@ CONSTANT = 42
 """)
 
         # Create YAML that references Python
+        # Note: source root lookup uses {name}.yaml, not index.yaml
+        # index.yaml is for DAT folders; {name}.yaml is for source roots
         (catalog / "spec.yaml").write_text("""
 reaction:
   name: Test Reaction

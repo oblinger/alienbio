@@ -1223,7 +1223,7 @@ class TestBioIntegration:
         """bio.load_spec() loads and hydrates a YAML file."""
         from alienbio.spec_lang import bio
 
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 name: test
 count: !ev normal(50, 10)
@@ -1246,7 +1246,7 @@ threshold: !ref high_threshold
         """bio.eval_spec() evaluates all placeholders."""
         from alienbio.spec_lang import bio
 
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 name: test
 count: !ev normal(50, 10)
@@ -1266,7 +1266,7 @@ value: !ev 2 + 3
         """bio.eval_spec() resolves references from bindings."""
         from alienbio.spec_lang import bio
 
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 threshold: !ref high_value
 computed: !ev base * 2
@@ -1282,7 +1282,7 @@ computed: !ev base * 2
         """Same seed produces same random results."""
         from alienbio.spec_lang import bio
 
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 count: !ev normal(50, 10)
 value: !ev uniform(0, 1)
@@ -1300,7 +1300,7 @@ value: !ev uniform(0, 1)
         """Different seeds produce different random results."""
         from alienbio.spec_lang import bio
 
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 count: !ev normal(50, 10)
 """)
@@ -1324,7 +1324,7 @@ retries: 3
 """)
 
         # Create main spec
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 name: test
 config: !include config.yaml
@@ -1337,10 +1337,10 @@ config: !include config.yaml
         assert spec["config"]["retries"] == 3
 
     def test_load_spec_directory(self, temp_dir):
-        """bio.load_spec() loads spec.yaml from directory."""
+        """bio.load_spec() loads index.yaml from directory."""
         from alienbio.spec_lang import bio
 
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 name: test
 value: 42
@@ -1362,7 +1362,7 @@ value: 42
         """Same spec can be evaluated multiple times with different seeds."""
         from alienbio.spec_lang import bio
 
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 count: !ev normal(50, 10)
 """)
