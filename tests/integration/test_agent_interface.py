@@ -157,7 +157,7 @@ class TestAgentSessionCreation:
         from alienbio.agent import AgentSession
         session = AgentSession(simple_scenario)
         assert session.trace is not None
-        assert len(session.trace.actions) == 0
+        assert len(session.trace.records) == 0
         assert session.trace.total_cost == 0.0
 
     def test_session_step_count_starts_zero(self, simple_scenario):
@@ -511,8 +511,8 @@ class TestActionExecution:
         session = AgentSession(simple_scenario)
         action = Action(name="add_feedstock", params={"molecule": "M1", "amount": 5.0})
         session.act(action)
-        assert len(session.trace.actions) == 1
-        assert session.trace.actions[0].action.name == "add_feedstock"
+        assert len(session.trace.records) == 1
+        assert session.trace.records[0].action.name == "add_feedstock"
 
 
 class TestMeasurementExecution:
@@ -568,7 +568,7 @@ class TestMeasurementExecution:
         session = AgentSession(simple_scenario)
         measurement = Action(name="sample_substrate", params={"region": "Lora"}, kind="measurement")
         session.act(measurement)
-        assert len(session.trace.actions) == 1
+        assert len(session.trace.records) == 1
 
 
 class TestActionKindInference:
@@ -1081,10 +1081,10 @@ class TestTraceRecording:
         session.act(action2)
         session.act(action3)
 
-        assert len(session.trace.actions) == 3
-        assert session.trace.actions[0].action.name == "add_feedstock"
-        assert session.trace.actions[1].action.name == "adjust_temp"
-        assert session.trace.actions[2].action.name == "sample_substrate"
+        assert len(session.trace.records) == 3
+        assert session.trace.records[0].action.name == "add_feedstock"
+        assert session.trace.records[1].action.name == "adjust_temp"
+        assert session.trace.records[2].action.name == "sample_substrate"
 
     def test_trace_records_results(self, simple_scenario):
         """Trace records action results."""
@@ -1094,7 +1094,7 @@ class TestTraceRecording:
         action = Action(name="sample_substrate", params={"region": "Lora"})
         session.act(action)
 
-        record = session.trace.actions[0]
+        record = session.trace.records[0]
         assert record.observation is not None
         assert record.observation.success == True
 
@@ -1109,8 +1109,8 @@ class TestTraceRecording:
         session.act(action1)
         session.act(action2)
 
-        assert session.trace.actions[0].cumulative_cost == 1.0
-        assert session.trace.actions[1].cumulative_cost == 1.5
+        assert session.trace.records[0].cumulative_cost == 1.0
+        assert session.trace.records[1].cumulative_cost == 1.5
 
     def test_trace_has_total_cost(self, simple_scenario):
         """Trace has total_cost property."""
@@ -1137,8 +1137,8 @@ class TestTraceRecording:
         session.act(measurement)
 
         # Step is recorded AFTER action increments it (for actions, not measurements)
-        assert session.trace.actions[0].step == 1  # First action incremented to step 1
-        assert session.trace.actions[1].step == 1  # Measurement doesn't increment step
+        assert session.trace.records[0].step == 1  # First action incremented to step 1
+        assert session.trace.records[1].step == 1  # Measurement doesn't increment step
 
 
 # =============================================================================
@@ -1467,7 +1467,7 @@ class TestFullExperimentCycle:
 
         assert results is not None
         assert results.scenario == "test_scenario"
-        assert len(results.trace.actions) == 4
+        assert len(results.trace.records) == 4
         assert isinstance(results.scores["budget_compliance"], (int, float))
         assert isinstance(results.passed, bool)
 
@@ -1479,7 +1479,7 @@ class TestFullExperimentCycle:
         results = run_experiment(simple_scenario, RandomAgent(seed=42), seed=42)
 
         assert results is not None
-        assert len(results.trace.actions) <= 10
+        assert len(results.trace.records) <= 10
 
     def test_experiment_respects_max_steps(self, simple_scenario):
         """Experiment terminates at max_steps."""
@@ -1496,5 +1496,5 @@ class TestFullExperimentCycle:
         results = run_experiment(simple_scenario, NeverDoneAgent(), seed=42)
 
         # Should have exactly 3 actions (max_steps)
-        action_count = len([a for a in results.trace.actions if a.action.name == "add_feedstock"])
+        action_count = len([a for a in results.trace.records if a.action.name == "add_feedstock"])
         assert action_count == 3

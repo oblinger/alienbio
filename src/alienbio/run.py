@@ -150,12 +150,7 @@ def _run_scenario(scenario: Any, dat: "Dat") -> dict[str, Any]:
     scores = {}
     for name, fn in scoring_fns.items():
         if callable(fn):
-            # Try passing trace first, fall back to state for backwards compatibility
-            try:
-                scores[name] = fn(trace)
-            except (TypeError, AttributeError):
-                # Function might expect state dict directly (legacy)
-                scores[name] = fn(final_state)
+            scores[name] = fn(trace)
 
     # Run verifications
     verify_results = []

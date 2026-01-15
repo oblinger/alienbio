@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 from .world_state import WorldStateImpl
 from .compartment_tree import CompartmentTreeImpl
-from .flow import FlowImpl
+from .flow import GeneralFlow
 
 if TYPE_CHECKING:
     from .chemistry import ChemistryImpl
@@ -71,7 +71,7 @@ class WorldSimulatorImpl:
 
         # Define reactions and flows
         reactions = [ReactionSpec("r1", {0: 1}, {1: 1}, rate_constant=0.1)]
-        flows = [FlowImpl(child=cell, molecule=0, rate_constant=0.05)]
+        flows = [GeneralFlow(child=cell, molecule=0, rate_constant=0.05)]
 
         # Create simulator
         sim = WorldSimulatorImpl(
@@ -97,7 +97,7 @@ class WorldSimulatorImpl:
         self,
         tree: CompartmentTreeImpl,
         reactions: List[ReactionSpec],
-        flows: List[FlowImpl],
+        flows: List[GeneralFlow],
         num_molecules: int,
         dt: float = 1.0,
     ) -> None:
@@ -127,7 +127,7 @@ class WorldSimulatorImpl:
         return self._reactions
 
     @property
-    def flows(self) -> List[FlowImpl]:
+    def flows(self) -> List[GeneralFlow]:
         """Flow specifications."""
         return self._flows
 
@@ -229,7 +229,7 @@ class WorldSimulatorImpl:
         cls,
         chemistry: ChemistryImpl,
         tree: CompartmentTreeImpl,
-        flows: Optional[List[FlowImpl]] = None,
+        flows: Optional[List[GeneralFlow]] = None,
         dt: float = 1.0,
     ) -> WorldSimulatorImpl:
         """Create simulator from a Chemistry and compartment tree.

@@ -373,14 +373,14 @@ class WorldState(Protocol):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Legacy State (for single-compartment Chemistry simulations)
+# State (for single-compartment Chemistry simulations)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @runtime_checkable
 class State(Protocol):
     """Protocol for single-compartment molecule concentration state.
 
-    Legacy interface for simple simulations with one compartment.
+    Simple interface for simulations with one compartment.
     For multi-compartment simulations, use WorldState instead.
     """
 
