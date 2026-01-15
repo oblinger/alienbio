@@ -17,6 +17,7 @@ Commands:
 
 from .build import build_command
 from .cd import cd_command
+from .config_cmd import config_command
 from .expand import expand_command
 from .fetch import fetch_command
 from .hydrate import hydrate_command
@@ -28,6 +29,7 @@ from .store import store_command
 COMMANDS = {
     "build": build_command,
     "cd": cd_command,
+    "config": config_command,
     "expand": expand_command,
     "fetch": fetch_command,
     "hydrate": hydrate_command,
