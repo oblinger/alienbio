@@ -54,7 +54,7 @@ def store_command(args: list[str], verbose: bool = False) -> int:
         bio.store(specifier, data, raw=raw)
 
         if verbose:
-            print(f"Stored to: {specifier}/spec.yaml")
+            print(f"Stored to: {specifier}/index.yaml")
         else:
             print(specifier)
 

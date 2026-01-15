@@ -97,11 +97,11 @@ def resolve_specifier(
         if path is None:
             raise FileNotFoundError(f"Specifier path not found: {specifier}")
 
-    # Find spec.yaml in directory
+    # Find index.yaml in directory
     if path.is_dir():
-        spec_file = path / "spec.yaml"
+        spec_file = path / "index.yaml"
         if not spec_file.exists():
-            raise FileNotFoundError(f"No spec.yaml found in: {specifier}")
+            raise FileNotFoundError(f"No index.yaml found in: {specifier}")
     else:
         spec_file = path
 

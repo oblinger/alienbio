@@ -793,7 +793,7 @@ class TestBioClass:
         # Create a test scenario file
         scenario_dir = temp_dir / "catalog" / "scenarios" / "test"
         scenario_dir.mkdir(parents=True)
-        spec_file = scenario_dir / "spec.yaml"
+        spec_file = scenario_dir / "index.yaml"
         spec_file.write_text("""
 scenario.test:
   briefing: "Test briefing"
@@ -828,7 +828,7 @@ scenario.test:
         bio.store(str(save_path), obj)
 
         # Check file was written
-        spec_file = save_path / "spec.yaml"
+        spec_file = save_path / "index.yaml"
         assert spec_file.exists()
         content = yaml.safe_load(spec_file.read_text())
         assert content["name"] == "test"
@@ -886,7 +886,7 @@ scenario.test:
         include_file = spec_dir / "constitution.md"
         include_file.write_text("# Constitution\n\nProtect all species.")
 
-        spec_file = spec_dir / "spec.yaml"
+        spec_file = spec_dir / "index.yaml"
         spec_file.write_text("""
 constants:
   high_perm: 0.8
@@ -914,7 +914,7 @@ class TestIntegration:
 
     def test_full_mutualism_style_spec(self, temp_dir):
         """Full mutualism-style spec: world + suite + scenarios + constants"""
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 constants:
   high_permeability: 0.8
@@ -969,7 +969,7 @@ def custom_score(timeline):
     return 0.75
 """)
 
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 include:
   - functions.py
@@ -990,7 +990,7 @@ chemistry.test:
 
     def test_spec_with_multiple_inheritance_levels(self, temp_dir):
         """Spec with multiple levels of defaults inheritance"""
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 suite.level1:
   defaults:
@@ -1023,7 +1023,7 @@ suite.level1:
         """Error messages include context when evaluation fails"""
         from alienbio.spec_lang.eval import Evaluable, eval_node, make_context, EvalError
 
-        spec_file = temp_dir / "bad_spec.yaml"
+        spec_file = temp_dir / "bad_index.yaml"
         spec_file.write_text("""
 world.test:
   molecules:
