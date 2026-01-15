@@ -442,24 +442,48 @@ class AgentSession:
     def score(self) -> dict[str, float]:
         """Evaluate scoring functions.
 
+        Supports:
+        - Callable scoring functions that receive trace
+        - String expressions (evaluated with trace in scope)
+        - Quoted expressions from !_ YAML tag
+
         Returns:
             Dictionary of score name → value
         """
+        from ..registry import scoring as scoring_module
+
         scoring_config = self._scenario.get("scoring", {})
         scores: dict[str, float] = {}
 
+        # Build evaluation context with scoring helpers
+        eval_context = {
+            "trace": self._trace,
+            "budget": self._budget,
+            "budget_score": scoring_module.budget_score,
+            "population_health": scoring_module.population_health,
+            "efficiency_score": scoring_module.efficiency_score,
+            "cost_efficiency": scoring_module.cost_efficiency,
+        }
+
         for name, scorer in scoring_config.items():
-            if callable(scorer):
-                try:
+            try:
+                if callable(scorer):
                     score_fn = cast(Callable[[Trace], float], scorer)
                     scores[name] = score_fn(self._trace)
-                except Exception:
-                    scores[name] = 0.0
-            # TODO: Handle string scoring expressions
+                elif isinstance(scorer, str):
+                    # Evaluate string expression
+                    scores[name] = float(eval(scorer, eval_context))
+                elif hasattr(scorer, 'source'):
+                    # Quoted expression from !_ tag
+                    scores[name] = float(eval(scorer.source, eval_context))
+                else:
+                    scores[name] = float(scorer)
+            except Exception as e:
+                scores[name] = 0.0
 
-        # Add budget compliance score
-        from ..registry.scoring import budget_score
-        scores["budget_compliance"] = budget_score(self._trace, self._budget)
+        # Add budget compliance score if not already present
+        if "budget_compliance" not in scores:
+            scores["budget_compliance"] = scoring_module.budget_score(self._trace, self._budget)
 
         return scores
 
