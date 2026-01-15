@@ -2,8 +2,8 @@
 
 This module defines the data types used in the agent-environment interaction loop:
 - Action: represents an action or measurement the agent wants to take
-- ActionResult: the result of executing an action
 - Observation: what the agent observes about the environment
+- ActionResult: a kind of Observation with action feedback (subclass)
 - ExperimentResults: final results of an experiment run
 """
 
@@ -33,35 +33,11 @@ class Action:
 
 
 @dataclass
-class ActionResult:
-    """Result of executing an action.
-
-    Attributes:
-        success: Whether the action executed successfully
-        error: Error message if success is False
-        data: Result data (especially for measurements)
-        cost: Cost charged for this action
-        new_state: Observable state after action (if available)
-        initiated: Simulation time when action started
-        completed: Simulation time when action finished
-        completion_time: Duration of the action
-    """
-    success: bool
-    error: Optional[str] = None
-    data: Optional[Any] = None
-    cost: float = 0.0
-    new_state: Optional[dict[str, Any]] = None
-    initiated: Optional[float] = None
-    completed: Optional[float] = None
-    completion_time: Optional[float] = None
-
-
-@dataclass
 class Observation:
     """What the agent observes about the environment.
 
     The observation provides the agent with all information needed to decide
-    on the next action.
+    on the next action. This is the base class for all agent perceptions.
 
     Attributes:
         briefing: Scenario description/instructions for the agent
@@ -88,6 +64,38 @@ class Observation:
     def is_initial(self) -> bool:
         """Return True if this is the first observation (before any actions)."""
         return self._is_initial
+
+
+@dataclass
+class ActionResult(Observation):
+    """Result of executing an action - a kind of Observation.
+
+    ActionResult is a subclass of Observation because it represents what the
+    agent perceives after taking an action. It includes all the standard
+    observation fields (world state, budget, etc.) plus action-specific feedback.
+
+    In a simple turn-based world, ActionResult arrives immediately after the
+    action. In a more complex async world, there may be other observations
+    between action initiation and this result.
+
+    Attributes (in addition to Observation fields):
+        action_name: Name of the action this result is for
+        success: Whether the action executed successfully
+        error: Error message if success is False
+        data: Result data (especially for measurements)
+        cost: Cost charged for this action
+        initiated: Simulation time when action started
+        completed: Simulation time when action finished
+        completion_time: Duration of the action
+    """
+    action_name: str = ""
+    success: bool = True
+    error: Optional[str] = None
+    data: Optional[Any] = None
+    cost: float = 0.0
+    initiated: Optional[float] = None
+    completed: Optional[float] = None
+    completion_time: Optional[float] = None
 
 
 @dataclass

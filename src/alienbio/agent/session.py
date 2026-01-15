@@ -8,12 +8,22 @@ AgentSession manages the lifecycle of an experiment, providing:
 - results() → ExperimentResults: get final results
 """
 
+from dataclasses import dataclass
 from typing import Any, Callable, Optional, cast
 import random
 
 from .types import Action, ActionResult, Observation, ExperimentResults
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace
+
+
+@dataclass
+class _ExecutionResult:
+    """Internal result from action execution (before creating full ActionResult)."""
+    success: bool
+    error: Optional[str] = None
+    data: Any = None
+    cost: float = 0.0
 
 
 class AgentSession:
@@ -135,6 +145,45 @@ class AgentSession:
             _is_initial=is_initial
         )
 
+    def _make_action_result(
+        self,
+        action_name: str,
+        success: bool,
+        error: Optional[str] = None,
+        data: Any = None,
+        cost: float = 0.0,
+        initiated: Optional[float] = None,
+        completed: Optional[float] = None,
+        completion_time: Optional[float] = None
+    ) -> ActionResult:
+        """Create an ActionResult with all Observation fields populated.
+
+        ActionResult is a subclass of Observation, so it needs all the
+        world state fields plus action-specific feedback.
+        """
+        return ActionResult(
+            # Observation fields
+            briefing=self._scenario.get("briefing", ""),
+            constitution=self._scenario.get("constitution", ""),
+            available_actions=self._actions_spec,
+            available_measurements=self._measurements_spec,
+            current_state=self._simulator.observable_state(),
+            step=self._step_count,
+            budget=self._budget,
+            spent=self._spent,
+            remaining=self._budget - self._spent,
+            _is_initial=False,
+            # ActionResult fields
+            action_name=action_name,
+            success=success,
+            error=error,
+            data=data,
+            cost=cost,
+            initiated=initiated,
+            completed=completed,
+            completion_time=completion_time
+        )
+
     def act(self, action: Action) -> ActionResult:
         """Execute an action and return the result.
 
@@ -174,26 +223,15 @@ class AgentSession:
         wait = action.wait if action.wait is not None else self._default_wait
 
         # Handle timing
-        if result.success:
-            duration = spec.get("duration", 0.0)
-            initiated = self._sim_time
+        duration = spec.get("duration", 0.0)
+        initiated = self._sim_time
 
+        if result.success:
             if wait and duration > 0:
                 self._sim_time += duration
                 completed = self._sim_time
             else:
                 completed = initiated if duration == 0 else None
-
-            result = ActionResult(
-                success=result.success,
-                error=result.error,
-                data=result.data,
-                cost=result.cost,
-                new_state=self._simulator.observable_state(),
-                initiated=initiated,
-                completed=completed,
-                completion_time=duration if wait else None
-            )
 
             # Update step count for actions (not measurements)
             if kind == "action" and action.name != "done":
@@ -201,9 +239,23 @@ class AgentSession:
                 # Advance simulator
                 for _ in range(self._steps_per_action):
                     self._simulator.step()
+        else:
+            completed = initiated
 
         # Track cost
         self._spent += result.cost
+
+        # Create full ActionResult with all Observation fields
+        final_result = self._make_action_result(
+            action_name=action.name,
+            success=result.success,
+            error=result.error,
+            data=result.data,
+            cost=result.cost,
+            initiated=initiated,
+            completed=completed,
+            completion_time=duration if wait and result.success else None
+        )
 
         # Record result in timeline
         self._timeline.append(TimelineEvent(
@@ -217,21 +269,19 @@ class AgentSession:
             step=self._step_count
         ))
 
-        # Record in trace (action + resulting observation)
-        obs = self.observe()
-        self._trace.append(action, obs, self._step_count, result.cost)
-        # Reset first observe flag since we just created an observation
+        # Record in trace (action + resulting ActionResult which is an Observation)
+        self._trace.append(action, final_result, self._step_count, result.cost)
         self._is_first_observe = False
 
-        return result
+        return final_result
 
     def _execute_action(
         self,
         action: Action,
         kind: str,
         spec: dict[str, Any]
-    ) -> ActionResult:
-        """Execute the action and return result (without timing/trace handling).
+    ) -> _ExecutionResult:
+        """Execute the action and return intermediate result.
 
         Args:
             action: The action to execute
@@ -239,12 +289,12 @@ class AgentSession:
             spec: Action/measurement specification from scenario
 
         Returns:
-            ActionResult with basic success/error/cost info
+            _ExecutionResult with basic success/error/cost info
         """
         # Check if action exists
         if kind == "measurement":
             if action.name not in self._measurements_spec:
-                return ActionResult(
+                return _ExecutionResult(
                     success=False,
                     error=f"Unknown measurement: {action.name}",
                     cost=0.1  # Small cost for errors
@@ -254,15 +304,15 @@ class AgentSession:
             if action.name == "done":
                 self._done = True
                 self._done_reason = "agent_done"
-                return ActionResult(success=True, cost=0.0)
+                return _ExecutionResult(success=True, cost=0.0)
 
             if action.name == "wait":
                 duration = action.params.get("duration", 1.0)
                 self._sim_time += duration
-                return ActionResult(success=True, cost=0.0)
+                return _ExecutionResult(success=True, cost=0.0)
 
             if action.name not in self._actions_spec:
-                return ActionResult(
+                return _ExecutionResult(
                     success=False,
                     error=f"Unknown action: {action.name}",
                     cost=0.1  # Small cost for errors
@@ -272,7 +322,7 @@ class AgentSession:
         required_params = spec.get("params", {})
         for param_name, param_type in required_params.items():
             if param_name not in action.params:
-                return ActionResult(
+                return _ExecutionResult(
                     success=False,
                     error=f"Missing required parameter: {param_name}",
                     cost=0.1
@@ -280,7 +330,7 @@ class AgentSession:
             # Basic type validation
             value = action.params[param_name]
             if param_type == "float" and not isinstance(value, (int, float)):
-                return ActionResult(
+                return _ExecutionResult(
                     success=False,
                     error=f"Parameter {param_name} must be a number",
                     cost=0.1
@@ -304,11 +354,10 @@ class AgentSession:
         if kind == "measurement":
             data = self._simulator.observable_state()
 
-        return ActionResult(
+        return _ExecutionResult(
             success=True,
             data=data,
-            cost=cost,
-            new_state=self._simulator.observable_state()
+            cost=cost
         )
 
     def poll(self) -> list[TimelineEvent]:
@@ -360,7 +409,7 @@ class AgentSession:
             # TODO: Handle string scoring expressions
 
         # Add budget compliance score
-        from ..scoring import budget_score
+        from ..registry.scoring import budget_score
         scores["budget_compliance"] = budget_score(self._trace, self._budget)
 
         return scores
