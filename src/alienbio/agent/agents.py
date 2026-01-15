@@ -184,3 +184,184 @@ class OracleAgent:
     def end(self, results: "ExperimentResults") -> None:
         """No cleanup needed."""
         pass
+
+
+class HumanAgent:
+    """Interactive agent that prompts the user for actions via CLI.
+
+    Displays the current observation and available actions, then
+    accepts commands from the user. Useful for manual exploration
+    and debugging scenarios.
+
+    Commands:
+        <action_name> [param=value ...]  - Execute an action
+        ? or help                        - Show available actions
+        state                            - Show current state
+        budget                           - Show budget info
+        done                             - End the experiment
+    """
+
+    def __init__(self, prompt: str = "action> ") -> None:
+        """Initialize human agent.
+
+        Args:
+            prompt: The prompt string to display when asking for input
+        """
+        self._prompt = prompt
+        self._session: Optional["AgentSession"] = None
+        self._show_state_on_start = True
+
+    def start(self, session: "AgentSession") -> None:
+        """Display scenario briefing and initial state."""
+        self._session = session
+        print("\n" + "=" * 60)
+        print("SCENARIO: " + session.scenario.get("name", "Unknown"))
+        print("=" * 60)
+        print("\nBRIEFING:")
+        print(session.scenario.get("briefing", "(no briefing)"))
+        print("\nCONSTITUTION:")
+        print(session.scenario.get("constitution", "(no constitution)"))
+        print("=" * 60 + "\n")
+
+    def decide(self, observation: "Observation") -> "Action":
+        """Prompt user for action and parse response."""
+        from .types import Action
+
+        # Show state on first observation or if requested
+        if observation.is_initial() and self._show_state_on_start:
+            self._display_observation(observation)
+
+        while True:
+            try:
+                user_input = input(self._prompt).strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\n[Interrupted - ending experiment]")
+                return Action(name="done", params={})
+
+            if not user_input:
+                continue
+
+            # Handle special commands
+            lower_input = user_input.lower()
+            if lower_input in ("?", "help"):
+                self._show_help(observation)
+                continue
+            elif lower_input == "state":
+                self._display_state(observation)
+                continue
+            elif lower_input == "budget":
+                self._display_budget(observation)
+                continue
+            elif lower_input == "done":
+                return Action(name="done", params={})
+
+            # Parse action command
+            action = self._parse_action(user_input, observation)
+            if action is not None:
+                return action
+
+            print(f"Unknown command: {user_input}")
+            print("Type '?' for help")
+
+    def end(self, results: "ExperimentResults") -> None:
+        """Display final results."""
+        print("\n" + "=" * 60)
+        print("EXPERIMENT COMPLETE")
+        print("=" * 60)
+        print(f"Status: {results.status}")
+        print(f"Passed: {results.passed}")
+        print("\nScores:")
+        for name, value in results.scores.items():
+            print(f"  {name}: {value:.3f}")
+        print("=" * 60 + "\n")
+
+    def _display_observation(self, observation: "Observation") -> None:
+        """Display full observation to user."""
+        print("\n--- Current Observation ---")
+        print(f"Step: {observation.step}")
+        self._display_budget(observation)
+        self._display_state(observation)
+        self._show_help(observation)
+
+    def _display_state(self, observation: "Observation") -> None:
+        """Display current state."""
+        print("\nState:")
+        state = observation.current_state
+        if isinstance(state, dict):
+            for key, value in state.items():
+                if isinstance(value, dict):
+                    print(f"  {key}:")
+                    for k, v in value.items():
+                        print(f"    {k}: {v}")
+                else:
+                    print(f"  {key}: {value}")
+        else:
+            print(f"  {state}")
+
+    def _display_budget(self, observation: "Observation") -> None:
+        """Display budget information."""
+        print(f"\nBudget: {observation.spent:.1f} / {observation.budget:.1f} "
+              f"(remaining: {observation.remaining:.1f})")
+
+    def _show_help(self, observation: "Observation") -> None:
+        """Show available actions and measurements."""
+        print("\nAvailable Actions:")
+        for name, info in observation.available_actions.items():
+            desc = info.get("description", "") if isinstance(info, dict) else ""
+            cost = info.get("cost", 1.0) if isinstance(info, dict) else 1.0
+            print(f"  {name} (cost: {cost}) - {desc}")
+
+        print("\nAvailable Measurements:")
+        for name, info in observation.available_measurements.items():
+            desc = info.get("description", "") if isinstance(info, dict) else ""
+            cost = info.get("cost", 0) if isinstance(info, dict) else 0
+            print(f"  {name} (cost: {cost}) - {desc}")
+
+        print("\nCommands: ?, help, state, budget, done")
+        print("Usage: <action_name> [param=value ...]")
+
+    def _parse_action(
+        self,
+        user_input: str,
+        observation: "Observation"
+    ) -> Optional["Action"]:
+        """Parse user input into an Action.
+
+        Format: action_name [param1=value1 param2=value2 ...]
+
+        Returns:
+            Action if parsing succeeds, None otherwise
+        """
+        from .types import Action
+
+        parts = user_input.split()
+        if not parts:
+            return None
+
+        name = parts[0]
+
+        # Check if action/measurement exists
+        valid_names = (
+            list(observation.available_actions.keys()) +
+            list(observation.available_measurements.keys())
+        )
+        if name not in valid_names:
+            return None
+
+        # Parse parameters
+        params: dict[str, Any] = {}
+        for part in parts[1:]:
+            if "=" in part:
+                key, value = part.split("=", 1)
+                # Try to parse as number
+                try:
+                    if "." in value:
+                        params[key] = float(value)
+                    else:
+                        params[key] = int(value)
+                except ValueError:
+                    params[key] = value
+            else:
+                print(f"Warning: ignoring parameter without '=': {part}")
+
+        return Action(name=name, params=params)
