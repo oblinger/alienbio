@@ -4,7 +4,7 @@ YAML tags, decorators, and Bio class for loading/saving biology specifications.
 See docs: [[Spec Language]], [[Decorators]], [[Bio]]
 """
 
-from .bio import Bio, bio
+from .bio import Bio, bio, SimulationResult
 from .decorators import biotype, fn, scoring, action, measurement, rate
 from .decorators import get_biotype, get_action, get_measurement, get_scoring, get_rate
 from .decorators import biotype_registry, action_registry, measurement_registry
@@ -27,6 +27,7 @@ __all__ = [
     # Bio singleton and class
     "bio",
     "Bio",
+    "SimulationResult",
     # Decorators
     "biotype",
     "fn",

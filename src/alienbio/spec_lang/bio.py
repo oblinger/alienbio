@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import Any, List, TYPE_CHECKING
 
 import yaml
 
@@ -21,6 +22,46 @@ from .eval import hydrate, eval_node, make_context, EvalContext
 
 if TYPE_CHECKING:
     from alienbio.protocols.bio import Simulator
+    from alienbio.bio.state import StateImpl
+
+
+@dataclass
+class SimulationResult:
+    """Result of running a simulation.
+
+    Contains the timeline of states and metadata about the run.
+
+    Attributes:
+        timeline: List of states from simulation (StateImpl or dict)
+        final_state: The final state after simulation
+        steps: Number of steps executed
+        dt: Time step used
+        seed: Random seed used for the run
+        scenario_name: Name of the scenario that was run
+    """
+    timeline: List[Any] = field(default_factory=list)
+    final_state: Any = None
+    steps: int = 0
+    dt: float = 1.0
+    seed: int = 0
+    scenario_name: str = ""
+
+    @property
+    def final(self) -> dict[str, float]:
+        """Return the final state as a dict of concentrations.
+
+        Compatible with scoring functions that expect a dict.
+        """
+        if self.final_state is None:
+            return {}
+        if hasattr(self.final_state, 'items'):
+            # StateImpl or dict
+            return dict(self.final_state.items())
+        return {}
+
+    def __len__(self) -> int:
+        """Return number of states in timeline."""
+        return len(self.timeline)
 
 
 # =============================================================================
@@ -124,7 +165,7 @@ class Bio:
         """
         from alienbio.bio.simulator import ReferenceSimulatorImpl
 
-        self._simulator_factory: "type[Simulator]" = ReferenceSimulatorImpl
+        self._simulator_factory: Any = ReferenceSimulatorImpl
         self._source_roots: list[SourceRoot] = []
         self._dat_ref: str | Any | None = dat
         self._dat_object: Any = None
@@ -525,7 +566,7 @@ class Bio:
         if isinstance(spec, str):
             spec = self.fetch(spec, raw=True)
 
-        return build_instantiate(spec, seed=seed, registry=registry, params=params)
+        return build_instantiate(spec, seed=seed, registry=registry, params=params)  # type: ignore[arg-type]
 
     def run(
         self,
@@ -533,25 +574,141 @@ class Bio:
         seed: int = 0,
         registry: Any = None,
         params: dict[str, Any] | None = None,
-    ) -> Any:
-        """Run a target: build if needed, then execute.
+        steps: int | None = None,
+        dt: float | None = None,
+    ) -> SimulationResult:
+        """Run a target: build if needed, then execute simulation.
+
+        This is the main entry point for M3.1 Scenario Execution.
+
+        Pipeline:
+        1. If target is a string or dict spec, build it into a Scenario
+        2. Extract sim settings (steps, dt) from scenario or use defaults
+        3. Build Chemistry from scenario ground truth
+        4. Initialize State from scenario regions/containers
+        5. Create simulator and run for N steps
+        6. Return SimulationResult with timeline
 
         Args:
-            target: Specifier string, dict spec, or DAT
-            seed: Random seed
-            registry: Template registry
-            params: Parameter overrides
+            target: Specifier string, dict spec, Scenario, or DAT
+            seed: Random seed for reproducibility
+            registry: Template registry for building
+            params: Parameter overrides for building
+            steps: Override number of simulation steps (default: from scenario or 100)
+            dt: Override time step (default: from scenario or 1.0)
 
         Returns:
-            Execution result
+            SimulationResult with timeline of states
         """
-        if isinstance(target, (str, dict)):
+        from alienbio.protocols import Scenario
+        from alienbio.bio.chemistry import ChemistryImpl
+        from alienbio.bio.state import StateImpl
+
+        # Build scenario if needed
+        if isinstance(target, str):
             scenario = self.build(target, seed=seed, registry=registry, params=params)
+        elif isinstance(target, dict):
+            # Check if it's a raw spec or already a scenario-like dict
+            if "_ground_truth_" in target or "molecules" in target:
+                scenario = target  # Already scenario-like
+            else:
+                scenario = self.build(target, seed=seed, registry=registry, params=params)
         else:
             scenario = target
 
-        # TODO: Execute the scenario
-        return scenario
+        # Extract scenario data depending on type
+        if isinstance(scenario, Scenario):
+            ground_truth = scenario._ground_truth_
+            regions = scenario.regions
+            metadata = scenario._metadata_
+            scenario_name = metadata.get("name", "scenario")
+            scenario_seed = scenario._seed
+        else:
+            # Dict-based scenario
+            ground_truth = scenario.get("_ground_truth_", scenario)
+            regions = scenario.get("regions", [])
+            metadata = scenario.get("_metadata_", {})
+            scenario_name = metadata.get("name", scenario.get("name", "scenario"))
+            scenario_seed = scenario.get("_seed", seed)
+
+        # Extract sim settings (with overrides)
+        sim_config = metadata.get("sim", {})
+        effective_steps = steps if steps is not None else sim_config.get("steps", 100)
+        effective_dt = dt if dt is not None else sim_config.get("dt", 1.0)
+
+        # Build Chemistry from ground truth
+        chemistry_data = {
+            "molecules": ground_truth.get("molecules", {}),
+            "reactions": ground_truth.get("reactions", {}),
+        }
+        chemistry = ChemistryImpl.hydrate(chemistry_data, local_name=scenario_name)
+
+        # Initialize State from regions/containers
+        initial_concentrations = self._extract_initial_state(regions, ground_truth)
+        state = StateImpl(chemistry, initial=initial_concentrations)
+
+        # Create simulator and run
+        sim = self._simulator_factory(chemistry, dt=effective_dt)  # type: ignore[call-arg]
+        timeline = sim.run(state, steps=effective_steps)  # type: ignore[arg-type]
+
+        return SimulationResult(
+            timeline=timeline,
+            final_state=timeline[-1] if timeline else None,
+            steps=effective_steps,
+            dt=effective_dt,
+            seed=scenario_seed,
+            scenario_name=scenario_name,
+        )
+
+    def _extract_initial_state(
+        self,
+        regions: list,
+        ground_truth: dict[str, Any],
+    ) -> dict[str, float]:
+        """Extract initial concentrations from regions and ground truth.
+
+        For M3.1, this provides a simple initial state extraction.
+        Future milestones will handle more complex region-based initialization.
+
+        Args:
+            regions: List of Region objects with organisms and substrates
+            ground_truth: Ground truth data with molecules
+
+        Returns:
+            Dict of molecule name -> initial concentration
+        """
+        initial: dict[str, float] = {}
+
+        # First, initialize all molecules to 0
+        for mol_name in ground_truth.get("molecules", {}):
+            initial[mol_name] = 0.0
+
+        # Extract initial concentrations from regions
+        if regions:
+            from alienbio.protocols import Region
+            for region in regions:
+                if isinstance(region, Region):
+                    # Add substrate concentrations
+                    for substrate, conc in region.substrates.items():
+                        # Map substrate names to molecule names
+                        for mol_name in initial:
+                            if substrate in mol_name or mol_name.endswith(f".{substrate}"):
+                                initial[mol_name] = conc
+                elif isinstance(region, dict):
+                    for substrate, conc in region.get("substrates", {}).items():
+                        for mol_name in initial:
+                            if substrate in mol_name or mol_name.endswith(f".{substrate}"):
+                                initial[mol_name] = conc
+
+        # If no regions with substrates, set some default non-zero values
+        # This ensures the simulation actually does something
+        if all(v == 0.0 for v in initial.values()):
+            # Set first molecule to 1.0 as a default starting point
+            for mol_name in initial:
+                initial[mol_name] = 1.0
+                break
+
+        return initial
 
 
 # =============================================================================
