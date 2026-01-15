@@ -1,6 +1,6 @@
 # Factory Pegboard API
 
-**Status**: PROPOSED — awaiting approval before implementation
+**Status**: IMPLEMENTED
 
 Bio serves as the pegboard for active component instances. The factory creates instances; Python assignment sets them.
 

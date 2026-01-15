@@ -5,6 +5,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, TYPE_CHECKING
 
+from alienbio.spec_lang.decorators import factory
+from alienbio.protocols.bio import Simulator
+
 if TYPE_CHECKING:
     from .chemistry import ChemistryImpl
     from .state import StateImpl
@@ -79,6 +82,7 @@ class SimulatorBase(ABC):
         return timeline
 
 
+@factory(name="reference", protocol=Simulator, default=True)
 class ReferenceSimulatorImpl(SimulatorBase):
     """Reference implementation: Basic simulator applying reactions once per step.
 
