@@ -58,9 +58,15 @@ Create a MoleculeImpl from a dict. Used during YAML loading.
 
 **Returns:** New MoleculeImpl instance
 
+```yaml
+# YAML molecule definition
+name: glucose
+bdepth: 2
+description: Sugar
+```
+
 ```python
-# From YAML data
-mol_data = {"name": "glucose", "bdepth": 2, "description": "Sugar"}
+# Hydrate from loaded YAML dict
 glucose = MoleculeImpl.hydrate(mol_data)
 
 # With parent entity

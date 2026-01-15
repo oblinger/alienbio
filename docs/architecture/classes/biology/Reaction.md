@@ -140,16 +140,19 @@ Create a ReactionImpl from a dict. Used during YAML loading.
 
 **Returns:** New ReactionImpl instance with resolved molecule references
 
+```yaml
+# YAML reaction definition
+reactants: [glucose]        # or [{glucose: 1}] for explicit coefficient
+products:
+  - pyruvate: 2
+rate: 0.1
+```
+
 ```python
 # First hydrate molecules
 molecules = {"glucose": glucose_mol, "pyruvate": pyruvate_mol}
 
 # Then hydrate reaction with molecule references
-rxn_data = {
-    "reactants": ["glucose"],  # or [{"glucose": 1}]
-    "products": [{"pyruvate": 2}],
-    "rate": 0.1
-}
 reaction = ReactionImpl.hydrate(rxn_data, molecules=molecules)
 ```
 
