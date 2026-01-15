@@ -207,11 +207,22 @@ class Bio:
     def store(self, specifier: str, obj: Any, *, raw: bool = False) -> None:
         """Store a typed object to a specifier path.
 
+        Dehydration pipeline (inverse of fetch):
+        1. Convert typed objects to dicts (via to_dict() if available)
+        2. Convert placeholders back to tag form:
+           - Evaluable → {"!ev": source}
+           - Quoted → {"!_": source}
+           - Reference → {"!ref": name}
+        3. Write YAML
+
         Args:
             specifier: Path like "catalog/scenarios/custom" or "./relative"
-            obj: Object to store
-            raw: If True, write obj directly without dehydration
+            obj: Object to store (dict, typed object, or hydrated data)
+            raw: If True, write obj directly without any dehydration
         """
+        from .eval import dehydrate
+
+        # Resolve path
         if specifier.startswith("./"):
             if self._current_dat is None:
                 raise ValueError("Relative path requires current DAT (use bio.cd() first)")
@@ -219,18 +230,24 @@ class Bio:
         else:
             path = Path(specifier)
 
+        # Ensure directory exists
         if not path.exists():
             path.mkdir(parents=True)
 
         spec_file = path / "spec.yaml"
 
-        if raw or isinstance(obj, dict):
+        # Convert object to dict
+        if raw:
             data = obj
+        elif isinstance(obj, dict):
+            data = dehydrate(obj)                              # dehydrate placeholders
         elif hasattr(obj, 'to_dict'):
-            data = obj.to_dict()
+            data = dehydrate(obj.to_dict())                    # convert + dehydrate
         else:
-            data = {k: v for k, v in vars(obj).items() if not k.startswith('_')}
+            raw_data = {k: v for k, v in vars(obj).items() if not k.startswith('_')}
+            data = dehydrate(raw_data)
 
+        # Write YAML
         with open(spec_file, "w") as f:
             yaml.dump(data, f, default_flow_style=False)
 

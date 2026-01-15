@@ -25,22 +25,37 @@ from .run import run
 
 # Spec Language module exports
 from .spec_lang import (
+    # Bio singleton and class
     bio,
     Bio,
+    # Decorators
     biotype,
     fn,
     scoring,
     action,
     measurement,
     rate,
+    # Registry access
     get_biotype,
     get_action,
     get_measurement,
     get_scoring,
     get_rate,
+    # Evaluation system (new)
+    Evaluable,
+    Quoted,
+    Reference,
+    Include,
+    hydrate,
+    dehydrate,
+    EvalContext,
+    eval_node,
+    make_context,
+    # Legacy tag aliases (deprecated)
     EvTag,
     RefTag,
     IncludeTag,
+    # Loader functions
     transform_typed_keys,
     expand_defaults,
 )
@@ -87,9 +102,10 @@ __all__ = [
     "save",
     "lookup",
     "o",
-    # Spec Language
+    # Bio singleton and class
     "bio",
     "Bio",
+    # Decorators
     "biotype",
     "fn",
     "scoring",
@@ -101,28 +117,39 @@ __all__ = [
     "get_measurement",
     "get_scoring",
     "get_rate",
+    # Evaluation system (primary API)
+    "Evaluable",
+    "Quoted",
+    "Reference",
+    "Include",
+    "hydrate",
+    "dehydrate",
+    "EvalContext",
+    "eval_node",
+    "make_context",
+    # Legacy tag aliases (deprecated - use Evaluable/Reference/Include)
     "EvTag",
     "RefTag",
     "IncludeTag",
+    # Loader functions
     "transform_typed_keys",
     "expand_defaults",
-    # Bio - Protocols (for type hints)
+    # Biology protocols (for type hints)
     "Atom",
     "Molecule",
     "Reaction",
     "Chemistry",
     "State",
     "Simulator",
-    # Bio - Implementation classes
+    # Biology implementation classes
     "AtomImpl",
     "MoleculeImpl",
     "ReactionImpl",
     "ChemistryImpl",
     "StateImpl",
     "ReferenceSimulatorImpl",
-    # Bio - Abstract base class for subclassing
     "SimulatorBase",
-    # Bio - Atom utilities
+    # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
 ]

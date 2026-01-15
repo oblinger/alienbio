@@ -162,3 +162,147 @@ class TestCdCommand:
         state_file.write_text("/data/experiments/run1")
         path = cd.get_current_dat()
         assert path == Path("/data/experiments/run1")
+
+
+# -----------------------------------------------------------------------------
+# fetch command tests
+# -----------------------------------------------------------------------------
+
+
+class TestFetchCommand:
+    """Tests for the bio fetch CLI command."""
+
+    def test_fetch_requires_specifier(self, capsys):
+        """Test fetch with no args shows error."""
+        from alienbio.commands.fetch import fetch_command
+
+        result = fetch_command([])
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "requires a specifier" in captured.err
+
+    def test_fetch_displays_yaml(self, tmp_path, capsys):
+        """Test fetch displays YAML content."""
+        from alienbio.commands.fetch import fetch_command
+        from alienbio import Bio
+
+        spec_dir = tmp_path / "test_spec"
+        spec_dir.mkdir()
+        spec_file = spec_dir / "spec.yaml"
+        spec_file.write_text("name: test\nvalue: 42\n")
+
+        Bio.clear_cache()
+
+        result = fetch_command([str(spec_dir)])
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "name: test" in captured.out
+        assert "value: 42" in captured.out
+
+    def test_fetch_not_found(self, capsys):
+        """Test fetch with non-existent path."""
+        from alienbio.commands.fetch import fetch_command
+
+        result = fetch_command(["/nonexistent/path"])
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "Error" in captured.err
+
+
+# -----------------------------------------------------------------------------
+# store command tests
+# -----------------------------------------------------------------------------
+
+
+class TestStoreCommand:
+    """Tests for the bio store CLI command."""
+
+    def test_store_requires_specifier(self, capsys):
+        """Test store with no args shows error."""
+        from alienbio.commands.store import store_command
+
+        result = store_command([])
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "requires a specifier" in captured.err
+
+
+# -----------------------------------------------------------------------------
+# Bio.store() dehydration tests
+# -----------------------------------------------------------------------------
+
+
+class TestBioStoreDehydration:
+    """Tests for Bio.store() dehydration."""
+
+    def test_store_dehydrates_evaluable(self, tmp_path):
+        """Test that store() dehydrates Evaluable placeholders."""
+        from alienbio import Bio, Evaluable
+        import yaml
+
+        bio = Bio()
+        target = tmp_path / "dehydrate_test"
+
+        data = {"value": Evaluable(source="normal(50, 10)")}
+        bio.store(str(target), data)
+
+        spec_file = target / "spec.yaml"
+        content = spec_file.read_text()
+        result = yaml.safe_load(content)
+
+        assert result == {"value": {"!ev": "normal(50, 10)"}}
+
+    def test_store_dehydrates_quoted(self, tmp_path):
+        """Test that store() dehydrates Quoted placeholders."""
+        from alienbio import Bio, Quoted
+        import yaml
+
+        bio = Bio()
+        target = tmp_path / "dehydrate_quoted"
+
+        data = {"rate": Quoted(source="k * S")}
+        bio.store(str(target), data)
+
+        spec_file = target / "spec.yaml"
+        content = spec_file.read_text()
+        result = yaml.safe_load(content)
+
+        assert result == {"rate": {"!_": "k * S"}}
+
+    def test_store_dehydrates_reference(self, tmp_path):
+        """Test that store() dehydrates Reference placeholders."""
+        from alienbio import Bio, Reference
+        import yaml
+
+        bio = Bio()
+        target = tmp_path / "dehydrate_ref"
+
+        data = {"config": Reference(name="default_config")}
+        bio.store(str(target), data)
+
+        spec_file = target / "spec.yaml"
+        content = spec_file.read_text()
+        result = yaml.safe_load(content)
+
+        assert result == {"config": {"!ref": "default_config"}}
+
+    def test_store_raw_skips_dehydration(self, tmp_path):
+        """Test that store(..., raw=True) skips dehydration."""
+        from alienbio import Bio
+        import yaml
+
+        bio = Bio()
+        target = tmp_path / "raw_store"
+
+        data = {"simple": "value"}
+        bio.store(str(target), data, raw=True)
+
+        spec_file = target / "spec.yaml"
+        content = spec_file.read_text()
+        result = yaml.safe_load(content)
+
+        assert result == {"simple": "value"}
