@@ -11,11 +11,11 @@ from typing import Any
 
 from alienbio.protocols import Scenario
 
-from .template import TemplateRegistry, parse_template
+from .template import TemplateRegistry, parse_template, parse_interaction
 from .expand import apply_template
 from .guards import apply_template_with_guards
 from .visibility import generate_visibility_mapping, apply_visibility
-from .exceptions import TemplateNotFoundError, CircularReferenceError
+from .exceptions import TemplateNotFoundError, CircularReferenceError, PortNotFoundError
 
 
 def instantiate(
@@ -80,6 +80,18 @@ def instantiate(
         seen_templates=set(),
     )
 
+    # Process interactions
+    interactions_spec = spec.get("interactions", {})
+    if interactions_spec:
+        ground_truth = _process_interactions(
+            interactions_spec, ground_truth, registry, effective_params, seed
+        )
+
+    # Process modifications
+    modify_spec = spec.get("_modify_", {})
+    if modify_spec:
+        ground_truth = _process_modifications(modify_spec, ground_truth)
+
     # Generate visibility mapping
     visibility_mapping = generate_visibility_mapping(ground_truth, visibility_spec, seed=seed)
 
@@ -103,6 +115,7 @@ def _process_instantiations(
     guards: list,
     seed: int,
     seen_templates: set[str],
+    available_ports: set[str] | None = None,
 ) -> dict[str, Any]:
     """Process _instantiate_ blocks to produce molecules and reactions.
 
@@ -113,11 +126,14 @@ def _process_instantiations(
         guards: List of guard functions
         seed: Random seed
         seen_templates: For circular reference detection
+        available_ports: Set of available port types for requires validation
 
     Returns:
         Dict with molecules and reactions
     """
     result: dict[str, Any] = {"molecules": {}, "reactions": {}}
+    if available_ports is None:
+        available_ports = set()
 
     for key, inst_data in instantiate.items():
         # Parse _as_ syntax
@@ -143,19 +159,23 @@ def _process_instantiations(
                 namespace = f"{inst_name}{i}"
                 inst_result = _instantiate_single(
                     inst_data, namespace, registry, params, guards, seed + i,
-                    seen_templates,
+                    seen_templates, available_ports,
                 )
                 result["molecules"].update(inst_result["molecules"])
                 result["reactions"].update(inst_result["reactions"])
+                # Track ports provided by this template
+                _track_ports(inst_data, registry, available_ports)
         else:
             # Single instantiation: _as_ name
             namespace = inst_name
             inst_result = _instantiate_single(
                 inst_data, namespace, registry, params, guards, seed,
-                seen_templates,
+                seen_templates, available_ports,
             )
             result["molecules"].update(inst_result["molecules"])
             result["reactions"].update(inst_result["reactions"])
+            # Track ports provided by this template
+            _track_ports(inst_data, registry, available_ports)
 
     return result
 
@@ -168,6 +188,7 @@ def _instantiate_single(
     guards: list,
     seed: int,
     seen_templates: set[str],
+    available_ports: set[str] | None = None,
 ) -> dict[str, Any]:
     """Instantiate a single template.
 
@@ -179,6 +200,7 @@ def _instantiate_single(
         guards: Guard functions
         seed: Random seed
         seen_templates: For circular reference detection
+        available_ports: Set of available port types for requires validation
 
     Returns:
         Dict with molecules and reactions
@@ -199,6 +221,16 @@ def _instantiate_single(
 
     # Get template from registry
     template = registry.get(template_name)
+
+    # Validate requires (port dependencies)
+    requires = template.get("requires", [])
+    if requires and available_ports is not None:
+        for required_port in requires:
+            if required_port not in available_ports:
+                raise PortNotFoundError(
+                    required_port,
+                    f"required by template '{template_name}'"
+                )
 
     # Track this template for circular detection
     new_seen = seen_templates | {template_name}
@@ -245,6 +277,38 @@ def _instantiate_single(
     return result
 
 
+def _track_ports(
+    inst_data: dict[str, Any],
+    registry: TemplateRegistry,
+    available_ports: set[str],
+) -> None:
+    """Track ports provided by an instantiated template.
+
+    Args:
+        inst_data: Instantiation data with _template_ key
+        registry: Template registry
+        available_ports: Set to update with new port types
+    """
+    template_name = inst_data.get("_template_")
+    if not template_name:
+        return
+
+    try:
+        template = registry.get(template_name)
+    except TemplateNotFoundError:
+        return
+
+    # Extract port types from the template's ports
+    ports = template.get("ports", {})
+    for port_info in ports.values():
+        # Port format: {"type": "energy", "direction": "out", "path": "..."}
+        port_type = port_info.get("type", "")
+        direction = port_info.get("direction", "")
+        if port_type and direction:
+            # Store as "type.direction" for matching against requires
+            available_ports.add(f"{port_type}.{direction}")
+
+
 def _resolve_guards(guards_config: list[Any]) -> list:
     """Resolve guard configuration to guard functions.
 
@@ -280,3 +344,117 @@ def _resolve_guards(guards_config: list[Any]) -> list:
                 guards.append(builtin_guards[name])
 
     return guards
+
+
+def _process_interactions(
+    interactions_spec: dict[str, Any],
+    ground_truth: dict[str, Any],
+    registry: TemplateRegistry,
+    params: dict[str, Any],
+    seed: int,
+) -> dict[str, Any]:
+    """Process interactions section to wire species together.
+
+    Args:
+        interactions_spec: Dict of interaction name -> interaction spec
+        ground_truth: Current ground truth with molecules/reactions
+        registry: Template registry
+        params: Effective parameters
+        seed: Random seed
+
+    Returns:
+        Updated ground truth with interaction wiring
+    """
+    for name, interaction_data in interactions_spec.items():
+        parsed = parse_interaction(interaction_data)
+        template_name = parsed["template"]
+        between = parsed["between"]
+        interaction_params = parsed["params"]
+
+        if not template_name:
+            continue
+
+        # Get the interaction template
+        template = registry.get(template_name)
+
+        # Apply the interaction template with the between context
+        # Namespace for interactions is the interaction name
+        namespace = name
+
+        # Merge params
+        effective_params = {**params, **interaction_params}
+
+        # For interactions, also include references to the connected species
+        if len(between) >= 2:
+            effective_params["producer"] = between[0]
+            effective_params["consumer"] = between[1]
+
+        # Apply template
+        result = apply_template(
+            template,
+            namespace=namespace,
+            params=effective_params,
+            registry=registry,
+            seed=seed,
+        )
+
+        # Merge into ground truth
+        ground_truth["molecules"].update(result["molecules"])
+        ground_truth["reactions"].update(result["reactions"])
+
+    return ground_truth
+
+
+def _process_modifications(
+    modify_spec: dict[str, Any],
+    ground_truth: dict[str, Any],
+) -> dict[str, Any]:
+    """Process _modify_ section to alter existing elements.
+
+    Args:
+        modify_spec: Dict of path -> modification spec
+        ground_truth: Current ground truth
+
+    Returns:
+        Updated ground truth with modifications applied
+
+    Raises:
+        KeyError: If a path doesn't exist
+    """
+    for path, mod_data in modify_spec.items():
+        # Parse path: "x.reactions.r1" -> namespace "x", type "reactions", name "r1"
+        parts = path.split(".")
+        if len(parts) < 3:
+            raise KeyError(f"Invalid modify path: '{path}' (expected namespace.type.name)")
+
+        namespace = parts[0]
+        elem_type = parts[1]  # "molecules" or "reactions"
+        elem_name = ".".join(parts[2:])
+
+        # Build the full key
+        prefix = "m" if elem_type == "molecules" else "r"
+        full_key = f"{prefix}.{namespace}.{elem_name}"
+
+        # Find the element
+        collection = ground_truth.get(elem_type, {})
+        if full_key not in collection:
+            raise KeyError(f"Element not found: '{full_key}'")
+
+        element = collection[full_key]
+
+        # Apply _set_ modifications
+        if "_set_" in mod_data:
+            for key, value in mod_data["_set_"].items():
+                element[key] = value
+
+        # Apply _append_ modifications
+        if "_append_" in mod_data:
+            for key, values in mod_data["_append_"].items():
+                if key not in element:
+                    element[key] = []
+                # Namespace the appended values if they're molecule references
+                for val in values:
+                    namespaced_val = f"m.{namespace}.{val}"
+                    element[key].append(namespaced_val)
+
+    return ground_truth
