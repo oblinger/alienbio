@@ -22,7 +22,7 @@ import pytest
 class TestContainerParsing:
     """Tests for parsing parameters.containers: section."""
 
-    @pytest.mark.skip(reason="M2.10 not yet implemented")
+    
     def test_parse_container_parameters(self):
         """Parse container parameters section."""
         from alienbio.build import parse_containers
@@ -46,7 +46,7 @@ class TestContainerParsing:
 class TestRegionGeneration:
     """Tests for region generation."""
 
-    @pytest.mark.skip(reason="M2.10 not yet implemented")
+    
     def test_generate_regions(self):
         """Generate N regions from regions.count parameter."""
         from alienbio import Bio, bio
@@ -65,7 +65,7 @@ class TestRegionGeneration:
         # Should have 3 regions
         assert len(scenario.regions) == 3
 
-    @pytest.mark.skip(reason="M2.10 not yet implemented")
+    
     def test_regions_have_ids(self):
         """Generated regions have unique IDs."""
         from alienbio import Bio, bio
@@ -84,7 +84,7 @@ class TestRegionGeneration:
         region_ids = [r.id for r in scenario.regions]
         assert len(region_ids) == len(set(region_ids))  # All unique
 
-    @pytest.mark.skip(reason="M2.10 not yet implemented")
+    
     def test_regions_have_substrate_concentrations(self):
         """Generated regions have initial substrate concentrations."""
         from alienbio import Bio, bio
@@ -115,7 +115,7 @@ class TestRegionGeneration:
 class TestPopulationGeneration:
     """Tests for organism population generation."""
 
-    @pytest.mark.skip(reason="M2.10 not yet implemented")
+    
     def test_generate_populations(self):
         """Generate organism populations in regions."""
         from alienbio import Bio, bio
@@ -146,7 +146,7 @@ class TestPopulationGeneration:
         total_organisms = sum(len(r.organisms) for r in scenario.regions)
         assert total_organisms > 0
 
-    @pytest.mark.skip(reason="M2.10 not yet implemented")
+    
     def test_populations_sampled_from_distribution(self):
         """Populations sampled from distribution."""
         from alienbio import Bio, bio
@@ -181,7 +181,7 @@ class TestPopulationGeneration:
         # Should have variation
         assert len(set(counts)) > 1
 
-    @pytest.mark.skip(reason="M2.10 not yet implemented")
+    
     def test_populations_assigned_to_correct_species(self):
         """Populations assigned to correct species."""
         from alienbio import Bio, bio

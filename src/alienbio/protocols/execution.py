@@ -25,6 +25,34 @@ from .bio import State, Chemistry
 
 
 @dataclass
+class Organism:
+    """An organism instance within a region.
+
+    Attributes:
+        id: Unique identifier for this organism
+        species: Name of the species this organism belongs to
+    """
+
+    id: str = ""
+    species: str = ""
+
+
+@dataclass
+class Region:
+    """A spatial region containing organisms and substrates.
+
+    Attributes:
+        id: Unique identifier for this region
+        substrates: Dict of substrate concentrations
+        organisms: List of organisms in this region
+    """
+
+    id: str = ""
+    substrates: dict[str, float] = field(default_factory=dict)
+    organisms: list[Organism] = field(default_factory=list)
+
+
+@dataclass
 class Scenario:
     """Result of template instantiation (build phase).
 
@@ -34,6 +62,7 @@ class Scenario:
     Attributes:
         molecules: Visible molecules (opaque names)
         reactions: Visible reactions (opaque names)
+        regions: List of spatial regions with organisms
         _ground_truth_: Full scenario with internal names
         _visibility_mapping_: Map from internal to opaque names
         _seed: Random seed used for instantiation
@@ -42,6 +71,7 @@ class Scenario:
 
     molecules: dict[str, Any] = field(default_factory=dict)
     reactions: dict[str, Any] = field(default_factory=dict)
+    regions: list[Region] = field(default_factory=list)
     _ground_truth_: dict[str, Any] = field(default_factory=dict)
     _visibility_mapping_: dict[str, Any] = field(default_factory=dict)
     _seed: int = 0
