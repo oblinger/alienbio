@@ -46,7 +46,7 @@ from .types import Action, ActionResult, Observation, ExperimentResults
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace, ActionObservationRecord
 from .session import AgentSession
-from .protocol import Agent, RandomAgent, ScriptedAgent, OracleAgent
+from .agents import Agent, RandomAgent, ScriptedAgent, OracleAgent
 from .experiment import run_experiment
 
 __all__ = [

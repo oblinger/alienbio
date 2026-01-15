@@ -7,7 +7,7 @@ agent performance in experiments.
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent.trace import Trace
+    from ..agent.trace import Trace
 
 
 def budget_score(trace: "Trace", budget: float) -> float:
