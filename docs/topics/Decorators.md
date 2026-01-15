@@ -9,28 +9,22 @@ Python decorators for registering functions and classes in the ABIO system. All 
 
 ## Type Registration
 
-### `@biotype`
-
-Registers a class for hydration. When YAML with a matching `_type` field is loaded, it will be instantiated as this class.
+Type registration is done via **Entity subclassing**, not decorators:
 
 ```python
-@biotype
-class Chemistry:
-    molecules: dict
-    reactions: dict
+from alienbio import Entity
 
-@biotype("world")                      # explicit type name (default: class name lowercase)
-class World:
+class Chemistry(Entity):
     molecules: dict
     reactions: dict
-    containers: dict
 ```
 
-**Behavior:**
-- Adds class to global hydration registry
-- Type name defaults to lowercase class name
-- On load: `{"_type": "chemistry", ...}` → `Chemistry(...)`
-- On save: `Chemistry(...)` → `{"_type": "chemistry", ...}`
+- Subclassing `Entity` makes a class a biotype automatically
+- Entity subclasses are hydratable/dehydratable via `to_dict()`/`from_dict()` methods
+- On load: `{"_type": "Chemistry", ...}` → `Chemistry(...)`
+- On save: `Chemistry(...)` → `{"_type": "Chemistry", ...}`
+
+See [[Entity]] for details on the Entity base class.
 
 ---
 
@@ -138,16 +132,65 @@ def mass_action(ctx, k=0.1):
 
 ---
 
+### `@factory`
+
+Registers an implementation class for a protocol. Multiple implementations can exist for each protocol.
+
+```python
+@factory(name="reference", protocol=Simulator)
+class ReferenceSimulatorImpl(Simulator):
+    """Reference implementation - accurate but slow."""
+    ...
+
+@factory(name="fast", protocol=Simulator)
+class FastSimulatorImpl(Simulator):
+    """Optimized implementation - faster but approximations."""
+    ...
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `name` | Implementation name (e.g., "reference", "fast") |
+| `protocol` | Protocol class this implements |
+
+**Resolution order** when building typed objects:
+
+1. `impl` parameter to `build()` — programmatic override
+2. `impl` field in spec — spec-defined choice
+3. Default from config — user's configured default
+
+**Spec syntax:**
+
+```yaml
+scenario.test:
+  chemistry:
+    type: Chemistry
+    impl: fast         # optional - selects implementation
+    molecules: ...
+```
+
+**Config defaults:**
+
+```yaml
+# ~/.config/alienbio/config.yaml
+defaults:
+  Simulator: reference
+  Chemistry: standard
+```
+
+---
+
 ## Summary Table
 
-| Decorator | Purpose | Registration | Called via |
-|-----------|---------|--------------|------------|
-| `@biotype` | Class hydration | type registry | `Bio.fetch()` |
+| Decorator/Pattern | Purpose | Registration | Called via |
+|-------------------|---------|--------------|------------|
+| `Entity` subclass | Class hydration | automatic | `Bio.fetch()` |
 | `@fn` | Base function | — | direct call |
 | `@scoring` | Evaluation metrics | scoring registry | `sim.results()` |
 | `@action` | Agent actions | action registry | `sim.action()` |
 | `@measurement` | Agent observations | measurement registry | `sim.measure()` |
 | `@rate` | Reaction rates | rate registry | reaction evaluation |
+| `@factory` | Multiple implementations | factory registry | `Bio.build()` |
 
 ---
 
@@ -164,4 +207,5 @@ The registries are global singletons. Registration happens at decoration time (m
 ## See Also
 
 - [[Spec Language]] — YAML syntax and tags (`!ev`, `!ref`, `!include`)
-- [[Bio]] — Loading and hydration using `@biotype` registry
+- [[Bio]] — Loading and hydration
+- [[Entity]] — Base class for hydratable types

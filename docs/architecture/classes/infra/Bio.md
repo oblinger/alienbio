@@ -414,6 +414,6 @@ bio: Bio = Bio()
 - [[Bio CLI]] — Command-line interface
 - [[Spec Language]] — YAML syntax (`!ev`, `!ref`, `!include`, typed elements)
 - [[Scope]] — Scope class for lexical scoping
-- [[Decorators]] — `@biotype` for hydration registry
+- [[Decorators]] — `@factory` decorator and type registration
 - [[Scenario]] — The main runnable unit
 - [[ABIO DAT]] — DAT system integration

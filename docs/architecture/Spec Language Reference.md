@@ -26,14 +26,22 @@ The YAML constructors in `tags.py` should create the new placeholder classes, no
 
 ### Context Class Consolidation (M1.5)
 
-Two Context classes exist:
-- `eval.Context` — dataclass with `rng`, `bindings`, `functions`, `path`
-- `infra.Context` — runtime environment with `config`, `io`
+Two Context classes existed, causing confusion:
+- `spec_lang/eval.py: EvalContext` — Spec evaluation (rng, bindings, functions, path)
+- `infra/context.py: Context` — Runtime pegboard (config, io, do, create)
 
-**Target:**
-- Remove `eval.Context`
-- Use `Scope` for evaluation context (bindings/functions are scope entries)
-- Rename `infra.Context` → `RuntimeEnv` to avoid confusion
+**Resolution:**
+
+| Role | Class | Notes |
+|------|-------|-------|
+| **User-facing sandbox** | `Bio` | Multiple instances allowed. Contains root Scope. |
+| **Loaded definitions** | `Scope` | Hierarchical namespace for YAML definitions. |
+| **Per-eval-thread** | `EvalEnv` | Renamed from `EvalContext`. Holds rng, bindings for `!ev`. |
+
+**Actions:**
+- Rename `EvalContext` → `EvalEnv` (avoids "context" ambiguity)
+- Remove the `Context = EvalContext` alias
+- Merge `infra.Context` functionality into `Bio` or deprecate
 
 ### Hydration Phases
 

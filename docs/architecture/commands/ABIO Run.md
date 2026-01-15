@@ -60,14 +60,40 @@ bio run experiments.mutualism
 
 ## Behavior
 
+### Call Chain
+
+```
+run(target) → build(target) → fetch(target)  # if target is string
+```
+
+`run()` never calls `fetch()` directly — it always goes through `build()`.
+
+### Resolution by Target Type
+
+| Target | Behavior |
+|--------|----------|
+| **DAT object or DAT path** | Check if `result` exists → if yes, return cached result; if no, call `DAT.run()` |
+| **Recipe name (dots, no slashes)** | Call `build()` to create DAT, then `DAT.run()` |
+| **Non-DAT spec (dict)** | Call `build()` in context of anonymous DAT, then `entity.run()` |
+
+### Detailed Behavior
+
 1. **If target has dots (no slashes)**: Treated as recipe name
    - Calls `bio build` internally to create DAT
    - Then runs the built DAT
 
 2. **If target has slashes**: Treated as DAT path
-   - Runs the existing DAT directly
+   - Checks if DAT already has a `result` field
+   - If already run → returns existing result (no re-execution)
+   - If not run → calls `DAT.run()` and stores result
 
 3. **For experiments**: Build creates nested scenario DATs, run executes all
+
+4. **Non-DAT entities**: When building something that's not a full DAT spec:
+   - `build()` creates it in context of an anonymous DAT
+   - Returns the instantiated entity
+   - `run()` then calls `entity.run()` (not `DAT.run()`)
+   - Returns whatever the entity's `run()` method returns
 
 ## Python API
 

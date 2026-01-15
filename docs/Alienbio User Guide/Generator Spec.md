@@ -876,6 +876,8 @@ GuardViolation: no_new_cycles
 
 ## Visibility Specification
 
+Also known as **skinning** — the same scenario logic can be presented with different "skins" (transparent vs opaque naming).
+
 Controls what the AI can observe about the generated world.
 
 ### Visibility Levels
@@ -1277,3 +1279,9 @@ The AI sees only the opaque names (ME1, MS1, RX1, etc.). The ground truth in Sec
 - [[Core Spec]] — Base YAML syntax
 - [[Spec Language Reference]] — Complete language specification (architecture)
 - [[Decorators]] — `@biotype`, `@scoring`, etc.
+
+## Terminology
+
+- **Skinning** = Visibility mapping — presenting the same scenario with different name mappings
+- **Transparent skin** = Descriptive names visible to AI (`m.krel.energy.M1`)
+- **Opaque skin** = Mapped names visible to AI (`ME1`, `RX1`)
