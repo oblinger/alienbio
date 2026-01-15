@@ -45,6 +45,34 @@ glucose.symbol           # "C6H12O6" (Hill system ordering)
 glucose.molecular_weight # ~180.156
 ```
 
+## MoleculeImpl Class Methods
+
+### `hydrate(data, *, dat=None, parent=None, local_name=None) -> MoleculeImpl` (classmethod)
+Create a MoleculeImpl from a dict. Used during YAML loading.
+
+**Args:**
+- `data`: Dict with optional keys: `name`, `bdepth`, `atoms`, `description`
+- `dat`: DAT anchor (if root entity)
+- `parent`: Parent entity (if child)
+- `local_name`: Override name (defaults to `data["name"]`)
+
+**Returns:** New MoleculeImpl instance
+
+```yaml
+# YAML molecule definition
+name: glucose
+bdepth: 2
+description: Sugar
+```
+
+```python
+# Hydrate from loaded YAML dict
+glucose = MoleculeImpl.hydrate(mol_data)
+
+# With parent entity
+glucose = MoleculeImpl.hydrate(mol_data, parent=chemistry)
+```
+
 ## Protocol
 ```python
 from typing import Protocol, Dict, runtime_checkable

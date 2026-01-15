@@ -138,6 +138,48 @@ if errors:
         print(e)
 ```
 
+## ChemistryImpl Class Methods
+
+### `hydrate(data, *, dat=None, parent=None, local_name=None) -> ChemistryImpl` (classmethod)
+Create a ChemistryImpl from a dict, recursively hydrating molecules and reactions.
+
+**Args:**
+- `data`: Dict with keys: `molecules`, `reactions`, `atoms`, `description`
+- `dat`: DAT anchor (if root entity)
+- `parent`: Parent entity (if child)
+- `local_name`: Override name
+
+**Returns:** New ChemistryImpl with hydrated molecules and reactions
+
+The hydration process:
+1. First pass: hydrate all molecules from `data["molecules"]`
+2. Second pass: hydrate reactions from `data["reactions"]`, linking to hydrated molecules
+
+```yaml
+# YAML spec data (loaded by bio.fetch)
+name: glycolysis
+molecules:
+  glucose:
+    bdepth: 2
+  pyruvate:
+    bdepth: 1
+reactions:
+  step1:
+    reactants: [glucose]
+    products:
+      - pyruvate: 2
+    rate: 0.1
+```
+
+```python
+# Hydrate from loaded YAML dict
+chemistry = ChemistryImpl.hydrate(chem_data)
+
+# Access hydrated components
+chemistry.molecules["glucose"]  # -> MoleculeImpl
+chemistry.reactions["step1"]    # -> ReactionImpl with molecule refs
+```
+
 ## Protocol
 ```python
 from typing import Protocol, Dict, List, runtime_checkable
