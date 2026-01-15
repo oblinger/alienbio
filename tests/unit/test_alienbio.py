@@ -1,42 +1,34 @@
 """Tests for alienbio top-level operators."""
 
-from contextvars import ContextVar
-
 import pytest
 
-from alienbio import io, set_io, IO, Entity, Dat
+from alienbio import IO, Entity, Dat, Bio, bio
 
 
-class TestIO:
-    """Tests for io() function access."""
+class TestBioIO:
+    """Tests for bio.io pegboard access."""
 
-    def test_io_returns_io_instance(self):
-        """io() returns an IO object."""
-        instance = io()
-        assert isinstance(instance, IO)
+    def test_bio_io_returns_io_instance(self):
+        """bio.io returns an IO object."""
+        assert isinstance(bio.io, IO)
 
-    def test_io_uses_contextvar(self):
-        """io() uses ContextVar for thread safety."""
-        from alienbio.infra.io import _io_var
+    def test_bio_io_lazy_creates_default(self):
+        """bio.io lazily creates a default IO if none exists."""
+        # Create a fresh Bio instance
+        fresh_bio = Bio()
+        assert fresh_bio._io is None  # Not initialized yet
+        io_instance = fresh_bio.io  # Access triggers lazy init
+        assert io_instance is not None
+        assert isinstance(io_instance, IO)
 
-        assert isinstance(_io_var, ContextVar)
-
-    def test_io_creates_default_if_none(self):
-        """io() creates a default IO if none exists."""
-        set_io(None)
-        instance = io()
-        assert instance is not None
-        assert isinstance(instance, IO)
-
-    def test_set_io_changes_instance(self):
-        """set_io() changes the active IO instance."""
-        original = io()
+    def test_bio_io_can_be_replaced(self):
+        """bio.io can be replaced with a custom IO instance."""
+        fresh_bio = Bio()
         new_io = IO()
         new_io.bind_prefix("TEST", "test/path")
-        set_io(new_io)
-        assert io() is new_io
-        assert "TEST" in io().prefixes
-        set_io(original)
+        fresh_bio.io = new_io
+        assert fresh_bio.io is new_io
+        assert "TEST" in fresh_bio.io.prefixes
 
 
 class TestModuleExports:
@@ -50,12 +42,6 @@ class TestModuleExports:
         assert Dat is not None
         assert Bio is not None
         assert bio is not None
-
-    def test_io_functions_exported(self):
-        """io() and set_io() are exported from alienbio."""
-        from alienbio import io, set_io
-        assert callable(io)
-        assert callable(set_io)
 
     def test_spec_lang_exports_available(self):
         """Spec language classes are exported from alienbio."""

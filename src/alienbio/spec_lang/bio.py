@@ -23,6 +23,70 @@ if TYPE_CHECKING:
     from alienbio.protocols.bio import Simulator
 
 
+# =============================================================================
+# Factory Registry
+# =============================================================================
+
+# Maps protocol -> {name -> implementation_class}
+_factory_registry: dict[type, dict[str, type]] = {}
+
+# Maps protocol -> default implementation name
+_factory_defaults: dict[type, str] = {}
+
+
+def register_factory(
+    protocol: type,
+    name: str,
+    impl_class: type,
+    default: bool = False,
+) -> None:
+    """Register an implementation class for a protocol.
+
+    Args:
+        protocol: Protocol class (e.g., Simulator, IO)
+        name: Implementation name (e.g., "reference", "fast")
+        impl_class: Implementation class
+        default: If True, set as default for this protocol
+    """
+    if protocol not in _factory_registry:
+        _factory_registry[protocol] = {}
+    _factory_registry[protocol][name] = impl_class
+    if default or protocol not in _factory_defaults:
+        _factory_defaults[protocol] = name
+
+
+def _resolve_factory(protocol: type, name: str | None = None) -> type:
+    """Resolve implementation class for protocol.
+
+    Args:
+        protocol: Protocol class
+        name: Implementation name, or None for default
+
+    Returns:
+        Implementation class
+
+    Raises:
+        KeyError: If protocol not registered or name not found
+    """
+    if protocol not in _factory_registry:
+        raise KeyError(f"No implementations registered for {protocol.__name__}")
+
+    if name is None:
+        if protocol not in _factory_defaults:
+            raise KeyError(f"No default implementation for {protocol.__name__}")
+        name = _factory_defaults[protocol]
+
+    implementations = _factory_registry[protocol]
+    if name not in implementations:
+        available = list(implementations.keys())
+        raise KeyError(
+            f"No implementation '{name}' for {protocol.__name__}. "
+            f"Available: {available}"
+        )
+
+    return implementations[name]
+
+
 class Bio:
     """Top-level API for Alien Biology operations.
 
@@ -65,6 +129,82 @@ class Bio:
         self._dat_ref: str | Any | None = dat
         self._dat_object: Any = None
         self._current_dat: Path | None = None
+
+        # Component pegboard attributes
+        self._io: Any = None
+        self._sim: "Simulator | None" = None
+        self._agent: Any = None
+        self._chem: Any = None
+
+    # =========================================================================
+    # Component Pegboard
+    # =========================================================================
+
+    @property
+    def io(self) -> Any:
+        """Active IO instance for entity I/O.
+
+        Lazily creates a default IO instance on first access.
+        """
+        if self._io is None:
+            from alienbio.infra.io import IO
+            self._io = IO()
+        return self._io
+
+    @io.setter
+    def io(self, value: Any) -> None:
+        self._io = value
+
+    @property
+    def sim(self) -> "Simulator | None":
+        """Active Simulator instance."""
+        return self._sim
+
+    @sim.setter
+    def sim(self, value: "Simulator | None") -> None:
+        self._sim = value
+
+    @property
+    def agent(self) -> Any:
+        """Active Agent instance."""
+        return self._agent
+
+    @agent.setter
+    def agent(self, value: Any) -> None:
+        self._agent = value
+
+    @property
+    def chem(self) -> Any:
+        """Active Chemistry instance."""
+        return self._chem
+
+    @chem.setter
+    def chem(self, value: Any) -> None:
+        self._chem = value
+
+    def create(
+        self,
+        protocol: type,
+        name: str | None = None,
+        spec: Any = None,
+    ) -> Any:
+        """Create component instance via factory.
+
+        Args:
+            protocol: Protocol class (Simulator, IO, Agent, Chemistry, etc.)
+            name: Implementation name. If None, uses default for protocol.
+            spec: Data/configuration for the instance.
+
+        Returns:
+            New instance of the specified implementation.
+
+        Raises:
+            KeyError: If no implementation found for protocol/name.
+        """
+        impl_class = _resolve_factory(protocol, name)
+        if spec is not None:
+            return impl_class(spec)
+        return impl_class()
 
     # =========================================================================
     # Source Root Configuration
@@ -397,17 +537,6 @@ class Bio:
 
         # TODO: Execute the scenario
         return scenario
-
-    def sim(self, scenario: Any) -> "Simulator":
-        """Create a Simulator from a Scenario.
-
-        Args:
-            scenario: Scenario object with chemistry configuration
-
-        Returns:
-            Configured simulator instance
-        """
-        return self._simulator_factory(scenario)
 
 
 # =============================================================================

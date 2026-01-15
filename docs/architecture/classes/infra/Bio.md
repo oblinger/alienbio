@@ -65,6 +65,35 @@ Each Bio instance owns its own DAT context and scope chain, enabling:
 - **Sandboxing** — Multiple independent environments in same process
 - **CLI simplicity** — Singleton "just works" for command line
 
+### Component Pegboard
+
+Bio serves as a pegboard for active component instances. Components are created via `bio.create()` and assigned using standard Python:
+
+```python
+from alienbio import bio
+
+# Create and assign to pegboard
+bio.io = bio.create(IO)
+bio.sim = bio.create(Simulator, spec=chemistry)
+
+# Ensure pattern (only create if not set)
+bio.sim = bio.sim or bio.create(Simulator, spec=chemistry)
+
+# Replace with different implementation
+bio.sim = bio.create(Simulator, name="fast", spec=chemistry)
+```
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `bio.io` | `IO` | Entity I/O: prefixes, formatting, persistence |
+| `bio.sim` | `Simulator` | Active simulation engine |
+| `bio.agent` | `Agent` | Active agent |
+| `bio.chem` | `Chemistry` | Active chemistry |
+
+**Key principle**: `bio.create()` just creates and returns — no side effects. Assignment is explicit Python.
+
+See [[Factory Pegboard API]] for full documentation.
+
 ### Methods
 
 See [Commands](../../ABIO Commands.md) for detailed documentation on each method.
@@ -78,9 +107,7 @@ See [Commands](../../ABIO Commands.md) for detailed documentation on each method
 | [report(results, ...)](../../commands/ABIO Report.md) | `None` | Generate formatted report from results |
 | `store(specifier, obj)` | `None` | Dehydrate and store object |
 | `cd(path=None)` | `Path` | Get/set current DAT context |
-| [create_simulator(...)](../../commands/ABIO Sim.md) | `Simulator` | Create Simulator from Chemistry |
-| [register_agent(...)](../../commands/ABIO Agent.md) | `None` | Register an agent implementation |
-| [create_agent(...)](../../commands/ABIO Agent.md) | `Agent` | Create agent instance for scenario |
+| `create(protocol, name, spec)` | instance | Create component via factory |
 | [hydrate(data)](../../commands/ABIO Hydrate.md) | `Any` | Convert dict with `_type` to typed object (advanced) |
 | [dehydrate(obj)](../../commands/ABIO Dehydrate.md) | `dict` | Convert typed object to dict with `_type` (advanced) |
 
@@ -345,7 +372,14 @@ class Bio:
     """Environment class for fetching, hydrating, and storing bio objects.
 
     Instantiate for isolated sandboxes, or use the module-level `bio` singleton.
+    Also serves as pegboard for active component instances.
     """
+
+    # Component pegboard attributes
+    io: IO | None        # Entity I/O
+    sim: Simulator | None    # Active simulator
+    agent: Agent | None      # Active agent
+    chem: Chemistry | None   # Active chemistry
 
     def __init__(self, dat: str | DAT | None = None) -> None:
         """Create a new Bio environment.
@@ -353,6 +387,19 @@ class Bio:
         Args:
             dat: Optional DAT name (string) or DAT object. If None, anonymous DAT
                  created lazily on first access via bio.dat property.
+        """
+        ...
+
+    def create(self, protocol: type[T], name: str = None, spec: Any = None) -> T:
+        """Create component instance via factory.
+
+        Args:
+            protocol: Protocol class (Simulator, IO, etc.)
+            name: Implementation name. If None, uses config default.
+            spec: Data/configuration for the instance.
+
+        Returns:
+            New instance of the specified implementation.
         """
         ...
 
@@ -368,14 +415,6 @@ class Bio:
         """Get/set current DAT context."""
         ...
 
-    def register_agent(self, name: str, agent_class: type) -> None:
-        """Register an agent implementation."""
-        ...
-
-    def create_agent(self, name: str, scenario: Any, **kwargs) -> Agent:
-        """Create agent instance for scenario."""
-        ...
-
     def build(self, target: str | Any, seed: int = None, registry: dict = None, params: dict = None) -> Any:
         """Template instantiation. If target is string, fetches first."""
         ...
@@ -386,10 +425,6 @@ class Bio:
 
     def report(self, results: list[dict], format: str = "table", output: str = None) -> None:
         """Generate formatted report from experiment results."""
-        ...
-
-    def create_simulator(self, chemistry: Chemistry, name: str = "reference", **kwargs) -> Simulator:
-        """Create Simulator from Chemistry using registered factory."""
         ...
 
     def hydrate(self, data: dict) -> Any:
@@ -415,5 +450,6 @@ bio: Bio = Bio()
 - [[Spec Language]] — YAML syntax (`!ev`, `!ref`, `!include`, typed elements)
 - [[Scope]] — Scope class for lexical scoping
 - [[Decorators]] — `@factory` decorator and type registration
+- [[Factory Pegboard API]] — Factory pattern and component pegboard
 - [[Scenario]] — The main runnable unit
 - [[ABIO DAT]] — DAT system integration

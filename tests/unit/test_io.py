@@ -604,56 +604,49 @@ class TestEntityStrWithContext:
 
     def test_str_uses_prefix_when_context_available(self):
         """Entity.__str__ uses PREFIX:path when IO is set up."""
-        from alienbio import IO, set_io, io
+        from alienbio import bio, IO
 
         # Set up fresh IO instance
-        set_io(IO())
-
-        try:
-            dat = MockDat("runs/exp1")
-            world = Entity("world", dat=dat)
-            compartment = Entity("cytoplasm", parent=world)
-
-            io().bind_prefix("W", world)
-
-            # str() should now use the prefix
-            assert str(world) == "W:"
-            assert str(compartment) == "W:cytoplasm"
-        finally:
-            # Clean up IO
-            set_io(None)
-
-    def test_str_falls_back_without_context(self):
-        """Entity.__str__ falls back to full_name without IO."""
-        from alienbio import set_io
-
-        # Ensure no IO is set
-        set_io(None)
+        bio.io = IO()
 
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
         compartment = Entity("cytoplasm", parent=world)
 
-        # Should fall back to full_name
+        bio.io.bind_prefix("W", world)
+
+        # str() should now use the prefix
+        assert str(world) == "W:"
+        assert str(compartment) == "W:cytoplasm"
+
+    def test_str_falls_back_without_context(self):
+        """Entity.__str__ falls back to full_name without IO."""
+        from alienbio import bio, IO
+
+        # Use fresh IO with no prefixes
+        bio.io = IO()
+
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+
+        # Should fall back to full_name (no prefixes match)
         assert str(world) == "runs/exp1"
         assert str(compartment) == "runs/exp1.cytoplasm"
 
     def test_str_uses_shortest_prefix(self):
         """Entity.__str__ uses the shortest matching prefix."""
-        from alienbio import IO, set_io, io
+        from alienbio import bio, IO
 
-        set_io(IO())
+        bio.io = IO()
 
-        try:
-            dat = MockDat("runs/exp1")
-            world = Entity("world", dat=dat)
-            compartment = Entity("cytoplasm", parent=world)
-            molecule = Entity("glucose", parent=compartment)
+        dat = MockDat("runs/exp1")
+        world = Entity("world", dat=dat)
+        compartment = Entity("cytoplasm", parent=world)
+        molecule = Entity("glucose", parent=compartment)
 
-            io().bind_prefix("W", world)
-            io().bind_prefix("C", compartment)
+        bio.io.bind_prefix("W", world)
+        bio.io.bind_prefix("C", compartment)
 
-            # Molecule should use shorter C: prefix
-            assert str(molecule) == "C:glucose"
-        finally:
-            set_io(None)
+        # Molecule should use shorter C: prefix
+        assert str(molecule) == "C:glucose"

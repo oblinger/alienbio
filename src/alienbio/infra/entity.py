@@ -262,8 +262,8 @@ class Entity:
 
         # If parent is None, reparent to orphan root instead
         if parent is None:
-            from .io import io
-            parent = io().orphan_root
+            from alienbio import bio
+            parent = bio.io.orphan_root
 
         self._parent = parent
 
@@ -284,8 +284,8 @@ class Entity:
 
         Prints as ORPHAN:name after detaching.
         """
-        from .io import io
-        self.set_parent(io().orphan_root)
+        from alienbio import bio
+        self.set_parent(bio.io.orphan_root)
 
     def _update_top(self, new_root: Entity) -> None:
         """Update _top for this entity and all descendants.
@@ -344,8 +344,8 @@ class Entity:
                 child_root = child.root()
                 if child_root is not _root:
                     # Child belongs to a different DAT - use absolute ref
-                    from .io import io
-                    args_dict[name] = io().ref(child, absolute=True)
+                    from alienbio import bio
+                    args_dict[name] = bio.io.ref(child, absolute=True)
                 else:
                     # Same DAT - inline the child
                     args_dict[name] = child.to_dict(recursive=True, _root=_root)
@@ -452,9 +452,9 @@ class Entity:
         Falls back to full_name if no IO or prefix matches.
         """
         try:
-            from .io import io
+            from alienbio import bio
 
-            return io().ref(self)
+            return bio.io.ref(self)
         except Exception:
             # Fall back to full_name if context not available
             try:
