@@ -103,20 +103,8 @@ class TestBioFetchRouting:
         result = bio.fetch(str(yaml_file), raw=True)
         assert result["key"] == "value"
 
-    def test_fetch_dat_folder_loads_spec(self, temp_dir):
-        """fetch('path/to/dat') loads spec.yaml from DAT folder."""
-        dat_dir = temp_dir / "mydat"
-        dat_dir.mkdir()
-        # Current implementation looks for spec.yaml, not index.yaml
-        (dat_dir / "spec.yaml").write_text("name: mydat\nvalue: 123\n")
-
-        result = bio.fetch(str(dat_dir), raw=True)
-        assert result["name"] == "mydat"
-        assert result["value"] == 123
-
-    @pytest.mark.skip(reason="index.yaml convention not yet implemented")
     def test_fetch_dat_folder_loads_index(self, temp_dir):
-        """fetch('path/to/dat') should load index.yaml from DAT folder."""
+        """fetch('path/to/dat') loads index.yaml from DAT folder."""
         dat_dir = temp_dir / "mydat"
         dat_dir.mkdir()
         (dat_dir / "index.yaml").write_text("name: mydat\nvalue: 123\n")
@@ -251,7 +239,7 @@ class TestBioRunRouting:
     def test_run_with_string_fetches_and_builds(self, temp_dir):
         """run(string) fetches spec, then builds."""
         # Create a spec file
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 _instantiate_:
   _as_ x:
@@ -361,7 +349,7 @@ class TestBioBuildEdgeCases:
     @pytest.mark.skip(reason="String spec in build() needs fetch integration")
     def test_build_with_string_fetches_first(self, temp_dir):
         """build(string) fetches the spec first."""
-        spec_file = temp_dir / "spec.yaml"
+        spec_file = temp_dir / "index.yaml"
         spec_file.write_text("""
 molecules:
   M1: {role: energy}

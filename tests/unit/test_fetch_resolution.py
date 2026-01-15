@@ -542,7 +542,7 @@ class TestEdgeCases:
         # Create a file at absolute path
         spec_dir = tmp_path / "myspec"
         spec_dir.mkdir()
-        (spec_dir / "spec.yaml").write_text("name: absolute test")
+        (spec_dir / "index.yaml").write_text("name: absolute test")
 
         bio = Bio()
         result = bio.fetch(str(spec_dir), raw=True)
@@ -552,10 +552,10 @@ class TestEdgeCases:
         """DAT names can contain dots in path segments."""
         from alienbio.spec_lang.bio import Bio
 
-        # Create experiments/v1.0/baseline/spec.yaml
+        # Create experiments/v1.0/baseline/index.yaml
         dat_path = tmp_path / "experiments" / "v1.0" / "baseline"
         dat_path.mkdir(parents=True)
-        (dat_path / "spec.yaml").write_text("""
+        (dat_path / "index.yaml").write_text("""
 results:
   score: 0.85
 """)
@@ -698,7 +698,7 @@ class TestBioConstructor:
         # Create a spec directory
         spec_dir = tmp_path / "mydat"
         spec_dir.mkdir()
-        (spec_dir / "spec.yaml").write_text("name: test dat\nvalue: 42")
+        (spec_dir / "index.yaml").write_text("name: test dat\nvalue: 42")
 
         Bio.clear_cache()
         bio = Bio(dat=str(spec_dir))
@@ -725,7 +725,7 @@ class TestBioConstructor:
         # Create a spec
         spec_dir = tmp_path / "cachetest"
         spec_dir.mkdir()
-        (spec_dir / "spec.yaml").write_text("value: 1")
+        (spec_dir / "index.yaml").write_text("value: 1")
 
         Bio.clear_cache()
         bio = Bio()
@@ -734,7 +734,7 @@ class TestBioConstructor:
         result1 = bio.fetch(str(spec_dir))
 
         # Modify the file
-        (spec_dir / "spec.yaml").write_text("value: 2")
+        (spec_dir / "index.yaml").write_text("value: 2")
 
         # Second fetch should return cached value
         result2 = bio.fetch(str(spec_dir))
@@ -787,7 +787,7 @@ class TestBioCd:
         dat_dir.mkdir()
         sub_dir = dat_dir / "results"
         sub_dir.mkdir()
-        (sub_dir / "spec.yaml").write_text("score: 0.95")
+        (sub_dir / "index.yaml").write_text("score: 0.95")
 
         Bio.clear_cache()
         bio = Bio()
@@ -816,7 +816,7 @@ class TestBioCd:
         bio.store("./output", {"result": 42}, raw=True)
 
         # Verify file was created
-        spec_file = dat_dir / "output" / "spec.yaml"
+        spec_file = dat_dir / "output" / "index.yaml"
         assert spec_file.exists()
 
     def test_store_relative_without_cd_raises(self):
@@ -841,7 +841,7 @@ class TestDatDigPattern:
 
         dat_dir = tmp_path / "mydat"
         dat_dir.mkdir()
-        (dat_dir / "spec.yaml").write_text("baseline: {score: 0.95}\nconfig: {timeout: 30}")
+        (dat_dir / "index.yaml").write_text("baseline: {score: 0.95}\nconfig: {timeout: 30}")
 
         Bio.clear_cache()
         bio = Bio()
@@ -854,7 +854,7 @@ class TestDatDigPattern:
 
         dat_dir = tmp_path / "mydat"
         dat_dir.mkdir()
-        (dat_dir / "spec.yaml").write_text("config: {settings: {timeout: 30}}")
+        (dat_dir / "index.yaml").write_text("config: {settings: {timeout: 30}}")
 
         Bio.clear_cache()
         bio = Bio()
@@ -867,7 +867,7 @@ class TestDatDigPattern:
 
         dat_dir = tmp_path / "mydat"
         dat_dir.mkdir()
-        (dat_dir / "spec.yaml").write_text("config: {timeout: 30}")
+        (dat_dir / "index.yaml").write_text("config: {timeout: 30}")
 
         Bio.clear_cache()
         bio = Bio()
@@ -881,7 +881,7 @@ class TestDatDigPattern:
         # Create a directory with dots in its name
         dat_dir = tmp_path / "my.dat.v1"
         dat_dir.mkdir()
-        (dat_dir / "spec.yaml").write_text("value: 42")
+        (dat_dir / "index.yaml").write_text("value: 42")
 
         Bio.clear_cache()
         bio = Bio()
@@ -894,7 +894,7 @@ class TestDatDigPattern:
 
         dat_dir = tmp_path / "mydat"
         dat_dir.mkdir()
-        (dat_dir / "spec.yaml").write_text("baseline: {score: 0.95}")
+        (dat_dir / "index.yaml").write_text("baseline: {score: 0.95}")
 
         Bio.clear_cache()
         bio = Bio()
@@ -917,7 +917,7 @@ class TestDotsBeforeSlash:
         scenarios = tmp_path / "catalog" / "scenarios"
         mutualism = scenarios / "mutualism"
         mutualism.mkdir(parents=True)
-        (mutualism / "spec.yaml").write_text("name: mutualism\nscore: 0.95")
+        (mutualism / "index.yaml").write_text("name: mutualism\nscore: 0.95")
 
         Bio.clear_cache()
         bio = Bio()
@@ -933,7 +933,7 @@ class TestDotsBeforeSlash:
         scenarios = tmp_path / "catalog" / "scenarios"
         mutualism = scenarios / "mutualism"
         mutualism.mkdir(parents=True)
-        (mutualism / "spec.yaml").write_text("config: {timeout: 30}")
+        (mutualism / "index.yaml").write_text("config: {timeout: 30}")
 
         Bio.clear_cache()
         bio = Bio()

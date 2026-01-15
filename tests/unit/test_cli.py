@@ -189,7 +189,7 @@ class TestFetchCommand:
 
         spec_dir = tmp_path / "test_spec"
         spec_dir.mkdir()
-        spec_file = spec_dir / "spec.yaml"
+        spec_file = spec_dir / "index.yaml"
         spec_file.write_text("name: test\nvalue: 42\n")
 
         Bio.clear_cache()
@@ -250,7 +250,7 @@ class TestBioStoreDehydration:
         data = {"value": Evaluable(source="normal(50, 10)")}
         bio.store(str(target), data)
 
-        spec_file = target / "spec.yaml"
+        spec_file = target / "index.yaml"
         content = spec_file.read_text()
         result = yaml.safe_load(content)
 
@@ -267,7 +267,7 @@ class TestBioStoreDehydration:
         data = {"rate": Quoted(source="k * S")}
         bio.store(str(target), data)
 
-        spec_file = target / "spec.yaml"
+        spec_file = target / "index.yaml"
         content = spec_file.read_text()
         result = yaml.safe_load(content)
 
@@ -284,7 +284,7 @@ class TestBioStoreDehydration:
         data = {"config": Reference(name="default_config")}
         bio.store(str(target), data)
 
-        spec_file = target / "spec.yaml"
+        spec_file = target / "index.yaml"
         content = spec_file.read_text()
         result = yaml.safe_load(content)
 
@@ -301,7 +301,7 @@ class TestBioStoreDehydration:
         data = {"simple": "value"}
         bio.store(str(target), data, raw=True)
 
-        spec_file = target / "spec.yaml"
+        spec_file = target / "index.yaml"
         content = spec_file.read_text()
         result = yaml.safe_load(content)
 
@@ -332,7 +332,7 @@ class TestBuildCommand:
 
         spec_dir = tmp_path / "test_spec"
         spec_dir.mkdir()
-        spec_file = spec_dir / "spec.yaml"
+        spec_file = spec_dir / "index.yaml"
         spec_file.write_text("name: test\nvalue: 42\n")
 
         result = build_command([str(spec_dir)])
@@ -348,7 +348,7 @@ class TestBuildCommand:
 
         spec_dir = tmp_path / "test_spec"
         spec_dir.mkdir()
-        spec_file = spec_dir / "spec.yaml"
+        spec_file = spec_dir / "index.yaml"
         spec_file.write_text("name: test\nvalue: 42\n")
 
         result = build_command([str(spec_dir), "--json"])
@@ -383,7 +383,7 @@ class TestHydrateCommand:
 
         spec_dir = tmp_path / "test_spec"
         spec_dir.mkdir()
-        spec_file = spec_dir / "spec.yaml"
+        spec_file = spec_dir / "index.yaml"
         spec_file.write_text("name: test\nvalue: !ev 2 + 2\n")
 
         result = hydrate_command([str(spec_dir), "--seed", "42"])
@@ -399,7 +399,7 @@ class TestHydrateCommand:
 
         spec_dir = tmp_path / "test_spec"
         spec_dir.mkdir()
-        spec_file = spec_dir / "spec.yaml"
+        spec_file = spec_dir / "index.yaml"
         spec_file.write_text("value: !ev 10 * 10\n")
 
         hydrate_command([str(spec_dir), "--seed", "42"])

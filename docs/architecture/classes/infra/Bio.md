@@ -385,8 +385,9 @@ class Bio:
         """Create a new Bio environment.
 
         Args:
-            dat: Optional DAT name (string) or DAT object. If None, anonymous DAT
-                 created lazily on first access via bio.dat property.
+            dat: Optional DAT path (string) or DAT object. Accepts filesystem paths
+                 like "data/experiments/run_001", not dotted names. If None, anonymous
+                 DAT created lazily on first access via bio.dat property.
         """
         ...
 
