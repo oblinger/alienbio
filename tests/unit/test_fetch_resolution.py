@@ -744,3 +744,85 @@ class TestBioConstructor:
         Bio.clear_cache()
         result3 = bio.fetch(str(spec_dir))
         assert result3["value"] == 2  # Fresh load
+
+
+# =============================================================================
+# Bio.cd() Tests
+# =============================================================================
+
+class TestBioCd:
+    """Test Bio.cd() for current DAT tracking."""
+
+    def test_cd_returns_none_initially(self):
+        """cd() returns None when no current DAT set."""
+        from alienbio.spec_lang.bio import Bio
+
+        bio = Bio()
+        assert bio.cd() is None
+
+    def test_cd_sets_and_returns_path(self, tmp_path):
+        """cd(path) sets current DAT and returns it."""
+        from alienbio.spec_lang.bio import Bio
+
+        bio = Bio()
+        result = bio.cd(tmp_path)
+        assert result == tmp_path.resolve()
+        assert bio.cd() == tmp_path.resolve()
+
+    def test_cd_expands_user(self):
+        """cd() expands ~ in paths."""
+        from alienbio.spec_lang.bio import Bio
+        from pathlib import Path
+
+        bio = Bio()
+        bio.cd("~/test")
+        assert bio.cd() == Path("~/test").expanduser().resolve()
+
+    def test_fetch_relative_path(self, tmp_path):
+        """fetch('./relative') resolves against current DAT."""
+        from alienbio.spec_lang.bio import Bio
+
+        # Create DAT structure
+        dat_dir = tmp_path / "mydat"
+        dat_dir.mkdir()
+        sub_dir = dat_dir / "results"
+        sub_dir.mkdir()
+        (sub_dir / "spec.yaml").write_text("score: 0.95")
+
+        Bio.clear_cache()
+        bio = Bio()
+        bio.cd(dat_dir)
+
+        result = bio.fetch("./results", raw=True)
+        assert result["score"] == 0.95
+
+    def test_fetch_relative_without_cd_raises(self):
+        """fetch('./...') without cd() raises ValueError."""
+        from alienbio.spec_lang.bio import Bio
+
+        bio = Bio()
+        with pytest.raises(ValueError, match="requires current DAT"):
+            bio.fetch("./something")
+
+    def test_store_relative_path(self, tmp_path):
+        """store('./relative', obj) resolves against current DAT."""
+        from alienbio.spec_lang.bio import Bio
+
+        dat_dir = tmp_path / "mydat"
+        dat_dir.mkdir()
+
+        bio = Bio()
+        bio.cd(dat_dir)
+        bio.store("./output", {"result": 42}, raw=True)
+
+        # Verify file was created
+        spec_file = dat_dir / "output" / "spec.yaml"
+        assert spec_file.exists()
+
+    def test_store_relative_without_cd_raises(self):
+        """store('./...', obj) without cd() raises ValueError."""
+        from alienbio.spec_lang.bio import Bio
+
+        bio = Bio()
+        with pytest.raises(ValueError, match="requires current DAT"):
+            bio.store("./output", {"data": 1})

@@ -95,6 +95,7 @@ class Bio:
         self._source_roots: list[SourceRoot] = []
         self._dat_ref: str | Any | None = dat  # String path or DAT object
         self._dat_object: Any = None  # Resolved DAT object (lazily loaded)
+        self._current_dat: Path | None = None  # Current working DAT for relative paths
 
     def add_source_root(self, path: str | Path, module: str | None = None) -> None:
         """Add a source root for spec resolution.
@@ -109,6 +110,29 @@ class Bio:
         """
         expanded_path = Path(path).expanduser()
         self._source_roots.append(SourceRoot(expanded_path, module))
+
+    def cd(self, path: str | Path | None = None) -> Path | None:
+        """Get or set the current working DAT.
+
+        When called without arguments, returns the current DAT path.
+        When called with a path, sets the current DAT and returns it.
+
+        Relative paths in fetch() and store() are resolved against current DAT.
+
+        Args:
+            path: DAT path to set as current, or None to just get current
+
+        Returns:
+            Current DAT path (after setting if path provided)
+
+        Example:
+            bio.cd()                          # returns current DAT path
+            bio.cd("data/experiments/run_001") # sets and returns new path
+            bio.fetch("./results")            # resolves relative to current DAT
+        """
+        if path is not None:
+            self._current_dat = Path(path).expanduser().resolve()
+        return self._current_dat
 
     @property
     def dat(self) -> Any:
@@ -309,8 +333,13 @@ class Bio:
                 # Single-segment: fall through to filesystem resolution
                 pass
 
-        # Filesystem/DAT path resolution
-        path = Path(specifier)
+        # Resolve relative paths against current DAT
+        if specifier.startswith("./"):
+            if self._current_dat is None:
+                raise ValueError("Relative path './...' requires current DAT (use bio.cd() first)")
+            path = self._current_dat / specifier[2:]
+        else:
+            path = Path(specifier)
 
         if not path.exists():
             raise FileNotFoundError(f"Specifier path not found: {specifier}")
@@ -390,11 +419,17 @@ class Bio:
         """Store a typed object to a specifier path.
 
         Args:
-            specifier: Path like "catalog/scenarios/custom"
+            specifier: Path like "catalog/scenarios/custom" or "./relative"
             obj: Object to store (must be a biotype, or dict if raw=True)
             raw: If True, write obj directly without dehydration
         """
-        path = Path(specifier)
+        # Resolve relative paths against current DAT
+        if specifier.startswith("./"):
+            if self._current_dat is None:
+                raise ValueError("Relative path './...' requires current DAT (use bio.cd() first)")
+            path = self._current_dat / specifier[2:]
+        else:
+            path = Path(specifier)
 
         # Ensure directory exists
         if not path.exists():
