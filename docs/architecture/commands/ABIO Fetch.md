@@ -42,6 +42,7 @@ scenario: Scenario = bio.fetch("catalog.scenarios.mutualism")       # source tre
 | Option | Description |
 |--------|-------------|
 | `raw=True` | Return unprocessed dict without resolving tags or hydrating |
+| `hydrate=False` | Resolve tags but don't convert to typed objects (not yet implemented) |
 
 ---
 
