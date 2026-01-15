@@ -603,33 +603,32 @@ class TestEntityStrWithContext:
     """Tests for Entity.__str__ using context-aware formatting."""
 
     def test_str_uses_prefix_when_context_available(self):
-        """Entity.__str__ uses PREFIX:path when context is set up."""
-        from alienbio.infra.context import Context, set_context
+        """Entity.__str__ uses PREFIX:path when IO is set up."""
+        from alienbio import IO, set_io, io
 
-        # Set up a context with IO
-        ctx = Context()
-        set_context(ctx)
+        # Set up fresh IO instance
+        set_io(IO())
 
         try:
             dat = MockDat("runs/exp1")
             world = Entity("world", dat=dat)
             compartment = Entity("cytoplasm", parent=world)
 
-            ctx.io.bind_prefix("W", world)
+            io().bind_prefix("W", world)
 
             # str() should now use the prefix
             assert str(world) == "W:"
             assert str(compartment) == "W:cytoplasm"
         finally:
-            # Clean up context
-            set_context(None)
+            # Clean up IO
+            set_io(None)
 
     def test_str_falls_back_without_context(self):
-        """Entity.__str__ falls back to full_name without context."""
-        from alienbio.infra.context import set_context
+        """Entity.__str__ falls back to full_name without IO."""
+        from alienbio import set_io
 
-        # Ensure no context is set
-        set_context(None)
+        # Ensure no IO is set
+        set_io(None)
 
         dat = MockDat("runs/exp1")
         world = Entity("world", dat=dat)
@@ -641,10 +640,9 @@ class TestEntityStrWithContext:
 
     def test_str_uses_shortest_prefix(self):
         """Entity.__str__ uses the shortest matching prefix."""
-        from alienbio.infra.context import Context, set_context
+        from alienbio import IO, set_io, io
 
-        ctx = Context()
-        set_context(ctx)
+        set_io(IO())
 
         try:
             dat = MockDat("runs/exp1")
@@ -652,10 +650,10 @@ class TestEntityStrWithContext:
             compartment = Entity("cytoplasm", parent=world)
             molecule = Entity("glucose", parent=compartment)
 
-            ctx.io.bind_prefix("W", world)
-            ctx.io.bind_prefix("C", compartment)
+            io().bind_prefix("W", world)
+            io().bind_prefix("C", compartment)
 
             # Molecule should use shorter C: prefix
             assert str(molecule) == "C:glucose"
         finally:
-            set_context(None)
+            set_io(None)

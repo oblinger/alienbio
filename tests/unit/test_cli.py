@@ -472,18 +472,3 @@ class TestReferenceMethod:
         with pytest.raises(KeyError):
             ref.resolve({})
 
-
-# -----------------------------------------------------------------------------
-# RuntimeContext tests
-# -----------------------------------------------------------------------------
-
-
-class TestRuntimeContext:
-    """Tests for RuntimeContext (renamed from Context)."""
-
-    def test_runtime_context_exported(self):
-        """Test RuntimeContext is exported from alienbio."""
-        from alienbio import RuntimeContext, Context
-
-        assert RuntimeContext is not None
-        assert Context is RuntimeContext                             # backward compat

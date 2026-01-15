@@ -23,9 +23,6 @@ from alienbio import (
     get_atom,
     # Other
     Entity,
-    Context,
-    set_context,
-    ctx,
 )
 from alienbio.infra.entity import get_entity_type
 
