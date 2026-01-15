@@ -46,7 +46,7 @@ from .types import Action, ActionResult, Observation, ExperimentResults
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace, ActionObservationRecord
 from .session import AgentSession
-from .agents import Agent, RandomAgent, ScriptedAgent, OracleAgent
+from .agents import Agent, RandomAgent, ScriptedAgent, OracleAgent, HumanAgent
 from .experiment import run_experiment
 
 __all__ = [
@@ -68,6 +68,7 @@ __all__ = [
     "RandomAgent",
     "ScriptedAgent",
     "OracleAgent",
+    "HumanAgent",
     # Orchestration
     "run_experiment",
 ]
