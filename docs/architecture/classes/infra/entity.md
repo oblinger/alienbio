@@ -18,10 +18,15 @@ Entity is the root of the type hierarchy for all biology objects. It provides tr
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `head` | str | Type name for serialization (property) |
+| `local_name` | str | Name within parent (property) |
+| `parent` | Entity? | Parent entity (property) |
+| `children` | Dict[str,Entity] | Child entities by name (property) |
 | `attributes()` | Dict | Semantic content (override in subclasses) |
 | `dat()` | Dat | Get the DAT anchor for this entity's tree (O(1)) |
 | `root()` | Entity | Get the root entity of this tree (O(1)) |
 | `full_name` | str | Full path from DAT anchor |
+| `ancestors()` | Iterator[Entity] | Walk up parent chain |
+| `descendants()` | Iterator[Entity] | Walk down all children (depth-first) |
 | `to_dict(recursive)` | Dict | Convert to dictionary for serialization |
 | `to_str(depth)` | str | Tree representation like `World(Cytoplasm(Glucose))` |
 | `save()` | None | Save entity tree to entities.yaml (root only) |

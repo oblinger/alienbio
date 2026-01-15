@@ -558,6 +558,38 @@ class TestFunctionDecorators:
         # Docstring should be preserved (if using functools.wraps properly)
         # Note: FnMeta may need adjustment to preserve __doc__
 
+    def test_factory_registers_implementation(self):
+        """@factory registers implementation for protocol"""
+        from alienbio.protocols.bio import Simulator
+        from alienbio.spec_lang.bio import _factory_registry, _factory_defaults
+
+        # ReferenceSimulatorImpl should be registered
+        assert Simulator in _factory_registry
+        assert "reference" in _factory_registry[Simulator]
+        assert _factory_defaults[Simulator] == "reference"
+
+    def test_factory_create_instance(self):
+        """bio.create(Simulator) returns ReferenceSimulatorImpl"""
+        from alienbio import bio
+        from alienbio.protocols.bio import Simulator
+        from alienbio.bio.simulator import ReferenceSimulatorImpl
+        from alienbio.bio import ChemistryImpl
+
+        # Mock DAT for entity anchor
+        class MockDat:
+            def __init__(self, path: str):
+                self._path = path
+
+            def get_path_name(self) -> str:
+                return self._path
+
+        # Create a minimal chemistry for the simulator
+        chem = ChemistryImpl("test_chem", dat=MockDat("chemistry/test"))
+
+        # Create via factory
+        sim = bio.create(Simulator, spec=chem)
+        assert isinstance(sim, ReferenceSimulatorImpl)
+
 
 # =============================================================================
 # Test Suite: Defaults and Inheritance
