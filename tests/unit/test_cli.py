@@ -36,7 +36,7 @@ def test_cli_report_hardcoded_test():
 
 
 def test_cli_run_hardcoded_test():
-    """Test that bio run prints result dict."""
+    """Test that bio run executes scenario with agent."""
     result = subprocess.run(
         [sys.executable, "-m", "alienbio.cli", "run", "src/alienbio/catalog/jobs/hardcoded_test"],
         capture_output=True,
@@ -48,11 +48,11 @@ def test_cli_run_hardcoded_test():
 
     output = result.stdout
 
-    # Should show YAML-formatted result dict
-    assert "--- Result ---" in output, "Should show result header"
-    assert "final_state:" in output, "Should show final_state"
-    assert "scores:" in output, "Should show scores"
-    assert "Success: True" in output, "Should show success"
+    # Should show experiment results
+    assert "EXPERIMENT RESULTS" in output, "Should show results header"
+    assert "Status:" in output, "Should show status"
+    assert "Passed:" in output, "Should show passed"
+    assert "Scores:" in output, "Should show scores"
 
 
 def test_cli_help():
