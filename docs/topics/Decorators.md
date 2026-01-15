@@ -206,6 +206,61 @@ See [[Factory Pegboard API]] for full documentation.
 
 ---
 
+## FnMeta Class
+
+All function decorators wrap their functions in `FnMeta`, which stores metadata and delegates calls to the original function.
+
+```python
+from alienbio.spec_lang import scoring
+
+@scoring(summary="Test score", range=(0.0, 1.0))
+def test_fn():
+    return 0.5
+
+# Access metadata
+test_fn.meta["summary"]  # "Test score"
+test_fn.meta["range"]    # (0.0, 1.0)
+test_fn.meta["higher_is_better"]  # True (default for @scoring)
+
+# Call function normally
+result = test_fn()  # 0.5
+```
+
+| Property/Method | Description |
+|-----------------|-------------|
+| `meta` | Dict of all metadata (summary, range, etc.) |
+| `func` | The original unwrapped function |
+| `__call__(*args, **kwargs)` | Delegates to original function |
+
+---
+
+## Registry Access Functions
+
+Look up registered functions by name. All raise `KeyError` if not found.
+
+```python
+from alienbio.spec_lang import get_action, get_measurement, get_scoring, get_rate
+
+# Look up registered functions
+action_fn = get_action("add_feedstock")
+measure_fn = get_measurement("sample_substrate")
+score_fn = get_scoring("population_health")
+rate_fn = get_rate("mass_action")
+
+# Access their metadata
+action_fn.meta["cost"]  # 1.0
+score_fn.meta["higher_is_better"]  # True
+```
+
+| Function | Registry | Returns |
+|----------|----------|---------|
+| `get_action(name)` | `action_registry` | Action function |
+| `get_measurement(name)` | `measurement_registry` | Measurement function |
+| `get_scoring(name)` | `scoring_registry` | Scoring function |
+| `get_rate(name)` | `rate_registry` | Rate function |
+
+---
+
 ## Implementation Notes
 
 All decorators assume the decorated functions/classes are loaded into the environment before use. This happens via:

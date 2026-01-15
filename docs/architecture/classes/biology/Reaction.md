@@ -126,6 +126,33 @@ Get effective rate for given state.
 rate = reaction.get_rate(state)
 ```
 
+## ReactionImpl Class Methods
+
+### `hydrate(data, *, molecules, dat=None, parent=None, local_name=None) -> ReactionImpl` (classmethod)
+Create a ReactionImpl from a dict. Used during YAML loading.
+
+**Args:**
+- `data`: Dict with keys: `reactants`, `products`, `rate`, `name`, `description`
+- `molecules`: Dict mapping molecule names to MoleculeImpl instances (required)
+- `dat`: DAT anchor (if root entity)
+- `parent`: Parent entity (if child)
+- `local_name`: Override name
+
+**Returns:** New ReactionImpl instance with resolved molecule references
+
+```python
+# First hydrate molecules
+molecules = {"glucose": glucose_mol, "pyruvate": pyruvate_mol}
+
+# Then hydrate reaction with molecule references
+rxn_data = {
+    "reactants": ["glucose"],  # or [{"glucose": 1}]
+    "products": [{"pyruvate": 2}],
+    "rate": 0.1
+}
+reaction = ReactionImpl.hydrate(rxn_data, molecules=molecules)
+```
+
 ## Protocol
 ```python
 from typing import Protocol, Callable, Dict, Union, runtime_checkable

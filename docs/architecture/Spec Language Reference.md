@@ -78,6 +78,7 @@ All tags use standard YAML syntax:
 | `!include` | Hydration | Include external file content |
 | `!ev` | Eval | Evaluate expression with context |
 | `!_` | Later | Preserve as string for contextual evaluation |
+| `!quote` | Later | Alias for `!_` (more readable alternative) |
 
 ### `!ref` — Structural Reference
 
@@ -279,6 +280,31 @@ scenario.variant:
 Child values override parent values; lookup climbs the chain until found.
 
 See [Scope](modules/Scope.md) for full details on scope chains and inheritance.
+
+---
+
+## Error Handling
+
+### EvalError
+
+`EvalError` is raised during spec evaluation when an expression fails. It includes the path to the failed node for debugging.
+
+```python
+from alienbio.spec_lang import EvalError
+
+# Raised automatically during eval:
+# EvalError: scenario.example.count: undefined variable 'foo'
+
+# Properties:
+# error.path  → "scenario.example.count"
+# str(error)  → "scenario.example.count: undefined variable 'foo'"
+```
+
+Common causes:
+- Undefined variable in `!ev` expression
+- Invalid Python syntax in expression
+- Type errors during evaluation
+- Missing function in evaluation context
 
 ---
 

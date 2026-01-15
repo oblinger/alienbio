@@ -11,6 +11,8 @@ IO handles all external representation concerns for entities: prefix bindings fo
 |----------|------|-------------|
 | `_prefixes` | Dict[str, Entity \| str] | Prefix -> target entity or path |
 | `_dat_entity_cache` | Dict[str, Entity] | Cache for loaded DAT entities |
+| `prefixes` | Dict[str, Entity \| str] | Current prefix bindings (read-only copy) |
+| `orphan_root` | Entity | Root entity for orphaned entities (lazy-init) |
 
 | Method | Returns | Description |
 |--------|---------|-------------|
@@ -131,6 +133,58 @@ Look up entity by reference string.
 **Raises:**
 - `KeyError`: If prefix not bound or entity not found
 
+### `orphan_root -> Entity` (property)
+Lazy-initialized root entity for orphaned entities. When entities are detached from their parent, they are re-parented here instead of becoming invalid. The `ORPHAN:` prefix is automatically bound to this root.
+
+```python
+child.detach()
+print(child)  # "ORPHAN:child"
+child.dat()   # Returns orphan DAT (valid but can't be saved)
+```
+
+### `resolve_refs(obj: Any) -> Any`
+Recursively replace `<PREFIX:path>` strings with Entity objects.
+
+**Args:**
+- `obj`: Data structure to process (dict, list, or scalar)
+
+**Returns:** New structure with entity references resolved
+
+```python
+data = yaml.safe_load(file)
+data = io.resolve_refs(data)  # "<W:glucose>" → Entity
+```
+
+### `insert_refs(obj: Any) -> Any`
+Recursively replace Entity objects with `<PREFIX:path>` strings.
+
+**Args:**
+- `obj`: Data structure to process (dict, list, or scalar)
+
+**Returns:** New structure with entities replaced by reference strings
+
+```python
+output = io.insert_refs(data)  # Entity → "<W:glucose>"
+yaml.dump(output, file)
+```
+
+### `load(path: str | Path) -> Dat`
+Load a Dat from data path.
+
+**Args:**
+- `path`: Path relative to data root, or absolute path
+
+**Returns:** The loaded Dat
+
+### `save(obj: Any, path: str | Path) -> Dat`
+Save object as Dat to data path.
+
+**Args:**
+- `obj`: Object to save. If dict, uses as spec. If Dat, saves in place. Otherwise wraps in `{"value": obj}`.
+- `path`: Path relative to `Dat.manager.sync_folder`
+
+**Returns:** The created or saved Dat
+
 ## Protocol
 ```python
 from typing import Dict, Any, Optional, Protocol
@@ -140,6 +194,16 @@ class IO(Protocol):
 
     _prefixes: Dict[str, "Entity" | str]
     _dat_entity_cache: Dict[str, "Entity"]
+
+    @property
+    def prefixes(self) -> Dict[str, "Entity" | str]:
+        """Current prefix bindings (read-only copy)."""
+        ...
+
+    @property
+    def orphan_root(self) -> "Entity":
+        """Root entity for orphaned entities."""
+        ...
 
     def bind_prefix(self, prefix: str, target: "Entity" | str) -> None:
         """Bind a prefix to a target entity or path string."""
