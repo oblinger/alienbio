@@ -303,7 +303,9 @@ class Bio:
     # Fetch / Store / Expand
     # =========================================================================
 
-    def fetch(self, specifier: str, *, raw: bool = False) -> Any:
+    def fetch(
+        self, specifier: str, *, raw: bool = False, hydrate: bool = True
+    ) -> Any:
         """Fetch a typed object from a specifier path.
 
         Routing:
@@ -312,10 +314,13 @@ class Bio:
 
         Args:
             specifier: Path like "catalog/scenarios/mutualism" or dotted "mute.mol.energy.ME1"
-            raw: If True, return raw YAML data without processing/hydration
+            raw: If True, return raw YAML data without any processing
+            hydrate: If False, resolve tags but don't convert to typed objects
+                     (Currently hydration to typed objects is not yet implemented,
+                     so hydrate=True and hydrate=False behave the same)
 
         Returns:
-            Hydrated object (Scenario, Chemistry, etc.) or raw dict if raw=True
+            Processed dict (or typed object when hydration is implemented)
 
         Raises:
             FileNotFoundError: If specifier path doesn't exist
@@ -325,7 +330,7 @@ class Bio:
             # No slash and source roots configured → try source root resolution
             # This handles both "mute.mol.energy" and single-segment "config"
             try:
-                return self._fetch_from_source_roots(specifier, raw=raw)
+                return self._fetch_from_source_roots(specifier, raw=raw, hydrate=hydrate)
             except FileNotFoundError as e:
                 # If specifier has dots, it's definitely a dotted path - don't try filesystem
                 if "." in specifier:
@@ -337,12 +342,17 @@ class Bio:
         if specifier.startswith("./"):
             if self._current_dat is None:
                 raise ValueError("Relative path './...' requires current DAT (use bio.cd() first)")
-            path = self._current_dat / specifier[2:]
-        else:
-            path = Path(specifier)
+            specifier = str(self._current_dat / specifier[2:])
+
+        # Try to find DAT path, handling "path/to/dat.dig.path" pattern
+        path = Path(specifier)
+        dig_path: list[str] = []
 
         if not path.exists():
-            raise FileNotFoundError(f"Specifier path not found: {specifier}")
+            # Path doesn't exist - try splitting at dots to find DAT + dig
+            path, dig_path = self._find_dat_with_dig(specifier)
+            if path is None:
+                raise FileNotFoundError(f"Specifier path not found: {specifier}")
 
         # Find spec.yaml in the directory
         if path.is_dir():
@@ -352,11 +362,11 @@ class Bio:
         else:
             spec_file = path
 
-        # ORM caching: use resolved path as cache key
+        # ORM caching: use resolved path as cache key (without dig path)
         cache_key = str(spec_file.resolve())
 
-        # Check cache for processed data (not raw)
-        if not raw and cache_key in Bio._dat_cache:
+        # Check cache for processed data (not raw, no dig path)
+        if not raw and not dig_path and cache_key in Bio._dat_cache:
             return Bio._dat_cache[cache_key]
 
         # Load and parse YAML
@@ -368,17 +378,26 @@ class Bio:
 
         # Raw mode: return unparsed YAML data (not cached)
         if raw:
+            if dig_path:
+                return self._dig_into(data, dig_path)
             return data
 
         # Full processing: expand and hydrate
-        result = self._process_and_hydrate(data, str(spec_file.parent))
+        result = self._process_and_hydrate(data, str(spec_file.parent), hydrate=hydrate)
 
-        # Cache the processed result
-        Bio._dat_cache[cache_key] = result
+        # Cache the full result (before dig)
+        if not dig_path:
+            Bio._dat_cache[cache_key] = result
+
+        # Dig into result if needed
+        if dig_path:
+            return self._dig_into(result, dig_path)
 
         return result
 
-    def _fetch_from_source_roots(self, dotted_path: str, *, raw: bool = False) -> Any:
+    def _fetch_from_source_roots(
+        self, dotted_path: str, *, raw: bool = False, hydrate: bool = True
+    ) -> Any:
         """Fetch from configured source roots using dotted path.
 
         Searches source roots in order, checking YAML files first,
@@ -387,6 +406,7 @@ class Bio:
         Args:
             dotted_path: Path like "mute.mol.energy.ME1"
             raw: If True, return raw data without processing
+            hydrate: If False, resolve tags but don't hydrate to typed objects
 
         Returns:
             Loaded and optionally processed data
@@ -406,7 +426,7 @@ class Bio:
 
                 # Process if it's a dict (could be a primitive from dig)
                 if isinstance(data, dict):
-                    return self._process_and_hydrate(data, base_dir)
+                    return self._process_and_hydrate(data, base_dir, hydrate=hydrate)
                 return data
 
             searched.append(str(root.path))
@@ -414,6 +434,65 @@ class Bio:
         raise FileNotFoundError(
             f"'{dotted_path}' not found in source roots: {searched}"
         )
+
+    def _find_dat_with_dig(self, specifier: str) -> tuple[Path | None, list[str]]:
+        """Find DAT path by splitting specifier at dots.
+
+        For "path/to/dat.dig.path", tries to find the longest valid path,
+        treating remaining dots as the dig path.
+
+        Args:
+            specifier: Full specifier like "catalog/scenarios/mutualism.baseline"
+
+        Returns:
+            Tuple of (path, dig_path) where path is the DAT Path and
+            dig_path is list of keys to dig into. Returns (None, []) if not found.
+        """
+        # Split at dots after the last slash
+        if "/" in specifier:
+            last_slash = specifier.rfind("/")
+            base = specifier[:last_slash + 1]
+            remainder = specifier[last_slash + 1:]
+        else:
+            base = ""
+            remainder = specifier
+
+        # Try progressively shorter paths
+        parts = remainder.split(".")
+        for i in range(len(parts), 0, -1):
+            path_str = base + ".".join(parts[:i])
+            path = Path(path_str)
+            if path.exists():
+                dig_path = parts[i:]
+                return path, dig_path
+
+        return None, []
+
+    def _dig_into(self, data: Any, dig_path: list[str]) -> Any:
+        """Navigate into data structure using dot-separated path.
+
+        Args:
+            data: Dict or object to dig into
+            dig_path: List of keys/attributes to traverse
+
+        Returns:
+            Value at the dig path
+
+        Raises:
+            KeyError: If a key is not found in a dict
+            AttributeError: If an attribute is not found on an object
+        """
+        result = data
+        for key in dig_path:
+            if isinstance(result, dict):
+                if key not in result:
+                    raise KeyError(f"Key '{key}' not found in dict")
+                result = result[key]
+            else:
+                if not hasattr(result, key):
+                    raise AttributeError(f"Attribute '{key}' not found on {type(result).__name__}")
+                result = getattr(result, key)
+        return result
 
     def store(self, specifier: str, obj: Any, *, raw: bool = False) -> None:
         """Store a typed object to a specifier path.
@@ -675,7 +754,9 @@ class Bio:
         """
         return self._simulator_factory(scenario)
 
-    def _process_and_hydrate(self, data: dict[str, Any], base_dir: str) -> Any:
+    def _process_and_hydrate(
+        self, data: dict[str, Any], base_dir: str, *, hydrate: bool = True
+    ) -> Any:
         """Process raw data: resolve includes, refs, py refs, defaults.
 
         Processing pipeline:
@@ -684,12 +765,21 @@ class Bio:
         3. Resolve !ref tags (cross-references)
         4. Resolve !py tags (local Python access)
         5. Expand defaults
+        6. Hydrate to typed objects (if hydrate=True) — NOT YET IMPLEMENTED
+
+        Args:
+            data: Raw dict data to process
+            base_dir: Directory for resolving relative includes
+            hydrate: If True, convert to typed objects (not yet implemented)
         """
         data = self._resolve_includes(data, base_dir)
         data = transform_typed_keys(data)
         data = self._resolve_refs(data, data.get("constants", {}))
         data = self._resolve_py_refs(data, base_dir)
         data = expand_defaults(data)
+
+        # TODO: If hydrate=True, convert dicts with _type to typed objects
+        # For now, hydrate parameter is accepted but not used
 
         return data
 

@@ -826,3 +826,77 @@ class TestBioCd:
         bio = Bio()
         with pytest.raises(ValueError, match="requires current DAT"):
             bio.store("./output", {"data": 1})
+
+
+# =============================================================================
+# DAT + Dig Pattern Tests
+# =============================================================================
+
+class TestDatDigPattern:
+    """Test path.dig.path pattern for navigating into DAT structures."""
+
+    def test_fetch_with_single_dig(self, tmp_path):
+        """fetch('path/dat.key') digs into the DAT."""
+        from alienbio.spec_lang.bio import Bio
+
+        dat_dir = tmp_path / "mydat"
+        dat_dir.mkdir()
+        (dat_dir / "spec.yaml").write_text("baseline: {score: 0.95}\nconfig: {timeout: 30}")
+
+        Bio.clear_cache()
+        bio = Bio()
+        result = bio.fetch(f"{dat_dir}.baseline", raw=True)
+        assert result == {"score": 0.95}
+
+    def test_fetch_with_deep_dig(self, tmp_path):
+        """fetch('path/dat.key1.key2') digs multiple levels."""
+        from alienbio.spec_lang.bio import Bio
+
+        dat_dir = tmp_path / "mydat"
+        dat_dir.mkdir()
+        (dat_dir / "spec.yaml").write_text("config: {settings: {timeout: 30}}")
+
+        Bio.clear_cache()
+        bio = Bio()
+        result = bio.fetch(f"{dat_dir}.config.settings.timeout", raw=True)
+        assert result == 30
+
+    def test_fetch_dig_key_not_found(self, tmp_path):
+        """fetch with non-existent dig key raises KeyError."""
+        from alienbio.spec_lang.bio import Bio
+
+        dat_dir = tmp_path / "mydat"
+        dat_dir.mkdir()
+        (dat_dir / "spec.yaml").write_text("config: {timeout: 30}")
+
+        Bio.clear_cache()
+        bio = Bio()
+        with pytest.raises(KeyError, match="nonexistent"):
+            bio.fetch(f"{dat_dir}.nonexistent", raw=True)
+
+    def test_fetch_dig_with_dotted_dirname(self, tmp_path):
+        """Directory with dots in name is found before dig."""
+        from alienbio.spec_lang.bio import Bio
+
+        # Create a directory with dots in its name
+        dat_dir = tmp_path / "my.dat.v1"
+        dat_dir.mkdir()
+        (dat_dir / "spec.yaml").write_text("value: 42")
+
+        Bio.clear_cache()
+        bio = Bio()
+        result = bio.fetch(str(dat_dir), raw=True)
+        assert result == {"value": 42}
+
+    def test_fetch_dig_with_processed_data(self, tmp_path):
+        """Dig works on processed (not just raw) data."""
+        from alienbio.spec_lang.bio import Bio
+
+        dat_dir = tmp_path / "mydat"
+        dat_dir.mkdir()
+        (dat_dir / "spec.yaml").write_text("baseline: {score: 0.95}")
+
+        Bio.clear_cache()
+        bio = Bio()
+        result = bio.fetch(f"{dat_dir}.baseline")  # No raw=True
+        assert result == {"score": 0.95}
