@@ -85,7 +85,7 @@ def parse_template(data: dict[str, Any], name: str | None = None) -> dict[str, A
         name: Optional template name
 
     Returns:
-        Template dict with keys: name, params, ports, molecules, reactions, instantiate
+        Template dict with keys: name, params, ports, molecules, reactions, instantiate, requires
     """
     # Extract special sections
     params = data.get("_params_", {})
@@ -93,6 +93,7 @@ def parse_template(data: dict[str, Any], name: str | None = None) -> dict[str, A
     molecules = data.get("molecules", {})
     reactions = data.get("reactions", {})
     instantiate = data.get("_instantiate_", {})
+    requires = data.get("requires", [])
 
     # Parse ports
     ports: dict[str, dict[str, str]] = {}
@@ -106,6 +107,46 @@ def parse_template(data: dict[str, Any], name: str | None = None) -> dict[str, A
         "molecules": molecules,
         "reactions": reactions,
         "instantiate": instantiate,
+        "requires": requires,
+    }
+
+
+def parse_interaction(data: dict[str, Any]) -> dict[str, Any]:
+    """Parse an interaction specification.
+
+    Interactions connect multiple instantiated templates together.
+
+    Args:
+        data: Interaction data with _template_, between, and optional params
+
+    Returns:
+        Dict with keys: template, between, params
+
+    Example:
+        parse_interaction({
+            "_template_": "cross_feeding",
+            "between": ["Krel", "Kova"],
+            "rate": 0.1
+        })
+        # Returns: {
+        #     "template": "cross_feeding",
+        #     "between": ["Krel", "Kova"],
+        #     "params": {"rate": 0.1}
+        # }
+    """
+    template = data.get("_template_")
+    between = data.get("between", [])
+
+    # All non-special keys are params
+    params = {}
+    for key, value in data.items():
+        if key not in ("_template_", "between"):
+            params[key] = value
+
+    return {
+        "template": template,
+        "between": between,
+        "params": params,
     }
 
 

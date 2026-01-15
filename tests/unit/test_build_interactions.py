@@ -22,7 +22,6 @@ import pytest
 class TestInteractionParsing:
     """Tests for parsing interactions: section."""
 
-    @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_parse_interaction_template(self):
         """Parse interaction with _template_ and between: fields."""
         from alienbio.build import parse_interaction
@@ -37,7 +36,6 @@ class TestInteractionParsing:
         assert interaction["between"] == ["Krel", "Kova"]
         assert interaction["params"]["rate"] == 0.1
 
-    @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_interaction_wires_species(self):
         """Interaction template wires two species together."""
         from alienbio import Bio, bio
@@ -100,7 +98,6 @@ class TestInteractionParsing:
 class TestPortRequirements:
     """Tests for requires: port validation."""
 
-    @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_requires_validation_passes(self):
         """Requires validation passes when ports are available."""
         from alienbio import Bio, bio
@@ -131,7 +128,6 @@ class TestPortRequirements:
         scenario = bio.build(spec, seed=42, registry=registry)
         assert scenario is not None
 
-    @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_requires_validation_fails(self):
         """Requires validation fails when required port is missing."""
         from alienbio import Bio, bio
@@ -164,7 +160,6 @@ class TestPortRequirements:
 class TestModifyAndSet:
     """Tests for _modify_ and _set_ syntax."""
 
-    @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_modify_changes_reactants(self):
         """_modify_ changes reactants in existing reaction."""
         from alienbio import Bio, bio
@@ -195,7 +190,6 @@ class TestModifyAndSet:
         gt = scenario._ground_truth_
         assert gt["reactions"]["r.x.r1"]["rate"] == 0.5
 
-    @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_modify_adds_reactant(self):
         """_modify_ can add to reactants list."""
         from alienbio import Bio, bio
@@ -226,7 +220,6 @@ class TestModifyAndSet:
         # Catalyst should be added to reactants
         assert "m.x.catalyst" in gt["reactions"]["r.x.r1"]["reactants"]
 
-    @pytest.mark.skip(reason="M2.8 not yet implemented")
     def test_modify_path_validation(self):
         """_modify_ raises error for invalid path."""
         from alienbio import Bio, bio
