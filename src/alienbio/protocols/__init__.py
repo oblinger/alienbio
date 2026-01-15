@@ -27,7 +27,7 @@ from .bio import (
 )
 
 # Execution protocols
-from .execution import Scenario
+from .execution import Scenario, Region, Organism
 
 # Infra protocols (to be implemented)
 # from .infra import Entity, IO, Expr, Context
@@ -47,4 +47,6 @@ __all__ = [
     "Simulator",
     # Execution
     "Scenario",
+    "Region",
+    "Organism",
 ]
