@@ -155,22 +155,24 @@ The hydration process:
 1. First pass: hydrate all molecules from `data["molecules"]`
 2. Second pass: hydrate reactions from `data["reactions"]`, linking to hydrated molecules
 
+```yaml
+# YAML spec data (loaded by bio.fetch)
+name: glycolysis
+molecules:
+  glucose:
+    bdepth: 2
+  pyruvate:
+    bdepth: 1
+reactions:
+  step1:
+    reactants: [glucose]
+    products:
+      - pyruvate: 2
+    rate: 0.1
+```
+
 ```python
-# From YAML data
-chem_data = {
-    "name": "glycolysis",
-    "molecules": {
-        "glucose": {"bdepth": 2},
-        "pyruvate": {"bdepth": 1}
-    },
-    "reactions": {
-        "step1": {
-            "reactants": ["glucose"],
-            "products": [{"pyruvate": 2}],
-            "rate": 0.1
-        }
-    }
-}
+# Hydrate from loaded YAML dict
 chemistry = ChemistryImpl.hydrate(chem_data)
 
 # Access hydrated components
