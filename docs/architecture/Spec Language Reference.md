@@ -107,7 +107,25 @@ Include external file content. Fully resolved at hydration — no placeholder su
 ```yaml
 constitution: !include safety.md           # markdown file as string
 defaults: !include shared/defaults.yaml    # YAML file merged in
+functions: !include helpers.py             # execute Python file
 ```
+
+**File type handling:**
+| Extension | Behavior |
+|-----------|----------|
+| `.yaml`, `.yml` | Parsed as YAML, merged into structure |
+| `.md`, `.txt` | Returned as raw string |
+| `.py` | **Executed** via `exec()` (see security note) |
+
+**Security Note — Python File Execution:**
+When including `.py` files, the code is **executed** using Python's `exec()`. This allows the file to register decorated functions (`@scoring`, `@action`, etc.) that become available in the spec. The include returns `None` — its purpose is side effects (registration).
+
+```yaml
+# loads helpers.py, executes it to register @scoring functions
+scoring_functions: !include helpers.py
+```
+
+**Warning:** Only include `.py` files from trusted sources. Included Python code runs with full interpreter access. This is intentional — it enables powerful customization — but requires the same trust as running any Python script.
 
 ### `!ev` — Evaluate Expression
 

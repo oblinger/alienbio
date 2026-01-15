@@ -136,6 +136,43 @@ sandbox.sim = sandbox.create(Simulator, spec=test_chemistry)
 
 ---
 
+## Config File Format
+
+The factory system can read default implementations from a config file.
+
+**Location:** `~/.config/alienbio/defaults.yaml`
+
+**Format:**
+```yaml
+# Default implementations for each protocol
+Simulator: reference
+IO: standard
+Agent: random
+Chemistry: standard
+```
+
+Each key is the protocol class name, and the value is the implementation name to use when `bio.create(Protocol)` is called without an explicit `name` parameter.
+
+**Resolution order:**
+1. Explicit `name` parameter in `bio.create(Protocol, name="fast")`
+2. Config file default (`~/.config/alienbio/defaults.yaml`)
+3. `@factory(default=True)` decorator on implementation class
+4. Error if no default found
+
+**Example:**
+```yaml
+# ~/.config/alienbio/defaults.yaml
+Simulator: fast    # Use FastSimulatorImpl by default
+```
+
+```python
+# With the config above:
+sim = bio.create(Simulator)  # Creates FastSimulatorImpl
+sim = bio.create(Simulator, name="reference")  # Explicitly uses ReferenceSimulatorImpl
+```
+
+---
+
 ## Implementation Notes
 
 ### Bio Class Changes
