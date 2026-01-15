@@ -1,0 +1,13 @@
+# Catalog Prefix Registry
+# Maps short prefixes to full names and descriptions
+#
+# Format: prefix: {name: "...", description: "..."}
+# Aligned JSON format for table-like readability
+
+prefixes:
+  test: {"name": "Test Fixtures",       "description": "Test scenarios, actions, and measurements for integration tests"}
+  mute: {"name": "Mutualism Baseline",  "description": "Two-species mutualistic ecosystem with shared metabolites"}
+  krel: {"name": "Krebs-like Cycle",    "description": "Circular metabolic pathway with energy coupling"}
+  pred: {"name": "Predator-Prey",       "description": "Multi-species predator-prey food web dynamics"}
+  comp: {"name": "Competition Arena",   "description": "Multi-species competition for limited resources"}
+  std:  {"name": "Standard Library",    "description": "Reusable templates for common molecules, reactions, and patterns"}

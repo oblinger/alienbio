@@ -6,20 +6,38 @@ Naming conventions for builder templates. These are `build()` targets with stati
 
 ## Choosing a Prefix
 
-Each template universe uses its own short prefix. Choose something memorable for your domain:
+Each template universe uses its own short prefix (2-4 characters). Prefixes are cryptic by design—they appear throughout thousands of references—so we maintain a registry for lookup.
 
-| Universe | Prefix | Example |
-|----------|--------|---------|
-| Mutualism scenarios | `mute` | `mute.mol.energy.ME1` |
-| Predator-prey scenarios | `pred` | `pred.org.heterotroph.hunter` |
-| Standard library | `std` | `std.rxn.synthesis.basic` |
+### Prefix Registry
+
+All prefixes are registered in `catalog/_index.yaml`:
+
+```yaml
+# catalog/_index.yaml
+prefixes:
+  test: {"name": "Test Fixtures",       "description": "Test scenarios, actions, and measurements"}
+  mute: {"name": "Mutualism Baseline",  "description": "Two-species mutualistic ecosystem"}
+  krel: {"name": "Krebs-like Cycle",    "description": "Circular metabolic pathway with energy coupling"}
+  pred: {"name": "Predator-Prey",       "description": "Multi-species predator-prey food web dynamics"}
+  comp: {"name": "Competition Arena",   "description": "Multi-species competition for limited resources"}
+  std:  {"name": "Standard Library",    "description": "Reusable templates for common patterns"}
+```
+
+Access programmatically via `bio.fetch("catalog._index").prefixes`.
+
+### Registering New Prefixes
+
+When creating a new universe:
+1. Choose a short, unused prefix (2-4 chars)
+2. Add it to `catalog/_index.yaml` with name and description
+3. Create the prefix folder in `catalog/`
 
 The prefix becomes a folder in your source tree containing the structure below.
 
 ## Directory Structure
 
 ```
-<prefix>                  # Your chosen prefix (e.g., mute, pred, std)
+<prefix>                  # Your chosen prefix (e.g., mutualism, simple_pred, std)
 ├── /mol                  # MOLECULE — molecular species templates
 │   ├── /energy           #   energy molecules (ME prefix)
 │   ├── /structural       #   structural molecules (MS prefix)
@@ -54,10 +72,14 @@ The prefix becomes a folder in your source tree containing the structure below.
 │   ├── /mutualism        #   cooperative relationships
 │   ├── /predation        #   predator-prey systems
 │   └── /competition      #   resource competition
-└── /rel                  # RELATIONSHIP — inter-species interaction templates
-    ├── /predation        #   predator-prey dynamics
-    ├── /symbiosis        #   mutually dependent
-    └── /parasitism       #   parasitic extraction
+├── /rel                  # RELATIONSHIP — inter-species interaction templates
+│   ├── /predation        #   predator-prey dynamics
+│   ├── /symbiosis        #   mutually dependent
+│   └── /parasitism       #   parasitic extraction
+└── /scenarios            # SCENARIO — experiment/test scenario definitions
+    ├── /basic            #   simple scenarios for testing
+    ├── /benchmark        #   standardized benchmark scenarios
+    └── /challenge        #   difficult scenarios for evaluation
 ```
 
 ---
