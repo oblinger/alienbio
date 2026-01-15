@@ -112,7 +112,7 @@ def timing_scenario():
             },
             "budget": 10
         },
-        "sim": {"max_agent_steps": 100}
+        "sim": {"max_agent_steps": 100, "steps_per_action": 0}
     }
 
 
@@ -776,7 +776,6 @@ class TestTimingTurnBased:
         assert result.completed is not None
         assert isinstance(result.completed, (int, float))
 
-    @pytest.mark.skip(reason="Timing model: initiation_time not yet implemented")
     def test_action_time_includes_initiation_and_duration(self, timing_scenario):
         """Time advances by initiation_time + duration."""
         from alienbio.agent import AgentSession, Action
@@ -790,7 +789,6 @@ class TestTimingTurnBased:
         expected_time = initial_time + 0.1 + 2.0
         assert abs(session.simulator.time - expected_time) < 0.001
 
-    @pytest.mark.skip(reason="Timing model: measurement duration not yet implemented")
     def test_measurement_time_includes_initiation_and_duration(self, timing_scenario):
         """Measurements also take time with timing config."""
         from alienbio.agent import AgentSession, Action
@@ -838,7 +836,6 @@ class TestTimingConcurrent:
         assert result1.completed is None
         assert result2.completed is None
 
-    @pytest.mark.skip(reason="Timing model: wait action advances _sim_time not simulator.time")
     def test_wait_action_advances_time(self, concurrent_scenario):
         """Built-in 'wait' action advances simulation time."""
         from alienbio.agent import AgentSession, Action

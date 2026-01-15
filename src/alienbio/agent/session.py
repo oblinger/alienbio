@@ -15,6 +15,7 @@ import random
 from .types import Action, ActionResult, Observation, ExperimentResults
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace
+from ..globals import Globals, create_globals_from_scenario
 
 
 @dataclass
@@ -69,14 +70,28 @@ class AgentSession:
         self._budget = interface.get("budget", float("inf"))
         self._spent = 0.0
 
-        # Timing configuration
-        timing = interface.get("timing", {})
-        self._default_wait = timing.get("default_wait", True)
-        self._initiation_time = timing.get("initiation_time", 0.0)
+        # Initialize globals from scenario
+        self._globals = create_globals_from_scenario(scenario)
 
-        # Sim configuration
+        # Timing configuration (from interface timing section, with globals fallback)
+        timing = interface.get("timing", {})
+        self._default_wait = timing.get(
+            "default_wait",
+            self._globals.get("action.timing.default_wait", True)
+        )
+        self._initiation_time = timing.get(
+            "initiation_time",
+            self._globals.get("action.timing.initiation_time", 0.0)
+        )
+        self._default_duration = self._globals.get("action.timing.default_duration", 1.0)
+
+        # Sim configuration (from sim section, with globals fallback)
         sim_config = scenario.get("sim", {})
-        self._max_steps = sim_config.get("max_agent_steps", float("inf"))
+        self._max_steps = sim_config.get(
+            "max_agent_steps",
+            self._globals.get("action.limits.max_steps", float("inf"))
+        )
+        self._max_sim_time = self._globals.get("action.limits.max_sim_time", float("inf"))
         self._steps_per_action = sim_config.get("steps_per_action", 1)
 
         # Initialize simulator
@@ -122,6 +137,16 @@ class AgentSession:
     def step_count(self) -> int:
         """Return the number of agent steps taken."""
         return self._step_count
+
+    @property
+    def globals(self) -> Globals:
+        """Return the globals configuration."""
+        return self._globals
+
+    @property
+    def sim_time(self) -> float:
+        """Return the current simulation time."""
+        return self._sim_time
 
     def observe(self) -> Observation:
         """Get the current observation.
@@ -222,13 +247,18 @@ class AgentSession:
         # Determine wait behavior
         wait = action.wait if action.wait is not None else self._default_wait
 
-        # Handle timing
+        # Handle timing - advance by initiation_time first
         duration = spec.get("duration", 0.0)
+        self._sim_time += self._initiation_time
+        if hasattr(self._simulator, 'advance_time'):
+            self._simulator.advance_time(self._initiation_time)
         initiated = self._sim_time
 
         if result.success:
             if wait and duration > 0:
                 self._sim_time += duration
+                if hasattr(self._simulator, 'advance_time'):
+                    self._simulator.advance_time(duration)
                 completed = self._sim_time
             else:
                 completed = initiated if duration == 0 else None
@@ -309,6 +339,9 @@ class AgentSession:
             if action.name == "wait":
                 duration = action.params.get("duration", 1.0)
                 self._sim_time += duration
+                # Also advance simulator time for explicit waits
+                if hasattr(self._simulator, 'advance_time'):
+                    self._simulator.advance_time(duration)
                 return _ExecutionResult(success=True, cost=0.0)
 
             if action.name not in self._actions_spec:
@@ -379,15 +412,31 @@ class AgentSession:
         """Check if the experiment is complete.
 
         Returns:
-            True if max_steps reached, agent signaled done, or terminal state
+            True if max_steps reached, budget exceeded, time exceeded,
+            agent signaled done, or terminal state
         """
         if self._done:
             return True
+
+        # Check max steps
         if self._step_count >= self._max_steps:
             self._done = True
             self._done_reason = "max_steps"
             return True
-        # TODO: Check for terminal state
+
+        # Check budget exceeded
+        if self._spent >= self._budget:
+            self._done = True
+            self._done_reason = "budget_exceeded"
+            return True
+
+        # Check max sim time
+        if self._sim_time >= self._max_sim_time:
+            self._done = True
+            self._done_reason = "time_exceeded"
+            return True
+
+        # TODO: Check for terminal state and custom termination expression
         return False
 
     def score(self) -> dict[str, float]:
@@ -460,3 +509,7 @@ class _MockSimulator:
 
     def step(self) -> None:
         self._time += 1.0
+
+    def advance_time(self, duration: float) -> None:
+        """Advance simulator time by the given duration."""
+        self._time += duration
