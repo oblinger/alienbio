@@ -48,6 +48,7 @@ from .trace import Trace, ActionObservationRecord
 from .session import AgentSession
 from .agents import Agent, RandomAgent, ScriptedAgent, OracleAgent, HumanAgent
 from .llm_agent import ConversationalLLMAgent
+from .claude_sdk_agent import ClaudeAgentSDKBinding
 from .experiment import run_experiment
 
 __all__ = [
@@ -71,6 +72,7 @@ __all__ = [
     "OracleAgent",
     "HumanAgent",
     "ConversationalLLMAgent",
+    "ClaudeAgentSDKBinding",
     # Orchestration
     "run_experiment",
 ]
