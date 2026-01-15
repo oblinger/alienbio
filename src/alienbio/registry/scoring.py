@@ -80,3 +80,7 @@ def efficiency_score(trace: "Trace", budget: float) -> float:
     completion = 1.0 if len(trace.records) > 0 else 0.0
 
     return 0.5 * budget_compliance + 0.5 * completion
+
+
+# Alias for clarity
+cost_efficiency = efficiency_score
