@@ -66,3 +66,99 @@ def test_cli_help():
     assert result.returncode == 0
     assert "bio" in result.stdout.lower()
     assert "report" in result.stdout.lower()
+
+
+# -----------------------------------------------------------------------------
+# cd command tests
+# -----------------------------------------------------------------------------
+
+
+class TestCdCommand:
+    """Tests for the bio cd CLI command."""
+
+    def test_cd_no_current_dat(self, monkeypatch, tmp_path, capsys):
+        """Test cd with no current DAT set."""
+        from alienbio.commands import cd
+
+        state_file = tmp_path / "state" / "current_dat"       # non-existent
+        monkeypatch.setattr(cd, "STATE_FILE", state_file)
+
+        result = cd.cd_command([])
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "no current DAT" in captured.err
+
+    def test_cd_prints_current_dat(self, monkeypatch, tmp_path, capsys):
+        """Test cd prints current DAT when set."""
+        from alienbio.commands import cd
+
+        state_file = tmp_path / "current_dat"
+        state_file.write_text("/some/path/to/dat")
+        monkeypatch.setattr(cd, "STATE_FILE", state_file)
+
+        result = cd.cd_command([])
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "/some/path/to/dat" in captured.out
+
+    def test_cd_sets_current_dat(self, monkeypatch, tmp_path, capsys):
+        """Test cd <path> sets current DAT."""
+        from alienbio.commands import cd
+
+        state_file = tmp_path / "state" / "current_dat"       # will be created
+        monkeypatch.setattr(cd, "STATE_FILE", state_file)
+
+        dat_dir = tmp_path / "mydat"
+        dat_dir.mkdir()
+
+        result = cd.cd_command([str(dat_dir)])
+
+        assert result == 0
+        assert state_file.exists()
+        assert str(dat_dir) in state_file.read_text()
+        captured = capsys.readouterr()
+        assert str(dat_dir) in captured.out
+
+    def test_cd_rejects_nonexistent_path(self, monkeypatch, tmp_path, capsys):
+        """Test cd <path> fails for non-existent path."""
+        from alienbio.commands import cd
+
+        state_file = tmp_path / "current_dat"
+        monkeypatch.setattr(cd, "STATE_FILE", state_file)
+
+        result = cd.cd_command(["/nonexistent/path"])
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "does not exist" in captured.err
+
+    def test_cd_rejects_file_path(self, monkeypatch, tmp_path, capsys):
+        """Test cd <path> fails for file (not directory)."""
+        from alienbio.commands import cd
+
+        state_file = tmp_path / "current_dat"
+        monkeypatch.setattr(cd, "STATE_FILE", state_file)
+
+        file_path = tmp_path / "somefile.txt"
+        file_path.write_text("content")
+
+        result = cd.cd_command([str(file_path)])
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "not a directory" in captured.err
+
+    def test_get_current_dat_helper(self, monkeypatch, tmp_path):
+        """Test get_current_dat() helper function."""
+        from alienbio.commands import cd
+
+        state_file = tmp_path / "current_dat"
+        monkeypatch.setattr(cd, "STATE_FILE", state_file)
+
+        assert cd.get_current_dat() is None                   # no state file
+
+        state_file.write_text("/data/experiments/run1")
+        path = cd.get_current_dat()
+        assert path == Path("/data/experiments/run1")

@@ -338,6 +338,19 @@ class Bio:
                 # Single-segment: fall through to filesystem resolution
                 pass
 
+        # Check for dots-before-slash pattern: "prefix.path/suffix"
+        # This resolves prefix through source roots, then appends /suffix
+        if "/" in specifier and self._source_roots:
+            first_slash = specifier.index("/")
+            prefix = specifier[:first_slash]
+            suffix = specifier[first_slash:]  # includes leading /
+
+            if "." in prefix:
+                # Has dots before slash - try source root resolution for prefix
+                resolved = self._resolve_source_root_prefix(prefix)
+                if resolved is not None:
+                    specifier = str(resolved) + suffix
+
         # Resolve relative paths against current DAT
         if specifier.startswith("./"):
             if self._current_dat is None:
@@ -493,6 +506,28 @@ class Bio:
                     raise AttributeError(f"Attribute '{key}' not found on {type(result).__name__}")
                 result = getattr(result, key)
         return result
+
+    def _resolve_source_root_prefix(self, dotted_prefix: str) -> Path | None:
+        """Resolve a dotted prefix through source roots to a directory path.
+
+        For dots-before-slash patterns like "catalog.scenarios/mutualism",
+        this resolves "catalog.scenarios" to its filesystem path.
+
+        Args:
+            dotted_prefix: Dotted path like "catalog.scenarios"
+
+        Returns:
+            Resolved Path if found, None otherwise
+        """
+        parts = dotted_prefix.split(".")
+
+        for root in self._source_roots:
+            # Convert dots to path segments
+            candidate = root.path / "/".join(parts)
+            if candidate.is_dir():
+                return candidate
+
+        return None
 
     def store(self, specifier: str, obj: Any, *, raw: bool = False) -> None:
         """Store a typed object to a specifier path.

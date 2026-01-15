@@ -900,3 +900,56 @@ class TestDatDigPattern:
         bio = Bio()
         result = bio.fetch(f"{dat_dir}.baseline")  # No raw=True
         assert result == {"score": 0.95}
+
+
+# =============================================================================
+# Dots-Before-Slash Pattern Tests
+# =============================================================================
+
+class TestDotsBeforeSlash:
+    """Test prefix.path/suffix pattern for source root + path."""
+
+    def test_dots_before_slash_resolves(self, tmp_path):
+        """fetch('prefix.path/suffix') resolves prefix via source roots."""
+        from alienbio.spec_lang.bio import Bio
+
+        # Create catalog/scenarios/mutualism structure
+        scenarios = tmp_path / "catalog" / "scenarios"
+        mutualism = scenarios / "mutualism"
+        mutualism.mkdir(parents=True)
+        (mutualism / "spec.yaml").write_text("name: mutualism\nscore: 0.95")
+
+        Bio.clear_cache()
+        bio = Bio()
+        bio.add_source_root(tmp_path)
+
+        result = bio.fetch("catalog.scenarios/mutualism", raw=True)
+        assert result["name"] == "mutualism"
+
+    def test_dots_before_slash_with_dig(self, tmp_path):
+        """fetch('prefix.path/suffix.key') combines prefix resolution with dig."""
+        from alienbio.spec_lang.bio import Bio
+
+        scenarios = tmp_path / "catalog" / "scenarios"
+        mutualism = scenarios / "mutualism"
+        mutualism.mkdir(parents=True)
+        (mutualism / "spec.yaml").write_text("config: {timeout: 30}")
+
+        Bio.clear_cache()
+        bio = Bio()
+        bio.add_source_root(tmp_path)
+
+        result = bio.fetch("catalog.scenarios/mutualism.config.timeout", raw=True)
+        assert result == 30
+
+    def test_dots_before_slash_no_match(self, tmp_path):
+        """Unresolved prefix falls through to normal path resolution."""
+        from alienbio.spec_lang.bio import Bio
+
+        Bio.clear_cache()
+        bio = Bio()
+        bio.add_source_root(tmp_path)
+
+        # This should fail since "nonexistent.path" can't be resolved
+        with pytest.raises(FileNotFoundError):
+            bio.fetch("nonexistent.path/something")
