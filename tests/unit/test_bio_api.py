@@ -198,9 +198,10 @@ a:
 class TestBioRunRouting:
     """Tests for bio.run() routing logic."""
 
-    def test_run_with_dict_calls_build(self):
-        """run(dict) calls build() on the dict."""
+    def test_run_with_dict_calls_build_and_executes(self):
+        """run(dict) calls build() on the dict and executes simulation."""
         from alienbio.build import TemplateRegistry, parse_template
+        from alienbio.spec_lang import SimulationResult
 
         registry = TemplateRegistry()
         registry.register("simple", parse_template({
@@ -213,14 +214,17 @@ class TestBioRunRouting:
             }
         }
 
-        result = bio.run(spec, seed=42, registry=registry)
+        result = bio.run(spec, seed=42, registry=registry, steps=10)
 
-        # Should return a Scenario
-        assert isinstance(result, Scenario)
-        assert len(result.molecules) > 0
+        # Should return a SimulationResult (M3.1 - Scenario Execution)
+        assert isinstance(result, SimulationResult)
+        assert result.steps == 10
+        assert len(result.timeline) == 11  # initial + 10 steps
 
-    def test_run_with_scenario_returns_scenario(self):
-        """run(Scenario) returns the scenario (for execution)."""
+    def test_run_with_scenario_executes_simulation(self):
+        """run(Scenario) executes simulation and returns SimulationResult."""
+        from alienbio.spec_lang import SimulationResult
+
         scenario = Scenario(
             molecules={"M1": {"role": "energy"}},
             reactions={},
@@ -230,10 +234,13 @@ class TestBioRunRouting:
             _metadata_={}
         )
 
-        result = bio.run(scenario, seed=42)
+        result = bio.run(scenario, seed=42, steps=5)
 
-        # Should return the same scenario (execution not yet implemented)
-        assert result is scenario
+        # Should return SimulationResult (M3.1 - Scenario Execution)
+        assert isinstance(result, SimulationResult)
+        assert result.seed == 42
+        assert result.steps == 5
+        assert len(result.timeline) == 6  # initial + 5 steps
 
     @pytest.mark.skip(reason="String routing in run() needs fetch integration")
     def test_run_with_string_fetches_and_builds(self, temp_dir):
