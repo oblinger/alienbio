@@ -5,6 +5,8 @@ Usage:
     bio report <path>       Same as above - run and create Excel report
     bio run <path>          Debug: run entity, print result dict
     bio expand <path>       Debug: show processed spec
+    bio cd                  Print current DAT path
+    bio cd <path>           Set current DAT path
     bio --help              Show help
     bio --version           Show version
 
@@ -13,6 +15,7 @@ Examples:
     bio report catalog/jobs/hardcoded_test
     bio run catalog/jobs/hardcoded_test   # Debug: print result dict
     bio expand catalog/jobs/hardcoded_test/index.yaml
+    bio cd data/experiments/run1          # Set current DAT
 """
 
 from __future__ import annotations
@@ -39,11 +42,14 @@ def main(argv: list[str] | None = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
+  cd              Print current DAT path
+  cd <path>       Set current DAT path
   report <path>   Run scenario and create Excel report (default)
   run <path>      Debug: run entity, print result dict
   expand <path>   Debug: show processed spec without hydrating
 
 Examples:
+  bio cd data/experiments/run1          # Set current DAT
   bio catalog/jobs/hardcoded_test       # Create and open Excel report
   bio run catalog/jobs/hardcoded_test   # Debug: print result dict
 """,
