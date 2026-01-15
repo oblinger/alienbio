@@ -191,14 +191,6 @@ class Include:
             return data
 
 
-# --- Backward compatibility aliases (deprecated) ---
-# Use Evaluable, Reference, Include directly instead
-
-EvTag = Evaluable                                                    # deprecated
-RefTag = Reference                                                   # deprecated
-IncludeTag = Include                                                 # deprecated
-
-
 # --- YAML constructors ---
 # Note: eval.py also registers constructors, but we re-register here
 # to ensure Include is used for !include

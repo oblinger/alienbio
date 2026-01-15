@@ -31,9 +31,9 @@ from alienbio.spec_lang import (
     measurement_registry,
     scoring_registry,
     rate_registry,
-    EvTag,
-    RefTag,
-    IncludeTag,
+    Evaluable,
+    Reference,
+    Include,
     transform_typed_keys,
     expand_defaults,
 )
@@ -119,70 +119,70 @@ def sample_mass_action(k: float = 0.1):
 # =============================================================================
 
 
-class TestEvTag:
+class TestEvaluable:
     """Tests for !ev tag evaluation."""
 
     def test_ev_simple_arithmetic(self):
         """!ev 2+3 → 5 (simple arithmetic)"""
-        tag = EvTag("2+3")
+        tag = Evaluable("2+3")
         assert tag.evaluate() == 5
 
     def test_ev_operator_precedence(self):
         """!ev 2 * 3 + 4 → 10 (operator precedence)"""
-        tag = EvTag("2 * 3 + 4")
+        tag = Evaluable("2 * 3 + 4")
         assert tag.evaluate() == 10
 
     def test_ev_list_literal(self):
         """!ev [1, 2, 3] → list (literal collections)"""
-        tag = EvTag("[1, 2, 3]")
+        tag = Evaluable("[1, 2, 3]")
         assert tag.evaluate() == [1, 2, 3]
 
     def test_ev_dict_literal(self):
         """!ev {"a": 1} → dict (literal dict)"""
-        tag = EvTag('{"a": 1}')
+        tag = Evaluable('{"a": 1}')
         assert tag.evaluate() == {"a": 1}
 
     def test_ev_function_call_with_kwargs(self):
         """!ev energy_ring(size=6) → function call with kwargs"""
-        tag = EvTag("energy_ring(size=6)")
+        tag = Evaluable("energy_ring(size=6)")
         result = tag.evaluate({"energy_ring": sample_energy_ring})
         assert result == ["M0", "M1", "M2", "M3", "M4", "M5"]
 
     def test_ev_returns_callable(self):
         """!ev mass_action(k=0.1) → returns callable"""
-        tag = EvTag("mass_action(k=0.1)")
+        tag = Evaluable("mass_action(k=0.1)")
         result = tag.evaluate({"mass_action": sample_mass_action})
         assert callable(result)
         assert result({"A": 1.0, "B": 2.0}) == pytest.approx(0.3)
 
     def test_ev_lambda_expression(self):
         """!ev lambda c: c["ME1"] * 0.1 → lambda expression"""
-        tag = EvTag('lambda c: c["ME1"] * 0.1')
+        tag = Evaluable('lambda c: c["ME1"] * 0.1')
         result = tag.evaluate()
         assert callable(result)
         assert result({"ME1": 100.0}) == 10.0
 
     def test_ev_undefined_name_raises(self):
         """!ev undefined_name → raises NameError"""
-        tag = EvTag("undefined_name")
+        tag = Evaluable("undefined_name")
         with pytest.raises(NameError):
             tag.evaluate()
 
     def test_ev_division_by_zero_raises(self):
         """!ev 1/0 → raises ZeroDivisionError"""
-        tag = EvTag("1/0")
+        tag = Evaluable("1/0")
         with pytest.raises(ZeroDivisionError):
             tag.evaluate()
 
     def test_ev_blocks_dangerous_builtins(self):
         """!ev open("/etc/passwd") → blocked (security)"""
-        tag = EvTag('open("/etc/passwd")')
+        tag = Evaluable('open("/etc/passwd")')
         with pytest.raises((NameError, TypeError)):
             tag.evaluate()
 
     def test_ev_blocks_import(self):
         """Ensure __import__ is blocked."""
-        tag = EvTag('__import__("os")')
+        tag = Evaluable('__import__("os")')
         with pytest.raises((NameError, TypeError)):
             tag.evaluate()
 
@@ -201,37 +201,37 @@ class TestEvTag:
 # =============================================================================
 
 
-class TestRefTag:
+class TestReference:
     """Tests for !ref tag resolution."""
 
     def test_ref_simple_scalar(self):
         """!ref simple_const → scalar value"""
-        tag = RefTag("simple_const")
+        tag = Reference("simple_const")
         constants = {"simple_const": 42}
         assert tag.resolve(constants) == 42
 
     def test_ref_dotted_path(self):
         """!ref nested.path.value → dotted path lookup"""
-        tag = RefTag("nested.path.value")
+        tag = Reference("nested.path.value")
         constants = {"nested": {"path": {"value": "deep"}}}
         assert tag.resolve(constants) == "deep"
 
     def test_ref_dict_constant(self):
         """!ref dict_const → returns entire dict"""
-        tag = RefTag("dict_const")
+        tag = Reference("dict_const")
         constants = {"dict_const": {"a": 1, "b": 2}}
         assert tag.resolve(constants) == {"a": 1, "b": 2}
 
     def test_ref_undefined_raises(self):
         """!ref undefined_const → raises KeyError"""
-        tag = RefTag("undefined_const")
+        tag = Reference("undefined_const")
         constants = {}
         with pytest.raises(KeyError):
             tag.resolve(constants)
 
     def test_ref_partial_path_undefined_raises(self):
         """!ref foo.bar where foo exists but bar doesn't → raises KeyError"""
-        tag = RefTag("foo.bar")
+        tag = Reference("foo.bar")
         constants = {"foo": {"baz": 1}}
         with pytest.raises(KeyError):
             tag.resolve(constants)
@@ -263,7 +263,7 @@ class TestRefTag:
 # =============================================================================
 
 
-class TestIncludeTag:
+class TestInclude:
     """Tests for !include tag file loading."""
 
     def test_include_markdown_file(self, temp_dir):
@@ -271,7 +271,7 @@ class TestIncludeTag:
         md_file = temp_dir / "safety.md"
         md_file.write_text("# Safety Rules\n\nBe careful.")
 
-        tag = IncludeTag("safety.md")
+        tag = Include("safety.md")
         result = tag.load(str(temp_dir))
         assert result == "# Safety Rules\n\nBe careful."
 
@@ -280,7 +280,7 @@ class TestIncludeTag:
         yaml_file = temp_dir / "config.yaml"
         yaml_file.write_text("key: value\nnested:\n  a: 1")
 
-        tag = IncludeTag("config.yaml")
+        tag = Include("config.yaml")
         result = tag.load(str(temp_dir))
         assert result == {"key": "value", "nested": {"a": 1}}
 
@@ -295,14 +295,14 @@ def test_action(sim):
     return "executed"
 """)
 
-        tag = IncludeTag("functions.py")
+        tag = Include("functions.py")
         tag.load(str(temp_dir))
         # After loading, the action should be registered
         assert "test_action" in action_registry
 
     def test_include_missing_file_raises(self, temp_dir):
         """!include missing.md → raises FileNotFoundError"""
-        tag = IncludeTag("missing.md")
+        tag = Include("missing.md")
         with pytest.raises(FileNotFoundError):
             tag.load(str(temp_dir))
 
@@ -316,7 +316,7 @@ def test_action(sim):
         subdir = temp_dir / "subdir"
         subdir.mkdir()
 
-        tag = IncludeTag("../outside.md")
+        tag = Include("../outside.md")
         # Relative to subdir, should find parent's outside.md
         # This test may need adjustment based on implementation
         pytest.skip("Relative path handling TBD")
@@ -326,7 +326,7 @@ def test_action(sim):
         abs_file = temp_dir / "absolute.md"
         abs_file.write_text("Absolute content")
 
-        tag = IncludeTag(str(abs_file))
+        tag = Include(str(abs_file))
         result = tag.load()
         assert result == "Absolute content"
 
@@ -341,7 +341,7 @@ def test_action(sim):
         a_file = temp_dir / "a.yaml"
         a_file.write_text("a_content: !include b.yaml")
 
-        tag = IncludeTag("a.yaml")
+        tag = Include("a.yaml")
         result = tag.load(str(temp_dir))
         # Should recursively resolve includes
         assert result["a_content"]["b_content"] == "C content"
@@ -354,7 +354,7 @@ def test_action(sim):
         b_file = temp_dir / "b.yaml"
         b_file.write_text("content: !include a.yaml")
 
-        tag = IncludeTag("a.yaml")
+        tag = Include("a.yaml")
         with pytest.raises(RecursionError):
             tag.load(str(temp_dir))
 
@@ -362,7 +362,7 @@ def test_action(sim):
         """Test that !include is properly parsed by YAML."""
         yaml_str = "content: !include myfile.md"
         data = yaml.safe_load(yaml_str)
-        assert isinstance(data["content"], IncludeTag)
+        assert isinstance(data["content"], Include)
         assert data["content"].path == "myfile.md"
 
 
@@ -741,7 +741,7 @@ constants:
         # This requires multi-pass resolution
         constants = {
             "base": 10,
-            "derived": RefTag("base"),  # Would need to resolve to 10
+            "derived": Reference("base"),  # Would need to resolve to 10
         }
         # First resolve derived
         constants["derived"] = constants["derived"].resolve(constants)
@@ -1072,12 +1072,12 @@ constants:
     def test_ev_with_multiline_expression(self):
         """!ev with complex multiline-style expression"""
         # YAML will collapse this to single line, but test the parsing
-        tag = EvTag("sum([1, 2, 3, 4, 5])")
+        tag = Evaluable("sum([1, 2, 3, 4, 5])")
         assert tag.evaluate() == 15
 
     def test_ref_with_special_characters(self):
         """!ref with underscores and numbers in name"""
-        tag = RefTag("my_const_123")
+        tag = Reference("my_const_123")
         constants = {"my_const_123": "special"}
         assert tag.resolve(constants) == "special"
 

@@ -38,10 +38,6 @@ from .spec_lang import (
     EvalContext,
     eval_node,
     make_context,
-    # Legacy tag aliases (deprecated)
-    EvTag,
-    RefTag,
-    IncludeTag,
     # Loader functions
     transform_typed_keys,
     expand_defaults,
@@ -103,10 +99,6 @@ __all__ = [
     "EvalContext",
     "eval_node",
     "make_context",
-    # Legacy tag aliases (deprecated - use Evaluable/Reference/Include)
-    "EvTag",
-    "RefTag",
-    "IncludeTag",
     # Loader functions
     "transform_typed_keys",
     "expand_defaults",

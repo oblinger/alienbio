@@ -10,19 +10,17 @@ Comprehensive specification of the YAML-based spec language used throughout alie
 
 **READ THIS FIRST** if implementing or refactoring the spec language.
 
-### Tag System Consolidation (M1.5)
+### Tag System (Completed)
 
-The current code has two tag systems. Remove the old one:
+The tag system uses these placeholder classes (aliases EvTag/RefTag/IncludeTag have been removed):
 
-**Remove (old system):**
-- `EvTag`, `RefTag`, `IncludeTag` classes in `tags.py`
-
-**Keep (new system):**
+**Current classes:**
 - `Evaluable` — placeholder for `!ev`, resolved at eval time
 - `Quoted` — placeholder for `!_`, preserved as string for later
 - `Reference` — placeholder for `!ref`, resolved during hydration
+- `Include` — placeholder for `!include`, resolved during hydration
 
-The YAML constructors in `tags.py` should create the new placeholder classes, not the old Tag classes.
+The YAML constructors in `tags.py` create these placeholder classes.
 
 ### Context Class Consolidation (M1.5)
 

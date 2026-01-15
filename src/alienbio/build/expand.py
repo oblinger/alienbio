@@ -9,7 +9,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..spec_lang import RefTag
 from ..spec_lang.eval import Evaluable, Quoted, Reference, eval_node, make_context, Context
 from .template import TemplateRegistry, ports_compatible
 from .exceptions import PortTypeMismatchError, PortNotFoundError
@@ -402,10 +401,6 @@ def _resolve_and_eval(data: Any, params: dict[str, Any], ctx: Context) -> Any:
     if isinstance(data, Reference):
         return params.get(data.name, data)
 
-    # Handle RefTag (legacy)
-    if isinstance(data, RefTag):
-        return params.get(data.ref, data)
-
     # Handle string-based tags
     if isinstance(data, str):
         if data.startswith("!ev "):
@@ -434,10 +429,8 @@ def _resolve_and_eval(data: Any, params: dict[str, Any], ctx: Context) -> Any:
 
 
 def _resolve_refs(data: Any, params: dict[str, Any]) -> Any:
-    """Recursively resolve !ref expressions in data (legacy, no eval)."""
-    if isinstance(data, RefTag):
-        return params.get(data.ref, data)
-    elif isinstance(data, Reference):
+    """Recursively resolve !ref expressions in data."""
+    if isinstance(data, Reference):
         return params.get(data.name, data)
     elif isinstance(data, str):
         if data.startswith("!ref "):
