@@ -47,22 +47,6 @@ def get_registered_heads() -> Dict[str, Type["Entity"]]:
     return _head_registry.copy()
 
 
-# Legacy aliases for compatibility
-def register_entity_type(name: str, cls: Type["Entity"]) -> None:
-    """Legacy alias for register_head."""
-    register_head(name, cls)
-
-
-def get_entity_type(name: str) -> Type["Entity"]:
-    """Legacy alias for get_entity_class."""
-    return get_entity_class(name)
-
-
-def get_entity_types() -> Dict[str, Type["Entity"]]:
-    """Legacy alias for get_registered_heads."""
-    return get_registered_heads()
-
-
 class Entity:
     """Base class for all biology objects.
 

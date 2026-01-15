@@ -13,7 +13,7 @@ from .tags import Include
 from .eval import (
     Evaluable, Quoted, Reference,
     hydrate, dehydrate,
-    EvalContext, Context, eval_node, EvalError,
+    EvalContext, eval_node, EvalError,
     SAFE_BUILTINS, make_context,
 )
 from .builtins import (
@@ -55,7 +55,6 @@ __all__ = [
     "hydrate",
     "dehydrate",
     "EvalContext",
-    "Context",  # backward compat alias for EvalContext
     "eval_node",
     "EvalError",
     "SAFE_BUILTINS",

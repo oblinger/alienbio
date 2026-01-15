@@ -56,11 +56,6 @@ class Evaluable:
     def __repr__(self) -> str:
         return f"Evaluable({self.source!r})"
 
-    @property
-    def expr(self) -> str:
-        """Alias for source (backward compat with EvTag)."""
-        return self.source
-
     def evaluate(self, namespace: dict[str, Any] | None = None) -> Any:
         """Evaluate the expression in a sandboxed namespace.
 
@@ -424,10 +419,6 @@ class EvalContext:
             functions=self.functions,
             path=new_path,
         )
-
-
-# Backward compatibility alias
-Context = EvalContext
 
 
 # =============================================================================

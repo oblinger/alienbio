@@ -39,7 +39,7 @@ from alienbio.spec_lang.eval import (
     Reference,
     hydrate,
     dehydrate,
-    Context,
+    EvalContext,
     eval_node,
     EvalError,
     SAFE_BUILTINS,
@@ -874,19 +874,19 @@ class TestContext:
         def my_func():
             return 42
 
-        ctx = Context(functions={"my_func": my_func})
+        ctx = EvalContext(functions={"my_func": my_func})
         assert ctx.functions["my_func"]() == 42
 
     def test_context_child_extends_path(self):
         """Child context extends the path."""
-        parent = Context(path="scenario")
+        parent = EvalContext(path="scenario")
         child = parent.child("molecules")
 
         assert child.path == "scenario.molecules"
 
     def test_context_child_inherits_bindings(self):
         """Child sees parent bindings."""
-        parent = Context(bindings={"x": 10, "y": 20})
+        parent = EvalContext(bindings={"x": 10, "y": 20})
         child = parent.child("key")
 
         # Child shares same bindings dict reference
@@ -895,7 +895,7 @@ class TestContext:
 
     def test_context_path_tracking(self):
         """Path builds up through nested child calls."""
-        ctx = Context(path="")
+        ctx = EvalContext(path="")
         child1 = ctx.child("scenario")
         child2 = child1.child("molecules")
         child3 = child2.child("A")

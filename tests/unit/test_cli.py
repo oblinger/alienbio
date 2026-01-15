@@ -435,15 +435,6 @@ class TestEvaluableMethod:
         result = ev.evaluate({"x": 3, "y": 4})
         assert result == 12
 
-    def test_evaluable_expr_property(self):
-        """Test Evaluable.expr property (backward compat)."""
-        from alienbio import Evaluable
-
-        ev = Evaluable(source="1 + 1")
-        assert ev.expr == "1 + 1"
-        assert ev.source == ev.expr
-
-
 class TestReferenceMethod:
     """Tests for Reference.resolve() method."""
 
