@@ -17,6 +17,7 @@ from alienbio.protocols import Scenario
 from .template import (
     parse_template,
     parse_interaction,
+    parse_background,
     parse_port,
     ports_compatible,
     TemplateRegistry,
@@ -58,6 +59,7 @@ __all__ = [
     # Template parsing
     "parse_template",
     "parse_interaction",
+    "parse_background",
     "parse_port",
     "ports_compatible",
     "TemplateRegistry",

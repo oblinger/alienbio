@@ -11,7 +11,7 @@ from typing import Any
 
 from alienbio.protocols import Scenario
 
-from .template import TemplateRegistry, parse_template, parse_interaction
+from .template import TemplateRegistry, parse_template, parse_interaction, parse_background
 from .expand import apply_template
 from .guards import apply_template_with_guards
 from .visibility import generate_visibility_mapping, apply_visibility
@@ -91,6 +91,13 @@ def instantiate(
     modify_spec = spec.get("_modify_", {})
     if modify_spec:
         ground_truth = _process_modifications(modify_spec, ground_truth)
+
+    # Process background generation
+    background_spec = spec.get("background", {})
+    if background_spec:
+        ground_truth = _process_background(
+            background_spec, ground_truth, guards, seed
+        )
 
     # Generate visibility mapping
     visibility_mapping = generate_visibility_mapping(ground_truth, visibility_spec, seed=seed)
@@ -456,5 +463,75 @@ def _process_modifications(
                 for val in values:
                     namespaced_val = f"m.{namespace}.{val}"
                     element[key].append(namespaced_val)
+
+    return ground_truth
+
+
+def _process_background(
+    background_spec: dict[str, Any],
+    ground_truth: dict[str, Any],
+    guards: list,
+    seed: int,
+) -> dict[str, Any]:
+    """Process background section to generate filler molecules and reactions.
+
+    Args:
+        background_spec: Dict with molecules and reactions config
+        ground_truth: Current ground truth
+        guards: Guard functions to apply
+        seed: Random seed
+
+    Returns:
+        Updated ground truth with background elements
+    """
+    import random
+    from ..spec_lang.eval import Evaluable, eval_node, make_context
+
+    rng = random.Random(seed)
+    ctx = make_context(seed=seed)
+
+    parsed = parse_background(background_spec)
+    mol_config = parsed["molecules"]
+    rxn_config = parsed["reactions"]
+
+    # Determine molecule count
+    mol_count_spec = mol_config.get("count", 0)
+    if isinstance(mol_count_spec, str) and mol_count_spec.startswith("!ev "):
+        expr = mol_count_spec[4:].strip()
+        mol_count = int(round(eval_node(Evaluable(source=expr), ctx)))
+    elif isinstance(mol_count_spec, Evaluable):
+        mol_count = int(round(eval_node(mol_count_spec, ctx)))
+    else:
+        mol_count = int(mol_count_spec)
+
+    # Generate background molecules
+    bg_molecules = []
+    for i in range(mol_count):
+        mol_name = f"m.bg.M{i}"
+        ground_truth["molecules"][mol_name] = {}
+        bg_molecules.append(mol_name)
+
+    # Determine reaction count
+    rxn_count_spec = rxn_config.get("count", 0)
+    if isinstance(rxn_count_spec, str) and rxn_count_spec.startswith("!ev "):
+        expr = rxn_count_spec[4:].strip()
+        rxn_count = int(round(eval_node(Evaluable(source=expr), ctx)))
+    elif isinstance(rxn_count_spec, Evaluable):
+        rxn_count = int(round(eval_node(rxn_count_spec, ctx)))
+    else:
+        rxn_count = int(rxn_count_spec)
+
+    # Generate background reactions (only use background molecules)
+    if bg_molecules and rxn_count > 0:
+        for i in range(rxn_count):
+            rxn_name = f"r.bg.R{i}"
+            # Pick random reactants and products from background molecules
+            reactant = rng.choice(bg_molecules)
+            product = rng.choice(bg_molecules)
+            ground_truth["reactions"][rxn_name] = {
+                "reactants": [reactant],
+                "products": [product],
+                "rate": 0.1,
+            }
 
     return ground_truth
