@@ -29,7 +29,7 @@ Compartment is an Entity that defines a region in the biological hierarchy (orga
 
 ### Usage Example
 ```python
-from alienbio import CompartmentImpl, FlowImpl
+from alienbio import CompartmentImpl, GeneralFlow
 
 # Define an organism with organs and cells
 organism = CompartmentImpl(

@@ -70,12 +70,6 @@ class Trace:
         """Return all action→observation records."""
         return self._records
 
-    # Backwards compatibility alias
-    @property
-    def actions(self) -> list[ActionObservationRecord]:
-        """Alias for records (backwards compatibility with tests)."""
-        return self._records
-
     @property
     def total_cost(self) -> float:
         """Return total cost of all actions in the trace."""

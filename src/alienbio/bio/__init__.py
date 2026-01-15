@@ -10,7 +10,7 @@ Protocols (for type hints) - from alienbio.protocols.bio:
 - Chemistry: protocol for chemistry containers
 - CompartmentTree: protocol for compartment topology
 - WorldState: protocol for multi-compartment concentrations
-- State: protocol for single-compartment concentrations (legacy)
+- State: protocol for single-compartment concentrations
 - Simulator: protocol for simulators
 
 Implementations:
@@ -25,8 +25,8 @@ Implementations:
 - CompartmentImpl: biological compartment with flows, concentrations, reactions
 - CompartmentTreeImpl: hierarchical compartment topology (simulation)
 - WorldStateImpl: multi-compartment concentration storage (simulation)
-- StateImpl: single-compartment concentrations (legacy)
-- ReferenceSimulatorImpl: basic single-compartment simulator (legacy)
+- StateImpl: single-compartment concentrations
+- ReferenceSimulatorImpl: basic single-compartment simulator
 - WorldSimulatorImpl: multi-compartment simulator with flows
 """
 
@@ -53,7 +53,7 @@ from .molecule import MoleculeImpl
 
 # Implementation classes - reactions and flows
 from .reaction import ReactionImpl
-from .flow import Flow, MembraneFlow, GeneralFlow, FlowImpl
+from .flow import Flow, MembraneFlow, GeneralFlow
 
 # Implementation classes - containers and compartments
 from .chemistry import ChemistryImpl
@@ -88,7 +88,6 @@ __all__ = [
     "ReactionImpl",
     "MembraneFlow",
     "GeneralFlow",
-    "FlowImpl",  # Alias for GeneralFlow (backwards compat)
     "ChemistryImpl",
     "CompartmentImpl",
     "CompartmentTreeImpl",

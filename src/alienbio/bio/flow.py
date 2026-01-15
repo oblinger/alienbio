@@ -386,6 +386,3 @@ class GeneralFlow(Flow):
         """Short representation."""
         return f"GeneralFlow({self._name})"
 
-
-# Keep FlowImpl as alias for backwards compatibility during transition
-FlowImpl = GeneralFlow

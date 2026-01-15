@@ -12,7 +12,7 @@ from ..infra.entity import Entity
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
-    from .flow import FlowImpl
+    from .flow import GeneralFlow
     from .chemistry import ChemistryImpl
 
 
@@ -88,7 +88,7 @@ class CompartmentImpl(Entity, head="Compartment"):
         kind: str = "compartment",
         multiplicity: float = 1.0,
         concentrations: Optional[Dict[str, float]] = None,
-        membrane_flows: Optional[List[FlowImpl]] = None,
+        membrane_flows: Optional[List[GeneralFlow]] = None,
         active_reactions: Optional[List[str]] = None,
     ) -> None:
         """Initialize a compartment.
@@ -112,7 +112,7 @@ class CompartmentImpl(Entity, head="Compartment"):
         self._concentrations: Dict[str, float] = (
             concentrations.copy() if concentrations else {}
         )
-        self._membrane_flows: List[FlowImpl] = (
+        self._membrane_flows: List[GeneralFlow] = (
             list(membrane_flows) if membrane_flows else []
         )
         self._active_reactions: Optional[List[str]] = (
@@ -145,7 +145,7 @@ class CompartmentImpl(Entity, head="Compartment"):
         return self._concentrations.copy()
 
     @property
-    def membrane_flows(self) -> List[FlowImpl]:
+    def membrane_flows(self) -> List[GeneralFlow]:
         """Flows across this compartment's membrane."""
         return list(self._membrane_flows)
 
@@ -164,7 +164,7 @@ class CompartmentImpl(Entity, head="Compartment"):
         if child not in self._children:
             self._children.append(child)
 
-    def add_flow(self, flow: FlowImpl) -> None:
+    def add_flow(self, flow: GeneralFlow) -> None:
         """Add a membrane flow."""
         self._membrane_flows.append(flow)
 

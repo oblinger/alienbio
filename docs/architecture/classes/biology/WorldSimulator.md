@@ -27,7 +27,7 @@ WorldSimulator advances the state of a multi-compartment world over time. Each s
 ```python
 from alienbio import (
     WorldSimulatorImpl, WorldStateImpl, CompartmentTreeImpl,
-    FlowImpl, ReactionSpec
+    GeneralFlow, ReactionSpec
 )
 
 # Build compartment tree
@@ -48,7 +48,7 @@ reactions = [
 
 # Define flows
 flows = [
-    FlowImpl(child=cell, molecule=0, rate_constant=0.05),
+    GeneralFlow(child=cell, molecule=0, rate_constant=0.05),
 ]
 
 # Create simulator
