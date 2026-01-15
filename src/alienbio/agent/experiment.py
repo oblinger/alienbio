@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 from .types import ExperimentResults
 from .session import AgentSession
-from .protocol import Agent
+from .agents import Agent
 
 
 def run_experiment(
