@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .tags import EvTag, RefTag, IncludeTag, PyRef
+from .eval import Evaluable, Reference
+from .tags import Include, PyRef
 from .loader import transform_typed_keys, expand_defaults
 
 
@@ -49,16 +50,16 @@ def process_and_hydrate(
 
 
 def resolve_includes(data: Any, base_dir: str) -> Any:
-    """Recursively resolve IncludeTags in data.
+    """Recursively resolve Include placeholders in data.
 
     Args:
-        data: Data structure potentially containing IncludeTag placeholders
+        data: Data structure potentially containing Include placeholders
         base_dir: Directory for resolving relative paths
 
     Returns:
-        Data with IncludeTags replaced by loaded content
+        Data with Includes replaced by loaded content
     """
-    if isinstance(data, IncludeTag):
+    if isinstance(data, Include):
         return data.load(base_dir)
     elif isinstance(data, dict):
         return {k: resolve_includes(v, base_dir) for k, v in data.items()}
@@ -68,25 +69,25 @@ def resolve_includes(data: Any, base_dir: str) -> Any:
 
 
 def resolve_refs(data: Any, constants: dict[str, Any]) -> Any:
-    """Recursively resolve RefTags and EvTags in data.
+    """Recursively resolve Reference and Evaluable placeholders in data.
 
     Args:
-        data: Data structure potentially containing RefTag/EvTag placeholders
+        data: Data structure potentially containing Reference/Evaluable placeholders
         constants: Dict of constant values for ref resolution
 
     Returns:
-        Data with tags replaced by resolved values
+        Data with placeholders replaced by resolved values
     """
-    if isinstance(data, RefTag):
+    if isinstance(data, Reference):
         return data.resolve(constants)
-    elif isinstance(data, EvTag):
+    elif isinstance(data, Evaluable):
         return data.evaluate(constants)
     elif isinstance(data, dict):
-        # First resolve any EvTags in constants themselves
+        # First resolve any Evaluables in constants themselves
         if "constants" in data:
             resolved_constants = {}
             for k, v in data["constants"].items():
-                if isinstance(v, EvTag):
+                if isinstance(v, Evaluable):
                     resolved_constants[k] = v.evaluate(resolved_constants)
                 else:
                     resolved_constants[k] = v

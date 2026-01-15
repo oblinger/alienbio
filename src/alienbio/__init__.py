@@ -5,7 +5,8 @@ from dvc_dat import Dat
 from .infra import imports  # noqa: F401 - ensures do-referenced modules are loaded
 
 from .infra.context import (
-    Context,
+    RuntimeContext,
+    Context,                                                         # deprecated alias
     _ctx,
     ctx,
     set_context,
@@ -87,7 +88,8 @@ __version__ = "0.1.0"
 
 __all__ = [
     # Infrastructure
-    "Context",
+    "RuntimeContext",
+    "Context",                                                       # deprecated, use RuntimeContext
     "Dat",
     "Entity",
     "IO",

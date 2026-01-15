@@ -306,3 +306,184 @@ class TestBioStoreDehydration:
         result = yaml.safe_load(content)
 
         assert result == {"simple": "value"}
+
+
+# -----------------------------------------------------------------------------
+# build command tests
+# -----------------------------------------------------------------------------
+
+
+class TestBuildCommand:
+    """Tests for the bio build CLI command."""
+
+    def test_build_requires_spec_path(self, capsys):
+        """Test build with no args shows error."""
+        from alienbio.commands.build import build_command
+
+        result = build_command([])
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "requires a spec path" in captured.err
+
+    def test_build_outputs_yaml(self, tmp_path, capsys):
+        """Test build outputs YAML."""
+        from alienbio.commands.build import build_command
+
+        spec_dir = tmp_path / "test_spec"
+        spec_dir.mkdir()
+        spec_file = spec_dir / "spec.yaml"
+        spec_file.write_text("name: test\nvalue: 42\n")
+
+        result = build_command([str(spec_dir)])
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "name: test" in captured.out
+        assert "value: 42" in captured.out
+
+    def test_build_json_output(self, tmp_path, capsys):
+        """Test build with --json outputs JSON."""
+        from alienbio.commands.build import build_command
+
+        spec_dir = tmp_path / "test_spec"
+        spec_dir.mkdir()
+        spec_file = spec_dir / "spec.yaml"
+        spec_file.write_text("name: test\nvalue: 42\n")
+
+        result = build_command([str(spec_dir), "--json"])
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert '"name": "test"' in captured.out
+        assert '"value": 42' in captured.out
+
+
+# -----------------------------------------------------------------------------
+# hydrate command tests
+# -----------------------------------------------------------------------------
+
+
+class TestHydrateCommand:
+    """Tests for the bio hydrate CLI command."""
+
+    def test_hydrate_requires_spec_path(self, capsys):
+        """Test hydrate with no args shows error."""
+        from alienbio.commands.hydrate import hydrate_command
+
+        result = hydrate_command([])
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "requires a spec path" in captured.err
+
+    def test_hydrate_evaluates_ev_tags(self, tmp_path, capsys):
+        """Test hydrate evaluates !ev tags."""
+        from alienbio.commands.hydrate import hydrate_command
+
+        spec_dir = tmp_path / "test_spec"
+        spec_dir.mkdir()
+        spec_file = spec_dir / "spec.yaml"
+        spec_file.write_text("name: test\nvalue: !ev 2 + 2\n")
+
+        result = hydrate_command([str(spec_dir), "--seed", "42"])
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "name: test" in captured.out
+        assert "value: 4" in captured.out                            # evaluated
+
+    def test_hydrate_with_seed(self, tmp_path, capsys):
+        """Test hydrate with --seed is reproducible."""
+        from alienbio.commands.hydrate import hydrate_command
+
+        spec_dir = tmp_path / "test_spec"
+        spec_dir.mkdir()
+        spec_file = spec_dir / "spec.yaml"
+        spec_file.write_text("value: !ev 10 * 10\n")
+
+        hydrate_command([str(spec_dir), "--seed", "42"])
+        out1 = capsys.readouterr().out
+
+        hydrate_command([str(spec_dir), "--seed", "42"])
+        out2 = capsys.readouterr().out
+
+        assert out1 == out2                                          # reproducible
+
+
+# -----------------------------------------------------------------------------
+# Evaluable and Reference method tests
+# -----------------------------------------------------------------------------
+
+
+class TestEvaluableMethod:
+    """Tests for Evaluable.evaluate() method."""
+
+    def test_evaluable_evaluate_simple(self):
+        """Test Evaluable.evaluate() with simple expression."""
+        from alienbio import Evaluable
+
+        ev = Evaluable(source="2 + 3")
+        result = ev.evaluate()
+        assert result == 5
+
+    def test_evaluable_evaluate_with_namespace(self):
+        """Test Evaluable.evaluate() with namespace."""
+        from alienbio import Evaluable
+
+        ev = Evaluable(source="x * y")
+        result = ev.evaluate({"x": 3, "y": 4})
+        assert result == 12
+
+    def test_evaluable_expr_property(self):
+        """Test Evaluable.expr property (backward compat)."""
+        from alienbio import Evaluable
+
+        ev = Evaluable(source="1 + 1")
+        assert ev.expr == "1 + 1"
+        assert ev.source == ev.expr
+
+
+class TestReferenceMethod:
+    """Tests for Reference.resolve() method."""
+
+    def test_reference_resolve_simple(self):
+        """Test Reference.resolve() with simple name."""
+        from alienbio import Reference
+
+        ref = Reference(name="x")
+        result = ref.resolve({"x": 42})
+        assert result == 42
+
+    def test_reference_resolve_dotted(self):
+        """Test Reference.resolve() with dotted path."""
+        from alienbio import Reference
+
+        ref = Reference(name="config.timeout")
+        result = ref.resolve({"config": {"timeout": 30}})
+        assert result == 30
+
+    def test_reference_resolve_missing_raises(self):
+        """Test Reference.resolve() raises KeyError for missing name."""
+        from alienbio import Reference
+        import pytest
+
+        ref = Reference(name="missing")
+        with pytest.raises(KeyError):
+            ref.resolve({})
+
+
+# -----------------------------------------------------------------------------
+# RuntimeContext tests
+# -----------------------------------------------------------------------------
+
+
+class TestRuntimeContext:
+    """Tests for RuntimeContext (renamed from Context)."""
+
+    def test_runtime_context_exported(self):
+        """Test RuntimeContext is exported from alienbio."""
+        from alienbio import RuntimeContext, Context
+
+        assert RuntimeContext is not None
+        assert Context is RuntimeContext                             # backward compat
