@@ -13,6 +13,7 @@ import yaml
 from alienbio.commands.build import (
     _is_dat_spec,
     _build_dat_folder,
+    _execute_run_section,
     build_command,
 )
 
@@ -215,3 +216,69 @@ class TestBuildCommand:
         """Test error when no arguments provided."""
         result = build_command([])
         assert result == 1
+
+
+class TestExecuteRunSection:
+    """Tests for run section execution."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        """Create a temporary directory for tests."""
+        tmpdir = tempfile.mkdtemp()
+        yield Path(tmpdir)
+        shutil.rmtree(tmpdir)
+
+    def test_shell_command_execution(self, temp_dir):
+        """Test shell: prefix executes shell commands."""
+        # Create a test file via shell command
+        test_file = temp_dir / "created.txt"
+        run_commands = [f"shell: touch {test_file}"]
+
+        result = _execute_run_section(run_commands, temp_dir)
+        assert result == 0
+        assert test_file.exists()
+
+    def test_shell_command_failure(self, temp_dir):
+        """Test shell command failure returns non-zero."""
+        run_commands = ["shell: exit 1"]
+
+        result = _execute_run_section(run_commands, temp_dir)
+        assert result != 0
+
+    def test_unknown_bio_command(self, temp_dir, capsys):
+        """Test unknown bio command returns error."""
+        run_commands = ["unknown_command arg1 arg2"]
+
+        result = _execute_run_section(run_commands, temp_dir)
+        assert result == 1
+
+        captured = capsys.readouterr()
+        assert "unknown bio command" in captured.err
+
+    def test_empty_command_skipped(self, temp_dir):
+        """Test empty commands are skipped."""
+        run_commands = ["", "shell: echo ok"]
+
+        result = _execute_run_section(run_commands, temp_dir)
+        assert result == 0
+
+    def test_multiple_commands_sequential(self, temp_dir):
+        """Test multiple commands execute in order."""
+        file1 = temp_dir / "first.txt"
+        file2 = temp_dir / "second.txt"
+        run_commands = [
+            f"shell: touch {file1}",
+            f"shell: touch {file2}",
+        ]
+
+        result = _execute_run_section(run_commands, temp_dir)
+        assert result == 0
+        assert file1.exists()
+        assert file2.exists()
+
+    def test_report_command_skipped(self, temp_dir):
+        """Test report command is skipped (not yet implemented)."""
+        run_commands = ["report -t tabular"]
+
+        result = _execute_run_section(run_commands, temp_dir, verbose=True)
+        assert result == 0

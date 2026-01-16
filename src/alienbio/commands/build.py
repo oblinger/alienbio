@@ -5,6 +5,7 @@ Usage:
     bio build <spec_path> --seed 42          # Build DAT folder with seed
     bio build <spec_path> --output ./mydat   # Custom output path
     bio build <spec_path> --json             # Output as JSON instead of YAML
+    bio build <spec_path> --execute          # Build and run the run: section
 
 DAT Build:
     When the spec contains a `dat:` section with `path:` and `build:` fields,
@@ -164,6 +165,68 @@ def _build_dat_folder(
     return dat_path
 
 
+def _execute_run_section(
+    run_commands: list[str],
+    dat_path: Path,
+    verbose: bool = False,
+) -> int:
+    """Execute commands from the run: section.
+
+    Args:
+        run_commands: List of commands to execute
+        dat_path: Path to the DAT folder (for context)
+        verbose: Print progress
+
+    Returns:
+        Exit code (0 for success, non-zero for failure)
+    """
+    import subprocess
+
+    for cmd in run_commands:
+        if verbose:
+            print(f"  Executing: {cmd}")
+
+        # Parse command - check for shell: prefix
+        if cmd.startswith("shell:"):
+            # Execute as shell command
+            shell_cmd = cmd[6:].strip()
+            result = subprocess.run(
+                shell_cmd,
+                shell=True,
+                cwd=dat_path,
+            )
+            if result.returncode != 0:
+                print(f"Error: shell command failed: {shell_cmd}", file=sys.stderr)
+                return result.returncode
+        else:
+            # Execute as bio command
+            # Parse: "run . --agent claude" -> ["run", ".", "--agent", "claude"]
+            parts = cmd.split()
+            if not parts:
+                continue
+
+            bio_cmd = parts[0]
+            bio_args = parts[1:]
+
+            # Replace "." with the DAT path
+            bio_args = [str(dat_path) if arg == "." else arg for arg in bio_args]
+
+            if bio_cmd == "run":
+                from alienbio.commands.run import run_command
+                exit_code = run_command(bio_args, verbose=verbose)
+                if exit_code != 0:
+                    return exit_code
+            elif bio_cmd == "report":
+                # TODO: Implement report command
+                if verbose:
+                    print(f"  Skipping report command (not yet implemented)")
+            else:
+                print(f"Error: unknown bio command: {bio_cmd}", file=sys.stderr)
+                return 1
+
+    return 0
+
+
 def build_command(args: list[str], verbose: bool = False) -> int:
     """Build a spec: create DAT folder or expand to stdout.
 
@@ -171,7 +234,7 @@ def build_command(args: list[str], verbose: bool = False) -> int:
     creates a complete DAT folder. Otherwise, expands and prints.
 
     Args:
-        args: Command arguments [spec_path] [--seed N] [--output PATH] [--json]
+        args: Command arguments [spec_path] [--seed N] [--output PATH] [--json] [--execute]
         verbose: Enable verbose output
 
     Returns:
@@ -184,6 +247,7 @@ def build_command(args: list[str], verbose: bool = False) -> int:
     seed: Optional[int] = None
     output_path: Optional[Path] = None
     json_output = False
+    execute_run = False
 
     i = 0
     while i < len(args):
@@ -197,6 +261,9 @@ def build_command(args: list[str], verbose: bool = False) -> int:
         elif arg == "--json":
             json_output = True
             i += 1
+        elif arg == "--execute":
+            execute_run = True
+            i += 1
         elif not arg.startswith("--"):
             if spec_path is None:
                 spec_path = arg
@@ -206,7 +273,7 @@ def build_command(args: list[str], verbose: bool = False) -> int:
 
     if not spec_path:
         print("Error: build command requires a spec path", file=sys.stderr)
-        print("Usage: bio build <spec_path> [--seed N] [--output PATH] [--json]", file=sys.stderr)
+        print("Usage: bio build <spec_path> [--seed N] [--output PATH] [--json] [--execute]", file=sys.stderr)
         return 1
 
     path = Path(spec_path)
@@ -246,6 +313,17 @@ def build_command(args: list[str], verbose: bool = False) -> int:
             )
 
             print(f"Created: {dat_path}")
+
+            # Execute run section if requested
+            if execute_run and "run" in result:
+                run_commands = result["run"]
+                if isinstance(run_commands, list) and run_commands:
+                    if verbose:
+                        print(f"  Executing run section ({len(run_commands)} commands)...")
+                    exit_code = _execute_run_section(run_commands, dat_path, verbose=verbose)
+                    if exit_code != 0:
+                        return exit_code
+
             return 0
 
         else:
