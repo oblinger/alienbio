@@ -19,7 +19,10 @@ from alienbio.commands.build import (
 
 
 class TestIsDatSpec:
-    """Tests for DAT spec detection."""
+    """Tests for DAT spec detection.
+
+    A DAT spec is identified by having a 'dat' section - that's the definitive indicator.
+    """
 
     def test_valid_dat_spec_with_path(self):
         """Test detection of valid DAT spec with dat.path."""
@@ -42,23 +45,22 @@ class TestIsDatSpec:
         spec = {"scenario": {"name": "test"}}
         assert _is_dat_spec(spec) is False
 
-    def test_missing_path_and_name(self):
-        """Test dat section without path or name is not a DAT spec."""
+    def test_dat_section_minimal(self):
+        """Test dat section with minimal content is still a DAT spec."""
         spec = {
             "dat": {"kind": "Dat"},
-            "build": {"index.yaml": "."},
         }
-        assert _is_dat_spec(spec) is False
+        assert _is_dat_spec(spec) is True
 
-    def test_missing_build(self):
-        """Test dat section without build is not a DAT spec."""
+    def test_dat_without_build(self):
+        """Test dat section without build is still a DAT spec."""
         spec = {"dat": {"kind": "Dat", "path": "data/test_{seed}"}}
-        assert _is_dat_spec(spec) is False
+        assert _is_dat_spec(spec) is True
 
-    def test_dat_not_dict(self):
-        """Test dat section that's not a dict."""
+    def test_dat_any_value(self):
+        """Test any dat section makes it a DAT spec."""
         spec = {"dat": "not a dict", "build": {"index.yaml": "."}}
-        assert _is_dat_spec(spec) is False
+        assert _is_dat_spec(spec) is True
 
 
 class TestBuildDatFolder:

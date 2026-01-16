@@ -46,26 +46,17 @@ import yaml
 
 
 def _is_dat_spec(spec: dict[str, Any]) -> bool:
-    """Check if a spec is a buildable DAT spec.
+    """Check if a spec is a DAT spec.
 
-    A buildable DAT spec has:
-    - A 'dat' section (standard dvc_dat requirement)
-    - A 'build' section (alienbio extension for generating content)
-    - A path template in dat.path or dat.name
+    A DAT spec has a 'dat' section - that's the definitive indicator.
 
     Args:
         spec: Parsed spec dict
 
     Returns:
-        True if this is a DAT spec that should create a folder
+        True if this is a DAT spec
     """
-    if "dat" not in spec or "build" not in spec:
-        return False
-    dat = spec.get("dat", {})
-    if not isinstance(dat, dict):
-        return False
-    # Path can be in dat.path (alienbio convention) or dat.name (dvc_dat convention)
-    return "path" in dat or "name" in dat
+    return "dat" in spec
 
 
 def _build_dat_folder(
@@ -90,30 +81,7 @@ def _build_dat_folder(
     from dvc_dat import Dat
     from alienbio import bio
 
-    # Prepare the path using dvc_dat's path expansion
-    # Support both dat.path (alienbio) and dat.name (dvc_dat) conventions
-    dat_section = spec.get("dat", {})
-    path_template = dat_section.get("path") or dat_section.get("name") or "data/builds/{seed}"
-
-    if output_path:
-        # User provided explicit output path
-        dat_path = Path(output_path)
-    else:
-        # Use dvc_dat's prepare_dat_path with seed as a variable
-        expanded_path, _ = Dat.manager.prepare_dat_path(
-            path_template,
-            variables={"seed": str(seed)},
-            target_exists="overwrite",  # Allow rebuilding
-        )
-        dat_path = Path(expanded_path)
-
-    if verbose:
-        print(f"  Creating DAT folder: {dat_path}")
-
-    # Create the folder
-    dat_path.mkdir(parents=True, exist_ok=True)
-
-    # Build _spec_.yaml with _built_with metadata
+    # Add _built_with metadata to spec
     spec_with_metadata = dict(spec)
     spec_with_metadata["_built_with"] = {
         "seed": seed,
@@ -121,12 +89,34 @@ def _build_dat_folder(
         "source": str(source_path),
     }
 
-    spec_file = dat_path / "_spec_.yaml"
-    with open(spec_file, "w") as f:
-        yaml.dump(spec_with_metadata, f, default_flow_style=False, sort_keys=False)
+    # Handle path: use output_path override or let Dat.create use the spec's path/name
+    dat_section = spec_with_metadata.get("dat", {})
+
+    if output_path:
+        # User provided explicit output path
+        create_path = str(output_path)
+    else:
+        # Get path template from spec, expand {seed} variable
+        path_template = dat_section.get("path") or dat_section.get("name")
+        if path_template:
+            # Expand seed variable in template
+            create_path = path_template.replace("{seed}", str(seed))
+        else:
+            create_path = f"data/builds/{seed}"
+
+    # Set target_exists to allow rebuilding
+    dat_section["target_exists"] = "overwrite"
+    spec_with_metadata["dat"] = dat_section
 
     if verbose:
-        print(f"  Wrote: {spec_file}")
+        print(f"  Creating DAT via Dat.create: {create_path}")
+
+    # Use Dat.create to create the folder and write _spec_.yaml
+    dat = Dat.create(path=create_path, spec=spec_with_metadata)
+    dat_path = dat.path
+
+    if verbose:
+        print(f"  Created DAT at: {dat_path}")
 
     # Process build: section
     build_section = spec.get("build", {})
