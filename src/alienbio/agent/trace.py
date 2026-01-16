@@ -117,3 +117,12 @@ class Trace:
         if not self._records:
             return None
         return self._records[-1].observation.current_state
+
+    @property
+    def timeline(self) -> list[dict[str, Any]]:
+        """Return the full state history as a list of state snapshots.
+
+        Each entry contains the state at that point in the experiment.
+        This is useful for analyzing how the environment evolved over time.
+        """
+        return [r.observation.current_state for r in self._records]
