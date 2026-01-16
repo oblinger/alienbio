@@ -34,12 +34,9 @@ Two Context classes existed, causing confusion:
 |------|-------|-------|
 | **User-facing sandbox** | `Bio` | Multiple instances allowed. Contains root Scope. |
 | **Loaded definitions** | `Scope` | Hierarchical namespace for YAML definitions. |
-| **Per-eval-thread** | `EvalEnv` | Renamed from `EvalContext`. Holds rng, bindings for `!ev`. |
+| **Per-eval-thread** | `EvalContext` | Holds rng, bindings for `!ev` evaluation. |
 
-**Actions:**
-- Rename `EvalContext` → `EvalEnv` (avoids "context" ambiguity)
-- Remove the `Context = EvalContext` alias
-- Merge `infra.Context` functionality into `Bio` or deprecate
+**Status:** `EvalContext` is the current class name. The `infra.Context` class has been deprecated.
 
 ### Hydration Phases
 
