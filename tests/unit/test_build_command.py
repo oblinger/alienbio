@@ -11,59 +11,27 @@ import pytest
 import yaml
 
 from alienbio.commands.build import (
-    _substitute_path_template,
     _is_dat_spec,
     _build_dat_folder,
     build_command,
 )
 
 
-class TestPathTemplateSubstitution:
-    """Tests for path template variable substitution."""
-
-    def test_seed_substitution(self):
-        """Test {seed} is replaced with the seed value."""
-        result = _substitute_path_template("data/test_{seed}", 42)
-        assert result == "data/test_42"
-
-    def test_seed_substitution_multiple(self):
-        """Test multiple {seed} occurrences."""
-        result = _substitute_path_template("data/{seed}/run_{seed}", 123)
-        assert result == "data/123/run_123"
-
-    def test_date_substitution(self):
-        """Test {YYYY}, {MM}, {DD} are replaced with current date."""
-        result = _substitute_path_template("data/{YYYY}/{MM}/{DD}", 0)
-        # Just verify format is correct (4 digits, 2 digits, 2 digits)
-        parts = result.split("/")
-        assert parts[0] == "data"
-        assert len(parts[1]) == 4 and parts[1].isdigit()
-        assert len(parts[2]) == 2 and parts[2].isdigit()
-        assert len(parts[3]) == 2 and parts[3].isdigit()
-
-    def test_unique_substitution(self):
-        """Test {unique} is replaced with unique identifier."""
-        result1 = _substitute_path_template("data/run_{unique}", 0)
-        result2 = _substitute_path_template("data/run_{unique}", 0)
-        # Unique values should be different (or very unlikely to be same)
-        assert result1.startswith("data/run_")
-        assert len(result1) > len("data/run_")
-
-    def test_combined_substitution(self):
-        """Test multiple variable types in one template."""
-        result = _substitute_path_template("data/{YYYY}/scenario_{seed}", 42)
-        assert "/scenario_42" in result
-        # Year should be present
-        assert "/20" in result  # Works for 2000-2099
-
-
 class TestIsDatSpec:
     """Tests for DAT spec detection."""
 
-    def test_valid_dat_spec(self):
-        """Test detection of valid DAT spec."""
+    def test_valid_dat_spec_with_path(self):
+        """Test detection of valid DAT spec with dat.path."""
         spec = {
             "dat": {"kind": "Dat", "path": "data/test_{seed}"},
+            "build": {"index.yaml": "."},
+        }
+        assert _is_dat_spec(spec) is True
+
+    def test_valid_dat_spec_with_name(self):
+        """Test detection of valid DAT spec with dat.name (dvc_dat convention)."""
+        spec = {
+            "dat": {"kind": "Dat", "name": "data/test_{seed}"},
             "build": {"index.yaml": "."},
         }
         assert _is_dat_spec(spec) is True
@@ -73,8 +41,8 @@ class TestIsDatSpec:
         spec = {"scenario": {"name": "test"}}
         assert _is_dat_spec(spec) is False
 
-    def test_missing_path(self):
-        """Test dat section without path is not a DAT spec."""
+    def test_missing_path_and_name(self):
+        """Test dat section without path or name is not a DAT spec."""
         spec = {
             "dat": {"kind": "Dat"},
             "build": {"index.yaml": "."},
@@ -179,12 +147,13 @@ class TestBuildCommand:
         os.chdir(old_cwd)
         shutil.rmtree(tmpdir)
 
-    def test_build_dat_spec(self, temp_dir):
+    def test_build_dat_spec(self, temp_dir, capsys):
         """Test building a DAT spec creates folder."""
-        # Create a source spec file
+        # Create a source spec file with absolute path in temp dir
         source = temp_dir / "source.yaml"
+        output_path = temp_dir / "output_42"
         spec = {
-            "dat": {"kind": "Dat", "path": "output_{seed}"},
+            "dat": {"kind": "Dat", "path": str(output_path)},
             "build": {"index.yaml": "."},
             "scenario": {"name": "test"},
         }
@@ -195,11 +164,17 @@ class TestBuildCommand:
         result = build_command([str(source), "--seed", "42"])
         assert result == 0
 
-        # Check folder was created
-        output_dir = temp_dir / "output_42"
-        assert output_dir.exists()
-        assert (output_dir / "_spec_.yaml").exists()
-        assert (output_dir / "index.yaml").exists()
+        # Check output message
+        captured = capsys.readouterr()
+        assert "Created:" in captured.out
+
+        # Check folder was created (parse path from output)
+        # The path is printed as "Created: <path>"
+        created_line = [l for l in captured.out.split("\n") if "Created:" in l][0]
+        created_path = Path(created_line.split("Created:")[1].strip())
+        assert created_path.exists()
+        assert (created_path / "_spec_.yaml").exists()
+        assert (created_path / "index.yaml").exists()
 
     def test_build_non_dat_spec_prints_yaml(self, temp_dir, capsys):
         """Test building non-DAT spec prints expanded YAML."""
