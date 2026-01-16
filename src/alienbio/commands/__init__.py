@@ -6,6 +6,7 @@ The main CLI dispatches to these command modules.
 Commands:
     build       - Build/expand a spec (resolve includes, refs, defaults)
     cd          - Get or set current DAT context
+    compare     - Compare multiple agents on the same scenario
     expand      - Debug: show processed spec without hydrating
     fetch       - Fetch and display a spec
     hydrate     - Fully evaluate a spec (resolve all placeholders)
@@ -17,6 +18,7 @@ Commands:
 
 from .build import build_command
 from .cd import cd_command
+from .compare import compare_command
 from .config_cmd import config_command
 from .expand import expand_command
 from .fetch import fetch_command
@@ -29,6 +31,7 @@ from .store import store_command
 COMMANDS = {
     "build": build_command,
     "cd": cd_command,
+    "compare": compare_command,
     "config": config_command,
     "expand": expand_command,
     "fetch": fetch_command,
@@ -43,6 +46,7 @@ __all__ = [
     "COMMANDS",
     "build_command",
     "cd_command",
+    "compare_command",
     "expand_command",
     "fetch_command",
     "hydrate_command",
