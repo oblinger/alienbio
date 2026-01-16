@@ -30,7 +30,21 @@ dat:
   do: alienbio.run      # Function called when DAT is run
 ```
 
-**Full example with base template and args:**
+**Full example with build and run:**
+```yaml
+# _spec_.yaml
+scenarios.baseline:
+  path: data/scenarios/baseline_{seed}/
+
+  build:
+    index.yaml: generators.baseline    # generate content from Bio generator
+
+  run:
+    - run . --agent claude             # execute scenario with agent
+    - report .                         # generate report
+```
+
+**Full example with do function (alternative approach):**
 ```yaml
 # _spec_.yaml
 dat:
@@ -47,43 +61,43 @@ dat:
 **Key fields:**
 | Field | Description |
 |-------|-------------|
+| `path` | Path template with `{seed}`, `{YYYY}`, `{unique}`, etc. |
+| `build` | Map of output files to generators (see below) |
+| `run` | List of commands to execute (see below) |
 | `dat.kind` | DAT class (usually "Dat") |
 | `dat.do` | Function called when DAT is run (receives DAT as first arg) |
 | `dat.base` | Base template to expand from (optional) |
-| `dat.path` | Path template with `{YYYY}`, `{unique}`, etc. (optional) |
 | `dat.args` | Positional args passed to do function (optional) |
 | `dat.kwargs` | Keyword args passed to do function (optional) |
 
+### `build:` Section
 
-### `build:` and `run:` Sections
+Maps output filenames to Bio generators:
 
-DAT specs can include `build:` and `run:` sections that define what happens during each phase:
-
-**Example DAT spec with build and run:**
 ```yaml
-# _spec_.yaml
-scenarios.baseline:
-  path: data/scenarios/baseline_{seed}/
-
-  build:
-    index.yaml: generators.baseline    # generate content from Bio generator
-
-  run:
-    - run . --agent claude             # execute scenario with agent
-    - report .                         # generate report
+build:
+  index.yaml: generators.baseline    # main scenario content
+  config.yaml: generators.config     # additional config (optional)
 ```
 
-**`build:` section:**
-- Maps output filenames to Bio generators
 - Each entry: `<filename>: <generator_name>`
 - During `bio build`, each generator is called and output written to the filename
 - Generators are Bio specs that produce content (scenarios, chemistries, etc.)
 
-**`run:` section:**
-- List of commands to execute sequentially
+### `run:` Section
+
+List of commands to execute sequentially:
+
+```yaml
+run:
+  - run . --agent claude             # execute scenario with agent
+  - report .                         # generate report
+  - shell: python analysis.py        # arbitrary shell command
+```
+
 - Commands run in the context of the DAT folder (`.` refers to the DAT)
-- Bio commands (like `run`, `report`) are recognized automatically
-- Use `shell:` prefix for non-bio commands: `shell: python analysis.py`
+- Bio commands (`run`, `report`, etc.) are recognized automatically
+- Use `shell:` prefix for non-bio commands
 
 ### `_result_.yaml` (Generated when a DAT is run)
 ```yaml
