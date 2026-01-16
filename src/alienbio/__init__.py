@@ -112,15 +112,11 @@ __all__ = [
     "Chemistry",
     "State",
     "Simulator",
-    # Biology implementation classes
-    "AtomImpl",
-    "MoleculeImpl",
-    "ReactionImpl",
-    "ChemistryImpl",
-    "StateImpl",
-    "ReferenceSimulatorImpl",
-    "SimulatorBase",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
 ]
+
+# Implementation classes are importable but not in __all__
+# (not included in "from alienbio import *")
+# Import directly: from alienbio import AtomImpl, MoleculeImpl, etc.
