@@ -8,20 +8,19 @@ Usage:
 
 DAT Build:
     When the spec contains a `dat:` section with `path:` and `build:` fields,
-    `bio build` creates a complete DAT folder:
+    `bio build` creates a complete DAT folder using dvc_dat's create mechanism:
 
-    1. Creates the target folder from the path template
-    2. Copies _spec_.yaml with _built_with metadata (seed, timestamp)
+    1. Creates the target folder from the path template (via DatManager)
+    2. Writes _spec_.yaml with metadata
     3. Processes build: section - calls generators, writes output files
     4. Returns the path to the created DAT folder
 
 Path Templates:
-    The `dat.path` field supports variable substitution:
+    The `dat.path` field supports variable substitution via dvc_dat:
     - {seed} - the random seed used for generation
-    - {YYYY} - current year (4 digits)
-    - {MM} - current month (2 digits)
-    - {DD} - current day (2 digits)
-    - {unique} - unique identifier (timestamp + random)
+    - {YYYY}, {YY}, {MM}, {DD}, {HH}, {mm}, {SS} - date/time components
+    - {unique} - auto-incrementing counter for uniqueness
+    - {cwd} - current working directory
 
 Example _spec_.yaml:
     dat:
@@ -37,9 +36,6 @@ Example _spec_.yaml:
 
 from __future__ import annotations
 
-import os
-import random
-import string
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -48,45 +44,13 @@ from typing import Any, Optional
 import yaml
 
 
-def _substitute_path_template(template: str, seed: int) -> str:
-    """Substitute variables in a path template.
-
-    Supported variables:
-    - {seed} - the random seed
-    - {YYYY} - current year (4 digits)
-    - {MM} - current month (2 digits)
-    - {DD} - current day (2 digits)
-    - {unique} - unique identifier
-
-    Args:
-        template: Path template with {variable} placeholders
-        seed: Random seed for {seed} substitution
-
-    Returns:
-        Path with variables substituted
-    """
-    now = datetime.now()
-    unique = now.strftime("%Y%m%d_%H%M%S") + "_" + "".join(
-        random.choices(string.ascii_lowercase, k=4)
-    )
-
-    substitutions = {
-        "seed": str(seed),
-        "YYYY": now.strftime("%Y"),
-        "MM": now.strftime("%m"),
-        "DD": now.strftime("%d"),
-        "unique": unique,
-    }
-
-    result = template
-    for var, value in substitutions.items():
-        result = result.replace(f"{{{var}}}", value)
-
-    return result
-
-
 def _is_dat_spec(spec: dict[str, Any]) -> bool:
-    """Check if a spec is a DAT spec (has dat.path and build sections).
+    """Check if a spec is a buildable DAT spec.
+
+    A buildable DAT spec has:
+    - A 'dat' section (standard dvc_dat requirement)
+    - A 'build' section (alienbio extension for generating content)
+    - A path template in dat.path or dat.name
 
     Args:
         spec: Parsed spec dict
@@ -94,12 +58,13 @@ def _is_dat_spec(spec: dict[str, Any]) -> bool:
     Returns:
         True if this is a DAT spec that should create a folder
     """
-    if "dat" not in spec:
+    if "dat" not in spec or "build" not in spec:
         return False
-    dat = spec["dat"]
+    dat = spec.get("dat", {})
     if not isinstance(dat, dict):
         return False
-    return "path" in dat and "build" in spec
+    # Path can be in dat.path (alienbio convention) or dat.name (dvc_dat convention)
+    return "path" in dat or "name" in dat
 
 
 def _build_dat_folder(
@@ -109,7 +74,7 @@ def _build_dat_folder(
     output_path: Optional[Path] = None,
     verbose: bool = False,
 ) -> Path:
-    """Build a DAT folder from a DAT spec.
+    """Build a DAT folder from a DAT spec using dvc_dat.
 
     Args:
         spec: The parsed DAT spec
@@ -121,14 +86,25 @@ def _build_dat_folder(
     Returns:
         Path to the created DAT folder
     """
+    from dvc_dat import Dat
     from alienbio import bio
 
-    # Determine output path
+    # Prepare the path using dvc_dat's path expansion
+    # Support both dat.path (alienbio) and dat.name (dvc_dat) conventions
+    dat_section = spec.get("dat", {})
+    path_template = dat_section.get("path") or dat_section.get("name") or "data/builds/{seed}"
+
     if output_path:
-        dat_path = output_path
+        # User provided explicit output path
+        dat_path = Path(output_path)
     else:
-        path_template = spec["dat"]["path"]
-        dat_path = Path(_substitute_path_template(path_template, seed))
+        # Use dvc_dat's prepare_dat_path with seed as a variable
+        expanded_path, _ = Dat.manager.prepare_dat_path(
+            path_template,
+            variables={"seed": str(seed)},
+            target_exists="overwrite",  # Allow rebuilding
+        )
+        dat_path = Path(expanded_path)
 
     if verbose:
         print(f"  Creating DAT folder: {dat_path}")
