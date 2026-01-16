@@ -48,14 +48,30 @@ The behavior depends on what the dotted name refers to:
 
 If the name refers to a DAT spec (has `path:` and `build:` fields):
 
-1. Creates the folder using the `path:` template
-2. Recursively calls `bio.build()` for each entry in `build:`
-3. Writes generated content to the DAT folder
+1. Creates the folder using the `path:` template (variables like `{seed}` are substituted)
+2. Copies the spec to `_spec_.yaml` in the new folder
+3. For each entry in `build:`:
+   - The key is the output filename (e.g., `index.yaml`)
+   - The value is a Bio generator name (e.g., `generators.baseline`)
+   - Calls `bio.build()` on the generator to produce content
+   - Writes the generated content to the output file
+4. Returns the path to the created DAT folder
 
 ```bash
 bio build scenarios.baseline --seed 42
 # → Created: data/scenarios/baseline_42/
 ```
+
+**Example `build:` section:**
+```yaml
+scenarios.baseline:
+  path: data/scenarios/baseline_{seed}/
+  build:
+    index.yaml: generators.baseline    # generates scenario content
+    config.yaml: generators.config     # generates config (optional)
+```
+
+Each generator is a Bio spec that produces content when built. The generator has access to the seed and other parameters.
 
 ### Biological Object → In-Memory Structure
 

@@ -4,6 +4,130 @@
 
 Data folder system for storing and loading biological specifications. Bio uses DAT for filesystem-based storage and retrieval of YAML specs.
 
+## Bio DAT File Structure
+
+A Bio DAT folder has a defined structure:
+
+```
+my_experiment/
+├── _spec_.yaml         # Required: DAT specification (kind, do function)
+├── _result_.yaml       # Generated: execution results from dat.run()
+├── index.yaml          # Bio content: scenario, chemistry, etc.
+│                       #   Default object returned by bio.fetch(dat_name)
+├── timeline.yaml       # Generated: full simulation timeline (optional)
+└── [other files...]       # Optional: additional data, logs, artifacts
+```
+
+### `_spec_.yaml` (Required)
+
+The dvc_dat specification file. Defines DAT metadata and execution behavior.
+
+**Minimal example:**
+```yaml
+# _spec_.yaml
+dat:
+  kind: Dat
+  do: alienbio.run      # Function called when DAT is run
+```
+
+**Full example with base template and args:**
+```yaml
+# _spec_.yaml
+dat:
+  kind: Dat
+  base: experiments.baseline        # Expand from this base template
+  path: experiments/{YYYY}{MM}{DD}  # Path template with variables
+  do: alienbio.run                  # Function to execute
+  args: [10]                        # Positional args for do function
+  kwargs:                           # Keyword args for do function
+    verbose: true
+    seed: 42
+```
+
+**Key fields:**
+| Field | Description |
+|-------|-------------|
+| `dat.kind` | DAT class (usually "Dat") |
+| `dat.do` | Function called when DAT is run (receives DAT as first arg) |
+| `dat.base` | Base template to expand from (optional) |
+| `dat.path` | Path template with `{YYYY}`, `{unique}`, etc. (optional) |
+| `dat.args` | Positional args passed to do function (optional) |
+| `dat.kwargs` | Keyword args passed to do function (optional) |
+
+
+### `build:` and `run:` Sections
+
+DAT specs can include `build:` and `run:` sections that define what happens during each phase:
+
+**Example DAT spec with build and run:**
+```yaml
+# _spec_.yaml
+scenarios.baseline:
+  path: data/scenarios/baseline_{seed}/
+
+  build:
+    index.yaml: generators.baseline    # generate content from Bio generator
+
+  run:
+    - run . --agent claude             # execute scenario with agent
+    - report .                         # generate report
+```
+
+**`build:` section:**
+- Maps output filenames to Bio generators
+- Each entry: `<filename>: <generator_name>`
+- During `bio build`, each generator is called and output written to the filename
+- Generators are Bio specs that produce content (scenarios, chemistries, etc.)
+
+**`run:` section:**
+- List of commands to execute sequentially
+- Commands run in the context of the DAT folder (`.` refers to the DAT)
+- Bio commands (like `run`, `report`) are recognized automatically
+- Use `shell:` prefix for non-bio commands: `shell: python analysis.py`
+
+### `_result_.yaml` (Generated when a DAT is run)
+```yaml
+# _result_.yaml
+start_time: '2026-01-15 15:57:17.714576'
+success: true
+execution_time: 0.008767
+end_time: '2026-01-15 15:57:17.723347'
+run_metadata:
+  final_state:
+    A: 0.0
+    B: 0.0
+    D: 9.94
+  scores:
+    score: 0.997
+    depletion: 1.0
+    production: 0.994
+  passing_score: 0.5
+  success: true
+```
+
+### index.yaml (Bio Content)
+
+The default Bio object for this DAT. When you call `bio.fetch("dat_name")`, this is what gets loaded:
+
+```yaml
+# index.yaml
+scenario:
+  _type: scenario
+  chemistry:
+    molecules: ...
+    reactions: ...
+  scoring:
+    score: !ev "lambda trace: ..."
+```
+
+### Optional Components
+
+Different DAT types may include additional files:
+- `timeline.yaml` — full simulation state history
+- `trace.yaml` — detailed agent action trace
+- `report.csv` — tabular results
+- `artifacts/` — large files, plots, etc.
+
 ---
 
 ## Overview
