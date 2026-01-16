@@ -31,9 +31,8 @@ DAT Execution:
 DAT File Structure:
     A Bio DAT folder contains:
     - _spec_.yaml       Required: dvc_dat specification (kind, do function)
-    - _result_.yaml     Generated: execution results from dat.run()
+    - _result_.yaml     Generated: execution results from bio run
     - index.yaml        Bio content: default object for bio.fetch()
-    - timeline.yaml     Generated: full simulation timeline (if applicable)
 
     Optional components may be added for specific DAT types.
 """
@@ -65,14 +64,17 @@ def _is_dat(path: Path) -> bool:
     return spec_file.exists()
 
 
-def _save_execution_results(
+def _save_result(
     dat_path: Path,
     results: Any,
     agent_type: str,
     model: Optional[str],
     seed: Optional[int],
 ) -> None:
-    """Save execution results to the DAT folder.
+    """Save execution results to the DAT's _result_.yaml.
+
+    This follows the dvc_dat convention where _result_.yaml contains
+    the mutable execution results for a DAT.
 
     Args:
         dat_path: Path to the DAT folder
@@ -83,25 +85,30 @@ def _save_execution_results(
     """
     from datetime import datetime
 
-    execution_data = {
-        "timestamp": datetime.now().isoformat(),
-        "scenario": results.scenario,
-        "seed": seed,
-        "agent_type": agent_type,
-        "model": model,
-        "status": results.status,
-        "passed": results.passed,
-        "incomplete_reason": results.incomplete_reason,
-        "scores": results.scores,
-        "trace_summary": {
-            "total_cost": results.trace.total_cost,
-            "action_count": len(results.trace),
+    result_data = {
+        "start_time": datetime.now().isoformat(),
+        "success": results.passed,
+        "execution_time": 0.0,  # TODO: track actual execution time
+        "end_time": datetime.now().isoformat(),
+        "run_metadata": {
+            "scenario": results.scenario,
+            "seed": seed,
+            "agent_type": agent_type,
+            "model": model,
+            "status": results.status,
+            "passed": results.passed,
+            "incomplete_reason": results.incomplete_reason,
+            "scores": results.scores,
+            "trace_summary": {
+                "total_cost": results.trace.total_cost,
+                "action_count": len(results.trace),
+            },
         },
     }
 
-    execution_file = dat_path / "execution.yaml"
-    with open(execution_file, "w") as f:
-        yaml.dump(execution_data, f, default_flow_style=False, sort_keys=False)
+    result_file = dat_path / "_result_.yaml"
+    with open(result_file, "w") as f:
+        yaml.dump(result_data, f, default_flow_style=False, sort_keys=False)
 
 
 def _parse_args(args: list[str]) -> tuple[Optional[str], dict[str, str]]:
@@ -175,7 +182,7 @@ def run_command(args: list[str], verbose: bool = False) -> int:
     """Run a scenario with an agent.
 
     When target is a DAT, creates a sandboxed Bio for isolated execution.
-    Results are saved to the DAT folder as execution.yaml.
+    Results are saved to the DAT folder as _result_.yaml.
 
     Args:
         args: Command arguments [path] [--seed N] [--agent TYPE] [--model NAME]
@@ -262,9 +269,9 @@ def run_command(args: list[str], verbose: bool = False) -> int:
 
         # Save results to DAT folder if this is DAT execution
         if is_dat_execution:
-            _save_execution_results(path, results, agent_type, model, seed)
+            _save_result(path, results, agent_type, model, seed)
             if verbose:
-                print(f"  Results saved to: {path / 'execution.yaml'}")
+                print(f"  Results saved to: {path / '_result_.yaml'}")
 
         # Print results
         print("\n" + "=" * 60)
