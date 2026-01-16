@@ -1,23 +1,230 @@
-"""build command: Build/expand a spec without evaluating."""
+"""build command: Build a spec into a DAT folder or expand in-memory.
+
+Usage:
+    bio build <spec_path>                    # Expand spec to stdout
+    bio build <spec_path> --seed 42          # Build DAT folder with seed
+    bio build <spec_path> --output ./mydat   # Custom output path
+    bio build <spec_path> --json             # Output as JSON instead of YAML
+    bio build <spec_path> --execute          # Build and run the run: section
+
+DAT Build:
+    When the spec contains a `dat:` section with `path:` and `build:` fields,
+    `bio build` creates a complete DAT folder using dvc_dat's create mechanism:
+
+    1. Creates the target folder from the path template (via DatManager)
+    2. Writes _spec_.yaml with metadata
+    3. Processes build: section - calls generators, writes output files
+    4. Returns the path to the created DAT folder
+
+Path Templates:
+    The `dat.path` field supports variable substitution via dvc_dat:
+    - {seed} - the random seed used for generation
+    - {YYYY}, {YY}, {MM}, {DD}, {HH}, {mm}, {SS} - date/time components
+    - {unique} - auto-incrementing counter for uniqueness
+    - {cwd} - current working directory
+
+Example _spec_.yaml:
+    dat:
+      kind: Dat
+      path: data/scenarios/mutualism_{seed}
+    build:
+      index.yaml: .           # Build current spec, write to index.yaml
+      config.yaml: config     # Build 'config' generator, write to config.yaml
+    run:
+      - run . --agent claude
+      - report -t tabular
+"""
 
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Optional
 
 import yaml
 
 
-def build_command(args: list[str], verbose: bool = False) -> int:
-    """Build a spec: resolve includes, refs, defaults without evaluating.
+def _is_dat_spec(spec: dict[str, Any]) -> bool:
+    """Check if a spec is a DAT spec.
 
-    Shows the fully expanded dict with _type fields, resolved includes,
-    refs, and defaults - but placeholders like Evaluable remain as-is.
-
-    This is essentially an alias for `bio expand` with some enhancements.
+    A DAT spec has a 'dat' section - that's the definitive indicator.
 
     Args:
-        args: Command arguments [spec_path] [--json]
+        spec: Parsed spec dict
+
+    Returns:
+        True if this is a DAT spec
+    """
+    return "dat" in spec
+
+
+def _build_dat_folder(
+    spec: dict[str, Any],
+    source_path: Path,
+    seed: int,
+    output_path: Optional[Path] = None,
+    verbose: bool = False,
+) -> Path:
+    """Build a DAT folder from a DAT spec using dvc_dat.
+
+    Args:
+        spec: The parsed DAT spec
+        source_path: Path to the source spec file/folder
+        seed: Random seed for generation
+        output_path: Override the output path (optional)
+        verbose: Print progress
+
+    Returns:
+        Path to the created DAT folder
+    """
+    from dvc_dat import Dat
+    from alienbio import bio
+
+    # Add _built_with metadata to spec
+    spec_with_metadata = dict(spec)
+    spec_with_metadata["_built_with"] = {
+        "seed": seed,
+        "timestamp": datetime.now().isoformat(),
+        "source": str(source_path),
+    }
+
+    # Handle path: use output_path override or let Dat.create use the spec's path/name
+    dat_section = spec_with_metadata.get("dat", {})
+
+    if output_path:
+        # User provided explicit output path
+        create_path = str(output_path)
+    else:
+        # Get path template from spec, expand {seed} variable
+        path_template = dat_section.get("path") or dat_section.get("name")
+        if path_template:
+            # Expand seed variable in template
+            create_path = path_template.replace("{seed}", str(seed))
+        else:
+            create_path = f"data/builds/{seed}"
+
+    # Set target_exists to allow rebuilding
+    dat_section["target_exists"] = "overwrite"
+    spec_with_metadata["dat"] = dat_section
+
+    if verbose:
+        print(f"  Creating DAT via Dat.create: {create_path}")
+
+    # Use Dat.create to create the folder and write _spec_.yaml
+    dat = Dat.create(path=create_path, spec=spec_with_metadata)
+    dat_path = dat.path
+
+    if verbose:
+        print(f"  Created DAT at: {dat_path}")
+
+    # Process build: section
+    build_section = spec.get("build", {})
+    for output_filename, generator_ref in build_section.items():
+        if verbose:
+            print(f"  Building: {output_filename} from {generator_ref}")
+
+        if generator_ref == ".":
+            # Special case: build the current spec (minus dat/build sections)
+            content_spec = {k: v for k, v in spec.items() if k not in ("dat", "build", "run")}
+            built_content = bio.build(content_spec, seed=seed)
+        else:
+            # Build from a named generator
+            built_content = bio.build(generator_ref, seed=seed)
+
+        # Write the output file
+        output_file = dat_path / output_filename
+        if isinstance(built_content, dict):
+            with open(output_file, "w") as f:
+                yaml.dump(built_content, f, default_flow_style=False, sort_keys=False)
+        else:
+            # If it's a typed object, convert to dict
+            if hasattr(built_content, "to_dict"):
+                content_dict = built_content.to_dict()
+            elif hasattr(built_content, "__dict__"):
+                content_dict = {k: v for k, v in vars(built_content).items() if not k.startswith("_")}
+            else:
+                content_dict = built_content
+
+            with open(output_file, "w") as f:
+                yaml.dump(content_dict, f, default_flow_style=False, sort_keys=False)
+
+        if verbose:
+            print(f"  Wrote: {output_file}")
+
+    return dat_path
+
+
+def _execute_run_section(
+    run_commands: list[str],
+    dat_path: Path,
+    verbose: bool = False,
+) -> int:
+    """Execute commands from the run: section.
+
+    Args:
+        run_commands: List of commands to execute
+        dat_path: Path to the DAT folder (for context)
+        verbose: Print progress
+
+    Returns:
+        Exit code (0 for success, non-zero for failure)
+    """
+    import subprocess
+
+    for cmd in run_commands:
+        if verbose:
+            print(f"  Executing: {cmd}")
+
+        # Parse command - check for shell: prefix
+        if cmd.startswith("shell:"):
+            # Execute as shell command
+            shell_cmd = cmd[6:].strip()
+            result = subprocess.run(
+                shell_cmd,
+                shell=True,
+                cwd=dat_path,
+            )
+            if result.returncode != 0:
+                print(f"Error: shell command failed: {shell_cmd}", file=sys.stderr)
+                return result.returncode
+        else:
+            # Execute as bio command
+            # Parse: "run . --agent claude" -> ["run", ".", "--agent", "claude"]
+            parts = cmd.split()
+            if not parts:
+                continue
+
+            bio_cmd = parts[0]
+            bio_args = parts[1:]
+
+            # Replace "." with the DAT path
+            bio_args = [str(dat_path) if arg == "." else arg for arg in bio_args]
+
+            if bio_cmd == "run":
+                from alienbio.commands.run import run_command
+                exit_code = run_command(bio_args, verbose=verbose)
+                if exit_code != 0:
+                    return exit_code
+            elif bio_cmd == "report":
+                # TODO: Implement report command
+                if verbose:
+                    print(f"  Skipping report command (not yet implemented)")
+            else:
+                print(f"Error: unknown bio command: {bio_cmd}", file=sys.stderr)
+                return 1
+
+    return 0
+
+
+def build_command(args: list[str], verbose: bool = False) -> int:
+    """Build a spec: create DAT folder or expand to stdout.
+
+    If the spec is a DAT spec (has dat.path and build sections),
+    creates a complete DAT folder. Otherwise, expands and prints.
+
+    Args:
+        args: Command arguments [spec_path] [--seed N] [--output PATH] [--json] [--execute]
         verbose: Enable verbose output
 
     Returns:
@@ -25,13 +232,40 @@ def build_command(args: list[str], verbose: bool = False) -> int:
     """
     from alienbio import bio
 
-    if not args:
+    # Parse arguments
+    spec_path = None
+    seed: Optional[int] = None
+    output_path: Optional[Path] = None
+    json_output = False
+    execute_run = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--seed" and i + 1 < len(args):
+            seed = int(args[i + 1])
+            i += 2
+        elif arg == "--output" and i + 1 < len(args):
+            output_path = Path(args[i + 1])
+            i += 2
+        elif arg == "--json":
+            json_output = True
+            i += 1
+        elif arg == "--execute":
+            execute_run = True
+            i += 1
+        elif not arg.startswith("--"):
+            if spec_path is None:
+                spec_path = arg
+            i += 1
+        else:
+            i += 1
+
+    if not spec_path:
         print("Error: build command requires a spec path", file=sys.stderr)
-        print("Usage: bio build <spec_path> [--json]", file=sys.stderr)
+        print("Usage: bio build <spec_path> [--seed N] [--output PATH] [--json] [--execute]", file=sys.stderr)
         return 1
 
-    spec_path = args[0]
-    json_output = "--json" in args
     path = Path(spec_path)
 
     # Handle relative paths - look in catalog/ if not found directly
@@ -49,15 +283,51 @@ def build_command(args: list[str], verbose: bool = False) -> int:
         print(f"Building: {path}")
 
     try:
+        # Load and expand the spec
         result = bio.expand(str(path))
 
-        if json_output:
-            import json
-            print(json.dumps(result, indent=2, default=str))
+        # Check if this is a DAT spec
+        if _is_dat_spec(result):
+            # Use seed 0 if not provided
+            effective_seed = seed if seed is not None else 0
+
+            if verbose:
+                print(f"  Detected DAT spec, seed={effective_seed}")
+
+            dat_path = _build_dat_folder(
+                result,
+                source_path=path,
+                seed=effective_seed,
+                output_path=output_path,
+                verbose=verbose,
+            )
+
+            print(f"Created: {dat_path}")
+
+            # Execute run section if requested
+            if execute_run and "run" in result:
+                run_commands = result["run"]
+                if isinstance(run_commands, list) and run_commands:
+                    if verbose:
+                        print(f"  Executing run section ({len(run_commands)} commands)...")
+                    exit_code = _execute_run_section(run_commands, dat_path, verbose=verbose)
+                    if exit_code != 0:
+                        return exit_code
+
+            return 0
+
         else:
-            print(yaml.dump(result, default_flow_style=False))
-        return 0
+            # Not a DAT spec - just expand and print
+            if json_output:
+                import json
+                print(json.dumps(result, indent=2, default=str))
+            else:
+                print(yaml.dump(result, default_flow_style=False))
+            return 0
 
     except Exception as e:
         print(f"Error building spec: {e}", file=sys.stderr)
+        if verbose:
+            import traceback
+            traceback.print_exc()
         return 1

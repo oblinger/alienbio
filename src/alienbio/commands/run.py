@@ -71,10 +71,10 @@ def _save_result(
     model: Optional[str],
     seed: Optional[int],
 ) -> None:
-    """Save execution results to the DAT's _result_.yaml.
+    """Save execution results to the DAT's _result_.yaml using dvc_dat.
 
-    This follows the dvc_dat convention where _result_.yaml contains
-    the mutable execution results for a DAT.
+    This uses Dat.load() and dat.save() to properly save results
+    following the dvc_dat convention.
 
     Args:
         dat_path: Path to the DAT folder
@@ -84,8 +84,13 @@ def _save_result(
         seed: Random seed used
     """
     from datetime import datetime
+    from dvc_dat import Dat
 
-    result_data = {
+    # Load the DAT
+    dat = Dat.load(dat_path)
+
+    # Set the result data
+    dat._result = {
         "start_time": datetime.now().isoformat(),
         "success": results.passed,
         "execution_time": 0.0,  # TODO: track actual execution time
@@ -106,9 +111,8 @@ def _save_result(
         },
     }
 
-    result_file = dat_path / "_result_.yaml"
-    with open(result_file, "w") as f:
-        yaml.dump(result_data, f, default_flow_style=False, sort_keys=False)
+    # Save using dvc_dat's save method
+    dat.save()
 
 
 def _parse_args(args: list[str]) -> tuple[Optional[str], dict[str, str]]:
