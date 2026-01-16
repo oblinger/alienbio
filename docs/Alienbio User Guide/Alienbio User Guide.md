@@ -11,3 +11,4 @@ User-facing documentation for working with alienbio. See [[Architecture Docs]] f
 - [[Generator Spec]] — Template-based scenario generation
 - [[Execution Guide]] — CLI, agents, running experiments
 - [[Agent Interface]] — Detailed agent interaction protocol
+- [[ABIO Example]] — Extended example: mutualism world

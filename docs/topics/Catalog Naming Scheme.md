@@ -1,38 +1,8 @@
 [[ABIO docs]] → [[ABIO Topics]]
+- [[Alien Vocabulary]] 
 
 # Catalog Naming Scheme
-
 Naming conventions for builder templates. These are `build()` targets with statistical distributions (`!ev`) that get instantiated into concrete objects.
-
-## Choosing a Prefix
-
-Each template universe uses its own short prefix (2-4 characters). Prefixes are cryptic by design—they appear throughout thousands of references—so we maintain a registry for lookup.
-
-### Prefix Registry
-
-All prefixes are registered in `catalog/_index.yaml`:
-
-```yaml
-# catalog/_index.yaml
-prefixes:
-  test: {"name": "Test Fixtures",       "description": "Test scenarios, actions, and measurements"}
-  mute: {"name": "Mutualism Baseline",  "description": "Two-species mutualistic ecosystem"}
-  krel: {"name": "Krebs-like Cycle",    "description": "Circular metabolic pathway with energy coupling"}
-  pred: {"name": "Predator-Prey",       "description": "Multi-species predator-prey food web dynamics"}
-  comp: {"name": "Competition Arena",   "description": "Multi-species competition for limited resources"}
-  std:  {"name": "Standard Library",    "description": "Reusable templates for common patterns"}
-```
-
-Access programmatically via `bio.fetch("catalog._index").prefixes`.
-
-### Registering New Prefixes
-
-When creating a new universe:
-1. Choose a short, unused prefix (2-4 chars)
-2. Add it to `catalog/_index.yaml` with name and description
-3. Create the prefix folder in `catalog/`
-
-The prefix becomes a folder in your source tree containing the structure below.
 
 ## Directory Structure
 
@@ -76,13 +46,43 @@ The prefix becomes a folder in your source tree containing the structure below.
 │   ├── /predation        #   predator-prey dynamics
 │   ├── /symbiosis        #   mutually dependent
 │   └── /parasitism       #   parasitic extraction
-└── /scenarios            # SCENARIO — experiment/test scenario definitions
-    ├── /basic            #   simple scenarios for testing
-    ├── /benchmark        #   standardized benchmark scenarios
-    └── /challenge        #   difficult scenarios for evaluation
+└── /scenario             # SCENARIO — experiment/test scenario definitions
 ```
 
+
+
 ---
+
+## Choosing a Prefix
+
+Each template universe uses its own short prefix (2-4 characters). Prefixes are cryptic by design—they appear throughout thousands of references—so we maintain a registry for lookup.
+
+### Prefix Registry
+
+All prefixes are registered in `catalog/_index.yaml`:
+
+```yaml
+# catalog/_index.yaml
+prefixes:
+  test: {"name": "Test Fixtures",       "description": "Test scenarios, actions, and measurements"}
+  mute: {"name": "Mutualism Baseline",  "description": "Two-species mutualistic ecosystem"}
+  krel: {"name": "Krebs-like Cycle",    "description": "Circular metabolic pathway with energy coupling"}
+  pred: {"name": "Predator-Prey",       "description": "Multi-species predator-prey food web dynamics"}
+  comp: {"name": "Competition Arena",   "description": "Multi-species competition for limited resources"}
+  std:  {"name": "Standard Library",    "description": "Reusable templates for common patterns"}
+```
+
+Access programmatically via `bio.fetch("catalog._index").prefixes`.
+
+### Registering New Prefixes
+
+When creating a new universe:
+1. Choose a short, unused prefix (2-4 chars)
+2. Add it to `catalog/_index.yaml` with name and description
+3. Create the prefix folder in `catalog/`
+
+The prefix becomes a folder in your source tree containing the structure below.
+
 
 ## Overview
 

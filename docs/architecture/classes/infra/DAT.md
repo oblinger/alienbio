@@ -6,31 +6,18 @@ Data folder system for storing and loading biological specifications. Bio uses D
 
 ## Bio DAT File Structure
 
-A Bio DAT folder has a defined structure:
-
 ```
 my_experiment/
 ├── _spec_.yaml         # Required: DAT specification (kind, do function)
 ├── _result_.yaml       # Generated: execution results from dat.run()
-├── index.yaml          # Bio content: scenario, chemistry, etc.
-│                       #   Default object returned by bio.fetch(dat_name)
-├── timeline.yaml       # Generated: full simulation timeline (optional)
-└── [other files...]       # Optional: additional data, logs, artifacts
+├── index.yaml          # Bio content: default object for bio.fetch(dat_name)
+├── timeline.yaml       # Optional: full simulation state history
+├── trace.yaml          # Optional: detailed agent action trace
+├── report.csv          # Optional: tabular results
+└── artifacts/          # Optional: large files, plots, etc.
 ```
 
 ### `_spec_.yaml` (Required)
-
-The dvc_dat specification file. Defines DAT metadata and execution behavior.
-
-**Minimal example:**
-```yaml
-# _spec_.yaml
-dat:
-  kind: Dat
-  do: alienbio.run      # Function called when DAT is run
-```
-
-**Full example with build and run:**
 ```yaml
 # _spec_.yaml
 scenarios.baseline:
@@ -41,9 +28,11 @@ scenarios.baseline:
 
   run:
     - run . --agent claude             # execute scenario with agent
-    - report .                         # generate report
+    - report --type summary            # generate summary report
 ```
 
+
+The dvc_dat specification file. Defines DAT metadata and execution behavior.
 **Full example with do function (alternative approach):**
 ```yaml
 # _spec_.yaml
@@ -59,6 +48,7 @@ dat:
 ```
 
 **Key fields:**
+
 | Field | Description |
 |-------|-------------|
 | `path` | Path template with `{seed}`, `{YYYY}`, `{unique}`, etc. |
@@ -91,7 +81,7 @@ List of commands to execute sequentially:
 ```yaml
 run:
   - run . --agent claude             # execute scenario with agent
-  - report .                         # generate report
+  - report --type summary            # generate summary report
   - shell: python analysis.py        # arbitrary shell command
 ```
 
@@ -119,28 +109,7 @@ run_metadata:
   success: true
 ```
 
-### index.yaml (Bio Content)
 
-The default Bio object for this DAT. When you call `bio.fetch("dat_name")`, this is what gets loaded:
-
-```yaml
-# index.yaml
-scenario:
-  _type: scenario
-  chemistry:
-    molecules: ...
-    reactions: ...
-  scoring:
-    score: !ev "lambda trace: ..."
-```
-
-### Optional Components
-
-Different DAT types may include additional files:
-- `timeline.yaml` — full simulation state history
-- `trace.yaml` — detailed agent action trace
-- `report.csv` — tabular results
-- `artifacts/` — large files, plots, etc.
 
 ---
 
