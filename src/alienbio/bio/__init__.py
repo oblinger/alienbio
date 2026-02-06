@@ -82,6 +82,9 @@ from .equilibrium import (
     check_homeostasis,
 )
 
+# Agent interface (M7.3)
+from .agent_interface import AgentInterface
+
 # Measurements (M7.1)
 from .measurements import (
     MeasurementSpec,
@@ -169,6 +172,8 @@ __all__ = [
     "RemoveMoleculeAction",
     "SetConcentrationAction",
     "AdjustRateAction",
+    # Agent interface
+    "AgentInterface",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
