@@ -108,6 +108,9 @@ from .actions import (
 from .task import Task, PredictTask, TaskResult
 from .experiment import ExperimentResult, run_experiment
 
+# Diagnosis and cure tasks (M11)
+from .diagnosis import DiagnoseTask, CureTask
+
 # Disease and variation (M10)
 from .disease import (
     HealthRange,
@@ -195,6 +198,9 @@ __all__ = [
     "TaskResult",
     "ExperimentResult",
     "run_experiment",
+    # Diagnosis and cure tasks
+    "DiagnoseTask",
+    "CureTask",
     # Disease and variation
     "HealthRange",
     "Baseline",
