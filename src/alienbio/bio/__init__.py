@@ -104,6 +104,24 @@ from .actions import (
     AdjustRateAction,
 )
 
+# Task framework (M8)
+from .task import Task, PredictTask, TaskResult
+from .experiment import ExperimentResult, run_experiment
+
+# Diagnosis and cure tasks (M11)
+from .diagnosis import DiagnoseTask, CureTask
+
+# Disease and variation (M10)
+from .disease import (
+    HealthRange,
+    Baseline,
+    Perturbation,
+    Symptom,
+    measure_baseline,
+    generate_perturbations,
+    detect_symptoms,
+)
+
 # Perturbation analysis
 from .perturbation import (
     PerturbationResult,
@@ -174,6 +192,23 @@ __all__ = [
     "AdjustRateAction",
     # Agent interface
     "AgentInterface",
+    # Task framework
+    "Task",
+    "PredictTask",
+    "TaskResult",
+    "ExperimentResult",
+    "run_experiment",
+    # Diagnosis and cure tasks
+    "DiagnoseTask",
+    "CureTask",
+    # Disease and variation
+    "HealthRange",
+    "Baseline",
+    "Perturbation",
+    "Symptom",
+    "measure_baseline",
+    "generate_perturbations",
+    "detect_symptoms",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
