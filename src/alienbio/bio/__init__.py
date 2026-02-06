@@ -114,6 +114,16 @@ from .diagnosis import DiagnoseTask, CureTask
 # Difficulty scaling (M11.3)
 from .difficulty import generate_diagnosis_task
 
+# Difficulty curves (M8.2 Advanced)
+from .difficulty_curve import (
+    DifficultyLevel,
+    DifficultyPoint,
+    DifficultyCurve,
+    DifficultySpec,
+    measure_difficulty_curve,
+    compare_difficulty_curves,
+)
+
 # Test harness (M12)
 from .harness import TestSuite, TestResults, run_suite
 
@@ -149,6 +159,19 @@ from .organ_generator import (
     TransportLink,
     Organism,
     generate_organism,
+)
+
+# Organism features (M9.3)
+from .organism_features import (
+    MaintainedMolecule,
+    EnvelopeBound,
+    OperatingEnvelope,
+    EnvelopeViolation,
+    EnvelopeStatus,
+    ReproductionThreshold,
+    PredationRule,
+    apply_maintained_molecules,
+    apply_predation,
 )
 
 # Perturbation analysis
@@ -263,6 +286,23 @@ __all__ = [
     "TransportLink",
     "Organism",
     "generate_organism",
+    # Organism features
+    "MaintainedMolecule",
+    "EnvelopeBound",
+    "OperatingEnvelope",
+    "EnvelopeViolation",
+    "EnvelopeStatus",
+    "ReproductionThreshold",
+    "PredationRule",
+    "apply_maintained_molecules",
+    "apply_predation",
+    # Difficulty curves
+    "DifficultyLevel",
+    "DifficultyPoint",
+    "DifficultyCurve",
+    "DifficultySpec",
+    "measure_difficulty_curve",
+    "compare_difficulty_curves",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
