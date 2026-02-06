@@ -57,6 +57,32 @@ class BatteryResult:
             groups.setdefault(entry.agent_name, []).append(entry)
         return groups
 
+    def filter(
+        self,
+        agent: Optional[str] = None,
+        scenario: Optional[str] = None,
+        seed: Optional[int] = None,
+    ) -> "BatteryResult":
+        """Return a new BatteryResult with only matching entries.
+
+        Args:
+            agent: Filter by agent name (exact match).
+            scenario: Filter by scenario name (exact match).
+            seed: Filter by seed value.
+        """
+        entries = self.entries
+        if agent is not None:
+            entries = [e for e in entries if e.agent_name == agent]
+        if scenario is not None:
+            entries = [e for e in entries if e.result.scenario == scenario]
+        if seed is not None:
+            entries = [e for e in entries if e.result.seed == seed]
+        return BatteryResult(entries=entries)
+
+    def merge(self, other: "BatteryResult") -> "BatteryResult":
+        """Combine entries from two BatteryResults."""
+        return BatteryResult(entries=self.entries + other.entries)
+
     def summary(self) -> list[dict[str, Any]]:
         """Per-agent summary with pass rate and mean scores."""
         rows = []
