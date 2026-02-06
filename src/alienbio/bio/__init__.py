@@ -71,6 +71,26 @@ from .world_simulator import WorldSimulatorImpl, ReactionSpec
 # Implementation classes - system assembly
 from .biosystem import BioSystem
 
+# Equilibrium analysis
+from .equilibrium import (
+    StabilityResult,
+    HomeostasisTarget,
+    compute_variance,
+    check_stability,
+    run_to_equilibrium,
+    find_unstable_rates,
+    check_homeostasis,
+)
+
+# Perturbation analysis
+from .perturbation import (
+    PerturbationResult,
+    DriftResult,
+    inject_spike,
+    remove_reaction_drift,
+    measure_intervention_response,
+)
+
 __all__ = [
     # Type aliases
     "MoleculeId",
@@ -103,6 +123,20 @@ __all__ = [
     "SimulatorBase",
     # System assembly
     "BioSystem",
+    # Equilibrium analysis
+    "StabilityResult",
+    "HomeostasisTarget",
+    "compute_variance",
+    "check_stability",
+    "run_to_equilibrium",
+    "find_unstable_rates",
+    "check_homeostasis",
+    # Perturbation analysis
+    "PerturbationResult",
+    "DriftResult",
+    "inject_spike",
+    "remove_reaction_drift",
+    "measure_intervention_response",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
