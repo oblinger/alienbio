@@ -117,6 +117,15 @@ from .difficulty import generate_diagnosis_task
 # Test harness (M12)
 from .harness import TestSuite, TestResults, run_suite
 
+# Skinning (M14)
+from .skinning import (
+    generate_alien_name,
+    generate_description,
+    generate_name_map,
+    skin_task_description,
+    check_no_earth_terms,
+)
+
 # Disease and variation (M10)
 from .disease import (
     HealthRange,
@@ -221,6 +230,12 @@ __all__ = [
     "TestSuite",
     "TestResults",
     "run_suite",
+    # Skinning
+    "generate_alien_name",
+    "generate_description",
+    "generate_name_map",
+    "skin_task_description",
+    "check_no_earth_terms",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
