@@ -27,72 +27,20 @@ from alienbio.agent import (
 )
 
 
-# --- Shared test scenarios ---
+# --- Load test scenarios from YAML ---
 
-SCENARIO_SIMPLE = {
-    "name": "simple",
-    "briefing": "Simple test world",
-    "constitution": "No rules",
-    "interface": {
-        "actions": {
-            "add_feedstock": {
-                "description": "Add molecules",
-                "params": {"molecule": "str", "amount": "float"},
-                "cost": 1.0,
-            },
-        },
-        "measurements": {
-            "sample": {
-                "description": "Sample substrate",
-                "params": {"region": "str"},
-                "cost": 0,
-            },
-        },
-        "budget": 20,
-    },
-    "sim": {"max_agent_steps": 10, "steps_per_action": 1},
-    "containers": {"regions": {"R1": {"substrate": {"M1": 10.0, "M2": 5.0}}}},
-    "scoring": {},
-    "passing_score": 0.5,
-}
+SCENARIOS_DIR = Path(__file__).resolve().parents[2] / "catalog" / "test" / "scenarios"
 
-SCENARIO_TIGHT_BUDGET = {
-    "name": "tight_budget",
-    "briefing": "Tight budget test",
-    "constitution": "No rules",
-    "interface": {
-        "actions": {
-            "act": {"description": "Action", "params": {}, "cost": 5.0},
-        },
-        "measurements": {},
-        "budget": 8,
-    },
-    "sim": {"max_agent_steps": 5, "steps_per_action": 1},
-    "containers": {"regions": {"R1": {"substrate": {"M1": 1.0}}}},
-    "scoring": {},
-    "passing_score": 0.5,
-}
 
-SCENARIO_MANY_ACTIONS = {
-    "name": "many_actions",
-    "briefing": "Many actions available",
-    "constitution": "No rules",
-    "interface": {
-        "actions": {
-            "act_a": {"description": "A", "params": {}, "cost": 0.5},
-            "act_b": {"description": "B", "params": {}, "cost": 1.0},
-            "act_c": {"description": "C", "params": {}, "cost": 2.0},
-        },
-        "measurements": {
-            "measure": {"description": "M", "params": {}, "cost": 0},
-        },
-        "budget": 30,
-    },
-    "sim": {"max_agent_steps": 20, "steps_per_action": 1},
-    "containers": {"regions": {"R1": {"substrate": {"M1": 5.0}}}},
-    "scoring": {},
-    "passing_score": 0.5,
-}
+def _load(filename: str) -> dict:
+    """Load a scenario YAML file."""
+    with open(SCENARIOS_DIR / filename) as f:
+        return yaml.safe_load(f)
+
+
+SCENARIO_SIMPLE = _load("simple_exp.yaml")
+SCENARIO_TIGHT_BUDGET = _load("tight_budget.yaml")
+SCENARIO_MANY_ACTIONS = _load("many_actions.yaml")
 
 ALL_SCENARIOS = [SCENARIO_SIMPLE, SCENARIO_TIGHT_BUDGET, SCENARIO_MANY_ACTIONS]
 
