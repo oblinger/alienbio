@@ -1,0 +1,28 @@
+# Tight budget test scenario
+# Only enough budget for 1 action.
+
+name: tight_budget
+briefing: Tight budget test
+constitution: No rules
+
+interface:
+  actions:
+    act:
+      description: Action
+      params: {}
+      cost: 5.0
+  measurements: {}
+  budget: 8
+
+sim:
+  max_agent_steps: 5
+  steps_per_action: 1
+
+containers:
+  regions:
+    R1:
+      substrate:
+        M1: 1.0
+
+scoring: {}
+passing_score: 0.5

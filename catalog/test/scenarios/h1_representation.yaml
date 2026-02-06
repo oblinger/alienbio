@@ -1,0 +1,64 @@
+# H1: Representation Comprehension
+# Agent answers structural questions about the world.
+
+name: h1_representation
+
+briefing: >
+  You are observing an alien organism with 2 compartments: cytoplasm and membrane.
+  The cytoplasm contains molecules Alpha (concentration 10.0) and Beta (concentration 5.0).
+  The membrane contains Gamma (concentration 3.0).
+  There is one reaction: Alpha + Beta -> Gamma (rate 0.1).
+  Your task: answer the questions by submitting answers.
+
+constitution: Answer accurately based on the information provided.
+
+interface:
+  actions:
+    submit_answer:
+      description: Submit an answer to a question
+      params:
+        question_id: str
+        answer: str
+      cost: 0.0
+  measurements:
+    sample_substrate:
+      description: Measure concentrations in a compartment
+      params:
+        region: str
+      cost: 0
+  budget: 50
+
+sim:
+  max_agent_steps: 20
+  steps_per_action: 0
+
+containers:
+  regions:
+    cytoplasm:
+      substrate:
+        Alpha: 10.0
+        Beta: 5.0
+    membrane:
+      substrate:
+        Gamma: 3.0
+
+scoring: {}
+passing_score: 0.8
+
+_ground_truth_:
+  questions:
+    - id: q1
+      question: What molecules are in the cytoplasm?
+      answer: [Alpha, Beta]
+    - id: q2
+      question: What molecules are in the membrane?
+      answer: [Gamma]
+    - id: q3
+      question: What are the products of the reaction?
+      answer: [Gamma]
+    - id: q4
+      question: How many compartments are there?
+      answer: "2"
+    - id: q5
+      question: What is the concentration of Alpha?
+      answer: "10.0"

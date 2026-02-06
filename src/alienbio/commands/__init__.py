@@ -4,18 +4,21 @@ Each subcommand is implemented in its own file.
 The main CLI dispatches to these command modules.
 
 Commands:
-    build       - Build/expand a spec (resolve includes, refs, defaults)
-    cd          - Get or set current DAT context
-    compare     - Compare multiple agents on the same scenario
-    expand      - Debug: show processed spec without hydrating
-    fetch       - Fetch and display a spec
-    hydrate     - Fully evaluate a spec (resolve all placeholders)
-    report      - Primary command: run scenario, print table, save Excel to temp
-    run         - Debug: run entity, print result dict
-    store       - Store data to a spec path
-    view-report - Open the last generated report in spreadsheet app
+    battery        - Run an experiment battery from a YAML spec
+    battery-report - Generate summary report from saved battery results
+    build          - Build/expand a spec (resolve includes, refs, defaults)
+    cd             - Get or set current DAT context
+    compare        - Compare multiple agents on the same scenario
+    expand         - Debug: show processed spec without hydrating
+    fetch          - Fetch and display a spec
+    hydrate        - Fully evaluate a spec (resolve all placeholders)
+    report         - Primary command: run scenario, print table, save Excel to temp
+    run            - Debug: run entity, print result dict
+    store          - Store data to a spec path
+    view-report    - Open the last generated report in spreadsheet app
 """
 
+from .battery_cmd import battery_command, battery_report_command
 from .build import build_command
 from .cd import cd_command
 from .compare import compare_command
@@ -29,6 +32,8 @@ from .store import store_command
 
 # Registry of available commands
 COMMANDS = {
+    "battery": battery_command,
+    "battery-report": battery_report_command,
     "build": build_command,
     "cd": cd_command,
     "compare": compare_command,
@@ -44,6 +49,8 @@ COMMANDS = {
 
 __all__ = [
     "COMMANDS",
+    "battery_command",
+    "battery_report_command",
     "build_command",
     "cd_command",
     "compare_command",
