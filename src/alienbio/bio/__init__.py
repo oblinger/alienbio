@@ -117,6 +117,12 @@ from .difficulty import generate_diagnosis_task
 # Test harness (M12)
 from .harness import TestSuite, TestResults, run_suite
 
+# Agent comparison (Advanced Analysis)
+from .comparison import AgentStats, ComparisonTable, compare, compare_by_task
+
+# Quiescence detection
+from .quiescence import QuiescenceTimeout, run_until_quiet
+
 # Skinning (M14)
 from .skinning import (
     generate_alien_name,
@@ -236,6 +242,14 @@ __all__ = [
     "generate_name_map",
     "skin_task_description",
     "check_no_earth_terms",
+    # Agent comparison
+    "AgentStats",
+    "ComparisonTable",
+    "compare",
+    "compare_by_task",
+    # Quiescence detection
+    "QuiescenceTimeout",
+    "run_until_quiet",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
