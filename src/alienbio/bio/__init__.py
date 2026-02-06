@@ -104,6 +104,10 @@ from .actions import (
     AdjustRateAction,
 )
 
+# Task framework (M8)
+from .task import Task, PredictTask, TaskResult
+from .experiment import ExperimentResult, run_experiment
+
 # Perturbation analysis
 from .perturbation import (
     PerturbationResult,
@@ -174,6 +178,12 @@ __all__ = [
     "AdjustRateAction",
     # Agent interface
     "AgentInterface",
+    # Task framework
+    "Task",
+    "PredictTask",
+    "TaskResult",
+    "ExperimentResult",
+    "run_experiment",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
