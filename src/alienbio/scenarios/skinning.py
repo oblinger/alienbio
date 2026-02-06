@@ -7,8 +7,8 @@ import random
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .biosystem import BioSystem
-    from .task import Task
+    from ..bio.biosystem import BioSystem
+    from ..bio.task import Task
 
 # Alien syllable pools for generating opaque names
 _PREFIXES = [

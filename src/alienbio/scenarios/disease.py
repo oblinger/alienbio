@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .biosystem import BioSystem
+    from ..bio.biosystem import BioSystem
 
 
 @dataclass

@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent_interface import AgentInterface
-    from .task import Task
+    from ..bio.agent_interface import AgentInterface
+    from ..bio.task import Task
 
 AgentFn = Callable[["AgentInterface", "Task"], Any]
 
@@ -126,7 +126,7 @@ def measure_difficulty_curve(
     Returns:
         DifficultyCurve with performance at each level
     """
-    from .experiment import run_experiment
+    from ..bio.experiment import run_experiment
 
     points: List[DifficultyPoint] = []
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from alienbio.bio import CompartmentTreeImpl, WorldStateImpl
-from alienbio.bio.organism_features import (
+from alienbio.scenarios.organism_features import (
     MaintainedMolecule,
     EnvelopeBound,
     OperatingEnvelope,

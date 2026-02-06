@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, TYPE_CHECKING
 
-from .task import Task, TaskResult
+from ..bio.task import Task, TaskResult
 
 if TYPE_CHECKING:
-    from .agent_interface import AgentInterface
+    from ..bio.agent_interface import AgentInterface
     from .disease import Baseline, Perturbation
 
 

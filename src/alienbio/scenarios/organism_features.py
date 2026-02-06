@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .world_state import WorldStateImpl
+    from ..bio.world_state import WorldStateImpl
 
 MoleculeId = int
 CompartmentId = int

@@ -109,13 +109,13 @@ from .task import Task, PredictTask, TaskResult
 from .experiment import ExperimentResult, run_experiment
 
 # Diagnosis and cure tasks (M11)
-from .diagnosis import DiagnoseTask, CureTask
+from ..scenarios.diagnosis import DiagnoseTask, CureTask
 
 # Difficulty scaling (M11.3)
-from .difficulty import generate_diagnosis_task
+from ..scenarios.difficulty import generate_diagnosis_task
 
 # Difficulty curves (M8.2 Advanced)
-from .difficulty_curve import (
+from ..scenarios.difficulty_curve import (
     DifficultyLevel,
     DifficultyPoint,
     DifficultyCurve,
@@ -134,7 +134,7 @@ from .comparison import AgentStats, ComparisonTable, compare, compare_by_task
 from .quiescence import QuiescenceTimeout, run_until_quiet
 
 # Skinning (M14)
-from .skinning import (
+from ..scenarios.skinning import (
     generate_alien_name,
     generate_description,
     generate_name_map,
@@ -143,7 +143,7 @@ from .skinning import (
 )
 
 # Disease and variation (M10)
-from .disease import (
+from ..scenarios.disease import (
     HealthRange,
     Baseline,
     Perturbation,
@@ -154,7 +154,7 @@ from .disease import (
 )
 
 # Organ generator (M9.2)
-from .organ_generator import (
+from ..scenarios.organ_generator import (
     OrganSpec,
     TransportLink,
     Organism,
@@ -162,7 +162,7 @@ from .organ_generator import (
 )
 
 # Organism features (M9.3)
-from .organism_features import (
+from ..scenarios.organism_features import (
     MaintainedMolecule,
     EnvelopeBound,
     OperatingEnvelope,

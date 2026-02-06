@@ -13,7 +13,7 @@ from alienbio.bio import (
     ReactionImpl,
     StateImpl,
 )
-from alienbio.bio.skinning import (
+from alienbio.scenarios.skinning import (
     EARTH_TERMS,
     check_no_earth_terms,
     generate_alien_name,

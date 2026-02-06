@@ -14,7 +14,7 @@ from alienbio.bio import (
     StateImpl,
     AgentInterface,
 )
-from alienbio.bio.difficulty_curve import (
+from alienbio.scenarios.difficulty_curve import (
     DifficultyLevel,
     DifficultyPoint,
     DifficultyCurve,

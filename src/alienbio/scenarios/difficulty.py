@@ -6,7 +6,7 @@ import random
 from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .biosystem import BioSystem
+    from ..bio.biosystem import BioSystem
     from .disease import Perturbation
     from .diagnosis import DiagnoseTask
 

@@ -6,12 +6,12 @@ import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from .compartment_tree import CompartmentTreeImpl
-from .world_state import WorldStateImpl
-from .world_simulator import WorldSimulatorImpl, ReactionSpec
-from .flow import GeneralFlow
+from ..bio.compartment_tree import CompartmentTreeImpl
+from ..bio.world_state import WorldStateImpl
+from ..bio.world_simulator import WorldSimulatorImpl, ReactionSpec
+from ..bio.flow import GeneralFlow
 
-from .chemistry import ChemistryImpl
+from ..bio.chemistry import ChemistryImpl
 
 CompartmentId = int
 
