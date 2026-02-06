@@ -108,6 +108,17 @@ from .actions import (
 from .task import Task, PredictTask, TaskResult
 from .experiment import ExperimentResult, run_experiment
 
+# Disease and variation (M10)
+from .disease import (
+    HealthRange,
+    Baseline,
+    Perturbation,
+    Symptom,
+    measure_baseline,
+    generate_perturbations,
+    detect_symptoms,
+)
+
 # Perturbation analysis
 from .perturbation import (
     PerturbationResult,
@@ -184,6 +195,14 @@ __all__ = [
     "TaskResult",
     "ExperimentResult",
     "run_experiment",
+    # Disease and variation
+    "HealthRange",
+    "Baseline",
+    "Perturbation",
+    "Symptom",
+    "measure_baseline",
+    "generate_perturbations",
+    "detect_symptoms",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
