@@ -68,6 +68,9 @@ from .state import StateImpl
 from .simulator import ReferenceSimulatorImpl, SimulatorBase
 from .world_simulator import WorldSimulatorImpl, ReactionSpec
 
+# Implementation classes - system assembly
+from .biosystem import BioSystem
+
 __all__ = [
     # Type aliases
     "MoleculeId",
@@ -98,6 +101,8 @@ __all__ = [
     "ReactionSpec",
     # Abstract base for subclassing
     "SimulatorBase",
+    # System assembly
+    "BioSystem",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
