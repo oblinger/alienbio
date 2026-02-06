@@ -143,6 +143,14 @@ from .disease import (
     detect_symptoms,
 )
 
+# Organ generator (M9.2)
+from .organ_generator import (
+    OrganSpec,
+    TransportLink,
+    Organism,
+    generate_organism,
+)
+
 # Perturbation analysis
 from .perturbation import (
     PerturbationResult,
@@ -250,6 +258,11 @@ __all__ = [
     # Quiescence detection
     "QuiescenceTimeout",
     "run_until_quiet",
+    # Organ generator
+    "OrganSpec",
+    "TransportLink",
+    "Organism",
+    "generate_organism",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
