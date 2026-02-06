@@ -111,6 +111,12 @@ from .experiment import ExperimentResult, run_experiment
 # Diagnosis and cure tasks (M11)
 from .diagnosis import DiagnoseTask, CureTask
 
+# Difficulty scaling (M11.3)
+from .difficulty import generate_diagnosis_task
+
+# Test harness (M12)
+from .harness import TestSuite, TestResults, run_suite
+
 # Disease and variation (M10)
 from .disease import (
     HealthRange,
@@ -209,6 +215,12 @@ __all__ = [
     "measure_baseline",
     "generate_perturbations",
     "detect_symptoms",
+    # Difficulty scaling
+    "generate_diagnosis_task",
+    # Test harness
+    "TestSuite",
+    "TestResults",
+    "run_suite",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
