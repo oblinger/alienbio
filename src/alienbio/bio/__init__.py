@@ -82,6 +82,25 @@ from .equilibrium import (
     check_homeostasis,
 )
 
+# Measurements (M7.1)
+from .measurements import (
+    MeasurementSpec,
+    ConcentrationMeasurement,
+    AllConcentrationsMeasurement,
+    RateMeasurement,
+    MoleculeCountMeasurement,
+    ReactionCountMeasurement,
+)
+
+# Actions (M7.2)
+from .actions import (
+    ActionSpec,
+    AddMoleculeAction,
+    RemoveMoleculeAction,
+    SetConcentrationAction,
+    AdjustRateAction,
+)
+
 # Perturbation analysis
 from .perturbation import (
     PerturbationResult,
@@ -137,6 +156,19 @@ __all__ = [
     "inject_spike",
     "remove_reaction_drift",
     "measure_intervention_response",
+    # Measurements
+    "MeasurementSpec",
+    "ConcentrationMeasurement",
+    "AllConcentrationsMeasurement",
+    "RateMeasurement",
+    "MoleculeCountMeasurement",
+    "ReactionCountMeasurement",
+    # Actions
+    "ActionSpec",
+    "AddMoleculeAction",
+    "RemoveMoleculeAction",
+    "SetConcentrationAction",
+    "AdjustRateAction",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
