@@ -51,6 +51,7 @@ from .llm_agent import ConversationalLLMAgent
 from .claude_sdk_agent import ClaudeAgentSDKBinding
 from .experiment import run_experiment
 from .battery import ExperimentBattery, BatteryResult, BatteryEntry, BatteryProgress
+from .results_store import save_results, load_results, export_csv, export_json
 
 __all__ = [
     # Core types
@@ -81,4 +82,9 @@ __all__ = [
     "BatteryResult",
     "BatteryEntry",
     "BatteryProgress",
+    # Results storage
+    "save_results",
+    "load_results",
+    "export_csv",
+    "export_json",
 ]
