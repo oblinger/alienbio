@@ -47,6 +47,12 @@ htmlcov/
 rust/target/
 rust/Cargo.lock
 
+# Secrets
+.env
+
+# Demo output (generated plots)
+demos/output/
+
 # OS
 .DS_Store
 Thumbs.db
