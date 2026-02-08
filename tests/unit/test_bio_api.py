@@ -1,8 +1,8 @@
-"""Tests for Bio class API.
+"""Tests for Bio class API (M17).
 
 Coverage:
 - Bio.cd() — current DAT tracking and path resolution
-- bio.fetch() — specifier routing, hydration options
+- bio.fetch() — specifier routing, hydration options, Python module lookup
 - bio.run() — routing for string/dict/Scenario inputs
 - bio.store() — dehydration and storage
 - bio.build() — scenario instantiation
@@ -38,17 +38,14 @@ class TestBioCd:
     def test_cd_initial_state(self):
         """New Bio instance has no current DAT."""
         b = Bio()
-        # _current_dat should be None or cwd
         assert not hasattr(b, '_current_dat') or b._current_dat is None
 
-    @pytest.mark.skip(reason="Bio.cd() not yet implemented")
     def test_cd_sets_current_dat(self, temp_dir):
         """cd(path) sets current DAT."""
         b = Bio()
         b.cd(str(temp_dir))
-        assert b._current_dat == temp_dir
+        assert b._current_dat == temp_dir.resolve()
 
-    @pytest.mark.skip(reason="Bio.cd() not yet implemented")
     def test_cd_none_resets(self, temp_dir):
         """cd(None) resets to no current DAT."""
         b = Bio()
@@ -56,14 +53,12 @@ class TestBioCd:
         b.cd(None)
         assert b._current_dat is None
 
-    @pytest.mark.skip(reason="Bio.cd() not yet implemented")
     def test_cd_returns_current(self, temp_dir):
         """cd() with no args returns current DAT path."""
         b = Bio()
         b.cd(str(temp_dir))
-        assert b.cd() == temp_dir
+        assert b.cd() == temp_dir.resolve()
 
-    @pytest.mark.skip(reason="Bio.cd() not yet implemented")
     def test_fetch_relative_to_current_dat(self, temp_dir):
         """fetch('./subpath') resolves relative to current DAT."""
         # Create a DAT structure
@@ -113,20 +108,25 @@ class TestBioFetchRouting:
         assert result["name"] == "mydat"
         assert result["value"] == 123
 
-    @pytest.mark.skip(reason="Dots-before-slash routing not yet implemented")
     def test_fetch_dotted_name_routes_to_lookup(self, temp_dir):
-        """fetch('catalog.scenarios.test') routes to lookup."""
-        # This should:
-        # 1. Detect dots before any slash
-        # 2. Route to lookup() which searches configured roots
-        pass
+        """fetch('catalog.scenarios.test') routes to source root lookup."""
+        # Create a source root with YAML content
+        scenarios_dir = temp_dir / "catalog" / "scenarios"
+        scenarios_dir.mkdir(parents=True)
+        (scenarios_dir / "test.yaml").write_text("name: test_scenario\nvalue: 42\n")
 
-    @pytest.mark.skip(reason="Python module lookup not yet implemented")
+        b = Bio()
+        b.add_source_root(str(temp_dir))
+
+        result = b.fetch("catalog.scenarios.test", raw=True)
+        assert result["name"] == "test_scenario"
+        assert result["value"] == 42
+
     def test_fetch_python_module(self):
         """fetch('alienbio.bio.Chemistry') returns Python class."""
-        result = bio.fetch("alienbio.bio.Chemistry")
         from alienbio.bio import Chemistry
-        assert result == Chemistry
+        result = bio.fetch("alienbio.bio.Chemistry")
+        assert result is Chemistry
 
 
 class TestBioFetchHydration:
@@ -141,17 +141,12 @@ class TestBioFetchHydration:
         assert isinstance(result, dict)
         assert result["key"] == "value"
 
-    @pytest.mark.skip(reason="hydrate=False option not yet implemented")
     def test_fetch_hydrate_false_returns_scope(self, temp_dir):
         """fetch(..., hydrate=False) returns Scope without type construction."""
         from alienbio.spec_lang import Scope
 
         yaml_file = temp_dir / "test.yaml"
-        yaml_file.write_text("""
-world.test:
-  molecules:
-    M1: {role: energy}
-""")
+        yaml_file.write_text("molecules:\n  M1:\n    role: energy\n")
 
         result = bio.fetch(str(yaml_file), hydrate=False)
         assert isinstance(result, Scope)
@@ -160,31 +155,25 @@ world.test:
 class TestBioFetchDatPattern:
     """Tests for 'loads within DAT' pattern."""
 
-    @pytest.mark.skip(reason="Dotted path dereferencing not yet implemented")
     def test_fetch_dat_with_dotted_path(self, temp_dir):
         """fetch('path/to/dat.nested.key') dereferences into DAT."""
         dat_dir = temp_dir / "mydat"
         dat_dir.mkdir()
-        (dat_dir / "index.yaml").write_text("""
-nested:
-  key: found_it
-  other: value
-""")
+        (dat_dir / "index.yaml").write_text(
+            "nested:\n  key: found_it\n  other: value\n"
+        )
 
         # Should load index.yaml then dereference .nested.key
         result = bio.fetch(f"{dat_dir}.nested.key", raw=True)
         assert result == "found_it"
 
-    @pytest.mark.skip(reason="Dotted path dereferencing not yet implemented")
     def test_fetch_dat_deep_path(self, temp_dir):
         """fetch('path/to/dat.a.b.c') handles deep paths."""
         dat_dir = temp_dir / "mydat"
         dat_dir.mkdir()
-        (dat_dir / "index.yaml").write_text("""
-a:
-  b:
-    c: deep_value
-""")
+        (dat_dir / "index.yaml").write_text(
+            "a:\n  b:\n    c: deep_value\n"
+        )
 
         result = bio.fetch(f"{dat_dir}.a.b.c", raw=True)
         assert result == "deep_value"
@@ -242,18 +231,19 @@ class TestBioRunRouting:
         assert result.steps == 5
         assert len(result.timeline) == 6  # initial + 5 steps
 
-    @pytest.mark.skip(reason="String routing in run() needs fetch integration")
     def test_run_with_string_fetches_and_builds(self, temp_dir):
-        """run(string) fetches spec, then builds."""
-        # Create a spec file
-        spec_file = temp_dir / "index.yaml"
-        spec_file.write_text("""
-_instantiate_:
-  _as_ x:
-    _template_: simple
-""")
-        # Would need template registry configured
-        pass
+        """run(string) fetches spec, builds, and runs simulation."""
+        from alienbio.spec_lang import SimulationResult
+
+        # Create a minimal spec that bio.build can handle (no templates needed)
+        spec_file = temp_dir / "scenario.yaml"
+        spec_file.write_text(
+            "molecules:\n  M1:\n    role: energy\nreactions: {}\n"
+        )
+
+        result = bio.run(str(spec_file), seed=42, steps=5)
+        assert isinstance(result, SimulationResult)
+        assert result.steps == 5
 
 
 # =============================================================================
@@ -264,7 +254,6 @@ _instantiate_:
 class TestBioStore:
     """Tests for bio.store() dehydration and storage."""
 
-    @pytest.mark.skip(reason="bio.store currently requires biotype objects, not plain dicts")
     def test_store_writes_yaml(self, temp_dir):
         """store(path, obj) writes YAML file."""
         obj = {"key": "value", "number": 42}
@@ -277,7 +266,6 @@ class TestBioStore:
         assert content["key"] == "value"
         assert content["number"] == 42
 
-    @pytest.mark.skip(reason="bio.store currently requires biotype objects, not plain dicts")
     def test_store_round_trip(self, temp_dir):
         """store then fetch returns equivalent data."""
         original = {"name": "test", "values": [1, 2, 3]}
@@ -310,7 +298,6 @@ class TestBioStore:
         assert "_type" in content
         assert content["name"] == "ATP"
 
-    @pytest.mark.skip(reason="raw=True option for store not yet implemented")
     def test_store_raw_dict(self, temp_dir):
         """store(path, dict, raw=True) writes plain dict without dehydration."""
         obj = {"key": "value", "number": 42}
@@ -353,14 +340,12 @@ class TestBioBuildEdgeCases:
         # Should create scenario from direct spec
         assert isinstance(result, Scenario)
 
-    @pytest.mark.skip(reason="String spec in build() needs fetch integration")
     def test_build_with_string_fetches_first(self, temp_dir):
         """build(string) fetches the spec first."""
         spec_file = temp_dir / "index.yaml"
-        spec_file.write_text("""
-molecules:
-  M1: {role: energy}
-""")
+        spec_file.write_text(
+            "molecules:\n  M1:\n    role: energy\nreactions: {}\n"
+        )
 
         result = bio.build(str(spec_file), seed=42)
         assert isinstance(result, Scenario)
@@ -374,31 +359,26 @@ molecules:
 class TestBioM2Integration:
     """Integration tests for M2 workflow."""
 
-    @pytest.mark.skip(reason="Full M2 workflow not yet implemented")
     def test_fetch_build_run_workflow(self, temp_dir):
         """Complete workflow: fetch spec -> build -> run."""
+        from alienbio.spec_lang import SimulationResult
+
         # Create spec file
         spec_file = temp_dir / "scenario.yaml"
-        spec_file.write_text("""
-scenario.test:
-  molecules:
-    M1: {role: energy}
-    M2: {role: structural}
-  reactions:
-    r1:
-      reactants: [M1]
-      products: [M2]
-      rate: 0.1
-""")
+        spec_file.write_text(
+            "molecules:\n  M1:\n    role: energy\n"
+            "reactions:\n  r1:\n    reactants: [M1]\n    products: []\n    rate: 0.1\n"
+        )
 
         # Workflow
-        spec = bio.fetch(str(spec_file))
+        spec = bio.fetch(str(spec_file), raw=True)
         scenario = bio.build(spec, seed=42)
-        result = bio.run(scenario)
+        result = bio.run(scenario, steps=10)
 
-        assert isinstance(result, Scenario)
+        assert isinstance(result, SimulationResult)
+        assert result.steps == 10
 
-    @pytest.mark.skip(reason="DAT storage not yet implemented")
+    @pytest.mark.skip(reason="DAT round-trip for Scenario objects not yet implemented")
     def test_store_and_fetch_dat(self, temp_dir):
         """Store scenario to DAT, then fetch it back."""
         scenario = Scenario(
