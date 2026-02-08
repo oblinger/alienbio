@@ -55,6 +55,12 @@ from .visibility import (
 from .pipeline import (
     instantiate,
 )
+from .generator import (
+    GeneratorContext,
+    GeneratorSpec,
+    eval_expr,
+    load_generator_spec,
+)
 
 __all__ = [
     # Template parsing
@@ -93,4 +99,9 @@ __all__ = [
     "GuardViolation",
     "MissingParameterError",
     "CircularReferenceError",
+    # Generator
+    "GeneratorContext",
+    "GeneratorSpec",
+    "eval_expr",
+    "load_generator_spec",
 ]
