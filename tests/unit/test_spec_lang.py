@@ -977,15 +977,21 @@ chemistry.test:
   molecules:
     A: {}
     B: {}
-  reactions:
-    R1:
-      equation: "A + B -> C"
-      rate: !ev custom_rate(k=0.1)
 """)
 
-        # After loading, custom functions should be registered
-        # and the rate should be resolvable
-        pytest.skip("Full include processing TBD")
+        # Loading the spec should execute functions.py via include processing
+        from alienbio.spec_lang.decorators import rate_registry, scoring_registry
+
+        result = bio.fetch(str(temp_dir))
+
+        # Custom functions should be registered by the include execution
+        assert "custom_rate" in rate_registry
+        assert "custom_score" in scoring_registry
+
+        # The spec data should be processed normally (include key stripped)
+        assert isinstance(result, dict)
+        assert "include" not in result
+        assert "chemistry.test" in result
 
     def test_spec_with_multiple_inheritance_levels(self, temp_dir):
         """Spec with multiple levels of defaults inheritance"""

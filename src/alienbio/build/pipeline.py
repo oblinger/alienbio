@@ -161,6 +161,10 @@ def _process_instantiations(
     if available_ports is None:
         available_ports = set()
 
+    # Collect all instantiation results and port info for cross-wiring
+    applications: list[tuple[str, dict[str, Any]]] = []
+    all_ports: dict[str, dict[str, Any]] = {}
+
     for key, inst_data in instantiate.items():
         # Parse _as_ syntax
         match = re.match(r"_as_\s+(\w+)(?:\{(\w+)\s+in\s+(\d+)\.\.(\w+)\})?", key)
@@ -189,7 +193,8 @@ def _process_instantiations(
                 )
                 result["molecules"].update(inst_result["molecules"])
                 result["reactions"].update(inst_result["reactions"])
-                # Track ports provided by this template
+                applications.append((namespace, inst_data))
+                _collect_ports(inst_data, namespace, registry, all_ports)
                 _track_ports(inst_data, registry, available_ports)
         else:
             # Single instantiation: _as_ name
@@ -200,8 +205,36 @@ def _process_instantiations(
             )
             result["molecules"].update(inst_result["molecules"])
             result["reactions"].update(inst_result["reactions"])
-            # Track ports provided by this template
+            applications.append((namespace, inst_data))
+            _collect_ports(inst_data, namespace, registry, all_ports)
             _track_ports(inst_data, registry, available_ports)
+
+    # Pass 2: Apply explicit cross-template port connections
+    for namespace, inst_data in applications:
+        port_connections = {
+            k: v for k, v in inst_data.items()
+            if k not in ("_template_", "_instantiate_")
+            and isinstance(v, str) and "." in v
+            and (k.startswith("reactions.") or k.startswith("molecules."))
+        }
+        if port_connections and inst_data.get("_template_"):
+            template = registry.get(inst_data["_template_"])
+            from .expand import _apply_port_connections
+            local_ports = {
+                pk: pv for pk, pv in all_ports.items()
+                if pk.startswith(f"{namespace}.")
+            }
+            _apply_port_connections(
+                result, port_connections, namespace, "",
+                template, local_ports, all_ports,
+            )
+
+    # Pass 3: Auto-wire matching interface ports across templates
+    from .expand import _auto_wire_ports
+    interface_ports: dict[str, dict[str, Any]] = {}
+    for namespace, inst_data in applications:
+        _collect_interface_ports(inst_data, namespace, registry, interface_ports)
+    _auto_wire_ports(result, interface_ports)
 
     return result
 
@@ -308,6 +341,86 @@ def _instantiate_single(
                 raise CircularReferenceError(list(new_seen) + [nested_template_name])
 
     return result
+
+
+def _collect_ports(
+    inst_data: dict[str, Any],
+    namespace: str,
+    registry: TemplateRegistry,
+    all_ports: dict[str, dict[str, Any]],
+) -> None:
+    """Collect port info from an instantiated template for cross-wiring.
+
+    Populates all_ports with namespaced port entries like:
+        "a.reactions.work" → {"port": {...}, "namespaced_path": "r.a.work"}
+    """
+    template_name = inst_data.get("_template_")
+    if not template_name:
+        return
+    try:
+        template = registry.get(template_name)
+    except TemplateNotFoundError:
+        return
+    for path, port_info in template.get("ports", {}).items():
+        if path.startswith("reactions."):
+            rxn_name = path[len("reactions."):]
+            namespaced_path = f"r.{namespace}.{rxn_name}"
+        elif path.startswith("molecules."):
+            mol_name = path[len("molecules."):]
+            namespaced_path = f"m.{namespace}.{mol_name}"
+        else:
+            namespaced_path = f"{namespace}.{path}"
+        port_key = f"{namespace}.{path}"
+        all_ports[port_key] = {"port": port_info, "namespaced_path": namespaced_path}
+
+    # Also collect ports from nested instantiations
+    for key, nested_data in template.get("instantiate", {}).items():
+        match = re.match(r"_as_\s+(\w+)", key)
+        if match and isinstance(nested_data, dict) and nested_data.get("_template_"):
+            sub_name = match.group(1)
+            sub_namespace = f"{namespace}.{sub_name}"
+            _collect_ports(nested_data, sub_namespace, registry, all_ports)
+
+
+def _collect_interface_ports(
+    inst_data: dict[str, Any],
+    namespace: str,
+    registry: TemplateRegistry,
+    ports_dict: dict[str, dict[str, Any]],
+) -> None:
+    """Collect only the template's own declared ports for top-level auto-wiring.
+
+    Unlike _collect_ports which recurses into sub-templates, this only
+    collects the template's interface ports (its own _ports_ declaration).
+    """
+    template_name = inst_data.get("_template_")
+    if not template_name:
+        return
+    try:
+        template = registry.get(template_name)
+    except TemplateNotFoundError:
+        return
+
+    for path, port_info in template.get("ports", {}).items():
+        parts = path.split(".")
+        if len(parts) >= 2 and parts[0] in ("reactions", "molecules"):
+            # Direct: "reactions.work" or "molecules.MW1"
+            elem_type = parts[0]
+            elem_name = ".".join(parts[1:])
+            prefix = "r" if elem_type == "reactions" else "m"
+            namespaced_path = f"{prefix}.{namespace}.{elem_name}"
+        elif len(parts) >= 3 and parts[1] in ("reactions", "molecules"):
+            # Prefixed: "sub.reactions.name" or "sub.molecules.name"
+            sub_inst = parts[0]
+            elem_type = parts[1]
+            elem_name = ".".join(parts[2:])
+            prefix = "r" if elem_type == "reactions" else "m"
+            namespaced_path = f"{prefix}.{namespace}.{sub_inst}.{elem_name}"
+        else:
+            namespaced_path = f"{namespace}.{path}"
+
+        port_key = f"{namespace}.{path}"
+        ports_dict[port_key] = {"port": port_info, "namespaced_path": namespaced_path}
 
 
 def _track_ports(

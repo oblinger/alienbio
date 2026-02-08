@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, List, Protocol, runtime_checkable
 
 # Import shared protocols
 from .bio import State, Chemistry
+from ..spec_lang.decorators import biotype
 
 
 @dataclass
@@ -52,6 +53,7 @@ class Region:
     organisms: list[Organism] = field(default_factory=list)
 
 
+@biotype
 @dataclass
 class Scenario:
     """Result of template instantiation (build phase).

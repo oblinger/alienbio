@@ -358,7 +358,6 @@ class TestErrorHandling:
             bio.build(spec, seed=42, registry=registry)
         assert "nonexistent_template" in str(exc.value)
 
-    @pytest.mark.skip(reason="Cross-instantiation port wiring requires M2.8 Interactions")
     def test_port_type_error_message(self):
         """Helpful error when port types don't match."""
         from alienbio import Bio, bio

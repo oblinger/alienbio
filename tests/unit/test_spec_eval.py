@@ -356,28 +356,40 @@ class TestHydrateIncludeTag:
 class TestHydrateTypeInstantiation:
     """Test type instantiation from _type field."""
 
-    @pytest.mark.skip(reason="Implementation pending")
+    @staticmethod
+    def _ensure_scenario_registered():
+        """Ensure Scenario biotype is registered (survives registry clears)."""
+        from alienbio.spec_lang.decorators import biotype_registry
+        if "scenario" not in biotype_registry:
+            from alienbio.protocols.execution import Scenario
+            biotype_registry["scenario"] = Scenario
+            Scenario._biotype_name = "scenario"
+
     def test_hydrate_type_simple(self):
         """Dict with _type becomes class instance."""
-        # Would need biotype registry setup
+        self._ensure_scenario_registered()
         data = {"_type": "scenario", "name": "test", "briefing": "Test briefing"}
         result = hydrate(data)
         # Should be a Scenario instance, not a dict
         assert hasattr(result, 'name')
         assert result.name == "test"
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_typed_key_syntax(self):
-        """scenario.name: syntax transforms to _type."""
-        # Input uses typed key syntax
+        """transform_typed_keys + hydrate creates typed instance."""
+        self._ensure_scenario_registered()
+        from alienbio.spec_lang.loader import transform_typed_keys
+        # Input uses typed key syntax — transform first, then hydrate
         data = {"scenario.test": {"briefing": "Test briefing"}}
-        result = hydrate(data)
-        # Should become instance with name="test"
-        assert "test" in result or hasattr(result.get("test", {}), 'briefing')
+        transformed = transform_typed_keys(data)
+        assert "test" in transformed
+        result = hydrate(transformed)
+        # After transform + hydrate, should be a typed instance
+        assert "test" in result
+        assert hasattr(result["test"], 'briefing')
 
-    @pytest.mark.skip(reason="Implementation pending")
     def test_hydrate_nested_types(self):
         """Nested typed objects hydrate recursively."""
+        self._ensure_scenario_registered()
         data = {
             "_type": "scenario",
             "chemistry": {
