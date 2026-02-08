@@ -349,11 +349,17 @@ def _collect_ports(
     registry: TemplateRegistry,
     all_ports: dict[str, dict[str, Any]],
 ) -> None:
-    """Collect port info from an instantiated template for cross-wiring.
+    """Collect direct port info from an instantiated template for cross-wiring.
+
+    Only collects ports from the template's own _ports_ section (not
+    recursively from nested templates) to avoid false auto-wiring across
+    scoping levels.
 
     Populates all_ports with namespaced port entries like:
-        "a.reactions.work" → {"port": {...}, "namespaced_path": "r.a.work"}
+        "Krel.waste.molecules.MW1" → {"port": {...}, "namespaced_path": "m.Krel.waste.MW1"}
     """
+    from .expand import _resolve_port_path
+
     template_name = inst_data.get("_template_")
     if not template_name:
         return
@@ -362,24 +368,9 @@ def _collect_ports(
     except TemplateNotFoundError:
         return
     for path, port_info in template.get("ports", {}).items():
-        if path.startswith("reactions."):
-            rxn_name = path[len("reactions."):]
-            namespaced_path = f"r.{namespace}.{rxn_name}"
-        elif path.startswith("molecules."):
-            mol_name = path[len("molecules."):]
-            namespaced_path = f"m.{namespace}.{mol_name}"
-        else:
-            namespaced_path = f"{namespace}.{path}"
+        namespaced_path = _resolve_port_path(path, namespace)
         port_key = f"{namespace}.{path}"
         all_ports[port_key] = {"port": port_info, "namespaced_path": namespaced_path}
-
-    # Also collect ports from nested instantiations
-    for key, nested_data in template.get("instantiate", {}).items():
-        match = re.match(r"_as_\s+(\w+)", key)
-        if match and isinstance(nested_data, dict) and nested_data.get("_template_"):
-            sub_name = match.group(1)
-            sub_namespace = f"{namespace}.{sub_name}"
-            _collect_ports(nested_data, sub_namespace, registry, all_ports)
 
 
 def _collect_interface_ports(

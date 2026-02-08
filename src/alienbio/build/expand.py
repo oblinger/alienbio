@@ -114,17 +114,7 @@ def apply_template(
 
     # Track ports with namespace prefix (internal only)
     for path, port in template.get("ports", {}).items():
-        # Determine namespaced path based on port path
-        if path.startswith("reactions."):
-            rxn_name = path[len("reactions."):]
-            namespaced_path = f"r.{namespace}.{rxn_name}"
-        elif path.startswith("molecules."):
-            mol_name = path[len("molecules."):]
-            namespaced_path = f"m.{namespace}.{mol_name}"
-        else:
-            namespaced_path = f"{namespace}.{path}"
-
-        # Store port with full namespaced key for lookup
+        namespaced_path = _resolve_port_path(path, namespace)
         port_key = f"{namespace}.{path}"
         _ports[port_key] = {"port": port, "namespaced_path": namespaced_path}
 
@@ -290,15 +280,7 @@ def _apply_template_with_ports(
 
     # Track ports
     for path, port in template.get("ports", {}).items():
-        if path.startswith("reactions."):
-            rxn_name = path[len("reactions."):]
-            namespaced_path = f"r.{namespace}.{rxn_name}"
-        elif path.startswith("molecules."):
-            mol_name = path[len("molecules."):]
-            namespaced_path = f"m.{namespace}.{mol_name}"
-        else:
-            namespaced_path = f"{namespace}.{path}"
-
+        namespaced_path = _resolve_port_path(path, namespace)
         port_key = f"{namespace}.{path}"
         _ports[port_key] = {"port": port, "namespaced_path": namespaced_path}
 
@@ -422,6 +404,29 @@ def _apply_port_connections(
             namespaced_mol = f"m.{namespace}.{mol_name}"
             if namespaced_mol in result["molecules"]:
                 result["molecules"][namespaced_mol]["source"] = target_expanded_port["namespaced_path"]
+
+
+def _resolve_port_path(path: str, namespace: str) -> str:
+    """Resolve a port path to a namespaced path.
+
+    Handles both simple paths (reactions.work, molecules.MW1) and
+    nested paths (waste.molecules.MW1, energy.reactions.work).
+    """
+    parts = path.split(".")
+    if len(parts) >= 3:
+        # Nested: "{inst_name}.{type}.{name}", e.g., "waste.molecules.MW1"
+        inst_prefix = parts[0]
+        sub_type = parts[1]
+        sub_name = ".".join(parts[2:])
+        if sub_type == "reactions":
+            return f"r.{namespace}.{inst_prefix}.{sub_name}"
+        elif sub_type == "molecules":
+            return f"m.{namespace}.{inst_prefix}.{sub_name}"
+    if path.startswith("reactions."):
+        return f"r.{namespace}.{path[len('reactions.'):]}"
+    elif path.startswith("molecules."):
+        return f"m.{namespace}.{path[len('molecules.'):]}"
+    return f"{namespace}.{path}"
 
 
 def _extract_mol_name(port_key: str) -> str | None:
