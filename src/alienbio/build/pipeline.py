@@ -80,6 +80,20 @@ def instantiate(
         seen_templates=set(),
     )
 
+    # Run custom guards on the complete ground truth
+    from .exceptions import GuardViolation
+    from .guards import make_guard_context
+    guard_context = make_guard_context(ground_truth)
+    for guard_fn in guards:
+        try:
+            result = guard_fn(ground_truth, guard_context)
+        except TypeError:
+            # Lambda guards may only take 1 arg
+            result = guard_fn(ground_truth)
+        if result is False or (isinstance(result, dict) and not result.get("ok", True)):
+            guard_name = getattr(guard_fn, "__name__", str(guard_fn))
+            raise GuardViolation(f"Guard '{guard_name}' failed")
+
     # Process interactions
     interactions_spec = spec.get("interactions", {})
     if interactions_spec:
@@ -229,10 +243,17 @@ def _instantiate_single(
 
     # Check for circular reference
     if template_name in seen_templates:
-        raise CircularReferenceError(template_name, list(seen_templates))
+        raise CircularReferenceError(list(seen_templates) + [template_name])
 
     # Get template from registry
-    template = registry.get(template_name)
+    try:
+        template = registry.get(template_name)
+    except TemplateNotFoundError as e:
+        e.path = namespace  # type: ignore[attr-defined]
+        raise TemplateNotFoundError(
+            f"{template_name} (in namespace '{namespace}')",
+            e.registry_names,
+        ) from e
 
     # Validate requires (port dependencies)
     requires = template.get("requires", [])
@@ -284,7 +305,7 @@ def _instantiate_single(
         for key, nested_inst_data in template_instantiate.items():
             nested_template_name = nested_inst_data.get("_template_")
             if nested_template_name and nested_template_name in new_seen:
-                raise CircularReferenceError(nested_template_name, list(new_seen))
+                raise CircularReferenceError(list(new_seen) + [nested_template_name])
 
     return result
 
@@ -344,6 +365,20 @@ def _resolve_guards(guards_config: list[Any]) -> list:
     }
 
     guards = []
+
+    # Handle both list and dict formats for _guards_
+    if isinstance(guards_config, dict):
+        # Dict format: {"guard_name": "lambda ..."}
+        for name, value in guards_config.items():
+            if name in builtin_guards:
+                guards.append(builtin_guards[name])
+            elif isinstance(value, str) and "lambda" in value:
+                # Custom lambda guard
+                guard_fn = eval(value)  # noqa: S307
+                guard_fn.__name__ = name  # type: ignore[attr-defined]
+                guards.append(guard_fn)
+        return guards
+
     for guard_item in guards_config:
         if isinstance(guard_item, str):
             # Simple guard name

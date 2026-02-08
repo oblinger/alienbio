@@ -390,26 +390,28 @@ class TestErrorHandling:
         error_str = str(exc.value).lower()
         assert "energy" in error_str or "molecule" in error_str
 
-    @pytest.mark.skip(reason="Custom guard definition not yet implemented")
     def test_guard_violation_error(self):
         """Clear error when guard is violated."""
         from alienbio import Bio, bio
-        from alienbio.build import GuardViolation
+        from alienbio.build import GuardViolation, parse_template, TemplateRegistry
 
-        # Spec that should fail guard (to be determined by implementation)
+        registry = TemplateRegistry()
+        registry.register("simple", parse_template({
+            "molecules": {"M1": {"role": "energy"}}
+        }))
+
         spec = {
             "_guards_": {
-                "always_fail": "lambda _: False"
+                "always_fail": "lambda data, ctx=None: False"
             },
             "_instantiate_": {
-                "_as_ x": {"_template_": "primitives/energy_cycle"}
+                "_as_ x": {"_template_": "simple"}
             }
         }
 
         with pytest.raises(GuardViolation):
-            bio.build(spec, seed=42)
+            bio.build(spec, seed=42, registry=registry)
 
-    @pytest.mark.skip(reason="Required param validation not yet implemented")
     def test_missing_param_error(self):
         """Clear error when required param is missing."""
         from alienbio import Bio, bio
@@ -432,7 +434,6 @@ class TestErrorHandling:
             bio.build(spec, seed=42, registry=registry)
         assert "required_rate" in str(exc.value)
 
-    @pytest.mark.skip(reason="Error path context not yet implemented")
     def test_error_includes_context_path(self):
         """Errors include path context for debugging."""
         from alienbio import Bio, bio
@@ -449,11 +450,11 @@ class TestErrorHandling:
 
         try:
             bio.build(spec, seed=42)
+            assert False, "Should have raised an error"
         except Exception as e:
             # Error should indicate where in the spec the problem occurred
             assert "outer" in str(e) or hasattr(e, 'path')
 
-    @pytest.mark.skip(reason="Circular detection in nested templates requires expand.py changes")
     def test_circular_template_reference(self):
         """Detect circular template references."""
         from alienbio import Bio, bio
@@ -588,7 +589,6 @@ class TestPipelineIntegration:
         assert len(scenario.molecules) > 0
         assert len(scenario.reactions) > 0
 
-    @pytest.mark.skip(reason="bio.sim integration not yet implemented")
     def test_scenario_is_simulatable(self):
         """Generated scenario can be simulated."""
         from alienbio import Bio, bio
@@ -609,5 +609,5 @@ class TestPipelineIntegration:
         scenario = bio.build(spec, seed=42, registry=registry)
 
         # Should be able to run simulation
-        result = bio.sim(scenario, steps=10)
+        result = bio.run(scenario, steps=10)
         assert len(result.timeline) == 11  # Initial + 10 steps

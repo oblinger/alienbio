@@ -11,7 +11,7 @@ from typing import Any
 
 from ..spec_lang.eval import Evaluable, Quoted, Reference, eval_node, make_context, EvalContext
 from .template import TemplateRegistry, ports_compatible
-from .exceptions import PortTypeMismatchError, PortNotFoundError
+from .exceptions import PortTypeMismatchError, PortNotFoundError, MissingParameterError, CircularReferenceError
 
 
 def apply_template(
@@ -21,6 +21,7 @@ def apply_template(
     registry: TemplateRegistry | None = None,
     seed: int | None = None,
     _ctx: EvalContext | None = None,
+    _seen: set[str] | None = None,
 ) -> dict[str, Any]:
     """Apply a template with namespace prefixing.
 
@@ -39,10 +40,15 @@ def apply_template(
     if _ctx is None:
         _ctx = make_context(seed=seed)
 
-    # Merge params with template defaults
+    # Merge params with template defaults, checking for required params
     effective_params = dict(template.get("params", {}))
     if params:
         effective_params.update(params)
+
+    # Check for required params (default is None = required)
+    for param_name, param_value in template.get("params", {}).items():
+        if param_value is None and (params is None or param_name not in params):
+            raise MissingParameterError(param_name)
 
     # Evaluate any !ev expressions in params (two-pass to handle dependencies)
     effective_params = _eval_params(effective_params, _ctx)
@@ -118,7 +124,7 @@ def apply_template(
                     for i in range(start_val, end_val + 1):
                         sub_namespace = f"{namespace}.{inst_name}{i}"
                         sub_result, sub_ports = _instantiate_nested(
-                            inst_data, sub_namespace, registry, effective_params, _ctx
+                            inst_data, sub_namespace, registry, effective_params, _ctx, _seen
                         )
                         applications.append((sub_namespace, inst_data, sub_result, sub_ports))
                         result["molecules"].update(sub_result["molecules"])
@@ -128,7 +134,7 @@ def apply_template(
                     # Single instantiation: _as_ name
                     sub_namespace = f"{namespace}.{inst_name}"
                     sub_result, sub_ports = _instantiate_nested(
-                        inst_data, sub_namespace, registry, effective_params, _ctx
+                        inst_data, sub_namespace, registry, effective_params, _ctx, _seen
                     )
                     applications.append((sub_namespace, inst_data, sub_result, sub_ports))
                     result["molecules"].update(sub_result["molecules"])
@@ -163,6 +169,7 @@ def _instantiate_nested(
     registry: TemplateRegistry,
     parent_params: dict[str, Any],
     ctx: EvalContext,
+    _seen: set[str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Instantiate a nested template.
 
@@ -172,6 +179,11 @@ def _instantiate_nested(
     template_name = inst_data.get("_template_")
     if not template_name:
         return {"molecules": {}, "reactions": {}}, {}
+
+    # Check for circular references
+    if _seen is not None and template_name in _seen:
+        raise CircularReferenceError(list(_seen) + [template_name])
+    new_seen = (_seen or set()) | {template_name}
 
     # Get the template and convert if needed
     template = registry.get(template_name)
@@ -194,7 +206,7 @@ def _instantiate_nested(
 
     # Apply the template (recursively)
     # We need to track ports internally
-    result, ports = _apply_template_with_ports(template, namespace, inst_params, registry, ctx)
+    result, ports = _apply_template_with_ports(template, namespace, inst_params, registry, ctx, new_seen)
 
     return result, ports
 
@@ -205,6 +217,7 @@ def _apply_template_with_ports(
     params: dict[str, Any] | None,
     registry: TemplateRegistry | None,
     ctx: EvalContext,
+    _seen: set[str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Internal: apply template and also return ports for wiring."""
     # Merge params with template defaults
@@ -271,7 +284,7 @@ def _apply_template_with_ports(
                     for i in range(start_val, end_val + 1):
                         sub_namespace = f"{namespace}.{inst_name}{i}"
                         sub_result, sub_ports = _instantiate_nested(
-                            inst_data, sub_namespace, registry, effective_params, ctx
+                            inst_data, sub_namespace, registry, effective_params, ctx, _seen
                         )
                         applications.append((sub_namespace, inst_data, sub_result, sub_ports))
                         result["molecules"].update(sub_result["molecules"])
@@ -280,7 +293,7 @@ def _apply_template_with_ports(
                 else:
                     sub_namespace = f"{namespace}.{inst_name}"
                     sub_result, sub_ports = _instantiate_nested(
-                        inst_data, sub_namespace, registry, effective_params, ctx
+                        inst_data, sub_namespace, registry, effective_params, ctx, _seen
                     )
                     applications.append((sub_namespace, inst_data, sub_result, sub_ports))
                     result["molecules"].update(sub_result["molecules"])
@@ -297,9 +310,9 @@ def _apply_template_with_ports(
             }
 
             if port_connections:
-                template_name = inst_data.get("_template_")
-                if template_name:
-                    sub_template = registry.get(template_name)
+                tpl_name = inst_data.get("_template_")
+                if tpl_name:
+                    sub_template = registry.get(tpl_name)
                     _apply_port_connections(
                         result, port_connections, sub_namespace, namespace,
                         sub_template, sub_ports, _ports

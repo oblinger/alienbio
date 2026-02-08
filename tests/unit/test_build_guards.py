@@ -439,7 +439,6 @@ class TestGuardModes:
 class TestGuardsInYAML:
     """Tests for parsing guards from YAML spec."""
 
-    @pytest.mark.skip(reason="load_generator_spec not yet implemented")
     def test_global_guards(self):
         """_guards_ section lists guard names."""
         from alienbio.build import load_generator_spec
@@ -458,7 +457,6 @@ scenario_generator_spec:
         assert "no_new_species_dependencies" in spec.guards
         assert "no_new_cycles" in spec.guards
 
-    @pytest.mark.skip(reason="load_generator_spec not yet implemented")
     def test_guard_with_params(self):
         """Guard can have parameters."""
         from alienbio.build import load_generator_spec
@@ -474,7 +472,6 @@ scenario_generator_spec:
         assert guard_config["name"] == "max_pathway_length"
         assert guard_config["params"]["max_length"] == 4
 
-    @pytest.mark.skip(reason="load_generator_spec not yet implemented")
     def test_guard_with_mode(self):
         """Guard can specify mode and max_attempts."""
         from alienbio.build import load_generator_spec
@@ -493,7 +490,6 @@ scenario_generator_spec:
         assert guard_config["mode"] == "retry"
         assert guard_config["max_attempts"] == 10
 
-    @pytest.mark.skip(reason="load_generator_spec not yet implemented")
     def test_guard_mixed_syntax(self):
         """Guards can mix simple names and detailed configs."""
         from alienbio.build import load_generator_spec
