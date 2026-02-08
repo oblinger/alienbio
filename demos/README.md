@@ -151,6 +151,24 @@ Multi-compartment organism heatmap and concentration envelope violations.
 
 ---
 
+## Notebooks
+
+Interactive Jupyter notebooks with inline plots and commentary. Each notebook is pre-executed — outputs render on GitHub without running anything.
+
+| Notebook | Description |
+|----------|-------------|
+| [`01_quick_start.ipynb`](notebooks/01_quick_start.ipynb) | Basic trajectory + convergence |
+| [`02_equilibrium.ipynb`](notebooks/02_equilibrium.ipynb) | Stability analysis |
+| [`03_perturbation.ipynb`](notebooks/03_perturbation.ipynb) | Spike recovery + drift |
+| [`04_disease.ipynb`](notebooks/04_disease.ipynb) | Disease + symptom detection |
+| [`05_organism.ipynb`](notebooks/05_organism.ipynb) | Multi-compartment heatmap |
+| [`06_features.ipynb`](notebooks/06_features.ipynb) | Population + envelope |
+| [`07_skinning.ipynb`](notebooks/07_skinning.ipynb) | Alien terminology generation |
+| [`08_evaluation.ipynb`](notebooks/08_evaluation.ipynb) | Difficulty curves + comparison |
+| [`combo_disease_investigation.ipynb`](notebooks/combo_disease_investigation.ipynb) | 4-panel investigation |
+| [`combo_alien_exam.ipynb`](notebooks/combo_alien_exam.ipynb) | Skinned exam + leaderboard |
+| [`combo_ecosystem.ipynb`](notebooks/combo_ecosystem.ipynb) | Organism + envelope |
+
 ## Scripts
 
 | Script | Description |
