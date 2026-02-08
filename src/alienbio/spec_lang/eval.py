@@ -259,6 +259,22 @@ def _hydrate_dict(d: dict, base_path: str | None) -> Any:
         if key == "!include":
             return _hydrate_include(str(value), base_path)
 
+    # Check for _type field — instantiate via biotype registry
+    if "_type" in d:
+        from .decorators import biotype_registry
+        type_name = d["_type"]
+        if type_name in biotype_registry:
+            cls = biotype_registry[type_name]
+            fields = {k: _hydrate_node(v, base_path) for k, v in d.items() if k != "_type"}
+            try:
+                return cls(**fields)
+            except TypeError:
+                # If constructor doesn't accept these kwargs, set attrs directly
+                obj = object.__new__(cls)
+                for k, v in fields.items():
+                    setattr(obj, k, v)
+                return obj
+
     # Regular dict - recurse into values
     return {k: _hydrate_node(v, base_path) for k, v in d.items()}
 

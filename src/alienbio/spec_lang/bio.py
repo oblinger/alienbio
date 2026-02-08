@@ -499,9 +499,19 @@ class Bio:
         elif isinstance(obj, dict):
             data = dehydrate(obj)
         elif hasattr(obj, 'to_dict'):
-            data = dehydrate(obj.to_dict())
+            raw_data = obj.to_dict()
+            if hasattr(type(obj), '_biotype_name'):
+                raw_data["_type"] = type(obj)._biotype_name
+            data = dehydrate(raw_data)
         else:
-            raw_data = {k: v for k, v in vars(obj).items() if not k.startswith('_')}
+            import dataclasses
+            is_biotype = hasattr(type(obj), '_biotype_name')
+            if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+                raw_data = dataclasses.asdict(obj)
+            else:
+                raw_data = {k: v for k, v in vars(obj).items() if not k.startswith('_')}
+            if is_biotype:
+                raw_data["_type"] = type(obj)._biotype_name
             data = dehydrate(raw_data)
 
         # Write YAML

@@ -23,21 +23,27 @@ def process_and_hydrate(
     """Process raw data through the full pipeline.
 
     Pipeline:
+    0. Execute Python includes (register decorators)
     1. Resolve !include tags (inline other files)
     2. Transform typed keys (key.Type: → key: {_type: Type, ...})
     3. Resolve !ref tags (cross-references)
     4. Resolve !py tags (local Python access)
     5. Expand defaults
-    6. Hydrate to typed objects (if hydrate=True) — NOT YET IMPLEMENTED
+    6. Hydrate to typed objects (if hydrate=True)
 
     Args:
         data: Raw dict data to process
         base_dir: Directory for resolving relative includes
-        hydrate: If True, convert to typed objects (not yet implemented)
+        hydrate: If True, convert to typed objects
 
     Returns:
         Processed data (dict or typed object when hydration implemented)
     """
+    # Execute Python includes first (so decorators register before evaluation)
+    if isinstance(data, dict) and "include" in data:
+        _process_python_includes(data.get("include", []), base_dir)
+        data = {k: v for k, v in data.items() if k != "include"}
+
     data = resolve_includes(data, base_dir)
     data = transform_typed_keys(data)
     data = resolve_refs(data, data.get("constants", {}))
@@ -119,3 +125,32 @@ def resolve_py_refs(data: Any, base_dir: str) -> Any:
     elif isinstance(data, list):
         return [resolve_py_refs(item, base_dir) for item in data]
     return data
+
+
+def _process_python_includes(includes: Any, base_dir: str) -> None:
+    """Execute Python include files to register decorators.
+
+    Executes .py files listed in the `include:` section of a spec.
+    This allows specs to define custom @rate, @scoring, @action,
+    and @measurement functions that register into the global registries.
+
+    Args:
+        includes: List of include file paths
+        base_dir: Directory for resolving relative paths
+    """
+    from pathlib import Path
+    import importlib.util
+
+    if not isinstance(includes, list):
+        return
+
+    for include_path in includes:
+        if not isinstance(include_path, str) or not include_path.endswith(".py"):
+            continue
+        full_path = (Path(base_dir) / include_path).resolve()
+        if not full_path.exists():
+            raise FileNotFoundError(f"Python include not found: {full_path}")
+        spec = importlib.util.spec_from_file_location(full_path.stem, str(full_path))
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)

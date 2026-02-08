@@ -277,7 +277,6 @@ class TestBioStore:
         assert loaded["name"] == original["name"]
         assert loaded["values"] == original["values"]
 
-    @pytest.mark.skip(reason="MoleculeImpl not registered as biotype - needs @biotype decorator")
     def test_store_typed_object(self, temp_dir):
         """store() works with typed (biotype) objects."""
         from alienbio.bio import MoleculeImpl
@@ -378,9 +377,10 @@ class TestBioM2Integration:
         assert isinstance(result, SimulationResult)
         assert result.steps == 10
 
-    @pytest.mark.skip(reason="DAT round-trip for Scenario objects not yet implemented")
     def test_store_and_fetch_dat(self, temp_dir):
         """Store scenario to DAT, then fetch it back."""
+        from alienbio.spec_lang.eval import hydrate
+
         scenario = Scenario(
             molecules={"M1": {"role": "energy"}},
             reactions={},
@@ -393,6 +393,7 @@ class TestBioM2Integration:
         dat_path = temp_dir / "output_dat"
         bio.store(str(dat_path), scenario)
 
-        loaded = bio.fetch(str(dat_path))
+        loaded_data = bio.fetch(str(dat_path))
+        loaded = hydrate(loaded_data)
         assert isinstance(loaded, Scenario)
         assert loaded._seed == 42
