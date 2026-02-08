@@ -13,6 +13,39 @@ from ..spec_lang.eval import Evaluable, Quoted, Reference, eval_node, make_conte
 from .template import TemplateRegistry, ports_compatible
 from .exceptions import PortTypeMismatchError, PortNotFoundError, MissingParameterError, CircularReferenceError
 
+# Pattern for molecule/reaction name expansion: "M{i in 1..3}"
+_EXPANSION_RE = re.compile(r'^(.+)\{(\w+)\s+in\s+(\d+)\.\.(\d+)\}(.*)$')
+
+
+def _expand_keyed_items(
+    items: dict[str, Any], params: dict[str, Any], ctx: EvalContext
+) -> list[tuple[str, Any]]:
+    """Expand keys with {var in start..end} syntax and resolve expressions.
+
+    Returns list of (expanded_name, resolved_data) pairs.
+    """
+    result = []
+    for name, data in items.items():
+        match = _EXPANSION_RE.match(name)
+        if match:
+            prefix, var, start_s, end_s, suffix = match.groups()
+            for i in range(int(start_s), int(end_s) + 1):
+                expanded_name = f"{prefix}{i}{suffix}"
+                # Evaluate data with loop variable available
+                loop_ctx = EvalContext(
+                    rng=ctx.rng,
+                    bindings={**ctx.bindings, **params, var: i},
+                    functions=ctx.functions,
+                    path=ctx.path,
+                )
+                expanded_data = _resolve_and_eval(data, {**params, var: i}, loop_ctx)
+                result.append((expanded_name, expanded_data))
+        else:
+            # Normal item — resolve refs and evaluate expressions
+            expanded_data = _resolve_and_eval(data, params, ctx)
+            result.append((name, expanded_data))
+    return result
+
 
 def apply_template(
     template: dict[str, Any],
@@ -58,23 +91,25 @@ def apply_template(
     # Internal port tracking for wiring (not in output)
     _ports: dict[str, dict[str, Any]] = {}
 
-    # Get set of molecule names for reference updating
-    molecule_names = set(template.get("molecules", {}).keys())
+    # Expand molecule/reaction keys with {i in start..end} syntax, then process normally
+    expanded_molecules = _expand_keyed_items(
+        template.get("molecules", {}), effective_params, _ctx
+    )
+    molecule_names = set(name for name, _ in expanded_molecules)
 
     # Apply molecules with namespace prefix
-    for name, mol_data in template.get("molecules", {}).items():
+    for name, mol_data in expanded_molecules:
         namespaced_name = f"m.{namespace}.{name}"
-        # Deep copy, resolve refs, and evaluate !ev expressions
-        expanded_data = _resolve_and_eval(mol_data, effective_params, _ctx)
-        result["molecules"][namespaced_name] = expanded_data
+        result["molecules"][namespaced_name] = mol_data
+
+    expanded_reactions = _expand_keyed_items(
+        template.get("reactions", {}), effective_params, _ctx
+    )
 
     # Apply reactions with namespace prefix
-    for name, rxn_data in template.get("reactions", {}).items():
+    for name, rxn_data in expanded_reactions:
         namespaced_name = f"r.{namespace}.{name}"
-        # Deep copy, resolve refs, and evaluate !ev expressions
-        expanded_data = _resolve_and_eval(rxn_data, effective_params, _ctx)
-        # Update molecule references in reactants/products
-        expanded_data = _namespace_molecule_refs(expanded_data, namespace, molecule_names)
+        expanded_data = _namespace_molecule_refs(rxn_data, namespace, molecule_names)
         result["reactions"][namespaced_name] = expanded_data
 
     # Track ports with namespace prefix (internal only)
@@ -160,6 +195,9 @@ def apply_template(
                         sub_template, sub_ports, _ports
                     )
 
+        # Auto-wire matching ports (energy.in↔energy.out, molecule name matching)
+        _auto_wire_ports(result, _ports)
+
     return result
 
 
@@ -231,19 +269,23 @@ def _apply_template_with_ports(
     result: dict[str, Any] = {"molecules": {}, "reactions": {}}
     _ports: dict[str, dict[str, Any]] = {}
 
-    molecule_names = set(template.get("molecules", {}).keys())
+    # Expand molecule/reaction keys with {i in start..end} syntax
+    expanded_molecules = _expand_keyed_items(
+        template.get("molecules", {}), effective_params, ctx
+    )
+    molecule_names = set(name for name, _ in expanded_molecules)
 
-    # Apply molecules
-    for name, mol_data in template.get("molecules", {}).items():
+    for name, mol_data in expanded_molecules:
         namespaced_name = f"m.{namespace}.{name}"
-        expanded_data = _resolve_and_eval(mol_data, effective_params, ctx)
-        result["molecules"][namespaced_name] = expanded_data
+        result["molecules"][namespaced_name] = mol_data
 
-    # Apply reactions
-    for name, rxn_data in template.get("reactions", {}).items():
+    expanded_reactions = _expand_keyed_items(
+        template.get("reactions", {}), effective_params, ctx
+    )
+
+    for name, rxn_data in expanded_reactions:
         namespaced_name = f"r.{namespace}.{name}"
-        expanded_data = _resolve_and_eval(rxn_data, effective_params, ctx)
-        expanded_data = _namespace_molecule_refs(expanded_data, namespace, molecule_names)
+        expanded_data = _namespace_molecule_refs(rxn_data, namespace, molecule_names)
         result["reactions"][namespaced_name] = expanded_data
 
     # Track ports
@@ -318,6 +360,9 @@ def _apply_template_with_ports(
                         sub_template, sub_ports, _ports
                     )
 
+        # Auto-wire matching ports (energy.in↔energy.out, molecule name matching)
+        _auto_wire_ports(result, _ports)
+
     return result, _ports
 
 
@@ -341,7 +386,10 @@ def _apply_port_connections(
 
         # Build the full port keys
         local_port_key = f"{namespace}.{local_port_path}"
-        target_port_key = f"{parent_namespace}.{target_inst_name}.{target_path}"
+        if parent_namespace:
+            target_port_key = f"{parent_namespace}.{target_inst_name}.{target_path}"
+        else:
+            target_port_key = f"{target_inst_name}.{target_path}"
 
         # Lookup ports
         local_expanded_port = local_ports.get(local_port_key)
@@ -374,6 +422,75 @@ def _apply_port_connections(
             namespaced_mol = f"m.{namespace}.{mol_name}"
             if namespaced_mol in result["molecules"]:
                 result["molecules"][namespaced_mol]["source"] = target_expanded_port["namespaced_path"]
+
+
+def _extract_mol_name(port_key: str) -> str | None:
+    """Extract bare molecule name from port key like 'ns.molecules.MW1'."""
+    if ".molecules." in port_key:
+        return port_key.split(".molecules.")[-1]
+    return None
+
+
+def _auto_wire_ports(result: dict[str, Any], all_ports: dict[str, Any]) -> None:
+    """Auto-wire ports with matching types and opposite directions.
+
+    For energy-type ports: adds {type}_source field to "in" reactions.
+    For molecule-type ports: replaces bare molecule references in reactions
+    when molecule names match across in/out ports.
+    """
+    # Group ports by type and direction
+    by_type: dict[str, dict[str, list[tuple[str, dict[str, Any]]]]] = {}
+    for port_key, port_info in all_ports.items():
+        port = port_info["port"]
+        ptype = port.get("type", "")
+        direction = port.get("direction", "")
+        if ptype and direction:
+            by_type.setdefault(ptype, {}).setdefault(direction, []).append(
+                (port_key, port_info)
+            )
+
+    for ptype, dirs in by_type.items():
+        out_ports = dirs.get("out", [])
+        if not out_ports:
+            continue
+
+        for in_key, in_info in dirs.get("in", []):
+            in_path = in_info["namespaced_path"]
+
+            if ptype == "molecule":
+                # Match by molecule name
+                in_mol = _extract_mol_name(in_key)
+                match = None
+                for out_key, out_info in out_ports:
+                    out_mol = _extract_mol_name(out_key)
+                    if in_mol and out_mol and in_mol == out_mol:
+                        match = out_info
+                        break
+                if not match:
+                    continue
+                out_path = match["namespaced_path"]
+                # Replace bare molecule refs in scoped reactions
+                in_ns = in_key.split(".molecules.")[0] if ".molecules." in in_key else None
+                if in_ns and in_mol:
+                    for rxn_key, rxn_data in result["reactions"].items():
+                        if not rxn_key.startswith(f"r.{in_ns}"):
+                            continue
+                        if not isinstance(rxn_data, dict):
+                            continue
+                        for field in ("reactants", "products"):
+                            if field in rxn_data and isinstance(rxn_data[field], list):
+                                rxn_data[field] = [
+                                    out_path if item == in_mol or item == in_path else item
+                                    for item in rxn_data[field]
+                                ]
+            else:
+                # Non-molecule types (energy, etc.): wire to first matching out
+                out_path = out_ports[0][1]["namespaced_path"]
+                if in_path.startswith("r.") and in_path in result["reactions"]:
+                    field_name = f"{ptype}_source"
+                    # Don't overwrite explicit port connections
+                    if field_name not in result["reactions"][in_path]:
+                        result["reactions"][in_path][field_name] = out_path
 
 
 def _eval_params(params: dict[str, Any], ctx: EvalContext) -> dict[str, Any]:

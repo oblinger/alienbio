@@ -151,7 +151,6 @@ class TestDistributionInMolecules:
         conc = expanded["molecules"]["m.x.M1"]["initial_conc"]
         assert 0.1 <= conc <= 1.0
 
-    @pytest.mark.skip(reason="Molecule name expansion with {i in range} syntax not yet implemented")
     def test_ev_with_index(self):
         """!ev can use loop index variable."""
         from alienbio.build import parse_template, apply_template
@@ -170,7 +169,6 @@ class TestDistributionInMolecules:
         assert expanded["molecules"]["m.x.M2"]["description"] == "Molecule 2"
         assert expanded["molecules"]["m.x.M3"]["description"] == "Molecule 3"
 
-    @pytest.mark.skip(reason="Molecule name expansion with {i in range} syntax not yet implemented")
     def test_ev_computed_from_index(self):
         """!ev can compute values from index."""
         from alienbio.build import parse_template, apply_template

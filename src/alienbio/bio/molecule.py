@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, TYPE_CHECKING, Self
 
 from ..infra.entity import Entity
+from ..spec_lang.decorators import biotype
 from .atom import AtomImpl
 
 if TYPE_CHECKING:
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
 
 
 
+@biotype("molecule")
 class MoleculeImpl(Entity, head="Molecule"):
     """Implementation: A molecule in the biological system.
 

@@ -435,7 +435,6 @@ class TestB10Expansion:
 class TestB10PortWiring:
     """Test that port wiring works correctly."""
 
-    @pytest.mark.skip(reason="Port wiring to energy_source not yet implemented")
     def test_chain_wired_to_energy(self):
         """Anabolic chains have energy_source pointing to energy.work."""
         scenario = _build_b10_scenario(seed=42)
@@ -446,7 +445,6 @@ class TestB10PortWiring:
         assert build1 is not None
         assert build1.get("energy_source") == "r.Krel.energy.work"
 
-    @pytest.mark.skip(reason="Cross-template molecule references not yet implemented")
     def test_consumer_needs_waste(self):
         """Consumer's consume_waste reaction references producer's waste."""
         scenario = _build_b10_scenario(seed=42)
