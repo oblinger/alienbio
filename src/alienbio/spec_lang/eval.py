@@ -370,6 +370,8 @@ SAFE_BUILTINS: dict[str, Any] = {
     "round": round,
     "str": str,
     "sum": sum,
+    "sorted": sorted,
+    "reversed": reversed,
     "tuple": tuple,
     "zip": zip,
     "True": True,
@@ -426,7 +428,7 @@ class EvalContext:
 # =============================================================================
 
 
-def eval_node(node: Any, ctx: EvalContext) -> Any:
+def eval_node(node: Any, ctx: EvalContext, *, strict: bool = True) -> Any:
     """Recursively evaluate a hydrated spec node.
 
     Processes placeholder objects:
@@ -444,6 +446,8 @@ def eval_node(node: Any, ctx: EvalContext) -> Any:
     Args:
         node: The hydrated node to evaluate
         ctx: Evaluation context
+        strict: If True, missing references raise EvalError.
+                If False, missing references return the Reference unchanged.
 
     Returns:
         Fully evaluated value
@@ -462,16 +466,18 @@ def eval_node(node: Any, ctx: EvalContext) -> Any:
     # Reference - look up in bindings
     if isinstance(node, Reference):
         if node.name not in ctx.bindings:
+            if not strict:
+                return node
             raise EvalError(f"Undefined reference: {node.name!r}", ctx.path)
         return ctx.bindings[node.name]
 
     # Dict - recurse into values
     if isinstance(node, dict):
-        return {k: eval_node(v, ctx.child(k)) for k, v in node.items()}
+        return {k: eval_node(v, ctx.child(k), strict=strict) for k, v in node.items()}
 
     # List - recurse into elements
     if isinstance(node, list):
-        return [eval_node(item, ctx.child(i)) for i, item in enumerate(node)]
+        return [eval_node(item, ctx.child(i), strict=strict) for i, item in enumerate(node)]
 
     # Scalar values - pass through
     return node
@@ -572,6 +578,33 @@ from .builtins import (
     discrete,
     DEFAULT_FUNCTIONS,
 )
+
+
+# =============================================================================
+# Function Decorator Registry (M18)
+# =============================================================================
+
+# Global function registry for @function decorator
+_FUNCTION_REGISTRY: dict[str, Callable[..., Any]] = {}
+
+
+def function(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator that registers a function in the spec function registry.
+
+    Registered functions become available in !ev expressions.
+
+    Example:
+        @function
+        def custom_rate(k, *, ctx):
+            return k * ctx.rng.random()
+    """
+    _FUNCTION_REGISTRY[func.__name__] = func
+    return func
+
+
+def get_function_registry() -> dict[str, Callable[..., Any]]:
+    """Return a copy of the current function registry."""
+    return dict(_FUNCTION_REGISTRY)
 
 
 def make_context(
