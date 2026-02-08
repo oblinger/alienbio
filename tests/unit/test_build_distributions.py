@@ -24,7 +24,6 @@ import yaml
 class TestDistributionEvaluation:
     """Additional distribution tests in generator context."""
 
-    @pytest.mark.skip(reason="Generator context not yet implemented")
     def test_discrete_choice_with_labels(self):
         """discrete() works with labeled choices."""
         from alienbio.build import GeneratorContext, eval_expr
@@ -33,7 +32,6 @@ class TestDistributionEvaluation:
         result = eval_expr("discrete(['a', 'b', 'c'], [0.5, 0.3, 0.2])", ctx)
         assert result in ["a", "b", "c"]
 
-    @pytest.mark.skip(reason="Generator context not yet implemented")
     def test_choice_uniform(self):
         """choice() picks uniformly from options."""
         from alienbio.build import GeneratorContext, eval_expr
@@ -42,7 +40,6 @@ class TestDistributionEvaluation:
         result = eval_expr("choice('red', 'green', 'blue')", ctx)
         assert result in ["red", "green", "blue"]
 
-    @pytest.mark.skip(reason="Generator context not yet implemented")
     def test_range_expression(self):
         """range() expressions work in generator context."""
         from alienbio.build import GeneratorContext, eval_expr
