@@ -12,22 +12,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import matplotlib
 matplotlib.use("Agg")
 
-from _shared import make_homeostatic_system
-from alienbio.viz import concentration_trajectory, equilibrium_convergence, save_or_show
+from _core import demo_01_quick_start
+from alienbio.viz import save_or_show
 
 OUTPUT = Path(__file__).resolve().parent.parent / "output" / "01_quick_start"
 
 
 def main() -> None:
-    system = make_homeostatic_system(seed=42)
-    timeline = system.run(500)
-
-    fig1 = concentration_trajectory(timeline, title="Quick Start: Trajectories")
-    save_or_show(fig1, OUTPUT / "trajectories.png")
-
-    fig2 = equilibrium_convergence(timeline, title="Quick Start: Convergence")
-    save_or_show(fig2, OUTPUT / "convergence.png")
-
+    fig_traj, fig_conv = demo_01_quick_start()
+    save_or_show(fig_traj, OUTPUT / "trajectories.png")
+    save_or_show(fig_conv, OUTPUT / "convergence.png")
     print("demo_01_quick_start: OK")
 
 

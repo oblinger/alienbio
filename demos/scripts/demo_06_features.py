@@ -12,27 +12,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import matplotlib
 matplotlib.use("Agg")
 
-from _shared import make_homeostatic_system
-from alienbio.viz import population_dynamics, envelope_timeline, save_or_show
+from _core import demo_06_features
+from alienbio.viz import save_or_show
 
 OUTPUT = Path(__file__).resolve().parent.parent / "output" / "06_features"
 
 
 def main() -> None:
-    # Population dynamics (use molecules as "species")
-    system = make_homeostatic_system(seed=7)
-    timeline = system.run(500)
-
-    fig1 = population_dynamics(timeline, species=["A", "B", "C"],
-                               title="Population Dynamics")
-    save_or_show(fig1, OUTPUT / "population.png")
-
-    # Envelope: viable range for molecule A
-    envelope = {"A": (1.0, 8.0)}
-    fig2 = envelope_timeline(timeline, envelope, "A",
-                             title="Concentration Envelope")
-    save_or_show(fig2, OUTPUT / "envelope.png")
-
+    fig_pop, fig_env = demo_06_features()
+    save_or_show(fig_pop, OUTPUT / "population.png")
+    save_or_show(fig_env, OUTPUT / "envelope.png")
     print("demo_06_features: OK")
 
 
