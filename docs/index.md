@@ -22,6 +22,12 @@ Getting started with AlienBio: core spec format, generator specs, execution, and
 - [Execution Guide](Alienbio User Guide/Execution Guide.md) - Running experiments
 - [Agent Interface](Alienbio User Guide/Agent Interface.md) - Agent API
 
+### Demos
+
+Interactive demonstrations of core capabilities — trajectories, perturbations, disease investigation, agent evaluation, and more.
+
+- [Demo Gallery](demos/index.md) - All 11 demos with preview images, notebooks, and scripts
+
 ### Architecture
 
 System architecture, data model, protocols, and design decisions.

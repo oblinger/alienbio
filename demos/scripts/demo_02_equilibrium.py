@@ -12,26 +12,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import matplotlib
 matplotlib.use("Agg")
 
-from _shared import make_homeostatic_system
-from alienbio.bio import check_stability
-from alienbio.viz import concentration_trajectory, equilibrium_convergence, save_or_show
+from _core import demo_02_equilibrium
+from alienbio.viz import save_or_show
 
 OUTPUT = Path(__file__).resolve().parent.parent / "output" / "02_equilibrium"
 
 
 def main() -> None:
-    system = make_homeostatic_system(seed=99)
-    timeline = system.run(1000)
-
-    result = check_stability(timeline, window=100, threshold=1e-4)
+    result, fig_traj, fig_conv = demo_02_equilibrium()
     print(f"  Stable: {result.stable}, max variance: {result.max_variance:.6f}")
-
-    fig1 = concentration_trajectory(timeline, title="Equilibrium: Trajectories")
-    save_or_show(fig1, OUTPUT / "trajectories.png")
-
-    fig2 = equilibrium_convergence(timeline, window=100, title="Equilibrium: Convergence")
-    save_or_show(fig2, OUTPUT / "convergence.png")
-
+    save_or_show(fig_traj, OUTPUT / "trajectories.png")
+    save_or_show(fig_conv, OUTPUT / "convergence.png")
     print("demo_02_equilibrium: OK")
 
 
