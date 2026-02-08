@@ -263,6 +263,27 @@ class Bio:
         return impl_class()
 
     # =========================================================================
+    # Compiled Simulator
+    # =========================================================================
+
+    def compile_sim(self, scenario: Any, dt: float = 1.0) -> Any:
+        """Create a compiled simulator from a scenario spec.
+
+        Compiles rate expressions (Quoted strings) into efficient callables,
+        returning a CompiledSimulator with step/run/action/measure methods.
+
+        Args:
+            scenario: ScenarioSpec, dict, or any object with molecules,
+                      reactions, initial_state, scope attributes
+            dt: Timestep size (default 1.0)
+
+        Returns:
+            CompiledSimulator instance
+        """
+        from .compiled_sim import compile_sim
+        return compile_sim(scenario, dt=dt)
+
+    # =========================================================================
     # Source Root Configuration
     # =========================================================================
 
