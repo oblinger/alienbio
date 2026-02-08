@@ -8,6 +8,8 @@ from typing import Any, List, TYPE_CHECKING
 
 import yaml
 
+_UNSET = object()  # sentinel for cd() no-arg vs cd(None)
+
 from .resolve import (
     SourceRoot,
     ResolvedPath,
@@ -301,18 +303,27 @@ class Bio:
     # Current DAT (cd)
     # =========================================================================
 
-    def cd(self, path: str | Path | None = None) -> Path | None:
-        """Get or set the current working DAT.
+    def cd(self, path: Any = _UNSET) -> Path | None:
+        """Get, set, or reset the current working DAT.
+
+        - ``cd()`` — return current DAT path
+        - ``cd(path)`` — set current DAT to path
+        - ``cd(None)`` — reset (clear current DAT)
 
         Args:
-            path: DAT path to set as current, or None to just get current
+            path: DAT path to set, None to reset, or omit to get current
 
         Returns:
-            Current DAT path
+            Current DAT path (or None if reset/unset)
         """
-        if path is not None:
+        if path is _UNSET:
+            return self._current_dat
+        elif path is None:
+            self._current_dat = None
+            return None
+        else:
             self._current_dat = Path(path).expanduser().resolve()
-        return self._current_dat
+            return self._current_dat
 
     # =========================================================================
     # DAT Accessor
@@ -371,7 +382,13 @@ class Bio:
             result = self._fetch_from_source_roots(specifier, raw=raw, hydrate=hydrate)
             if result is not None:
                 return result
-            if "." in specifier:
+
+        # Try Python module import for dotted paths (e.g., 'alienbio.bio.Chemistry')
+        if "/" not in specifier and "." in specifier:
+            result = self._fetch_python_import(specifier)
+            if result is not None:
+                return result
+            if self._source_roots:
                 searched = [str(r.path) for r in self._source_roots]
                 raise FileNotFoundError(f"'{specifier}' not found in source roots: {searched}")
 
@@ -421,6 +438,26 @@ class Bio:
                 return data
         return None
 
+    def _fetch_python_import(self, dotted_path: str) -> Any | None:
+        """Try to import a Python object by its full dotted path.
+
+        Handles paths like 'alienbio.bio.Chemistry' → imports module,
+        returns the attribute.
+        """
+        import importlib
+
+        parts = dotted_path.rsplit(".", 1)
+        if len(parts) != 2:
+            return None
+        module_path, attr_name = parts
+        try:
+            module = importlib.import_module(module_path)
+            if hasattr(module, attr_name):
+                return getattr(module, attr_name)
+        except (ImportError, ModuleNotFoundError):
+            pass
+        return None
+
     def store(self, specifier: str, obj: Any, *, raw: bool = False) -> None:
         """Store a typed object to a specifier path.
 
@@ -433,7 +470,7 @@ class Bio:
         3. Write YAML
 
         Args:
-            specifier: Path like "catalog/scenarios/custom" or "./relative"
+            specifier: Path or file like "output.yaml", "dat_dir/", or "./relative"
             obj: Object to store (dict, typed object, or hydrated data)
             raw: If True, write obj directly without any dehydration
         """
@@ -447,19 +484,22 @@ class Bio:
         else:
             path = Path(specifier)
 
-        # Ensure directory exists
-        if not path.exists():
-            path.mkdir(parents=True)
-
-        spec_file = path / "index.yaml"
+        # Determine output file: if path has .yaml/.yml suffix, write directly;
+        # otherwise treat as DAT directory and write index.yaml
+        if path.suffix in ('.yaml', '.yml'):
+            spec_file = path
+            spec_file.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            path.mkdir(parents=True, exist_ok=True)
+            spec_file = path / "index.yaml"
 
         # Convert object to dict
         if raw:
             data = obj
         elif isinstance(obj, dict):
-            data = dehydrate(obj)                              # dehydrate placeholders
+            data = dehydrate(obj)
         elif hasattr(obj, 'to_dict'):
-            data = dehydrate(obj.to_dict())                    # convert + dehydrate
+            data = dehydrate(obj.to_dict())
         else:
             raw_data = {k: v for k, v in vars(obj).items() if not k.startswith('_')}
             data = dehydrate(raw_data)

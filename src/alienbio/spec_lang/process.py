@@ -44,7 +44,9 @@ def process_and_hydrate(
     data = resolve_py_refs(data, base_dir)
     data = expand_defaults(data)
 
-    # TODO: If hydrate=True, convert dicts with _type to typed objects
+    if not hydrate:
+        from .scope import Scope
+        return Scope(data)
 
     return data
 
