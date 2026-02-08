@@ -5,6 +5,8 @@ See docs: [[Spec Language]], [[Decorators]], [[Bio]]
 """
 
 from .bio import Bio, bio, SimulationResult
+from .rate_compiler import compile_rate_expression
+from .compiled_sim import CompiledSimulator, ScenarioSpec, compile_sim
 from .decorators import biotype, fn, scoring, action, measurement, rate
 from .decorators import get_biotype, get_action, get_measurement, get_scoring, get_rate
 from .decorators import biotype_registry, action_registry, measurement_registry
@@ -74,4 +76,9 @@ __all__ = [
     "expand_defaults",
     # Scope
     "Scope",
+    # Rate compilation
+    "compile_rate_expression",
+    "CompiledSimulator",
+    "ScenarioSpec",
+    "compile_sim",
 ]
