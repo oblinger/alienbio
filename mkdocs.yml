@@ -35,6 +35,9 @@ plugins:
   - search
   # Convert Obsidian-style [[wikilinks]] to standard markdown links
   - roamlinks
+  - mkdocs-jupyter:
+      include_source: true
+      execute: false
   - mkdocstrings:
       handlers:
         python:
