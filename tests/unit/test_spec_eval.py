@@ -336,9 +336,11 @@ class TestHydrateIncludeTag:
         with pytest.raises(FileNotFoundError):
             hydrate(data, base_path=str(temp_dir))
 
-    @pytest.mark.skip(reason="Nested YAML includes need IncludeTag registered")
     def test_hydrate_include_nested(self, temp_dir):
         """!include resolves nested includes."""
+        # Ensure tags module is imported so !include YAML constructor is registered
+        import alienbio.spec_lang.tags  # noqa: F401
+
         inner_file = temp_dir / "inner.md"
         inner_file.write_text("Inner content")
 
@@ -748,7 +750,6 @@ class TestEvalReference:
         with pytest.raises(EvalError):
             eval_node(node, ctx)
 
-    @pytest.mark.skip(reason="Non-strict mode not implemented")
     def test_eval_ref_missing_nonstrict(self, ctx):
         """Missing reference in non-strict mode returns Reference."""
         node = Reference(name="nonexistent")
@@ -770,11 +771,17 @@ class TestEvalReference:
 class TestFunctionDecorator:
     """Test @function decorator and ctx injection."""
 
-    @pytest.mark.skip(reason="Function decorator registry not implemented")
     def test_function_decorator_registers(self):
         """@function adds function to registry."""
-        # Would need function registry
-        pass
+        from alienbio.spec_lang.eval import function, get_function_registry
+
+        @function
+        def my_test_func(x, *, ctx):
+            return x * 2
+
+        registry = get_function_registry()
+        assert "my_test_func" in registry
+        assert registry["my_test_func"] is my_test_func
 
     def test_function_ctx_injection(self, ctx):
         """ctx is auto-injected as keyword parameter."""
@@ -1175,11 +1182,9 @@ class TestSafeBuiltins:
     def test_safe_dict(self, ctx):
         assert eval_node(Evaluable("dict(a=1, b=2)"), ctx) == {"a": 1, "b": 2}
 
-    @pytest.mark.skip(reason="sorted not in SAFE_BUILTINS")
     def test_safe_sorted(self, ctx):
         assert eval_node(Evaluable("sorted([3,1,2])"), ctx) == [1, 2, 3]
 
-    @pytest.mark.skip(reason="reversed not in SAFE_BUILTINS")
     def test_safe_reversed(self, ctx):
         assert eval_node(Evaluable("list(reversed([1,2,3]))"), ctx) == [3, 2, 1]
 

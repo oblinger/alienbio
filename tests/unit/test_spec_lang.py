@@ -308,18 +308,17 @@ def test_action(sim):
 
     def test_include_relative_path(self, temp_dir):
         """!include ../outside.md → relative path resolution"""
-        # Create file one level up
-        parent_dir = temp_dir.parent
-        outside_file = parent_dir / "outside.md"
+        # Create file one level up from subdir (i.e. in temp_dir itself)
+        outside_file = temp_dir / "outside.md"
         outside_file.write_text("Outside content")
 
         subdir = temp_dir / "subdir"
         subdir.mkdir()
 
         tag = Include("../outside.md")
-        # Relative to subdir, should find parent's outside.md
-        # This test may need adjustment based on implementation
-        pytest.skip("Relative path handling TBD")
+        # Relative to subdir, ../outside.md resolves to temp_dir/outside.md
+        result = tag.load(str(subdir))
+        assert result == "Outside content"
 
     def test_include_absolute_path(self, temp_dir):
         """!include /absolute/path.md → absolute path"""

@@ -574,15 +574,35 @@ class TestBioSimIntegration:
     These require Bio.load() and Bio.eval() which are part of M17.
     """
 
-    @pytest.mark.skip(reason="Requires Bio.load (M17)")
-    def test_load_eval_sim_pipeline(self):
+    def test_load_eval_sim_pipeline(self, tmp_path):
         """Full pipeline: load spec, eval, create sim, run."""
-        pass
+        from alienbio.spec_lang import bio
 
-    @pytest.mark.skip(reason="Requires Bio.load (M17)")
-    def test_multiple_instantiations_from_spec(self):
+        spec_file = tmp_path / "index.yaml"
+        spec_file.write_text(
+            "constants:\n  k: 0.1\n"
+            "molecules:\n  A:\n    initial: !ev normal(100, 10)\n"
+            "reactions:\n  r1:\n    rate: !_ k * A\n"
+            "    reactants: [A]\n    products: []\n"
+        )
+
+        spec = bio.load_spec(str(spec_file))
+        result = bio.eval_spec(spec, seed=42)
+        assert isinstance(result["molecules"]["A"]["initial"], (int, float))
+        assert result["reactions"]["r1"]["rate"] == "k * A"
+
+    def test_multiple_instantiations_from_spec(self, tmp_path):
         """Same spec, different seeds, different scenarios."""
-        pass
+        from alienbio.spec_lang import bio
+
+        spec_file = tmp_path / "index.yaml"
+        spec_file.write_text(
+            "molecules:\n  A:\n    initial: !ev normal(100, 10)\n"
+        )
+
+        spec = bio.load_spec(str(spec_file))
+        results = [bio.eval_spec(spec, seed=i)["molecules"]["A"]["initial"] for i in range(5)]
+        assert len(set(results)) > 1  # different seeds → different values
 
     def test_quotes_survive_eval(self):
         """!quote expressions survive eval and reach simulator as strings."""
