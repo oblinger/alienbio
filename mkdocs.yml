@@ -35,6 +35,9 @@ plugins:
   - search
   # Convert Obsidian-style [[wikilinks]] to standard markdown links
   - roamlinks
+  - mkdocs-jupyter:
+      include_source: true
+      execute: false
   - mkdocstrings:
       handlers:
         python:
@@ -69,6 +72,19 @@ nav:
     - Generator Spec: Alienbio User Guide/Generator Spec.md
     - Execution Guide: Alienbio User Guide/Execution Guide.md
     - Agent Interface: Alienbio User Guide/Agent Interface.md
+  - Demos:
+    - Gallery: demos/index.md
+    - "01: Quick Start": demos/notebooks/01_quick_start.ipynb
+    - "02: Equilibrium": demos/notebooks/02_equilibrium.ipynb
+    - "03: Perturbation": demos/notebooks/03_perturbation.ipynb
+    - "04: Disease": demos/notebooks/04_disease.ipynb
+    - "05: Organism": demos/notebooks/05_organism.ipynb
+    - "06: Features": demos/notebooks/06_features.ipynb
+    - "07: Skinning": demos/notebooks/07_skinning.ipynb
+    - "08: Evaluation": demos/notebooks/08_evaluation.ipynb
+    - "Combo: Disease": demos/notebooks/combo_disease_investigation.ipynb
+    - "Combo: Alien Exam": demos/notebooks/combo_alien_exam.ipynb
+    - "Combo: Ecosystem": demos/notebooks/combo_ecosystem.ipynb
   - Architecture:
     - Overview: architecture/Architecture Docs.md
     - Data Model: architecture/ABIO Data.md
