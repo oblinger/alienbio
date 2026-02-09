@@ -17,6 +17,7 @@ from alienbio.bio import (
     Baseline,
     BioSystem,
     ChemistryImpl,
+    MockDat,
     MoleculeImpl,
     Perturbation,
     ReactionImpl,
@@ -31,56 +32,40 @@ if TYPE_CHECKING:
     from alienbio.bio import Organism
 
 
-class _MockDat:
-    """Minimal DAT stub for demo systems."""
-
-    def __init__(self, path: str) -> None:
-        self._path = path
-
-    def get_path_name(self) -> str:
-        return self._path
-
-    def get_path(self) -> str:
-        return f"/tmp/{self._path}"
-
-    def save(self) -> None:
-        pass
-
-
 def make_homeostatic_system(seed: int = 42) -> BioSystem:
-    """Create a 3-molecule A<->B<->C equilibrium system.
+    """Create a 3-molecule zynol↔brevix↔corthan equilibrium system.
 
     Returns a BioSystem that converges to stable equilibrium.
     """
-    c_atom = AtomImpl("C", name="Carbon", atomic_weight=12.0)
-    a = MoleculeImpl("A", atoms={c_atom: 1}, bdepth=0, dat=_MockDat("mol/A"))
-    b = MoleculeImpl("B", atoms={c_atom: 1}, bdepth=0, dat=_MockDat("mol/B"))
-    c = MoleculeImpl("C", atoms={c_atom: 1}, bdepth=0, dat=_MockDat("mol/C"))
+    zr = AtomImpl("Zr", name="Zyrium", atomic_weight=14.7)
+    zynol = MoleculeImpl("zynol", atoms={zr: 1}, bdepth=0, dat=MockDat("mol/zynol"))
+    brevix = MoleculeImpl("brevix", atoms={zr: 1}, bdepth=0, dat=MockDat("mol/brevix"))
+    corthan = MoleculeImpl("corthan", atoms={zr: 1}, bdepth=0, dat=MockDat("mol/corthan"))
 
-    r_ab = ReactionImpl(
-        "r_ab", reactants={a: 1.0}, products={b: 1.0},
-        rate=lambda s: 0.1 * s["A"], dat=_MockDat("rxn/r_ab"),
+    r_zb = ReactionImpl(
+        "r_zb", reactants={zynol: 1.0}, products={brevix: 1.0},
+        rate=lambda s: 0.1 * s["zynol"], dat=MockDat("rxn/r_zb"),
     )
-    r_ba = ReactionImpl(
-        "r_ba", reactants={b: 1.0}, products={a: 1.0},
-        rate=lambda s: 0.05 * s["B"], dat=_MockDat("rxn/r_ba"),
+    r_bz = ReactionImpl(
+        "r_bz", reactants={brevix: 1.0}, products={zynol: 1.0},
+        rate=lambda s: 0.05 * s["brevix"], dat=MockDat("rxn/r_bz"),
     )
     r_bc = ReactionImpl(
-        "r_bc", reactants={b: 1.0}, products={c: 1.0},
-        rate=lambda s: 0.08 * s["B"], dat=_MockDat("rxn/r_bc"),
+        "r_bc", reactants={brevix: 1.0}, products={corthan: 1.0},
+        rate=lambda s: 0.08 * s["brevix"], dat=MockDat("rxn/r_bc"),
     )
     r_cb = ReactionImpl(
-        "r_cb", reactants={c: 1.0}, products={b: 1.0},
-        rate=lambda s: 0.04 * s["C"], dat=_MockDat("rxn/r_cb"),
+        "r_cb", reactants={corthan: 1.0}, products={brevix: 1.0},
+        rate=lambda s: 0.04 * s["corthan"], dat=MockDat("rxn/r_cb"),
     )
 
     chem = ChemistryImpl(
-        "abc", atoms={"C": c_atom},
-        molecules={"A": a, "B": b, "C": c},
-        reactions={"r_ab": r_ab, "r_ba": r_ba, "r_bc": r_bc, "r_cb": r_cb},
-        dat=_MockDat("chem/abc"),
+        "zbc", atoms={"Zr": zr},
+        molecules={"zynol": zynol, "brevix": brevix, "corthan": corthan},
+        reactions={"r_zb": r_zb, "r_bz": r_bz, "r_bc": r_bc, "r_cb": r_cb},
+        dat=MockDat("chem/zbc"),
     )
-    state = StateImpl(chem, initial={"A": 10.0, "B": 0.0, "C": 0.0})
+    state = StateImpl(chem, initial={"zynol": 10.0, "brevix": 0.0, "corthan": 0.0})
     return BioSystem(chem, state, dt=0.1)
 
 

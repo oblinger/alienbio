@@ -99,13 +99,13 @@ class ChemistryImpl(Entity, head="Chemistry"):
         Returns:
             New ChemistryImpl with hydrated molecules and reactions
         """
-        from ..infra.entity import _MockDat
+        from ..infra.entity import MockDat
 
         name = local_name or data.get("name", "chemistry")
 
         # Create mock dat if needed
         if dat is None and parent is None:
-            dat = _MockDat(f"chem/{name}")
+            dat = MockDat(f"chem/{name}")
 
         # Extract molecules and reactions data
         molecules_data = data.get("molecules", {})

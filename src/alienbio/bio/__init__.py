@@ -47,6 +47,9 @@ from ..protocols.bio import (
     Simulator,
 )
 
+# MockDat - lightweight mock for creating entities without a real catalog
+from ..infra.entity import MockDat
+
 # Implementation classes - atoms and molecules
 from .atom import AtomImpl, COMMON_ATOMS, get_atom
 from .molecule import MoleculeImpl
@@ -266,4 +269,6 @@ __all__ = [
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",
+    # MockDat
+    "MockDat",
 ]

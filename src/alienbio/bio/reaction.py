@@ -88,13 +88,13 @@ class ReactionImpl(Entity, head="Reaction"):
         Returns:
             New ReactionImpl instance
         """
-        from ..infra.entity import _MockDat
+        from ..infra.entity import MockDat
 
         name = local_name or data.get("name", "reaction")
 
         # Create mock dat if needed
         if dat is None and parent is None:
-            dat = _MockDat(f"rxn/{name}")
+            dat = MockDat(f"rxn/{name}")
 
         # Build reactants dict: {MoleculeImpl: coefficient}
         reactants: Dict[Molecule, float] = {}

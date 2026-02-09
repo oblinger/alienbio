@@ -11,7 +11,6 @@ from typing import Any, List, TYPE_CHECKING
 import matplotlib.pyplot as plt
 
 from _shared import (
-    _MockDat,
     make_disease_system,
     make_homeostatic_system,
     make_organism,
@@ -23,6 +22,7 @@ from alienbio.bio import (
     AgentInterface,
     BioSystem,
     ChemistryImpl,
+    MockDat,
     StateImpl,
     TestSuite,
     check_stability,
@@ -80,14 +80,14 @@ def demo_02_equilibrium(seed: int = 99) -> tuple[Any, Figure, Figure]:
 
 
 def demo_03_spike_recovery(seed: int = 42) -> Figure:
-    """Spike +20 into molecule A and return perturbation response figure."""
+    """Spike +20 into zynol and return perturbation response figure."""
     sys_base = make_homeostatic_system(seed=seed)
     sys_base.run(200)
     baseline_tl = sys_base.run(100)
 
     sys_spike = make_homeostatic_system(seed=seed)
     sys_spike.run(200)
-    sys_spike.state["A"] = sys_spike.state["A"] + 20.0
+    sys_spike.state["zynol"] = sys_spike.state["zynol"] + 20.0
     spike_tl = sys_spike.run(100)
 
     return perturbation_response(baseline_tl, spike_tl, title="Spike Recovery")
@@ -102,11 +102,11 @@ def demo_03_drift(seed: int = 42) -> Figure:
     sys_orig = make_homeostatic_system(seed=seed)
     remaining = {n: r for n, r in sys_orig.chemistry.reactions.items() if n != "r_bc"}
     modified_chem = ChemistryImpl(
-        "abc_no_rbc",
+        "zbc_no_rbc",
         atoms=sys_orig.chemistry.atoms,
         molecules=sys_orig.chemistry.molecules,
         reactions=remaining,
-        dat=_MockDat("chem/abc_no_rbc"),
+        dat=MockDat("chem/zbc_no_rbc"),
     )
     init_concs = {m: sys_drift_base.state[m] for m in sys_drift_base.state}
     modified_state = StateImpl(modified_chem, initial=init_concs)
@@ -156,11 +156,11 @@ def demo_06_features(seed: int = 7) -> tuple[Figure, Figure]:
     timeline = system.run(500)
 
     fig_pop = population_dynamics(
-        timeline, species=["A", "B", "C"], title="Population Dynamics",
+        timeline, species=["zynol", "brevix", "corthan"], title="Population Dynamics",
     )
-    envelope = {"A": (1.0, 8.0)}
+    envelope = {"zynol": (1.0, 8.0)}
     fig_env = envelope_timeline(
-        timeline, envelope, "A", title="Concentration Envelope",
+        timeline, envelope, "zynol", title="Concentration Envelope",
     )
     return fig_pop, fig_env
 
@@ -363,8 +363,8 @@ def combo_ecosystem(seed: int = 42) -> tuple[Figure, Figure]:
 
     system = make_homeostatic_system(seed=seed)
     timeline = system.run(500)
-    envelope = {"A": (2.0, 6.0)}
+    envelope = {"zynol": (2.0, 6.0)}
     fig_env = envelope_timeline(
-        timeline, envelope, "A", title="Ecosystem: Envelope Violations",
+        timeline, envelope, "zynol", title="Ecosystem: Envelope Violations",
     )
     return fig_heat, fig_env
