@@ -1,14 +1,17 @@
 # Alien Biology
 
-A framework for testing agentic AI reasoning through procedurally generated biological systems untainted by training data.
-
-## Overview
-
-Alien Biology provides a way to measure complex, agentic reasoning/learning that is:
+A framework for testing agentic AI reasoning through procedurally generated biological systems untainted by training data. Alien Biology provides a way to measure complex, agentic reasoning/learning that is:
 
 - **REAL-WORLD** - measures performance on practical, complex, real-world-relevant agentic reasoning/learning tasks
 - **UNTAINTED** - avoids confounding connections to LLM training corpora by drawing tests from an "Alien" universe
 - **CONTROLLABLE** - is parametrically constructed in ways that allow fine-grained analysis of the limits of agentic reasoning
+
+## Documentation
+
+- **[Demos](https://oblinger.github.io/abio-docs/demos/index.html)** - Interactive demonstrations with notebooks, scripts, and output
+- **[User Guide](https://oblinger.github.io/abio-docs/Alienbio%20User%20Guide/Alienbio%20User%20Guide.html)** - Core specs, generators, execution, and agent interface
+- **[Architecture](https://oblinger.github.io/abio-docs/architecture/Architecture%20Docs.html)** - System architecture, data model, and protocols
+- **[API Reference](https://oblinger.github.io/abio-docs/api/index.html)** - Auto-generated Python API docs
 
 ## Installation
 
@@ -39,10 +42,6 @@ just fmt
 # Generate documentation diagrams
 just docs
 ```
-
-## Architecture
-
-See [docs/architecture/](docs/architecture/) for detailed architecture documentation.
 
 ## License
 
