@@ -1,0 +1,8 @@
+System contains 3 substances and 4 processes.
+Substances: nyx.ax, kth'el, ule'em
+
+Processes:
+  myr.ix: nyx.ax -> kth'el
+  fraum: kth'el -> nyx.ax
+  myris: kth'el -> ule'em
+  kthyl: ule'em -> kth'el
