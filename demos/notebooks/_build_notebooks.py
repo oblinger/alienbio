@@ -51,13 +51,126 @@ def write(name: str, notebook: nbformat.NotebookNode) -> None:
 
 def build_01():
     write("01_quick_start", nb([
-        ("md", "# Demo 01: Quick Start\n\nA 3-molecule homeostatic system (A↔B↔C) converging to equilibrium."),
+        ("md", """\
+# Demo 01: Quick Start
+
+Build a simple 3-molecule biological system from scratch and watch it converge
+to equilibrium. This walkthrough shows every step — defining atoms, molecules,
+reactions, and assembling them into a runnable simulation."""),
+
         ("code", SETUP),
-        ("code", "from _core import demo_01_quick_start\nfig_traj, fig_conv = demo_01_quick_start()"),
-        ("md", "## Concentration Trajectories"),
-        ("code", "fig_traj"),
-        ("md", "## Equilibrium Convergence\nVariance drops below threshold as the system stabilizes."),
-        ("code", "fig_conv"),
+
+        ("md", """\
+## Step 1 — Define the Chemistry
+
+An AlienBio system starts with **atoms**, **molecules**, and **reactions**.
+Here we create a minimal A↔B↔C system where molecules convert between each
+other at concentration-dependent rates.
+
+> Every object needs a `dat` (data-access token). In a full scenario these
+> come from the catalog; for quick experiments a `_MockDat` stub is enough."""),
+
+        ("code", """\
+from alienbio.bio import (
+    AtomImpl, MoleculeImpl, ReactionImpl,
+    ChemistryImpl, StateImpl, BioSystem,
+)
+
+# A small helper so we don't need a real catalog
+class _MockDat:
+    def __init__(self, path):
+        self._path = path
+    def get_path_name(self):
+        return self._path
+    def get_path(self):
+        return f"/tmp/{self._path}"
+    def save(self):
+        pass
+
+# One atom type — carbon
+c_atom = AtomImpl("C", name="Carbon", atomic_weight=12.0)
+
+# Three molecules, each containing one carbon
+a = MoleculeImpl("A", atoms={c_atom: 1}, bdepth=0, dat=_MockDat("mol/A"))
+b = MoleculeImpl("B", atoms={c_atom: 1}, bdepth=0, dat=_MockDat("mol/B"))
+c = MoleculeImpl("C", atoms={c_atom: 1}, bdepth=0, dat=_MockDat("mol/C"))
+"""),
+
+        ("md", """\
+### Reactions
+
+Each reaction has a **rate function** that depends on the current concentrations.
+The forward/reverse pairs create a homeostatic loop that drives the system
+toward a stable equilibrium.
+
+```
+A ──0.10·[A]──▸ B ──0.08·[B]──▸ C
+A ◂──0.05·[B]── B ◂──0.04·[C]── C
+```"""),
+
+        ("code", """\
+# A→B and B→A (forward/reverse)
+r_ab = ReactionImpl("r_ab", reactants={a: 1.0}, products={b: 1.0},
+                     rate=lambda s: 0.10 * s["A"], dat=_MockDat("rxn/r_ab"))
+r_ba = ReactionImpl("r_ba", reactants={b: 1.0}, products={a: 1.0},
+                     rate=lambda s: 0.05 * s["B"], dat=_MockDat("rxn/r_ba"))
+
+# B→C and C→B (forward/reverse)
+r_bc = ReactionImpl("r_bc", reactants={b: 1.0}, products={c: 1.0},
+                     rate=lambda s: 0.08 * s["B"], dat=_MockDat("rxn/r_bc"))
+r_cb = ReactionImpl("r_cb", reactants={c: 1.0}, products={b: 1.0},
+                     rate=lambda s: 0.04 * s["C"], dat=_MockDat("rxn/r_cb"))
+"""),
+
+        ("md", """\
+## Step 2 — Assemble and Run
+
+A `ChemistryImpl` bundles atoms, molecules, and reactions. A `StateImpl` sets
+the initial concentrations. A `BioSystem` ties it together and can be stepped
+forward in time."""),
+
+        ("code", """\
+chem = ChemistryImpl(
+    "abc",
+    atoms={"C": c_atom},
+    molecules={"A": a, "B": b, "C": c},
+    reactions={"r_ab": r_ab, "r_ba": r_ba, "r_bc": r_bc, "r_cb": r_cb},
+    dat=_MockDat("chem/abc"),
+)
+
+# Start with all concentration in molecule A
+state = StateImpl(chem, initial={"A": 10.0, "B": 0.0, "C": 0.0})
+system = BioSystem(chem, state, dt=0.1)
+
+# Run 500 time steps — returns a timeline (list of concentration snapshots)
+timeline = system.run(500)
+
+print(f"Steps: {len(timeline)}")
+print(f"Final: { {m: round(system.state[m], 3) for m in system.state} }")
+"""),
+
+        ("md", """\
+## Step 3 — Visualize
+
+`alienbio.viz` provides ready-made plots. `concentration_trajectory` shows how
+each molecule's concentration changes over time. `equilibrium_convergence` shows
+the rolling variance — when it drops below a threshold the system has stabilized."""),
+
+        ("md", "### Concentration Trajectories"),
+
+        ("code", """\
+from alienbio.viz import concentration_trajectory, equilibrium_convergence
+
+concentration_trajectory(timeline, title="Quick Start: Trajectories");
+"""),
+
+        ("md", """\
+### Equilibrium Convergence
+
+The variance of each molecule's concentration over a trailing window.
+Once all variances drop below a threshold, the system is at equilibrium."""),
+
+        ("code", 'equilibrium_convergence(timeline, title="Quick Start: Convergence");'),
     ]))
 
 
@@ -65,13 +178,75 @@ def build_01():
 
 def build_02():
     write("02_equilibrium", nb([
-        ("md", "# Demo 02: Equilibrium & Stability\n\nRun to equilibrium and analyze stability using variance over a trailing window."),
+        ("md", """\
+# Demo 02: Equilibrium & Stability
+
+How do you know a biological system has reached equilibrium? This demo builds
+the same A↔B↔C chemistry from Demo 01 (using the shared helper this time),
+runs it longer, and uses `check_stability` to programmatically detect when
+concentrations stop changing."""),
+
         ("code", SETUP),
-        ("code", "from _core import demo_02_equilibrium\nresult, fig_traj, fig_conv = demo_02_equilibrium()\nprint(f'Stable: {result.stable}, max variance: {result.max_variance:.6f}')"),
-        ("md", "## Trajectories"),
-        ("code", "fig_traj"),
-        ("md", "## Convergence Analysis"),
-        ("code", "fig_conv"),
+
+        ("md", """\
+## Build the System
+
+`_shared.make_homeostatic_system` creates the same 3-molecule chemistry from
+Demo 01 (see that notebook for the full construction code). Here we use a
+different seed to get a different random-number sequence, and run for 1000
+steps — long enough to be confident about convergence."""),
+
+        ("code", """\
+from _shared import make_homeostatic_system
+
+system = make_homeostatic_system(seed=99)
+timeline = system.run(1000)
+
+print(f"Steps: {len(timeline)}")
+print(f"Final: { {m: round(system.state[m], 3) for m in system.state} }")
+"""),
+
+        ("md", """\
+## Stability Check
+
+`check_stability` computes the variance of each molecule's concentration over
+a trailing **window** (here, the last 100 steps). If the maximum variance
+across all molecules is below the **threshold**, the system is considered
+stable.
+
+The returned `StabilityResult` has:
+- `stable` — `True` if all variances are below threshold
+- `max_variance` — the largest variance seen across molecules"""),
+
+        ("code", """\
+from alienbio.bio import check_stability
+
+result = check_stability(timeline, window=100, threshold=1e-4)
+print(f"Stable: {result.stable}")
+print(f"Max variance: {result.max_variance:.6f}")
+"""),
+
+        ("md", """\
+## Trajectories
+
+With seed=99 the initial transient is slightly different from Demo 01, but
+the system still converges to the same equilibrium point (determined by the
+rate constants, not the seed)."""),
+
+        ("code", """\
+from alienbio.viz import concentration_trajectory, equilibrium_convergence
+
+concentration_trajectory(timeline, title="Equilibrium: Trajectories");
+"""),
+
+        ("md", """\
+## Convergence Analysis
+
+The convergence plot shows per-molecule rolling variance over the timeline.
+By step ~400 the variance has dropped well below the 1e-4 threshold, matching
+the `check_stability` result above."""),
+
+        ("code", 'equilibrium_convergence(timeline, window=100, title="Equilibrium: Convergence");'),
     ]))
 
 
