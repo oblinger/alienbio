@@ -161,7 +161,7 @@ class Entity:
         # If neither dat nor parent provided, create a mock dat
         if dat is None and parent is None:
             name = local_name or data.get("name", cls.__name__.lower())
-            dat = _MockDat(f"{cls.__name__.lower()}/{name}")
+            dat = MockDat(f"{cls.__name__.lower()}/{name}")
 
         # Get name from data or use provided local_name
         name = local_name or data.get("name", cls.__name__.lower())
@@ -447,7 +447,7 @@ class Entity:
                 return f"<Entity:{self._local_name}>"
 
 
-class _MockDat:
+class MockDat:
     """Lightweight mock DAT for hydrating entities without a real DAT.
 
     Used when creating entities from YAML specs that don't have

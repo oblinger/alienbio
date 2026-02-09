@@ -76,13 +76,13 @@ class MoleculeImpl(Entity, head="Molecule"):
         Returns:
             New MoleculeImpl instance
         """
-        from ..infra.entity import _MockDat
+        from ..infra.entity import MockDat
 
         name = local_name or data.get("name", "molecule")
 
         # Create mock dat if needed
         if dat is None and parent is None:
-            dat = _MockDat(f"mol/{name}")
+            dat = MockDat(f"mol/{name}")
 
         return cls(
             name,
