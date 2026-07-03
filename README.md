@@ -1,3 +1,5 @@
+[Main Page](https://oblinger.github.io/gitproj/AlienBiology/) · [White Paper](https://oblinger.github.io/gitproj/AlienBiology/AlienBiologyWhitepaper.pdf)
+
 # Alien Biology
 
 A framework for testing agentic AI reasoning through procedurally generated biological systems untainted by training data. Alien Biology provides a way to measure complex, agentic reasoning/learning that is:
