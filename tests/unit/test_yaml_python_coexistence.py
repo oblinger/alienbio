@@ -26,7 +26,7 @@ class TestPyRefTag:
         """PyRef requires module.attr format, not bare name."""
         ref = PyRef("bare_name")
         with pytest.raises(ValueError, match="requires module.attr format"):
-            ref.resolve(str(tmp_path))
+            ref.resolve(str(tmp_path), trusted=True)
 
     def test_pyref_resolves_local_function(self, tmp_path):
         """PyRef resolves function from local Python file."""
@@ -40,7 +40,7 @@ CONSTANT = 42
 """)
 
         ref = PyRef("helpers.compute_rate")
-        result = ref.resolve(str(tmp_path))
+        result = ref.resolve(str(tmp_path), trusted=True)
 
         assert callable(result)
         assert result(5) == 10
@@ -51,7 +51,7 @@ CONSTANT = 42
         py_file.write_text("VALUE = 123")
 
         ref = PyRef("config.VALUE")
-        result = ref.resolve(str(tmp_path))
+        result = ref.resolve(str(tmp_path), trusted=True)
 
         assert result == 123
 
@@ -66,16 +66,16 @@ class Config:
 """)
 
         ref = PyRef("nested.Config.rate")
-        assert ref.resolve(str(tmp_path)) == 0.5
+        assert ref.resolve(str(tmp_path), trusted=True) == 0.5
 
         ref2 = PyRef("nested.Config.Inner.value")
-        assert ref2.resolve(str(tmp_path)) == 99
+        assert ref2.resolve(str(tmp_path), trusted=True) == 99
 
     def test_pyref_file_not_found(self, tmp_path):
         """PyRef raises ImportError for missing file."""
         ref = PyRef("nonexistent.func")
         with pytest.raises(ImportError, match="not found"):
-            ref.resolve(str(tmp_path))
+            ref.resolve(str(tmp_path), trusted=True)
 
     def test_pyref_attr_not_found(self, tmp_path):
         """PyRef raises AttributeError for missing attribute."""
@@ -84,7 +84,7 @@ class Config:
 
         ref = PyRef("module.NONEXISTENT")
         with pytest.raises(AttributeError):
-            ref.resolve(str(tmp_path))
+            ref.resolve(str(tmp_path), trusted=True)
 
 
 # =============================================================================
@@ -347,11 +347,52 @@ reaction:
         bio = Bio()
         bio.add_source_root(catalog)
 
-        result = bio.fetch("spec")
-        assert result["reaction"]["name"] == "Test Reaction"
-        assert callable(result["reaction"]["rate"])
-        assert result["reaction"]["rate"](10) == 5.0
-        assert result["reaction"]["threshold"] == 42
+        # !py executes Python; the standard (untrusted) fetch path must refuse
+        # it rather than run arbitrary agent-authored code.
+        from alienbio.spec_lang.tags import UnsafeSpecError
+        with pytest.raises(UnsafeSpecError):
+            bio.fetch("spec")
+
+
+class TestPyTagTrust:
+    """!py / .py-include are gated behind an explicit trust flag."""
+
+    def test_pyref_untrusted_by_default_raises(self, tmp_path):
+        """PyRef.resolve refuses to execute Python unless trusted=True."""
+        from alienbio.spec_lang.tags import UnsafeSpecError
+        py_file = tmp_path / "helpers.py"
+        py_file.write_text("def f(x):\n    return x\n")
+
+        ref = PyRef("helpers.f")
+        with pytest.raises(UnsafeSpecError):
+            ref.resolve(str(tmp_path))
+
+    def test_pyref_trusted_executes(self, tmp_path):
+        """PyRef.resolve executes when explicitly trusted."""
+        py_file = tmp_path / "helpers.py"
+        py_file.write_text("VALUE = 7\n")
+
+        ref = PyRef("helpers.VALUE")
+        assert ref.resolve(str(tmp_path), trusted=True) == 7
+
+    def test_py_include_untrusted_raises(self, tmp_path):
+        """A .py !include refuses to execute unless trusted=True."""
+        from alienbio.spec_lang.tags import Include, UnsafeSpecError
+        py_file = tmp_path / "mod.py"
+        py_file.write_text("x = 1\n")
+
+        inc = Include("mod.py")
+        with pytest.raises(UnsafeSpecError):
+            inc.load(str(tmp_path))
+
+    def test_py_include_trusted_executes(self, tmp_path):
+        """A .py !include executes when explicitly trusted."""
+        from alienbio.spec_lang.tags import Include
+        py_file = tmp_path / "mod.py"
+        py_file.write_text("x = 1\n")
+
+        inc = Include("mod.py")
+        assert inc.load(str(tmp_path), trusted=True) is None
 
 
 # =============================================================================

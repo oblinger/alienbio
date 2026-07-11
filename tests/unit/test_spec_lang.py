@@ -176,14 +176,16 @@ class TestEvaluable:
 
     def test_ev_blocks_dangerous_builtins(self):
         """!ev open("/etc/passwd") → blocked (security)"""
+        from alienbio.spec_lang.safe_eval import UnsafeExpressionError
         tag = Evaluable('open("/etc/passwd")')
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises((NameError, TypeError, UnsafeExpressionError)):
             tag.evaluate()
 
     def test_ev_blocks_import(self):
         """Ensure __import__ is blocked."""
+        from alienbio.spec_lang.safe_eval import UnsafeExpressionError
         tag = Evaluable('__import__("os")')
-        with pytest.raises((NameError, TypeError)):
+        with pytest.raises((NameError, TypeError, UnsafeExpressionError)):
             tag.evaluate()
 
     def test_ev_yaml_parsing(self):
@@ -296,7 +298,8 @@ def test_action(sim):
 """)
 
         tag = Include("functions.py")
-        tag.load(str(temp_dir))
+        # .py includes execute code and require trusted=True (secure default off).
+        tag.load(str(temp_dir), trusted=True)
         # After loading, the action should be registered
         assert "test_action" in action_registry
 
@@ -619,6 +622,30 @@ class TestDefaultsInheritance:
         result = deep_merge(base, override)
         assert result == {"a": 1, "c": 3}
         assert "b" not in result
+
+    def test_deep_merge_nested_null_removes_in_merge(self):
+        """Nested null removes the key when merging onto an existing dict."""
+        base = {"outer": {"a": 1, "b": 2}}
+        override = {"outer": {"b": None}}
+        result = deep_merge(base, override)
+        assert result == {"outer": {"a": 1}}
+
+    def test_deep_merge_nested_null_dropped_in_fresh_dict(self):
+        """Nested null never survives as a literal, even with no base dict.
+
+        FIX F6: previously the 'replace' branch copied a fresh override dict
+        verbatim, so a nested None meant 'delete' when merged but 'literal null'
+        when placed fresh. Now None is consistently dropped at every level.
+        """
+        base = {"outer": 5}  # not a dict → override dict is placed fresh
+        override = {"outer": {"a": 1, "b": None}}
+        result = deep_merge(base, override)
+        assert result == {"outer": {"a": 1}}
+        assert "b" not in result["outer"]
+
+        # Also when the key is absent from base entirely.
+        result2 = deep_merge({}, {"cfg": {"keep": 1, "drop": None}})
+        assert result2 == {"cfg": {"keep": 1}}
 
     def test_deep_merge_list_replaces(self):
         """List values: replaced, not appended"""

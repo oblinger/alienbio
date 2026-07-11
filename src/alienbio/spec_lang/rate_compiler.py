@@ -17,6 +17,8 @@ from __future__ import annotations
 import math
 from typing import Callable
 
+from .safe_eval import validate_expression
+
 
 # Safe math functions available in rate expressions
 _RATE_MATH = {
@@ -50,7 +52,13 @@ def compile_rate_expression(
     Returns:
         A function ``(state: dict[str, float]) -> float``
     """
-    code = compile(source, "<rate>", "eval")
+    # Security: rate strings come from untrusted !_/!quote spec tags, so an
+    # unvalidated eval here is the same RCE class as C2 (proven: a crafted rate
+    # expression could fire os.system). Validate against the safe-eval AST
+    # allowlist once at compile time; the per-call eval below then only ever
+    # runs already-validated code. Unsafe rate expressions raise here.
+    tree = validate_expression(source)
+    code = compile(tree, "<rate>", "eval")
     baked = {**_RATE_MATH, **dict(constants)}  # copy constants
 
     def rate_fn(state: dict[str, float]) -> float:
