@@ -101,26 +101,42 @@ class ReactionImpl(Entity, head="Reaction"):
         for r in data.get("reactants", []):
             if isinstance(r, str):
                 # Just a name, coefficient 1
-                if r in molecules:
-                    reactants[molecules[r]] = 1
+                if r not in molecules:
+                    raise KeyError(
+                        f"Reaction {name!r}: unknown reactant molecule {r!r} "
+                        f"(not in chemistry molecules)"
+                    )
+                reactants[molecules[r]] = 1
             elif isinstance(r, dict):
                 # {name: coef} format
                 for mol_name, coef in r.items():
-                    if mol_name in molecules:
-                        reactants[molecules[mol_name]] = coef
+                    if mol_name not in molecules:
+                        raise KeyError(
+                            f"Reaction {name!r}: unknown reactant molecule {mol_name!r} "
+                            f"(not in chemistry molecules)"
+                        )
+                    reactants[molecules[mol_name]] = coef
 
         # Build products dict: {MoleculeImpl: coefficient}
         products: Dict[Molecule, float] = {}
         for p in data.get("products", []):
             if isinstance(p, str):
                 # Just a name, coefficient 1
-                if p in molecules:
-                    products[molecules[p]] = 1
+                if p not in molecules:
+                    raise KeyError(
+                        f"Reaction {name!r}: unknown product molecule {p!r} "
+                        f"(not in chemistry molecules)"
+                    )
+                products[molecules[p]] = 1
             elif isinstance(p, dict):
                 # {name: coef} format
                 for mol_name, coef in p.items():
-                    if mol_name in molecules:
-                        products[molecules[mol_name]] = coef
+                    if mol_name not in molecules:
+                        raise KeyError(
+                            f"Reaction {name!r}: unknown product molecule {mol_name!r} "
+                            f"(not in chemistry molecules)"
+                        )
+                    products[molecules[mol_name]] = coef
 
         # Get rate (function or constant)
         rate = data.get("rate", 1.0)
