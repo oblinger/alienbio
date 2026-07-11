@@ -309,7 +309,13 @@ class AgentSession:
             completed = initiated
 
         # Track cost
+        was_within_budget = self._spent <= self._budget
         self._spent += result.cost
+        if was_within_budget and self._spent > self._budget:
+            logger.warning(
+                "Action %r pushed spend over budget: spent=%s > budget=%s",
+                action.name, self._spent, self._budget,
+            )
 
         # Create full ActionResult with all Observation fields
         final_result = self._make_action_result(
@@ -551,12 +557,15 @@ class AgentSession:
         main_score = scores.get("score", scores.get("budget_compliance", 0.0))
         passing_score = self._scenario.get("passing_score", 0.5)
 
+        # An over-budget run must not pass, regardless of its main score.
+        within_budget = self._spent <= self._budget
+
         return ExperimentResults(
             scenario=self._scenario.get("name", "unknown"),
             seed=self._seed,
             scores=scores,
             trace=self._trace,
-            passed=main_score >= passing_score,
+            passed=(main_score >= passing_score) and within_budget,
             status="completed" if self._done else "incomplete",
             incomplete_reason=None if self._done else "not_done"
         )

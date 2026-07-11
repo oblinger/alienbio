@@ -1080,6 +1080,38 @@ class TestExperimentResults:
         assert hasattr(results, "passed")
         assert isinstance(results.passed, bool)
 
+    def test_over_budget_run_fails(self, simple_scenario):
+        """A run that overspends its budget must not pass, even with a high score (F1)."""
+        from alienbio.agent import AgentSession, Action
+
+        # Force the main score to always be "passing" so only budget can fail it.
+        simple_scenario["scoring"] = {"score": lambda trace: 1.0}
+        simple_scenario["passing_score"] = 0.5
+        session = AgentSession(simple_scenario)
+
+        # Spend far beyond the budget (budget=20).
+        for _ in range(200):
+            action = Action(name="add_feedstock", params={"molecule": "M1", "amount": 1.0})
+            session.act(action)
+
+        results = session.results()
+        assert results.passed is False
+
+    def test_act_warns_when_spend_crosses_budget(self, simple_scenario, caplog):
+        """act() logs a warning the moment spend pushes over budget (F1)."""
+        import logging
+        from alienbio.agent import AgentSession, Action
+
+        session = AgentSession(simple_scenario)
+
+        with caplog.at_level(logging.WARNING, logger="alienbio.agent.session"):
+            for _ in range(21):  # budget=20, cost=1.0 per action
+                session.act(Action(name="add_feedstock", params={"molecule": "M1", "amount": 1.0}))
+
+        assert any(
+            "budget" in record.message.lower() for record in caplog.records
+        )
+
 
 # =============================================================================
 # Trace Recording Tests
