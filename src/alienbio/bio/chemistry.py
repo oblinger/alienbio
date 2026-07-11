@@ -135,6 +135,14 @@ class ChemistryImpl(Entity, head="Chemistry"):
                     molecules=molecules,
                     local_name=rxn_key,
                 )
+            else:
+                # M8-residual: a non-dict reaction entry was previously dropped
+                # silently, turning a malformed/typo'd spec into a chemistry with
+                # missing reactions. Fail loudly instead.
+                raise ValueError(
+                    f"Reaction '{rxn_key}' must be a mapping, got "
+                    f"{type(rxn_data).__name__}: {rxn_data!r}"
+                )
 
         return cls(
             name,
