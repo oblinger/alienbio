@@ -474,6 +474,28 @@ class TestErrorHandling:
         with pytest.raises(CircularReferenceError):
             bio.build(spec, seed=42, registry=registry)
 
+    def test_instantiation_namespace_collision_raises(self):
+        """A separator-less concat collision (a{1..12} vs a1{2}) must raise (M12)."""
+        from alienbio import Bio, bio
+        from alienbio.build import parse_template, TemplateRegistry
+        from alienbio.build.expand import NameCollisionError
+
+        registry = TemplateRegistry()
+        registry.register("species", parse_template({
+            "molecules": {"M1": {}}
+        }))
+
+        spec = {
+            "_instantiate_": {
+                "_as_ org{i in 1..2}": {"_template_": "species"},
+                # "org1" collides with "org{1..2}"'s i=1 iteration.
+                "_as_ org1": {"_template_": "species"},
+            }
+        }
+
+        with pytest.raises(NameCollisionError):
+            bio.build(spec, seed=42, registry=registry)
+
 
 # =============================================================================
 # Integration: Complete Pipeline Scenarios

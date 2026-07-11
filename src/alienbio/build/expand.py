@@ -17,6 +17,38 @@ from .exceptions import PortTypeMismatchError, PortNotFoundError, MissingParamet
 _EXPANSION_RE = re.compile(r'^(.+)\{(\w+)\s+in\s+(\d+)\.\.(\d+)\}(.*)$')
 
 
+class NameCollisionError(Exception):
+    """Raised when two generated names collide onto the same key.
+
+    Separator-less index concatenation (e.g. "a{1..12}" and "a1{2}" both
+    yielding "a12") and unchecked dict merges can otherwise let unrelated
+    declarations silently clobber one another.
+    """
+
+    def __init__(self, name: str, context: str | None = None):
+        self.name = name
+        self.context = context
+        msg = f"Name collision: '{name}' was generated more than once"
+        if context:
+            msg += f" ({context})"
+        super().__init__(msg)
+
+
+def _assign_no_collision(target: dict[str, Any], key: str, value: Any, context: str) -> None:
+    """Assign target[key] = value, raising NameCollisionError if key is already set."""
+    if key in target:
+        raise NameCollisionError(key, context)
+    target[key] = value
+
+
+def _merge_no_collision(target: dict[str, Any], source: dict[str, Any], context: str) -> None:
+    """Merge source into target, raising NameCollisionError on any overlapping key."""
+    overlap = set(target) & set(source)
+    if overlap:
+        raise NameCollisionError(sorted(overlap)[0], context)
+    target.update(source)
+
+
 def _expand_keyed_items(
     items: dict[str, Any], params: dict[str, Any], ctx: EvalContext
 ) -> list[tuple[str, Any]]:
@@ -25,12 +57,18 @@ def _expand_keyed_items(
     Returns list of (expanded_name, resolved_data) pairs.
     """
     result = []
+    seen_names: set[str] = set()
     for name, data in items.items():
         match = _EXPANSION_RE.match(name)
         if match:
             prefix, var, start_s, end_s, suffix = match.groups()
             for i in range(int(start_s), int(end_s) + 1):
                 expanded_name = f"{prefix}{i}{suffix}"
+                if expanded_name in seen_names:
+                    raise NameCollisionError(
+                        expanded_name, f"expanding key '{name}'"
+                    )
+                seen_names.add(expanded_name)
                 # Evaluate data with loop variable available
                 loop_ctx = EvalContext(
                     rng=ctx.rng,
@@ -42,6 +80,9 @@ def _expand_keyed_items(
                 result.append((expanded_name, expanded_data))
         else:
             # Normal item — resolve refs and evaluate expressions
+            if name in seen_names:
+                raise NameCollisionError(name, "duplicate key after expansion")
+            seen_names.add(name)
             expanded_data = _resolve_and_eval(data, params, ctx)
             result.append((name, expanded_data))
     return result
@@ -100,7 +141,10 @@ def apply_template(
     # Apply molecules with namespace prefix
     for name, mol_data in expanded_molecules:
         namespaced_name = f"m.{namespace}.{name}"
-        result["molecules"][namespaced_name] = mol_data
+        _assign_no_collision(
+            result["molecules"], namespaced_name, mol_data,
+            f"molecule expansion in namespace '{namespace}'"
+        )
 
     expanded_reactions = _expand_keyed_items(
         template.get("reactions", {}), effective_params, _ctx
@@ -110,7 +154,10 @@ def apply_template(
     for name, rxn_data in expanded_reactions:
         namespaced_name = f"r.{namespace}.{name}"
         expanded_data = _namespace_molecule_refs(rxn_data, namespace, molecule_names)
-        result["reactions"][namespaced_name] = expanded_data
+        _assign_no_collision(
+            result["reactions"], namespaced_name, expanded_data,
+            f"reaction expansion in namespace '{namespace}'"
+        )
 
     # Track ports with namespace prefix (internal only)
     for path, port in template.get("ports", {}).items():
@@ -125,6 +172,7 @@ def apply_template(
     if instantiate and registry:
         # Pass 1: Collect applications
         applications: list[tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]]] = []
+        used_sub_namespaces: set[str] = set()
 
         for key, inst_data in instantiate.items():
             # Parse _as_ syntax
@@ -148,22 +196,38 @@ def apply_template(
 
                     for i in range(start_val, end_val + 1):
                         sub_namespace = f"{namespace}.{inst_name}{i}"
+                        if sub_namespace in used_sub_namespaces:
+                            raise NameCollisionError(
+                                sub_namespace, f"replicating '_as_ {inst_name}{{{loop_var} in ...}}'"
+                            )
+                        used_sub_namespaces.add(sub_namespace)
                         sub_result, sub_ports = _instantiate_nested(
                             inst_data, sub_namespace, registry, effective_params, _ctx, _seen
                         )
                         applications.append((sub_namespace, inst_data, sub_result, sub_ports))
-                        result["molecules"].update(sub_result["molecules"])
-                        result["reactions"].update(sub_result["reactions"])
+                        _merge_no_collision(
+                            result["molecules"], sub_result["molecules"], f"instantiating '{sub_namespace}'"
+                        )
+                        _merge_no_collision(
+                            result["reactions"], sub_result["reactions"], f"instantiating '{sub_namespace}'"
+                        )
                         _ports.update(sub_ports)
                 else:
                     # Single instantiation: _as_ name
                     sub_namespace = f"{namespace}.{inst_name}"
+                    if sub_namespace in used_sub_namespaces:
+                        raise NameCollisionError(sub_namespace, f"instantiating '_as_ {inst_name}'")
+                    used_sub_namespaces.add(sub_namespace)
                     sub_result, sub_ports = _instantiate_nested(
                         inst_data, sub_namespace, registry, effective_params, _ctx, _seen
                     )
                     applications.append((sub_namespace, inst_data, sub_result, sub_ports))
-                    result["molecules"].update(sub_result["molecules"])
-                    result["reactions"].update(sub_result["reactions"])
+                    _merge_no_collision(
+                        result["molecules"], sub_result["molecules"], f"instantiating '{sub_namespace}'"
+                    )
+                    _merge_no_collision(
+                        result["reactions"], sub_result["reactions"], f"instantiating '{sub_namespace}'"
+                    )
                     _ports.update(sub_ports)
 
         # Pass 2: Apply port connections now that all templates are applied
@@ -267,7 +331,10 @@ def _apply_template_with_ports(
 
     for name, mol_data in expanded_molecules:
         namespaced_name = f"m.{namespace}.{name}"
-        result["molecules"][namespaced_name] = mol_data
+        _assign_no_collision(
+            result["molecules"], namespaced_name, mol_data,
+            f"molecule expansion in namespace '{namespace}'"
+        )
 
     expanded_reactions = _expand_keyed_items(
         template.get("reactions", {}), effective_params, ctx
@@ -276,7 +343,10 @@ def _apply_template_with_ports(
     for name, rxn_data in expanded_reactions:
         namespaced_name = f"r.{namespace}.{name}"
         expanded_data = _namespace_molecule_refs(rxn_data, namespace, molecule_names)
-        result["reactions"][namespaced_name] = expanded_data
+        _assign_no_collision(
+            result["reactions"], namespaced_name, expanded_data,
+            f"reaction expansion in namespace '{namespace}'"
+        )
 
     # Track ports
     for path, port in template.get("ports", {}).items():
@@ -288,6 +358,7 @@ def _apply_template_with_ports(
     instantiate = template.get("instantiate", {})
     if instantiate and registry:
         applications = []
+        used_sub_namespaces: set[str] = set()
 
         for key, inst_data in instantiate.items():
             match = re.match(r"_as_\s+(\w+)(?:\{(\w+)\s+in\s+(\d+)\.\.(\w+)\})?", key)
@@ -307,21 +378,37 @@ def _apply_template_with_ports(
 
                     for i in range(start_val, end_val + 1):
                         sub_namespace = f"{namespace}.{inst_name}{i}"
+                        if sub_namespace in used_sub_namespaces:
+                            raise NameCollisionError(
+                                sub_namespace, f"replicating '_as_ {inst_name}{{{loop_var} in ...}}'"
+                            )
+                        used_sub_namespaces.add(sub_namespace)
                         sub_result, sub_ports = _instantiate_nested(
                             inst_data, sub_namespace, registry, effective_params, ctx, _seen
                         )
                         applications.append((sub_namespace, inst_data, sub_result, sub_ports))
-                        result["molecules"].update(sub_result["molecules"])
-                        result["reactions"].update(sub_result["reactions"])
+                        _merge_no_collision(
+                            result["molecules"], sub_result["molecules"], f"instantiating '{sub_namespace}'"
+                        )
+                        _merge_no_collision(
+                            result["reactions"], sub_result["reactions"], f"instantiating '{sub_namespace}'"
+                        )
                         _ports.update(sub_ports)
                 else:
                     sub_namespace = f"{namespace}.{inst_name}"
+                    if sub_namespace in used_sub_namespaces:
+                        raise NameCollisionError(sub_namespace, f"instantiating '_as_ {inst_name}'")
+                    used_sub_namespaces.add(sub_namespace)
                     sub_result, sub_ports = _instantiate_nested(
                         inst_data, sub_namespace, registry, effective_params, ctx, _seen
                     )
                     applications.append((sub_namespace, inst_data, sub_result, sub_ports))
-                    result["molecules"].update(sub_result["molecules"])
-                    result["reactions"].update(sub_result["reactions"])
+                    _merge_no_collision(
+                        result["molecules"], sub_result["molecules"], f"instantiating '{sub_namespace}'"
+                    )
+                    _merge_no_collision(
+                        result["reactions"], sub_result["reactions"], f"instantiating '{sub_namespace}'"
+                    )
                     _ports.update(sub_ports)
 
         # Apply port connections

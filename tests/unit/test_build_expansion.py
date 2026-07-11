@@ -216,7 +216,24 @@ class TestNestedInstantiation:
         assert "m.x.p1.M1" in expanded["molecules"]  # p1, not p.1
         assert "m.x.p2.M1" in expanded["molecules"]
 
-    
+
+    def test_replication_namespace_collision_raises(self, simple_registry):
+        """A separator-less concat collision (a{1..12} vs a1{2}) must raise, not clobber (M12)."""
+        from alienbio.build import parse_template, apply_template
+        from alienbio.build.expand import NameCollisionError
+
+        parent = parse_template({
+            "_instantiate_": {
+                "_as_ a{i in 1..2}": {"_template_": "simple"},
+                # "a1" here collides with "a{1..2}"'s i=1 iteration ("a" + "1").
+                "_as_ a1": {"_template_": "simple"},
+            }
+        })
+
+        with pytest.raises(NameCollisionError):
+            apply_template(parent, namespace="x", registry=simple_registry)
+
+
     def test_replication_zero_count(self, simple_registry):
         """Replication with count 0 creates no instances."""
         from alienbio.build import parse_template, apply_template
