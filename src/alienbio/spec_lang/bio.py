@@ -16,11 +16,13 @@ from .resolve import (
     resolve_specifier,
     resolve_dotted_in_source_root,
     dig_into,
+    _is_allowed_import,
 )
 from .process import process_and_hydrate, resolve_includes, resolve_refs, resolve_py_refs
 from .cache import get_global_cache, clear_global_cache
 from .loader import transform_typed_keys, expand_defaults
 from .eval import hydrate, eval_node, make_context, EvalContext
+from .tags import UnsafeSpecError
 
 if TYPE_CHECKING:
     from alienbio.protocols.bio import Simulator
@@ -436,7 +438,7 @@ class Bio:
     ) -> Any | None:
         """Fetch from source roots using dotted path."""
         for root in self._source_roots:
-            result = resolve_dotted_in_source_root(dotted_path, root)
+            result = resolve_dotted_in_source_root(dotted_path, root, self._source_roots)
             if result is not None:
                 data, base_dir, _ = result
                 if raw:
@@ -451,6 +453,12 @@ class Bio:
 
         Handles paths like 'alienbio.bio.Chemistry' → imports module,
         returns the attribute.
+
+        Raises:
+            UnsafeSpecError: If the target module is not in the import
+                allowlist (see ``resolve._is_allowed_import``). Specs are
+                agent-authored / untrusted, so an arbitrary module name
+                must not be importable this way.
         """
         import importlib
 
@@ -458,6 +466,15 @@ class Bio:
         if len(parts) != 2:
             return None
         module_path, attr_name = parts
+
+        if not _is_allowed_import(module_path, self._source_roots):
+            raise UnsafeSpecError(
+                f"Refusing to import '{module_path}': not in the import "
+                f"allowlist for untrusted specs. Only 'alienbio' (and its "
+                f"submodules) or a registered source root's module prefix "
+                f"may be imported."
+            )
+
         try:
             module = importlib.import_module(module_path)
             if hasattr(module, attr_name):

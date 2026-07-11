@@ -394,14 +394,20 @@ class TestSourceRootAccess:
         assert result["config"]["timeout"] == 30  # From first root
 
     def test_source_root_not_found(self, temp_source_root):
-        """Clear error when not found in any source root."""
+        """Clear error when not found in any source root.
+
+        Uses an "alienbio."-prefixed specifier so the import allowlist
+        check passes and the (nonexistent) module falls through to the
+        normal "not found in source roots" path, rather than being
+        rejected outright as an unregistered/untrusted module.
+        """
         from alienbio.spec_lang.bio import Bio
 
         bio = Bio()
         bio.add_source_root(temp_source_root)
 
         with pytest.raises(FileNotFoundError, match="not found in source roots"):
-            bio.fetch("nonexistent.path")
+            bio.fetch("alienbio.nonexistent_module_xyz.path")
 
     def test_yaml_hydration(self, temp_source_root):
         """Source root YAML is hydrated (tags resolved)."""
