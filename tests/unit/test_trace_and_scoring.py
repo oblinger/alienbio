@@ -191,14 +191,25 @@ class TestBudgetScore:
 
         assert budget_score(trace, budget=100.0) == 0.0
 
-    def test_zero_budget_returns_one(self):
-        """Test that zero budget (no constraint) returns 1.0."""
+    def test_zero_budget_with_spend_returns_zero(self):
+        """Test that a zero budget ('zero spend allowed') is violated by any spend (F3)."""
         trace = Trace()
         action = Action(name="test", params={})
         obs = make_observation({"x": 1})
         trace.append(action, obs, step=0, cost=100.0)
 
+        assert budget_score(trace, budget=0.0) == 0.0
+
+    def test_zero_budget_with_no_spend_returns_one(self):
+        """Test that a zero budget is satisfied when nothing was spent (F3)."""
+        trace = Trace()
         assert budget_score(trace, budget=0.0) == 1.0
+
+    def test_negative_budget_raises(self):
+        """Test that a negative budget is invalid (F3)."""
+        trace = Trace()
+        with pytest.raises(ValueError):
+            budget_score(trace, budget=-1.0)
 
     def test_empty_trace(self):
         """Test budget_score with empty trace."""

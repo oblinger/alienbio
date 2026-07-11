@@ -19,17 +19,27 @@ def budget_score(trace: "Trace", budget: float) -> float:
     - At 200% of budget: 0.0
     - Beyond 200%: 0.0
 
+    A budget of 0 means "zero spend allowed": it is compliant (1.0) only if
+    nothing was spent, otherwise 0.0. A negative budget is invalid.
+
     Args:
         trace: The experiment trace
         budget: The allocated budget
 
     Returns:
         Score between 0.0 and 1.0
+
+    Raises:
+        ValueError: If budget is negative
     """
-    if budget <= 0:
-        return 1.0  # No budget constraint
+    if budget < 0:
+        raise ValueError(f"budget must be non-negative, got {budget}")
 
     spent = trace.total_cost
+
+    if budget == 0:
+        return 1.0 if spent == 0 else 0.0
+
     if spent <= budget:
         return 1.0
 
