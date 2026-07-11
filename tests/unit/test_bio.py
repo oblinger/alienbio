@@ -686,7 +686,9 @@ class TestSimulator:
         new_state = sim.step(state)
 
         assert new_state["A"] >= 0  # clamped
-        assert new_state["B"] == pytest.approx(100.0)
+        # With C1 fix: reaction extent is clamped to available substrate (1.0),
+        # so product cannot exceed what the reactant could actually supply.
+        assert new_state["B"] == pytest.approx(1.0)
 
     def test_simulator_run(self):
         """run returns timeline of states."""

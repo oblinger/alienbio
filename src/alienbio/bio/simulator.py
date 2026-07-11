@@ -106,13 +106,23 @@ class ReferenceSimulatorImpl(SimulatorBase):
             # Get effective rate for this state
             rate = reaction.get_rate(state) * self._dt
 
+            # Clamp the reaction extent to the substrate actually available so
+            # that products are never created from nothing (mass conservation).
+            # TODO(H4): competing reactants sharing one reactant can still
+            # jointly over-consume (global extent).
+            extent = rate
+            for molecule, coef in reaction.reactants.items():
+                if coef > 0:
+                    extent = min(extent, new_state.get_molecule(molecule) / coef)
+            extent = max(0.0, extent)
+
             # Apply reaction: consume reactants, produce products
             for molecule, coef in reaction.reactants.items():
                 current = new_state.get_molecule(molecule)
-                new_state.set_molecule(molecule, max(0.0, current - rate * coef))
+                new_state.set_molecule(molecule, current - extent * coef)
 
             for molecule, coef in reaction.products.items():
                 current = new_state.get_molecule(molecule)
-                new_state.set_molecule(molecule, current + rate * coef)
+                new_state.set_molecule(molecule, current + extent * coef)
 
         return new_state
