@@ -360,7 +360,8 @@ class Bio:
     # =========================================================================
 
     def fetch(
-        self, specifier: str, *, raw: bool = False, hydrate: bool = True
+        self, specifier: str, *, raw: bool = False, hydrate: bool = True,
+        trusted: bool = False,
     ) -> Any:
         """Fetch a typed object from a specifier path.
 
@@ -368,18 +369,24 @@ class Bio:
             specifier: Path like "catalog/scenarios/mutualism" or "mute.mol.energy"
             raw: If True, return raw YAML without processing
             hydrate: If False, resolve tags but don't convert to typed objects
+            trusted: Must be True to permit code execution from the spec —
+                ``include:`` .py files, ``!py`` tags, ``.py`` ``!include``, and
+                absolute / parent-relative ``!include`` paths. Defaults to
+                False, the secure default for untrusted agent-authored specs.
 
         Returns:
             Processed data (or typed object when hydration implemented)
 
         Raises:
             FileNotFoundError: If specifier not found
+            UnsafeSpecError: If an untrusted spec requests code execution or an
+                out-of-tree file read.
         """
         cache = get_global_cache()
 
         # Try source root resolution for dotted paths
         if "/" not in specifier and self._source_roots:
-            result = self._fetch_from_source_roots(specifier, raw=raw, hydrate=hydrate)
+            result = self._fetch_from_source_roots(specifier, raw=raw, hydrate=hydrate, trusted=trusted)
             if result is not None:
                 return result
 
@@ -413,7 +420,7 @@ class Bio:
             return data
 
         # Process and cache
-        result = process_and_hydrate(data, resolved.base_dir, hydrate=hydrate)
+        result = process_and_hydrate(data, resolved.base_dir, hydrate=hydrate, trusted=trusted)
 
         if not resolved.dig_path:
             cache.set(resolved.cache_key, result)
@@ -424,7 +431,8 @@ class Bio:
         return result
 
     def _fetch_from_source_roots(
-        self, dotted_path: str, *, raw: bool = False, hydrate: bool = True
+        self, dotted_path: str, *, raw: bool = False, hydrate: bool = True,
+        trusted: bool = False,
     ) -> Any | None:
         """Fetch from source roots using dotted path."""
         for root in self._source_roots:
@@ -434,7 +442,7 @@ class Bio:
                 if raw:
                     return data
                 if isinstance(data, dict):
-                    return process_and_hydrate(data, base_dir, hydrate=hydrate)
+                    return process_and_hydrate(data, base_dir, hydrate=hydrate, trusted=trusted)
                 return data
         return None
 

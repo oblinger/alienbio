@@ -13,12 +13,12 @@ from __future__ import annotations
 from typing import Any
 
 from .eval import Evaluable, Reference
-from .tags import Include, PyRef
+from .tags import Include, PyRef, UnsafeSpecError
 from .loader import transform_typed_keys, expand_defaults
 
 
 def process_and_hydrate(
-    data: dict[str, Any], base_dir: str, *, hydrate: bool = True
+    data: dict[str, Any], base_dir: str, *, hydrate: bool = True, trusted: bool = False
 ) -> Any:
     """Process raw data through the full pipeline.
 
@@ -35,19 +35,22 @@ def process_and_hydrate(
         data: Raw dict data to process
         base_dir: Directory for resolving relative includes
         hydrate: If True, convert to typed objects
+        trusted: Must be True to allow executing Python from the spec
+            (``include:`` .py files, ``!py`` tags). Defaults to False — the
+            secure default for agent-authored specs.
 
     Returns:
         Processed data (dict or typed object when hydration implemented)
     """
     # Execute Python includes first (so decorators register before evaluation)
     if isinstance(data, dict) and "include" in data:
-        _process_python_includes(data.get("include", []), base_dir)
+        _process_python_includes(data.get("include", []), base_dir, trusted=trusted)
         data = {k: v for k, v in data.items() if k != "include"}
 
-    data = resolve_includes(data, base_dir)
+    data = resolve_includes(data, base_dir, trusted=trusted)
     data = transform_typed_keys(data)
     data = resolve_refs(data, data.get("constants", {}))
-    data = resolve_py_refs(data, base_dir)
+    data = resolve_py_refs(data, base_dir, trusted=trusted)
     data = expand_defaults(data)
 
     if not hydrate:
@@ -57,22 +60,25 @@ def process_and_hydrate(
     return data
 
 
-def resolve_includes(data: Any, base_dir: str) -> Any:
+def resolve_includes(data: Any, base_dir: str, *, trusted: bool = False) -> Any:
     """Recursively resolve Include placeholders in data.
 
     Args:
         data: Data structure potentially containing Include placeholders
         base_dir: Directory for resolving relative paths
+        trusted: Passed to Include.load — gates .py execution and lifts the
+            path-containment restriction on .md/.yaml includes. Defaults to
+            False (untrusted).
 
     Returns:
         Data with Includes replaced by loaded content
     """
     if isinstance(data, Include):
-        return data.load(base_dir)
+        return data.load(base_dir, trusted=trusted)
     elif isinstance(data, dict):
-        return {k: resolve_includes(v, base_dir) for k, v in data.items()}
+        return {k: resolve_includes(v, base_dir, trusted=trusted) for k, v in data.items()}
     elif isinstance(data, list):
-        return [resolve_includes(item, base_dir) for item in data]
+        return [resolve_includes(item, base_dir, trusted=trusted) for item in data]
     return data
 
 
@@ -108,35 +114,47 @@ def resolve_refs(data: Any, constants: dict[str, Any]) -> Any:
     return data
 
 
-def resolve_py_refs(data: Any, base_dir: str) -> Any:
+def resolve_py_refs(data: Any, base_dir: str, *, trusted: bool = False) -> Any:
     """Recursively resolve PyRef tags in data.
 
     Args:
         data: Data structure potentially containing PyRef placeholders
         base_dir: Directory to resolve relative Python imports from
+        trusted: Must be True to execute the referenced Python (``!py`` runs
+            arbitrary code). Defaults to False (untrusted) — PyRef.resolve then
+            raises UnsafeSpecError.
 
     Returns:
         Data with PyRef placeholders resolved to actual Python objects
     """
     if isinstance(data, PyRef):
-        return data.resolve(base_dir)
+        return data.resolve(base_dir, trusted=trusted)
     elif isinstance(data, dict):
-        return {k: resolve_py_refs(v, base_dir) for k, v in data.items()}
+        return {k: resolve_py_refs(v, base_dir, trusted=trusted) for k, v in data.items()}
     elif isinstance(data, list):
-        return [resolve_py_refs(item, base_dir) for item in data]
+        return [resolve_py_refs(item, base_dir, trusted=trusted) for item in data]
     return data
 
 
-def _process_python_includes(includes: Any, base_dir: str) -> None:
+def _process_python_includes(includes: Any, base_dir: str, *, trusted: bool = False) -> None:
     """Execute Python include files to register decorators.
 
     Executes .py files listed in the `include:` section of a spec.
     This allows specs to define custom @rate, @scoring, @action,
     and @measurement functions that register into the global registries.
 
+    Security: a top-level ``include:`` entry ending in ``.py`` is executed via
+    ``exec_module`` — full arbitrary code execution. Agent-authored specs are
+    untrusted, so this is gated behind ``trusted=True`` (the same pattern used
+    for ``!py`` and ``.py`` ``!include``). Under the default (untrusted) an
+    ``include:`` naming a ``.py`` file raises ``UnsafeSpecError`` before any
+    code runs.
+
     Args:
         includes: List of include file paths
         base_dir: Directory for resolving relative paths
+        trusted: Must be True to execute the listed .py files. Defaults to
+            False (untrusted).
     """
     from pathlib import Path
     import importlib.util
@@ -147,6 +165,11 @@ def _process_python_includes(includes: Any, base_dir: str) -> None:
     for include_path in includes:
         if not isinstance(include_path, str) or not include_path.endswith(".py"):
             continue
+        if not trusted:
+            raise UnsafeSpecError(
+                f"include: '{include_path}' executes Python code and is disabled "
+                f"for untrusted specs. Pass trusted=True to enable (local dev only)."
+            )
         full_path = (Path(base_dir) / include_path).resolve()
         if not full_path.exists():
             raise FileNotFoundError(f"Python include not found: {full_path}")

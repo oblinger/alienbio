@@ -159,17 +159,15 @@ class Include:
         Raises:
             FileNotFoundError: If file doesn't exist
             RecursionError: If circular include detected
-            UnsafeSpecError: If a ``.py`` include is requested untrusted.
+            UnsafeSpecError: If a ``.py`` include is requested untrusted, or an
+                untrusted include path is absolute or escapes ``base_dir``.
         """
-        # Resolve file path
-        if Path(self.path).is_absolute():
-            file_path = Path(self.path)
-        elif base_dir:
-            file_path = Path(base_dir) / self.path
-        else:
-            file_path = Path(self.path)
-
-        file_path = file_path.resolve()
+        # Resolve file path, enforcing containment for untrusted specs. An
+        # untrusted spec must not read arbitrary files: absolute paths and any
+        # ``..`` escape above base_dir are rejected (mirrors
+        # eval._resolve_contained_path). Trusted (local-dev) callers keep the
+        # legacy behaviour where absolute and parent-relative paths are allowed.
+        file_path = self._resolve_path(base_dir, trusted=trusted)
 
         if not file_path.exists():
             raise FileNotFoundError(f"Include file not found: {file_path}")
@@ -211,6 +209,49 @@ class Include:
         else:
             # Default: return raw text
             return file_path.read_text()
+
+    def _resolve_path(self, base_dir: str | None, *, trusted: bool) -> Path:
+        """Resolve ``self.path`` to a concrete file path with containment.
+
+        For trusted callers the legacy resolution (absolute allowed, ``..``
+        allowed) is preserved. For untrusted callers absolute paths and any
+        target that escapes ``base_dir`` are rejected — an untrusted spec may
+        only read files at or below its own base directory.
+        """
+        p = Path(self.path)
+
+        if trusted:
+            if p.is_absolute():
+                return p.resolve()
+            if base_dir:
+                return (Path(base_dir) / p).resolve()
+            return p.resolve()
+
+        # Untrusted: no absolute paths.
+        if p.is_absolute():
+            raise UnsafeSpecError(
+                f"absolute !include paths are not allowed for untrusted specs: "
+                f"{self.path!r}. Pass trusted=True to enable (local dev only)."
+            )
+
+        if base_dir is None:
+            # No containment root: forbid any parent-directory traversal.
+            if ".." in p.parts:
+                raise UnsafeSpecError(
+                    f"parent-directory (..) !include paths are not allowed for "
+                    f"untrusted specs: {self.path!r}."
+                )
+            return p.resolve()
+
+        base = Path(base_dir).resolve()
+        resolved = (base / p).resolve()
+        if resolved != base and base not in resolved.parents:
+            raise UnsafeSpecError(
+                f"!include path escapes its base directory for untrusted specs: "
+                f"{self.path!r} (resolved to {resolved}, base {base}). "
+                f"Pass trusted=True to enable (local dev only)."
+            )
+        return resolved
 
     def _resolve_includes(
         self, data: Any, base_dir: str, _seen: set[str], *, trusted: bool = False

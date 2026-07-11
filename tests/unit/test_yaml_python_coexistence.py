@@ -395,6 +395,122 @@ class TestPyTagTrust:
         assert inc.load(str(tmp_path), trusted=True) is None
 
 
+class TestTopLevelIncludeTrust:
+    """Top-level ``include:`` .py execution is gated behind trusted=True.
+
+    Regression for the audit-sec2 hole: ``process._process_python_includes``
+    exec_module'd arbitrary .py listed in ``include:`` unconditionally.
+    """
+
+    def test_include_py_untrusted_raises_before_exec(self, tmp_path):
+        from alienbio.spec_lang.tags import UnsafeSpecError
+
+        marker = tmp_path / "PWNED"
+        (tmp_path / "evil.py").write_text(f"open({str(marker)!r}, 'w').write('x')\n")
+        (tmp_path / "index.yaml").write_text(
+            "include:\n  - evil.py\nchemistry.t:\n  molecules:\n    A: {}\n"
+        )
+
+        with pytest.raises(UnsafeSpecError):
+            Bio().fetch(str(tmp_path))
+        assert not marker.exists()  # exec must NOT have run
+
+    def test_include_py_trusted_executes(self, tmp_path):
+        marker = tmp_path / "OK"
+        (tmp_path / "reg.py").write_text(f"open({str(marker)!r}, 'w').write('x')\n")
+        (tmp_path / "index.yaml").write_text(
+            "include:\n  - reg.py\nchemistry.t:\n  molecules:\n    A: {}\n"
+        )
+
+        result = Bio().fetch(str(tmp_path), trusted=True)
+        assert marker.exists()
+        assert "include" not in result
+
+
+class TestIncludePathContainment:
+    """.md/.yaml !include paths are contained for untrusted specs.
+
+    Regression for the audit-sec2 hole: ``tags.Include.load`` accepted absolute
+    and ``..`` paths, allowing arbitrary file read from an untrusted spec.
+    """
+
+    def test_absolute_include_untrusted_raises(self, tmp_path):
+        from alienbio.spec_lang.tags import Include, UnsafeSpecError
+
+        secret = tmp_path / "secret.md"
+        secret.write_text("TOP-SECRET")
+        with pytest.raises(UnsafeSpecError):
+            Include(str(secret)).load()
+
+    def test_parent_escape_untrusted_raises(self, tmp_path):
+        from alienbio.spec_lang.tags import Include, UnsafeSpecError
+
+        (tmp_path / "outside.md").write_text("secret")
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        with pytest.raises(UnsafeSpecError):
+            Include("../outside.md").load(str(sub))
+
+    def test_parent_escape_no_base_untrusted_raises(self, tmp_path):
+        from alienbio.spec_lang.tags import Include, UnsafeSpecError
+
+        with pytest.raises(UnsafeSpecError):
+            Include("../../etc/passwd").load()
+
+    def test_contained_relative_include_ok(self, tmp_path):
+        from alienbio.spec_lang.tags import Include
+
+        (tmp_path / "inner.md").write_text("inner content")
+        assert Include("inner.md").load(str(tmp_path)) == "inner content"
+
+    def test_absolute_include_trusted_ok(self, tmp_path):
+        from alienbio.spec_lang.tags import Include
+
+        secret = tmp_path / "secret.md"
+        secret.write_text("TOP-SECRET")
+        assert Include(str(secret)).load(trusted=True) == "TOP-SECRET"
+
+
+class TestSafeEvalEscapeGadgets:
+    """The AST allowlist must reject known sandbox-escape gadgets."""
+
+    @pytest.mark.parametrize("payload", [
+        "().__class__.__base__.__subclasses__()",
+        "().__class__",
+        "type(1)",
+        "getattr((), '__class__')",
+        "'{0.__class__}'.format(())",
+        "'{}'.format_map({})",
+        "(lambda: ().__class__)()",
+        "[x for x in ().__class__.__subclasses__()]",
+        "(x for x in [1]).gi_frame",
+        "(lambda: x).__globals__",
+        "[].append.__self__",
+        "__import__('os')",
+        "eval('1')",
+        "open('/etc/passwd')",
+        "().__class__.mro()",
+        "object.__subclasses__",
+    ])
+    def test_gadget_rejected(self, payload):
+        from alienbio.spec_lang.safe_eval import safe_eval, UnsafeExpressionError
+        from alienbio.spec_lang.eval import SAFE_BUILTINS
+
+        with pytest.raises((UnsafeExpressionError, NameError, AttributeError,
+                            TypeError, SyntaxError)):
+            safe_eval(payload, dict(SAFE_BUILTINS))
+
+    def test_legit_expressions_still_work(self):
+        from alienbio.spec_lang.safe_eval import safe_eval
+        from alienbio.spec_lang.eval import SAFE_BUILTINS
+
+        ns = dict(SAFE_BUILTINS)
+        ns["state"] = {"A": 5}
+        assert safe_eval("abs(-3)", ns) == 3
+        assert safe_eval("max([1, 2, 3])", ns) == 3
+        assert safe_eval("state.get('A', 0)", ns) == 5
+
+
 # =============================================================================
 # Error Handling Tests
 # =============================================================================

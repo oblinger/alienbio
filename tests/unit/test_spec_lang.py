@@ -319,17 +319,19 @@ def test_action(sim):
         subdir.mkdir()
 
         tag = Include("../outside.md")
-        # Relative to subdir, ../outside.md resolves to temp_dir/outside.md
-        result = tag.load(str(subdir))
+        # Relative to subdir, ../outside.md resolves to temp_dir/outside.md.
+        # A parent-directory escape is only allowed for trusted (dev) specs.
+        result = tag.load(str(subdir), trusted=True)
         assert result == "Outside content"
 
     def test_include_absolute_path(self, temp_dir):
-        """!include /absolute/path.md → absolute path"""
+        """!include /absolute/path.md → absolute path (trusted only)"""
         abs_file = temp_dir / "absolute.md"
         abs_file.write_text("Absolute content")
 
         tag = Include(str(abs_file))
-        result = tag.load()
+        # Absolute include paths are only permitted for trusted (dev) specs.
+        result = tag.load(trusted=True)
         assert result == "Absolute content"
 
     def test_include_nested(self, temp_dir):
@@ -1009,7 +1011,8 @@ chemistry.test:
         # Loading the spec should execute functions.py via include processing
         from alienbio.spec_lang.decorators import rate_registry, scoring_registry
 
-        result = bio.fetch(str(temp_dir))
+        # include: executes Python — only permitted for trusted (dev) specs.
+        result = bio.fetch(str(temp_dir), trusted=True)
 
         # Custom functions should be registered by the include execution
         assert "custom_rate" in rate_registry
