@@ -220,3 +220,81 @@ class TestPopulationGeneration:
 
         assert "Krel" in species_names
         assert "Kova" in species_names
+
+
+# =============================================================================
+# H3 - Deterministic per-species seed derivation
+# =============================================================================
+
+
+class TestSeedDeterminism:
+    """Tests that per-species population seeds are stable (not PYTHONHASHSEED-dependent)."""
+
+    def test_stable_hash_is_deterministic_and_not_builtin_hash(self):
+        """_stable_hash gives a fixed, reproducible value independent of builtin hash()."""
+        from alienbio.build.pipeline import _stable_hash
+
+        # Same input always yields the same output within/across runs.
+        assert _stable_hash("Krel") == _stable_hash("Krel")
+
+        # Pinned expected value computed via sha256, independent of PYTHONHASHSEED.
+        import hashlib
+
+        expected = int(hashlib.sha256("Krel".encode("utf-8")).hexdigest(), 16) % 1000
+        assert _stable_hash("Krel") == expected
+
+    def test_population_seed_reproducible_across_hash_seeds(self):
+        """Same seed must yield identical organism populations regardless of PYTHONHASHSEED.
+
+        Regression test for H3: builtin hash(str) is salted per-process, so
+        deriving per-species seeds from it made worlds non-reproducible across
+        processes/machines even with a fixed seed.
+        """
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        script = (
+            "from alienbio import bio\n"
+            "from alienbio.build import parse_template, TemplateRegistry\n"
+            "registry = TemplateRegistry()\n"
+            "registry.register('producer', parse_template({'molecules': {'product': {}}}))\n"
+            "registry.register('consumer', parse_template({'molecules': {'input': {}}}))\n"
+            "spec = {\n"
+            "    '_instantiate_': {\n"
+            "        '_as_ Krel': {'_template_': 'producer'},\n"
+            "        '_as_ Kova': {'_template_': 'consumer'},\n"
+            "    },\n"
+            "    'parameters': {\n"
+            "        'containers': {\n"
+            "            'regions': {'count': 1},\n"
+            "            'populations': {'per_species_per_region': '!ev normal(10, 2)'},\n"
+            "        }\n"
+            "    },\n"
+            "}\n"
+            "scenario = bio.build(spec, seed=42, registry=registry)\n"
+            "by_species = {}\n"
+            "for region in scenario.regions:\n"
+            "    for org in region.organisms:\n"
+            "        by_species[org.species] = by_species.get(org.species, 0) + 1\n"
+            "print(sorted(by_species.items()))\n"
+        )
+
+        def run_with_hashseed(hashseed: str) -> str:
+            env = dict(os.environ)
+            env["PYTHONHASHSEED"] = hashseed
+            result = subprocess.run(
+                [sys.executable, "-c", script],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=str(Path(__file__).resolve().parents[2]),
+            )
+            assert result.returncode == 0, result.stderr
+            return result.stdout.strip()
+
+        out_seed_1 = run_with_hashseed("1")
+        out_seed_2 = run_with_hashseed("2")
+
+        assert out_seed_1 == out_seed_2

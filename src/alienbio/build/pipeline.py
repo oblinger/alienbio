@@ -6,6 +6,7 @@ Provides:
 
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any
 
@@ -16,6 +17,15 @@ from .expand import apply_template
 from .guards import apply_template_with_guards
 from .visibility import generate_visibility_mapping, apply_visibility
 from .exceptions import TemplateNotFoundError, CircularReferenceError, PortNotFoundError
+
+
+def _stable_hash(value: str) -> int:
+    """Deterministic string hash, stable across processes/machines.
+
+    Python's builtin ``hash(str)`` is salted per-process (PYTHONHASHSEED),
+    so it must never be used to derive reproducible seeds.
+    """
+    return int(hashlib.sha256(value.encode("utf-8")).hexdigest(), 16) % 1000
 
 
 def instantiate(
@@ -746,10 +756,10 @@ def _process_containers(
             if isinstance(pop_spec, str) and pop_spec.startswith("!ev "):
                 expr = pop_spec[4:].strip()
                 # Create new context for each evaluation to get different samples
-                pop_ctx = make_context(seed=seed + r_idx * 1000 + hash(species) % 1000)
+                pop_ctx = make_context(seed=seed + r_idx * 1000 + _stable_hash(species))
                 pop_count = int(round(eval_node(Evaluable(source=expr), pop_ctx)))
             elif isinstance(pop_spec, Evaluable):
-                pop_ctx = make_context(seed=seed + r_idx * 1000 + hash(species) % 1000)
+                pop_ctx = make_context(seed=seed + r_idx * 1000 + _stable_hash(species))
                 pop_count = int(round(eval_node(pop_spec, pop_ctx)))
             else:
                 pop_count = int(pop_spec)
