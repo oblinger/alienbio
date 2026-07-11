@@ -24,6 +24,15 @@ import yaml
 from .eval import Evaluable, Quoted, Reference
 
 
+class UnsafeSpecError(Exception):
+    """Raised when an untrusted spec requests code execution.
+
+    ``!py`` tags and ``.py`` file includes execute arbitrary Python. Under the
+    default (untrusted) trust model that is disabled; callers that genuinely
+    trust the spec source opt in with ``trusted=True``.
+    """
+
+
 class PyRef:
     """Placeholder for !py tag - local Python reference.
 
@@ -41,19 +50,29 @@ class PyRef:
     def __repr__(self) -> str:
         return f"PyRef({self.path!r})"
 
-    def resolve(self, base_dir: str) -> Any:
+    def resolve(self, base_dir: str, *, trusted: bool = False) -> Any:
         """Resolve the Python reference relative to base_dir.
 
         Args:
             base_dir: Directory containing the source file
+            trusted: Must be True to allow executing the referenced Python.
+                Defaults to False (untrusted) — the secure default for
+                agent-authored specs.
 
         Returns:
             The resolved Python object (function, class, value, etc.)
 
         Raises:
+            UnsafeSpecError: If ``trusted`` is False (default).
             ImportError: If module not found
             AttributeError: If attribute not found in module
         """
+        if not trusted:
+            raise UnsafeSpecError(
+                f"!py executes Python code and is disabled for untrusted specs: "
+                f"{self.path!r}. Pass trusted=True to enable (local dev only)."
+            )
+
         import importlib.util
         import sys
 
@@ -118,12 +137,21 @@ class Include:
     def __repr__(self) -> str:
         return f"Include({self.path!r})"
 
-    def load(self, base_dir: str | None = None, _seen: set[str] | None = None) -> Any:
+    def load(
+        self,
+        base_dir: str | None = None,
+        _seen: set[str] | None = None,
+        *,
+        trusted: bool = False,
+    ) -> Any:
         """Load the included file.
 
         Args:
             base_dir: Base directory for relative paths
             _seen: Internal set tracking files in current include chain
+            trusted: Must be True to allow executing an included ``.py`` file.
+                Defaults to False (untrusted) — ``.md`` / ``.yaml`` includes
+                are always allowed; only Python execution is gated.
 
         Returns:
             File contents (string for .md, parsed for .yaml, executed for .py)
@@ -131,6 +159,7 @@ class Include:
         Raises:
             FileNotFoundError: If file doesn't exist
             RecursionError: If circular include detected
+            UnsafeSpecError: If a ``.py`` include is requested untrusted.
         """
         # Resolve file path
         if Path(self.path).is_absolute():
@@ -165,9 +194,15 @@ class Include:
             content = file_path.read_text()
             data = yaml.safe_load(content)
             # Recursively resolve any Includes in the loaded data
-            return self._resolve_includes(data, str(file_path.parent), _seen)
+            return self._resolve_includes(data, str(file_path.parent), _seen, trusted=trusted)
 
         elif suffix == ".py":
+            if not trusted:
+                raise UnsafeSpecError(
+                    f".py includes execute Python code and are disabled for "
+                    f"untrusted specs: {file_path}. Pass trusted=True to enable "
+                    f"(local dev only)."
+                )
             # Execute Python file to register decorators
             code = file_path.read_text()
             exec(compile(code, str(file_path), "exec"), {"__name__": "__main__"})
@@ -178,15 +213,15 @@ class Include:
             return file_path.read_text()
 
     def _resolve_includes(
-        self, data: Any, base_dir: str, _seen: set[str]
+        self, data: Any, base_dir: str, _seen: set[str], *, trusted: bool = False
     ) -> Any:
         """Recursively resolve Includes in loaded data."""
         if isinstance(data, Include):
-            return data.load(base_dir, _seen)
+            return data.load(base_dir, _seen, trusted=trusted)
         elif isinstance(data, dict):
-            return {k: self._resolve_includes(v, base_dir, _seen) for k, v in data.items()}
+            return {k: self._resolve_includes(v, base_dir, _seen, trusted=trusted) for k, v in data.items()}
         elif isinstance(data, list):
-            return [self._resolve_includes(item, base_dir, _seen) for item in data]
+            return [self._resolve_includes(item, base_dir, _seen, trusted=trusted) for item in data]
         else:
             return data
 
