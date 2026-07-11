@@ -150,21 +150,32 @@ def find_unstable_rates(
     window: int = 100,
     threshold: float = 1e-4,
 ) -> Dict[str, float]:
-    """Identify reactions whose rates may cause instability.
+    """Return candidate reactions when the system is unstable.
 
-    Runs the system, then for each reaction, checks if disabling it
-    reduces the maximum variance. Returns reactions that contribute
-    most to instability, mapped to their rate values.
+    Runs the system once as a baseline. If the baseline is stable, returns
+    an empty dict. If the baseline is unstable, returns every reaction with
+    a currently positive rate, mapped to its rate value.
+
+    NOTE: Despite the name/historical intent, this does NOT perform
+    per-reaction ablation or localization (i.e. it never disables an
+    individual reaction and re-checks stability to see whether that
+    reaction is actually responsible). It has no way to narrow down which
+    specific reaction(s) are causing the instability -- when the baseline
+    is unstable, it simply returns all active-rate reactions as
+    undifferentiated candidates. True per-reaction ablation would be a
+    useful enhancement but is a new feature requiring separate design and
+    approval; it is not implemented here.
 
     Args:
         system: BioSystem to analyze
-        steps: Steps to run for each test
+        steps: Steps to run for the baseline
         window: Trailing window for stability check
         threshold: Variance threshold
 
     Returns:
-        Dict mapping reaction name to its rate constant for reactions
-        that contribute to instability
+        Empty dict if the baseline run is stable. Otherwise, a dict
+        mapping every reaction name with a positive current rate to that
+        rate value (candidates, not localized/ablated causes).
     """
     from .biosystem import BioSystem as _BioSystem
 
@@ -179,6 +190,9 @@ def find_unstable_rates(
     if baseline_result.stable:
         return {}
 
+    # NOTE: No per-reaction ablation happens here -- see docstring. This is
+    # an undifferentiated list of all active-rate reactions, not a
+    # localized diagnosis of which reaction(s) actually cause instability.
     unstable_rates: Dict[str, float] = {}
 
     for rxn_name, reaction in system.chemistry.reactions.items():
