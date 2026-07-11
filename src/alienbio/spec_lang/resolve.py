@@ -12,6 +12,8 @@ from typing import Any
 
 import yaml
 
+from .tags import UnsafeSpecError
+
 
 @dataclass
 class SourceRoot:
@@ -121,7 +123,7 @@ def _resolve_from_source_roots(
     Returns ResolvedPath if found, None otherwise.
     """
     for root in source_roots:
-        result = resolve_dotted_in_source_root(dotted_path, root)
+        result = resolve_dotted_in_source_root(dotted_path, root, source_roots)
         if result is not None:
             data, base_dir, yaml_path = result
             return ResolvedPath(
@@ -134,7 +136,7 @@ def _resolve_from_source_roots(
 
 
 def resolve_dotted_in_source_root(
-    dotted_path: str, root: SourceRoot
+    dotted_path: str, root: SourceRoot, source_roots: list[SourceRoot] | None = None
 ) -> tuple[Any, str, Path | None] | None:
     """Try to resolve a dotted path within a source root.
 
@@ -143,11 +145,21 @@ def resolve_dotted_in_source_root(
     Args:
         dotted_path: Path like "mute.mol.energy.ME_basic"
         root: Source root to search in
+        source_roots: All registered source roots, used to check the
+            import allowlist before importing a Python module global.
+            Defaults to ``[root]`` when not supplied.
 
     Returns:
         Tuple of (data, base_dir, yaml_path) if found, None otherwise.
         yaml_path may be None if loaded from Python module.
+
+    Raises:
+        UnsafeSpecError: If the resolved module is not in the import
+            allowlist (see ``_is_allowed_import``).
     """
+    if source_roots is None:
+        source_roots = [root]
+
     parts = dotted_path.split(".") if "." in dotted_path else [dotted_path]
 
     # Try YAML file resolution (greedy: try longest path first)
@@ -198,7 +210,7 @@ def resolve_dotted_in_source_root(
             full_module = ".".join(module_parts) if module_parts else None
 
         if full_module:
-            result = load_from_python_global(full_module, global_name)
+            result = load_from_python_global(full_module, global_name, source_roots)
             if result is not None:
                 data, base_dir = result
                 return data, base_dir, None
@@ -206,19 +218,69 @@ def resolve_dotted_in_source_root(
     return None
 
 
+def _is_allowed_import(module_path: str, source_roots: list[SourceRoot]) -> bool:
+    """Check whether ``module_path`` is trusted to import via importlib.
+
+    Specs are agent-authored / untrusted, and ``importlib.import_module``
+    executes arbitrary top-level code in the target module — so a dotted
+    specifier must not be allowed to name an arbitrary attacker-chosen
+    module. A module is trusted only if:
+
+    - it is the ``alienbio`` framework package (or a submodule of it), or
+    - it matches (or is a dotted submodule of) the Python module prefix of
+      a *registered* source root. Registering a source root is a trusted
+      configuration act performed by the host application, so its module
+      prefix is trusted; an arbitrary module name supplied by an untrusted
+      spec is not.
+
+    Args:
+        module_path: Fully-qualified module path an untrusted spec wants
+            to import.
+        source_roots: Source roots registered on the Bio instance.
+
+    Returns:
+        True if the import is allowed, False otherwise.
+    """
+    if module_path == "alienbio" or module_path.startswith("alienbio."):
+        return True
+
+    for root in source_roots:
+        prefix = root.module
+        if not prefix:
+            continue
+        if module_path == prefix or module_path.startswith(prefix + "."):
+            return True
+
+    return False
+
+
 def load_from_python_global(
-    module_path: str, global_name: str
+    module_path: str, global_name: str, source_roots: list[SourceRoot]
 ) -> tuple[Any, str] | None:
     """Load data from a Python module global.
 
     Args:
         module_path: Full module path like "myproject.catalog.mute.mol"
         global_name: Global variable name like "ME_BASIC"
+        source_roots: Registered source roots, used to check that
+            ``module_path`` is trusted before importing it (see
+            ``_is_allowed_import``).
 
     Returns:
         Tuple of (data, base_dir) if found, None otherwise.
+
+    Raises:
+        UnsafeSpecError: If ``module_path`` is not in the import allowlist.
     """
     import importlib
+
+    if not _is_allowed_import(module_path, source_roots):
+        raise UnsafeSpecError(
+            f"Refusing to import '{module_path}': not in the import "
+            f"allowlist for untrusted specs. Only 'alienbio' (and its "
+            f"submodules) or a registered source root's module prefix may "
+            f"be imported."
+        )
 
     try:
         module = importlib.import_module(module_path)

@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 from alienbio.spec_lang.bio import Bio, SourceRoot
-from alienbio.spec_lang.tags import PyRef
+from alienbio.spec_lang.tags import PyRef, UnsafeSpecError
 
 
 # =============================================================================
@@ -219,13 +219,16 @@ class TestPythonGlobalResolution:
     """Test Python module global resolution from source roots."""
 
     def test_fetch_python_dict_global(self, tmp_path):
-        """Fetch resolves Python dict global when no YAML exists."""
+        """Fetch resolves Python dict global under an allowlisted module prefix."""
         import sys
 
-        # Create a temporary module structure
-        # catalog/templates.py with ENERGY global
-        catalog = tmp_path / "catalog"
-        catalog.mkdir()
+        # Create a temporary package structure so the module is reachable
+        # under a trusted, registered module prefix (not a bare top-level
+        # name — see the security-audit tests below for why that matters).
+        pkg_root = tmp_path / "pkgroot"
+        catalog = pkg_root / "mycatalog"
+        catalog.mkdir(parents=True)
+        (pkg_root / "mycatalog" / "__init__.py").write_text("")
 
         py_file = catalog / "templates.py"
         py_file.write_text("""
@@ -237,25 +240,27 @@ ENERGY = {
 }
 """)
 
-        # Add catalog to path so templates can be imported
-        sys.path.insert(0, str(catalog))
+        sys.path.insert(0, str(pkg_root))
         try:
             bio = Bio()
-            # module="" means use path parts directly as module path
-            bio.add_source_root(catalog, module="")
+            bio.add_source_root(catalog, module="mycatalog")
 
-            # "templates.ENERGY" → import templates, get ENERGY
+            # "templates.ENERGY" → import mycatalog.templates, get ENERGY
             result = bio.fetch("templates.ENERGY", raw=True)
             assert result["molecule"]["name"] == "Energy from Python"
         finally:
-            sys.path.remove(str(catalog))
+            sys.path.remove(str(pkg_root))
+            sys.modules.pop("mycatalog.templates", None)
+            sys.modules.pop("mycatalog", None)
 
     def test_fetch_python_yaml_string_global(self, tmp_path):
-        """Fetch parses 'yaml: ' prefixed string globals."""
+        """Fetch parses 'yaml: ' prefixed string globals under an allowlisted prefix."""
         import sys
 
-        catalog = tmp_path / "catalog"
-        catalog.mkdir()
+        pkg_root = tmp_path / "pkgroot"
+        catalog = pkg_root / "mycatalog"
+        catalog.mkdir(parents=True)
+        (pkg_root / "mycatalog" / "__init__.py").write_text("")
 
         py_file = catalog / "specs.py"
         py_file.write_text('''
@@ -266,15 +271,51 @@ scenario:
 """
 ''')
 
+        sys.path.insert(0, str(pkg_root))
+        try:
+            bio = Bio()
+            bio.add_source_root(catalog, module="mycatalog")
+
+            result = bio.fetch("specs.SCENARIO", raw=True)
+            assert result["scenario"]["name"] == "Test Scenario"
+        finally:
+            sys.path.remove(str(pkg_root))
+            sys.modules.pop("mycatalog.specs", None)
+            sys.modules.pop("mycatalog", None)
+
+    def test_empty_module_prefix_no_longer_grants_unrestricted_import(self, tmp_path):
+        """module="" ("use path parts directly as module path") is a footgun:
+        it decouples the imported module name entirely from any trusted
+        prefix, letting an untrusted dotted specifier name an arbitrary
+        top-level module. The import allowlist now rejects it — an empty
+        module prefix contributes nothing to the allowlist, so the fetch
+        must raise UnsafeSpecError and must NOT import (execute) the module.
+        """
+        import sys
+
+        catalog = tmp_path / "catalog"
+        catalog.mkdir()
+
+        marker = tmp_path / "executed.marker"
+        py_file = catalog / "templates.py"
+        py_file.write_text(f"""
+open(r"{marker}", "w").close()
+ENERGY = {{"molecule": {{"name": "Energy from Python", "count": 50}}}}
+""")
+
         sys.path.insert(0, str(catalog))
         try:
             bio = Bio()
             bio.add_source_root(catalog, module="")
 
-            result = bio.fetch("specs.SCENARIO", raw=True)
-            assert result["scenario"]["name"] == "Test Scenario"
+            with pytest.raises(UnsafeSpecError, match="not in the import allowlist"):
+                bio.fetch("templates.ENERGY", raw=True)
+
+            assert not marker.exists(), "module must not have been imported/executed"
+            assert "templates" not in sys.modules
         finally:
             sys.path.remove(str(catalog))
+            sys.modules.pop("templates", None)
 
 
 # =============================================================================
@@ -519,22 +560,33 @@ class TestErrorHandling:
     """Test error handling for fetch resolution."""
 
     def test_not_found_lists_searched_roots(self, tmp_path):
-        """FileNotFoundError lists all searched source roots."""
+        """FileNotFoundError lists all searched source roots.
+
+        Uses an "alienbio."-prefixed specifier so the import allowlist
+        check passes and the (nonexistent) module falls through to the
+        normal "not found in source roots" path, rather than being
+        rejected outright as an unregistered/untrusted module.
+        """
         bio = Bio()
         bio.add_source_root(tmp_path / "root1")
         bio.add_source_root(tmp_path / "root2")
 
         with pytest.raises(FileNotFoundError) as exc_info:
-            bio.fetch("nonexistent.path")
+            bio.fetch("alienbio.nonexistent_module_xyz.path")
 
         assert "root1" in str(exc_info.value)
         assert "root2" in str(exc_info.value)
 
     def test_empty_source_roots_falls_through(self, tmp_path):
-        """With source roots, non-existent dotted path raises error."""
+        """With source roots, non-existent dotted path raises error.
+
+        Uses an "alienbio."-prefixed specifier so the import allowlist
+        check passes and the (nonexistent) module falls through to the
+        normal "not found in source roots" path.
+        """
         bio = Bio()
         # Bio auto-configures catalog source root
 
         # Should raise error for non-existent path
         with pytest.raises(FileNotFoundError, match="not found in source roots"):
-            bio.fetch("some.dotted.path")
+            bio.fetch("alienbio.some.dotted.path")
