@@ -353,6 +353,48 @@ class TestHydrateIncludeTag:
         assert result["outer"]["inner"] == "Inner content"
 
 
+class TestHydrateIncludeSecurity:
+    """FIX H7: hydrate-path !include must guard cycles and contain paths."""
+
+    def test_include_cycle_raises(self, temp_dir):
+        """a -> b -> a include cycle raises instead of stack-overflowing."""
+        import alienbio.spec_lang.tags  # noqa: F401  (register !include)
+        from alienbio.spec_lang.eval import UnsafeIncludeError
+
+        (temp_dir / "a.yaml").write_text("content: !include b.yaml")
+        (temp_dir / "b.yaml").write_text("content: !include a.yaml")
+
+        data = {"outer": {"!include": "a.yaml"}}
+        with pytest.raises(UnsafeIncludeError):
+            hydrate(data, base_path=str(temp_dir))
+
+    def test_include_absolute_path_rejected(self, temp_dir):
+        """Absolute !include paths are rejected for untrusted specs."""
+        from alienbio.spec_lang.eval import UnsafeIncludeError
+        data = {"x": {"!include": "/etc/passwd"}}
+        with pytest.raises(UnsafeIncludeError):
+            hydrate(data, base_path=str(temp_dir))
+
+    def test_include_parent_traversal_rejected(self, temp_dir):
+        """'..' escapes above the base directory are rejected."""
+        from alienbio.spec_lang.eval import UnsafeIncludeError
+        secret = temp_dir / "secret.md"
+        secret.write_text("top secret")
+        subdir = temp_dir / "sub"
+        subdir.mkdir()
+
+        data = {"x": {"!include": "../secret.md"}}
+        with pytest.raises(UnsafeIncludeError):
+            hydrate(data, base_path=str(subdir))
+
+    def test_include_within_base_still_works(self, temp_dir):
+        """A contained relative include still resolves."""
+        (temp_dir / "ok.md").write_text("fine")
+        data = {"x": {"!include": "ok.md"}}
+        result = hydrate(data, base_path=str(temp_dir))
+        assert result["x"] == "fine"
+
+
 class TestHydrateTypeInstantiation:
     """Test type instantiation from _type field."""
 
@@ -1227,6 +1269,97 @@ class TestSafeBuiltins:
     def test_blocked_locals(self, ctx):
         with pytest.raises(EvalError):
             eval_node(Evaluable("locals()"), ctx)
+
+
+# =============================================================================
+# SANDBOX ESCAPE / SAFE-EVAL ADVERSARIAL TESTS (C2)
+# =============================================================================
+
+class TestSandboxEscapes:
+    """Adversarial tests: spec expressions must not reach code execution.
+
+    Specs are untrusted (agent-authored). Every known escape must raise
+    (UnsafeExpressionError, wrapped as EvalError through eval_node).
+    """
+
+    # -- via eval_node / _eval_expression (wraps as EvalError) ----------------
+
+    ESCAPE_EXPRS = [
+        # The live dunder-traversal escape from the repro.
+        "().__class__.__base__.__subclasses__()",
+        "[c for c in ().__class__.__base__.__subclasses__()]",
+        "().__class__",
+        "(1).__class__.__bases__",
+        "''.__class__.__mro__",
+        # getattr-style attribute access.
+        'getattr((), "__class__")',
+        "getattr(getattr, 'x')",
+        # import / exec / eval / open family.
+        '__import__("os")',
+        'open("/etc/passwd")',
+        'eval("1+1")',
+        'exec("x=1")',
+        'compile("1", "", "eval")',
+        "globals()",
+        "locals()",
+        "vars()",
+        # f-string / format-string field-access bypass.
+        '"{0.__class__}".format(())',
+        '"{0.__class__.__mro__}".format(1)',
+        "f'{().__class__}'",
+        # frame-walk via generator internals.
+        "(x for x in [1]).gi_frame",
+        "(x for x in [1]).gi_frame.f_back",
+        # walrus / lambda-scope tricks around dunders still blocked.
+        "(lambda: ().__class__)()",
+    ]
+
+    @pytest.mark.parametrize("expr", ESCAPE_EXPRS)
+    def test_escape_blocked_via_eval_node(self, ctx, expr):
+        node = Evaluable(source=expr)
+        with pytest.raises(EvalError):
+            eval_node(node, ctx)
+
+    @pytest.mark.parametrize("expr", ESCAPE_EXPRS)
+    def test_escape_blocked_via_evaluate(self, expr):
+        from alienbio.spec_lang.safe_eval import UnsafeExpressionError
+        node = Evaluable(source=expr)
+        # evaluate() surfaces the raw error (UnsafeExpressionError for the
+        # structurally-forbidden ones; NameError for undefined names).
+        with pytest.raises((UnsafeExpressionError, NameError, SyntaxError)):
+            node.evaluate()
+
+    def test_repro_subclasses_unreachable(self, ctx):
+        """The specific repro payload cannot enumerate subclasses."""
+        node = Evaluable(source="().__class__.__base__.__subclasses__()")
+        with pytest.raises(EvalError):
+            eval_node(node, ctx)
+
+    # -- legitimate expressions still work ------------------------------------
+
+    def test_legit_arithmetic_still_works(self, ctx):
+        assert eval_node(Evaluable("2 + 3 * 4"), ctx) == 14
+
+    def test_legit_name_lookup_still_works(self, ctx):
+        ctx.bindings["k"] = 0.5
+        ctx.bindings["s"] = 100
+        assert eval_node(Evaluable("k * s"), ctx) == 50.0
+
+    def test_legit_method_call_still_works(self, ctx):
+        """Non-dunder method/attr access (state.get) is allowed."""
+        ctx.bindings["state"] = {"A": 3, "B": 4}
+        assert eval_node(Evaluable("state.get('A', 0) * 2"), ctx) == 6
+
+    def test_legit_nested_attr_still_works(self, ctx):
+        class Trace:
+            final = {"D": 10}
+        ctx.bindings["trace"] = Trace()
+        assert eval_node(Evaluable("trace.final.get('D', 0) / 10.0"), ctx) == 1.0
+
+    def test_legit_lambda_still_works(self):
+        node = Evaluable(source='lambda c: c["ME1"] * 0.1')
+        fn = node.evaluate()
+        assert fn({"ME1": 100.0}) == 10.0
 
 
 # =============================================================================

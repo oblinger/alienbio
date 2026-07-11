@@ -24,6 +24,7 @@ Pipeline:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
 
 import yaml
@@ -59,18 +60,27 @@ class Evaluable:
     def evaluate(self, namespace: dict[str, Any] | None = None) -> Any:
         """Evaluate the expression in a sandboxed namespace.
 
+        Uses the AST-allowlist evaluator (see :mod:`.safe_eval`): only a fixed
+        set of node types is permitted and attribute access is forbidden, which
+        defeats the ``().__class__.__base__.__subclasses__()`` escape. Names
+        resolve against ``SAFE_BUILTINS`` plus the caller-supplied namespace;
+        anything else fails with an ordinary ``NameError``.
+
         Args:
             namespace: Dict of names available during evaluation
 
         Returns:
             Result of evaluating the expression
+
+        Raises:
+            UnsafeExpressionError: If the expression uses a forbidden construct.
         """
-        ns = namespace or {}
-        blocked = {"open", "exec", "eval", "__import__", "compile", "globals", "locals"}
-        builtins = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
-        safe_builtins = {k: v for k, v in builtins.items() if k not in blocked}
-        eval_ns = {"__builtins__": safe_builtins, **ns}
-        return eval(self.source, eval_ns)
+        from .safe_eval import safe_eval
+
+        eval_ns: dict[str, Any] = dict(SAFE_BUILTINS)
+        if namespace:
+            eval_ns.update(namespace)
+        return safe_eval(self.source, eval_ns)
 
 
 @dataclass
@@ -185,6 +195,10 @@ register_eval_tags()
 # =============================================================================
 
 
+class UnsafeIncludeError(Exception):
+    """Raised when an !include path escapes containment or forms a cycle."""
+
+
 def hydrate(data: Any, base_path: str | None = None) -> Any:
     """Convert dict structure to Python objects with placeholders.
 
@@ -209,12 +223,11 @@ def hydrate(data: Any, base_path: str | None = None) -> Any:
     Raises:
         FileNotFoundError: If !include file doesn't exist
     """
-    return _hydrate_node(data, base_path)
+    return _hydrate_node(data, base_path, _seen=None)
 
 
-def _hydrate_node(node: Any, base_path: str | None) -> Any:
+def _hydrate_node(node: Any, base_path: str | None, _seen: frozenset[str] | None = None) -> Any:
     """Recursively hydrate a single node."""
-    from pathlib import Path
     from .tags import Include
 
     # Already a placeholder - pass through unchanged
@@ -223,21 +236,21 @@ def _hydrate_node(node: Any, base_path: str | None) -> Any:
 
     # Include placeholder - load and hydrate the file contents
     if isinstance(node, Include):
-        return _hydrate_include(node.path, base_path)
+        return _hydrate_include(node.path, base_path, _seen)
 
     # Dict - check for special keys or recurse
     if isinstance(node, dict):
-        return _hydrate_dict(node, base_path)
+        return _hydrate_dict(node, base_path, _seen)
 
     # List - recurse into elements
     if isinstance(node, list):
-        return [_hydrate_node(item, base_path) for item in node]
+        return [_hydrate_node(item, base_path, _seen) for item in node]
 
     # Scalar values (int, float, str, bool, None) - pass through
     return node
 
 
-def _hydrate_dict(d: dict, base_path: str | None) -> Any:
+def _hydrate_dict(d: dict, base_path: str | None, _seen: frozenset[str] | None = None) -> Any:
     """Hydrate a dict, checking for special tag keys."""
     # Single-key dicts with special tags
     if len(d) == 1:
@@ -257,7 +270,7 @@ def _hydrate_dict(d: dict, base_path: str | None) -> Any:
             return Reference(name=str(value))
 
         if key == "!include":
-            return _hydrate_include(str(value), base_path)
+            return _hydrate_include(str(value), base_path, _seen)
 
     # Check for _type field — instantiate via biotype registry
     if "_type" in d:
@@ -265,7 +278,7 @@ def _hydrate_dict(d: dict, base_path: str | None) -> Any:
         type_name = d["_type"]
         if type_name in biotype_registry:
             cls = biotype_registry[type_name]
-            fields = {k: _hydrate_node(v, base_path) for k, v in d.items() if k != "_type"}
+            fields = {k: _hydrate_node(v, base_path, _seen) for k, v in d.items() if k != "_type"}
             try:
                 return cls(**fields)
             except TypeError:
@@ -276,25 +289,67 @@ def _hydrate_dict(d: dict, base_path: str | None) -> Any:
                 return obj
 
     # Regular dict - recurse into values
-    return {k: _hydrate_node(v, base_path) for k, v in d.items()}
+    return {k: _hydrate_node(v, base_path, _seen) for k, v in d.items()}
 
 
-def _hydrate_include(path: str, base_path: str | None) -> Any:
-    """Load and hydrate an included file."""
+def _resolve_contained_path(path: str, base_path: str | None) -> "Path":
+    """Resolve an !include path, rejecting traversal outside ``base_path``.
+
+    Untrusted specs must not read arbitrary files. Absolute paths and any
+    ``..`` escape above the containment root are rejected. When ``base_path``
+    is given, the resolved target must stay within it.
+
+    Raises:
+        UnsafeIncludeError: On absolute paths or containment escapes.
+    """
     from pathlib import Path
 
-    # Resolve file path
-    if Path(path).is_absolute():
-        file_path = Path(path)
-    elif base_path:
-        file_path = Path(base_path) / path
-    else:
-        file_path = Path(path)
+    p = Path(path)
 
-    file_path = file_path.resolve()
+    if p.is_absolute():
+        raise UnsafeIncludeError(
+            f"absolute !include paths are not allowed for untrusted specs: {path!r}"
+        )
+
+    if base_path is None:
+        # No containment root: forbid any parent-directory traversal.
+        if ".." in p.parts:
+            raise UnsafeIncludeError(
+                f"parent-directory (..) !include paths are not allowed: {path!r}"
+            )
+        return p.resolve()
+
+    base = Path(base_path).resolve()
+    resolved = (base / p).resolve()
+
+    # Confirm the resolved target is inside the containment root.
+    if resolved != base and base not in resolved.parents:
+        raise UnsafeIncludeError(
+            f"!include path escapes its base directory: {path!r} "
+            f"(resolved to {resolved}, base {base})"
+        )
+
+    return resolved
+
+
+def _hydrate_include(path: str, base_path: str | None, _seen: frozenset[str] | None = None) -> Any:
+    """Load and hydrate an included file.
+
+    Enforces path containment (no absolute paths, no ``..`` escapes) and cycle
+    detection so that ``a -> b -> a`` includes raise instead of overflowing the
+    stack.
+    """
+    file_path = _resolve_contained_path(path, base_path)
 
     if not file_path.exists():
         raise FileNotFoundError(f"Include file not found: {file_path}")
+
+    # Cycle detection across the include chain.
+    file_key = str(file_path)
+    seen = _seen or frozenset()
+    if file_key in seen:
+        raise UnsafeIncludeError(f"Circular include detected: {file_key}")
+    seen = seen | {file_key}
 
     # Load based on file extension
     suffix = file_path.suffix.lower()
@@ -307,7 +362,7 @@ def _hydrate_include(path: str, base_path: str | None) -> Any:
         # YAML files are parsed and recursively hydrated
         content = file_path.read_text()
         data = yaml.safe_load(content)
-        return _hydrate_node(data, str(file_path.parent))
+        return _hydrate_node(data, str(file_path.parent), seen)
 
     else:
         # Default: return raw text
@@ -527,10 +582,13 @@ def _eval_expression(source: str, ctx: EvalContext) -> Any:
     for name, func in ctx.functions.items():
         namespace[name] = _wrap_function(func, ctx)
 
+    from .safe_eval import safe_eval, UnsafeExpressionError
+
     try:
-        # Compile to detect syntax errors early
-        code = compile(source, "<spec>", "eval")
-        return eval(code, {"__builtins__": {}}, namespace)
+        # AST-allowlist validation happens inside safe_eval before execution.
+        return safe_eval(source, namespace)
+    except UnsafeExpressionError as e:
+        raise EvalError(f"Unsafe expression {source!r}: {e}", ctx.path)
     except SyntaxError as e:
         raise EvalError(f"Syntax error in expression {source!r}: {e}", ctx.path)
     except NameError as e:
