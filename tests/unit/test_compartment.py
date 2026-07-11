@@ -316,6 +316,57 @@ class TestWorldSimulator:
         assert sim.num_molecules == 2
         assert len(sim.reactions) == 1
 
+    def test_from_chemistry_warns_on_callable_rate(self, caplog):
+        """H5: a callable rate law is downgraded to 1.0 with a loud warning."""
+        carbon = AtomImpl("C", name="Carbon", atomic_weight=12.0)
+        a = MoleculeImpl("A", atoms={carbon: 1}, bdepth=0, dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", atoms={carbon: 2}, bdepth=0, dat=MockDat("mol/B"))
+        r1 = ReactionImpl(
+            "r1", reactants={a: 1.0}, products={b: 1.0},
+            rate=lambda state: 0.5,
+            dat=MockDat("rxn/r1"),
+        )
+        chem = ChemistryImpl(
+            "test", atoms={"C": carbon},
+            molecules={"A": a, "B": b}, reactions={"r1": r1},
+            dat=MockDat("chem/test"),
+        )
+
+        tree = CompartmentTreeImpl()
+        tree.add_root("organism")
+
+        with caplog.at_level("WARNING"):
+            sim = WorldSimulatorImpl.from_chemistry(chem, tree, dt=0.1)
+
+        assert sim.reactions[0].rate_constant == 1.0
+        assert any(
+            "r1" in record.message and "callable rate" in record.message
+            for record in caplog.records
+        )
+
+    def test_from_chemistry_unknown_reactant_raises(self):
+        """M8: a reaction referencing a molecule not in chemistry.molecules raises."""
+        carbon = AtomImpl("C", name="Carbon", atomic_weight=12.0)
+        a = MoleculeImpl("A", atoms={carbon: 1}, bdepth=0, dat=MockDat("mol/A"))
+        ghost = MoleculeImpl("Ghost", atoms={carbon: 1}, bdepth=0, dat=MockDat("mol/Ghost"))
+        r1 = ReactionImpl(
+            "r1", reactants={ghost: 1.0}, products={a: 1.0},
+            rate=0.1,
+            dat=MockDat("rxn/r1"),
+        )
+        chem = ChemistryImpl(
+            "test", atoms={"C": carbon},
+            # Note: "Ghost" is intentionally NOT registered in molecules.
+            molecules={"A": a}, reactions={"r1": r1},
+            dat=MockDat("chem/test"),
+        )
+
+        tree = CompartmentTreeImpl()
+        tree.add_root("organism")
+
+        with pytest.raises(KeyError, match="Ghost"):
+            WorldSimulatorImpl.from_chemistry(chem, tree, dt=0.1)
+
 
 # === CompartmentImpl (entity) ===
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
@@ -12,6 +13,8 @@ from .flow import GeneralFlow
 if TYPE_CHECKING:
     from .chemistry import ChemistryImpl
     from .molecule import MoleculeImpl
+
+logger = logging.getLogger(__name__)
 
 # Type aliases
 MoleculeId = int
@@ -268,16 +271,37 @@ class WorldSimulatorImpl:
 
             for mol, stoich in reaction.reactants.items():
                 mol_id = mol_to_id.get(mol.name)
-                if mol_id is not None:
-                    reactants[mol_id] = stoich
+                if mol_id is None:
+                    raise KeyError(
+                        f"Reaction {rxn_name!r}: reactant {mol.name!r} not found in "
+                        f"chemistry.molecules"
+                    )
+                reactants[mol_id] = stoich
 
             for mol, stoich in reaction.products.items():
                 mol_id = mol_to_id.get(mol.name)
-                if mol_id is not None:
-                    products[mol_id] = stoich
+                if mol_id is None:
+                    raise KeyError(
+                        f"Reaction {rxn_name!r}: product {mol.name!r} not found in "
+                        f"chemistry.molecules"
+                    )
+                products[mol_id] = stoich
 
             # Get rate constant (only works for constant rates)
-            rate = reaction.rate if isinstance(reaction.rate, (int, float)) else 1.0
+            if isinstance(reaction.rate, (int, float)):
+                rate = reaction.rate
+            else:
+                # Callable rate laws aren't supported by the ID-based world
+                # simulator; downgrading to mass-action constant 1.0 silently
+                # would produce a physically wrong world, so make it loud.
+                rate = 1.0
+                logger.warning(
+                    "Reaction %r has a callable rate law that is not a constant "
+                    "number; downgrading to rate_constant=1.0 for the world "
+                    "simulator (mass-action). The world will not reflect the "
+                    "reaction's actual rate law.",
+                    rxn_name,
+                )
 
             reaction_specs.append(ReactionSpec(
                 name=rxn_name,
