@@ -12,6 +12,8 @@ Covers:
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 try:
@@ -368,3 +370,101 @@ class TestRunBatch:
             pf = py.run(s, steps=80)[-1]
             for m in range(2):
                 assert abs(pf.get(0, m) - bf.get(0, m)) < 1e-5
+
+
+# ── M24.6: benchmark suite (opt-in) ────────────────────────────────────────────
+
+
+def _build_chain_world(num_molecules, num_reactions, num_compartments):
+    """A linear compartment chain with a chain of i->i+1 reactions."""
+    tree = CompartmentTreeImpl()
+    prev = tree.add_root("c0")
+    for i in range(1, num_compartments):
+        prev = tree.add_child(prev, f"c{i}")
+    rxns = [
+        ReactionSpec(
+            f"r{i}",
+            {i % num_molecules: 1.0},
+            {(i + 1) % num_molecules: 1.0},
+            rate_constant=0.001,
+        )
+        for i in range(num_reactions)
+    ]
+    state = WorldStateImpl(tree=tree, num_molecules=num_molecules)
+    for c in range(num_compartments):
+        state.set(c, 0, 100.0)
+    return tree, rxns, state
+
+
+def run_benchmark(sizes=None, steps=200):
+    """Time WorldSimulatorImpl.run vs JaxWorldSimulator.run_fast.
+
+    GPU unavailable here, so numbers are CPU/XLA; the JAX path is GPU-ready
+    (jit + fori_loop keeps state on-device). Returns a list of result dicts.
+    """
+    import time
+
+    from alienbio.bio.jax_simulator import JaxWorldSimulator
+
+    if sizes is None:
+        # (molecules, reactions, compartments)
+        sizes = [
+            (4, 4, 1),
+            (8, 8, 4),
+            (16, 16, 16),
+            (32, 32, 64),
+            (64, 64, 256),
+        ]
+
+    rows = []
+    header = f"{'mol':>5} {'rxn':>5} {'comp':>6} {'steps':>6} {'py(s)':>9} {'jax(s)':>9} {'speedup':>8}"
+    print("\n" + header)
+    print("-" * len(header))
+    for (m, r, c) in sizes:
+        tree, rxns, state = _build_chain_world(m, r, c)
+        py = WorldSimulatorImpl(tree, rxns, [], num_molecules=m, dt=1.0)
+        jx = JaxWorldSimulator(tree, rxns, num_molecules=m, dt=1.0)
+
+        # Warm up JAX compilation (excluded from timing).
+        _ = jx.run_fast(state, 1)
+
+        t0 = time.perf_counter()
+        py.run(state, steps=steps)
+        py_t = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        jf = jx.run_fast(state, steps)
+        _ = jf.get(0, 0)  # force host sync
+        jax_t = time.perf_counter() - t0
+
+        speedup = py_t / jax_t if jax_t > 0 else float("inf")
+        print(f"{m:>5} {r:>5} {c:>6} {steps:>6} {py_t:>9.4f} {jax_t:>9.4f} {speedup:>7.1f}x")
+        rows.append(
+            dict(molecules=m, reactions=r, compartments=c, steps=steps,
+                 py_time=py_t, jax_time=jax_t, speedup=speedup)
+        )
+    return rows
+
+
+@pytest.mark.skipif(
+    not os.environ.get("ABIO_BENCH"),
+    reason="benchmark is opt-in (set ABIO_BENCH=1)",
+)
+def test_benchmark_runs():
+    rows = run_benchmark()
+    assert rows
+    # Smoke assertion: JAX path produces finite results and matches reference
+    # on the smallest case.
+    tree, rxns, state = _build_chain_world(4, 4, 1)
+    from alienbio.bio.jax_simulator import JaxWorldSimulator
+
+    py = WorldSimulatorImpl(tree, rxns, [], num_molecules=4, dt=1.0)
+    jx = JaxWorldSimulator(tree, rxns, num_molecules=4, dt=1.0)
+    pf = py.run(state, steps=50)[-1]
+    jf = jx.run_fast(state, 50)
+    for mm in range(4):
+        assert abs(pf.get(0, mm) - jf.get(0, mm)) < 1e-5
+
+
+if __name__ == "__main__":
+    run_benchmark()
