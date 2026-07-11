@@ -32,6 +32,11 @@ dev = [
     "mkdocs-roamlinks-plugin>=0.3",
     "mkdocs-jupyter>=0.25",
 ]
+# M24 JAX simulator (vectorized/GPU-ready). Optional: without it the JAX/M24
+# tests skip. Install with `uv sync --extra jax`.
+jax = [
+    "jax>=0.4",
+]
 
 [build-system]
 requires = ["hatchling"]
