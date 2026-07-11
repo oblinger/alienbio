@@ -13,7 +13,7 @@ from typing import Any
 from alienbio.protocols import Scenario
 
 from .template import TemplateRegistry, parse_template, parse_interaction, parse_background, parse_containers
-from .expand import apply_template, NameCollisionError, _merge_no_collision
+from .expand import apply_template, NameCollisionError, _merge_no_collision, _check_count
 from .guards import apply_template_with_guards
 from .visibility import generate_visibility_mapping, apply_visibility
 from .exceptions import TemplateNotFoundError, CircularReferenceError, PortNotFoundError
@@ -196,6 +196,10 @@ def _process_instantiations(
                 param_val = params.get(end_expr, 0)
                 end_val = int(round(param_val)) if isinstance(param_val, float) else int(param_val)
 
+            _check_count(
+                end_val - start_val + 1,
+                f"replication '_as_ {inst_name}{{{loop_var} in {start}..{end_expr}}}'",
+            )
             for i in range(start_val, end_val + 1):
                 namespace = f"{inst_name}{i}"
                 if namespace in used_namespaces:
@@ -675,6 +679,7 @@ def _process_background(
         mol_count = int(round(eval_node(mol_count_spec, ctx)))
     else:
         mol_count = int(mol_count_spec)
+    _check_count(mol_count, "background.molecules.count")
 
     # Generate background molecules
     bg_molecules = []
@@ -692,6 +697,7 @@ def _process_background(
         rxn_count = int(round(eval_node(rxn_count_spec, ctx)))
     else:
         rxn_count = int(rxn_count_spec)
+    _check_count(rxn_count, "background.reactions.count")
 
     # Generate background reactions (only use background molecules)
     if bg_molecules and rxn_count > 0:
@@ -747,6 +753,7 @@ def _process_containers(
         region_count = int(round(eval_node(region_count, ctx)))
     else:
         region_count = int(region_count)
+    _check_count(region_count, "containers.regions.count")
 
     # Get initial substrates config
     initial_substrates = regions_config.get("initial_substrates", {})
@@ -781,6 +788,7 @@ def _process_containers(
                 pop_count = int(round(eval_node(pop_spec, pop_ctx)))
             else:
                 pop_count = int(pop_spec)
+            _check_count(pop_count, "containers.populations.per_species_per_region")
 
             # Create organisms
             for o_idx in range(pop_count):

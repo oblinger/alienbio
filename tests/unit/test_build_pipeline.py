@@ -498,6 +498,121 @@ class TestErrorHandling:
 
 
 # =============================================================================
+# D2: Spec-derived count/replication caps (DoS amplification)
+# =============================================================================
+
+
+class TestSpecLimits:
+    """Untrusted specs must not be able to request unbounded entity counts."""
+
+    def test_replication_over_cap_raises(self):
+        """A huge replication range (_as_ x{i in 1..N}) is rejected."""
+        from alienbio import Bio, bio
+        from alienbio.build import parse_template, TemplateRegistry
+        from alienbio.build.expand import SpecLimitError, MAX_ENTITY_COUNT
+
+        registry = TemplateRegistry()
+        registry.register("species", parse_template({"molecules": {"M1": {}}}))
+
+        spec = {
+            "_instantiate_": {
+                "_as_ org{i in 1..2000000}": {"_template_": "species"},
+            }
+        }
+
+        with pytest.raises(SpecLimitError):
+            bio.build(spec, seed=42, registry=registry)
+
+    def test_replication_within_cap_works(self):
+        """A normal, small replication range still instantiates correctly."""
+        from alienbio import Bio, bio
+        from alienbio.build import parse_template, TemplateRegistry
+
+        registry = TemplateRegistry()
+        registry.register("species", parse_template({"molecules": {"M1": {}}}))
+
+        spec = {
+            "_instantiate_": {
+                "_as_ org{i in 1..3}": {"_template_": "species"},
+            }
+        }
+
+        scenario = bio.build(spec, seed=42, registry=registry)
+        gt = scenario._ground_truth_
+        assert len([m for m in gt["molecules"] if m.startswith("m.org")]) == 3
+
+    def test_replication_negative_range_raises(self):
+        """A replication range that resolves to a negative size is rejected."""
+        from alienbio import Bio, bio
+        from alienbio.build import parse_template, TemplateRegistry
+        from alienbio.build.expand import SpecLimitError
+
+        registry = TemplateRegistry()
+        registry.register("species", parse_template({"molecules": {"M1": {}}}))
+
+        spec = {
+            "_instantiate_": {
+                "_as_ org{i in 5..2}": {"_template_": "species"},
+            }
+        }
+
+        with pytest.raises(SpecLimitError):
+            bio.build(spec, seed=42, registry=registry)
+
+    def test_background_molecule_count_over_cap_raises(self):
+        """An over-cap background.molecules.count is rejected, not silently expanded."""
+        from alienbio import Bio, bio
+        from alienbio.build import TemplateRegistry
+        from alienbio.build.expand import SpecLimitError
+
+        spec = {"background": {"molecules": {"count": 5_000_000_000}}}
+
+        with pytest.raises(SpecLimitError):
+            bio.build(spec, seed=42, registry=TemplateRegistry())
+
+    def test_background_molecule_count_within_cap_works(self):
+        """A normal background.molecules.count still generates molecules."""
+        from alienbio import Bio, bio
+        from alienbio.build import TemplateRegistry
+
+        spec = {"background": {"molecules": {"count": 10}}}
+
+        scenario = bio.build(spec, seed=42, registry=TemplateRegistry())
+        gt = scenario._ground_truth_
+        assert len([m for m in gt["molecules"] if m.startswith("m.bg.")]) == 10
+
+    def test_containers_region_count_over_cap_raises(self):
+        """An over-cap containers.regions.count is rejected."""
+        from alienbio import Bio, bio
+        from alienbio.build import TemplateRegistry
+        from alienbio.build.expand import SpecLimitError
+
+        spec = {
+            "parameters": {
+                "containers": {"regions": {"count": 10_000_000_000}}
+            }
+        }
+
+        with pytest.raises(SpecLimitError):
+            bio.build(spec, seed=42, registry=TemplateRegistry())
+
+    def test_containers_region_count_negative_raises(self):
+        """A negative containers.regions.count is rejected."""
+        from alienbio import Bio, bio
+        from alienbio.build import TemplateRegistry
+        from alienbio.build.expand import SpecLimitError
+
+        spec = {
+            "parameters": {
+                "containers": {"regions": {"count": -1}}
+            }
+        }
+
+        with pytest.raises(SpecLimitError):
+            bio.build(spec, seed=42, registry=TemplateRegistry())
+
+
+# =============================================================================
 # Integration: Complete Pipeline Scenarios
 # =============================================================================
 

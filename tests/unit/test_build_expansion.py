@@ -248,7 +248,35 @@ class TestNestedInstantiation:
         # Should have no molecules from simple template
         assert not any("p" in k for k in expanded["molecules"])
 
-    
+
+    def test_replication_over_cap_raises(self, simple_registry):
+        """A huge replication range (D2) is rejected, not expanded (DoS amplification)."""
+        from alienbio.build import parse_template, apply_template
+        from alienbio.build.expand import SpecLimitError
+
+        parent = parse_template({
+            "_instantiate_": {
+                "_as_ p{i in 1..2000000}": {"_template_": "simple"}
+            }
+        })
+
+        with pytest.raises(SpecLimitError):
+            apply_template(parent, namespace="x", registry=simple_registry)
+
+
+    def test_key_expansion_over_cap_raises(self):
+        """A huge molecule key expansion range (M{i in 1..N}) is rejected (D2)."""
+        from alienbio.build import parse_template, apply_template
+        from alienbio.build.expand import SpecLimitError
+
+        template = parse_template({
+            "molecules": {"M{i in 1..2000000}": {}}
+        })
+
+        with pytest.raises(SpecLimitError):
+            apply_template(template, namespace="x")
+
+
     def test_multiple_nested(self, simple_registry):
         """Multiple _as_ blocks in same _instantiate_."""
         from alienbio.build import parse_template, apply_template

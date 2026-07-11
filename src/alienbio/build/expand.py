@@ -16,6 +16,45 @@ from .exceptions import PortTypeMismatchError, PortNotFoundError, MissingParamet
 # Pattern for molecule/reaction name expansion: "M{i in 1..3}"
 _EXPANSION_RE = re.compile(r'^(.+)\{(\w+)\s+in\s+(\d+)\.\.(\d+)\}(.*)$')
 
+# Upper bound on any single spec-derived entity count or replication range.
+#
+# Specs are agent-authored / untrusted. Without a cap, a single field like
+# ``count: 1000000000`` or ``_as_ x{i in 1..999999999}`` expands into a
+# billion molecules/reactions/organisms, exhausting memory/CPU (DoS). Every
+# spec-derived count/range is checked against this cap via `_check_count`.
+MAX_ENTITY_COUNT = 1_000_000
+
+
+class SpecLimitError(Exception):
+    """Raised when a spec requests more entities than MAX_ENTITY_COUNT allows.
+
+    Also raised for negative counts, which are never valid.
+    """
+
+    def __init__(self, field: str, requested: int, cap: int = MAX_ENTITY_COUNT):
+        self.field = field
+        self.requested = requested
+        self.cap = cap
+        if requested < 0:
+            msg = f"Spec field '{field}' requested a negative count ({requested})"
+        else:
+            msg = (
+                f"Spec field '{field}' requested {requested} entities, "
+                f"which exceeds the maximum allowed ({cap})"
+            )
+        super().__init__(msg)
+
+
+def _check_count(value: int, field: str, cap: int = MAX_ENTITY_COUNT) -> int:
+    """Validate a spec-derived count/range size.
+
+    Raises SpecLimitError if ``value`` is negative or exceeds ``cap``.
+    Returns ``value`` unchanged so callers can use this inline.
+    """
+    if value < 0 or value > cap:
+        raise SpecLimitError(field, value, cap)
+    return value
+
 
 class NameCollisionError(Exception):
     """Raised when two generated names collide onto the same key.
@@ -62,7 +101,9 @@ def _expand_keyed_items(
         match = _EXPANSION_RE.match(name)
         if match:
             prefix, var, start_s, end_s, suffix = match.groups()
-            for i in range(int(start_s), int(end_s) + 1):
+            start_i, end_i = int(start_s), int(end_s)
+            _check_count(end_i - start_i + 1, f"key expansion '{name}'")
+            for i in range(start_i, end_i + 1):
                 expanded_name = f"{prefix}{i}{suffix}"
                 if expanded_name in seen_names:
                     raise NameCollisionError(
@@ -194,6 +235,10 @@ def apply_template(
                         # Handle case where param is a float (from distribution sampling)
                         end_val = int(round(param_val)) if isinstance(param_val, float) else int(param_val)
 
+                    _check_count(
+                        end_val - start_val + 1,
+                        f"replication '_as_ {inst_name}{{{loop_var} in {start}..{end_expr}}}'",
+                    )
                     for i in range(start_val, end_val + 1):
                         sub_namespace = f"{namespace}.{inst_name}{i}"
                         if sub_namespace in used_sub_namespaces:
@@ -376,6 +421,10 @@ def _apply_template_with_ports(
                         param_val = effective_params.get(end_expr, 0)
                         end_val = int(round(param_val)) if isinstance(param_val, float) else int(param_val)
 
+                    _check_count(
+                        end_val - start_val + 1,
+                        f"replication '_as_ {inst_name}{{{loop_var} in {start}..{end_expr}}}'",
+                    )
                     for i in range(start_val, end_val + 1):
                         sub_namespace = f"{namespace}.{inst_name}{i}"
                         if sub_namespace in used_sub_namespaces:
