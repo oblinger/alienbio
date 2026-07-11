@@ -10,12 +10,15 @@ AgentSession manages the lifecycle of an experiment, providing:
 
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, cast
+import logging
 import random
 
 from .types import Action, ActionResult, Observation, ExperimentResults
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace
 from ..globals import Globals, create_globals_from_scenario
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -62,6 +65,10 @@ class AgentSession:
         self._done = False
         self._done_reason: Optional[str] = None
         self._is_first_observe = True
+
+        # Concurrent actions (wait=False, duration>0) that haven't completed
+        # yet: (action_index, completion_sim_time, result_event_data)
+        self._pending_completions: list[tuple[int, float, dict[str, Any]]] = []
 
         # Extract interface configuration
         interface = scenario.get("interface", {})
@@ -209,6 +216,31 @@ class AgentSession:
             completion_time=completion_time
         )
 
+    def _flush_completed_pending(self) -> None:
+        """Emit timeline result events for concurrent actions that have finished.
+
+        Concurrent actions (wait=False, duration>0) return with completed=None
+        and their completion event is deferred (see act()) so that
+        Timeline.pending() correctly reports them as still running. Once
+        simulation time has advanced past their scheduled completion, record
+        their result event.
+        """
+        if not self._pending_completions:
+            return
+
+        still_pending: list[tuple[int, float, dict[str, Any]]] = []
+        for action_index, completion_time, result_event_data in self._pending_completions:
+            if self._sim_time >= completion_time:
+                self._timeline.append(TimelineEvent(
+                    event_type="result",
+                    time=self._sim_time,
+                    data=result_event_data,
+                    step=self._step_count
+                ))
+            else:
+                still_pending.append((action_index, completion_time, result_event_data))
+        self._pending_completions = still_pending
+
     def act(self, action: Action) -> ActionResult:
         """Execute an action and return the result.
 
@@ -218,6 +250,10 @@ class AgentSession:
         Returns:
             ActionResult with success status, data, cost, etc.
         """
+        # Resolve any previously-issued concurrent actions that have since
+        # completed before recording a new one.
+        self._flush_completed_pending()
+
         # Record action in timeline
         action_index = len(self._timeline)
         self._timeline.append(TimelineEvent(
@@ -273,7 +309,13 @@ class AgentSession:
             completed = initiated
 
         # Track cost
+        was_within_budget = self._spent <= self._budget
         self._spent += result.cost
+        if was_within_budget and self._spent > self._budget:
+            logger.warning(
+                "Action %r pushed spend over budget: spent=%s > budget=%s",
+                action.name, self._spent, self._budget,
+            )
 
         # Create full ActionResult with all Observation fields
         final_result = self._make_action_result(
@@ -287,17 +329,26 @@ class AgentSession:
             completion_time=duration if wait and result.success else None
         )
 
-        # Record result in timeline
-        self._timeline.append(TimelineEvent(
-            event_type="result",
-            time=self._sim_time,
-            data={
-                "success": result.success,
-                "cost": result.cost,
-                "action_index": action_index
-            },
-            step=self._step_count
-        ))
+        # Record result in timeline. If the action is still running
+        # (completed is None, i.e. a concurrent wait=False action with
+        # duration>0), defer the completion event so Timeline.pending()
+        # correctly reports it as pending until it actually finishes.
+        result_event_data = {
+            "success": result.success,
+            "cost": result.cost,
+            "action_index": action_index
+        }
+        if completed is not None:
+            self._timeline.append(TimelineEvent(
+                event_type="result",
+                time=self._sim_time,
+                data=result_event_data,
+                step=self._step_count
+            ))
+        else:
+            self._pending_completions.append(
+                (action_index, initiated + duration, result_event_data)
+            )
 
         # Record in trace (action + resulting ActionResult which is an Observation)
         self._trace.append(action, final_result, self._step_count, result.cost)
@@ -401,6 +452,10 @@ class AgentSession:
         Returns:
             List of new timeline events
         """
+        # Resolve any concurrent actions that have completed since they were
+        # initiated, so polling observes their completion events.
+        self._flush_completed_pending()
+
         # Track last poll position
         if not hasattr(self, "_last_poll_index"):
             self._last_poll_index = 0
@@ -479,6 +534,11 @@ class AgentSession:
                 else:
                     scores[name] = float(scorer)
             except Exception as e:
+                logger.error(
+                    "Scoring function %r raised %s: %s (scorer=%r); recording score 0.0",
+                    name, type(e).__name__, e, scorer,
+                    exc_info=True,
+                )
                 scores[name] = 0.0
 
         # Add budget compliance score if not already present
@@ -497,12 +557,15 @@ class AgentSession:
         main_score = scores.get("score", scores.get("budget_compliance", 0.0))
         passing_score = self._scenario.get("passing_score", 0.5)
 
+        # An over-budget run must not pass, regardless of its main score.
+        within_budget = self._spent <= self._budget
+
         return ExperimentResults(
             scenario=self._scenario.get("name", "unknown"),
             seed=self._seed,
             scores=scores,
             trace=self._trace,
-            passed=main_score >= passing_score,
+            passed=(main_score >= passing_score) and within_budget,
             status="completed" if self._done else "incomplete",
             incomplete_reason=None if self._done else "not_done"
         )

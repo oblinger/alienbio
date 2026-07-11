@@ -307,18 +307,19 @@ class TestTimeline:
         assert len(recent) == 3
 
     def test_timeline_pending_in_concurrent_mode(self, concurrent_scenario):
-        """Timeline tracks pending (initiated but not completed) actions."""
+        """Timeline tracks pending (initiated but not completed) actions (F4)."""
         from alienbio.agent import AgentSession, Action
         session = AgentSession(concurrent_scenario)
 
         action = Action(name="slow_action", params={}, wait=False)
-        session.act(action)
+        result = session.act(action)
+        assert result.completed is None  # still running
 
         pending = session.timeline.pending()
-        # In current implementation, results are recorded immediately
-        # even in concurrent mode, so pending is empty
-        # This will change when async action completion is implemented
-        assert len(pending) == 0  # No true async yet
+        # The action is still in flight (completed is None), so its
+        # completion event must not have been recorded yet.
+        assert len(pending) == 1
+        assert pending[0].data["name"] == "slow_action"
 
     def test_timeline_since_index_for_polling(self, simple_scenario):
         """Timeline.since_index() supports polling pattern."""
@@ -960,6 +961,28 @@ class TestScoring:
         # budget_compliance is automatically added
         assert isinstance(scores["budget_compliance"], (int, float))
 
+    def test_broken_scorer_logs_and_scores_zero(self, simple_scenario, caplog):
+        """A scoring function that raises is logged, not silently swallowed (F2)."""
+        import logging
+        from alienbio.agent import AgentSession
+
+        def broken_scorer(trace):
+            raise ValueError("boom: scorer is broken")
+
+        simple_scenario["scoring"] = {"score": broken_scorer}
+        session = AgentSession(simple_scenario)
+
+        with caplog.at_level(logging.ERROR, logger="alienbio.agent.session"):
+            scores = session.score()
+
+        # Score still falls back to 0.0 (behavior unchanged)...
+        assert scores["score"] == 0.0
+        # ...but the exception is now observable via the log, not swallowed.
+        assert any(
+            "score" in record.message and "boom" in record.message
+            for record in caplog.records
+        )
+
     def test_budget_score_at_budget(self, simple_scenario):
         """budget_score returns 1.0 when at budget."""
         from alienbio.agent import AgentSession, Action
@@ -1056,6 +1079,38 @@ class TestExperimentResults:
         results = session.results()
         assert hasattr(results, "passed")
         assert isinstance(results.passed, bool)
+
+    def test_over_budget_run_fails(self, simple_scenario):
+        """A run that overspends its budget must not pass, even with a high score (F1)."""
+        from alienbio.agent import AgentSession, Action
+
+        # Force the main score to always be "passing" so only budget can fail it.
+        simple_scenario["scoring"] = {"score": lambda trace: 1.0}
+        simple_scenario["passing_score"] = 0.5
+        session = AgentSession(simple_scenario)
+
+        # Spend far beyond the budget (budget=20).
+        for _ in range(200):
+            action = Action(name="add_feedstock", params={"molecule": "M1", "amount": 1.0})
+            session.act(action)
+
+        results = session.results()
+        assert results.passed is False
+
+    def test_act_warns_when_spend_crosses_budget(self, simple_scenario, caplog):
+        """act() logs a warning the moment spend pushes over budget (F1)."""
+        import logging
+        from alienbio.agent import AgentSession, Action
+
+        session = AgentSession(simple_scenario)
+
+        with caplog.at_level(logging.WARNING, logger="alienbio.agent.session"):
+            for _ in range(21):  # budget=20, cost=1.0 per action
+                session.act(Action(name="add_feedstock", params={"molecule": "M1", "amount": 1.0}))
+
+        assert any(
+            "budget" in record.message.lower() for record in caplog.records
+        )
 
 
 # =============================================================================

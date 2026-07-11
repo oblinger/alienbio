@@ -87,6 +87,7 @@ def apply_template_with_guards(
     max_attempts: int = 10,
     registry: TemplateRegistry | None = None,
     scenario: dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Apply a template with guard validation.
 
@@ -102,6 +103,7 @@ def apply_template_with_guards(
         max_attempts: Maximum retry attempts (for retry mode)
         registry: Template registry for nested application
         scenario: Current scenario state (for guards that need it)
+        params: Parameter overrides (must survive guard retries)
 
     Returns:
         Applied template dict that passes all guards
@@ -113,7 +115,9 @@ def apply_template_with_guards(
 
     for attempt in range(max_attempts):
         # Apply the template
-        result = apply_template(template, namespace, registry=registry, seed=current_seed)
+        result = apply_template(
+            template, namespace, params=params, registry=registry, seed=current_seed
+        )
 
         context = make_guard_context(
             scenario=scenario,
@@ -138,13 +142,37 @@ def apply_template_with_guards(
                 current_seed = current_seed + 1
                 continue
             elif mode == "prune":
-                # Remove violating elements
+                # Remove violating elements, then re-validate: pruning can
+                # itself introduce new violations (e.g. a reaction left
+                # referencing a molecule that was just pruned), so the
+                # pruned result must satisfy all guards before it is
+                # returned.
                 for item in e.prune:
                     if item in result["molecules"]:
                         del result["molecules"][item]
                     if item in result["reactions"]:
                         del result["reactions"][item]
-                return result
+
+                for _ in range(max_attempts):
+                    try:
+                        for guard_func in guards:
+                            run_guard(guard_func, result, context)
+                        return result
+                    except GuardViolation as prune_violation:
+                        if not prune_violation.prune:
+                            # Nothing left to prune to satisfy this
+                            # violation - it cannot be auto-fixed.
+                            raise
+                        for item in prune_violation.prune:
+                            if item in result["molecules"]:
+                                del result["molecules"][item]
+                            if item in result["reactions"]:
+                                del result["reactions"][item]
+
+                raise GuardViolation(
+                    f"Guard validation still failing after pruning "
+                    f"{max_attempts} times (max_attempts exhausted)"
+                )
             else:
                 raise ValueError(f"Unknown guard mode: {mode}")
 

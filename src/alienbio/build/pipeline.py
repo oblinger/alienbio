@@ -6,16 +6,26 @@ Provides:
 
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any
 
 from alienbio.protocols import Scenario
 
 from .template import TemplateRegistry, parse_template, parse_interaction, parse_background, parse_containers
-from .expand import apply_template
+from .expand import apply_template, NameCollisionError, _merge_no_collision
 from .guards import apply_template_with_guards
 from .visibility import generate_visibility_mapping, apply_visibility
 from .exceptions import TemplateNotFoundError, CircularReferenceError, PortNotFoundError
+
+
+def _stable_hash(value: str) -> int:
+    """Deterministic string hash, stable across processes/machines.
+
+    Python's builtin ``hash(str)`` is salted per-process (PYTHONHASHSEED),
+    so it must never be used to derive reproducible seeds.
+    """
+    return int(hashlib.sha256(value.encode("utf-8")).hexdigest(), 16) % 1000
 
 
 def instantiate(
@@ -164,6 +174,7 @@ def _process_instantiations(
     # Collect all instantiation results and port info for cross-wiring
     applications: list[tuple[str, dict[str, Any]]] = []
     all_ports: dict[str, dict[str, Any]] = {}
+    used_namespaces: set[str] = set()
 
     for key, inst_data in instantiate.items():
         # Parse _as_ syntax
@@ -187,24 +198,40 @@ def _process_instantiations(
 
             for i in range(start_val, end_val + 1):
                 namespace = f"{inst_name}{i}"
+                if namespace in used_namespaces:
+                    raise NameCollisionError(
+                        namespace, f"replicating '_as_ {inst_name}{{{loop_var} in ...}}'"
+                    )
+                used_namespaces.add(namespace)
                 inst_result = _instantiate_single(
                     inst_data, namespace, registry, params, guards, seed + i,
                     seen_templates, available_ports,
                 )
-                result["molecules"].update(inst_result["molecules"])
-                result["reactions"].update(inst_result["reactions"])
+                _merge_no_collision(
+                    result["molecules"], inst_result["molecules"], f"instantiating '{namespace}'"
+                )
+                _merge_no_collision(
+                    result["reactions"], inst_result["reactions"], f"instantiating '{namespace}'"
+                )
                 applications.append((namespace, inst_data))
                 _collect_ports(inst_data, namespace, registry, all_ports)
                 _track_ports(inst_data, registry, available_ports)
         else:
             # Single instantiation: _as_ name
             namespace = inst_name
+            if namespace in used_namespaces:
+                raise NameCollisionError(namespace, f"instantiating '_as_ {inst_name}'")
+            used_namespaces.add(namespace)
             inst_result = _instantiate_single(
                 inst_data, namespace, registry, params, guards, seed,
                 seen_templates, available_ports,
             )
-            result["molecules"].update(inst_result["molecules"])
-            result["reactions"].update(inst_result["reactions"])
+            _merge_no_collision(
+                result["molecules"], inst_result["molecules"], f"instantiating '{namespace}'"
+            )
+            _merge_no_collision(
+                result["reactions"], inst_result["reactions"], f"instantiating '{namespace}'"
+            )
             applications.append((namespace, inst_data))
             _collect_ports(inst_data, namespace, registry, all_ports)
             _track_ports(inst_data, registry, available_ports)
@@ -321,6 +348,7 @@ def _instantiate_single(
             namespace=namespace,
             seed=seed,
             registry=registry,
+            params=effective_params,
         )
     else:
         # Use apply_template which handles port wiring and nested instantiation
@@ -746,10 +774,10 @@ def _process_containers(
             if isinstance(pop_spec, str) and pop_spec.startswith("!ev "):
                 expr = pop_spec[4:].strip()
                 # Create new context for each evaluation to get different samples
-                pop_ctx = make_context(seed=seed + r_idx * 1000 + hash(species) % 1000)
+                pop_ctx = make_context(seed=seed + r_idx * 1000 + _stable_hash(species))
                 pop_count = int(round(eval_node(Evaluable(source=expr), pop_ctx)))
             elif isinstance(pop_spec, Evaluable):
-                pop_ctx = make_context(seed=seed + r_idx * 1000 + hash(species) % 1000)
+                pop_ctx = make_context(seed=seed + r_idx * 1000 + _stable_hash(species))
                 pop_count = int(round(eval_node(pop_spec, pop_ctx)))
             else:
                 pop_count = int(pop_spec)

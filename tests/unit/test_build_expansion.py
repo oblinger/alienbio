@@ -216,7 +216,24 @@ class TestNestedInstantiation:
         assert "m.x.p1.M1" in expanded["molecules"]  # p1, not p.1
         assert "m.x.p2.M1" in expanded["molecules"]
 
-    
+
+    def test_replication_namespace_collision_raises(self, simple_registry):
+        """A separator-less concat collision (a{1..12} vs a1{2}) must raise, not clobber (M12)."""
+        from alienbio.build import parse_template, apply_template
+        from alienbio.build.expand import NameCollisionError
+
+        parent = parse_template({
+            "_instantiate_": {
+                "_as_ a{i in 1..2}": {"_template_": "simple"},
+                # "a1" here collides with "a{1..2}"'s i=1 iteration ("a" + "1").
+                "_as_ a1": {"_template_": "simple"},
+            }
+        })
+
+        with pytest.raises(NameCollisionError):
+            apply_template(parent, namespace="x", registry=simple_registry)
+
+
     def test_replication_zero_count(self, simple_registry):
         """Replication with count 0 creates no instances."""
         from alienbio.build import parse_template, apply_template
@@ -383,7 +400,64 @@ class TestPortWiring:
         with pytest.raises(PortNotFoundError):
             apply_template(parent, namespace="x", registry=wiring_registry)
 
-    
+
+    def test_port_connection_missing_local_port_declaration(self):
+        """Wiring a connection whose local side has no matching _ports_ entry raises (M10a)."""
+        from alienbio.build import parse_template, TemplateRegistry, apply_template, PortNotFoundError
+
+        registry = TemplateRegistry()
+        registry.register("provider", parse_template({
+            "reactions": {"work": {}},
+            "_ports_": {"reactions.work": "energy.out"}
+        }))
+        # No _ports_ declared here at all - "reactions.consume" is not a port.
+        registry.register("undeclared_consumer", parse_template({
+            "reactions": {"consume": {}}
+        }))
+
+        parent = parse_template({
+            "_instantiate_": {
+                "_as_ a": {"_template_": "provider"},
+                "_as_ b": {
+                    "_template_": "undeclared_consumer",
+                    "reactions.consume": "a.reactions.work"
+                }
+            }
+        })
+
+        with pytest.raises(PortNotFoundError):
+            apply_template(parent, namespace="x", registry=registry)
+
+    def test_port_connection_missing_local_wiring_target(self):
+        """Wiring to a declared port whose reaction/molecule doesn't exist raises (M10b)."""
+        from alienbio.build import parse_template, TemplateRegistry, apply_template, PortNotFoundError
+
+        registry = TemplateRegistry()
+        registry.register("provider", parse_template({
+            "reactions": {"work": {}},
+            "_ports_": {"reactions.work": "energy.out"}
+        }))
+        # Port is declared for "reactions.build", but "build" is never
+        # actually defined in reactions - a dangling port declaration.
+        registry.register("mismatched_consumer", parse_template({
+            "reactions": {"consume": {}},
+            "_ports_": {"reactions.build": "energy.in"}
+        }))
+
+        parent = parse_template({
+            "_instantiate_": {
+                "_as_ a": {"_template_": "provider"},
+                "_as_ b": {
+                    "_template_": "mismatched_consumer",
+                    "reactions.build": "a.reactions.work"
+                }
+            }
+        })
+
+        with pytest.raises(PortNotFoundError):
+            apply_template(parent, namespace="x", registry=registry)
+
+
     def test_multiple_port_connections(self, wiring_registry):
         """Multiple port connections in same instantiation."""
         from alienbio.build import parse_template, TemplateRegistry, apply_template

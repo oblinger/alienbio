@@ -284,7 +284,9 @@ class TestSimulatorEdgeCases:
         new_state = sim.step(state)
 
         assert new_state["A"] == 0.0
-        assert new_state["B"] == pytest.approx(0.1)  # Still produces
+        # With C1 fix: no reactant available means no extent, so no product
+        # is created from nothing (mass conservation).
+        assert new_state["B"] == pytest.approx(0.0)
 
     def test_very_small_dt(self):
         """Very small dt produces proportionally small changes."""
@@ -539,3 +541,30 @@ class TestConservationLaws:
         conserved = final["A"] + 2 * final["B"]
 
         assert conserved == pytest.approx(10.0, rel=0.01)
+
+    def test_no_mass_created_after_reactant_depletes(self):
+        """Once a reactant depletes, total mass must not keep climbing (C1 regression)."""
+        a = MoleculeImpl("A", dat=MockDat("mol/A"))
+        b = MoleculeImpl("B", dat=MockDat("mol/B"))
+
+        # A -> B, rate 1.0 with dt 1.0 will fully deplete A after 2 steps
+        r1 = ReactionImpl("r1", reactants={a: 1}, products={b: 1}, rate=1.0, dat=MockDat("rxn/r1"))
+
+        chem = ChemistryImpl(
+            "test", molecules={"A": a, "B": b}, reactions={"r1": r1}, dat=MockDat("chem/test")
+        )
+        state = StateImpl(chem, initial={"A": 2.0, "B": 0.0})
+        sim = ReferenceSimulatorImpl(chem, dt=1.0)
+
+        timeline = sim.run(state, steps=10)
+
+        totals = [s["A"] + s["B"] for s in timeline]
+        initial_total = totals[0]
+        for total in totals[1:]:
+            assert total <= initial_total + 1e-9
+
+        # A should be fully (not negatively) depleted and B should equal the
+        # original amount of A, not more.
+        final = timeline[-1]
+        assert final["A"] == pytest.approx(0.0)
+        assert final["B"] == pytest.approx(2.0)
