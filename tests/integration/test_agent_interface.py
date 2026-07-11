@@ -961,6 +961,28 @@ class TestScoring:
         # budget_compliance is automatically added
         assert isinstance(scores["budget_compliance"], (int, float))
 
+    def test_broken_scorer_logs_and_scores_zero(self, simple_scenario, caplog):
+        """A scoring function that raises is logged, not silently swallowed (F2)."""
+        import logging
+        from alienbio.agent import AgentSession
+
+        def broken_scorer(trace):
+            raise ValueError("boom: scorer is broken")
+
+        simple_scenario["scoring"] = {"score": broken_scorer}
+        session = AgentSession(simple_scenario)
+
+        with caplog.at_level(logging.ERROR, logger="alienbio.agent.session"):
+            scores = session.score()
+
+        # Score still falls back to 0.0 (behavior unchanged)...
+        assert scores["score"] == 0.0
+        # ...but the exception is now observable via the log, not swallowed.
+        assert any(
+            "score" in record.message and "boom" in record.message
+            for record in caplog.records
+        )
+
     def test_budget_score_at_budget(self, simple_scenario):
         """budget_score returns 1.0 when at budget."""
         from alienbio.agent import AgentSession, Action

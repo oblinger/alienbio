@@ -10,12 +10,15 @@ AgentSession manages the lifecycle of an experiment, providing:
 
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, cast
+import logging
 import random
 
 from .types import Action, ActionResult, Observation, ExperimentResults
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace
 from ..globals import Globals, create_globals_from_scenario
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -525,6 +528,11 @@ class AgentSession:
                 else:
                     scores[name] = float(scorer)
             except Exception as e:
+                logger.error(
+                    "Scoring function %r raised %s: %s (scorer=%r); recording score 0.0",
+                    name, type(e).__name__, e, scorer,
+                    exc_info=True,
+                )
                 scores[name] = 0.0
 
         # Add budget compliance score if not already present
