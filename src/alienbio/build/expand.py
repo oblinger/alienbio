@@ -380,30 +380,40 @@ def _apply_port_connections(
         if target_expanded_port is None:
             raise PortNotFoundError(target_ref, f"referenced from {namespace}")
 
-        # If local port exists, validate types
-        if local_expanded_port is not None:
-            local_port = local_expanded_port["port"]
-            target_port = target_expanded_port["port"]
+        # The local side must declare a matching port too, otherwise there is
+        # nothing to type-check the connection against and the wiring would
+        # be applied blind.
+        if local_expanded_port is None:
+            raise PortNotFoundError(local_port_path, f"local port not declared in {namespace}")
 
-            if not ports_compatible(local_port, target_port):
-                raise PortTypeMismatchError(
-                    local_port_path,
-                    f"{local_port['type']}.{local_port['direction']}",
-                    target_ref,
-                    f"{target_port['type']}.{target_port['direction']}",
-                )
+        local_port = local_expanded_port["port"]
+        target_port = target_expanded_port["port"]
+
+        if not ports_compatible(local_port, target_port):
+            raise PortTypeMismatchError(
+                local_port_path,
+                f"{local_port['type']}.{local_port['direction']}",
+                target_ref,
+                f"{target_port['type']}.{target_port['direction']}",
+            )
 
         # Apply the connection by updating the local reaction/molecule
         if local_port_path.startswith("reactions."):
             rxn_name = local_port_path[len("reactions."):]
             namespaced_rxn = f"r.{namespace}.{rxn_name}"
-            if namespaced_rxn in result["reactions"]:
-                result["reactions"][namespaced_rxn]["energy_source"] = target_expanded_port["namespaced_path"]
+            if namespaced_rxn not in result["reactions"]:
+                raise PortNotFoundError(
+                    namespaced_rxn, f"local wiring target missing from {namespace}"
+                )
+            result["reactions"][namespaced_rxn]["energy_source"] = target_expanded_port["namespaced_path"]
         elif local_port_path.startswith("molecules."):
             mol_name = local_port_path[len("molecules."):]
             namespaced_mol = f"m.{namespace}.{mol_name}"
-            if namespaced_mol in result["molecules"]:
-                result["molecules"][namespaced_mol]["source"] = target_expanded_port["namespaced_path"]
+            if namespaced_mol not in result["molecules"]:
+                raise PortNotFoundError(
+                    namespaced_mol, f"local wiring target missing from {namespace}"
+                )
+            result["molecules"][namespaced_mol]["source"] = target_expanded_port["namespaced_path"]
 
 
 def _resolve_port_path(path: str, namespace: str) -> str:
