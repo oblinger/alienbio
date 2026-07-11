@@ -87,6 +87,7 @@ def apply_template_with_guards(
     max_attempts: int = 10,
     registry: TemplateRegistry | None = None,
     scenario: dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Apply a template with guard validation.
 
@@ -102,6 +103,7 @@ def apply_template_with_guards(
         max_attempts: Maximum retry attempts (for retry mode)
         registry: Template registry for nested application
         scenario: Current scenario state (for guards that need it)
+        params: Parameter overrides (must survive guard retries)
 
     Returns:
         Applied template dict that passes all guards
@@ -113,7 +115,9 @@ def apply_template_with_guards(
 
     for attempt in range(max_attempts):
         # Apply the template
-        result = apply_template(template, namespace, registry=registry, seed=current_seed)
+        result = apply_template(
+            template, namespace, params=params, registry=registry, seed=current_seed
+        )
 
         context = make_guard_context(
             scenario=scenario,

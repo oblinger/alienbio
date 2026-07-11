@@ -331,6 +331,7 @@ def _instantiate_single(
             namespace=namespace,
             seed=seed,
             registry=registry,
+            params=effective_params,
         )
     else:
         # Use apply_template which handles port wiring and nested instantiation

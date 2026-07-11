@@ -431,6 +431,31 @@ class TestGuardModes:
         assert len(set(seeds)) == 3
 
 
+    def test_params_survive_with_active_guards(self):
+        """Parameter overrides must not be dropped when guards are active (H6)."""
+        from alienbio.build import guard, apply_template_with_guards, parse_template
+
+        template = parse_template({
+            "_params_": {"rate": 0.1},
+            "reactions": {"r1": {"rate": "!ref rate"}}
+        })
+
+        @guard
+        def always_pass(expanded, context):
+            return True
+
+        result = apply_template_with_guards(
+            template,
+            guards=[always_pass],
+            mode="retry",
+            namespace="x",
+            seed=42,
+            params={"rate": 0.5},
+        )
+
+        assert result["reactions"]["r.x.r1"]["rate"] == 0.5
+
+
 # =============================================================================
 # G4.4 - Guards in YAML
 # =============================================================================
