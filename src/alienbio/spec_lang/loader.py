@@ -62,18 +62,29 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
 
     Rules:
         - Dicts are deep-merged
-        - null (~) removes the key
+        - null (~) removes the key — consistently, at *every* nesting level.
+          A None value in an override never survives as a literal null: if a
+          matching key exists it is removed; if none exists it is simply
+          omitted. This holds whether the override dict is merged onto an
+          existing dict or placed fresh where the base had a non-dict/absent
+          value (previously the "replace" branch copied nested nulls verbatim).
         - All other values replace
     """
     result = copy.deepcopy(base)
 
     for key, value in override.items():
         if value is None:
-            # Explicit null removes the key
+            # Explicit null removes the key.
             result.pop(key, None)
-        elif isinstance(value, dict) and isinstance(result.get(key), dict):
-            # Deep merge dicts
-            result[key] = deep_merge(result[key], value)
+        elif isinstance(value, dict):
+            if isinstance(result.get(key), dict):
+                # Deep merge dicts (nested None removes from the base).
+                result[key] = deep_merge(result[key], value)
+            else:
+                # Fresh dict (no base dict to merge onto). Merge onto an empty
+                # base so nested None still means "remove" — i.e. is dropped
+                # rather than stored as a literal null.
+                result[key] = deep_merge({}, value)
         else:
             # Replace value
             result[key] = copy.deepcopy(value)
