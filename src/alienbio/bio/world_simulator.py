@@ -182,16 +182,29 @@ class WorldSimulatorImpl:
 
         rate *= self._dt
 
-        # Consume reactants
+        # C1 fix: the reaction "extent" for this step is `rate`, but it must be
+        # limited by the substrate actually available so we never manufacture
+        # product mass once a reactant depletes. Clamp extent to the tightest
+        # per-reactant availability, then apply the SAME extent to reactants and
+        # products so total mass is conserved (non-increasing).
+        # TODO(H4): competing-reactant global extent -- two reactions sharing a
+        #           reactant can still jointly over-consume within one step.
+        extent = rate
+        for mol_id, stoich in reaction.reactants.items():
+            if stoich > 0:
+                current = state.get(compartment, mol_id)
+                extent = min(extent, current / stoich)
+        extent = max(0.0, extent)
+
+        # Consume reactants (now provably >= 0)
         for mol_id, stoich in reaction.reactants.items():
             current = state.get(compartment, mol_id)
-            new_val = max(0.0, current - rate * stoich)
-            state.set(compartment, mol_id, new_val)
+            state.set(compartment, mol_id, current - extent * stoich)
 
         # Produce products
         for mol_id, stoich in reaction.products.items():
             current = state.get(compartment, mol_id)
-            state.set(compartment, mol_id, current + rate * stoich)
+            state.set(compartment, mol_id, current + extent * stoich)
 
     def run(
         self,
