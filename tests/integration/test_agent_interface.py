@@ -307,18 +307,19 @@ class TestTimeline:
         assert len(recent) == 3
 
     def test_timeline_pending_in_concurrent_mode(self, concurrent_scenario):
-        """Timeline tracks pending (initiated but not completed) actions."""
+        """Timeline tracks pending (initiated but not completed) actions (F4)."""
         from alienbio.agent import AgentSession, Action
         session = AgentSession(concurrent_scenario)
 
         action = Action(name="slow_action", params={}, wait=False)
-        session.act(action)
+        result = session.act(action)
+        assert result.completed is None  # still running
 
         pending = session.timeline.pending()
-        # In current implementation, results are recorded immediately
-        # even in concurrent mode, so pending is empty
-        # This will change when async action completion is implemented
-        assert len(pending) == 0  # No true async yet
+        # The action is still in flight (completed is None), so its
+        # completion event must not have been recorded yet.
+        assert len(pending) == 1
+        assert pending[0].data["name"] == "slow_action"
 
     def test_timeline_since_index_for_polling(self, simple_scenario):
         """Timeline.since_index() supports polling pattern."""
