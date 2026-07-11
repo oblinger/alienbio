@@ -403,7 +403,54 @@ class TestGuardModes:
         assert "m.x.small" in result["molecules"]
         assert "m.x.big" not in result["molecules"]
 
-    
+
+    def test_prune_mode_revalidates_dangling_reference(self):
+        """Pruning must be re-validated, catching a dangling reference it creates (M11)."""
+        from alienbio.build import guard, apply_template_with_guards, GuardViolation, parse_template
+
+        template = parse_template({
+            "molecules": {
+                "small": {"size": 1},
+                "big": {"size": 100}
+            },
+            "reactions": {
+                "r1": {"reactants": ["big"], "products": ["small"]}
+            }
+        })
+
+        @guard
+        def no_big_molecules(expanded, context):
+            violations = [m for m in expanded.get("molecules", {}) if "big" in m]
+            if violations:
+                raise GuardViolation("Too big", prune=violations)
+            return True
+
+        @guard
+        def no_dangling_references(expanded, context):
+            molecules = expanded.get("molecules", {})
+            for rxn_name, rxn_data in expanded.get("reactions", {}).items():
+                refs = list(rxn_data.get("reactants", [])) + list(rxn_data.get("products", []))
+                dangling = [m for m in refs if m not in molecules]
+                if dangling:
+                    # No prune target: this cannot be auto-fixed, only detected.
+                    raise GuardViolation(
+                        f"Reaction '{rxn_name}' references pruned molecule(s): {dangling}"
+                    )
+            return True
+
+        # Pruning "big" leaves reaction r1 dangling on its reactant; the
+        # re-validation pass must catch this rather than silently returning
+        # a result that still violates a guard.
+        with pytest.raises(GuardViolation) as exc:
+            apply_template_with_guards(
+                template,
+                guards=[no_big_molecules, no_dangling_references],
+                mode="prune",
+                namespace="x"
+            )
+        assert "dangling" in str(exc.value).lower() or "references" in str(exc.value).lower()
+
+
     def test_retry_increments_seed(self, simple_template):
         """Each retry attempt uses different seed."""
         from alienbio.build import guard, apply_template_with_guards, GuardViolation
