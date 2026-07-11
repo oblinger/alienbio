@@ -87,10 +87,25 @@ class ReferenceSimulatorImpl(SimulatorBase):
     """Reference implementation: Basic simulator applying reactions once per step.
 
     This is the reference implementation for testing and validation.
-    For each reaction:
-    - Compute rate (constant or from rate function)
-    - Subtract rate * coefficient from each reactant
-    - Add rate * coefficient to each product
+    Each step is order-independent and simultaneous (H4):
+
+    - Every reaction's desired extent is computed from the SAME frozen
+      start-of-step state (rate * dt).
+    - Competition for shared reactants is resolved so no molecule goes
+      negative, using single-pass proportional min-ratio scaling: for each
+      molecule ``demand = Σ_reactions extent * consumption_coef`` and
+      ``ratio = min(1, available / demand)``; each reaction scales by the
+      tightest ratio over its own reactants. This is a provably
+      non-negative, order-independent, mass-conserving simultaneous scheme
+      (an "equivalent scheme" per the H4 spec). One pass suffices for
+      correctness: for any molecule m the total consumption is
+      ``Σ_r desired_r · scale_r · coef_r(m) ≤ ratio_m · demand_m ≤ available_m``
+      because ``scale_r ≤ ratio_m`` for every reactant m of r. It also
+      reduces exactly to the C1 single-substrate clamp when reactions do not
+      compete. (A multiplicative iterative relaxation was rejected: it only
+      shrinks scales monotonically and never reclaims freed capacity, so it
+      is strictly more conservative than the single-pass fixed point.)
+    - All final extents are applied simultaneously to a fresh copy.
 
     Note: This is a simple Euler-style implementation. For more
     accurate kinetics, use specialized simulators (JAX, etc.).
@@ -99,30 +114,64 @@ class ReferenceSimulatorImpl(SimulatorBase):
     __slots__ = ()
 
     def step(self, state: StateImpl) -> StateImpl:
-        """Apply all reactions once."""
+        """Apply all reactions once, with order-independent simultaneous extent.
+
+        H4 fix: reactions are no longer applied one-at-a-time reading each
+        other's partial updates (which made the result depend on reaction
+        ordering and let two reactions sharing a reactant jointly over-consume).
+        Instead every reaction's desired extent is computed from the SAME
+        frozen start-of-step state, competition for shared reactants is resolved
+        by a single-pass proportional min-ratio scaling (see module note below),
+        and all final extents are applied simultaneously to a fresh copy.
+        """
         new_state = state.copy()
+        reactions = list(self._chemistry.reactions.values())
 
-        for reaction in self._chemistry.reactions.values():
-            # Get effective rate for this state
+        # 1. Desired extent for every reaction, from the FROZEN start state.
+        desired: List[float] = []
+        for reaction in reactions:
             rate = reaction.get_rate(state) * self._dt
+            desired.append(max(0.0, rate))
 
-            # Clamp the reaction extent to the substrate actually available so
-            # that products are never created from nothing (mass conservation).
-            # TODO(H4): competing reactants sharing one reactant can still
-            # jointly over-consume (global extent).
-            extent = rate
+        # 2. Resolve competition. demand[m] = total consumption of molecule m
+        #    across all reactions at their desired extents (frozen state).
+        demand: dict = {}
+        for reaction, ext in zip(reactions, desired):
+            if ext <= 0.0:
+                continue
             for molecule, coef in reaction.reactants.items():
                 if coef > 0:
-                    extent = min(extent, new_state.get_molecule(molecule) / coef)
-            extent = max(0.0, extent)
+                    demand[molecule.name] = (
+                        demand.get(molecule.name, 0.0) + ext * coef
+                    )
 
-            # Apply reaction: consume reactants, produce products
+        # Per-molecule feasible fraction: min(1, available / demand).
+        ratio: dict = {}
+        for reaction in reactions:
             for molecule, coef in reaction.reactants.items():
-                current = new_state.get_molecule(molecule)
-                new_state.set_molecule(molecule, current - extent * coef)
+                if coef > 0 and molecule.name in demand and molecule.name not in ratio:
+                    dem = demand[molecule.name]
+                    avail = state.get_molecule(molecule)
+                    ratio[molecule.name] = min(1.0, avail / dem) if dem > 0 else 1.0
 
+        # Each reaction scales by the tightest fraction over its reactants.
+        extents: List[float] = []
+        for reaction, ext in zip(reactions, desired):
+            scale = 1.0
+            for molecule, coef in reaction.reactants.items():
+                if coef > 0:
+                    scale = min(scale, ratio.get(molecule.name, 1.0))
+            extents.append(ext * scale)
+
+        # 3. Apply all reactions SIMULTANEOUSLY to the fresh copy.
+        for reaction, ext in zip(reactions, extents):
+            for molecule, coef in reaction.reactants.items():
+                new_state.set_molecule(
+                    molecule, new_state.get_molecule(molecule) - ext * coef
+                )
             for molecule, coef in reaction.products.items():
-                current = new_state.get_molecule(molecule)
-                new_state.set_molecule(molecule, current + extent * coef)
+                new_state.set_molecule(
+                    molecule, new_state.get_molecule(molecule) + ext * coef
+                )
 
         return new_state

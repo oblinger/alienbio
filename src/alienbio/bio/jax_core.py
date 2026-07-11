@@ -11,18 +11,18 @@ Design notes
 * **Compartments and molecules are fully vectorized** (M24.1/M24.2): the
   per-reaction math is expressed as array ops across all compartments and
   molecules at once, using padded ``[Rn, M]`` stoichiometry matrices.
-* **Reactions are applied sequentially** (a Python loop that XLA unrolls at
-  trace time).  This is deliberate: ``WorldSimulatorImpl`` applies reactions
-  sequentially within a step, and each reaction sees the state left by the
-  previous one.  Fusing the reaction axis into a single simultaneous tensor
-  update would change the semantics to "all rates from step-start state,"
-  which diverges from the reference for reactions that share molecules.
-  Keeping the sequential loop preserves *exact* parity.
-  TODO(H4): a reaction-axis-fused simultaneous kernel (competing-reactant
-            global extent) is a documented follow-up, not implemented here.
-* **C1 mass-conservation fix** is applied identically to the scalar
-  reference: each reaction's extent is clamped to the tightest available
-  substrate before being applied to both reactants and products.
+* **Reactions are applied simultaneously** (H4): the reaction axis is fused
+  into a single tensor update.  Every reaction's desired extent is computed
+  from the SAME frozen start-of-step state; competition for shared reactants
+  is resolved by single-pass proportional min-ratio scaling (identical to the
+  scalar ``ReferenceSimulatorImpl`` / ``WorldSimulatorImpl``); the net stoich
+  update is applied in one ``extentᵀ · (P - R)`` matmul.  This is
+  order-independent, provably non-negative, mass-conserving, and reduces to
+  the C1 clamp when reactions do not compete -- so it matches the scalar
+  simulators, which now use the same simultaneous scheme.
+* **C1 mass-conservation fix** is subsumed by the simultaneous scheme: for a
+  single reaction the proportional ratio collapses to the old tightest-
+  available-substrate clamp.
 """
 
 from __future__ import annotations
@@ -110,33 +110,52 @@ def apply_reactions(
     comp_mask: "jnp.ndarray",
     dt: float,
 ) -> "jnp.ndarray":
-    """Apply all reactions to state ``S`` [C, M], vectorized across C and M.
+    """Apply all reactions to state ``S`` [C, M] simultaneously (H4).
 
-    Reactions are applied sequentially (per-compartment order matches
-    ``WorldSimulatorImpl``).  Each reaction:
+    Order-independent, provably non-negative, mass-conserving. Every reaction's
+    desired extent is read from the frozen ``S``; shared reactants are rationed
+    by single-pass proportional min-ratio scaling; the fused net update is one
+    matmul.  Shapes: reactions ``Rn``, compartments ``C``, molecules ``M``.
 
-      rate[c]   = k * prod_m S[c, m] ** r_stoich[m] * dt          (mass action)
-      max_ext[c]= min_m ( S[c, m] / r_stoich[m] )  over reactants (C1 clamp)
-      extent[c] = clip(rate, 0, max_ext) * comp_mask[c]
-      S        += extent[:, None] * (p_stoich - r_stoich)[None, :]
+      desired[r, c] = clip(k[r] * Π_m S[c, m] ** R[r, m] * dt, 0) * comp_mask[r, c]
+      demand[c, m]  = Σ_r desired[r, c] * R[r, m]                    (consumption)
+      ratio[c, m]   = min(1, S[c, m] / demand[c, m])   (1 where demand == 0)
+      scale[r, c]   = min_{m : R[r, m] > 0} ratio[c, m]   (1 if r has no reactant)
+      extent[r, c]  = desired[r, c] * scale[r, c]
+      S            += extentᵀ · (P - R)
+
+    Non-negativity: for any (c, m),
+      Σ_r extent[r, c] R[r, m] = Σ_r desired[r, c] scale[r, c] R[r, m]
+                              ≤ ratio[c, m] · demand[c, m] ≤ S[c, m],
+    since scale[r, c] ≤ ratio[c, m] for every reactant m of r.
     """
     rn = r_stoich.shape[0]
     net = p_stoich - r_stoich  # [Rn, M]
+    if rn == 0:
+        return S
+
     inf = jnp.array(jnp.inf, dtype=S.dtype)
-    for i in range(rn):
-        rs = r_stoich[i][None, :]  # [1, M]
-        is_reactant = rs > 0
-        # Mass-action rate per compartment. 0**0 == 1 in jnp, so non-reactant
-        # molecules (stoich 0) contribute a factor of 1.
-        powers = S ** rs  # [C, M]
-        rate = k[i] * jnp.prod(powers, axis=1) * dt  # [C]
-        # C1 extent clamp: limit by the tightest available substrate.
-        safe_rs = jnp.where(is_reactant, rs, jnp.ones_like(rs))
-        cap = jnp.where(is_reactant, S / safe_rs, inf)  # [C, M]
-        max_ext = jnp.min(cap, axis=1)  # [C]
-        extent = jnp.clip(rate, 0.0, max_ext) * comp_mask[i]  # [C]
-        S = S + extent[:, None] * net[i][None, :]
-    return S
+    is_reactant = r_stoich > 0  # [Rn, M]
+    has_reactant = jnp.any(is_reactant, axis=1)  # [Rn]
+
+    # desired[r, c]: mass-action rate from the frozen state. 0**0 == 1 in jnp,
+    # so non-reactant molecules (stoich 0) contribute a factor of 1.
+    powers = S[None, :, :] ** r_stoich[:, None, :]  # [Rn, C, M]
+    rate = k[:, None] * jnp.prod(powers, axis=2) * dt  # [Rn, C]
+    desired = jnp.maximum(rate, 0.0) * comp_mask  # [Rn, C]
+
+    # demand[c, m] = total consumption of molecule m across reactions.
+    demand = jnp.einsum("rc,rm->cm", desired, r_stoich)  # [C, M]
+    safe_demand = jnp.where(demand > 0, demand, jnp.ones_like(demand))
+    ratio = jnp.where(demand > 0, jnp.minimum(1.0, S / safe_demand), 1.0)  # [C, M]
+
+    # scale[r, c] = tightest ratio over r's reactants (1 if r has no reactant).
+    masked = jnp.where(is_reactant[:, None, :], ratio[None, :, :], inf)  # [Rn,C,M]
+    scale = jnp.min(masked, axis=2)  # [Rn, C]
+    scale = jnp.where(has_reactant[:, None], scale, 1.0)
+
+    extent = desired * scale  # [Rn, C]
+    return S + jnp.einsum("rc,rm->cm", extent, net)
 
 
 def apply_native_flows(

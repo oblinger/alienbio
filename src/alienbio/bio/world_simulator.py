@@ -155,14 +155,18 @@ class WorldSimulatorImpl:
         """
         new_state = state.copy()
 
-        # Apply reactions in each compartment
-        for reaction in self._reactions:
-            compartments = reaction.compartments
-            if compartments is None:
-                compartments = range(self._tree.num_compartments)
-
-            for comp in compartments:
-                self._apply_reaction(new_state, reaction, comp)
+        # Apply reactions per compartment with order-independent simultaneous
+        # extent (H4). Reactions never cross compartments, so grouping by
+        # compartment is equivalent to the old global loop but lets us resolve
+        # competition among all reactions active in a compartment at once.
+        for comp in range(self._tree.num_compartments):
+            active = [
+                reaction
+                for reaction in self._reactions
+                if reaction.compartments is None or comp in reaction.compartments
+            ]
+            if active:
+                self._apply_reactions(new_state, state, active, comp)
 
         # Apply flows between compartments
         for flow in self._flows:
@@ -170,44 +174,65 @@ class WorldSimulatorImpl:
 
         return new_state
 
-    def _apply_reaction(
+    def _apply_reactions(
         self,
-        state: WorldStateImpl,
-        reaction: ReactionSpec,
+        new_state: WorldStateImpl,
+        frozen: WorldStateImpl,
+        reactions: List[ReactionSpec],
         compartment: CompartmentId,
     ) -> None:
-        """Apply a single reaction in a compartment."""
-        # Compute rate using mass-action kinetics
-        rate = reaction.rate_constant
-        for mol_id, stoich in reaction.reactants.items():
-            conc = state.get(compartment, mol_id)
-            rate *= conc ** stoich
+        """Apply all reactions active in a compartment simultaneously (H4).
 
-        rate *= self._dt
+        Desired extents are read from the FROZEN start-of-step state; shared
+        reactants are rationed by single-pass proportional min-ratio scaling
+        (see ReferenceSimulatorImpl for the non-negativity proof); the final
+        extents are applied together to ``new_state``. This is order-independent
+        and reduces to the C1 clamp when reactions do not compete.
+        """
+        # 1. Desired extent per reaction from the frozen state (mass-action).
+        desired: List[float] = []
+        for reaction in reactions:
+            rate = reaction.rate_constant
+            for mol_id, stoich in reaction.reactants.items():
+                rate *= frozen.get(compartment, mol_id) ** stoich
+            rate *= self._dt
+            desired.append(max(0.0, rate))
 
-        # C1 fix: the reaction "extent" for this step is `rate`, but it must be
-        # limited by the substrate actually available so we never manufacture
-        # product mass once a reactant depletes. Clamp extent to the tightest
-        # per-reactant availability, then apply the SAME extent to reactants and
-        # products so total mass is conserved (non-increasing).
-        # TODO(H4): competing-reactant global extent -- two reactions sharing a
-        #           reactant can still jointly over-consume within one step.
-        extent = rate
-        for mol_id, stoich in reaction.reactants.items():
-            if stoich > 0:
-                current = state.get(compartment, mol_id)
-                extent = min(extent, current / stoich)
-        extent = max(0.0, extent)
+        # 2. Competition: demand per molecule, then per-molecule feasible ratio.
+        demand: Dict[MoleculeId, float] = {}
+        for reaction, ext in zip(reactions, desired):
+            if ext <= 0.0:
+                continue
+            for mol_id, stoich in reaction.reactants.items():
+                if stoich > 0:
+                    demand[mol_id] = demand.get(mol_id, 0.0) + ext * stoich
 
-        # Consume reactants (now provably >= 0)
-        for mol_id, stoich in reaction.reactants.items():
-            current = state.get(compartment, mol_id)
-            state.set(compartment, mol_id, current - extent * stoich)
+        ratio: Dict[MoleculeId, float] = {}
+        for mol_id, dem in demand.items():
+            avail = frozen.get(compartment, mol_id)
+            ratio[mol_id] = min(1.0, avail / dem) if dem > 0 else 1.0
 
-        # Produce products
-        for mol_id, stoich in reaction.products.items():
-            current = state.get(compartment, mol_id)
-            state.set(compartment, mol_id, current + extent * stoich)
+        # Each reaction scales by the tightest ratio over its reactants.
+        # 3. Apply simultaneously.
+        for reaction, ext in zip(reactions, desired):
+            scale = 1.0
+            for mol_id, stoich in reaction.reactants.items():
+                if stoich > 0:
+                    scale = min(scale, ratio.get(mol_id, 1.0))
+            extent = ext * scale
+
+            for mol_id, stoich in reaction.reactants.items():
+                new_state.set(
+                    compartment,
+                    mol_id,
+                    new_state.get(compartment, mol_id) - extent * stoich,
+                )
+            for mol_id, stoich in reaction.products.items():
+                new_state.set(
+                    compartment,
+                    mol_id,
+                    new_state.get(compartment, mol_id) + extent * stoich,
+                )
 
     def run(
         self,
