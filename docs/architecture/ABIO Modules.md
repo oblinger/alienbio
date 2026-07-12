@@ -95,7 +95,7 @@ Template instantiation pipeline for expanding parameterized specs.
 
 ## Module Documentation
 
-- **[Scope](modules/Scope.md)** — Hierarchical namespace resolution and inheritance
+- **[[Scope]]** — Hierarchical namespace resolution and inheritance
 
 ### Pending Documentation
 

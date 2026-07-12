@@ -22,18 +22,6 @@ A 3-molecule homeostatic system (zynol↔brevix↔corthan) converging to equilib
 
 ---
 
-### 02: Equilibrium & Stability
-
-Run to equilibrium and analyze stability using variance over a trailing window.
-
-![Trajectories](output/02_equilibrium/trajectories.png){ width="45%" }
-![Convergence](output/02_equilibrium/convergence.png){ width="45%" }
-
-[:material-notebook: Notebook](notebooks/02_equilibrium.html) ·
-[:material-language-python: Script](scripts/demo_02_equilibrium.py)
-
----
-
 ### 03: Perturbation & Recovery
 
 Spike recovery and reaction-removal drift experiments.
@@ -99,6 +87,17 @@ Oracle, random, and zero agents evaluated across difficulty levels.
 
 [:material-notebook: Notebook](notebooks/08_evaluation.html) ·
 [:material-language-python: Script](scripts/demo_08_evaluation.py)
+
+---
+
+### 09: JAX Large-Scale Simulation
+
+Compare Python vs JAX simulator performance on a larger organism (10 organs, 10 molecules).
+
+[:material-notebook: Notebook](notebooks/09_jax_scale.html) ·
+[:material-language-python: Script](scripts/demo_09_jax_scale.py)
+
+*Requires JAX — skipped automatically if not installed.*
 
 ---
 

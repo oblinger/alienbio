@@ -2,7 +2,7 @@
 
 # Bio
 
-Environment class for fetching, hydration, and persistence of alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language Reference]]. For the command-line interface, see [Commands](../../ABIO Commands.md).
+Environment class for fetching, hydration, and persistence of alien biology objects stored in DAT folders. For YAML syntax, see [[Spec Language Reference]]. For the command-line interface, see [[ABIO Commands|Commands]].
 
 ---
 
@@ -96,20 +96,20 @@ See [[Factory Pegboard API]] for full documentation.
 
 ### Methods
 
-See [Commands](../../ABIO Commands.md) for detailed documentation on each method.
+See [[ABIO Commands|Commands]] for detailed documentation on each method.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| [fetch(specifier)](../../commands/ABIO Fetch.md) | `Any` | Load, expand, and **hydrate** → typed object |
-| [lookup(name)](../../commands/ABIO Lookup.md) | `Any` | Resolve dotted name (Python modules → cwd) |
-| [build(target)](../../commands/ABIO Build.md) | `Any` | Template instantiation → built scenario |
-| [run(target)](../../commands/ABIO Run.md) | `Result` | Execute a runnable → result |
-| [report(results, ...)](../../commands/ABIO Report.md) | `None` | Generate formatted report from results |
+| [[ABIO Fetch|fetch(specifier)]] | `Any` | Load, expand, and **hydrate** → typed object |
+| [[ABIO Lookup|lookup(name)]] | `Any` | Resolve dotted name (Python modules → cwd) |
+| [[ABIO Build|build(target)]] | `Any` | Template instantiation → built scenario |
+| [[ABIO Run|run(target)]] | `Result` | Execute a runnable → result |
+| [[ABIO Report|report(results, ...)]] | `None` | Generate formatted report from results |
 | `store(specifier, obj)` | `None` | Dehydrate and store object |
 | `cd(path=None)` | `Path` | Get/set current DAT context |
 | `create(protocol, name, spec)` | instance | Create component via factory |
-| [hydrate(data)](../../commands/ABIO Hydrate.md) | `Any` | Convert dict with `_type` to typed object (advanced) |
-| [dehydrate(obj)](../../commands/ABIO Dehydrate.md) | `dict` | Convert typed object to dict with `_type` (advanced) |
+| [[ABIO Hydrate|hydrate(data)]] | `Any` | Convert dict with `_type` to typed object (advanced) |
+| [[ABIO Dehydrate|dehydrate(obj)]] | `dict` | Convert typed object to dict with `_type` (advanced) |
 
 ### Implicit Chaining
 
@@ -140,7 +140,7 @@ A **specifier** identifies a fetchable object. Two styles:
 | Style | Example | Routing |
 |-------|---------|---------|
 | **Path** (has `/`) | `catalog/scenarios/mutualism` | Direct DAT load |
-| **Dotted** (no `/`) | `x1.results.summary` | [Bio.lookup()](../../commands/ABIO Lookup.md) |
+| **Dotted** (no `/`) | `x1.results.summary` | [[ABIO Lookup|Bio.lookup()]] |
 
 ```python
 # Path-style: direct DAT load
@@ -152,7 +152,7 @@ bio.fetch("x1.results.summary")
 # → Python modules first, then cwd filesystem
 ```
 
-See [Bio.lookup()](../../commands/ABIO Lookup.md) for full resolution rules.
+See [[ABIO Lookup|Bio.lookup()]] for full resolution rules.
 
 ### Scope-Aware Fetching
 See [[Scope]] for details on lexical scoping and the module pattern.
@@ -364,7 +364,7 @@ bio.report(results, format="excel")           # opens in spreadsheet app
 - Axis values (e.g., `temperature`, `initial_ME1`)
 - Metadata (`seed`, `steps`, etc.)
 
-See [Experiment](../execution/experiment.md) for how results are generated.
+See [[experiment|Experiment]] for how results are generated.
 
 ## Protocol
 ```python

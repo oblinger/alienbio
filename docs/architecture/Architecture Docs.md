@@ -1,15 +1,15 @@
- [[ABIO]] 
+ [[ABIO]]
 # Architecture Docs
 
 Comprehensive specification of the Alien Biology system's design and operation.
-(See [[Alienbio User Guide]] for usage tutorials and [[api/index|API Docs]] for class and module signatures.)
+(See [[Alienbio User Guide]] for usage tutorials and [[Modules/index|API Docs]] for class and module signatures.)
 
 
 ## Alienbio Specification Languages
 
 - **[[Spec Language Reference]]** — Core language: YAML foundation with tags, scopes, hydration, and evaluation
-- **[Scenario](commands/ABIO Scenario.md)** — Runnable world (molecules, reactions, interface, scoring)
-- **[Experiment](commands/ABIO Experiment.md)** — Multi-run experiment over axes
+- **[[ABIO Scenario|Scenario]]** — Runnable world (molecules, reactions, interface, scoring)
+- **[[ABIO Experiment|Experiment]]** — Multi-run experiment over axes
 
 ## Indexes
 
@@ -22,6 +22,10 @@ Comprehensive specification of the Alien Biology system's design and operation.
 - **[[ABIO infra]]** — Infrastructure: entity base classes, serialization, data management, configuration.
 - **[[ABIO biology]]** — Biology: molecules, reactions, pathways, containers, and generators.
 - **[[ABIO execution]]** — Execution: simulation engine, agent interface, experimentation framework.
+
+## Benchmark generation
+
+- **[[ABIO Suite Construction]]** — How a suite spec becomes a battery of auto-graded tasks over a small set of verified worlds (realizes the [[ABIO Inference Bench]], sits atop the [[ABIO PRD Docs|Scenario Generator PRD]]).
 
 ## Project Tracking
 

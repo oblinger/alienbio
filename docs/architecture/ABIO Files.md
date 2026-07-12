@@ -3,9 +3,9 @@
 # ABIO Files
 Directory layout for the alienbio project.
 
-```
+```∑∑
 alienbio/
-├─src/
+├─src/œ
 │ ├─alienbio/                    # Python package
 │ │ ├─__init__.py
 │ │ ├─protocols/                 # Protocol definitions (mirrors docs/architecture/)

@@ -208,7 +208,7 @@ scenario.base:                       # another typed object
   interface: ...
 ```
 
-See [Scope](modules/Scope.md) for full details on scope chains, typed elements, and inheritance.
+See [[Scope]] for full details on scope chains, typed elements, and inheritance.
 
 ---
 
@@ -275,7 +275,7 @@ scenario.mutualism:
 
 The first segment is looked up in the type registry. Built-in types include `world`, `scenario`, `scope`, and `experiment`. Custom types are registered via `@biotype`.
 
-See [Scope](modules/Scope.md) for details on typed elements, subscopes, and the `@biotype` registry.
+See [[Scope]] for details on typed elements, subscopes, and the `@biotype` registry.
 
 ---
 
@@ -294,7 +294,7 @@ scenario.variant:
 
 Child values override parent values; lookup climbs the chain until found.
 
-See [Scope](modules/Scope.md) for full details on scope chains and inheritance.
+See [[Scope]] for full details on scope chains and inheritance.
 
 ---
 
@@ -326,6 +326,6 @@ Common causes:
 ## See Also
 
 - [[Core Spec]] — User guide introduction to spec syntax
-- [Scope](modules/Scope.md) — Hierarchical namespace resolution
+- [[Scope]] — Hierarchical namespace resolution
 - [[Builtins]] — Distribution functions and safe Python builtins
-- [Scenario](commands/ABIO Scenario.md) — Scenario spec format
+- [[ABIO Scenario|Scenario]] — Scenario spec format

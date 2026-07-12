@@ -58,7 +58,7 @@ bio run scenarios.baseline --seed 42
 
 ## See Also
 
-- [DAT](../classes/infra/DAT.md) — DAT folder structure
-- [fetch()](ABIO Fetch.md) — Load specs (uses current DAT for relative paths)
-- [run()](ABIO Run.md) — Run scenarios
-- [Bio](../classes/infra/Bio.md) — Bio class overview
+- [[DAT]] — DAT folder structure
+- [[ABIO Fetch|fetch()]] — Load specs (uses current DAT for relative paths)
+- [[ABIO Run|run()]] — Run scenarios
+- [[Bio]] — Bio class overview

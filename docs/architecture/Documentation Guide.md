@@ -133,7 +133,7 @@ Architecture explains concepts, then links to code:
 
 ```markdown
 <!-- In Spec Language Reference -->
-See [[api/spec_lang|API Reference]] for function signatures.
+See [[spec_lang|API Reference]] for function signatures.
 ```
 
 ### Cross-References
@@ -206,7 +206,7 @@ module: Scope = Bio.fetch(path: str, as_scope=True)
 **Wiki-links** (Obsidian syntax):
 - Same folder: `[[Document Name]]`
 - With display text: `[[ABIO Commands|Commands]]`
-- To subfolder: `[[commands/ABIO Fetch|Bio.fetch()]]`
+- To subfolder: `[[ABIO Fetch|Bio.fetch()]]`
 - To section: `[[Spec Language Reference#Hydration Phases]]`
 
 **See Also sections** at end of documents:

@@ -221,7 +221,7 @@ raw: dict = bio.fetch("scenarios.mutualism", raw=True)
 
 ## See Also
 
-- [DAT](../classes/infra/DAT.md) — DAT configuration and folder structure
-- [Bio](../classes/infra/Bio.md) — Bio class overview
-- [hydrate()](ABIO Hydrate.md) — Hydration details
+- [[DAT]] — DAT configuration and folder structure
+- [[Bio]] — Bio class overview
+- [[ABIO Hydrate|hydrate()]] — Hydration details
 

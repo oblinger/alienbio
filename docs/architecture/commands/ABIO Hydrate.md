@@ -103,5 +103,5 @@ result = expanded.eval()
 
 - [[ABIO Fetch|fetch]] — Previous stage: load from source
 - [[ABIO Build|build]] — Next stage: template expansion
-- [Scope](../modules/Scope.md) — Scope tree structure
+- [[Scope]] — Scope tree structure
 - [[Spec Language Reference]] — Complete language specification
