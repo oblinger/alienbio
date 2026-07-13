@@ -7,6 +7,9 @@ opaque tags; this package never inspects tag content or evaluates rates.
 from __future__ import annotations
 
 from .adapters import from_network, from_state, to_network, to_state
+from .augment import augment, graph_stats
+from .carve import CarveFail, carve, splice
+from .cover import Cover, Feature, cover
 from .dist import (
     Choice,
     Constant,
@@ -106,4 +109,13 @@ __all__ = [
     "TaskInstance",
     "SuiteSpec",
     "Suite",
+    # engines
+    "cover",
+    "Cover",
+    "Feature",
+    "carve",
+    "splice",
+    "CarveFail",
+    "augment",
+    "graph_stats",
 ]
