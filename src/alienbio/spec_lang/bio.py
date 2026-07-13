@@ -645,6 +645,7 @@ class Bio:
         seed: int = 0,
         registry: Any = None,
         params: dict[str, Any] | None = None,
+        complexity: float | str | None = None,
     ) -> Any:
         """Build a scenario from a spec.
 
@@ -653,6 +654,8 @@ class Bio:
             seed: Random seed for reproducibility
             registry: Template registry
             params: Parameter overrides
+            complexity: Network size / complexity dial (M28.1). Number or named
+                level (small/medium/large/huge); ``None`` uses the spec default.
 
         Returns:
             Scenario with visible and ground truth data
@@ -662,7 +665,13 @@ class Bio:
         if isinstance(spec, str):
             spec = self.fetch(spec, raw=True)
 
-        return build_instantiate(spec, seed=seed, registry=registry, params=params)  # type: ignore[arg-type]
+        return build_instantiate(
+            spec,  # type: ignore[arg-type]
+            seed=seed,
+            registry=registry,
+            params=params,
+            complexity=complexity,
+        )
 
     def run(
         self,
