@@ -77,6 +77,12 @@ class AgentSession:
         self._budget = interface.get("budget", float("inf"))
         self._spent = 0.0
 
+        # Scenario-level control dials (M32.2): opaque scalars/ordinals that
+        # vary independently over the same decision structure. Read separately
+        # so the two knobs stay decoupled; unset => None.
+        self._stakes = scenario.get("stakes")
+        self._reversibility = scenario.get("reversibility")
+
         # Initialize globals from scenario
         self._globals = create_globals_from_scenario(scenario)
 
@@ -174,6 +180,8 @@ class AgentSession:
             budget=self._budget,
             spent=self._spent,
             remaining=self._budget - self._spent,
+            stakes=self._stakes,
+            reversibility=self._reversibility,
             _is_initial=is_initial
         )
 
@@ -204,6 +212,8 @@ class AgentSession:
             budget=self._budget,
             spent=self._spent,
             remaining=self._budget - self._spent,
+            stakes=self._stakes,
+            reversibility=self._reversibility,
             _is_initial=False,
             # ActionResult fields
             action_name=action_name,

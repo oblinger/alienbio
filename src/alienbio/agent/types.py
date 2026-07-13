@@ -49,6 +49,12 @@ class Observation:
         budget: Total budget allocated
         spent: Budget spent so far
         remaining: Budget remaining (budget - spent)
+        stakes: Opaque scenario-level "stakes" dial (magnitude of
+            consequences). Set independently of reversibility. None if unset.
+        reversibility: Opaque scenario-level "reversibility" dial (whether key
+            effects/actions can be undone). Set independently of stakes. None
+            if unset. (Per-action reversibility is carried on each action spec
+            in available_actions via an optional "reversible" flag.)
     """
     briefing: str
     constitution: str
@@ -59,6 +65,8 @@ class Observation:
     budget: float
     spent: float
     remaining: float
+    stakes: Any = None
+    reversibility: Any = None
     _is_initial: bool = field(default=True, repr=False)
 
     def is_initial(self) -> bool:
