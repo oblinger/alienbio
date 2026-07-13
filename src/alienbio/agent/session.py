@@ -13,7 +13,7 @@ from typing import Any, Callable, Optional, cast
 import logging
 import random
 
-from .types import Action, ActionResult, Observation, ExperimentResults
+from .types import Action, ActionResult, Observation, ExperimentResults, coerce_constitution
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace
 from ..globals import Globals, create_globals_from_scenario
@@ -166,7 +166,7 @@ class AgentSession:
 
         return Observation(
             briefing=self._scenario.get("briefing", ""),
-            constitution=self._scenario.get("constitution", ""),
+            constitution=coerce_constitution(self._scenario.get("constitution")),
             available_actions=self._actions_spec,
             available_measurements=self._measurements_spec,
             current_state=self._simulator.observable_state(),
@@ -196,7 +196,7 @@ class AgentSession:
         return ActionResult(
             # Observation fields
             briefing=self._scenario.get("briefing", ""),
-            constitution=self._scenario.get("constitution", ""),
+            constitution=coerce_constitution(self._scenario.get("constitution")),
             available_actions=self._actions_spec,
             available_measurements=self._measurements_spec,
             current_state=self._simulator.observable_state(),
