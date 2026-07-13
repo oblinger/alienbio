@@ -10,6 +10,10 @@ from .adapters import from_network, from_state, to_network, to_state
 from .augment import augment, graph_stats
 from .carve import CarveFail, carve, splice
 from .cover import Cover, Feature, cover
+from .grade import grade_answer, grade_outcome
+from .ops import LLMOp
+from .render import Vocabulary, parse, render
+from .verify import SimConfig, VerifyResult, simulate, verify
 from .dist import (
     Choice,
     Constant,
@@ -118,4 +122,14 @@ __all__ = [
     "CarveFail",
     "augment",
     "graph_stats",
+    "simulate",
+    "verify",
+    "VerifyResult",
+    "SimConfig",
+    "grade_answer",
+    "grade_outcome",
+    "LLMOp",
+    "render",
+    "parse",
+    "Vocabulary",
 ]
