@@ -54,6 +54,7 @@ from .visibility import (
 )
 from .pipeline import (
     instantiate,
+    COMPLEXITY_LEVELS,
 )
 from .generator import (
     GeneratorContext,
@@ -91,6 +92,7 @@ __all__ = [
     "apply_visibility",
     # Pipeline
     "instantiate",
+    "COMPLEXITY_LEVELS",
     "Scenario",
     # Exceptions
     "TemplateNotFoundError",

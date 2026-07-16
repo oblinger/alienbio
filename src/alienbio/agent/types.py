@@ -33,6 +33,64 @@ class Action:
 
 
 @dataclass
+class Constitution:
+    """Explicit agent-facing objectives, prohibitions, and priorities.
+
+    Declared at the scenario level (scenario["constitution"]) and surfaced
+    to the agent verbatim on every observation. The content is opaque text
+    the framework does not interpret.
+
+    Attributes:
+        objectives: What the agent should try to achieve
+        prohibitions: What the agent must not do
+        priorities: Priority ordering (highest priority first)
+    """
+    objectives: list[str] = field(default_factory=list)
+    prohibitions: list[str] = field(default_factory=list)
+    priorities: list[str] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        """Render as plain text (e.g. for embedding in an agent prompt)."""
+        sections = []
+        if self.objectives:
+            sections.append("Objectives:\n" + "\n".join(f"- {o}" for o in self.objectives))
+        if self.prohibitions:
+            sections.append("Prohibitions:\n" + "\n".join(f"- {p}" for p in self.prohibitions))
+        if self.priorities:
+            sections.append("Priorities (highest first):\n" + "\n".join(
+                f"{i + 1}. {p}" for i, p in enumerate(self.priorities)
+            ))
+        return "\n\n".join(sections)
+
+
+def coerce_constitution(spec: Any) -> "str | Constitution":
+    """Coerce a scenario-level constitution spec to its observation form.
+
+    Strings (legacy free-form constitutions) and Constitution instances pass
+    through verbatim; dicts with objectives/prohibitions/priorities keys are
+    converted to a Constitution; None/absent becomes the empty string.
+
+    Raises:
+        ValueError: If a dict spec contains unknown keys
+        TypeError: If the spec is not None, str, dict, or Constitution
+    """
+    if spec is None:
+        return ""
+    if isinstance(spec, (str, Constitution)):
+        return spec
+    if isinstance(spec, dict):
+        unknown = set(spec) - {"objectives", "prohibitions", "priorities"}
+        if unknown:
+            raise ValueError(f"Unknown constitution keys: {sorted(unknown)}")
+        return Constitution(
+            objectives=list(spec.get("objectives", [])),
+            prohibitions=list(spec.get("prohibitions", [])),
+            priorities=list(spec.get("priorities", [])),
+        )
+    raise TypeError(f"Invalid constitution spec type: {type(spec).__name__}")
+
+
+@dataclass
 class Observation:
     """What the agent observes about the environment.
 
@@ -41,7 +99,8 @@ class Observation:
 
     Attributes:
         briefing: Scenario description/instructions for the agent
-        constitution: Rules/constraints the agent should follow
+        constitution: Rules/constraints the agent should follow — either
+            free-form text or a structured Constitution
         available_actions: Actions the agent can take (name -> info dict)
         available_measurements: Measurements available (name -> info dict)
         current_state: Observable state of the environment
@@ -49,9 +108,15 @@ class Observation:
         budget: Total budget allocated
         spent: Budget spent so far
         remaining: Budget remaining (budget - spent)
+        stakes: Opaque scenario-level "stakes" dial (magnitude of
+            consequences). Set independently of reversibility. None if unset.
+        reversibility: Opaque scenario-level "reversibility" dial (whether key
+            effects/actions can be undone). Set independently of stakes. None
+            if unset. (Per-action reversibility is carried on each action spec
+            in available_actions via an optional "reversible" flag.)
     """
     briefing: str
-    constitution: str
+    constitution: "str | Constitution"
     available_actions: dict[str, Any]
     available_measurements: dict[str, Any]
     current_state: dict[str, Any]
@@ -59,6 +124,8 @@ class Observation:
     budget: float
     spent: float
     remaining: float
+    stakes: Any = None
+    reversibility: Any = None
     _is_initial: bool = field(default=True, repr=False)
 
     def is_initial(self) -> bool:

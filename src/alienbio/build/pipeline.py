@@ -28,11 +28,59 @@ def _stable_hash(value: str) -> int:
     return int(hashlib.sha256(value.encode("utf-8")).hexdigest(), 16) % 1000
 
 
+# Difficulty axis M28.1 — network size / complexity dial.
+#
+# A single scalar that monotonically scales the SIZE of a generated world
+# (roughly species x reactions x molecules) so worlds can be dialed from
+# small -> large for a difficulty curriculum. Named ordinals map to numeric
+# multipliers; ``medium`` == ``1.0`` is the identity (default) generation.
+COMPLEXITY_LEVELS: dict[str, float] = {
+    "small": 0.5,
+    "medium": 1.0,
+    "large": 2.0,
+    "huge": 4.0,
+}
+
+
+def _resolve_complexity(complexity: float | str | None, spec: dict[str, Any]) -> float:
+    """Resolve a complexity dial to a numeric multiplier (>= 0.0).
+
+    ``None`` falls back to the spec's own ``complexity`` key (default 1.0), so
+    callers can leave it unset and let the spec decide. Strings are looked up in
+    :data:`COMPLEXITY_LEVELS`; numbers pass through after a non-negative check.
+    """
+    raw = spec.get("complexity", 1.0) if complexity is None else complexity
+    if isinstance(raw, str):
+        if raw not in COMPLEXITY_LEVELS:
+            raise ValueError(
+                f"Unknown complexity level '{raw}'; "
+                f"expected one of {sorted(COMPLEXITY_LEVELS)} or a number"
+            )
+        return COMPLEXITY_LEVELS[raw]
+    value = float(raw)
+    if value < 0:
+        raise ValueError(f"complexity must be non-negative, got {value}")
+    return value
+
+
+def _scale_count(base: int, complexity: float) -> int:
+    """Scale a spec-derived count by the complexity multiplier.
+
+    ``complexity == 1.0`` is exact identity (existing generation is unchanged).
+    For a fixed ``base >= 0``, the result is monotonically non-decreasing in
+    ``complexity``, so a larger dial never produces fewer entities.
+    """
+    if complexity == 1.0:
+        return base
+    return max(0, round(base * complexity))
+
+
 def instantiate(
     spec: dict[str, Any],
     seed: int = 0,
     registry: TemplateRegistry | None = None,
     params: dict[str, Any] | None = None,
+    complexity: float | str | None = None,
 ) -> Scenario:
     """Instantiate a scenario from a generator spec.
 
@@ -47,6 +95,11 @@ def instantiate(
         seed: Random seed for reproducibility
         registry: Template registry for resolving template references
         params: Parameter overrides
+        complexity: Network size / complexity dial (M28.1). A multiplier that
+            monotonically scales the target species/reaction/molecule counts.
+            May be a number (``1.0`` = default/identity) or a named level
+            (``small``/``medium``/``large``/``huge``, see COMPLEXITY_LEVELS).
+            ``None`` falls back to the spec's ``complexity`` key (default 1.0).
 
     Returns:
         Scenario with visible and ground truth data
@@ -59,6 +112,9 @@ def instantiate(
     # Use default registry if not provided
     if registry is None:
         registry = TemplateRegistry()
+
+    # Resolve the network size / complexity dial (M28.1) to a numeric multiplier
+    complexity_factor = _resolve_complexity(complexity, spec)
 
     # Merge spec params with overrides
     effective_params = dict(spec.get("_params_", {}))
@@ -88,6 +144,7 @@ def instantiate(
         guards=guards,
         seed=seed,
         seen_templates=set(),
+        complexity=complexity_factor,
     )
 
     # Run custom guards on the complete ground truth
@@ -120,7 +177,7 @@ def instantiate(
     background_spec = spec.get("background", {})
     if background_spec:
         ground_truth = _process_background(
-            background_spec, ground_truth, guards, seed
+            background_spec, ground_truth, guards, seed, complexity=complexity_factor
         )
 
     # Process container generation
@@ -152,6 +209,7 @@ def _process_instantiations(
     seed: int,
     seen_templates: set[str],
     available_ports: set[str] | None = None,
+    complexity: float = 1.0,
 ) -> dict[str, Any]:
     """Process _instantiate_ blocks to produce molecules and reactions.
 
@@ -163,6 +221,7 @@ def _process_instantiations(
         seed: Random seed
         seen_templates: For circular reference detection
         available_ports: Set of available port types for requires validation
+        complexity: Network size dial (M28.1); scales replication loop counts.
 
     Returns:
         Dict with molecules and reactions
@@ -196,6 +255,13 @@ def _process_instantiations(
                 param_val = params.get(end_expr, 0)
                 end_val = int(round(param_val)) if isinstance(param_val, float) else int(param_val)
 
+            # Scale replication count by the network size dial (M28.1). Clamp to
+            # start_val so a low complexity never drops the loop below its first
+            # iteration (existing structure is preserved), keeping species counts
+            # monotonically non-decreasing in complexity.
+            if end_val >= start_val:
+                end_val = max(start_val, _scale_count(end_val, complexity))
+
             _check_count(
                 end_val - start_val + 1,
                 f"replication '_as_ {inst_name}{{{loop_var} in {start}..{end_expr}}}'",
@@ -209,7 +275,7 @@ def _process_instantiations(
                 used_namespaces.add(namespace)
                 inst_result = _instantiate_single(
                     inst_data, namespace, registry, params, guards, seed + i,
-                    seen_templates, available_ports,
+                    seen_templates, available_ports, complexity,
                 )
                 _merge_no_collision(
                     result["molecules"], inst_result["molecules"], f"instantiating '{namespace}'"
@@ -228,7 +294,7 @@ def _process_instantiations(
             used_namespaces.add(namespace)
             inst_result = _instantiate_single(
                 inst_data, namespace, registry, params, guards, seed,
-                seen_templates, available_ports,
+                seen_templates, available_ports, complexity,
             )
             _merge_no_collision(
                 result["molecules"], inst_result["molecules"], f"instantiating '{namespace}'"
@@ -279,6 +345,7 @@ def _instantiate_single(
     seed: int,
     seen_templates: set[str],
     available_ports: set[str] | None = None,
+    complexity: float = 1.0,
 ) -> dict[str, Any]:
     """Instantiate a single template.
 
@@ -291,6 +358,7 @@ def _instantiate_single(
         seed: Random seed
         seen_templates: For circular reference detection
         available_ports: Set of available port types for requires validation
+        complexity: Network size dial (M28.1); forwarded to nested instantiations.
 
     Returns:
         Dict with molecules and reactions
@@ -301,7 +369,8 @@ def _instantiate_single(
         nested_inst = inst_data.get("_instantiate_", {})
         if nested_inst:
             return _process_instantiations(
-                nested_inst, registry, parent_params, guards, seed, seen_templates
+                nested_inst, registry, parent_params, guards, seed, seen_templates,
+                complexity=complexity,
             )
         return {"molecules": {}, "reactions": {}}
 
@@ -648,6 +717,7 @@ def _process_background(
     ground_truth: dict[str, Any],
     guards: list,
     seed: int,
+    complexity: float = 1.0,
 ) -> dict[str, Any]:
     """Process background section to generate filler molecules and reactions.
 
@@ -656,6 +726,7 @@ def _process_background(
         ground_truth: Current ground truth
         guards: Guard functions to apply
         seed: Random seed
+        complexity: Network size dial (M28.1); scales background filler counts.
 
     Returns:
         Updated ground truth with background elements
@@ -679,6 +750,10 @@ def _process_background(
         mol_count = int(round(eval_node(mol_count_spec, ctx)))
     else:
         mol_count = int(mol_count_spec)
+    # Scale filler molecule count by the network size dial (M28.1). The base
+    # draw is seeded identically across complexity levels, so scaling the drawn
+    # value keeps counts monotonically non-decreasing per seed.
+    mol_count = _scale_count(mol_count, complexity)
     _check_count(mol_count, "background.molecules.count")
 
     # Generate background molecules
@@ -697,6 +772,8 @@ def _process_background(
         rxn_count = int(round(eval_node(rxn_count_spec, ctx)))
     else:
         rxn_count = int(rxn_count_spec)
+    # Scale filler reaction count by the network size dial (M28.1).
+    rxn_count = _scale_count(rxn_count, complexity)
     _check_count(rxn_count, "background.reactions.count")
 
     # Generate background reactions (only use background molecules)

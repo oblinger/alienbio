@@ -593,6 +593,60 @@ background:
 
 ---
 
+## Complexity Dial (M28.1)
+
+The **network size / complexity dial** is a single, seed-deterministic scalar that
+monotonically scales the SIZE of a generated world — roughly *species × reactions ×
+molecules* — so worlds can be dialed from small → large for a difficulty curriculum.
+It is the first difficulty axis.
+
+Pass it to the generator entry point (`instantiate(..., complexity=...)` or
+`BioSpec.build(..., complexity=...)`), or set a `complexity:` key on the spec as its
+default (an explicit argument overrides the spec key).
+
+The dial is a **multiplier** applied to spec-derived counts. Named ordinal levels map
+to numeric multipliers:
+
+| Level    | Multiplier |
+| -------- | ---------- |
+| `small`  | 0.5        |
+| `medium` | 1.0 (default / identity) |
+| `large`  | 2.0        |
+| `huge`   | 4.0        |
+
+Any non-negative number is also accepted. What it scales:
+
+- **Species** — replication loop counts (`_as_ sp{i in 1..N}`) are scaled (clamped so a
+  low dial never drops a loop below its first iteration).
+- **Molecules & reactions** — `background` filler counts are scaled after their
+  distribution draw.
+
+Guarantees:
+
+- **Identity at 1.0** — `complexity: 1.0` (or `medium`, or unset) reproduces existing
+  generation exactly.
+- **Deterministic** — same `(complexity, seed)` → identical world.
+- **Monotonic** — for a fixed seed, a larger dial never yields fewer species, reactions,
+  or molecules.
+
+```yaml
+scenario_generator_spec:
+  name: my_world
+  complexity: large          # spec-level default; overridable at build time
+
+  _instantiate_:
+    _as_ sp{i in 1..2}:      # scaled: 2 → 4 species at complexity 2.0
+      _template_: energy_cycle
+
+  background:
+    molecules:
+      count: !ev normal(6, 2)   # scaled after the draw
+    reactions:
+      count: !ev normal(6, 2)
+```
+
+---
+
 ## Guards
 
 Guards are constraints that validate expanded content. They prevent random generation from accidentally creating unwanted structure (cycles, cross-species dependencies, essential molecules).
