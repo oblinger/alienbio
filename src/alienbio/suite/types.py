@@ -41,6 +41,7 @@ from typing import (
 import numpy as np
 import numpy.typing as npt
 
+from ..infra import graph_ops
 from .dist import Dist, ParamSchema
 
 T = TypeVar("T")
@@ -106,57 +107,46 @@ class ReactionNetwork:
         object.__setattr__(self, "species", MappingProxyType(dict(self.species)))
         object.__setattr__(self, "reactions", MappingProxyType(dict(self.reactions)))
 
+    def _view(self) -> graph_ops.GraphView:
+        """Adapt this network into the neutral :class:`~..infra.graph_ops.GraphView`.
+
+        Species/reactions are exposed in dict order; a reaction's incidence is
+        the union of its reactant/product/modifier node ids; a species' match key
+        is its opaque ``attrs`` mapping (compared for equality only).
+        """
+        incidence = {
+            rid: frozenset(
+                [n for n, _ in rxn.reactants]
+                + [n for n, _ in rxn.products]
+                + [n for n, _ in rxn.modifiers]
+            )
+            for rid, rxn in self.reactions.items()
+        }
+        return graph_ops.GraphView(
+            species_ids=tuple(self.species.keys()),
+            reaction_ids=tuple(self.reactions.keys()),
+            incidence=incidence,
+            species_key={sid: sp.attrs for sid, sp in self.species.items()},
+        )
+
     def neighbors(self, node: NodeId) -> set[NodeId]:
         """Species<->reaction adjacency (bipartite)."""
-        result: set[NodeId] = set()
-        if node in self.species:
-            for rid, rxn in self.reactions.items():
-                if any(n == node for n, _ in rxn.reactants) or any(
-                    n == node for n, _ in rxn.products
-                ) or any(n == node for n, _ in rxn.modifiers):
-                    result.add(rid)
-        if node in self.reactions:
-            rxn = self.reactions[node]
-            for n, _ in rxn.reactants:
-                result.add(n)
-            for n, _ in rxn.products:
-                result.add(n)
-            for n, _ in rxn.modifiers:
-                result.add(n)
-        return result
+        return graph_ops.neighbors(self._view(), node)
 
     def paths(self, a: NodeId, b: NodeId, max_len: int = 8) -> list[list[NodeId]]:
         """All simple paths from ``a`` to ``b`` with at most ``max_len`` edges."""
-        if a == b:
-            return [[a]]
-        results: list[list[NodeId]] = []
-
-        def dfs(cur: NodeId, path: list[NodeId], visited: set[NodeId]) -> None:
-            if len(path) - 1 >= max_len:
-                return
-            for nb in sorted(self.neighbors(cur)):
-                if nb in visited:
-                    continue
-                if nb == b:
-                    results.append(path + [nb])
-                    continue
-                visited.add(nb)
-                dfs(nb, path + [nb], visited)
-                visited.discard(nb)
-
-        dfs(a, [a], {a})
-        return results
+        return graph_ops.paths(self._view(), a, b, max_len)
 
     def subgraph(self, nodes: Iterable[NodeId]) -> "ReactionNetwork":
         """The induced subgraph over ``nodes`` (edges to dropped nodes removed)."""
         node_set = set(nodes)
-        new_species = {
-            sid: sp for sid, sp in self.species.items() if sid in node_set
-        }
+        kept_species, kept_reactions = graph_ops.subgraph_selection(
+            self._view(), node_set
+        )
+        new_species = {sid: self.species[sid] for sid in kept_species}
         new_reactions: dict[NodeId, Reaction] = {}
-        for rid, rxn in self.reactions.items():
-            if rid not in node_set:
-                continue
+        for rid in kept_reactions:
+            rxn = self.reactions[rid]
             new_reactions[rid] = Reaction(
                 id=rxn.id,
                 reactants=tuple((n, s) for n, s in rxn.reactants if n in node_set),
@@ -165,13 +155,6 @@ class ReactionNetwork:
                 rate=rxn.rate,
             )
         return ReactionNetwork(species=new_species, reactions=new_reactions)
-
-    def _edge_set(self) -> set[frozenset[NodeId]]:
-        edges: set[frozenset[NodeId]] = set()
-        for nid in list(self.species.keys()) + list(self.reactions.keys()):
-            for nb in self.neighbors(nid):
-                edges.add(frozenset((nid, nb)))
-        return edges
 
     def match(self, pattern: "ReactionNetwork") -> list[dict[NodeId, NodeId]]:
         """All subgraph embeddings of ``pattern`` into ``self``.
@@ -182,45 +165,7 @@ class ReactionNetwork:
         structurally (their rate is opaque and not compared). Returns every
         embedding as ``{pattern_node: host_node}``; ``[]`` if none.
         """
-        p_nodes = list(pattern.species.keys()) + list(pattern.reactions.keys())
-
-        def candidates(pn: NodeId) -> list[NodeId]:
-            if pn in pattern.species:
-                pattr = pattern.species[pn].attrs
-                return [hid for hid, sp in self.species.items() if sp.attrs == pattr]
-            return list(self.reactions.keys())
-
-        cand_map = {pn: candidates(pn) for pn in p_nodes}
-        p_edges = pattern._edge_set()
-        host_edges = self._edge_set()
-        results: list[dict[NodeId, NodeId]] = []
-
-        def backtrack(i: int, mapping: dict[NodeId, NodeId], used: set[NodeId]) -> None:
-            if i == len(p_nodes):
-                results.append(dict(mapping))
-                return
-            pn = p_nodes[i]
-            for hn in cand_map[pn]:
-                if hn in used:
-                    continue
-                ok = True
-                for edge in p_edges:
-                    if pn not in edge:
-                        continue
-                    other = next(iter(edge - {pn}))
-                    if other in mapping and frozenset((hn, mapping[other])) not in host_edges:
-                        ok = False
-                        break
-                if not ok:
-                    continue
-                mapping[pn] = hn
-                used.add(hn)
-                backtrack(i + 1, mapping, used)
-                del mapping[pn]
-                used.discard(hn)
-
-        backtrack(0, {}, set())
-        return results
+        return graph_ops.match(self._view(), pattern._view())
 
 
 # ═══════════════════════════════════════════════════════════════════════════

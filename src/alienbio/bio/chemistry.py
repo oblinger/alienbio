@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, TYPE_CHECKING, Self
+from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Self
 
+from ..infra import graph_ops
 from ..infra.entity import Entity
 
 if TYPE_CHECKING:
@@ -13,6 +14,44 @@ from .atom import AtomImpl
 from .molecule import MoleculeImpl
 from .reaction import ReactionImpl
 
+
+def _mock_dat(path: str) -> Any:
+    """A duck-typed DAT anchor for constructing derived entities.
+
+    ``MockDat`` is not statically a ``Dat``; the ``Any`` return matches the
+    runtime interface Entity needs while staying type-clean (the same idiom the
+    suite adapters use).
+    """
+    from ..infra.entity import MockDat
+
+    return MockDat(path)
+
+
+def _reaction_graph_view(chem: "ChemistryImpl") -> graph_ops.GraphView:
+    """Adapt a chemistry into a neutral bipartite graph view.
+
+    Reads only ``molecules`` / ``reactions``. Node ids are molecule / reaction
+    ``name``s; a reaction's incidence is its reactant + product molecule names
+    (the base protocol carries no modifiers); a molecule's match key is
+    ``(name, symbol, bdepth, molecular_weight)`` — the same properties the neutral
+    view tags a species with, so ``match`` agrees across both representations.
+    """
+    incidence = {
+        rxn.name: frozenset(
+            [m.name for m in rxn.reactants] + [m.name for m in rxn.products]
+        )
+        for rxn in chem.reactions.values()
+    }
+    species_key = {
+        mol.name: (mol.name, mol.symbol, mol.bdepth, mol.molecular_weight)
+        for mol in chem.molecules.values()
+    }
+    return graph_ops.GraphView(
+        species_ids=tuple(mol.name for mol in chem.molecules.values()),
+        reaction_ids=tuple(rxn.name for rxn in chem.reactions.values()),
+        incidence=incidence,
+        species_key=species_key,
+    )
 
 
 class ChemistryImpl(Entity, head="Chemistry"):
@@ -189,6 +228,73 @@ class ChemistryImpl(Entity, head="Chemistry"):
                     )
 
         return errors
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Graph queries — the reaction network is the bipartite graph of
+    # molecules (species nodes) and reactions (reaction nodes). Node ids are
+    # molecule/reaction ``name``s. Delegates to the shared neutral algorithms
+    # in :mod:`alienbio.infra.graph_ops` (single source of truth, shared with
+    # the neutral ``ReactionNetwork`` view).
+    # ─────────────────────────────────────────────────────────────────────
+
+    def neighbors(self, node: str) -> set[str]:
+        """Molecule<->reaction adjacency (bipartite), by name."""
+        return graph_ops.neighbors(_reaction_graph_view(self), node)
+
+    def paths(self, a: str, b: str, max_len: int = 8) -> List[List[str]]:
+        """All simple paths (by name) from ``a`` to ``b`` within ``max_len`` edges."""
+        return graph_ops.paths(_reaction_graph_view(self), a, b, max_len)
+
+    def subgraph(self, nodes: Iterable[str]) -> "ChemistryImpl":
+        """The induced sub-chemistry over ``nodes`` (edges to dropped nodes removed).
+
+        Reuses the surviving molecule objects; rebuilds each surviving reaction
+        with its reactant/product entries filtered to the kept molecules (rate is
+        carried through by identity). All atoms are retained (they are not graph
+        nodes).
+        """
+        node_set = set(nodes)
+        kept_species, kept_reactions = graph_ops.subgraph_selection(
+            _reaction_graph_view(self), node_set
+        )
+        name_to_mol = {mol.name: mol for mol in self.molecules.values()}
+        name_to_rxn = {rxn.name: rxn for rxn in self.reactions.values()}
+
+        new_molecules: Dict[str, MoleculeImpl] = {
+            name: name_to_mol[name] for name in kept_species
+        }
+        new_reactions: Dict[str, ReactionImpl] = {}
+        for rname in kept_reactions:
+            rxn = name_to_rxn[rname]
+            new_reactions[rname] = ReactionImpl(
+                rname,
+                reactants={
+                    m: c for m, c in rxn.reactants.items() if m.name in node_set
+                },
+                products={
+                    m: c for m, c in rxn.products.items() if m.name in node_set
+                },
+                rate=rxn.rate,
+                dat=_mock_dat(f"rxn/{rname}"),
+            )
+        return ChemistryImpl(
+            "subgraph",
+            atoms=self.atoms.copy(),
+            molecules=new_molecules,
+            reactions=new_reactions,
+            dat=_mock_dat("chem/subgraph"),
+        )
+
+    def match(self, pattern: "ChemistryImpl") -> List[Dict[str, str]]:
+        """All subgraph embeddings of ``pattern`` into this chemistry.
+
+        Molecules match on ``(name, symbol, bdepth, molecular_weight)`` equality,
+        reactions structurally; injectivity and every pattern edge are enforced.
+        Returns each embedding as ``{pattern_name: host_name}``; ``[]`` if none.
+        """
+        return graph_ops.match(
+            _reaction_graph_view(self), _reaction_graph_view(pattern)
+        )
 
     def attributes(self) -> Dict[str, Any]:
         """Semantic content of this chemistry."""
