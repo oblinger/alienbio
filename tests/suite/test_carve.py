@@ -7,10 +7,11 @@ predicates. No domain logic in the engine — predicates only inspect a node's t
 and its opaque ``description`` tag.
 
 F007: the engine builds ``Chemistry`` (unified protocol model), so a node's opaque
-"type" tag lives in the molecule's ``description``; catalysis (an enzyme acting on a
-reaction) is expressed structurally — the enzyme is both a reactant and a product,
-so it is adjacent to the reaction without a ``modifiers`` edge (which the biology
-``Reaction`` does not carry).
+"type" tag lives in the molecule's ``description``.
+
+F008: catalysis is a first-class ``modifiers`` edge — the enzyme acts on the reaction
+without being consumed (it is neither a reactant nor a product), and the reaction's
+graph incidence includes its modifiers, so the enzyme is adjacent to the reaction.
 """
 
 from __future__ import annotations
@@ -52,17 +53,18 @@ def build_host() -> ChemistryImpl:
     """A host containing a planted enzyme/substrate/product reaction.
 
     ``r1`` consumes ``s_sub`` and produces ``s_prod``, catalyzed by ``s_enz`` — the
-    enzyme is a reactant *and* a product (structural catalysis: consumed then
-    regenerated), so it is adjacent to ``r1`` without a modifier edge. There is no
-    cofactor molecule — a role selecting one has no candidate.
+    enzyme is a first-class **modifier** (not consumed), so it is adjacent to ``r1``
+    through the reaction's modifier incidence. There is no cofactor molecule — a role
+    selecting one has no candidate.
     """
     s_enz = _mol("s_enz", "enzyme")
     s_sub = _mol("s_sub", "substrate")
     s_prod = _mol("s_prod", "product")
     r1 = ReactionImpl(
         "r1",
-        reactants={s_sub: 1.0, s_enz: 1.0},
-        products={s_prod: 1.0, s_enz: 1.0},
+        reactants={s_sub: 1.0},
+        products={s_prod: 1.0},
+        modifiers={s_enz: "catalyst"},
         dat=MockDat("rxn/r1"),
     )
     return ChemistryImpl(

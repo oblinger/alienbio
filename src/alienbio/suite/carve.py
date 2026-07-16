@@ -13,11 +13,14 @@ role's ``type_tag`` and an edge's ``relation`` tag are opaque strings that are o
 F007 note: the engine was retargeted off the neutral ``ReactionNetwork`` shadow onto
 the biology ``Chemistry`` (unified protocol model — one data model everywhere). It
 builds ``Chemistry`` objects as its working representation ("this is generation time,
-not simulation time"). The neutral ``Reaction`` carried an extra ``modifiers`` edge
-kind (used to model a catalyst without stoichiometric consumption); the biology
-``Reaction`` has no modifiers, so catalysis is expressed *structurally* (an enzyme is
-a reactant and a product) and every motif edge realizes as reactant/product
-incidence. See F007 § PR2 for the modifiers decision.
+not simulation time").
+
+F008 note: the biology ``Reaction`` now carries a first-class ``modifiers`` edge kind
+(a catalyst/regulator acting on a reaction without being stoichiometrically consumed).
+:func:`splice` realizes a motif edge whose ``relation`` names a catalytic role
+(:data:`_MODIFIER_RELATIONS`) as a **modifier** attachment on the reaction, and every
+reaction reconstruction preserves the reaction's existing ``modifiers``. All other
+molecule<->reaction edges still realize as reactant/product incidence.
 
 Two operations:
 - :func:`carve` — find a reuse-maximal, injective, predicate-gated embedding of a motif
@@ -48,6 +51,15 @@ from .types import (
     Motif,
     NodeId,
     Skeleton,
+)
+
+
+#: Motif-edge ``relation`` tags that :func:`splice` realizes as a **modifier**
+#: (catalyst/regulator) attachment rather than reactant/product incidence. The
+#: relation string itself is stored as the modifier's opaque role tag. This is the
+#: one place the otherwise-opaque ``relation`` tag is interpreted (F008).
+_MODIFIER_RELATIONS = frozenset(
+    {"catalyzes", "catalyst", "modifies", "regulates", "inhibits", "activates"}
 )
 
 
@@ -225,8 +237,11 @@ def splice(host: ChemistryImpl, skeleton: Skeleton) -> ChemistryImpl:
     function of ``(host, skeleton)``.
 
     Edge realization is bio-typed:
-    - a **molecule<->reaction** edge adds the molecule to that reaction (as a product
-      when the edge runs reaction->molecule, else as a reactant);
+    - a **molecule<->reaction** edge whose ``relation`` names a catalytic role
+      (:data:`_MODIFIER_RELATIONS`) attaches the molecule as a **modifier**
+      (catalyst/regulator, not consumed), with the relation as its role tag;
+    - any other **molecule<->reaction** edge adds the molecule to that reaction (as a
+      product when the edge runs reaction->molecule, else as a reactant);
     - a **molecule<->molecule** edge inserts a neutral reactant->product reaction;
     - a **reaction<->reaction** edge has no bio meaning and is skipped.
     """
@@ -252,7 +267,7 @@ def splice(host: ChemistryImpl, skeleton: Skeleton) -> ChemistryImpl:
                 dat=_mock_dat(f"mol/{nid}"),
             )
 
-    for a, b, _ in motif.edges:
+    for a, b, relation in motif.edges:
         u = binding[a]
         v = binding[b]
         current = _rebuild(molecules, reactions, atoms)
@@ -267,16 +282,20 @@ def splice(host: ChemistryImpl, skeleton: Skeleton) -> ChemistryImpl:
             continue
 
         if u_is_rxn or v_is_rxn:
-            # Molecule<->reaction edge: attach the molecule to the reaction. Follow
-            # the edge direction — reaction->molecule makes the molecule a product;
-            # molecule->reaction makes it a reactant.
+            # Molecule<->reaction edge. A catalytic relation attaches the molecule as
+            # a modifier (not consumed); otherwise follow the edge direction —
+            # reaction->molecule makes the molecule a product, molecule->reaction a
+            # reactant. Every case preserves the reaction's existing modifiers.
             rxn_id = u if u_is_rxn else v
             mol_id = v if u_is_rxn else u
             mol = molecules[mol_id]
             rxn = reactions[rxn_id]
             new_reactants = dict(rxn.reactants)
             new_products = dict(rxn.products)
-            if u_is_rxn:
+            new_modifiers = dict(rxn.modifiers)
+            if relation.lower() in _MODIFIER_RELATIONS:
+                new_modifiers[mol] = relation
+            elif u_is_rxn:
                 new_products[mol] = 1.0
             else:
                 new_reactants[mol] = 1.0
@@ -284,6 +303,7 @@ def splice(host: ChemistryImpl, skeleton: Skeleton) -> ChemistryImpl:
                 rxn_id,
                 reactants=new_reactants,
                 products=new_products,
+                modifiers=new_modifiers,
                 rate=rxn.rate,
                 dat=_mock_dat(f"rxn/{rxn_id}"),
             )
@@ -306,6 +326,7 @@ def splice(host: ChemistryImpl, skeleton: Skeleton) -> ChemistryImpl:
                 rid,
                 reactants={m: c for m, c in rxn.reactants.items() if m.name != nid},
                 products={m: c for m, c in rxn.products.items() if m.name != nid},
+                modifiers={m: r for m, r in rxn.modifiers.items() if m.name != nid},
                 rate=rxn.rate,
                 dat=_mock_dat(f"rxn/{rid}"),
             )

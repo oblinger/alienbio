@@ -31,14 +31,17 @@ def _reaction_graph_view(chem: "ChemistryImpl") -> graph_ops.GraphView:
     """Adapt a chemistry into a neutral bipartite graph view.
 
     Reads only ``molecules`` / ``reactions``. Node ids are molecule / reaction
-    ``name``s; a reaction's incidence is its reactant + product molecule names
-    (the base protocol carries no modifiers); a molecule's match key is
-    ``(name, symbol, bdepth, molecular_weight)`` — the same properties the neutral
-    view tags a species with, so ``match`` agrees across both representations.
+    ``name``s; a reaction's incidence is its reactant + product + modifier
+    molecule names (catalysts/regulators are first-class edges — F008); a
+    molecule's match key is ``(name, symbol, bdepth, molecular_weight)`` — the
+    same properties the neutral view tags a species with, so ``match`` agrees
+    across both representations.
     """
     incidence = {
         rxn.name: frozenset(
-            [m.name for m in rxn.reactants] + [m.name for m in rxn.products]
+            [m.name for m in rxn.reactants]
+            + [m.name for m in rxn.products]
+            + [m.name for m in rxn.modifiers]
         )
         for rxn in chem.reactions.values()
     }

@@ -119,20 +119,71 @@ def test_protected_subgraph_invariant():
         world.network, protected
     )
 
-    # No reaction references a protected node unless it already did in the input.
+    # No reaction references a protected node unless it already did in the input
+    # (references include modifiers — catalysts are first-class edges, F008).
     original_refs = {
         rid
         for rid, rxn in world.network.reactions.items()
-        if any(m.name in protected for m in (*rxn.reactants, *rxn.products))
+        if any(
+            m.name in protected
+            for m in (*rxn.reactants, *rxn.products, *rxn.modifiers)
+        )
     }
     for rid, rxn in result.network.reactions.items():
         refs_protected = any(
-            m.name in protected for m in (*rxn.reactants, *rxn.products)
+            m.name in protected
+            for m in (*rxn.reactants, *rxn.products, *rxn.modifiers)
         )
         if refs_protected:
             assert rid in original_refs
             # And that reaction must be the original object (reused by identity).
             assert rxn is world.network.reactions[rid]
+
+
+def test_protected_reaction_modifier_preserved():
+    """A first-class modifier on a protected reaction survives augment (F008).
+
+    The protected reaction is reused by identity, so its ``modifiers`` edge is
+    preserved byte-for-byte and the catalyst stays adjacent to the reaction in
+    the augmented graph.
+    """
+    s_a, s_b, s_enz = _mol("s_a"), _mol("s_b"), _mol("s_enz")
+    r_x = ReactionImpl(
+        "r_x",
+        reactants={s_a: 1.0},
+        products={s_b: 1.0},
+        modifiers={s_enz: "catalyst"},
+        dat=MockDat("rxn/r_x"),
+    )
+    network = ChemistryImpl(
+        "world",
+        molecules={"s_a": s_a, "s_b": s_b, "s_enz": s_enz},
+        reactions={"r_x": r_x},
+        dat=MockDat("chem/world"),
+    )
+    topology = Topology(compartments=(Compartment("root", None, "organism", 1.0),))
+    initial = StateVector(
+        data=np.zeros((1, 3), dtype=np.float64),
+        compartments=("root",),
+        species=("s_a", "s_b", "s_enz"),
+    )
+    world = World(network=network, topology=topology, initial=initial)
+    protected = {"s_a", "s_b", "s_enz", "r_x"}
+
+    result = augment(
+        world,
+        {"n_species": (8.0, 0.0), "n_reactions": (4.0, 0.0)},
+        protected,
+        seed=Seed(3),
+    )
+
+    kept = result.network.reactions["r_x"]
+    # Reused by identity → modifier edge intact.
+    assert kept is r_x
+    assert {m.name: role for m, role in kept.modifiers.items()} == {"s_enz": "catalyst"}
+    # The catalyst is adjacent to the reaction via first-class modifier incidence.
+    assert "r_x" in result.network.neighbors("s_enz")
+    assert "s_enz" in result.network.neighbors("r_x")
 
 
 def test_determinism():

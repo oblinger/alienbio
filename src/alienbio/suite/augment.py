@@ -18,6 +18,10 @@ only newly-added (non-protected) filler nodes, so the induced subgraph over the
 protected set — and the full incidence of every protected node — is identical
 before and after.
 
+F008: a reaction's incidence now includes its first-class ``modifiers``
+(catalysts/regulators). Protected reactions are reused by identity, so their
+modifier edges are preserved byte-for-byte; filler reactions carry no modifiers.
+
 Supported statistic vocabulary (:func:`graph_stats`):
 - ``"n_species"``   — number of molecule (species) nodes.
 - ``"n_reactions"`` — number of reaction nodes.
@@ -140,6 +144,7 @@ def augment(
             r,
             reactants=new_reactants,
             products=dict(rxn.products),
+            modifiers=dict(rxn.modifiers),
             rate=rxn.rate,
             dat=_mock_dat(f"rxn/{r}"),
         )
