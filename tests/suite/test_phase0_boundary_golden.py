@@ -28,9 +28,6 @@ from alienbio.suite.adapters import from_network, to_network
 from alienbio.suite.dist import Seed
 from alienbio.suite.types import (
     Compartment,
-    Reaction,
-    ReactionNetwork,
-    Species,
     StateVector,
     Topology,
     World,
@@ -121,18 +118,25 @@ def test_from_network_lossy_delta_is_characterized():
     assert water.name == "Water"
 
 
-# ── Engine golden: simulate() through the from_network + real-physics bridge ──
+# ── Engine golden: simulate() over the world's concrete Chemistry (real physics) ──
 
 def _build_world() -> World:
-    """Fixed 1-compartment world: S1 -> S2, constant mass-action rate 0.5, S1(0)=10."""
-    net = ReactionNetwork(
-        species={"S1": Species("S1", {}), "S2": Species("S2", {})},
-        reactions={
-            "R1": Reaction(
-                "R1", reactants=(("S1", 1),), products=(("S2", 1),),
-                modifiers=(), rate=0.5,
-            )
-        },
+    """Fixed 1-compartment world: S1 -> S2, constant mass-action rate 0.5, S1(0)=10.
+
+    F007: the world now carries a concrete biology ``Chemistry`` directly (unified
+    protocol model); the neutral ``ReactionNetwork`` + ``from_network`` bridge is
+    gone.  The physics is unchanged, so the golden trajectory below is identical —
+    which is exactly what proves the retarget is behavior-preserving.
+    """
+    s1 = MoleculeImpl("S1", name="S1", dat=MockDat("mol/S1"))
+    s2 = MoleculeImpl("S2", name="S2", dat=MockDat("mol/S2"))
+    r1 = ReactionImpl(
+        "R1", reactants={s1: 1.0}, products={s2: 1.0},
+        rate=0.5, dat=MockDat("rxn/R1"),
+    )
+    net = ChemistryImpl(
+        "cell", molecules={"S1": s1, "S2": s2},
+        reactions={"R1": r1}, dat=MockDat("chem/world"),
     )
     topo = Topology((Compartment("c0", None, "cell", 1.0),))
     initial = StateVector(
@@ -154,10 +158,10 @@ _SIM_DATA = [
 
 
 def test_simulate_world_golden():
-    """`simulate` reproduces this exact trajectory (real physics via from_network).
+    """`simulate` reproduces this exact trajectory (real physics on the Chemistry).
 
     F007 invariant: the refactored boundary must yield the identical trace — this
-    pins the real-integrator output that flows through the adapter bridge.
+    pins the real-integrator output, now read straight off the world's Chemistry.
     """
     trace = simulate(_build_world(), SimConfig(dt=0.1, steps=20, sample_every=5), seed=Seed(0))
 
