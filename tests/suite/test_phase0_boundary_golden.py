@@ -1,17 +1,14 @@
 """F007 Phase 0 — characterization / golden tests at the biology<->neutral boundary.
 
-These lock the *current* behavior of the seam that F007 will replace (the
-``adapters.py`` copy-functions + the ``verify`` bridge that consumes them), so
+These lock the *current* behavior of the seam F007 replaced (the biology classes
+now ARE the unified protocol model; the neutral ``ReactionNetwork`` shadow and
+its ``adapters.py`` copy-functions ``to_network``/``from_network`` are gone), so
 the protocol-ization refactor can be shown to be behavior-preserving.
 
-Unlike the property/acceptance tests in ``test_adapters.py`` (which use hand-built,
-atom-free neutral fixtures and check round-trip *shape*), these use a **real**
-``ChemistryImpl`` with atoms — so ``symbol``/``molecular_weight`` are non-trivial —
-and pin the **exact values** the engines see through the boundary today. When
-F007 makes the biology classes implement the neutral ``Protocol``s directly, the
-Protocol view must reproduce the `to_network(...)` golden below unchanged; the
-`from_network` lossy-delta test documents precisely what the refactor is expected
-to fix (and will therefore need updating when it does).
+The boundary golden below pins the **exact values** engines see straight off a
+**real** ``ChemistryImpl`` with atoms — so ``symbol``/``molecular_weight`` are
+non-trivial — read directly from ``chem.molecules`` / ``chem.reactions`` (no
+neutral conversion step exists anymore; there is nothing to lose).
 
 Golden values were captured by executing the real code, never hand-computed.
 """
@@ -24,7 +21,6 @@ from alienbio.bio.chemistry import ChemistryImpl
 from alienbio.bio.molecule import AtomImpl, MoleculeImpl
 from alienbio.bio.reaction import ReactionImpl
 from alienbio.infra.entity import MockDat
-from alienbio.suite.adapters import from_network, to_network
 from alienbio.suite.dist import Seed
 from alienbio.suite.types import (
     Compartment,
@@ -39,7 +35,7 @@ def _build_real_chem() -> ChemistryImpl:
     """A real Chemistry with atoms: glucose (C6H12O6) -> 2 water (H2O), rate 0.3.
 
     Uses real ``AtomImpl`` composition so ``symbol``/``molecular_weight`` are
-    derived (non-empty), exercising the tags the neutral view carries.
+    derived (non-empty).
     """
     c = AtomImpl("C", "Carbon", 12.011)
     h = AtomImpl("H", "Hydrogen", 1.008)
@@ -62,60 +58,37 @@ def _build_real_chem() -> ChemistryImpl:
     )
 
 
-# ── Boundary golden: what the engines see through to_network() TODAY ──────────
+# ── Boundary golden: what the engines see straight off ChemistryImpl TODAY ────
 
-def test_to_network_real_chemistry_golden():
-    """`to_network` on a real Chemistry produces this exact neutral network.
+def test_chemistry_molecule_and_reaction_fields_golden():
+    """A real Chemistry's molecule/reaction fields carry this exact golden data.
 
-    F007 invariant: after protocol-ization the biology classes must expose the
-    SAME view. Species are keyed by ``mol.name``; ``symbol``/``molecular_weight``
-    (atom-derived) ARE carried into the neutral tags on this forward direction.
+    F007 invariant: the biology classes ARE the unified protocol model — no
+    neutral conversion happens anymore, so these fields are read directly off
+    ``ChemistryImpl``. ``symbol``/``molecular_weight`` are atom-derived and
+    non-trivial here (this pins the same golden values the retired
+    ``to_network`` forward-direction conversion used to expose).
     """
-    net = to_network(_build_real_chem())
+    chem = _build_real_chem()
 
-    assert set(net.species.keys()) == {"Glucose", "Water"}
-    assert dict(net.species["Glucose"].attrs) == {
-        "name": "Glucose",
-        "symbol": "C6H12O6",
-        "bdepth": 2,
-        "molecular_weight": 180.156,
-    }
-    assert dict(net.species["Water"].attrs) == {
-        "name": "Water",
-        "symbol": "H2O",
-        "bdepth": 0,
-        "molecular_weight": 18.015,
-    }
+    assert set(chem.molecules.keys()) == {"glucose", "water"}
+    glucose = chem.molecules["glucose"]
+    assert glucose.name == "Glucose"
+    assert glucose.symbol == "C6H12O6"
+    assert glucose.bdepth == 2
+    assert glucose.molecular_weight == 180.156
 
-    assert set(net.reactions.keys()) == {"r1"}
-    r1 = net.reactions["r1"]
-    assert r1.reactants == (("Glucose", 1),)
-    assert r1.products == (("Water", 2),)
-    assert r1.modifiers == ()
-    assert r1.rate == 0.3
-
-
-def test_from_network_lossy_delta_is_characterized():
-    """Characterizes the CURRENT reverse-direction loss that F007 will fix.
-
-    ``from_network`` reconstructs atom-free molecules, so ``symbol`` and
-    ``molecular_weight`` are lost (``bdepth``/``name`` survive). This is the
-    single-source-of-truth violation F007 removes — pinned here so the change is
-    visible and intentional (this test is EXPECTED to change under F007 Phase 2).
-    """
-    rebuilt = from_network(to_network(_build_real_chem()))
-
-    glucose = rebuilt.molecules["Glucose"]
-    assert glucose.symbol == ""            # lost (atom-derived)
-    assert glucose.molecular_weight == 0.0  # lost (atom-derived)
-    assert glucose.bdepth == 2              # preserved
-    assert glucose.name == "Glucose"        # preserved
-
-    water = rebuilt.molecules["Water"]
-    assert water.symbol == ""
-    assert water.molecular_weight == 0.0
-    assert water.bdepth == 0
+    water = chem.molecules["water"]
     assert water.name == "Water"
+    assert water.symbol == "H2O"
+    assert water.bdepth == 0
+    assert water.molecular_weight == 18.015
+
+    assert set(chem.reactions.keys()) == {"r1"}
+    r1 = chem.reactions["r1"]
+    assert {mol.name: coeff for mol, coeff in r1.reactants.items()} == {"Glucose": 1}
+    assert {mol.name: coeff for mol, coeff in r1.products.items()} == {"Water": 2}
+    assert r1.rate == 0.3
 
 
 # ── Engine golden: simulate() over the world's concrete Chemistry (real physics) ──

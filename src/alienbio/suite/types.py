@@ -1,18 +1,14 @@
-"""Neutral, immutable value types for the ``suite`` subsystem (L0-L6).
+"""Neutral, immutable value types for the ``suite`` subsystem (L0, L2-L6).
 
-This module is a **generic reaction-network / graph library**. It carries NO
-domain logic: every piece of domain meaning is an opaque :data:`Tags` mapping
-(``dict[str, str | float]``) that this code never inspects or branches on.
-Likewise :data:`RateSpec` (a float or an opaque callable) is stored as-is and
-never evaluated; round-trips preserve object identity.
+This module carries NO domain logic: every piece of domain meaning is an
+opaque :data:`Tags` mapping (``dict[str, str | float]``) that this code never
+inspects or branches on.
 
 All value types are ``@dataclass(frozen=True)`` — collections are stored as
 tuples or immutable mappings, and nothing mutates after construction.
 
 Layers:
 - L0: primitive aliases (:data:`NodeId`, :data:`Tags`).
-- L1: neutral bipartite reaction network (:class:`Species`, :class:`Reaction`,
-  :class:`ReactionNetwork`).
 - L2: world / physics / state (:class:`Compartment`, :class:`Topology`,
   :class:`StateVector`, :class:`Trace`, :class:`World`).
 - L3: motif (abstract) vs skeleton (concrete binding).
@@ -24,12 +20,10 @@ Layers:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import (
     Any,
     Callable,
     Generic,
-    Iterable,
     Mapping,
     Optional,
     Protocol,
@@ -42,7 +36,6 @@ from typing import (
 import numpy as np
 import numpy.typing as npt
 
-from ..infra import graph_ops
 from .dist import Dist, ParamSchema
 
 if TYPE_CHECKING:
@@ -64,112 +57,6 @@ Predicate = Callable[[Any], bool]
 
 # A 2D float array [n_compartments x n_species].
 FloatArray = npt.NDArray[np.float64]
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# L1 — neutral bipartite reaction network
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Opaque rate: exactly the existing Reaction.rate type. Stored as-is, never
-# evaluated or interpreted.
-RateSpec = Union[float, Callable]
-
-
-@dataclass(frozen=True)
-class Species:
-    """A network node carrying opaque tag data."""
-
-    id: NodeId
-    attrs: Tags = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class Reaction:
-    """A bipartite reaction node: reactants, products, modifiers, opaque rate.
-
-    ``reactants``/``products`` are ``(node_id, stoichiometry)`` pairs;
-    ``modifiers`` are ``(node_id, role_tag)`` pairs (may be empty). ``rate`` is
-    an opaque :data:`RateSpec` stored verbatim.
-    """
-
-    id: NodeId
-    reactants: tuple[tuple[NodeId, int], ...] = ()
-    products: tuple[tuple[NodeId, int], ...] = ()
-    modifiers: tuple[tuple[NodeId, str], ...] = ()
-    rate: RateSpec = 1.0
-
-
-@dataclass(frozen=True)
-class ReactionNetwork:
-    """An immutable bipartite species<->reaction network with graph queries."""
-
-    species: Mapping[NodeId, Species]
-    reactions: Mapping[NodeId, Reaction]
-
-    def __post_init__(self) -> None:
-        # Freeze the mappings so nothing mutates after construction.
-        object.__setattr__(self, "species", MappingProxyType(dict(self.species)))
-        object.__setattr__(self, "reactions", MappingProxyType(dict(self.reactions)))
-
-    def _view(self) -> graph_ops.GraphView:
-        """Adapt this network into the neutral :class:`~..infra.graph_ops.GraphView`.
-
-        Species/reactions are exposed in dict order; a reaction's incidence is
-        the union of its reactant/product/modifier node ids; a species' match key
-        is its opaque ``attrs`` mapping (compared for equality only).
-        """
-        incidence = {
-            rid: frozenset(
-                [n for n, _ in rxn.reactants]
-                + [n for n, _ in rxn.products]
-                + [n for n, _ in rxn.modifiers]
-            )
-            for rid, rxn in self.reactions.items()
-        }
-        return graph_ops.GraphView(
-            species_ids=tuple(self.species.keys()),
-            reaction_ids=tuple(self.reactions.keys()),
-            incidence=incidence,
-            species_key={sid: sp.attrs for sid, sp in self.species.items()},
-        )
-
-    def neighbors(self, node: NodeId) -> set[NodeId]:
-        """Species<->reaction adjacency (bipartite)."""
-        return graph_ops.neighbors(self._view(), node)
-
-    def paths(self, a: NodeId, b: NodeId, max_len: int = 8) -> list[list[NodeId]]:
-        """All simple paths from ``a`` to ``b`` with at most ``max_len`` edges."""
-        return graph_ops.paths(self._view(), a, b, max_len)
-
-    def subgraph(self, nodes: Iterable[NodeId]) -> "ReactionNetwork":
-        """The induced subgraph over ``nodes`` (edges to dropped nodes removed)."""
-        node_set = set(nodes)
-        kept_species, kept_reactions = graph_ops.subgraph_selection(
-            self._view(), node_set
-        )
-        new_species = {sid: self.species[sid] for sid in kept_species}
-        new_reactions: dict[NodeId, Reaction] = {}
-        for rid in kept_reactions:
-            rxn = self.reactions[rid]
-            new_reactions[rid] = Reaction(
-                id=rxn.id,
-                reactants=tuple((n, s) for n, s in rxn.reactants if n in node_set),
-                products=tuple((n, s) for n, s in rxn.products if n in node_set),
-                modifiers=tuple((n, r) for n, r in rxn.modifiers if n in node_set),
-                rate=rxn.rate,
-            )
-        return ReactionNetwork(species=new_species, reactions=new_reactions)
-
-    def match(self, pattern: "ReactionNetwork") -> list[dict[NodeId, NodeId]]:
-        """All subgraph embeddings of ``pattern`` into ``self``.
-
-        Matching preserves node type (species<->species, reaction<->reaction),
-        tag-equality on species ``attrs``, injectivity, and every pattern edge
-        (a host edge must exist between the mapped nodes). Reactions match
-        structurally (their rate is opaque and not compared). Returns every
-        embedding as ``{pattern_node: host_node}``; ``[]`` if none.
-        """
-        return graph_ops.match(self._view(), pattern._view())
 
 
 # ═══════════════════════════════════════════════════════════════════════════

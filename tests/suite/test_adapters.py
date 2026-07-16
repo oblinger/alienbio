@@ -1,55 +1,12 @@
-"""Acceptance tests for the bio<->neutral adapters (neutral-level round-trips)."""
+"""Acceptance tests for the bio<->neutral state adapters (neutral-level round-trips)."""
 
 from __future__ import annotations
 
 import numpy as np
 
 from alienbio.bio.compartment_tree import CompartmentTreeImpl
-from alienbio.suite.adapters import from_network, from_state, to_network, to_state
-from alienbio.suite.types import Reaction, ReactionNetwork, Species, StateVector
-
-
-def build_net() -> tuple[ReactionNetwork, object]:
-    """A hand-built neutral network whose tags reflect atom-free molecules.
-
-    ``symbol``/``molecular_weight`` are atom-derived and cannot survive
-    reconstruction, so the fixture uses the atom-free values (``""`` / ``0.0``).
-    """
-    rate_obj = lambda state: 0.1  # noqa: E731  (opaque, unique object for identity)
-
-    def attrs(name: str, bdepth: int) -> dict:
-        return {
-            "name": name,
-            "symbol": "",
-            "bdepth": bdepth,
-            "molecular_weight": 0.0,
-        }
-
-    species = {
-        "S1": Species("S1", attrs("S1", 0)),
-        "S2": Species("S2", attrs("S2", 1)),
-    }
-    reactions = {
-        "R1": Reaction(
-            "R1",
-            reactants=(("S1", 1),),
-            products=(("S2", 1),),
-            modifiers=(),
-            rate=rate_obj,
-        ),
-    }
-    return ReactionNetwork(species=species, reactions=reactions), rate_obj
-
-
-def test_network_round_trip():
-    net, _ = build_net()
-    assert to_network(from_network(net)) == net
-
-
-def test_rate_identity_preserved():
-    net, rate_obj = build_net()
-    rebuilt = to_network(from_network(net))
-    assert rebuilt.reactions["R1"].rate is rate_obj
+from alienbio.suite.adapters import from_state, to_state
+from alienbio.suite.types import StateVector
 
 
 def test_state_round_trip():

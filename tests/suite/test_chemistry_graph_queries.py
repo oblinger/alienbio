@@ -1,16 +1,13 @@
 """Graph queries on ``ChemistryImpl`` (F007 — biological absorption, PR #1).
 
-The unified protocol model folds the neutral ``ReactionNetwork``'s graph-query
-surface (``neighbors`` / ``paths`` / ``subgraph`` / ``match``) onto the biology
-``Chemistry`` container. Both now delegate to the single shared algorithm in
-``alienbio.infra.graph_ops``.
+The unified protocol model folds the (now-retired) neutral ``ReactionNetwork``'s
+graph-query surface (``neighbors`` / ``paths`` / ``subgraph`` / ``match``) onto
+the biology ``Chemistry`` container, delegating to the single shared algorithm
+in ``alienbio.infra.graph_ops``.
 
-The primary contract these tests pin is **equivalence to the reference**: for the
-same logical network, ``chem.<query>(...)`` must equal
-``to_network(chem).<query>(...)``. That is exactly the locked-model claim — that
-``Chemistry`` carries the behavior ``ReactionNetwork`` carried — so if a future
-edit drifts the two apart, these fail. A handful of golden literals guard against
-the (unlikely) case of both implementations drifting together.
+These tests pin exact golden literals for ``neighbors`` / ``paths`` / ``subgraph``
+/ ``match`` directly on ``Chemistry`` — one per node / pair / node-set — so a
+future edit that drifts the query results is caught immediately.
 """
 
 from __future__ import annotations
@@ -24,8 +21,6 @@ from alienbio.bio.chemistry import ChemistryImpl
 from alienbio.bio.molecule import MoleculeImpl
 from alienbio.bio.reaction import ReactionImpl
 from alienbio.infra.entity import MockDat
-from alienbio.suite.adapters import to_network
-from alienbio.suite.types import ReactionNetwork
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -94,20 +89,6 @@ def _all_nodes(chem: ChemistryImpl) -> list[str]:
     ]
 
 
-def _net_shape(net: ReactionNetwork) -> tuple[dict, dict]:
-    """Normalize a network to comparable plain data (order-independent)."""
-    species = {sid: dict(sp.attrs) for sid, sp in net.species.items()}
-    reactions = {
-        rid: (
-            tuple(rxn.reactants),
-            tuple(rxn.products),
-            tuple(rxn.modifiers),
-        )
-        for rid, rxn in net.reactions.items()
-    }
-    return species, reactions
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # neighbors
 # ─────────────────────────────────────────────────────────────────────────────
@@ -123,10 +104,19 @@ def test_neighbors_golden(chem: ChemistryImpl) -> None:
     assert chem.neighbors("nonexistent") == set()
 
 
-def test_neighbors_matches_reference(chem: ChemistryImpl) -> None:
-    net = to_network(chem)
+def test_neighbors_exhaustive_golden(chem: ChemistryImpl) -> None:
+    """``neighbors`` pinned for every node in the fixture, not just a sample."""
+    expected = {
+        "glucose": {"hexokinase"},
+        "g6p": {"hexokinase", "isomerase"},
+        "pyruvate": {"isomerase"},
+        "atp": {"hexokinase"},
+        "adp": {"hexokinase"},
+        "hexokinase": {"glucose", "atp", "g6p", "adp"},
+        "isomerase": {"g6p", "pyruvate"},
+    }
     for node in _all_nodes(chem):
-        assert chem.neighbors(node) == net.neighbors(node), node
+        assert chem.neighbors(node) == expected[node], node
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -143,17 +133,21 @@ def test_paths_golden(chem: ChemistryImpl) -> None:
     assert chem.paths("glucose", "pyruvate", max_len=2) == []
 
 
-def test_paths_matches_reference(chem: ChemistryImpl) -> None:
-    net = to_network(chem)
-    pairs = [
-        ("glucose", "pyruvate"),
-        ("atp", "adp"),
-        ("glucose", "adp"),
-        ("pyruvate", "glucose"),
-        ("g6p", "g6p"),
-    ]
-    for a, b in pairs:
-        assert chem.paths(a, b) == net.paths(a, b), (a, b)
+def test_paths_exhaustive_golden(chem: ChemistryImpl) -> None:
+    """``paths`` pinned for several a/b pairs beyond the single golden case above."""
+    expected = {
+        ("glucose", "pyruvate"): [
+            ["glucose", "hexokinase", "g6p", "isomerase", "pyruvate"]
+        ],
+        ("atp", "adp"): [["atp", "hexokinase", "adp"]],
+        ("glucose", "adp"): [["glucose", "hexokinase", "adp"]],
+        ("pyruvate", "glucose"): [
+            ["pyruvate", "isomerase", "g6p", "hexokinase", "glucose"]
+        ],
+        ("g6p", "g6p"): [["g6p"]],
+    }
+    for (a, b), want in expected.items():
+        assert chem.paths(a, b) == want, (a, b)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -182,17 +176,42 @@ def test_subgraph_drops_edges_to_removed_nodes(chem: ChemistryImpl) -> None:
     assert {m.name for m in hk.products} == {"g6p"}  # adp edge removed
 
 
-def test_subgraph_matches_reference(chem: ChemistryImpl) -> None:
-    net = to_network(chem)
-    for nodes in (
-        {"glucose", "atp", "g6p", "adp", "hexokinase"},
-        {"glucose", "atp", "g6p", "hexokinase"},  # drops an endpoint
-        {"g6p", "pyruvate", "isomerase"},
-        {"glucose", "g6p", "pyruvate"},  # species only, no reactions
-    ):
-        assert _net_shape(to_network(chem.subgraph(nodes))) == _net_shape(
-            net.subgraph(nodes)
-        ), nodes
+def _rxn_shape(sub: ChemistryImpl) -> dict[str, tuple[tuple, tuple]]:
+    """Molecule-name reactant/product pairs for every surviving reaction."""
+    return {
+        rid: (
+            tuple(sorted((m.name, s) for m, s in rxn.reactants.items())),
+            tuple(sorted((m.name, s) for m, s in rxn.products.items())),
+        )
+        for rid, rxn in sub.reactions.items()
+    }
+
+
+def test_subgraph_exhaustive_golden(chem: ChemistryImpl) -> None:
+    """``subgraph`` pinned for several node-sets beyond the two golden cases above."""
+    nodes = {"glucose", "atp", "g6p", "adp", "hexokinase"}
+    sub = chem.subgraph(nodes)
+    assert sorted(sub.molecules) == ["adp", "atp", "g6p", "glucose"]
+    assert _rxn_shape(sub) == {
+        "hexokinase": ((("atp", 1), ("glucose", 1)), (("adp", 1), ("g6p", 1)))
+    }
+
+    nodes = {"glucose", "atp", "g6p", "hexokinase"}  # drops an endpoint (adp)
+    sub = chem.subgraph(nodes)
+    assert sorted(sub.molecules) == ["atp", "g6p", "glucose"]
+    assert _rxn_shape(sub) == {
+        "hexokinase": ((("atp", 1), ("glucose", 1)), (("g6p", 1),))
+    }
+
+    nodes = {"g6p", "pyruvate", "isomerase"}
+    sub = chem.subgraph(nodes)
+    assert sorted(sub.molecules) == ["g6p", "pyruvate"]
+    assert _rxn_shape(sub) == {"isomerase": ((("g6p", 1),), (("pyruvate", 1),))}
+
+    nodes = {"glucose", "g6p", "pyruvate"}  # species only, no reactions
+    sub = chem.subgraph(nodes)
+    assert sorted(sub.molecules) == ["g6p", "glucose", "pyruvate"]
+    assert _rxn_shape(sub) == {}
 
 
 def test_subgraph_carries_rate_through(chem: ChemistryImpl) -> None:
@@ -224,17 +243,35 @@ def test_match_isomerase_shape(chem: ChemistryImpl) -> None:
     ]
 
 
-def test_match_matches_reference(chem: ChemistryImpl) -> None:
-    net = to_network(chem)
-    for nodes in (
-        {"glucose", "atp", "hexokinase"},
-        {"g6p", "pyruvate", "isomerase"},
-        {"g6p", "hexokinase"},
-        {"glucose", "atp", "g6p", "adp", "hexokinase"},
-    ):
-        chem_pattern = chem.subgraph(nodes)
-        net_pattern = net.subgraph(nodes)
-        assert chem.match(chem_pattern) == net.match(net_pattern), nodes
+def test_match_exhaustive_golden(chem: ChemistryImpl) -> None:
+    """``match`` pinned for several patterns beyond the two golden cases above."""
+    pattern = chem.subgraph({"glucose", "atp", "hexokinase"})
+    assert chem.match(pattern) == [
+        {"glucose": "glucose", "atp": "atp", "hexokinase": "hexokinase"}
+    ]
+
+    pattern = chem.subgraph({"g6p", "pyruvate", "isomerase"})
+    assert chem.match(pattern) == [
+        {"g6p": "g6p", "pyruvate": "pyruvate", "isomerase": "isomerase"}
+    ]
+
+    # A single-reaction pattern embeds at BOTH reactions (each touches g6p).
+    pattern = chem.subgraph({"g6p", "hexokinase"})
+    assert chem.match(pattern) == [
+        {"g6p": "g6p", "hexokinase": "hexokinase"},
+        {"g6p": "g6p", "hexokinase": "isomerase"},
+    ]
+
+    pattern = chem.subgraph({"glucose", "atp", "g6p", "adp", "hexokinase"})
+    assert chem.match(pattern) == [
+        {
+            "glucose": "glucose",
+            "g6p": "g6p",
+            "atp": "atp",
+            "adp": "adp",
+            "hexokinase": "hexokinase",
+        }
+    ]
 
 
 def test_match_empty_when_no_embedding(chem: ChemistryImpl) -> None:

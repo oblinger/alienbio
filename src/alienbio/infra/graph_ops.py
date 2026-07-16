@@ -1,11 +1,12 @@
 """Neutral bipartite-graph algorithms shared by the reaction-network views.
 
-This is the **single source of truth** for the four graph queries that both the
-biology ``Chemistry`` container and the neutral ``ReactionNetwork`` expose:
-``neighbors`` / ``paths`` / ``subgraph`` / ``match``. Each caller adapts its own
-representation into a :class:`GraphView` (ordered species + reaction ids, plus a
-per-reaction incidence set and a per-species opaque comparison key) and delegates
-here; the algorithm never inspects domain objects.
+This is the **single source of truth** for the four graph queries the biology
+``Chemistry`` container exposes: ``neighbors`` / ``paths`` / ``subgraph`` /
+``match`` (originally shared with the now-retired neutral ``ReactionNetwork``
+shadow type). Each caller adapts its own representation into a
+:class:`GraphView` (ordered species + reaction ids, plus a per-reaction
+incidence set and a per-species opaque comparison key) and delegates here; the
+algorithm never inspects domain objects.
 
 The bipartite model: species nodes and reaction nodes live in one id namespace;
 a reaction is adjacent to every species it touches (reactants, products, or
