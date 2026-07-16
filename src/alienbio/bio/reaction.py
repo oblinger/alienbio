@@ -24,20 +24,23 @@ class ReactionImpl(Entity, head="Reaction"):
     Each reaction has:
     - reactants: molecules consumed (with stoichiometric coefficients)
     - products: molecules produced (with stoichiometric coefficients)
+    - modifiers: catalysts/regulators acting on the reaction WITHOUT being
+      consumed (enzymes, inhibitors), each mapped to an opaque role tag
     - rate: constant or function determining reaction speed
 
     Example:
-        # A + 2B -> C with rate 0.1
+        # A + 2B -> C, catalyzed by enzyme E, with rate 0.1
         reaction = ReactionImpl(
             "r1",
             reactants={mol_a: 1, mol_b: 2},
             products={mol_c: 1},
+            modifiers={enzyme_e: "catalyst"},
             rate=0.1,
             parent=chemistry,
         )
     """
 
-    __slots__ = ("_reactants", "_products", "_rate")
+    __slots__ = ("_reactants", "_products", "_modifiers", "_rate")
 
     def __init__(
         self,
@@ -45,6 +48,7 @@ class ReactionImpl(Entity, head="Reaction"):
         *,
         reactants: Optional[Dict[Molecule, float]] = None,
         products: Optional[Dict[Molecule, float]] = None,
+        modifiers: Optional[Dict[Molecule, str]] = None,
         rate: RateValue = 1.0,
         parent: Optional[Entity] = None,
         dat: Optional[Dat] = None,
@@ -56,6 +60,8 @@ class ReactionImpl(Entity, head="Reaction"):
             name: Local name within parent
             reactants: Dict mapping molecules to stoichiometric coefficients
             products: Dict mapping molecules to stoichiometric coefficients
+            modifiers: Dict mapping catalyst/regulator molecules (not consumed)
+                to an opaque role tag (e.g. "catalyst", "inhibitor")
             rate: Reaction rate (constant float or function of State)
             parent: Link to containing entity
             dat: DAT anchor for root reactions
@@ -64,6 +70,7 @@ class ReactionImpl(Entity, head="Reaction"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self._reactants: Dict[Molecule, float] = reactants.copy() if reactants else {}
         self._products: Dict[Molecule, float] = products.copy() if products else {}
+        self._modifiers: Dict[Molecule, str] = modifiers.copy() if modifiers else {}
         self._rate: RateValue = rate
 
     @classmethod
@@ -138,6 +145,26 @@ class ReactionImpl(Entity, head="Reaction"):
                         )
                     products[molecules[mol_name]] = coef
 
+        # Build modifiers dict: {MoleculeImpl: role}.  Accepts the canonical
+        # {name: role} mapping (attributes() output) or a bare list of names
+        # (role defaults to "", mirroring the reactant/product list form).
+        modifiers: Dict[Molecule, str] = {}
+        raw_modifiers = data.get("modifiers", {})
+        if isinstance(raw_modifiers, dict):
+            mod_items = raw_modifiers.items()
+        else:
+            mod_items = (
+                (m, "") if isinstance(m, str) else next(iter(m.items()))
+                for m in raw_modifiers
+            )
+        for mol_name, role in mod_items:
+            if mol_name not in molecules:
+                raise KeyError(
+                    f"Reaction {name!r}: unknown modifier molecule {mol_name!r} "
+                    f"(not in chemistry molecules)"
+                )
+            modifiers[molecules[mol_name]] = role
+
         # Get rate (function or constant)
         rate = data.get("rate", 1.0)
 
@@ -145,6 +172,7 @@ class ReactionImpl(Entity, head="Reaction"):
             name,
             reactants=reactants,
             products=products,
+            modifiers=modifiers,
             rate=rate,
             parent=parent,
             dat=dat,
@@ -160,6 +188,11 @@ class ReactionImpl(Entity, head="Reaction"):
     def products(self) -> Dict[Molecule, float]:
         """Product molecules and their stoichiometric coefficients."""
         return self._products.copy()
+
+    @property
+    def modifiers(self) -> Dict[Molecule, str]:
+        """Catalyst/regulator molecules (not consumed) mapped to a role tag."""
+        return self._modifiers.copy()
 
     @property
     def rate(self) -> RateValue:
@@ -209,6 +242,10 @@ class ReactionImpl(Entity, head="Reaction"):
         """Add a product to this reaction."""
         self._products[molecule] = coefficient
 
+    def add_modifier(self, molecule: Molecule, role: str = "") -> None:
+        """Add a catalyst/regulator (not stoichiometrically consumed)."""
+        self._modifiers[molecule] = role
+
     def attributes(self) -> Dict[str, Any]:
         """Semantic content of this reaction."""
         result = super().attributes()
@@ -221,6 +258,12 @@ class ReactionImpl(Entity, head="Reaction"):
         if self._products:
             result["products"] = {
                 mol.local_name: coef for mol, coef in self._products.items()
+            }
+
+        # Serialize modifiers as {molecule_name: role} (catalysts/regulators)
+        if self._modifiers:
+            result["modifiers"] = {
+                mol.local_name: role for mol, role in self._modifiers.items()
             }
 
         # Only serialize rate if it's a constant
@@ -240,4 +283,11 @@ class ReactionImpl(Entity, head="Reaction"):
             for m, c in self._products.items()
         )
         rate_str = "<fn>" if callable(self._rate) else str(self._rate)
-        return f"ReactionImpl({self._local_name}: {reactant_str} -> {product_str}, rate={rate_str})"
+        arrow = "->"
+        if self._modifiers:
+            mod_str = ", ".join(
+                f"{m.local_name}:{role}" if role else m.local_name
+                for m, role in self._modifiers.items()
+            )
+            arrow = f"-[{mod_str}]->"
+        return f"ReactionImpl({self._local_name}: {reactant_str} {arrow} {product_str}, rate={rate_str})"
