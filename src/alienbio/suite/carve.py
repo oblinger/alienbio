@@ -1,11 +1,23 @@
 """Subgraph carve / splice engine — pure graph embedding + minimal edits.
 
-This module is domain-neutral. It treats a :class:`~alienbio.suite.types.ReactionNetwork`
-as a generic bipartite graph reached only through ``neighbors``/``species``/``reactions``,
-and a :class:`~alienbio.suite.types.Motif` as an abstract pattern graph. Role constraints
-are opaque :data:`~alienbio.suite.types.Predicate` callables that are only *called*; a
+This module is domain-neutral in its *algorithm*: it treats a
+:class:`~alienbio.bio.chemistry.ChemistryImpl` as a generic bipartite graph of
+molecules (species nodes) and reactions (reaction nodes), reached only through
+``neighbors`` / ``molecules`` / ``reactions`` (all keyed by ``name``), and a
+:class:`~alienbio.suite.types.Motif` as an abstract pattern graph. Role
+constraints are opaque :data:`~alienbio.suite.types.Predicate` callables that are
+only *called* on the bound node object (a ``MoleculeImpl`` or ``ReactionImpl``); a
 role's ``type_tag`` and an edge's ``relation`` tag are opaque strings that are only
 *copied onto* synthesized nodes, never interpreted.
+
+F007 note: the engine was retargeted off the neutral ``ReactionNetwork`` shadow onto
+the biology ``Chemistry`` (unified protocol model — one data model everywhere). It
+builds ``Chemistry`` objects as its working representation ("this is generation time,
+not simulation time"). The neutral ``Reaction`` carried an extra ``modifiers`` edge
+kind (used to model a catalyst without stoichiometric consumption); the biology
+``Reaction`` has no modifiers, so catalysis is expressed *structurally* (an enzyme is
+a reactant and a product) and every motif edge realizes as reactant/product
+incidence. See F007 § PR2 for the modifiers decision.
 
 Two operations:
 - :func:`carve` — find a reuse-maximal, injective, predicate-gated embedding of a motif
@@ -15,26 +27,27 @@ Two operations:
 - :func:`splice` — deterministically reconstruct the host with a skeleton's edits applied
   (synthesized nodes created, motif edges realized, removed nodes dropped).
 
-Bipartite-adjacency note: a host reaction connecting species ``a`` (reactant) to species
-``b`` (product) does not make ``a`` a direct ``neighbors`` of ``b`` — the graph is
-bipartite (species<->reaction only). ``carve`` and ``splice`` therefore share a single
+Bipartite-adjacency note: a host reaction connecting molecule ``a`` (reactant) to
+molecule ``b`` (product) does not make ``a`` a direct ``neighbors`` of ``b`` — the graph
+is bipartite (molecule<->reaction only). ``carve`` and ``splice`` therefore share a single
 :func:`_adjacent` predicate: two nodes are adjacent if they are direct bipartite
 ``neighbors`` OR a single reaction links them as reactant->product (either direction).
-The reaction ``splice`` inserts to realize a motif edge makes exactly this predicate true.
+The edge ``splice`` inserts to realize a motif edge makes exactly this predicate true.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Dict
 
+from ..bio.chemistry import ChemistryImpl, _mock_dat
+from ..bio.molecule import MoleculeImpl
+from ..bio.reaction import ReactionImpl
 from .dist import Seed
 from .types import (
     Motif,
     NodeId,
-    Reaction,
-    ReactionNetwork,
     Skeleton,
-    Species,
 )
 
 
@@ -45,25 +58,35 @@ class CarveFail:
     reason: str
 
 
-def _adjacent(net: ReactionNetwork, u: NodeId, v: NodeId) -> bool:
+def _node_objs(host: ChemistryImpl) -> Dict[NodeId, object]:
+    """Every graph node keyed by ``name``: molecules first, then reactions."""
+    objs: Dict[NodeId, object] = {}
+    for mol in host.molecules.values():
+        objs[mol.name] = mol
+    for rxn in host.reactions.values():
+        objs[rxn.name] = rxn
+    return objs
+
+
+def _adjacent(host: ChemistryImpl, u: NodeId, v: NodeId) -> bool:
     """Whether ``u`` and ``v`` are connected in the bipartite host graph.
 
-    True iff ``v`` is a direct bipartite ``neighbors`` of ``u`` (one is a species,
+    True iff ``v`` is a direct bipartite ``neighbors`` of ``u`` (one is a molecule,
     the other a reaction referencing it) OR a single reaction links them as
     reactant->product in either direction (the connection ``splice`` synthesizes).
     """
-    if v in net.neighbors(u):
+    if v in host.neighbors(u):
         return True
-    for rxn in net.reactions.values():
-        r_ids = {n for n, _ in rxn.reactants}
-        p_ids = {n for n, _ in rxn.products}
+    for rxn in host.reactions.values():
+        r_ids = {m.name for m in rxn.reactants}
+        p_ids = {m.name for m in rxn.products}
         if (u in r_ids and v in p_ids) or (v in r_ids and u in p_ids):
             return True
     return False
 
 
 def carve(
-    host: ReactionNetwork,
+    host: ChemistryImpl,
     motif: Motif,
     seed: Seed = Seed(0),
     allow_add: bool = True,
@@ -82,11 +105,7 @@ def carve(
     synthesized node ids, sorted) or a :class:`CarveFail` when no embedding exists
     (e.g. a role has no candidate and ``allow_add`` is False).
     """
-    node_objs: dict[NodeId, object] = {}
-    for sid, sp in host.species.items():
-        node_objs[sid] = sp
-    for rid, rx in host.reactions.items():
-        node_objs[rid] = rx
+    node_objs = _node_objs(host)
 
     cands: dict[str, list[NodeId]] = {}
     for role in motif.roles:
@@ -181,18 +200,39 @@ def carve(
     return Skeleton(motif=motif, binding=binding, added=added, removed=())
 
 
-def splice(host: ReactionNetwork, skeleton: Skeleton) -> ReactionNetwork:
+def _rebuild(
+    molecules: Dict[NodeId, MoleculeImpl],
+    reactions: Dict[NodeId, ReactionImpl],
+    atoms: Dict[str, object],
+) -> ChemistryImpl:
+    """A working ``ChemistryImpl`` over the given name-keyed node tables."""
+    return ChemistryImpl(
+        "splice",
+        atoms=dict(atoms),  # type: ignore[arg-type]
+        molecules=dict(molecules),
+        reactions=dict(reactions),
+        dat=_mock_dat("chem/splice"),
+    )
+
+
+def splice(host: ChemistryImpl, skeleton: Skeleton) -> ChemistryImpl:
     """Return a new host with ``skeleton``'s edits applied (deterministic).
 
-    Creates each synthesized node (a :class:`~alienbio.suite.types.Species` tagged
-    with the ``type_tag`` of the role bound to it), realizes every motif edge by
-    inserting a neutral reactant->product reaction when the two bound nodes are not
-    already adjacent, and drops every removed node (stripping it from all reaction
-    reactant/product/modifier lists). The output is a pure function of
-    ``(host, skeleton)``.
+    Creates each synthesized node (an atom-free :class:`~alienbio.bio.molecule.MoleculeImpl`
+    carrying the ``type_tag`` of the role bound to it as its ``description``), realizes
+    every motif edge as reactant/product incidence, and drops every removed node
+    (stripping it from all reaction reactant/product lists). The output is a pure
+    function of ``(host, skeleton)``.
+
+    Edge realization is bio-typed:
+    - a **molecule<->reaction** edge adds the molecule to that reaction (as a product
+      when the edge runs reaction->molecule, else as a reactant);
+    - a **molecule<->molecule** edge inserts a neutral reactant->product reaction;
+    - a **reaction<->reaction** edge has no bio meaning and is skipped.
     """
-    species: dict[NodeId, Species] = dict(host.species)
-    reactions: dict[NodeId, Reaction] = dict(host.reactions)
+    molecules: Dict[NodeId, MoleculeImpl] = {m.name: m for m in host.molecules.values()}
+    reactions: Dict[NodeId, ReactionImpl] = {r.name: r for r in host.reactions.values()}
+    atoms: Dict[str, object] = dict(host.atoms)
     binding = skeleton.binding
     motif = skeleton.motif
     role_by_name = {role.name: role for role in motif.roles}
@@ -203,33 +243,71 @@ def splice(host: ReactionNetwork, skeleton: Skeleton) -> ReactionNetwork:
             if bound_id == nid:
                 tag = role_by_name[name].type_tag
                 break
-        if nid not in species and nid not in reactions:
-            species[nid] = Species(id=nid, attrs={"type": tag})
+        if nid not in molecules and nid not in reactions:
+            molecules[nid] = MoleculeImpl(
+                nid,
+                name=nid,
+                bdepth=0,
+                description=tag,
+                dat=_mock_dat(f"mol/{nid}"),
+            )
 
     for a, b, _ in motif.edges:
         u = binding[a]
         v = binding[b]
-        current = ReactionNetwork(species=species, reactions=reactions)
-        if not _adjacent(current, u, v):
+        current = _rebuild(molecules, reactions, atoms)
+        if _adjacent(current, u, v):
+            continue
+
+        u_is_rxn = u in reactions
+        v_is_rxn = v in reactions
+
+        if u_is_rxn and v_is_rxn:
+            # No bio meaning for a reaction<->reaction edge; nothing to realize.
+            continue
+
+        if u_is_rxn or v_is_rxn:
+            # Molecule<->reaction edge: attach the molecule to the reaction. Follow
+            # the edge direction — reaction->molecule makes the molecule a product;
+            # molecule->reaction makes it a reactant.
+            rxn_id = u if u_is_rxn else v
+            mol_id = v if u_is_rxn else u
+            mol = molecules[mol_id]
+            rxn = reactions[rxn_id]
+            new_reactants = dict(rxn.reactants)
+            new_products = dict(rxn.products)
+            if u_is_rxn:
+                new_products[mol] = 1.0
+            else:
+                new_reactants[mol] = 1.0
+            reactions[rxn_id] = ReactionImpl(
+                rxn_id,
+                reactants=new_reactants,
+                products=new_products,
+                rate=rxn.rate,
+                dat=_mock_dat(f"rxn/{rxn_id}"),
+            )
+        else:
+            # Molecule<->molecule edge: insert a reactant->product reaction.
             rxn_id = f"rxn::{u}->{v}"
-            reactions[rxn_id] = Reaction(
-                id=rxn_id,
-                reactants=((u, 1),),
-                products=((v, 1),),
-                modifiers=(),
+            reactions[rxn_id] = ReactionImpl(
+                rxn_id,
+                reactants={molecules[u]: 1.0},
+                products={molecules[v]: 1.0},
+                dat=_mock_dat(f"rxn/{rxn_id}"),
             )
 
     for nid in skeleton.removed:
-        species.pop(nid, None)
+        molecules.pop(nid, None)
         reactions.pop(nid, None)
         for rid in list(reactions.keys()):
             rxn = reactions[rid]
-            reactions[rid] = Reaction(
-                id=rxn.id,
-                reactants=tuple((n, s) for n, s in rxn.reactants if n != nid),
-                products=tuple((n, s) for n, s in rxn.products if n != nid),
-                modifiers=tuple((n, r) for n, r in rxn.modifiers if n != nid),
+            reactions[rid] = ReactionImpl(
+                rid,
+                reactants={m: c for m, c in rxn.reactants.items() if m.name != nid},
+                products={m: c for m, c in rxn.products.items() if m.name != nid},
                 rate=rxn.rate,
+                dat=_mock_dat(f"rxn/{rid}"),
             )
 
-    return ReactionNetwork(species=species, reactions=reactions)
+    return _rebuild(molecules, reactions, atoms)
