@@ -33,6 +33,7 @@ from typing import (
     Mapping,
     Optional,
     Protocol,
+    TYPE_CHECKING,
     TypeVar,
     Union,
     runtime_checkable,
@@ -43,6 +44,9 @@ import numpy.typing as npt
 
 from ..infra import graph_ops
 from .dist import Dist, ParamSchema
+
+if TYPE_CHECKING:
+    from ..bio.chemistry import ChemistryImpl
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
@@ -229,9 +233,14 @@ class Trace:
 
 @dataclass(frozen=True)
 class World:
-    """A network + topology + initial state."""
+    """A chemistry + topology + initial state.
 
-    network: ReactionNetwork
+    F007: ``network`` is a biology :class:`~alienbio.bio.chemistry.ChemistryImpl`
+    (the unified protocol model — one data model everywhere). ``topology`` /
+    ``initial`` remain the neutral coordinate types until their own absorption phase.
+    """
+
+    network: "ChemistryImpl"
     topology: Topology
     initial: StateVector
 
