@@ -1,16 +1,17 @@
 """Verification / simulation harness (reject-sampling over real physics).
 
-This module is a thin **bridge**: it integrates a neutral :class:`~alienbio.suite.types.World`
+This module is a thin **bridge**: it integrates a :class:`~alienbio.suite.types.World`
 forward by delegating to the EXISTING simulator (:class:`~alienbio.bio.world_simulator.WorldSimulatorImpl`)
 and reads the trajectory back into a neutral :class:`~alienbio.suite.types.Trace`. It does NOT
 reimplement integration — the real mass-action physics stays with the existing classes.
 
-The molecule -> index ordering is the one established by
-:meth:`WorldSimulatorImpl.from_chemistry`: it enumerates ``chemistry.molecules.keys()``. Since
-:func:`~alienbio.suite.adapters.from_network` keys the reconstructed molecules by the neutral
-species NodeId in ``network.species`` iteration order, that same order is derived here to load
-initial concentrations and to read results back — keeping the neutral axes aligned with the
-concrete simulator indices.
+F007: ``world.network`` is a biology :class:`~alienbio.bio.chemistry.ChemistryImpl` (the
+unified protocol model), so the simulator runs on it **directly** — the old
+``from_network`` reconstruction bridge is gone. The molecule -> index ordering is the one
+established by :meth:`WorldSimulatorImpl.from_chemistry` (it enumerates
+``chemistry.molecules.keys()``); that same order is derived here to load initial
+concentrations and to read results back, keeping the neutral ``StateVector`` axes aligned
+with the concrete simulator indices.
 
 Only **constant mass-action rates** are supported: a reaction whose ``rate`` is a callable (a
 formula rate law) raises :class:`ValueError` rather than being silently downgraded. The
@@ -28,7 +29,6 @@ import numpy as np
 from ..bio.compartment_tree import CompartmentTreeImpl
 from ..bio.world_simulator import WorldSimulatorImpl
 from ..bio.world_state import WorldStateImpl
-from .adapters import from_network
 from .dist import Seed
 from .types import NodeId, StateVector, Trace, World
 
@@ -116,8 +116,8 @@ def simulate(
                 f"reaction {rid!r}"
             )
 
-    # 1. Reconstruct a concrete Chemistry from the neutral network.
-    chem = from_network(world.network)
+    # 1. The world already carries a concrete Chemistry (unified protocol model).
+    chem = world.network
 
     # 2. Build the concrete compartment tree + NodeId -> int map.
     tree, comp_to_int = _build_tree(world)

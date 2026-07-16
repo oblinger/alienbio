@@ -1,8 +1,9 @@
 """Acceptance tests for the verification / simulation harness (FT05).
 
 A synthetic 2-species, single-compartment world (A -> B, constant mass-action
-rate; A large, B zero) is integrated by the REAL simulator through the neutral
-bridge in :mod:`alienbio.suite.verify`.
+rate; A large, B zero) is integrated by the REAL simulator directly on the
+biology ``Chemistry`` carried by the world (F007 — unified protocol model; the
+old ``from_network`` reconstruction bridge is gone).
 """
 
 from __future__ import annotations
@@ -10,11 +11,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from alienbio.bio.chemistry import ChemistryImpl
+from alienbio.bio.molecule import MoleculeImpl
+from alienbio.bio.reaction import ReactionImpl
+from alienbio.infra.entity import MockDat
 from alienbio.suite.types import (
     Compartment,
-    Reaction,
-    ReactionNetwork,
-    Species,
     StateVector,
     Topology,
     World,
@@ -29,20 +31,21 @@ B = "B"
 
 def make_world(initial_a: float = 100.0, rate: object = 0.1) -> World:
     """A 2-species single-compartment world: A -> B (constant rate)."""
-    species = {
-        A: Species(A),
-        B: Species(B),
-    }
-    reactions = {
-        "R1": Reaction(
-            "R1",
-            reactants=((A, 1),),
-            products=((B, 1),),
-            modifiers=(),
-            rate=rate,
-        ),
-    }
-    network = ReactionNetwork(species=species, reactions=reactions)
+    mol_a = MoleculeImpl(A, name=A, dat=MockDat(f"mol/{A}"))
+    mol_b = MoleculeImpl(B, name=B, dat=MockDat(f"mol/{B}"))
+    r1 = ReactionImpl(
+        "R1",
+        reactants={mol_a: 1.0},
+        products={mol_b: 1.0},
+        rate=rate,
+        dat=MockDat("rxn/R1"),
+    )
+    network = ChemistryImpl(
+        "world",
+        molecules={A: mol_a, B: mol_b},
+        reactions={"R1": r1},
+        dat=MockDat("chem/world"),
+    )
     topology = Topology(
         compartments=(Compartment(id=CELL, parent=None, kind="cell", volume=1.0),),
     )
