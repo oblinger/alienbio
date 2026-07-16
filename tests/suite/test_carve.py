@@ -1,59 +1,76 @@
 """Acceptance tests for the subgraph carve / splice engine.
 
-Pure graph tests: a host :class:`ReactionNetwork` is treated as a generic bipartite
-graph, a :class:`Motif` as an abstract pattern whose roles are gated by opaque
-constraint predicates. No domain logic — predicates only inspect neutral tags/type.
+Pure graph tests: a host :class:`ChemistryImpl` is treated as a generic bipartite
+graph (molecules = species nodes, reactions = reaction nodes, keyed by ``name``), a
+:class:`Motif` as an abstract pattern whose roles are gated by opaque constraint
+predicates. No domain logic in the engine — predicates only inspect a node's type
+and its opaque ``description`` tag.
+
+F007: the engine builds ``Chemistry`` (unified protocol model), so a node's opaque
+"type" tag lives in the molecule's ``description``; catalysis (an enzyme acting on a
+reaction) is expressed structurally — the enzyme is both a reactant and a product,
+so it is adjacent to the reaction without a ``modifiers`` edge (which the biology
+``Reaction`` does not carry).
 """
 
 from __future__ import annotations
 
+from alienbio.bio.chemistry import ChemistryImpl
+from alienbio.bio.molecule import MoleculeImpl
+from alienbio.bio.reaction import ReactionImpl
+from alienbio.infra.entity import MockDat
 from alienbio.suite.carve import CarveFail, carve, splice
 from alienbio.suite.dist import Seed
 from alienbio.suite.types import (
     Motif,
-    Reaction,
-    ReactionNetwork,
     RoleSlot,
-    Species,
 )
 
 
 # ── fixtures / predicate helpers ──────────────────────────────────────────────
 
 def has_type(tag: str):
-    """A predicate accepting a Species whose ``attrs['type']`` equals ``tag``."""
+    """A predicate accepting a molecule whose ``description`` (its opaque type tag)
+    equals ``tag``."""
 
     def pred(node: object) -> bool:
-        return isinstance(node, Species) and node.attrs.get("type") == tag
+        return isinstance(node, MoleculeImpl) and node.description == tag
 
     return pred
 
 
 def is_reaction(node: object) -> bool:
-    """A predicate accepting any Reaction node."""
-    return isinstance(node, Reaction)
+    """A predicate accepting any reaction node."""
+    return isinstance(node, ReactionImpl)
 
 
-def build_host() -> ReactionNetwork:
+def _mol(name: str, type_tag: str) -> MoleculeImpl:
+    return MoleculeImpl(name, name=name, description=type_tag, dat=MockDat(f"mol/{name}"))
+
+
+def build_host() -> ChemistryImpl:
     """A host containing a planted enzyme/substrate/product reaction.
 
-    ``r1`` consumes ``s_sub`` and produces ``s_prod``, catalyzed (modifier) by
-    ``s_enz``. There is no cofactor species — a role selecting one has no candidate.
+    ``r1`` consumes ``s_sub`` and produces ``s_prod``, catalyzed by ``s_enz`` — the
+    enzyme is a reactant *and* a product (structural catalysis: consumed then
+    regenerated), so it is adjacent to ``r1`` without a modifier edge. There is no
+    cofactor molecule — a role selecting one has no candidate.
     """
-    species = {
-        "s_enz": Species("s_enz", {"type": "enzyme"}),
-        "s_sub": Species("s_sub", {"type": "substrate"}),
-        "s_prod": Species("s_prod", {"type": "product"}),
-    }
-    reactions = {
-        "r1": Reaction(
-            id="r1",
-            reactants=(("s_sub", 1),),
-            products=(("s_prod", 1),),
-            modifiers=(("s_enz", "cat"),),
-        ),
-    }
-    return ReactionNetwork(species=species, reactions=reactions)
+    s_enz = _mol("s_enz", "enzyme")
+    s_sub = _mol("s_sub", "substrate")
+    s_prod = _mol("s_prod", "product")
+    r1 = ReactionImpl(
+        "r1",
+        reactants={s_sub: 1.0, s_enz: 1.0},
+        products={s_prod: 1.0, s_enz: 1.0},
+        dat=MockDat("rxn/r1"),
+    )
+    return ChemistryImpl(
+        "host",
+        molecules={"s_enz": s_enz, "s_sub": s_sub, "s_prod": s_prod},
+        reactions={"r1": r1},
+        dat=MockDat("chem/host"),
+    )
 
 
 def planted_motif() -> Motif:
@@ -133,9 +150,9 @@ def test_splice_round_trip():
     assert skeleton.added == ("COF#new",)
 
     spliced = splice(host, skeleton)
-    # The synthesized cofactor species now exists with its type tag.
-    assert "COF#new" in spliced.species
-    assert spliced.species["COF#new"].attrs.get("type") == "cofactor"
+    # The synthesized cofactor molecule now exists with its type tag (description).
+    assert "COF#new" in spliced.molecules
+    assert spliced.molecules["COF#new"].description == "cofactor"
 
     # The motif is now fully present in existing nodes: no additions needed.
     recarved = carve(spliced, motif, allow_add=False)

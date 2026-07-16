@@ -1,9 +1,15 @@
-"""Distribution-matching graph augmenter for the ``suite`` reaction-network.
+"""Distribution-matching graph augmenter for the ``suite`` chemistry.
 
-Pure graph work: :func:`augment` adds *filler* species/reactions and filler
+Pure graph work: :func:`augment` adds *filler* molecules/reactions and filler
 edges to a :class:`~alienbio.suite.types.World` until a set of summary
 statistics approximately matches the requested targets. It carries NO domain
-logic — every tag is an opaque string that is only ever copied, never inspected.
+logic — filler nodes are anonymous and never interpreted.
+
+F007: the augmenter operates on the biology :class:`~alienbio.bio.chemistry.ChemistryImpl`
+(the unified protocol model). Filler molecules are atom-free; a filler edge makes a
+filler molecule a reactant of a filler reaction. Existing (and therefore every
+protected) node object is **reused by identity** — never rebuilt — so the protected
+invariant holds byte-for-byte.
 
 The load-bearing invariant is that the **protected** subgraph is left provably
 untouched: :func:`augment` never adds, removes, or modifies a protected node,
@@ -13,20 +19,22 @@ protected set — and the full incidence of every protected node — is identica
 before and after.
 
 Supported statistic vocabulary (:func:`graph_stats`):
-- ``"n_species"``   — number of species nodes.
+- ``"n_species"``   — number of molecule (species) nodes.
 - ``"n_reactions"`` — number of reaction nodes.
-- ``"mean_degree"`` — mean over *all* nodes (species + reactions) of
-  ``len(net.neighbors(node))``.
+- ``"mean_degree"`` — mean over *all* nodes (molecules + reactions) of
+  ``len(chem.neighbors(node))``.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
-from typing import Mapping
+from typing import Dict, Mapping
 
+from ..bio.chemistry import ChemistryImpl, _mock_dat
+from ..bio.molecule import MoleculeImpl
+from ..bio.reaction import ReactionImpl
 from .dist import Seed
-from .types import NodeId, ReactionNetwork, Reaction, Species, World
+from .types import NodeId, World
 
 log = logging.getLogger(__name__)
 
@@ -35,13 +43,15 @@ log = logging.getLogger(__name__)
 TargetStats = Mapping[str, "tuple[float, float]"]
 
 
-def graph_stats(net: ReactionNetwork) -> dict[str, float]:
-    """Summary statistics of ``net`` over the supported stat vocabulary."""
-    n_species = len(net.species)
-    n_reactions = len(net.reactions)
-    all_nodes = list(net.species.keys()) + list(net.reactions.keys())
+def graph_stats(chem: ChemistryImpl) -> dict[str, float]:
+    """Summary statistics of ``chem`` over the supported stat vocabulary."""
+    n_species = len(chem.molecules)
+    n_reactions = len(chem.reactions)
+    all_nodes = [m.name for m in chem.molecules.values()] + [
+        r.name for r in chem.reactions.values()
+    ]
     if all_nodes:
-        total_degree = sum(len(net.neighbors(node)) for node in all_nodes)
+        total_degree = sum(len(chem.neighbors(node)) for node in all_nodes)
         mean_degree = total_degree / len(all_nodes)
     else:
         mean_degree = 0.0
@@ -70,11 +80,18 @@ def augment(
     protected_set = set(protected)
     rng = seed.rng()
 
-    # Mutable working copies of the network's node tables.
-    species: dict[NodeId, Species] = dict(world.network.species)
-    reactions: dict[NodeId, Reaction] = dict(world.network.reactions)
+    # Mutable working copies of the chemistry's node tables, keyed by name.
+    # Existing objects are reused by identity (never rebuilt), so protected
+    # molecules/reactions remain byte-for-byte identical.
+    molecules: Dict[NodeId, MoleculeImpl] = {
+        m.name: m for m in world.network.molecules.values()
+    }
+    reactions: Dict[NodeId, ReactionImpl] = {
+        r.name: r for r in world.network.reactions.values()
+    }
+    atoms = dict(world.network.atoms)
 
-    # Filler bookkeeping. Filler edges only ever connect a filler species to a
+    # Filler bookkeeping. Filler edges only ever connect a filler molecule to a
     # filler reaction, so no protected (or even pre-existing) node is touched.
     filler_species: list[NodeId] = []
     filler_reactions: list[NodeId] = []
@@ -87,23 +104,23 @@ def augment(
         while True:
             nid = f"{prefix}{counter}"
             counter += 1
-            if nid not in species and nid not in reactions and nid not in protected_set:
+            if nid not in molecules and nid not in reactions and nid not in protected_set:
                 return nid, counter
 
     def _add_filler_species() -> None:
         nonlocal _s_counter
         sid, _s_counter = _fresh_id("fill_s", _s_counter)
-        species[sid] = Species(id=sid)
+        molecules[sid] = MoleculeImpl(sid, name=sid, dat=_mock_dat(f"mol/{sid}"))
         filler_species.append(sid)
 
     def _add_filler_reaction() -> None:
         nonlocal _r_counter
         rid, _r_counter = _fresh_id("fill_r", _r_counter)
-        reactions[rid] = Reaction(id=rid)
+        reactions[rid] = ReactionImpl(rid, dat=_mock_dat(f"rxn/{rid}"))
         filler_reactions.append(rid)
 
     def _add_filler_edge() -> bool:
-        """Connect an unused (filler reaction, filler species) pair; add one
+        """Connect an unused (filler reaction, filler molecule) pair; add one
         filler edge. Returns True if an edge was added, False if no capacity."""
         candidates = [
             (r, s)
@@ -117,11 +134,27 @@ def augment(
         r, s = candidates[idx]
         used_pairs.add((r, s))
         rxn = reactions[r]
-        reactions[r] = replace(rxn, reactants=rxn.reactants + ((s, 1),))
+        new_reactants = dict(rxn.reactants)
+        new_reactants[molecules[s]] = 1.0
+        reactions[r] = ReactionImpl(
+            r,
+            reactants=new_reactants,
+            products=dict(rxn.products),
+            rate=rxn.rate,
+            dat=_mock_dat(f"rxn/{r}"),
+        )
         return True
 
     def _stats() -> dict[str, float]:
-        return graph_stats(ReactionNetwork(species=species, reactions=reactions))
+        return graph_stats(
+            ChemistryImpl(
+                "augment",
+                atoms=atoms,
+                molecules=molecules,
+                reactions=reactions,
+                dat=_mock_dat("chem/augment"),
+            )
+        )
 
     def _misses(stats: dict[str, float]) -> dict[str, float]:
         out: dict[str, float] = {}
@@ -184,5 +217,11 @@ def augment(
         )
         log.warning("augment: targets not reached within max_iters: %s", detail)
 
-    new_network = ReactionNetwork(species=species, reactions=reactions)
+    new_network = ChemistryImpl(
+        "augmented",
+        atoms=atoms,
+        molecules=molecules,
+        reactions=reactions,
+        dat=_mock_dat("chem/augmented"),
+    )
     return World(network=new_network, topology=world.topology, initial=world.initial)
