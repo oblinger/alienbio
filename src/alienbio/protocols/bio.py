@@ -17,7 +17,7 @@ Use these for type hints to allow for alternative implementations.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, Dict, Iterator, List, Optional, Protocol, Union, runtime_checkable
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Protocol, Union, runtime_checkable
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -269,6 +269,26 @@ class Chemistry(Protocol):
 
     def validate(self) -> List[str]:
         """Validate the chemistry for consistency."""
+        ...
+
+    # Reaction-network graph queries. The molecules (species nodes) and
+    # reactions (reaction nodes) form a bipartite graph; node ids are their
+    # ``name``s.
+
+    def neighbors(self, node: str) -> set[str]:
+        """Molecule<->reaction adjacency (bipartite), by name."""
+        ...
+
+    def paths(self, a: str, b: str, max_len: int = 8) -> List[List[str]]:
+        """All simple paths (by name) from ``a`` to ``b`` within ``max_len`` edges."""
+        ...
+
+    def subgraph(self, nodes: Iterable[str]) -> "Chemistry":
+        """The induced sub-chemistry over ``nodes`` (edges to dropped nodes removed)."""
+        ...
+
+    def match(self, pattern: "Chemistry") -> List[Dict[str, str]]:
+        """All subgraph embeddings of ``pattern`` into this chemistry."""
         ...
 
 
