@@ -56,6 +56,7 @@ from .pipeline import (
     instantiate,
     COMPLEXITY_LEVELS,
     TRANSPORT_LEVELS,
+    INTERDEPENDENCY_TYPES,
 )
 from .generator import (
     GeneratorContext,
@@ -95,6 +96,7 @@ __all__ = [
     "instantiate",
     "COMPLEXITY_LEVELS",
     "TRANSPORT_LEVELS",
+    "INTERDEPENDENCY_TYPES",
     "Scenario",
     # Exceptions
     "TemplateNotFoundError",
