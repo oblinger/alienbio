@@ -42,7 +42,7 @@ Example usage:
     results = run_experiment(scenario, ScriptedAgent(actions=[...]), seed=42)
 """
 
-from .types import Action, ActionResult, Observation, ExperimentResults, Constitution, coerce_constitution, compose_briefing
+from .types import Action, ActionResult, Observation, ExperimentResults, Constitution, coerce_constitution, compose_briefing, coerce_monitoring
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace, ActionObservationRecord
 from .session import AgentSession
@@ -62,6 +62,7 @@ __all__ = [
     "Constitution",
     "coerce_constitution",
     "compose_briefing",
+    "coerce_monitoring",
     # Timeline
     "Timeline",
     "TimelineEvent",
