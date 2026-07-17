@@ -41,6 +41,7 @@ from .types import (
     Motif,
     NodeId,
     Objective,
+    ObjectiveRecipe,
     Op,
     OutcomeObjective,
     Predicate,
@@ -92,6 +93,7 @@ __all__ = [
     "Question",
     "GraderSpec",
     "Objective",
+    "ObjectiveRecipe",
     "AnswerObjective",
     "OutcomeObjective",
     # L6
