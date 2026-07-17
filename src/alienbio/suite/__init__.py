@@ -12,6 +12,13 @@ from .carve import CarveFail, carve, splice
 from .cover import Cover, Feature, cover
 from .grade import grade_answer, grade_outcome
 from .ops import LLMOp
+from .pressure import (
+    INTENSITY_LEVELS,
+    NAMED_PRESSURES,
+    PERSISTENCE_LEVELS,
+    EnvironmentalPressure,
+    make_pressure,
+)
 from .render import Vocabulary, parse, render
 from .verify import SimConfig, VerifyResult, simulate, verify
 from .dist import (
@@ -115,6 +122,12 @@ __all__ = [
     "verify",
     "VerifyResult",
     "SimConfig",
+    # environmental-pressure dial (M32.4)
+    "EnvironmentalPressure",
+    "make_pressure",
+    "NAMED_PRESSURES",
+    "INTENSITY_LEVELS",
+    "PERSISTENCE_LEVELS",
     "grade_answer",
     "grade_outcome",
     "LLMOp",

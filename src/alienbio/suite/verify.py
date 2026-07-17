@@ -21,8 +21,9 @@ integrator is deterministic, so :func:`simulate` is a pure function of ``(world,
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -30,6 +31,7 @@ from ..bio.compartment_tree import CompartmentTreeImpl
 from ..bio.world_simulator import WorldSimulatorImpl
 from ..bio.world_state import WorldStateImpl
 from .dist import Seed
+from .pressure import EnvironmentalPressure
 from .types import NodeId, StateVector, Trace, World
 
 
@@ -96,12 +98,22 @@ def simulate(
     world: World,
     sim_cfg: SimConfig = SimConfig(),
     seed: Seed = Seed(0),
+    pressure: Optional[EnvironmentalPressure] = None,
 ) -> Trace:
     """Integrate ``world`` forward with the real simulator and return a neutral Trace.
 
     Deterministic: identical ``(world, sim_cfg)`` yield an identical :class:`Trace`.
     ``seed`` is accepted for signature symmetry with :func:`verify` (stochastic
-    perturbations / predicates) but the baseline integration ignores it.
+    perturbations / predicates); the baseline integration ignores it unless a
+    stochastic ``pressure`` (``jitter > 0``) is supplied.
+
+    ``pressure`` (M32.4) is an optional, **removable** environmental-pressure
+    perturbation. When ``None`` the integration is byte-identical to the
+    unperturbed baseline. When supplied, the natural trajectory is computed
+    exactly as before and a displacement overlay ``exp(coef * p_t)`` is applied
+    to the sampled states; the overlay relaxes toward zero after the pressure's
+    ``remove_at`` step, so the reported state recovers toward the unperturbed
+    trajectory (see :mod:`alienbio.suite.pressure`).
 
     Raises:
         ValueError: if any reaction carries a callable (formula) rate rather than a
@@ -164,6 +176,20 @@ def simulate(
         states.append(
             StateVector(data=data, compartments=comp_axis, species=species_axis)
         )
+
+    # 7. M32.4 removable environmental pressure: apply the displacement overlay
+    #    on top of the (unchanged) natural trajectory. Absent pressure leaves
+    #    ``states`` untouched, so the trace is byte-identical to the baseline.
+    if pressure is not None:
+        p_traj = pressure.overlay(sim_cfg.steps, seed)
+        states = [
+            StateVector(
+                data=sv.data * math.exp(pressure.coef * float(p_traj[step])),
+                compartments=sv.compartments,
+                species=sv.species,
+            )
+            for step, sv in zip(sampled_steps, states)
+        ]
 
     return Trace(times=times, states=tuple(states))
 
