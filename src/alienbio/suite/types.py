@@ -37,7 +37,7 @@ from typing import (
     runtime_checkable,
 )
 
-from .dist import Dist, ParamSchema
+from .dist import Dist, ParamSchema, Seed
 
 if TYPE_CHECKING:
     from ..bio.world import WorldImpl
@@ -205,6 +205,39 @@ class OutcomeObjective:
 Objective = Union[AnswerObjective, OutcomeObjective]
 
 
+class ObjectiveRecipe(Protocol):
+    """Turns a carved :class:`Skeleton` into a task's ``Question`` + ``Objective``.
+
+    Named by the architecture (:doc:`Suite Construction Data Model` —
+    ``TaskArchetype.recipe: ObjectiveRecipe``) but never defined in code until
+    now; ``recipe`` had drifted to ``Any``. A recipe is an **opaque** callable
+    bundle the engines only invoke, never inspect: it holds the join between an
+    archetype's *demand on the world* (its ``motif`` + ``feature_reqs``) and its
+    *means of being graded*.
+
+    Because we build the structure skeleton-first, the ground-truth key is read
+    **off the skeleton by construction** — we hold the answer because we built it.
+    """
+
+    def build_question(self, skeleton: Skeleton, world: WorldImpl) -> Question:
+        """Emit the structured, opaque question (``kind`` matches FT08 render kinds)."""
+        ...
+
+    def build_key(self, skeleton: Skeleton, world: WorldImpl) -> Answer:
+        """Read the ground-truth answer off the skeleton by construction."""
+        ...
+
+    def build_distractors(
+        self, skeleton: Skeleton, world: WorldImpl, seed: Seed
+    ) -> tuple[Answer, ...]:
+        """Plausible near-miss answers (for MC framings / incorrect-answer generation)."""
+        ...
+
+    def grader_spec(self) -> GraderSpec:
+        """Which FT06 grader + partial-credit config this archetype grades with."""
+        ...
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # L6 — distributions everywhere, vector difficulty, worlds-as-input
 # ═══════════════════════════════════════════════════════════════════════════
@@ -221,7 +254,7 @@ class TaskArchetype:
     motif: Motif
     verb: str
     feature_reqs: FeatureSet
-    recipe: Any
+    recipe: ObjectiveRecipe
 
 
 @dataclass(frozen=True)
