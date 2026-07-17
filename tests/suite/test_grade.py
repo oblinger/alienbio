@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
+from alienbio.bio.compartment_tree import CompartmentTreeImpl
+from alienbio.bio.world_state import WorldStateImpl
 from alienbio.suite.grade import grade_answer, grade_outcome
-from alienbio.suite.types import Answer, GraderSpec, StateVector, Trace
+from alienbio.suite.types import Answer, GraderSpec, Timeline
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -70,41 +71,48 @@ def test_unknown_kind_raises():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# grade_outcome — opaque scorer over a tiny synthetic Trace
+# grade_outcome — opaque scorer over a tiny synthetic Timeline
 # ═══════════════════════════════════════════════════════════════════════════
 
-def build_trace() -> Trace:
-    """Two states over one compartment and species (A, B); final B = 0.75."""
-    comps = ("c0",)
-    species = ("A", "B")
-    s0 = StateVector(
-        data=np.array([[1.0, 0.0]]), compartments=comps, species=species
+def _snapshot(concentrations: list[float]) -> WorldStateImpl:
+    """A self-describing 1-compartment ('c0') WorldState over species (A, B)."""
+    tree = CompartmentTreeImpl()
+    tree.add_root("c0")
+    return WorldStateImpl(
+        tree=tree,
+        num_molecules=2,
+        initial_concentrations=concentrations,
+        compartment_ids=["c0"],
+        molecule_ids=["A", "B"],
     )
-    s1 = StateVector(
-        data=np.array([[0.25, 0.75]]), compartments=comps, species=species
-    )
-    return Trace(times=(0.0, 1.0), states=(s0, s1))
+
+
+def build_timeline() -> Timeline:
+    """Two WorldState snapshots over one compartment and species (A, B); final B = 0.75."""
+    s0 = _snapshot([1.0, 0.0])
+    s1 = _snapshot([0.25, 0.75])
+    return Timeline(times=(0.0, 1.0), states=(s0, s1))
 
 
 def test_grade_outcome_returns_scorer_value():
-    trace = build_trace()
+    timeline = build_timeline()
 
-    def final_b(tr: Trace) -> float:
-        return tr.states[-1].get("c0", "B")
+    def final_b(tl: Timeline) -> float:
+        return tl.states[-1].concentration("c0", "B")
 
-    assert grade_outcome(trace, final_b, target=None) == pytest.approx(0.75)
+    assert grade_outcome(timeline, final_b, target=None) == pytest.approx(0.75)
 
 
 def test_grade_outcome_passes_trace_through_opaquely():
-    trace = build_trace()
+    timeline = build_timeline()
     seen: list[object] = []
 
-    def spy_scorer(tr: object) -> float:
-        seen.append(tr)
+    def spy_scorer(tl: object) -> float:
+        seen.append(tl)
         return 42.0
 
-    # The scorer receives the very Trace object, and its value is returned as-is
+    # The scorer receives the very Timeline object, and its value is returned as-is
     # (no clamping / normalization); target is opaque and never inspected.
-    assert grade_outcome(trace, spy_scorer, target={"anything": "opaque"}) == 42.0
-    assert seen == [trace]
-    assert seen[0] is trace
+    assert grade_outcome(timeline, spy_scorer, target={"anything": "opaque"}) == 42.0
+    assert seen == [timeline]
+    assert seen[0] is timeline

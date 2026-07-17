@@ -10,7 +10,10 @@ tuples or immutable mappings, and nothing mutates after construction.
 Layers:
 - L0: primitive aliases (:data:`NodeId`, :data:`Tags`).
 - L2: world / physics / state (:class:`Compartment`, :class:`Topology`,
-  :class:`StateVector`, :class:`Trace`, :class:`World`).
+  :class:`StateVector`, :class:`Timeline`, :class:`World`). ``Timeline`` holds bio
+  :class:`~alienbio.protocols.bio.WorldState` snapshots (absorbed ``Trace``);
+  ``StateVector`` remains only as ``World.initial`` until the world/topology
+  absorption (coord-PR2).
 - L3: motif (abstract) vs skeleton (concrete binding).
 - L4: dynamism seam (:class:`Op`, :class:`ScriptedOp`) + covering / envelopes.
 - L5: question / objective / answer.
@@ -40,6 +43,7 @@ from .dist import Dist, ParamSchema
 
 if TYPE_CHECKING:
     from ..bio.chemistry import ChemistryImpl
+    from ..protocols.bio import WorldState
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
@@ -111,11 +115,17 @@ class StateVector:
 
 
 @dataclass(frozen=True)
-class Trace:
-    """A time-ordered sequence of states."""
+class Timeline:
+    """A time-ordered sequence of world states (unified model: absorbs ``Trace``).
+
+    ``times`` are floating-point **seconds** into the simulation (no fixed tick
+    grain); ``states[k]`` is the :class:`~alienbio.protocols.bio.WorldState`
+    snapshot at ``times[k]`` (delta/ODE semantics — integrators stamp real
+    timestamps rather than assuming a tick index).
+    """
 
     times: tuple[float, ...]
-    states: tuple[StateVector, ...]
+    states: tuple["WorldState", ...]
 
 
 @dataclass(frozen=True)

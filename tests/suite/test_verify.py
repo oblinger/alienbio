@@ -59,7 +59,19 @@ def make_world(initial_a: float = 100.0, rate: object = 0.1) -> World:
 
 def series(trace, species_id: str) -> list[float]:
     """Concentration of ``species_id`` in the cell across all sampled states."""
-    return [st.get(CELL, species_id) for st in trace.states]
+    return [st.concentration(CELL, species_id) for st in trace.states]
+
+
+def _same(t1, t2) -> bool:
+    """Value-equality of two timelines (concentrations + times).
+
+    WorldState snapshots are compared by their concentration arrays; the bio
+    ``WorldStateImpl`` deliberately carries no value ``__eq__`` (mutable buffer).
+    """
+    return t1.times == t2.times and all(
+        np.array_equal(a.as_array(), b.as_array())
+        for a, b in zip(t1.states, t2.states)
+    )
 
 
 # === 1. Qualitative response (robust; no closed-form) ===
@@ -132,7 +144,7 @@ def test_determinism():
     world = make_world()
     t1 = simulate(world)
     t2 = simulate(world)
-    assert t1 == t2
+    assert _same(t1, t2)
     assert t1.times == t2.times
 
 

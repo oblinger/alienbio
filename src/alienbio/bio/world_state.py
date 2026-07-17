@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .compartment_tree import CompartmentTreeImpl
@@ -51,7 +51,14 @@ class WorldStateImpl:
         print(state.get_multiplicity(cell))  # 1000.0
     """
 
-    __slots__ = ("_tree", "_num_molecules", "_concentrations", "_multiplicities")
+    __slots__ = (
+        "_tree",
+        "_num_molecules",
+        "_concentrations",
+        "_multiplicities",
+        "_compartment_ids",
+        "_molecule_ids",
+    )
 
     def __init__(
         self,
@@ -59,6 +66,8 @@ class WorldStateImpl:
         num_molecules: int,
         initial_concentrations: Optional[List[float]] = None,
         initial_multiplicities: Optional[List[float]] = None,
+        compartment_ids: Optional[List[str]] = None,
+        molecule_ids: Optional[List[str]] = None,
     ) -> None:
         """Initialize world state.
 
@@ -67,9 +76,24 @@ class WorldStateImpl:
             num_molecules: Number of molecules in vocabulary
             initial_concentrations: Optional flat array of initial concentrations
             initial_multiplicities: Optional array of initial multiplicities per compartment
+            compartment_ids: Optional ordered real ids for the compartment axis
+                (``compartment_ids[i]`` labels flat-array compartment index ``i``).
+                Supplied so a snapshot can surface real ids without fabrication
+                (the unified ``WorldState`` "axis = ordered compartment ids").
+            molecule_ids: Optional ordered real ids for the molecule axis
+                (``molecule_ids[j]`` labels molecule index ``j``). Derived from the
+                ``Chemistry`` molecule ordering. When both id lists are provided the
+                state is *self-describing*; when ``None`` the state is pure-int (the
+                hot-loop simulator path, unchanged).
         """
         self._tree = tree
         self._num_molecules = num_molecules
+        self._compartment_ids: Optional[tuple[str, ...]] = (
+            tuple(compartment_ids) if compartment_ids is not None else None
+        )
+        self._molecule_ids: Optional[tuple[str, ...]] = (
+            tuple(molecule_ids) if molecule_ids is not None else None
+        )
 
         num_compartments = tree.num_compartments
         size = num_compartments * num_molecules
@@ -110,6 +134,48 @@ class WorldStateImpl:
     def num_molecules(self) -> int:
         """Number of molecules in vocabulary."""
         return self._num_molecules
+
+    # ── Real-id axes (unified WorldState: "axis = ordered compartment ids") ──
+
+    @property
+    def compartment_ids(self) -> Optional[tuple[str, ...]]:
+        """Ordered real compartment ids (``[i]`` labels index ``i``), or ``None``.
+
+        ``None`` on a pure-int state (the hot-loop simulator path). Present on
+        self-describing snapshots so real ids surface without fabrication.
+        """
+        return self._compartment_ids
+
+    @property
+    def molecule_ids(self) -> Optional[tuple[str, ...]]:
+        """Ordered real molecule ids (``[j]`` labels index ``j``), or ``None``."""
+        return self._molecule_ids
+
+    def concentration(self, compartment_id: str, molecule_id: str) -> float:
+        """Get concentration by REAL ids (the unified ``WorldState.get`` surface).
+
+        Translates ids → int indices via the ordered axes, then reads the flat
+        store (int indexing is the ``*Impl`` optimization). Requires a
+        self-describing state (both id axes present).
+
+        Raises:
+            ValueError: if this state has no id axes (pure-int state).
+            KeyError: if either id is absent from its axis.
+        """
+        if self._compartment_ids is None or self._molecule_ids is None:
+            raise ValueError(
+                "concentration(id, id) requires a self-describing WorldState "
+                "(compartment_ids and molecule_ids); this state is pure-int"
+            )
+        try:
+            ci = self._compartment_ids.index(compartment_id)
+        except ValueError:
+            raise KeyError(f"unknown compartment id {compartment_id!r}") from None
+        try:
+            mj = self._molecule_ids.index(molecule_id)
+        except ValueError:
+            raise KeyError(f"unknown molecule id {molecule_id!r}") from None
+        return self._concentrations[self._index(ci, mj)]
 
     def _index(self, compartment: CompartmentId, molecule: MoleculeId) -> int:
         """Compute flat array index."""
@@ -164,12 +230,20 @@ class WorldStateImpl:
     # ── Copy and array methods ────────────────────────────────────────────────
 
     def copy(self) -> WorldStateImpl:
-        """Create a copy of this state (shares tree reference)."""
+        """Create a copy of this state (shares tree reference; propagates id axes)."""
         return WorldStateImpl(
             self._tree,  # Shared reference - tree is immutable
             self._num_molecules,
             initial_concentrations=self._concentrations.copy(),
             initial_multiplicities=self._multiplicities.copy(),
+            compartment_ids=(
+                list(self._compartment_ids)
+                if self._compartment_ids is not None
+                else None
+            ),
+            molecule_ids=(
+                list(self._molecule_ids) if self._molecule_ids is not None else None
+            ),
         )
 
     def as_array(self) -> Any:

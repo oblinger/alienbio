@@ -3,7 +3,7 @@
 This module is domain-neutral. :func:`grade_answer` compares two opaque
 :class:`~alienbio.suite.types.Answer` payloads structurally, dispatching on the
 :class:`~alienbio.suite.types.GraderSpec` kind; :func:`grade_outcome` invokes an
-opaque scorer on a :class:`~alienbio.suite.types.Trace` without ever inspecting
+opaque scorer on a :class:`~alienbio.suite.types.Timeline` without ever inspecting
 the trace semantically. No side effects; both functions are deterministic.
 
 Per-kind scoring formulas (``grade_answer``, score always in ``[0.0, 1.0]``):
@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from .types import Answer, GraderSpec, Trace
+from .types import Answer, GraderSpec, Timeline
 
 
 def _grade_node_set(a: Any, k: Any, partial: bool) -> float:
@@ -89,11 +89,11 @@ def grade_answer(answer: Answer, key: Answer, spec: GraderSpec) -> float:
     raise ValueError(f"unknown grader kind: {spec.kind!r}")
 
 
-def grade_outcome(trace: Trace, scorer: Callable[[Any], float], target: Any) -> float:
+def grade_outcome(trace: Timeline, scorer: Callable[[Any], float], target: Any) -> float:
     """Score an outcome by invoking the opaque ``scorer`` on the whole ``trace``.
 
-    The scorer receives the full :class:`~alienbio.suite.types.Trace` (it picks
-    whatever it needs, e.g. the final :class:`~alienbio.suite.types.StateVector`)
+    The scorer receives the full :class:`~alienbio.suite.types.Timeline` (it picks
+    whatever it needs, e.g. the final :class:`~alienbio.protocols.bio.WorldState`)
     and its return value is passed through as a float, unmodified. ``target`` is
     opaque context kept for interface symmetry with
     :class:`~alienbio.suite.types.OutcomeObjective`; it is never inspected here —

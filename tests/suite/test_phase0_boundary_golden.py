@@ -141,9 +141,11 @@ def test_simulate_world_golden():
     assert trace.times == _SIM_TIMES
     assert len(trace.states) == len(_SIM_DATA)
     for sv, expected in zip(trace.states, _SIM_DATA):
-        assert sv.compartments == ("c0",)
-        assert sv.species == ("S1", "S2")
-        np.testing.assert_allclose(sv.data, np.array([expected]), rtol=0, atol=1e-6)
+        assert sv.compartment_ids == ("c0",)
+        assert sv.molecule_ids == ("S1", "S2")
+        np.testing.assert_allclose(
+            sv.as_array(), np.array([expected]), rtol=0, atol=1e-6
+        )
 
 
 def test_simulate_is_deterministic():
@@ -152,7 +154,9 @@ def test_simulate_is_deterministic():
     a = simulate(world, cfg, seed=Seed(0))
     b = simulate(world, cfg, seed=Seed(0))
     assert a.times == b.times
-    assert all(np.array_equal(x.data, y.data) for x, y in zip(a.states, b.states))
+    assert all(
+        np.array_equal(x.as_array(), y.as_array()) for x, y in zip(a.states, b.states)
+    )
 
 
 def test_simulate_conserves_mass():
@@ -163,5 +167,5 @@ def test_simulate_conserves_mass():
     """
     trace = simulate(_build_world(), SimConfig(dt=0.1, steps=20, sample_every=5), seed=Seed(0))
     for sv in trace.states:
-        total = float(sv.data.sum())
+        total = float(np.asarray(sv.as_array()).sum())
         assert abs(total - 10.0) < 1e-6
