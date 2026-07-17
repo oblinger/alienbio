@@ -9,11 +9,12 @@ tuples or immutable mappings, and nothing mutates after construction.
 
 Layers:
 - L0: primitive aliases (:data:`NodeId`, :data:`Tags`).
-- L2: world / physics / state (:class:`Compartment`, :class:`Topology`,
-  :class:`StateVector`, :class:`Timeline`, :class:`World`). ``Timeline`` holds bio
-  :class:`~alienbio.protocols.bio.WorldState` snapshots (absorbed ``Trace``);
-  ``StateVector`` remains only as ``World.initial`` until the world/topology
-  absorption (coord-PR2).
+- L2: trajectory (:class:`Timeline`). ``Timeline`` holds bio
+  :class:`~alienbio.protocols.bio.WorldState` snapshots (absorbed ``Trace``). The
+  neutral world-input shadows (``Compartment`` / ``Topology`` / ``StateVector`` /
+  ``World``) were retired into the biology
+  :class:`~alienbio.bio.world.WorldImpl` (coord-PR2); a :class:`Suite` now holds
+  bio ``WorldImpl`` inputs directly.
 - L3: motif (abstract) vs skeleton (concrete binding).
 - L4: dynamism seam (:class:`Op`, :class:`ScriptedOp`) + covering / envelopes.
 - L5: question / objective / answer.
@@ -36,13 +37,10 @@ from typing import (
     runtime_checkable,
 )
 
-import numpy as np
-import numpy.typing as npt
-
 from .dist import Dist, ParamSchema
 
 if TYPE_CHECKING:
-    from ..bio.chemistry import ChemistryImpl
+    from ..bio.world import WorldImpl
     from ..protocols.bio import WorldState
 
 T = TypeVar("T")
@@ -59,60 +57,10 @@ Tags = dict[str, Union[str, float]]
 # never inspected.
 Predicate = Callable[[Any], bool]
 
-# A 2D float array [n_compartments x n_species].
-FloatArray = npt.NDArray[np.float64]
-
 
 # ═══════════════════════════════════════════════════════════════════════════
-# L2 — world (physics / space / state)
+# L2 — trajectory (world inputs are the biology WorldImpl; see bio.world)
 # ═══════════════════════════════════════════════════════════════════════════
-
-@dataclass(frozen=True)
-class Compartment:
-    """A node in the compartment tree; the root has ``parent = None``."""
-
-    id: NodeId
-    parent: Optional[NodeId]
-    kind: str
-    volume: float
-
-
-@dataclass(frozen=True)
-class Topology:
-    """A compartment tree (a tuple of compartments; root has no parent)."""
-
-    compartments: tuple[Compartment, ...]
-
-
-@dataclass(frozen=True, eq=False)
-class StateVector:
-    """A [n_compartments x n_species] float array with id-labelled axes.
-
-    ``__eq__`` compares array *values* (not identity) along with the axis
-    labels; ``__hash__`` falls back to identity.
-    """
-
-    data: FloatArray
-    compartments: tuple[NodeId, ...]
-    species: tuple[NodeId, ...]
-
-    def get(self, comp_id: NodeId, species_id: NodeId) -> float:
-        ci = self.compartments.index(comp_id)
-        si = self.species.index(species_id)
-        return float(self.data[ci, si])
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, StateVector):
-            return NotImplemented
-        return (
-            self.compartments == other.compartments
-            and self.species == other.species
-            and np.array_equal(self.data, other.data)
-        )
-
-    def __hash__(self) -> int:
-        return object.__hash__(self)
-
 
 @dataclass(frozen=True)
 class Timeline:
@@ -126,20 +74,6 @@ class Timeline:
 
     times: tuple[float, ...]
     states: tuple["WorldState", ...]
-
-
-@dataclass(frozen=True)
-class World:
-    """A chemistry + topology + initial state.
-
-    F007: ``network`` is a biology :class:`~alienbio.bio.chemistry.ChemistryImpl`
-    (the unified protocol model — one data model everywhere). ``topology`` /
-    ``initial`` remain the neutral coordinate types until their own absorption phase.
-    """
-
-    network: "ChemistryImpl"
-    topology: Topology
-    initial: StateVector
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -315,5 +249,5 @@ class SuiteSpec:
 class Suite:
     """A materialized suite: worlds + task instances."""
 
-    worlds: tuple[World, ...]
+    worlds: tuple["WorldImpl", ...]
     tasks: tuple[TaskInstance, ...]

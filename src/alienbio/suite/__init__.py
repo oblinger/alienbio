@@ -20,6 +20,7 @@ from .pressure import (
 )
 from .render import Vocabulary, parse, render
 from .verify import SimConfig, VerifyResult, simulate, verify
+from ..bio.world import Compartment, WorldImpl
 from .dist import (
     Choice,
     Constant,
@@ -33,7 +34,6 @@ from .dist import (
 from .types import (
     Answer,
     AnswerObjective,
-    Compartment,
     Difficulty,
     Directive,
     FeatureSet,
@@ -49,15 +49,12 @@ from .types import (
     RoleSlot,
     ScriptedOp,
     Skeleton,
-    StateVector,
     Suite,
     SuiteSpec,
     Tags,
     TaskArchetype,
     TaskInstance,
     Timeline,
-    Topology,
-    World,
     WorldEnvelope,
 )
 
@@ -75,12 +72,10 @@ __all__ = [
     "NodeId",
     "Tags",
     "Predicate",
-    # L2
-    "Compartment",
-    "Topology",
-    "StateVector",
+    # L2 — trajectory + biology world input (bio.world)
     "Timeline",
-    "World",
+    "WorldImpl",
+    "Compartment",
     # L3
     "RoleSlot",
     "Motif",

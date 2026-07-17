@@ -10,27 +10,20 @@ from __future__ import annotations
 
 import logging
 
-import numpy as np
-
 from alienbio.bio.chemistry import ChemistryImpl
 from alienbio.bio.molecule import MoleculeImpl
 from alienbio.bio.reaction import ReactionImpl
+from alienbio.bio.world import Compartment, WorldImpl
 from alienbio.infra.entity import MockDat
 from alienbio.suite.augment import augment, graph_stats
 from alienbio.suite.dist import Seed
-from alienbio.suite.types import (
-    Compartment,
-    StateVector,
-    Topology,
-    World,
-)
 
 
 def _mol(name: str) -> MoleculeImpl:
     return MoleculeImpl(name, name=name, dat=MockDat(f"mol/{name}"))
 
 
-def build_world() -> tuple[World, set[str]]:
+def build_world() -> tuple[WorldImpl, set[str]]:
     """A small hand-made world plus a protected node set.
 
     Molecules: s_a, s_b, s_c, s_d.  Reactions: r_x (s_a -> s_b), r_y (s_b -> s_c).
@@ -51,15 +44,8 @@ def build_world() -> tuple[World, set[str]]:
         dat=MockDat("chem/world"),
     )
 
-    topology = Topology(
-        compartments=(Compartment("root", None, "organism", 1.0),),
-    )
-    initial = StateVector(
-        data=np.zeros((1, 4), dtype=np.float64),
-        compartments=("root",),
-        species=("s_a", "s_b", "s_c", "s_d"),
-    )
-    world = World(network=network, topology=topology, initial=initial)
+    compartments = (Compartment("root", None, "organism", 1.0),)
+    world = WorldImpl(network, compartments)
     protected = {"s_a", "r_x"}
     return world, protected
 
@@ -94,7 +80,7 @@ def test_stats_within_tolerance():
         "mean_degree": (2.0, 0.5),
     }
     result = augment(world, targets, protected, seed=Seed(1))
-    stats = graph_stats(result.network)
+    stats = graph_stats(result.chemistry)
     for key, (target, tol) in targets.items():
         assert abs(stats[key] - target) <= tol, (key, stats[key], target, tol)
 
@@ -109,27 +95,27 @@ def test_protected_subgraph_invariant():
     result = augment(world, targets, protected, seed=Seed(2))
 
     # Induced subgraph over the protected set is structurally identical.
-    assert _chem_shape(result.network.subgraph(protected)) == _chem_shape(
-        world.network.subgraph(protected)
+    assert _chem_shape(result.chemistry.subgraph(protected)) == _chem_shape(
+        world.chemistry.subgraph(protected)
     )
 
     # Strong form: the full set of edges incident to any protected node is
     # unchanged before/after.
-    assert _incident_edges(result.network, protected) == _incident_edges(
-        world.network, protected
+    assert _incident_edges(result.chemistry, protected) == _incident_edges(
+        world.chemistry, protected
     )
 
     # No reaction references a protected node unless it already did in the input
     # (references include modifiers — catalysts are first-class edges, F008).
     original_refs = {
         rid
-        for rid, rxn in world.network.reactions.items()
+        for rid, rxn in world.chemistry.reactions.items()
         if any(
             m.name in protected
             for m in (*rxn.reactants, *rxn.products, *rxn.modifiers)
         )
     }
-    for rid, rxn in result.network.reactions.items():
+    for rid, rxn in result.chemistry.reactions.items():
         refs_protected = any(
             m.name in protected
             for m in (*rxn.reactants, *rxn.products, *rxn.modifiers)
@@ -137,7 +123,7 @@ def test_protected_subgraph_invariant():
         if refs_protected:
             assert rid in original_refs
             # And that reaction must be the original object (reused by identity).
-            assert rxn is world.network.reactions[rid]
+            assert rxn is world.chemistry.reactions[rid]
 
 
 def test_protected_reaction_modifier_preserved():
@@ -161,13 +147,8 @@ def test_protected_reaction_modifier_preserved():
         reactions={"r_x": r_x},
         dat=MockDat("chem/world"),
     )
-    topology = Topology(compartments=(Compartment("root", None, "organism", 1.0),))
-    initial = StateVector(
-        data=np.zeros((1, 3), dtype=np.float64),
-        compartments=("root",),
-        species=("s_a", "s_b", "s_enz"),
-    )
-    world = World(network=network, topology=topology, initial=initial)
+    compartments = (Compartment("root", None, "organism", 1.0),)
+    world = WorldImpl(network, compartments)
     protected = {"s_a", "s_b", "s_enz", "r_x"}
 
     result = augment(
@@ -177,13 +158,13 @@ def test_protected_reaction_modifier_preserved():
         seed=Seed(3),
     )
 
-    kept = result.network.reactions["r_x"]
+    kept = result.chemistry.reactions["r_x"]
     # Reused by identity → modifier edge intact.
     assert kept is r_x
     assert {m.name: role for m, role in kept.modifiers.items()} == {"s_enz": "catalyst"}
     # The catalyst is adjacent to the reaction via first-class modifier incidence.
-    assert "r_x" in result.network.neighbors("s_enz")
-    assert "s_enz" in result.network.neighbors("r_x")
+    assert "r_x" in result.chemistry.neighbors("s_enz")
+    assert "s_enz" in result.chemistry.neighbors("r_x")
 
 
 def test_determinism():
@@ -196,11 +177,11 @@ def test_determinism():
     a = augment(world, targets, protected, seed=Seed(7))
     b = augment(world, targets, protected, seed=Seed(7))
 
-    assert graph_stats(a.network) == graph_stats(b.network)
-    assert set(a.network.molecules.keys()) == set(b.network.molecules.keys())
-    assert set(a.network.reactions.keys()) == set(b.network.reactions.keys())
+    assert graph_stats(a.chemistry) == graph_stats(b.chemistry)
+    assert set(a.chemistry.molecules.keys()) == set(b.chemistry.molecules.keys())
+    assert set(a.chemistry.reactions.keys()) == set(b.chemistry.reactions.keys())
     # Full structural equality of the resulting chemistries.
-    assert _chem_shape(a.network) == _chem_shape(b.network)
+    assert _chem_shape(a.chemistry) == _chem_shape(b.chemistry)
 
 
 def test_unreachable_target_logs(caplog):
@@ -212,8 +193,8 @@ def test_unreachable_target_logs(caplog):
 
     # It returned, made partial progress (added up to max_iters fillers), and
     # logged the miss.
-    stats = graph_stats(result.network)
-    assert stats["n_species"] == len(world.network.molecules) + 5
+    stats = graph_stats(result.chemistry)
+    assert stats["n_species"] == len(world.chemistry.molecules) + 5
     assert any(
         "not reached" in rec.message and "n_species" in rec.message
         for rec in caplog.records

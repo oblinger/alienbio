@@ -14,13 +14,8 @@ import pytest
 from alienbio.bio.chemistry import ChemistryImpl
 from alienbio.bio.molecule import MoleculeImpl
 from alienbio.bio.reaction import ReactionImpl
+from alienbio.bio.world import Compartment, WorldImpl
 from alienbio.infra.entity import MockDat
-from alienbio.suite.types import (
-    Compartment,
-    StateVector,
-    Topology,
-    World,
-)
 from alienbio.suite.verify import SimConfig, VerifyResult, simulate, verify
 
 
@@ -29,7 +24,7 @@ A = "A"
 B = "B"
 
 
-def make_world(initial_a: float = 100.0, rate: object = 0.1) -> World:
+def make_world(initial_a: float = 100.0, rate: object = 0.1) -> WorldImpl:
     """A 2-species single-compartment world: A -> B (constant rate)."""
     mol_a = MoleculeImpl(A, name=A, dat=MockDat(f"mol/{A}"))
     mol_b = MoleculeImpl(B, name=B, dat=MockDat(f"mol/{B}"))
@@ -40,21 +35,22 @@ def make_world(initial_a: float = 100.0, rate: object = 0.1) -> World:
         rate=rate,
         dat=MockDat("rxn/R1"),
     )
-    network = ChemistryImpl(
+    chemistry = ChemistryImpl(
         "world",
         molecules={A: mol_a, B: mol_b},
         reactions={"R1": r1},
         dat=MockDat("chem/world"),
     )
-    topology = Topology(
-        compartments=(Compartment(id=CELL, parent=None, kind="cell", volume=1.0),),
+    compartments = (
+        Compartment(
+            id=CELL,
+            parent=None,
+            kind="cell",
+            volume=1.0,
+            concentrations={A: initial_a, B: 0.0},
+        ),
     )
-    initial = StateVector(
-        data=np.array([[initial_a, 0.0]], dtype=np.float64),
-        compartments=(CELL,),
-        species=(A, B),
-    )
-    return World(network=network, topology=topology, initial=initial)
+    return WorldImpl(chemistry, compartments)
 
 
 def series(trace, species_id: str) -> list[float]:
@@ -104,7 +100,7 @@ def test_qualitative_response():
 def test_perturbation_contrast():
     world = make_world()
 
-    def knock_out(w: World) -> World:
+    def knock_out(w: WorldImpl) -> WorldImpl:
         # Perturbed world starts with A = 0, so B can never grow.
         return make_world(initial_a=0.0)
 
@@ -126,7 +122,7 @@ def test_perturbation_contrast():
 def test_reject_signal():
     world = make_world()
 
-    def identity(w: World) -> World:
+    def identity(w: WorldImpl) -> WorldImpl:
         return w
 
     def failing_predicate(baseline, perturbed) -> bool:

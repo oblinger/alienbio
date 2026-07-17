@@ -1,18 +1,20 @@
 """Verification / simulation harness (reject-sampling over real physics).
 
-This module is a thin **bridge**: it integrates a :class:`~alienbio.suite.types.World`
-forward by delegating to the EXISTING simulator (:class:`~alienbio.bio.world_simulator.WorldSimulatorImpl`)
-and reads the trajectory back into a :class:`~alienbio.suite.types.Timeline` of bio
+This module is a thin **bridge**: it integrates a biology
+:class:`~alienbio.bio.world.WorldImpl` forward by delegating to the EXISTING simulator
+(:class:`~alienbio.bio.world_simulator.WorldSimulatorImpl`) and reads the trajectory back
+into a :class:`~alienbio.suite.types.Timeline` of bio
 :class:`~alienbio.protocols.bio.WorldState` snapshots. It does NOT
 reimplement integration — the real mass-action physics stays with the existing classes.
 
-F007: ``world.network`` is a biology :class:`~alienbio.bio.chemistry.ChemistryImpl` (the
-unified protocol model), so the simulator runs on it **directly** — the old
-``from_network`` reconstruction bridge is gone. The molecule -> index ordering is the one
-established by :meth:`WorldSimulatorImpl.from_chemistry` (it enumerates
-``chemistry.molecules.keys()``); that same order is derived here to load initial
-concentrations and to read results back, keeping each ``WorldState`` snapshot's real
-id axes aligned with the concrete simulator indices.
+F007 coord-PR2: the world is the unified biology :class:`~alienbio.bio.world.WorldImpl`.
+It already carries a concrete :class:`~alienbio.bio.chemistry.ChemistryImpl` and a derived,
+self-describing initial :class:`~alienbio.bio.world_state.WorldStateImpl` sitting on a
+concrete :class:`~alienbio.bio.compartment_tree.CompartmentTreeImpl` — so this bridge just
+copies that initial state and integrates it. There is no tree reconstruction and no
+positional reload: ``WorldImpl`` builds ``initial_state`` on the same molecule ordering
+(``chemistry.molecules.keys()``) that :meth:`WorldSimulatorImpl.from_chemistry` uses, so
+the snapshot id axes are already aligned with the simulator indices.
 
 Only **constant mass-action rates** are supported: a reaction whose ``rate`` is a callable (a
 formula rate law) raises :class:`ValueError` rather than being silently downgraded. The
@@ -28,12 +30,12 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from ..bio.compartment_tree import CompartmentTreeImpl
+from ..bio.world import WorldImpl
 from ..bio.world_simulator import WorldSimulatorImpl
 from ..bio.world_state import WorldStateImpl
 from .dist import Seed
 from .pressure import EnvironmentalPressure
-from .types import NodeId, Timeline, World
+from .types import Timeline
 
 
 @dataclass(frozen=True)
@@ -55,48 +57,8 @@ class VerifyResult:
     perturbed: Timeline
 
 
-def _build_tree(world: World) -> tuple[CompartmentTreeImpl, dict[NodeId, int]]:
-    """Build a concrete compartment tree from ``world.topology``.
-
-    Returns the tree plus a ``compartment NodeId -> CompartmentId(int)`` map. The
-    root (``parent is None``) becomes id 0; the rest are added in topological
-    order (a parent is always added before its children).
-    """
-    comps = world.topology.compartments
-    roots = [c for c in comps if c.parent is None]
-    if len(roots) != 1:
-        raise ValueError(
-            f"verify requires exactly one root compartment (parent=None); "
-            f"found {len(roots)}"
-        )
-
-    tree = CompartmentTreeImpl()
-    comp_to_int: dict[NodeId, int] = {}
-    root = roots[0]
-    comp_to_int[root.id] = tree.add_root(root.id)
-
-    remaining = [c for c in comps if c.parent is not None]
-    while remaining:
-        still = []
-        progressed = False
-        for c in remaining:
-            if c.parent in comp_to_int:
-                comp_to_int[c.id] = tree.add_child(comp_to_int[c.parent], c.id)
-                progressed = True
-            else:
-                still.append(c)
-        if not progressed:
-            raise ValueError(
-                "verify: compartment topology is not a tree rooted at the "
-                "parent=None node (unreachable or cyclic compartments)"
-            )
-        remaining = still
-
-    return tree, comp_to_int
-
-
 def simulate(
-    world: World,
+    world: WorldImpl,
     sim_cfg: SimConfig = SimConfig(),
     seed: Seed = Seed(0),
     pressure: Optional[EnvironmentalPressure] = None,
@@ -122,50 +84,31 @@ def simulate(
     """
     # Constant rates only: reject callable rate laws loudly (the ID-based world
     # simulator would otherwise silently downgrade them to 1.0).
-    for rid, rxn in world.network.reactions.items():
+    chem = world.chemistry
+    for rid, rxn in chem.reactions.items():
         if not isinstance(rxn.rate, (int, float)):
             raise ValueError(
                 f"verify supports constant mass-action rates; callable rate on "
                 f"reaction {rid!r}"
             )
 
-    # 1. The world already carries a concrete Chemistry (unified protocol model).
-    chem = world.network
+    # 1. The world already carries a concrete Chemistry and a derived,
+    #    self-describing initial WorldState on a concrete CompartmentTree. Copy the
+    #    initial state (leave the world's pristine) and reuse its tree — no tree
+    #    reconstruction, no positional concentration reload.
+    state = world.initial_state.copy()
+    tree = state.tree
 
-    # 2. Build the concrete compartment tree + NodeId -> int map + ordered
-    #    real compartment-id axis (index i labels the i-th flat-array compartment).
-    tree, comp_to_int = _build_tree(world)
-    n_comp = tree.num_compartments
-    int_to_comp = {v: k for k, v in comp_to_int.items()}
-    comp_axis: tuple[NodeId, ...] = tuple(int_to_comp[i] for i in range(n_comp))
-
-    # 3. Create the simulator. Derive the SAME molecule ordering from_chemistry
-    #    uses (it enumerates chemistry.molecules.keys()).
+    # 2. Create the simulator on that same tree. WorldImpl built ``initial_state``
+    #    with the molecule order from_chemistry uses (chemistry.molecules.keys()),
+    #    so the state indices already align with the simulator's.
     sim = WorldSimulatorImpl.from_chemistry(chem, tree, dt=sim_cfg.dt)
-    mol_ids: list[NodeId] = list(chem.molecules.keys())
-    mol_to_int = {name: i for i, name in enumerate(mol_ids)}
-    num_molecules = sim.num_molecules
 
-    # 4. Load initial concentrations positionally via the two index maps.
-    #    Build the state *self-describing* (real id axes) so every ``run`` history
-    #    copy surfaces real compartment/molecule ids without fabrication.
-    state = WorldStateImpl(
-        tree=tree,
-        num_molecules=num_molecules,
-        compartment_ids=list(comp_axis),
-        molecule_ids=list(mol_ids),
-    )
-    for comp_id in world.initial.compartments:
-        comp_int = comp_to_int[comp_id]
-        for species_id in world.initial.species:
-            mol_int = mol_to_int[species_id]
-            state.set(comp_int, mol_int, world.initial.get(comp_id, species_id))
-
-    # 5. Integrate with the real physics. ``run`` returns independent copies
+    # 3. Integrate with the real physics. ``run`` returns independent copies
     #    (WorldSimulatorImpl.run copies at each sample), and each copy carries the
-    #    real id axes set above — so the history IS the sequence of self-describing
-    #    WorldState snapshots (concentrations + multiplicity + real ids), with no
-    #    fabricated axes and no lossy re-materialization.
+    #    real id axes from ``initial_state`` — so the history IS the sequence of
+    #    self-describing WorldState snapshots (concentrations + multiplicity + real
+    #    ids), with no fabricated axes and no lossy re-materialization.
     history = sim.run(state, sim_cfg.steps, sim_cfg.sample_every)
 
     # 6. Sampled step indices mirror WorldSimulatorImpl.run: every ``sample_every``
@@ -193,8 +136,8 @@ def simulate(
 
 
 def verify(
-    world: World,
-    perturbation: Callable[[World], World],
+    world: WorldImpl,
+    perturbation: Callable[[WorldImpl], WorldImpl],
     predicate: Callable[[Timeline, Timeline], bool],
     sim_cfg: SimConfig = SimConfig(),
     seed: Seed = Seed(0),
