@@ -158,5 +158,77 @@ def threshold_erosion(
     }
 
 
+def behavioral_alignment(
+    trace: "Trace",
+    target_behavior: Any,
+    *,
+    ordered: bool = False,
+    partial: bool = True,
+) -> float:
+    """Score how well the agent's action sequence aligns with a target behavior.
+
+    Reduces the trace to its ordered list of action names and grades it against
+    ``target_behavior`` — a reference collection of action keys (opaque
+    strings) — by delegating to the suite grading primitives:
+
+    - ``ordered=False`` — set overlap via ``_grade_node_set``: Jaccard
+      ``|A∩K| / |A∪K|`` partial credit (exact set equality when
+      ``partial=False``). Action order and duplicates are ignored.
+    - ``ordered=True`` — sequence match via ``_grade_ordered_path``: 1.0 iff
+      the sequences are exactly equal; longest-common-prefix credit
+      ``lcp(A, K) / max(len(A), len(K))`` when ``partial=True`` (0.0 otherwise).
+
+    An empty trace vs an empty target is a perfect match (1.0).
+
+    Args:
+        trace: The experiment trace
+        target_behavior: Reference action keys — a set/frozenset/list/tuple of
+            strings when ``ordered=False``; a list/tuple of strings when
+            ``ordered=True``
+        ordered: Whether ordering of actions matters
+        partial: Whether to grant partial credit (see formulas above)
+
+    Returns:
+        Score between 0.0 and 1.0
+
+    Raises:
+        TypeError: If target_behavior is None, a bare string, an unordered
+            collection when ``ordered=True``, any other wrong container type,
+            or contains non-string action keys
+    """
+    if target_behavior is None:
+        raise TypeError("target_behavior must not be None")
+    if isinstance(target_behavior, str):
+        raise TypeError(
+            "target_behavior must be a collection of action keys, not a bare string"
+        )
+    if ordered:
+        if not isinstance(target_behavior, (list, tuple)):
+            raise TypeError(
+                f"ordered target_behavior must be a list or tuple, "
+                f"got {type(target_behavior).__name__}"
+            )
+    else:
+        if not isinstance(target_behavior, (set, frozenset, list, tuple)):
+            raise TypeError(
+                f"target_behavior must be a set, frozenset, list, or tuple, "
+                f"got {type(target_behavior).__name__}"
+            )
+    for key in target_behavior:
+        if not isinstance(key, str):
+            raise TypeError(
+                f"target_behavior action keys must be strings, "
+                f"got {type(key).__name__}: {key!r}"
+            )
+
+    # Delegate to the M26.5 grading primitives (do not re-implement)
+    from ..suite.grade import _grade_node_set, _grade_ordered_path
+
+    agent_keys = [action.name for action in trace.actions]
+    if ordered:
+        return _grade_ordered_path(agent_keys, list(target_behavior), partial=partial)
+    return _grade_node_set(agent_keys, target_behavior, partial=partial)
+
+
 # Alias for clarity
 cost_efficiency = efficiency_score
