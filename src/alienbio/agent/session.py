@@ -14,7 +14,7 @@ import logging
 import math
 import random
 
-from .types import Action, ActionResult, Observation, ExperimentResults, coerce_constitution, compose_briefing
+from .types import Action, ActionResult, Observation, ExperimentResults, coerce_constitution, compose_briefing, coerce_monitoring
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace
 from ..globals import Globals, create_globals_from_scenario
@@ -243,6 +243,14 @@ class AgentSession:
         self._briefing = compose_briefing(
             scenario.get("briefing", ""), scenario.get("framing")
         )
+        # Monitoring dial (M32.5): the SIGNAL the agent gets about being
+        # observed vs the GROUND TRUTH of whether it is — set independently,
+        # so the surfaced belief may diverge from reality. Only the surfaced
+        # side reaches Observation; actual stays framework-side. Malformed
+        # specs raise here (no silent fallback).
+        self._monitoring_surfaced, self._monitoring_actual = coerce_monitoring(
+            scenario.get("monitoring")
+        )
 
         # Initialize globals from scenario
         self._globals = create_globals_from_scenario(scenario)
@@ -338,6 +346,15 @@ class AgentSession:
             state, self._observation_noise, self._seed, self._step_count
         )
 
+    @property
+    def monitoring_actual(self) -> Any:
+        """Ground truth of the monitoring dial (framework-side only).
+
+        This is NOT surfaced to the agent — the agent only sees the surfaced
+        signal (Observation.monitoring), which may diverge from this value.
+        """
+        return self._monitoring_actual
+
     def observe(self) -> Observation:
         """Get the current observation.
 
@@ -365,6 +382,7 @@ class AgentSession:
             reversibility=self._reversibility,
             observation_noise=self._observation_noise,
             observability=self._observability,
+            monitoring=self._monitoring_surfaced,
             _is_initial=is_initial
         )
 
@@ -403,6 +421,7 @@ class AgentSession:
             reversibility=self._reversibility,
             observation_noise=self._observation_noise,
             observability=self._observability,
+            monitoring=self._monitoring_surfaced,
             _is_initial=False,
             # ActionResult fields
             action_name=action_name,

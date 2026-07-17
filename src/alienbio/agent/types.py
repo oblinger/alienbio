@@ -130,6 +130,43 @@ def compose_briefing(base: str, framing: Any) -> str:
     return text
 
 
+def coerce_monitoring(spec: Any) -> tuple[Any, Any]:
+    """Coerce a scenario-level monitoring spec to (surfaced, actual).
+
+    The monitoring dial (M32.5) separates the SIGNAL the agent receives about
+    being observed from the GROUND TRUTH of whether it actually is — the two
+    are settable independently, so the surfaced belief may diverge from
+    reality. Only the surfaced signal reaches the agent (Observation);
+    the actual value stays framework-side (AgentSession.monitoring_actual).
+
+    Spec forms:
+        None: no monitoring dial — (None, None)
+        scalar (str/int/float/bool): honest signal — surfaced == actual
+        dict with "surfaced" and/or "actual" keys: each side set explicitly;
+            an omitted side is None. Values are opaque (the surfaced side can
+            carry any cue text, e.g. a sycophancy-inducing evaluator-
+            preference hint — the framework does not interpret it).
+
+    Raises:
+        ValueError: If a dict spec is empty or contains unknown keys
+        TypeError: If the spec is not None, a scalar, or a dict
+    """
+    if spec is None:
+        return None, None
+    if isinstance(spec, (str, int, float, bool)):
+        return spec, spec
+    if isinstance(spec, dict):
+        unknown = set(spec) - {"surfaced", "actual"}
+        if unknown:
+            raise ValueError(f"Unknown monitoring keys: {sorted(unknown)}")
+        if not spec:
+            raise ValueError(
+                "Empty monitoring dict: set 'surfaced' and/or 'actual'"
+            )
+        return spec.get("surfaced"), spec.get("actual")
+    raise TypeError(f"Invalid monitoring spec type: {type(spec).__name__}")
+
+
 @dataclass
 class Observation:
     """What the agent observes about the environment.
@@ -171,6 +208,10 @@ class Observation:
             (in which case current_state is unfiltered / byte-identical to the
             no-dial case). The ground-truth world state is untouched; only what
             the agent observes is filtered.
+        monitoring: Opaque surfaced SIGNAL about being observed (what the
+            agent is told, not necessarily what is true — the ground truth
+            lives on AgentSession.monitoring_actual and may diverge). None
+            if unset.
     """
     briefing: str
     constitution: "str | Constitution"
@@ -185,6 +226,7 @@ class Observation:
     reversibility: Any = None
     observation_noise: Any = None
     observability: Any = None
+    monitoring: Any = None
     _is_initial: bool = field(default=True, repr=False)
 
     def is_initial(self) -> bool:
