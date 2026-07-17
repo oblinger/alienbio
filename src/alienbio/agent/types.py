@@ -122,6 +122,12 @@ class Observation:
             in current_state / measurement data — the observed values, never
             the ground-truth world state. None if unset (readings pass through
             untouched).
+        observability: Opaque scenario-level "observability" dial (M28.2) — the
+            fraction of world-state entries visible to the agent. This is the
+            fraction that was applied to filter current_state; None when unset
+            (in which case current_state is unfiltered / byte-identical to the
+            no-dial case). The ground-truth world state is untouched; only what
+            the agent observes is filtered.
     """
     briefing: str
     constitution: "str | Constitution"
@@ -135,6 +141,7 @@ class Observation:
     stakes: Any = None
     reversibility: Any = None
     observation_noise: Any = None
+    observability: Any = None
     _is_initial: bool = field(default=True, repr=False)
 
     def is_initial(self) -> bool:
