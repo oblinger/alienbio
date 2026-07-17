@@ -647,6 +647,61 @@ scenario_generator_spec:
 
 ---
 
+## Transport-Structure Dial (M28.4)
+
+The **compartment / transport-structure dial** is a single, seed-deterministic scalar
+that monotonically scales the STRUCTURE of a generated world's compartments — the
+number of container regions (compartments) and the per-species population branching that
+connects species across those compartments. It is a sibling difficulty axis to the
+complexity dial, scaling *structure* rather than *size*.
+
+Pass it to the generator entry point (`instantiate(..., transport_complexity=...)` or
+`BioSpec.build(..., transport_complexity=...)`), or set a `transport_complexity:` key on
+the spec as its default (an explicit argument overrides the spec key).
+
+The dial is a **multiplier** applied to spec-derived container counts. Named ordinal
+levels map to numeric multipliers:
+
+| Level      | Multiplier |
+| ---------- | ---------- |
+| `sparse`   | 0.5        |
+| `simple`   | 1.0 (default / identity) |
+| `branched` | 2.0        |
+| `dense`    | 4.0        |
+
+Any non-negative number is also accepted. What it scales (in the `parameters.containers`
+block):
+
+- **Compartments** — `regions.count` is scaled, so a world can be dialed from few to
+  many compartments.
+- **Branching** — `populations.per_species_per_region` is scaled, thickening the
+  per-compartment population that carries inter-compartment structure.
+
+Guarantees:
+
+- **Identity at 1.0** — `transport_complexity: 1.0` (or `simple`, or unset) reproduces
+  existing generation exactly (byte-identical world).
+- **Deterministic** — same `(transport_complexity, seed)` → identical topology.
+- **Monotonic** — for a fixed seed, a larger dial never yields fewer compartments or a
+  thinner population.
+- **Fails loudly** — an unknown named level or a negative number raises (no silent
+  clamp or fallback).
+
+```yaml
+scenario_generator_spec:
+  name: my_world
+  transport_complexity: branched   # spec-level default; overridable at build time
+
+  parameters:
+    containers:
+      regions:
+        count: 3                    # scaled: 3 → 6 compartments at 2.0
+      populations:
+        per_species_per_region: 2   # scaled: 2 → 4 per compartment at 2.0
+```
+
+---
+
 ## Guards
 
 Guards are constraints that validate expanded content. They prevent random generation from accidentally creating unwanted structure (cycles, cross-species dependencies, essential molecules).

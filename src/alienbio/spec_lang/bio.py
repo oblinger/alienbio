@@ -646,6 +646,7 @@ class Bio:
         registry: Any = None,
         params: dict[str, Any] | None = None,
         complexity: float | str | None = None,
+        transport_complexity: float | str | None = None,
     ) -> Any:
         """Build a scenario from a spec.
 
@@ -656,6 +657,9 @@ class Bio:
             params: Parameter overrides
             complexity: Network size / complexity dial (M28.1). Number or named
                 level (small/medium/large/huge); ``None`` uses the spec default.
+            transport_complexity: Compartment / transport-structure dial (M28.4).
+                Number or named level (sparse/simple/branched/dense); ``None``
+                uses the spec default.
 
         Returns:
             Scenario with visible and ground truth data
@@ -671,6 +675,7 @@ class Bio:
             registry=registry,
             params=params,
             complexity=complexity,
+            transport_complexity=transport_complexity,
         )
 
     def run(

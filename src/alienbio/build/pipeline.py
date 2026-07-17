@@ -75,12 +75,58 @@ def _scale_count(base: int, complexity: float) -> int:
     return max(0, round(base * complexity))
 
 
+# Difficulty axis M28.4 — compartment / transport-structure dial.
+#
+# A single scalar that monotonically scales the STRUCTURE of a generated world's
+# compartments — the number of regions (compartments) and the per-region
+# population branching (the flow structure connecting species across
+# compartments) — so worlds can be dialed from a sparse, few-compartment layout
+# to a dense, many-compartment one. Named ordinals map to numeric multipliers;
+# ``simple`` == ``1.0`` is the identity (default) generation.
+TRANSPORT_LEVELS: dict[str, float] = {
+    "sparse": 0.5,
+    "simple": 1.0,
+    "branched": 2.0,
+    "dense": 4.0,
+}
+
+
+def _resolve_transport_complexity(
+    transport_complexity: float | str | None, spec: dict[str, Any]
+) -> float:
+    """Resolve a transport-complexity dial to a numeric multiplier (>= 0.0).
+
+    ``None`` falls back to the spec's own ``transport_complexity`` key (default
+    1.0), so callers can leave it unset and let the spec decide. Strings are
+    looked up in :data:`TRANSPORT_LEVELS`; numbers pass through after a
+    non-negative check. Unknown names and negative numbers raise (no silent
+    clamp/fallback).
+    """
+    raw = (
+        spec.get("transport_complexity", 1.0)
+        if transport_complexity is None
+        else transport_complexity
+    )
+    if isinstance(raw, str):
+        if raw not in TRANSPORT_LEVELS:
+            raise ValueError(
+                f"Unknown transport_complexity level '{raw}'; "
+                f"expected one of {sorted(TRANSPORT_LEVELS)} or a number"
+            )
+        return TRANSPORT_LEVELS[raw]
+    value = float(raw)
+    if value < 0:
+        raise ValueError(f"transport_complexity must be non-negative, got {value}")
+    return value
+
+
 def instantiate(
     spec: dict[str, Any],
     seed: int = 0,
     registry: TemplateRegistry | None = None,
     params: dict[str, Any] | None = None,
     complexity: float | str | None = None,
+    transport_complexity: float | str | None = None,
 ) -> Scenario:
     """Instantiate a scenario from a generator spec.
 
@@ -100,6 +146,13 @@ def instantiate(
             May be a number (``1.0`` = default/identity) or a named level
             (``small``/``medium``/``large``/``huge``, see COMPLEXITY_LEVELS).
             ``None`` falls back to the spec's ``complexity`` key (default 1.0).
+        transport_complexity: Compartment / transport-structure dial (M28.4). A
+            multiplier that monotonically scales the number of container regions
+            (compartments) and their per-species population branching. May be a
+            number (``1.0`` = default/identity) or a named level
+            (``sparse``/``simple``/``branched``/``dense``, see TRANSPORT_LEVELS).
+            ``None`` falls back to the spec's ``transport_complexity`` key
+            (default 1.0).
 
     Returns:
         Scenario with visible and ground truth data
@@ -115,6 +168,9 @@ def instantiate(
 
     # Resolve the network size / complexity dial (M28.1) to a numeric multiplier
     complexity_factor = _resolve_complexity(complexity, spec)
+
+    # Resolve the compartment / transport-structure dial (M28.4)
+    transport_factor = _resolve_transport_complexity(transport_complexity, spec)
 
     # Merge spec params with overrides
     effective_params = dict(spec.get("_params_", {}))
@@ -182,7 +238,9 @@ def instantiate(
 
     # Process container generation
     containers_spec = spec.get("parameters", {}).get("containers", {})
-    regions = _process_containers(containers_spec, ground_truth, seed)
+    regions = _process_containers(
+        containers_spec, ground_truth, seed, transport_complexity=transport_factor
+    )
 
     # Generate visibility mapping
     visibility_mapping = generate_visibility_mapping(ground_truth, visibility_spec, seed=seed)
@@ -796,6 +854,7 @@ def _process_containers(
     containers_spec: dict[str, Any],
     ground_truth: dict[str, Any],
     seed: int,
+    transport_complexity: float = 1.0,
 ) -> list:
     """Process container specification to generate regions and populations.
 
@@ -803,6 +862,9 @@ def _process_containers(
         containers_spec: Dict with regions and populations config
         ground_truth: Current ground truth (to find species)
         seed: Random seed
+        transport_complexity: Compartment / transport-structure dial (M28.4);
+            scales the region (compartment) count and the per-species population
+            branching. ``1.0`` is exact identity.
 
     Returns:
         List of Region objects
@@ -830,6 +892,11 @@ def _process_containers(
         region_count = int(round(eval_node(region_count, ctx)))
     else:
         region_count = int(region_count)
+    # Scale the compartment (region) count by the transport-structure dial
+    # (M28.4). The seeded region loop below appends regions by index, so scaling
+    # the count keeps the compartment count monotonically non-decreasing per
+    # seed while leaving the first N regions byte-identical.
+    region_count = _scale_count(region_count, transport_complexity)
     _check_count(region_count, "containers.regions.count")
 
     # Get initial substrates config
@@ -865,6 +932,11 @@ def _process_containers(
                 pop_count = int(round(eval_node(pop_spec, pop_ctx)))
             else:
                 pop_count = int(pop_spec)
+            # Scale the per-species population branching by the transport-
+            # structure dial (M28.4). The organism loop appends by index, so the
+            # count stays monotonically non-decreasing per seed and is exact
+            # identity at 1.0.
+            pop_count = _scale_count(pop_count, transport_complexity)
             _check_count(pop_count, "containers.populations.per_species_per_region")
 
             # Create organisms
