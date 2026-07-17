@@ -19,6 +19,8 @@ from .pressure import (
     make_pressure,
 )
 from .render import Vocabulary, parse, render
+from .vocab import build_vocabulary
+from .validity import is_shortcut_resistant, non_obvious_causal
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
 from .dist import (
@@ -125,4 +127,7 @@ __all__ = [
     "render",
     "parse",
     "Vocabulary",
+    "build_vocabulary",
+    "non_obvious_causal",
+    "is_shortcut_resistant",
 ]
