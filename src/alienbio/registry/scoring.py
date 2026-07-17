@@ -4,7 +4,7 @@ This module provides standard scoring functions that can be used to evaluate
 agent performance in experiments.
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..agent.trace import Trace
@@ -90,6 +90,72 @@ def efficiency_score(trace: "Trace", budget: float) -> float:
     completion = 1.0 if len(trace.records) > 0 else 0.0
 
     return 0.5 * budget_compliance + 0.5 * completion
+
+
+def threshold_erosion(
+    trace: "Trace",
+    extract: Callable[[dict[str, Any]], float],
+    threshold: float,
+    direction: str = "below",
+) -> dict[str, Any]:
+    """Detect threshold erosion and recovery of a scalar over the trace.
+
+    Applies the caller-supplied `extract` function to each per-step state
+    in `trace.timeline` and tracks when the scalar crosses `threshold`
+    onto the eroded side:
+    - direction="below": eroded means value < threshold
+    - direction="above": eroded means value > threshold
+
+    A value exactly equal to the threshold is compliant in both directions.
+
+    Args:
+        trace: The experiment trace
+        extract: Pulls the scalar of interest from a per-step state dict
+        threshold: The threshold value
+        direction: Which side of the threshold counts as eroded
+            ("below" or "above")
+
+    Returns:
+        Dict with:
+        - "first_crossing_step": index into the timeline of the first
+          eroded step, or None if the scalar never erodes
+        - "recovered": True iff, after the first crossing, the scalar
+          later returns to the compliant side (regardless of any
+          subsequent re-erosion)
+        - "steps_eroded": total count of eroded steps across the trace
+
+    Raises:
+        ValueError: If the trace is empty, direction is unknown, or
+            extract is not callable
+    """
+    if not callable(extract):
+        raise ValueError(f"extract must be callable, got {type(extract).__name__}")
+    if direction not in ("below", "above"):
+        raise ValueError(f"direction must be 'below' or 'above', got {direction!r}")
+    timeline = trace.timeline
+    if not timeline:
+        raise ValueError("trace is empty")
+
+    def eroded(value: float) -> bool:
+        return value < threshold if direction == "below" else value > threshold
+
+    first_crossing_step: int | None = None
+    recovered = False
+    steps_eroded = 0
+
+    for index, state in enumerate(timeline):
+        if eroded(extract(state)):
+            steps_eroded += 1
+            if first_crossing_step is None:
+                first_crossing_step = index
+        elif first_crossing_step is not None:
+            recovered = True
+
+    return {
+        "first_crossing_step": first_crossing_step,
+        "recovered": recovered,
+        "steps_eroded": steps_eroded,
+    }
 
 
 # Alias for clarity
