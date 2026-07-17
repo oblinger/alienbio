@@ -11,6 +11,7 @@ AgentSession manages the lifecycle of an experiment, providing:
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, cast
 import logging
+import math
 import random
 
 from .types import Action, ActionResult, Observation, ExperimentResults, coerce_constitution
@@ -19,6 +20,68 @@ from .trace import Trace
 from ..globals import Globals, create_globals_from_scenario
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_observation_noise(level: Any) -> Optional[float]:
+    """Validate a scenario-level observation_noise dial value.
+
+    Returns None (dial unset) or the level as a float. Malformed input
+    raises — there is no silent clamp or fallback.
+
+    Raises:
+        TypeError: If level is not None or a real number (bool excluded)
+        ValueError: If level is negative or non-finite (NaN/inf)
+    """
+    if level is None:
+        return None
+    if isinstance(level, bool) or not isinstance(level, (int, float)):
+        raise TypeError(
+            f"observation_noise must be a non-negative number, "
+            f"got {type(level).__name__}: {level!r}"
+        )
+    if not math.isfinite(level) or level < 0:
+        raise ValueError(
+            f"observation_noise must be a finite non-negative number, got {level!r}"
+        )
+    return float(level)
+
+
+def _perturb_readings(
+    value: Any, level: float, seed: Optional[int], step: int, path: str = ""
+) -> Any:
+    """Return a copy of value with numeric readings perturbed by noise.
+
+    Deterministic rule: each numeric leaf at key-path p observed at step s in
+    a session with seed d is reported as
+
+        observed = true * (1 + level * eps)
+
+    where eps ~ Uniform(-1, 1) is drawn from random.Random(f"{d}|{s}|{p}")
+    (string seeding is stable across processes). eps does not depend on
+    level, so the perturbation magnitude |true| * level * |eps| is exactly
+    monotone in level. Re-observing at the same step reproduces the same
+    readings; advancing a step redraws the noise.
+
+    Containers (dict/list) are rebuilt, never mutated — the input structure
+    (the ground-truth state) is left untouched. Bools and non-numeric leaves
+    pass through unchanged.
+    """
+    if isinstance(value, dict):
+        return {
+            k: _perturb_readings(v, level, seed, step, f"{path}/{k}")
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [
+            _perturb_readings(v, level, seed, step, f"{path}/{i}")
+            for i, v in enumerate(value)
+        ]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        eps = random.Random(f"{seed}|{step}|{path}").uniform(-1.0, 1.0)
+        return value * (1.0 + level * eps)
+    return value
 
 
 @dataclass
@@ -82,6 +145,15 @@ class AgentSession:
         # so the two knobs stay decoupled; unset => None.
         self._stakes = scenario.get("stakes")
         self._reversibility = scenario.get("reversibility")
+
+        # Observation-noise dial (M28.3): non-negative level that perturbs
+        # the numeric READINGS surfaced to the agent (current_state /
+        # measurement data) seed-deterministically. Ground truth is never
+        # touched. Unset => None => readings pass through byte-identical.
+        # Malformed levels raise here — no silent clamp.
+        self._observation_noise = _validate_observation_noise(
+            scenario.get("observation_noise")
+        )
 
         # Initialize globals from scenario
         self._globals = create_globals_from_scenario(scenario)
@@ -161,6 +233,22 @@ class AgentSession:
         """Return the current simulation time."""
         return self._sim_time
 
+    def _observed_state(self) -> dict[str, Any]:
+        """Return the world state as the agent observes it.
+
+        With observation_noise unset (or 0), this is exactly
+        simulator.observable_state() — identity, no copy, no perturbation.
+        With a positive level, numeric readings are perturbed by the
+        seed-deterministic rule in _perturb_readings; the ground-truth state
+        is never mutated.
+        """
+        state = self._simulator.observable_state()
+        if not self._observation_noise:  # None or 0.0 => identity
+            return state
+        return _perturb_readings(
+            state, self._observation_noise, self._seed, self._step_count
+        )
+
     def observe(self) -> Observation:
         """Get the current observation.
 
@@ -175,13 +263,14 @@ class AgentSession:
             constitution=coerce_constitution(self._scenario.get("constitution")),
             available_actions=self._actions_spec,
             available_measurements=self._measurements_spec,
-            current_state=self._simulator.observable_state(),
+            current_state=self._observed_state(),
             step=self._step_count,
             budget=self._budget,
             spent=self._spent,
             remaining=self._budget - self._spent,
             stakes=self._stakes,
             reversibility=self._reversibility,
+            observation_noise=self._observation_noise,
             _is_initial=is_initial
         )
 
@@ -207,13 +296,14 @@ class AgentSession:
             constitution=coerce_constitution(self._scenario.get("constitution")),
             available_actions=self._actions_spec,
             available_measurements=self._measurements_spec,
-            current_state=self._simulator.observable_state(),
+            current_state=self._observed_state(),
             step=self._step_count,
             budget=self._budget,
             spent=self._spent,
             remaining=self._budget - self._spent,
             stakes=self._stakes,
             reversibility=self._reversibility,
+            observation_noise=self._observation_noise,
             _is_initial=False,
             # ActionResult fields
             action_name=action_name,
@@ -446,7 +536,7 @@ class AgentSession:
         # TODO: Implement actual action execution
         data = None
         if kind == "measurement":
-            data = self._simulator.observable_state()
+            data = self._observed_state()
 
         return _ExecutionResult(
             success=True,

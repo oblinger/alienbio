@@ -114,6 +114,11 @@ class Observation:
             effects/actions can be undone). Set independently of stakes. None
             if unset. (Per-action reversibility is carried on each action spec
             in available_actions via an optional "reversible" flag.)
+        observation_noise: Opaque scenario-level "observation noise" dial
+            (M28.3). Non-negative noise level applied to the numeric readings
+            in current_state / measurement data — the observed values, never
+            the ground-truth world state. None if unset (readings pass through
+            untouched).
     """
     briefing: str
     constitution: "str | Constitution"
@@ -126,6 +131,7 @@ class Observation:
     remaining: float
     stakes: Any = None
     reversibility: Any = None
+    observation_noise: Any = None
     _is_initial: bool = field(default=True, repr=False)
 
     def is_initial(self) -> bool:
