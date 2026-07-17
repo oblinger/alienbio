@@ -32,6 +32,10 @@ ENV/
 *.swo
 *~
 
+# Secrets — never commit; key lives in macOS Keychain → ANTHROPIC_API_KEY env var
+.env
+.env.*
+
 # Testing
 .pytest_cache/
 .coverage
