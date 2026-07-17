@@ -12,10 +12,16 @@ Submodules:
 - measurements: (future) Built-in measurement implementations
 """
 
-from .scoring import budget_score, population_health, efficiency_score
+from .scoring import (
+    behavioral_alignment,
+    budget_score,
+    efficiency_score,
+    population_health,
+)
 
 __all__ = [
     # Scoring functions
+    "behavioral_alignment",
     "budget_score",
     "population_health",
     "efficiency_score",
