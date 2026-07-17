@@ -25,7 +25,7 @@ from alienbio.suite.pressure import (
     EnvironmentalPressure,
     make_pressure,
 )
-from alienbio.suite.types import Compartment, StateVector, Topology, Trace, World
+from alienbio.suite.types import Compartment, StateVector, Timeline, Topology, World
 from alienbio.suite.verify import SimConfig, simulate
 
 
@@ -62,15 +62,28 @@ def make_world(initial_a: float = 100.0, rate: object = 0.1) -> World:
     return World(network=network, topology=topology, initial=initial)
 
 
-def _stack(trace: Trace) -> np.ndarray:
-    """[n_samples x n_comp x n_species] array of a trace's sampled states."""
-    return np.array([st.data for st in trace.states], dtype=np.float64)
+def _stack(trace: Timeline) -> np.ndarray:
+    """[n_samples x n_comp x n_species] array of a timeline's sampled states."""
+    return np.array(
+        [np.asarray(st.as_array(), dtype=np.float64) for st in trace.states],
+        dtype=np.float64,
+    )
 
 
-def _deviation(trace: Trace, baseline: Trace) -> np.ndarray:
+def _deviation(trace: Timeline, baseline: Timeline) -> np.ndarray:
     """Per-sample L2 deviation of ``trace`` from the unperturbed ``baseline``."""
     diff = _stack(trace) - _stack(baseline)
     return np.sqrt((diff ** 2).sum(axis=(1, 2)))
+
+
+def _same(t1: Timeline, t2: Timeline) -> bool:
+    """Value-equality of two timelines (concentrations + times).
+
+    WorldState snapshots are compared by their concentration arrays rather than
+    by object identity — the bio ``WorldStateImpl`` deliberately carries no value
+    ``__eq__`` (it is the mutable simulator buffer).
+    """
+    return t1.times == t2.times and np.array_equal(_stack(t1), _stack(t2))
 
 
 # === 1. Absent == identity (the #1 guarantee) ===
@@ -81,18 +94,18 @@ class TestAbsentIsIdentity:
         world = make_world()
         baseline = simulate(world)
         with_none = simulate(world, pressure=None)
-        assert with_none == baseline
+        assert _same(with_none, baseline)
         assert with_none.times == baseline.times
         # Byte-identical arrays, not merely close.
         for a, b in zip(with_none.states, baseline.states):
-            assert np.array_equal(a.data, b.data)
+            assert np.array_equal(a.as_array(), b.as_array())
 
     def test_zero_intensity_is_identity(self):
         world = make_world()
         baseline = simulate(world)
         zeroed = simulate(world, pressure=make_pressure("suppress", intensity="none"))
         for a, b in zip(zeroed.states, baseline.states):
-            assert np.allclose(a.data, b.data)
+            assert np.allclose(a.as_array(), b.as_array())
 
 
 # === 2. Monotone intensity: higher intensity -> larger perturbation ===
@@ -172,21 +185,21 @@ class TestSeedDeterminism:
         # No jitter => two different seeds still produce identical traces.
         t1 = simulate(world, pressure=pressure, seed=Seed(1))
         t2 = simulate(world, pressure=pressure, seed=Seed(999))
-        assert t1 == t2
+        assert _same(t1, t2)
 
     def test_same_seed_reproducible_with_jitter(self):
         world = make_world()
         pressure = make_pressure("drain", intensity="high", jitter=0.5)
         t1 = simulate(world, pressure=pressure, seed=Seed(7))
         t2 = simulate(world, pressure=pressure, seed=Seed(7))
-        assert t1 == t2
+        assert _same(t1, t2)
 
     def test_different_seed_differs_with_jitter(self):
         world = make_world()
         pressure = make_pressure("drain", intensity="high", jitter=0.5)
         t1 = simulate(world, pressure=pressure, seed=Seed(7))
         t2 = simulate(world, pressure=pressure, seed=Seed(8))
-        assert t1 != t2
+        assert not _same(t1, t2)
 
 
 # === 5. Bad input raises (no silent fallback) ===

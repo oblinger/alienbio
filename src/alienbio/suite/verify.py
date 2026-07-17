@@ -2,7 +2,8 @@
 
 This module is a thin **bridge**: it integrates a :class:`~alienbio.suite.types.World`
 forward by delegating to the EXISTING simulator (:class:`~alienbio.bio.world_simulator.WorldSimulatorImpl`)
-and reads the trajectory back into a neutral :class:`~alienbio.suite.types.Trace`. It does NOT
+and reads the trajectory back into a :class:`~alienbio.suite.types.Timeline` of bio
+:class:`~alienbio.protocols.bio.WorldState` snapshots. It does NOT
 reimplement integration — the real mass-action physics stays with the existing classes.
 
 F007: ``world.network`` is a biology :class:`~alienbio.bio.chemistry.ChemistryImpl` (the
@@ -10,8 +11,8 @@ unified protocol model), so the simulator runs on it **directly** — the old
 ``from_network`` reconstruction bridge is gone. The molecule -> index ordering is the one
 established by :meth:`WorldSimulatorImpl.from_chemistry` (it enumerates
 ``chemistry.molecules.keys()``); that same order is derived here to load initial
-concentrations and to read results back, keeping the neutral ``StateVector`` axes aligned
-with the concrete simulator indices.
+concentrations and to read results back, keeping each ``WorldState`` snapshot's real
+id axes aligned with the concrete simulator indices.
 
 Only **constant mass-action rates** are supported: a reaction whose ``rate`` is a callable (a
 formula rate law) raises :class:`ValueError` rather than being silently downgraded. The
@@ -32,7 +33,7 @@ from ..bio.world_simulator import WorldSimulatorImpl
 from ..bio.world_state import WorldStateImpl
 from .dist import Seed
 from .pressure import EnvironmentalPressure
-from .types import NodeId, StateVector, Trace, World
+from .types import NodeId, Timeline, World
 
 
 @dataclass(frozen=True)
@@ -50,8 +51,8 @@ class VerifyResult:
 
     passed: bool          # predicate(baseline, perturbed) result
     discard: bool         # == not passed  (the reject-sampling signal)
-    baseline: Trace
-    perturbed: Trace
+    baseline: Timeline
+    perturbed: Timeline
 
 
 def _build_tree(world: World) -> tuple[CompartmentTreeImpl, dict[NodeId, int]]:
@@ -99,10 +100,10 @@ def simulate(
     sim_cfg: SimConfig = SimConfig(),
     seed: Seed = Seed(0),
     pressure: Optional[EnvironmentalPressure] = None,
-) -> Trace:
-    """Integrate ``world`` forward with the real simulator and return a neutral Trace.
+) -> Timeline:
+    """Integrate ``world`` forward with the real simulator and return a Timeline.
 
-    Deterministic: identical ``(world, sim_cfg)`` yield an identical :class:`Trace`.
+    Deterministic: identical ``(world, sim_cfg)`` yield an identical :class:`Timeline`.
     ``seed`` is accepted for signature symmetry with :func:`verify` (stochastic
     perturbations / predicates); the baseline integration ignores it unless a
     stochastic ``pressure`` (``jitter > 0``) is supplied.
@@ -131,8 +132,12 @@ def simulate(
     # 1. The world already carries a concrete Chemistry (unified protocol model).
     chem = world.network
 
-    # 2. Build the concrete compartment tree + NodeId -> int map.
+    # 2. Build the concrete compartment tree + NodeId -> int map + ordered
+    #    real compartment-id axis (index i labels the i-th flat-array compartment).
     tree, comp_to_int = _build_tree(world)
+    n_comp = tree.num_compartments
+    int_to_comp = {v: k for k, v in comp_to_int.items()}
+    comp_axis: tuple[NodeId, ...] = tuple(int_to_comp[i] for i in range(n_comp))
 
     # 3. Create the simulator. Derive the SAME molecule ordering from_chemistry
     #    uses (it enumerates chemistry.molecules.keys()).
@@ -142,62 +147,55 @@ def simulate(
     num_molecules = sim.num_molecules
 
     # 4. Load initial concentrations positionally via the two index maps.
-    state = WorldStateImpl(tree=tree, num_molecules=num_molecules)
+    #    Build the state *self-describing* (real id axes) so every ``run`` history
+    #    copy surfaces real compartment/molecule ids without fabrication.
+    state = WorldStateImpl(
+        tree=tree,
+        num_molecules=num_molecules,
+        compartment_ids=list(comp_axis),
+        molecule_ids=list(mol_ids),
+    )
     for comp_id in world.initial.compartments:
         comp_int = comp_to_int[comp_id]
         for species_id in world.initial.species:
             mol_int = mol_to_int[species_id]
             state.set(comp_int, mol_int, world.initial.get(comp_id, species_id))
 
-    # 5. Integrate with the real physics.
+    # 5. Integrate with the real physics. ``run`` returns independent copies
+    #    (WorldSimulatorImpl.run copies at each sample), and each copy carries the
+    #    real id axes set above — so the history IS the sequence of self-describing
+    #    WorldState snapshots (concentrations + multiplicity + real ids), with no
+    #    fabricated axes and no lossy re-materialization.
     history = sim.run(state, sim_cfg.steps, sim_cfg.sample_every)
 
-    # 6. Map back to a neutral Trace, reusing the index maps for REAL NodeIds.
-    n_comp = tree.num_compartments
-    int_to_comp = {v: k for k, v in comp_to_int.items()}
-    comp_axis: tuple[NodeId, ...] = tuple(int_to_comp[i] for i in range(n_comp))
-    species_axis: tuple[NodeId, ...] = tuple(mol_ids)
-
-    # Sampled step indices mirror WorldSimulatorImpl.run: every ``sample_every``
-    # step plus the final state at step ``steps``.
+    # 6. Sampled step indices mirror WorldSimulatorImpl.run: every ``sample_every``
+    #    step plus the final state at step ``steps``.
     sampled_steps = [i for i in range(sim_cfg.steps) if i % sim_cfg.sample_every == 0]
     sampled_steps.append(sim_cfg.steps)
     times = tuple(float(s * sim_cfg.dt) for s in sampled_steps)
 
-    states: list[StateVector] = []
-    for ws in history:
-        data = np.array(
-            [
-                [ws.get(i, j) for j in range(num_molecules)]
-                for i in range(n_comp)
-            ],
-            dtype=np.float64,
-        )
-        states.append(
-            StateVector(data=data, compartments=comp_axis, species=species_axis)
-        )
+    states: list[WorldStateImpl] = list(history)
 
     # 7. M32.4 removable environmental pressure: apply the displacement overlay
     #    on top of the (unchanged) natural trajectory. Absent pressure leaves
-    #    ``states`` untouched, so the trace is byte-identical to the baseline.
+    #    ``states`` untouched, so the timeline is byte-identical to the baseline.
     if pressure is not None:
         p_traj = pressure.overlay(sim_cfg.steps, seed)
-        states = [
-            StateVector(
-                data=sv.data * math.exp(pressure.coef * float(p_traj[step])),
-                compartments=sv.compartments,
-                species=sv.species,
-            )
-            for step, sv in zip(sampled_steps, states)
-        ]
+        scaled: list[WorldStateImpl] = []
+        for step, ws in zip(sampled_steps, states):
+            factor = math.exp(pressure.coef * float(p_traj[step]))
+            ws_scaled = ws.copy()
+            ws_scaled.from_array(np.asarray(ws.as_array(), dtype=np.float64) * factor)
+            scaled.append(ws_scaled)
+        states = scaled
 
-    return Trace(times=times, states=tuple(states))
+    return Timeline(times=times, states=tuple(states))
 
 
 def verify(
     world: World,
     perturbation: Callable[[World], World],
-    predicate: Callable[[Trace, Trace], bool],
+    predicate: Callable[[Timeline, Timeline], bool],
     sim_cfg: SimConfig = SimConfig(),
     seed: Seed = Seed(0),
 ) -> VerifyResult:

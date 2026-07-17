@@ -1,4 +1,4 @@
-"""The ``suite`` subsystem: neutral typed data model, adapters, and sampling.
+"""The ``suite`` subsystem: neutral typed data model and sampling.
 
 All domain meaning is carried as opaque tags; this package never inspects tag
 content or evaluates rates.
@@ -6,7 +6,6 @@ content or evaluates rates.
 
 from __future__ import annotations
 
-from .adapters import from_state, to_state
 from .augment import augment, graph_stats
 from .carve import CarveFail, carve, splice
 from .cover import Cover, Feature, cover
@@ -56,8 +55,8 @@ from .types import (
     Tags,
     TaskArchetype,
     TaskInstance,
+    Timeline,
     Topology,
-    Trace,
     World,
     WorldEnvelope,
 )
@@ -72,9 +71,6 @@ __all__ = [
     "LogNormal",
     "Choice",
     "ParamSchema",
-    # adapters
-    "to_state",
-    "from_state",
     # L0
     "NodeId",
     "Tags",
@@ -83,7 +79,7 @@ __all__ = [
     "Compartment",
     "Topology",
     "StateVector",
-    "Trace",
+    "Timeline",
     "World",
     # L3
     "RoleSlot",
