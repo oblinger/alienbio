@@ -93,6 +93,58 @@ class _ExecutionResult:
     cost: float = 0.0
 
 
+def _coerce_observability(value: Any) -> Optional[float]:
+    """Validate a scenario-level ``observability`` dial value.
+
+    ``observability`` is the fraction (0.0..1.0) of world-state entries that
+    remain VISIBLE to the agent — 1.0 = fully observable, lower values hide a
+    proportionate, seed-chosen subset. ``None`` means the dial is unset (no
+    filtering; observation is byte-identical to the no-dial case).
+
+    Raises:
+        TypeError: If the value is not None and not a real number (bools are
+            rejected — they are not a meaningful fraction).
+        ValueError: If the numeric value is outside the closed range [0.0, 1.0].
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(
+            f"observability must be a number in [0.0, 1.0] or None, "
+            f"got {type(value).__name__}: {value!r}"
+        )
+    fraction = float(value)
+    if not (0.0 <= fraction <= 1.0):
+        raise ValueError(
+            f"observability must be in [0.0, 1.0], got {fraction!r}"
+        )
+    return fraction
+
+
+def _filter_observable_state(
+    state: dict[str, Any],
+    observability: Optional[float],
+    seed: Optional[int],
+) -> dict[str, Any]:
+    """Hide a seed-deterministic fraction of top-level world-state entries.
+
+    When ``observability`` is None the state is returned UNCHANGED (identity —
+    byte-identical to the no-dial case). Otherwise ``observability`` is the
+    fraction of top-level ``state`` keys kept visible; the complementary,
+    seed-chosen subset is dropped from the returned copy. The input ``state``
+    (ground truth) is never mutated. Same seed + same fraction => same subset.
+    """
+    if observability is None:
+        return state
+    # Reuse the shipped seeded visible/hidden split (single source of truth).
+    from ..build.visibility import apply_fraction_known
+    visible, _hidden = apply_fraction_known(
+        list(state.keys()), observability, seed=seed
+    )
+    visible_set = set(visible)
+    return {k: v for k, v in state.items() if k in visible_set}
+
+
 class AgentSession:
     """Manages an agent's interaction with a scenario.
 
@@ -179,6 +231,10 @@ class AgentSession:
         self._observation_noise = _validate_observation_noise(
             scenario.get("observation_noise")
         )
+        # Observability dial (M28.2): opaque fraction (0.0..1.0) of world-state
+        # entries visible to the agent. Validated up front so a malformed dial
+        # fails fast (no silent clamp). None => unset (no filtering, identity).
+        self._observability = _coerce_observability(scenario.get("observability"))
 
         # Initialize globals from scenario
         self._globals = create_globals_from_scenario(scenario)
@@ -288,7 +344,11 @@ class AgentSession:
             constitution=coerce_constitution(self._scenario.get("constitution")),
             available_actions=self._actions_spec,
             available_measurements=self._measurements_spec,
-            current_state=self._observed_state(),
+            current_state=_filter_observable_state(
+                self._observed_state(),
+                self._observability,
+                self._seed,
+            ),
             step=self._step_count,
             budget=self._budget,
             spent=self._spent,
@@ -296,6 +356,7 @@ class AgentSession:
             stakes=self._stakes,
             reversibility=self._reversibility,
             observation_noise=self._observation_noise,
+            observability=self._observability,
             _is_initial=is_initial
         )
 
@@ -321,7 +382,11 @@ class AgentSession:
             constitution=coerce_constitution(self._scenario.get("constitution")),
             available_actions=self._actions_spec,
             available_measurements=self._measurements_spec,
-            current_state=self._observed_state(),
+            current_state=_filter_observable_state(
+                self._observed_state(),
+                self._observability,
+                self._seed,
+            ),
             step=self._step_count,
             budget=self._budget,
             spent=self._spent,
@@ -329,6 +394,7 @@ class AgentSession:
             stakes=self._stakes,
             reversibility=self._reversibility,
             observation_noise=self._observation_noise,
+            observability=self._observability,
             _is_initial=False,
             # ActionResult fields
             action_name=action_name,
