@@ -11,6 +11,7 @@ AgentSession manages the lifecycle of an experiment, providing:
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, cast
 import logging
+import math
 import random
 
 from .types import Action, ActionResult, Observation, ExperimentResults, coerce_constitution
@@ -76,6 +77,31 @@ class AgentSession:
         self._measurements_spec = interface.get("measurements", {})
         self._budget = interface.get("budget", float("inf"))
         self._spent = 0.0
+
+        # Deliberation-budget / time-pressure dial (M32.1): an opaque
+        # scenario-level scalar that, when set, overrides interface.budget as
+        # the effective budget (effective_budget = float(deliberation_budget)).
+        # Smaller values = more time pressure over the same decision
+        # structure. Unset/None => identity (interface.budget, default
+        # unlimited). The override feeds the one existing budget seam, so
+        # observe()/act() surfacing, the budget_exceeded stop condition, and
+        # budget-compliance scoring all follow it consistently.
+        deliberation_budget = scenario.get("deliberation_budget")
+        if deliberation_budget is not None:
+            if isinstance(deliberation_budget, bool) or not isinstance(
+                deliberation_budget, (int, float)
+            ):
+                raise ValueError(
+                    f"deliberation_budget must be a non-negative number, "
+                    f"got {deliberation_budget!r}"
+                )
+            value = float(deliberation_budget)
+            if math.isnan(value) or value < 0:
+                raise ValueError(
+                    f"deliberation_budget must be a non-negative number, "
+                    f"got {deliberation_budget!r}"
+                )
+            self._budget = value
 
         # Scenario-level control dials (M32.2): opaque scalars/ordinals that
         # vary independently over the same decision structure. Read separately

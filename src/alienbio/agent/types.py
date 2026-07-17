@@ -105,7 +105,10 @@ class Observation:
         available_measurements: Measurements available (name -> info dict)
         current_state: Observable state of the environment
         step: Current step number (0 at start)
-        budget: Total budget allocated
+        budget: Total budget allocated. Normally interface.budget; when the
+            scenario sets the opaque "deliberation_budget" dial (M32.1 time
+            pressure), that value overrides interface.budget as the effective
+            budget surfaced here and enforced by the session.
         spent: Budget spent so far
         remaining: Budget remaining (budget - spent)
         stakes: Opaque scenario-level "stakes" dial (magnitude of
