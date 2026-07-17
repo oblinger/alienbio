@@ -647,6 +647,7 @@ class Bio:
         params: dict[str, Any] | None = None,
         complexity: float | str | None = None,
         transport_complexity: float | str | None = None,
+        hidden_interdependency: int | dict[str, Any] | None = None,
     ) -> Any:
         """Build a scenario from a spec.
 
@@ -660,6 +661,9 @@ class Bio:
             transport_complexity: Compartment / transport-structure dial (M28.4).
                 Number or named level (sparse/simple/branched/dense); ``None``
                 uses the spec default.
+            hidden_interdependency: Hidden inter-entity interdependency dial
+                (M32.3). Non-negative count (int) or ``{"count": int,
+                "type": str}``; ``None`` uses the spec default (0 => none).
 
         Returns:
             Scenario with visible and ground truth data
@@ -676,6 +680,7 @@ class Bio:
             params=params,
             complexity=complexity,
             transport_complexity=transport_complexity,
+            hidden_interdependency=hidden_interdependency,
         )
 
     def run(

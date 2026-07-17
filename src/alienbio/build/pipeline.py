@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from typing import Any
+from typing import Any, Callable
 
 from alienbio.protocols import Scenario
 
@@ -120,6 +120,180 @@ def _resolve_transport_complexity(
     return value
 
 
+# Difficulty axis M32.3 — hidden inter-entity interdependency dial.
+#
+# A tunable knob that injects TYPED, HIDDEN couplings between generated entities:
+# extra ground-truth reactions that link one entity's molecule to another
+# entity's, so one entity's state genuinely influences another through the true
+# dynamics. The couplings are forced hidden — they never appear in the surfaced
+# (visible) scenario — so the agent must DISCOVER them through interaction rather
+# than read them off. The dial is a non-negative count (higher => more couplings,
+# a strict monotone superset per seed); an opaque type tag selects the coupling
+# KIND. count == 0 (the default) is a no-op, so the generated world stays
+# byte-identical to today.
+#
+# Each type is a builder ``(source_mol, target_mol, rate) -> reaction dict``. All
+# types are real mass-flux couplings that the reference simulator processes (via
+# reactants/products), so the coupled entity's trajectory provably changes. Each
+# carries an opaque ``coupling_type`` tag so different dependency kinds can be
+# requested and distinguished.
+INTERDEPENDENCY_RATE: float = 0.1
+DEFAULT_INTERDEPENDENCY_TYPE: str = "drive"
+
+
+def _coupling_drive(source: str, target: str, rate: float) -> dict[str, Any]:
+    """Source is consumed to produce target.
+
+    The target entity's trajectory depends on the source entity's abundance:
+    the reaction produces the target molecule (and the min-ratio competition
+    throttles it when the source is scarce), so the coupled entity's dynamics
+    change relative to no coupling.
+    """
+    return {
+        "reactants": [source],
+        "products": [target],
+        "rate": rate,
+        "coupling_type": "drive",
+    }
+
+
+def _coupling_damp(source: str, target: str, rate: float) -> dict[str, Any]:
+    """Source catalytically drains target without being net-consumed.
+
+    The source molecule is consumed and immediately regenerated (net zero), so
+    its presence controls the target molecule's decay rate — a regulatory
+    coupling where the source entity's state throttles the target entity.
+    """
+    return {
+        "reactants": [source, target],
+        "products": [source],
+        "rate": rate,
+        "coupling_type": "damp",
+    }
+
+
+INTERDEPENDENCY_TYPES: dict[str, Callable[[str, str, float], dict[str, Any]]] = {
+    "drive": _coupling_drive,
+    "damp": _coupling_damp,
+}
+
+
+def _resolve_interdependency(
+    hidden_interdependency: int | dict[str, Any] | None, spec: dict[str, Any]
+) -> tuple[int, str]:
+    """Resolve the hidden-interdependency dial to ``(count, type)``.
+
+    ``None`` falls back to the spec's own ``hidden_interdependency`` key
+    (default 0 => no couplings, i.e. byte-identical to today). The value may be
+    a bare count (int) using the default coupling type, or a mapping
+    ``{"count": int, "type": str}``. Unknown types and negative counts raise
+    (no silent fallback).
+    """
+    raw = (
+        spec.get("hidden_interdependency", 0)
+        if hidden_interdependency is None
+        else hidden_interdependency
+    )
+
+    coupling_type = DEFAULT_INTERDEPENDENCY_TYPE
+    if isinstance(raw, dict):
+        count_raw: Any = raw.get("count", 0)
+        coupling_type = raw.get("type", DEFAULT_INTERDEPENDENCY_TYPE)
+    else:
+        count_raw = raw
+
+    # bool is an int subclass; reject it explicitly so True/False can't sneak in
+    # as a count.
+    if isinstance(count_raw, bool) or not isinstance(count_raw, int):
+        raise ValueError(
+            f"hidden_interdependency count must be an int, got {count_raw!r}"
+        )
+    if count_raw < 0:
+        raise ValueError(
+            f"hidden_interdependency count must be non-negative, got {count_raw}"
+        )
+    if coupling_type not in INTERDEPENDENCY_TYPES:
+        raise ValueError(
+            f"Unknown hidden_interdependency type '{coupling_type}'; "
+            f"expected one of {sorted(INTERDEPENDENCY_TYPES)}"
+        )
+    return count_raw, coupling_type
+
+
+def _inject_hidden_interdependencies(
+    ground_truth: dict[str, Any],
+    count: int,
+    coupling_type: str,
+    seed: int,
+) -> list[str]:
+    """Inject ``count`` typed, hidden cross-entity coupling reactions.
+
+    Each coupling is a real ground-truth reaction linking a molecule of one
+    entity (source) to a molecule of another (target), so the source entity's
+    state influences the target entity's trajectory through the true dynamics.
+    Candidate cross-entity molecule pairs are enumerated in a deterministic
+    order and shuffled with a seed-derived RNG (its own stream, so existing
+    generation is untouched); the first ``count`` are taken, so a larger count
+    is a strict superset of a smaller one (monotone) and identical for a fixed
+    seed.
+
+    Returns the names of the injected reactions (for forcing them hidden).
+
+    Raises:
+        ValueError: If there are fewer than two distinct entities to couple, or
+            ``count`` exceeds the available cross-entity pairs (no silent cap).
+    """
+    import random
+
+    builder = INTERDEPENDENCY_TYPES[coupling_type]
+
+    # Group molecules by entity (species namespace, ``m.{entity}.{...}``),
+    # excluding background filler.
+    by_entity: dict[str, list[str]] = {}
+    for mol_name in ground_truth.get("molecules", {}):
+        parts = mol_name.split(".")
+        if len(parts) >= 3 and parts[0] == "m" and parts[1] != "bg":
+            by_entity.setdefault(parts[1], []).append(mol_name)
+
+    entities = sorted(by_entity)
+    if len(entities) < 2:
+        raise ValueError(
+            "hidden_interdependency requires at least two distinct entities to "
+            f"couple, found {len(entities)}"
+        )
+
+    # Enumerate every cross-entity (source_mol, target_mol) candidate pair in a
+    # deterministic order, then shuffle with the seeded RNG. Taking the first
+    # ``count`` yields a monotone superset that is stable per seed.
+    candidates: list[tuple[str, str]] = []
+    for e_src in entities:
+        for e_tgt in entities:
+            if e_src == e_tgt:
+                continue
+            for src_mol in sorted(by_entity[e_src]):
+                for tgt_mol in sorted(by_entity[e_tgt]):
+                    candidates.append((src_mol, tgt_mol))
+
+    rng = random.Random(seed + 977)  # distinct offset; own RNG stream
+    rng.shuffle(candidates)
+
+    if count > len(candidates):
+        raise ValueError(
+            f"hidden_interdependency count {count} exceeds the "
+            f"{len(candidates)} available cross-entity coupling pairs"
+        )
+
+    reactions = ground_truth.setdefault("reactions", {})
+    injected: list[str] = []
+    for i in range(count):
+        src_mol, tgt_mol = candidates[i]
+        rxn_name = f"r.hidep.C{i}"
+        reactions[rxn_name] = builder(src_mol, tgt_mol, INTERDEPENDENCY_RATE)
+        injected.append(rxn_name)
+
+    return injected
+
+
 def instantiate(
     spec: dict[str, Any],
     seed: int = 0,
@@ -127,6 +301,7 @@ def instantiate(
     params: dict[str, Any] | None = None,
     complexity: float | str | None = None,
     transport_complexity: float | str | None = None,
+    hidden_interdependency: int | dict[str, Any] | None = None,
 ) -> Scenario:
     """Instantiate a scenario from a generator spec.
 
@@ -153,6 +328,13 @@ def instantiate(
             (``sparse``/``simple``/``branched``/``dense``, see TRANSPORT_LEVELS).
             ``None`` falls back to the spec's ``transport_complexity`` key
             (default 1.0).
+        hidden_interdependency: Hidden inter-entity interdependency dial (M32.3).
+            Injects typed, hidden couplings between generated entities that
+            affect the true dynamics but never surface in the visible scenario.
+            May be a non-negative count (int, default coupling type) or a mapping
+            ``{"count": int, "type": str}`` (see INTERDEPENDENCY_TYPES). ``None``
+            falls back to the spec's ``hidden_interdependency`` key (default 0 =>
+            no couplings, byte-identical to today).
 
     Returns:
         Scenario with visible and ground truth data
@@ -171,6 +353,13 @@ def instantiate(
 
     # Resolve the compartment / transport-structure dial (M28.4)
     transport_factor = _resolve_transport_complexity(transport_complexity, spec)
+
+    # Resolve the hidden inter-entity interdependency dial (M32.3). Validated
+    # eagerly so bad input (unknown type / negative count) raises up front, even
+    # though the couplings themselves are injected after visibility below.
+    interdep_count, interdep_type = _resolve_interdependency(
+        hidden_interdependency, spec
+    )
 
     # Merge spec params with overrides
     effective_params = dict(spec.get("_params_", {}))
@@ -247,6 +436,22 @@ def instantiate(
 
     # Apply visibility to create the visible scenario
     visible = apply_visibility(ground_truth, visibility_mapping)
+
+    # Inject typed, HIDDEN inter-entity couplings (M32.3). Done AFTER visibility
+    # is computed so the couplings are purely ground-truth: they change the true
+    # dynamics but never appear in the surfaced (visible) scenario, so the agent
+    # must DISCOVER them through interaction. count == 0 (default) is a no-op,
+    # keeping the generated world byte-identical to today.
+    if interdep_count > 0:
+        injected = _inject_hidden_interdependencies(
+            ground_truth, interdep_count, interdep_type, seed
+        )
+        hidden = visibility_mapping.setdefault(
+            "_hidden_", {"molecules": [], "reactions": []}
+        )
+        for rxn_name in injected:
+            if rxn_name not in hidden["reactions"]:
+                hidden["reactions"].append(rxn_name)
 
     return Scenario(
         molecules=visible["molecules"],
