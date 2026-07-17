@@ -1,12 +1,12 @@
 """The ``suite`` subsystem: neutral typed data model, adapters, and sampling.
 
-A generic reaction-network / graph library. All domain meaning is carried as
-opaque tags; this package never inspects tag content or evaluates rates.
+All domain meaning is carried as opaque tags; this package never inspects tag
+content or evaluates rates.
 """
 
 from __future__ import annotations
 
-from .adapters import from_network, from_state, to_network, to_state
+from .adapters import from_state, to_state
 from .augment import augment, graph_stats
 from .carve import CarveFail, carve, splice
 from .cover import Cover, Feature, cover
@@ -39,14 +39,10 @@ from .types import (
     OutcomeObjective,
     Predicate,
     Question,
-    RateSpec,
-    Reaction,
-    ReactionNetwork,
     Renderable,
     RoleSlot,
     ScriptedOp,
     Skeleton,
-    Species,
     StateVector,
     Suite,
     SuiteSpec,
@@ -70,19 +66,12 @@ __all__ = [
     "Choice",
     "ParamSchema",
     # adapters
-    "to_network",
-    "from_network",
     "to_state",
     "from_state",
     # L0
     "NodeId",
     "Tags",
     "Predicate",
-    # L1
-    "Species",
-    "RateSpec",
-    "Reaction",
-    "ReactionNetwork",
     # L2
     "Compartment",
     "Topology",

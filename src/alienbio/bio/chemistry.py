@@ -236,8 +236,8 @@ class ChemistryImpl(Entity, head="Chemistry"):
     # Graph queries — the reaction network is the bipartite graph of
     # molecules (species nodes) and reactions (reaction nodes). Node ids are
     # molecule/reaction ``name``s. Delegates to the shared neutral algorithms
-    # in :mod:`alienbio.infra.graph_ops` (single source of truth, shared with
-    # the neutral ``ReactionNetwork`` view).
+    # in :mod:`alienbio.infra.graph_ops` (single source of truth; originally
+    # shared with the now-retired neutral ``ReactionNetwork`` view).
     # ─────────────────────────────────────────────────────────────────────
 
     def neighbors(self, node: str) -> set[str]:
