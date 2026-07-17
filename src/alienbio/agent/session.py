@@ -14,7 +14,7 @@ import logging
 import math
 import random
 
-from .types import Action, ActionResult, Observation, ExperimentResults, coerce_constitution
+from .types import Action, ActionResult, Observation, ExperimentResults, coerce_constitution, compose_briefing
 from .timeline import Timeline, TimelineEvent
 from .trace import Trace
 from ..globals import Globals, create_globals_from_scenario
@@ -235,6 +235,14 @@ class AgentSession:
         # entries visible to the agent. Validated up front so a malformed dial
         # fails fast (no silent clamp). None => unset (no filtering, identity).
         self._observability = _coerce_observability(scenario.get("observability"))
+        # Explicit-hint / framing-variation dial (M32.6): the opaque scenario
+        # "framing" key varies the briefing wording and/or appends verbatim
+        # hints. World dynamics and scoring never read it. Composed once here
+        # so malformed config raises at construction and observe()/act()
+        # surface the same text; unset => the raw briefing, byte-identical.
+        self._briefing = compose_briefing(
+            scenario.get("briefing", ""), scenario.get("framing")
+        )
 
         # Initialize globals from scenario
         self._globals = create_globals_from_scenario(scenario)
@@ -340,7 +348,7 @@ class AgentSession:
         self._is_first_observe = False
 
         return Observation(
-            briefing=self._scenario.get("briefing", ""),
+            briefing=self._briefing,
             constitution=coerce_constitution(self._scenario.get("constitution")),
             available_actions=self._actions_spec,
             available_measurements=self._measurements_spec,
@@ -378,7 +386,7 @@ class AgentSession:
         """
         return ActionResult(
             # Observation fields
-            briefing=self._scenario.get("briefing", ""),
+            briefing=self._briefing,
             constitution=coerce_constitution(self._scenario.get("constitution")),
             available_actions=self._actions_spec,
             available_measurements=self._measurements_spec,

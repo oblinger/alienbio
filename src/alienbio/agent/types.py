@@ -90,6 +90,46 @@ def coerce_constitution(spec: Any) -> "str | Constitution":
     raise TypeError(f"Invalid constitution spec type: {type(spec).__name__}")
 
 
+def compose_briefing(base: str, framing: Any) -> str:
+    """Compose the surfaced briefing from the base text and a framing spec.
+
+    The scenario-level "framing" key (M32.6) is an explicit-hint /
+    framing-variation dial: it varies the wording of the briefing and/or
+    injects explicit hints, WITHOUT touching world dynamics or scoring.
+    Supported keys:
+    - briefing: replacement wording for the base briefing text
+    - hints: list of explicit hint strings, each surfaced verbatim
+
+    Absent (None) framing — or an empty framing dict — leaves the base
+    briefing byte-identical. Hint content is opaque text the framework does
+    not interpret.
+
+    Raises:
+        ValueError: If the framing dict contains unknown keys
+        TypeError: If framing is not None or a dict, framing["briefing"] is
+            not a str, or framing["hints"] is not a list of str
+    """
+    if framing is None:
+        return base
+    if not isinstance(framing, dict):
+        raise TypeError(f"Invalid framing spec type: {type(framing).__name__}")
+    unknown = set(framing) - {"briefing", "hints"}
+    if unknown:
+        raise ValueError(f"Unknown framing keys: {sorted(unknown)}")
+    text = framing.get("briefing", base)
+    if not isinstance(text, str):
+        raise TypeError(
+            f"framing['briefing'] must be a str, got {type(text).__name__}"
+        )
+    hints = framing.get("hints", [])
+    if not isinstance(hints, list) or not all(isinstance(h, str) for h in hints):
+        raise TypeError("framing['hints'] must be a list of str")
+    if hints:
+        hint_block = "Hints:\n" + "\n".join(f"- {h}" for h in hints)
+        text = f"{text}\n\n{hint_block}" if text else hint_block
+    return text
+
+
 @dataclass
 class Observation:
     """What the agent observes about the environment.
@@ -98,7 +138,10 @@ class Observation:
     on the next action. This is the base class for all agent perceptions.
 
     Attributes:
-        briefing: Scenario description/instructions for the agent
+        briefing: Scenario description/instructions for the agent. Its
+            wording (and any appended explicit hints) can be varied by the
+            scenario-level "framing" dial (M32.6) — see compose_briefing();
+            no framing key means the raw scenario briefing, unchanged.
         constitution: Rules/constraints the agent should follow — either
             free-form text or a structured Constitution
         available_actions: Actions the agent can take (name -> info dict)
