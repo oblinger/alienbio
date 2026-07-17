@@ -25,7 +25,8 @@ from alienbio.suite.pressure import (
     EnvironmentalPressure,
     make_pressure,
 )
-from alienbio.suite.types import Compartment, StateVector, Timeline, Topology, World
+from alienbio.bio.world import Compartment, WorldImpl
+from alienbio.suite.types import Timeline
 from alienbio.suite.verify import SimConfig, simulate
 
 
@@ -34,7 +35,7 @@ A = "A"
 B = "B"
 
 
-def make_world(initial_a: float = 100.0, rate: object = 0.1) -> World:
+def make_world(initial_a: float = 100.0, rate: object = 0.1) -> WorldImpl:
     """A 2-species single-compartment world: A -> B (constant rate)."""
     mol_a = MoleculeImpl(A, name=A, dat=MockDat(f"mol/{A}"))
     mol_b = MoleculeImpl(B, name=B, dat=MockDat(f"mol/{B}"))
@@ -45,21 +46,22 @@ def make_world(initial_a: float = 100.0, rate: object = 0.1) -> World:
         rate=rate,
         dat=MockDat("rxn/R1"),
     )
-    network = ChemistryImpl(
+    chemistry = ChemistryImpl(
         "world",
         molecules={A: mol_a, B: mol_b},
         reactions={"R1": r1},
         dat=MockDat("chem/world"),
     )
-    topology = Topology(
-        compartments=(Compartment(id=CELL, parent=None, kind="cell", volume=1.0),),
+    compartments = (
+        Compartment(
+            id=CELL,
+            parent=None,
+            kind="cell",
+            volume=1.0,
+            concentrations={A: initial_a, B: 0.0},
+        ),
     )
-    initial = StateVector(
-        data=np.array([[initial_a, 0.0]], dtype=np.float64),
-        compartments=(CELL,),
-        species=(A, B),
-    )
-    return World(network=network, topology=topology, initial=initial)
+    return WorldImpl(chemistry, compartments)
 
 
 def _stack(trace: Timeline) -> np.ndarray:

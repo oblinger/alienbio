@@ -1,7 +1,7 @@
 """Distribution-matching graph augmenter for the ``suite`` chemistry.
 
 Pure graph work: :func:`augment` adds *filler* molecules/reactions and filler
-edges to a :class:`~alienbio.suite.types.World` until a set of summary
+edges to a biology :class:`~alienbio.bio.world.WorldImpl` until a set of summary
 statistics approximately matches the requested targets. It carries NO domain
 logic — filler nodes are anonymous and never interpreted.
 
@@ -37,8 +37,9 @@ from typing import Dict, Mapping
 from ..bio.chemistry import ChemistryImpl, _mock_dat
 from ..bio.molecule import MoleculeImpl
 from ..bio.reaction import ReactionImpl
+from ..bio.world import WorldImpl
 from .dist import Seed
-from .types import NodeId, World
+from .types import NodeId
 
 log = logging.getLogger(__name__)
 
@@ -67,19 +68,21 @@ def graph_stats(chem: ChemistryImpl) -> dict[str, float]:
 
 
 def augment(
-    world: World,
+    world: WorldImpl,
     target_stats: TargetStats,
     protected: set[NodeId],
     seed: Seed = Seed(0),
     max_iters: int = 10_000,
-) -> World:
+) -> WorldImpl:
     """Add filler nodes/edges until ``target_stats`` are met within tolerance.
 
     Only *additions* among non-protected nodes are made. Protected nodes and any
     edge incident to a protected node are never altered. Returns a NEW
-    :class:`World` sharing the original ``topology`` and ``initial`` (only the
-    network grows). If ``max_iters`` is exhausted before every target is within
-    tolerance, the missed stat(s) are logged.
+    :class:`~alienbio.bio.world.WorldImpl` over the grown chemistry sharing the
+    original ``compartments`` (its ``initial_state`` is re-derived against the
+    larger chemistry, so every added filler molecule gets initial concentration
+    0). If ``max_iters`` is exhausted before every target is within tolerance, the
+    missed stat(s) are logged.
     """
     protected_set = set(protected)
     rng = seed.rng()
@@ -88,12 +91,12 @@ def augment(
     # Existing objects are reused by identity (never rebuilt), so protected
     # molecules/reactions remain byte-for-byte identical.
     molecules: Dict[NodeId, MoleculeImpl] = {
-        m.name: m for m in world.network.molecules.values()
+        m.name: m for m in world.chemistry.molecules.values()
     }
     reactions: Dict[NodeId, ReactionImpl] = {
-        r.name: r for r in world.network.reactions.values()
+        r.name: r for r in world.chemistry.reactions.values()
     }
-    atoms = dict(world.network.atoms)
+    atoms = dict(world.chemistry.atoms)
 
     # Filler bookkeeping. Filler edges only ever connect a filler molecule to a
     # filler reaction, so no protected (or even pre-existing) node is touched.
@@ -229,4 +232,4 @@ def augment(
         reactions=reactions,
         dat=_mock_dat("chem/augmented"),
     )
-    return World(network=new_network, topology=world.topology, initial=world.initial)
+    return WorldImpl(new_network, world.compartments)

@@ -20,14 +20,9 @@ import numpy as np
 from alienbio.bio.chemistry import ChemistryImpl
 from alienbio.bio.molecule import AtomImpl, MoleculeImpl
 from alienbio.bio.reaction import ReactionImpl
+from alienbio.bio.world import Compartment, WorldImpl
 from alienbio.infra.entity import MockDat
 from alienbio.suite.dist import Seed
-from alienbio.suite.types import (
-    Compartment,
-    StateVector,
-    Topology,
-    World,
-)
 from alienbio.suite.verify import SimConfig, simulate
 
 
@@ -93,13 +88,14 @@ def test_chemistry_molecule_and_reaction_fields_golden():
 
 # ── Engine golden: simulate() over the world's concrete Chemistry (real physics) ──
 
-def _build_world() -> World:
+def _build_world() -> WorldImpl:
     """Fixed 1-compartment world: S1 -> S2, constant mass-action rate 0.5, S1(0)=10.
 
-    F007: the world now carries a concrete biology ``Chemistry`` directly (unified
-    protocol model); the neutral ``ReactionNetwork`` + ``from_network`` bridge is
-    gone.  The physics is unchanged, so the golden trajectory below is identical —
-    which is exactly what proves the retarget is behavior-preserving.
+    F007 coord-PR2: the world is the unified biology ``WorldImpl`` — a concrete
+    ``Chemistry`` plus a flat compartment list carrying its own initial
+    concentrations (the neutral ``Topology`` / ``StateVector`` coordinate shadows
+    are gone).  The physics is unchanged, so the golden trajectory below is
+    identical — which is exactly what proves the retarget is behavior-preserving.
     """
     s1 = MoleculeImpl("S1", name="S1", dat=MockDat("mol/S1"))
     s2 = MoleculeImpl("S2", name="S2", dat=MockDat("mol/S2"))
@@ -111,12 +107,10 @@ def _build_world() -> World:
         "cell", molecules={"S1": s1, "S2": s2},
         reactions={"R1": r1}, dat=MockDat("chem/world"),
     )
-    topo = Topology((Compartment("c0", None, "cell", 1.0),))
-    initial = StateVector(
-        data=np.array([[10.0, 0.0]], dtype=np.float64),
-        compartments=("c0",), species=("S1", "S2"),
+    compartments = (
+        Compartment("c0", None, "cell", 1.0, concentrations={"S1": 10.0, "S2": 0.0}),
     )
-    return World(network=net, topology=topo, initial=initial)
+    return WorldImpl(net, compartments)
 
 
 # Golden captured from the real Euler integrator (dt=0.1, 20 steps, sample every 5).
