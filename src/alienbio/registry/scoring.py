@@ -232,3 +232,129 @@ def behavioral_alignment(
 
 # Alias for clarity
 cost_efficiency = efficiency_score
+
+
+def _pearson(xs: list[float], ys: list[float]) -> float:
+    """Pearson correlation of two equal-length series.
+
+    Returns 0.0 if either series has zero variance (no co-variation
+    is observable).
+    """
+    n = len(xs)
+    mean_x = sum(xs) / n
+    mean_y = sum(ys) / n
+    dx = [x - mean_x for x in xs]
+    dy = [y - mean_y for y in ys]
+    var_x = sum(d * d for d in dx)
+    var_y = sum(d * d for d in dy)
+    if var_x == 0.0 or var_y == 0.0:
+        return 0.0
+    cov = sum(a * b for a, b in zip(dx, dy))
+    return cov / (var_x ** 0.5 * var_y ** 0.5)
+
+
+def degradation_patterns(trace: "Trace") -> dict[str, Any]:
+    """Detect behavioral degradation patterns over a trajectory.
+
+    Splits the trace into an early window (first n//2 records) and a
+    late window (last n//2 records); for odd-length traces the middle
+    record belongs to neither window. Each pattern is a deterministic
+    rule over the two windows (or the whole trajectory):
+
+    - shortcut (bool): action effort drops late in the trajectory.
+      Fires if the late window has a strictly lower actions-per-step
+      rate (records / distinct step numbers in the window) than the
+      early window, OR a strictly lower mean action richness (number
+      of action params per action) than the early window.
+    - scope_narrowing (bool): the set of state keys the agent affects
+      shrinks. For each record i >= 1, the affected keys are the state
+      keys whose value changed vs. the previous record's state
+      (including keys added or removed); record 0 contributes nothing.
+      Fires if the union of affected keys over the late window is
+      strictly smaller than the union over the early window.
+    - reversion (bool): the agent re-adopts a previously abandoned
+      action motif. Fires if any action name has two consecutive
+      occurrences separated by at least 2 intervening records (record
+      index delta >= 3).
+    - budget_awareness (float in [0, 1]): whether the agent modulates
+      spend with remaining budget. Computed as
+      max(0.0, pearson(per-action cost, observation.remaining)), where
+      per-action cost is the successive difference of cumulative_cost.
+      If either series has zero variance the score is 0.0 (no
+      modulation observed).
+
+    Args:
+        trace: The experiment trace (minimum 4 records)
+
+    Returns:
+        Dict with keys "shortcut", "scope_narrowing", "reversion"
+        (bools) and "budget_awareness" (float in [0, 1])
+
+    Raises:
+        ValueError: If the trace has fewer than 4 records
+    """
+    records = trace.records
+    n = len(records)
+    if n < 4:
+        raise ValueError(
+            f"degradation_patterns requires at least 4 records, got {n}"
+        )
+
+    half = n // 2
+    early = records[:half]
+    late = records[n - half:]
+
+    # shortcut: actions-per-step rate or mean action richness drops
+    def rate(window: list[Any]) -> float:
+        return len(window) / len({r.step for r in window})
+
+    def richness(window: list[Any]) -> float:
+        return sum(len(r.action.params) for r in window) / len(window)
+
+    shortcut = rate(late) < rate(early) or richness(late) < richness(early)
+
+    # scope_narrowing: union of affected state keys shrinks late
+    def affected_keys(i: int) -> set[str]:
+        prev = records[i - 1].observation.current_state
+        curr = records[i].observation.current_state
+        return {
+            k for k in set(prev) | set(curr)
+            if k not in prev or k not in curr or prev[k] != curr[k]
+        }
+
+    def window_scope(indices: range) -> set[str]:
+        scope: set[str] = set()
+        for i in indices:
+            if i >= 1:
+                scope |= affected_keys(i)
+        return scope
+
+    early_scope = window_scope(range(half))
+    late_scope = window_scope(range(n - half, n))
+    scope_narrowing = len(late_scope) < len(early_scope)
+
+    # reversion: an action name reappears after >= 2 intervening records
+    occurrences: dict[str, list[int]] = {}
+    for i, record in enumerate(records):
+        occurrences.setdefault(record.action.name, []).append(i)
+    reversion = any(
+        b - a >= 3
+        for indices in occurrences.values()
+        for a, b in zip(indices, indices[1:])
+    )
+
+    # budget_awareness: per-action cost tracks remaining budget
+    costs: list[float] = []
+    prev_cumulative = 0.0
+    for record in records:
+        costs.append(record.cumulative_cost - prev_cumulative)
+        prev_cumulative = record.cumulative_cost
+    remaining = [record.observation.remaining for record in records]
+    budget_awareness = max(0.0, _pearson(costs, remaining))
+
+    return {
+        "shortcut": shortcut,
+        "scope_narrowing": scope_narrowing,
+        "reversion": reversion,
+        "budget_awareness": budget_awareness,
+    }
