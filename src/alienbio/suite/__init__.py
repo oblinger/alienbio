@@ -60,6 +60,19 @@ from .score_calibration import (
     expected_calibration_error,
     mean_brier,
 )
+from .deliberation import DeliberationStep, DeliberationTrace
+from .score_surfacing import (
+    coverage_at_budget,
+    is_monotone_coverage,
+    surfacing_depth,
+    surfacing_profile,
+)
+from .score_conflict import (
+    dominant_objective,
+    favors,
+    pareto_distance,
+    precedence_consistency,
+)
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
@@ -212,4 +225,17 @@ __all__ = [
     "brier_score",
     "mean_brier",
     "expected_calibration_error",
+    # M33.1 deliberation-trace capture — second-wave keystone (wave 3)
+    "DeliberationStep",
+    "DeliberationTrace",
+    # M33.4 per-objective surfacing (wave 3)
+    "surfacing_depth",
+    "surfacing_profile",
+    "coverage_at_budget",
+    "is_monotone_coverage",
+    # M33.6 conflict-resolution scoring (wave 3)
+    "dominant_objective",
+    "favors",
+    "precedence_consistency",
+    "pareto_distance",
 ]
