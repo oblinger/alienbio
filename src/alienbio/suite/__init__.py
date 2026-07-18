@@ -42,6 +42,11 @@ from .arch_intervene import (
     make_target_scorer,
 )
 from .perturbations import perturb_rate, remove_reaction, spike_concentration
+from .generative import (
+    generative_diagnose,
+    generative_intervene,
+    generative_predict,
+)
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
@@ -177,4 +182,8 @@ __all__ = [
     "perturb_rate",
     "remove_reaction",
     "spike_concentration",
+    # M29 build_suite-ready generative archetypes (wave-1 pipeline wiring)
+    "generative_diagnose",
+    "generative_predict",
+    "generative_intervene",
 ]

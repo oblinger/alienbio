@@ -205,6 +205,17 @@ class OutcomeObjective:
 Objective = Union[AnswerObjective, OutcomeObjective]
 
 
+#: A generator-based world drafter: given a seed, returns a hosted world, a
+#: directly-constructed :class:`Skeleton` (ground truth by *generation choice* —
+#: no carve), and optionally a pre-built :class:`Objective`. Outcome archetypes
+#: build their own per-world scorer and return it here; answer archetypes return
+#: ``None`` and let the pipeline build an :class:`AnswerObjective` from the
+#: recipe's skeleton-read key. This is the seam that lets ``build_suite``
+#: materialize archetypes whose ground truth is *chosen* (diagnose / predict /
+#: intervene) alongside those whose ground truth is *carved* (identify_pathway).
+Drafter = Callable[[Seed], tuple["WorldImpl", Skeleton, Optional[Objective]]]
+
+
 class ObjectiveRecipe(Protocol):
     """Turns a carved :class:`Skeleton` into a task's ``Question`` + ``Objective``.
 
@@ -248,13 +259,24 @@ Difficulty = dict[str, float]
 
 @dataclass(frozen=True)
 class TaskArchetype:
-    """A reusable task template: motif + verb + feature requirements + recipe."""
+    """A reusable task template: motif + verb + feature requirements + recipe.
+
+    ``drafter`` (optional) supplies a generator-constructed ``(world, skeleton,
+    objective?)`` — when present, ``build_suite`` uses it instead of the
+    carve-a-motif-into-a-drafted-host path, so archetypes whose ground truth is a
+    generation choice (diagnose / predict / intervene) materialize through the
+    same pipeline. ``extra_answer_tokens`` are answer tokens that are NOT world
+    nodes (e.g. the ``predict_response`` family's ``up``/``down``/``same``),
+    unioned into the vocabulary so the key can render.
+    """
 
     id: str
     motif: Motif
     verb: str
     feature_reqs: FeatureSet
     recipe: ObjectiveRecipe
+    drafter: Optional[Drafter] = None
+    extra_answer_tokens: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

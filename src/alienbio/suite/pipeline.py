@@ -17,6 +17,7 @@ deferred — it is an optimization, not a correctness requirement.
 from __future__ import annotations
 
 import logging
+import math
 from typing import Callable, Optional, cast
 
 from ..bio.chemistry import ChemistryImpl
@@ -25,11 +26,12 @@ from ..infra.mk import mk
 from .carve import CarveFail, carve, splice
 from .cover import cover
 from .dist import Seed
-from .grade import grade_answer
+from .grade import grade_answer, grade_outcome
 from .render import parse, render
 from .types import (
     AnswerObjective,
     Motif,
+    Objective,
     Question,
     Skeleton,
     Suite,
@@ -121,13 +123,27 @@ def build_suite(
     """Materialize ``spec`` into a :class:`Suite` (``n_tasks`` task instances).
 
     Samples ``n_tasks`` archetypes from ``spec.archetype_mix``, computes a
-    ``cover`` over their feature requirements, drafts one world per task, carves
-    + splices each archetype's motif in, builds its ``Question`` + graded
-    ``AnswerObjective`` via the archetype's recipe, and (when ``verify_with`` is
-    given) reject-samples worlds that fail the validity predicate. Every task's
-    question and key are round-trip checked (``parse(render(x)) == x``) and the
-    key self-grades to ``1.0`` before packaging — the guard against silent
-    ground-truth corruption.
+    ``cover`` over their feature requirements, and materializes each task by ONE
+    of two ground-truth paths:
+
+    - **Carved** (``archetype.drafter is None``, e.g. ``identify_pathway``): draft
+      a host world, carve + splice the archetype's motif in, and read an
+      ``AnswerObjective`` key off the resulting skeleton. Honours ``verify_with``
+      reject-sampling on the drafted world.
+    - **Generated** (``archetype.drafter`` present, e.g. diagnose / predict /
+      intervene): call the drafter for a ``(world, skeleton, objective?)`` whose
+      ground truth is a *generation choice* — no carve. When the drafter supplies
+      an ``objective`` (outcome archetypes build their own per-world scorer) it is
+      used verbatim; otherwise an ``AnswerObjective`` is built from the recipe's
+      skeleton-read key.
+
+    The per-world vocabulary unions ``archetype.extra_answer_tokens`` so
+    non-node answer tokens (e.g. ``up``/``down``/``same``) can render. Every task
+    passes a consistency guard before packaging (``_assert_task_consistent``):
+    the question round-trips (``parse(render(q)) == q``); an answer key
+    additionally round-trips and self-grades to ``1.0``; an outcome objective's
+    scorer produces a finite score in ``(0, 1]`` on the drafted world — the guard
+    against silent ground-truth corruption.
 
     Deterministic in ``(spec, seed, n_tasks, distractor_count)``.
     """
@@ -146,41 +162,50 @@ def build_suite(
     tasks: list[TaskInstance] = []
 
     for i, archetype in enumerate(archetypes):
-        motif = archetype.motif
         recipe = archetype.recipe
 
-        # ── 3. Draft a world (reject-sampling on the validity gate) ─────────
-        world = _draft_valid_world(
-            motif,
-            seed.child(f"draft/{i}"),
-            distractor_count=distractor_count,
-            verify_with=verify_with,
-            max_redraws=max_redraws,
-            sim_cfg=sim_cfg,
+        if archetype.drafter is not None:
+            # ── 3g. Generated ground truth: drafter constructs (world, skeleton,
+            #        objective?) directly — no carve. ──────────────────────────
+            world, skeleton, drafted_objective = archetype.drafter(
+                seed.child(f"draft/{i}")
+            )
+        else:
+            # ── 3c. Carved ground truth: draft a host, then carve + splice. ──
+            world = _draft_valid_world(
+                archetype.motif,
+                seed.child(f"draft/{i}"),
+                distractor_count=distractor_count,
+                verify_with=verify_with,
+                max_redraws=max_redraws,
+                sim_cfg=sim_cfg,
+            )
+            skeleton = _carve_or_raise(
+                world.chemistry, archetype.motif, seed.child(f"carve/{i}")
+            )
+            spliced = splice(world.chemistry, skeleton)
+            if skeleton.added:
+                # identify_pathway binds fully to existing nodes; a synthesized
+                # node would need concentrations for the added ids to render.
+                raise RuntimeError(
+                    f"task {i}: unexpected synthesized nodes {skeleton.added} — "
+                    "world drafting did not host the motif"
+                )
+            del spliced  # no structural edit for this family; world stands
+            drafted_objective = None
+
+        vocab = build_vocabulary(
+            world, seed.child(f"vocab/{i}"), extra_tokens=archetype.extra_answer_tokens
         )
 
-        # ── 4. Carve + splice the motif into the host ──────────────────────
-        skeleton = _carve_or_raise(world.chemistry, motif, seed.child(f"carve/{i}"))
-        spliced = splice(world.chemistry, skeleton)
-        if skeleton.added:
-            # identify_pathway binds fully to existing nodes; a synthesized node
-            # would need concentrations for the added ids before we could render.
-            raise RuntimeError(
-                f"task {i}: unexpected synthesized nodes {skeleton.added} — "
-                "world drafting did not host the motif"
-            )
-        del spliced  # no structural edit for this archetype family; world stands
-
-        vocab = build_vocabulary(world, seed.child(f"vocab/{i}"))
-
-        # ── 5. Build the objective (question + graded key) via the recipe ──
+        # ── 5. Build the objective (question + graded ground truth) ────────
         question = recipe.build_question(skeleton, world)
-        key = recipe.build_key(skeleton, world)
-        grader = recipe.grader_spec()
-        objective = AnswerObjective(grader=grader, key=key)
+        objective = _resolve_objective(
+            i, archetype, recipe, skeleton, world, drafted_objective
+        )
 
-        # ── 7. Render round-trip + self-grade guard ────────────────────────
-        _assert_round_trip(question, key, vocab, archetype.verb, grader)
+        # ── 7. Consistency guard (question round-trip + key / outcome check) ─
+        _assert_task_consistent(question, objective, vocab, archetype.verb, world, sim_cfg)
 
         worlds.append(world)
         tasks.append(
@@ -228,10 +253,49 @@ def _draft_valid_world(
     )
 
 
-def _assert_round_trip(
-    question: Question, key, vocab, verb: str, grader
+def _resolve_objective(
+    i: int,
+    archetype: TaskArchetype,
+    recipe,
+    skeleton: Skeleton,
+    world: WorldImpl,
+    drafted_objective: Optional[Objective],
+) -> Objective:
+    """Pick the task's objective: drafter-supplied, else answer-key from the recipe.
+
+    A drafter-supplied objective (outcome archetypes build their own per-world
+    scorer) is used verbatim. Otherwise the grader kind decides: an ``outcome``
+    archetype MUST supply its objective through the drafter (its scorer is
+    per-world), so a missing one is a wiring error; every other kind builds an
+    :class:`AnswerObjective` from the recipe's skeleton-read key.
+    """
+    if drafted_objective is not None:
+        return drafted_objective
+
+    grader = recipe.grader_spec()
+    if grader.kind == "outcome":
+        raise RuntimeError(
+            f"task {i}: outcome archetype {archetype.id!r} produced no objective — "
+            "an outcome archetype must build its per-world scorer in its drafter"
+        )
+    return AnswerObjective(grader=grader, key=recipe.build_key(skeleton, world))
+
+
+def _assert_task_consistent(
+    question: Question,
+    objective: Objective,
+    vocab,
+    verb: str,
+    world: WorldImpl,
+    sim_cfg: SimConfig,
 ) -> None:
-    """Guard: question + key render/parse losslessly and the key self-grades 1.0."""
+    """Guard against silent ground-truth corruption before a task is packaged.
+
+    The question always round-trips (``parse(render(q)) == q``). An
+    :class:`AnswerObjective` additionally round-trips its key and self-grades to
+    ``1.0``; an :class:`OutcomeObjective`'s scorer must produce a finite score in
+    ``(0, 1]`` on the drafted world (a coherent, reachable goal).
+    """
     q_back = parse(
         render(question, vocab, verb=verb),
         vocab,
@@ -242,10 +306,19 @@ def _assert_round_trip(
     if q_back != question:
         raise RuntimeError(f"question round-trip failed: {q_back!r} != {question!r}")
 
-    k_back = parse(render(key, vocab), vocab, kind=key.kind, as_answer=True)
-    if k_back != key:
-        raise RuntimeError(f"key round-trip failed: {k_back!r} != {key!r}")
-
-    score = grade_answer(key, key, grader)
-    if score != 1.0:
-        raise RuntimeError(f"key does not self-grade to 1.0 (got {score})")
+    if isinstance(objective, AnswerObjective):
+        key = objective.key
+        k_back = parse(render(key, vocab), vocab, kind=key.kind, as_answer=True)
+        if k_back != key:
+            raise RuntimeError(f"key round-trip failed: {k_back!r} != {key!r}")
+        score = grade_answer(key, key, objective.grader)
+        if score != 1.0:
+            raise RuntimeError(f"key does not self-grade to 1.0 (got {score})")
+    else:  # OutcomeObjective
+        timeline = simulate(world, sim_cfg)
+        score = grade_outcome(timeline, objective.scorer, objective.target)
+        if not math.isfinite(score) or not (0.0 < score <= 1.0):
+            raise RuntimeError(
+                f"outcome objective scorer produced an out-of-range score {score!r} "
+                "(expected a finite value in (0, 1] on the drafted world)"
+            )
