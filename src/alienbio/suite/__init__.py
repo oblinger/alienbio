@@ -22,6 +22,26 @@ from .render import Vocabulary, parse, render
 from .vocab import build_vocabulary
 from .validity import is_shortcut_resistant, non_obvious_causal
 from .archetypes import IdentifyPathwayRecipe, identify_pathway
+from .arch_diagnose import (
+    DiagnosePerturbationRecipe,
+    diagnose_perturbation,
+    draft_diagnosis_world,
+)
+from .arch_predict import (
+    PredictResponseRecipe,
+    RESPONSE_TOKENS,
+    draft_prediction_world,
+    predict_response,
+    predicted_response,
+)
+from .arch_intervene import (
+    DesignInterventionRecipe,
+    design_intervention,
+    draft_intervention_world,
+    make_intervention_objective,
+    make_target_scorer,
+)
+from .perturbations import perturb_rate, remove_reaction, spike_concentration
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
@@ -139,4 +159,22 @@ __all__ = [
     "IdentifyPathwayRecipe",
     "build_suite",
     "draft_world",
+    # M29 task-family archetypes (wave 1)
+    "diagnose_perturbation",
+    "DiagnosePerturbationRecipe",
+    "draft_diagnosis_world",
+    "predict_response",
+    "PredictResponseRecipe",
+    "predicted_response",
+    "draft_prediction_world",
+    "RESPONSE_TOKENS",
+    "design_intervention",
+    "DesignInterventionRecipe",
+    "draft_intervention_world",
+    "make_intervention_objective",
+    "make_target_scorer",
+    # WorldImpl perturbation library
+    "perturb_rate",
+    "remove_reaction",
+    "spike_concentration",
 ]

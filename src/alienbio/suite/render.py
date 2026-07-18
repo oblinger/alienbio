@@ -72,6 +72,9 @@ _VERB_TEMPLATES: dict[tuple[str, str], tuple[str, str]] = {
     ("identify", "node_set"): ("Which nodes make up: ", "?"),
     ("identify", "node_id"): ("Which node is ", "?"),
     ("diagnose", "node_id"): ("Which node was perturbed in ", "?"),
+    ("diagnose", "node_set"): ("Which node is perturbed, among: ", "?"),
+    ("predict", "node_set"): ("Given the perturbation of: ", ", predict the response?"),
+    ("intervene", "node_set"): ("Drive the system so that: ", " reaches its target?"),
     ("explain", "json"): ("How do you explain ", "?"),
 }
 
