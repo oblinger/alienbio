@@ -9,7 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from alienbio.suite.archetypes import IdentifyPathwayRecipe, identify_pathway
+from alienbio.suite.archetypes import (
+    IdentifyPathwayRecipe,
+    _is_molecule,
+    identify_pathway,
+)
 from alienbio.suite.dist import Seed
 from alienbio.suite.grade import grade_answer
 from alienbio.suite.types import Motif, Skeleton
@@ -36,7 +40,24 @@ def test_constraints_are_applied_to_every_role():
     sentinel = lambda obj: True  # noqa: E731 - opaque predicate
     arch = identify_pathway(pathway_length=2, constraints=(sentinel,))
     for role in arch.motif.roles:
-        assert role.constraints == (sentinel,)
+        # The molecule gate is prepended; the user's constraint follows it.
+        assert role.constraints == (_is_molecule, sentinel)
+
+
+def test_roles_carry_the_molecule_gate_by_default():
+    arch = identify_pathway(pathway_length=3)
+    for role in arch.motif.roles:
+        assert _is_molecule in role.constraints
+
+
+def test_is_molecule_excludes_reaction_nodes():
+    # A molecule (no `reactants`) passes; a reaction (has `reactants`) is rejected.
+    from alienbio import mk
+
+    a, b = mk.M("A"), mk.M("B")
+    r = mk.R("R1", {a: 1.0}, {b: 1.0})
+    assert _is_molecule(a) is True
+    assert _is_molecule(r) is False
 
 
 def test_build_key_reads_ordered_path_off_the_skeleton():
@@ -81,6 +102,31 @@ def test_distractors_are_distinct_same_length_permutations():
         assert sorted(d.value) == sorted(key.value)  # same node set, reordered
         # A distractor scores strictly below the key under the archetype's grader.
         assert grade_answer(d, key, arch.recipe.grader_spec()) < 1.0
+
+
+def test_n3_distractors_never_move_a_single_endpoint():
+    # Regression (Fable finding 3): the interior swap must not touch an endpoint.
+    # For n=3 there is only one interior node, so the only same-length near-miss
+    # is the full reversal — a distractor that changes exactly ONE endpoint (an
+    # interior-swap bug) must never appear.
+    arch = identify_pathway(pathway_length=3)
+    sk = _skeleton({"r0": "A", "r1": "B", "r2": "C"}, arch.motif)
+    key = ["A", "B", "C"]
+    for seed_val in range(20):
+        for d in arch.recipe.build_distractors(sk, None, Seed(seed_val)):
+            moved_start = d.value[0] != key[0]
+            moved_end = d.value[-1] != key[-1]
+            # Either both endpoints move (a full reversal) or neither — never one.
+            assert moved_start == moved_end, d.value
+
+
+def test_n4_interior_swap_preserves_both_endpoints():
+    arch = identify_pathway(pathway_length=4)
+    sk = _skeleton({"r0": "A", "r1": "B", "r2": "C", "r3": "D"}, arch.motif)
+    for seed_val in range(20):
+        for d in arch.recipe.build_distractors(sk, None, Seed(seed_val)):
+            if d.value != ["D", "C", "B", "A"]:  # not the reversal → the interior swap
+                assert d.value[0] == "A" and d.value[-1] == "D", d.value
 
 
 def test_distractors_are_deterministic_in_seed():

@@ -60,7 +60,12 @@ def draft_world(
     ``a -> b`` reaction, plus ``distractor_count`` off-path molecules — so the
     motif carves in reuse-maximally (identity binding, zero synthesized nodes).
     The single compartment seeds the first chain node high and the rest at zero,
-    giving the reaction chain something to propagate. Deterministic in ``seed``.
+    giving the reaction chain something to propagate.
+
+    ``seed`` varies the reaction *rates* (the dynamics), leaving the molecular
+    *structure* — and therefore any carved key — seed-invariant. This makes the
+    world deterministic in ``seed`` while giving :func:`_draft_valid_world`'s
+    reject-sampling genuinely distinct redraws to explore.
 
     This is framework machinery: it is parameterized only by the motif's own
     structure and a size dial, never by a hand-authored scenario.
@@ -70,7 +75,12 @@ def draft_world(
     by_name = {name: molecules[i] for i, name in enumerate(role_names)}
 
     reactions = [
-        mk.R(f"{a}_{b}", {by_name[a]: 1.0}, {by_name[b]: 1.0})
+        mk.R(
+            f"{a}_{b}",
+            {by_name[a]: 1.0},
+            {by_name[b]: 1.0},
+            rate=float(seed.child(f"rate/{a}_{b}").rng().uniform(0.1, 1.0)),
+        )
         for (a, b, _tag) in motif.edges
     ]
 

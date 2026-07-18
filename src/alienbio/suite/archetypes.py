@@ -38,6 +38,18 @@ if TYPE_CHECKING:
 REACTS_TO = "reacts_to"
 
 
+def _is_molecule(node: object) -> bool:
+    """Carve node-object predicate admitting molecule nodes only.
+
+    In the bipartite host graph a role could otherwise bind to a *reaction*
+    node (they are graph-adjacent to their substrates), corrupting the pathway
+    key with a non-molecule id. Reaction nodes expose ``reactants``; molecules
+    do not — so this excludes them without the archetype layer importing the
+    concrete impl class.
+    """
+    return not hasattr(node, "reactants")
+
+
 @dataclass(frozen=True)
 class IdentifyPathwayRecipe:
     """Recipe for ``identify_pathway``: recover a hidden linear chain.
@@ -80,12 +92,13 @@ class IdentifyPathwayRecipe:
         distractors: list[Answer] = []
         seen = {tuple(path)}
 
-        # An interior adjacent swap (needs ≥ 3 nodes to leave the endpoints fixed).
-        if n >= 3:
-            i = 1 + (seed.value % (n - 2))
-            j = i + 1 if i + 1 < n - 1 else i - 1
+        # Swap two *adjacent interior* nodes, leaving both endpoints fixed. This
+        # needs ≥ 2 interior nodes (indices 1..n-2), i.e. n ≥ 4; for n ≤ 3 the
+        # reversed-chain distractor below is the only same-length near-miss.
+        if n >= 4:
+            i = 1 + (seed.value % (n - 3))  # i in [1, n-3] => i+1 in [2, n-2]
             swapped = list(path)
-            swapped[i], swapped[j] = swapped[j], swapped[i]
+            swapped[i], swapped[i + 1] = swapped[i + 1], swapped[i]
             if tuple(swapped) not in seen:
                 distractors.append(Answer(value=swapped, kind="ordered_path"))
                 seen.add(tuple(swapped))
@@ -124,8 +137,11 @@ def identify_pathway(
         raise ValueError(f"pathway_length must be >= 2, got {pathway_length}")
 
     role_names = tuple(f"r{i}" for i in range(pathway_length))
+    # Pathway nodes are molecules — prepend the molecule gate so carve never
+    # binds a role to a reaction node (which would corrupt the ground-truth key).
+    role_constraints = (_is_molecule,) + constraints
     roles = tuple(
-        RoleSlot(name=name, type_tag="pathway_node", constraints=constraints)
+        RoleSlot(name=name, type_tag="pathway_node", constraints=role_constraints)
         for name in role_names
     )
     edges = tuple(

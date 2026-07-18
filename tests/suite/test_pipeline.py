@@ -75,6 +75,61 @@ def test_every_task_key_round_trips_and_self_grades():
         assert grade_answer(obj.key, obj.key, obj.grader) == 1.0
 
 
+def test_keys_are_molecule_only_never_reaction_nodes():
+    # Regression (Fable finding 1): empty role constraints let carve bind pathway
+    # roles to reaction nodes, corrupting the ground-truth key. The molecule gate
+    # must keep every key node inside the world's molecule namespace.
+    for seed_val in range(8):
+        suite = build_suite(_spec(pathway_length=3), Seed(seed_val), n_tasks=1, distractor_count=1)
+        t = suite.tasks[0]
+        obj = t.objective
+        assert isinstance(obj, AnswerObjective)
+        mols = set(suite.worlds[0].chemistry.molecules)
+        rxns = set(suite.worlds[0].chemistry.reactions)
+        for node in obj.key.value:
+            assert node in mols, f"key node {node!r} is not a molecule (seed {seed_val})"
+            assert node not in rxns
+
+
+def test_draft_world_varies_dynamics_with_seed_but_not_structure():
+    # Regression (Fable finding 2): draft_world must actually use its seed.
+    from alienbio.suite.pipeline import draft_world
+
+    arch = identify_pathway(pathway_length=3)
+    w_a = draft_world(arch.motif, Seed(111), distractor_count=2)
+    w_b = draft_world(arch.motif, Seed(999), distractor_count=2)
+    # Structure (molecule/reaction ids) is seed-invariant …
+    assert list(w_a.chemistry.molecules) == list(w_b.chemistry.molecules)
+    assert list(w_a.chemistry.reactions) == list(w_b.chemistry.reactions)
+    # … but the dynamics (rates) differ across seeds …
+    rates_a = {n: r.rate for n, r in w_a.chemistry.reactions.items()}
+    rates_b = {n: r.rate for n, r in w_b.chemistry.reactions.items()}
+    assert rates_a != rates_b
+    # … and are reproducible for the same seed.
+    rates_a2 = {
+        n: r.rate
+        for n, r in draft_world(arch.motif, Seed(111), distractor_count=2).chemistry.reactions.items()
+    }
+    assert rates_a == rates_a2
+
+
+def test_reject_sampling_explores_distinct_worlds():
+    # With seed-varying draws, a predicate that rejects the first attempts must
+    # eventually accept a later distinct world instead of raising.
+    attempts = {"n": 0}
+
+    def predicate(baseline, perturbed):
+        attempts["n"] += 1
+        return attempts["n"] >= 3  # reject the first two draws
+
+    suite = build_suite(
+        _spec(), Seed(2), n_tasks=1,
+        verify_with=(lambda w: w, predicate), max_redraws=8,
+    )
+    assert len(suite.tasks) == 1
+    assert attempts["n"] == 3  # recovered on the third distinct draw
+
+
 def test_key_is_the_bound_chain_read_off_the_skeleton():
     suite = build_suite(_spec(pathway_length=3), Seed(5), n_tasks=1)
     t = suite.tasks[0]
