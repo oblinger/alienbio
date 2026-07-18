@@ -6,6 +6,7 @@ from .infra import imports  # noqa: F401 - ensures do-referenced modules are loa
 
 from .infra.entity import Entity
 from .infra.io import IO
+from .infra.mk import mk, Pegboard
 
 # Standard runner for DATs
 from .run import run
@@ -76,6 +77,8 @@ __all__ = [
     "Dat",
     "Entity",
     "IO",
+    "mk",
+    "Pegboard",
     "run",
     # Bio singleton and class
     "bio",

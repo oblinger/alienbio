@@ -2,5 +2,6 @@
 
 from .entity import Entity
 from .io import IO
+from .mk import Pegboard, mk
 
-__all__ = ["Entity", "IO"]
+__all__ = ["Entity", "IO", "Pegboard", "mk"]

@@ -50,6 +50,10 @@ from ..protocols.bio import (
 # MockDat - lightweight mock for creating entities without a real catalog
 from ..infra.entity import MockDat
 
+# mk - terse maker pegboard; importing .makers registers the M/R/C makers
+from ..infra.mk import mk
+from . import makers as _makers  # noqa: F401 - registers mk.M / mk.R / mk.C on import
+
 # Implementation classes - atoms and molecules
 from .atom import AtomImpl, COMMON_ATOMS, get_atom
 from .molecule import MoleculeImpl
@@ -271,4 +275,6 @@ __all__ = [
     "get_atom",
     # MockDat
     "MockDat",
+    # mk maker pegboard
+    "mk",
 ]
