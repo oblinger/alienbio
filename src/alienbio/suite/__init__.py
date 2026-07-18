@@ -100,6 +100,20 @@ from .info_seeking import (
     info_seeking_count,
     info_seeking_ratio,
 )
+from .stats_summary import (
+    mean_confidence_interval,
+    sample_mean,
+    sample_std,
+    sample_variance,
+    standard_error,
+)
+from .effect_size import cohens_d, mean_difference, welch_t
+from .reliability_grid import (
+    CellStats,
+    aggregate_cells,
+    cell_mean,
+    two_way_interaction,
+)
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
@@ -289,4 +303,19 @@ __all__ = [
     "destructive_count",
     "destructive_rate",
     "actions_before_commit",
+    # M34.3 summary statistics + confidence interval (wave 5)
+    "sample_mean",
+    "sample_variance",
+    "sample_std",
+    "standard_error",
+    "mean_confidence_interval",
+    # M34.3 two-sample effect sizes (wave 5)
+    "mean_difference",
+    "cohens_d",
+    "welch_t",
+    # M34.4 reliability-grid aggregation + interaction (wave 5)
+    "CellStats",
+    "aggregate_cells",
+    "cell_mean",
+    "two_way_interaction",
 ]
