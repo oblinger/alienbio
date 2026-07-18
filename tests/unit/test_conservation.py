@@ -134,3 +134,36 @@ def test_total_quantity_is_extensive_and_multiplicity_weighted():
     # H: 3 * (2 * 2)                     = 12
     # O: 3 * (2 * 1  +  1 * 2)           = 12
     assert total == {"H": 12.0, "O": 12.0}
+
+
+def test_amount_is_volume_and_multiplicity_weighted():
+    tree = CompartmentTreeImpl()
+    cell = tree.add_root("cell")
+    state = WorldStateImpl(tree=tree, num_molecules=1)
+    state.set(cell, 0, 2.0)  # concentration
+    state.set_multiplicity(cell, 3.0)
+    state.set_volume(cell, 5.0)
+    assert state.get_volume(cell) == 5.0
+    assert state.amount(cell, 0) == 30.0  # 3 * 5 * 2
+    # total_molecules keeps its legacy multiplicity*concentration semantics
+    assert state.total_molecules(cell, 0) == 6.0
+
+
+def test_total_quantity_is_volume_aware():
+    tree = CompartmentTreeImpl()
+    cell = tree.add_root("cell")
+    state = WorldStateImpl(tree=tree, num_molecules=1)
+    state.set(cell, 0, 2.0)
+    state.set_volume(cell, 5.0)
+    total = total_quantity(state, [molecule_quantity(WATER)])
+    # amount = 1 * 5 * 2 = 10 ; WATER carries H:2 O:1 per unit
+    assert total == {"H": 20.0, "O": 10.0}
+
+
+def test_volume_defaults_to_one_and_survives_copy():
+    tree = CompartmentTreeImpl()
+    cell = tree.add_root("cell")
+    state = WorldStateImpl(tree=tree, num_molecules=1)
+    assert state.get_volume(cell) == 1.0
+    state.set_volume(cell, 4.0)
+    assert state.copy().get_volume(cell) == 4.0

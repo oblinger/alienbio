@@ -140,21 +140,19 @@ def total_quantity(
 ) -> ConservedVector:
     """Total conserved quantity across a whole world state — the conservation *canary*.
 
-    Extensive sum over compartments of ``multiplicity · Σ_molecule amount · quantity``, where
-    ``amount`` is the state value for that (compartment, molecule) — matching the existing
-    ``total_molecules = multiplicity · value`` convention. ``per_index_quantity[j]`` is the
-    conserved vector for molecule index ``j``. For a world whose internal reactions are balanced
-    and whose flows conserve, this total is invariant across simulation steps; a per-step drift
-    is a leak and should fail loudly.
+    Extensive sum over compartments of ``Σ_molecule amount · quantity``, where ``amount`` is
+    the volume-aware count ``multiplicity · volume · concentration`` (``WorldState.amount``).
+    ``per_index_quantity[j]`` is the conserved vector for molecule index ``j``. For a world
+    whose internal reactions are balanced and whose flows conserve, this total is invariant
+    across simulation steps; a per-step drift is a leak and should fail loudly.
     """
     total: ConservedVector = {}
     num_molecules = state.num_molecules
     for compartment in range(state.num_compartments):
-        mult = state.get_multiplicity(compartment)
         for j in range(num_molecules):
-            amount = state.get(compartment, j)
-            if amount == 0.0:
+            amt = state.amount(compartment, j)
+            if amt == 0.0:
                 continue
             for label, per_unit in per_index_quantity[j].items():
-                total[label] = total.get(label, 0.0) + mult * amount * per_unit
+                total[label] = total.get(label, 0.0) + amt * per_unit
     return total

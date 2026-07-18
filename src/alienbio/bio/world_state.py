@@ -56,6 +56,7 @@ class WorldStateImpl:
         "_num_molecules",
         "_concentrations",
         "_multiplicities",
+        "_volumes",
         "_compartment_ids",
         "_molecule_ids",
     )
@@ -68,6 +69,7 @@ class WorldStateImpl:
         initial_multiplicities: Optional[List[float]] = None,
         compartment_ids: Optional[List[str]] = None,
         molecule_ids: Optional[List[str]] = None,
+        initial_volumes: Optional[List[float]] = None,
     ) -> None:
         """Initialize world state.
 
@@ -119,6 +121,21 @@ class WorldStateImpl:
             self._multiplicities = list(initial_multiplicities)
         else:
             self._multiplicities = [1.0] * num_compartments
+
+        # Initialize volumes (default 1.0 for each compartment). Volume is optional
+        # in the modelling sense — a container that carries no meaningful volume keeps
+        # the default 1.0, so concentration == amount there and existing worlds (which
+        # never set a volume) are numerically unchanged. Amount (count) is the
+        # extensive source of truth: amount = multiplicity * volume * concentration.
+        if initial_volumes is not None:
+            if len(initial_volumes) != num_compartments:
+                raise ValueError(
+                    f"Initial volumes size {len(initial_volumes)} != "
+                    f"num_compartments {num_compartments}"
+                )
+            self._volumes = list(initial_volumes)
+        else:
+            self._volumes = [1.0] * num_compartments
 
     @property
     def tree(self) -> CompartmentTreeImpl:
@@ -227,6 +244,33 @@ class WorldStateImpl:
         """Get total molecules = multiplicity * concentration."""
         return self._multiplicities[compartment] * self.get(compartment, molecule)
 
+    # ── Volume + amount (the extensive count basis, F012/M37.1) ───────────────
+
+    def get_volume(self, compartment: CompartmentId) -> float:
+        """Get volume for a compartment (default 1.0 when never set)."""
+        return self._volumes[compartment]
+
+    def set_volume(self, compartment: CompartmentId, value: float) -> None:
+        """Set volume for a compartment."""
+        self._volumes[compartment] = value
+
+    def get_all_volumes(self) -> List[float]:
+        """Get volumes for all compartments."""
+        return self._volumes.copy()
+
+    def amount(self, compartment: CompartmentId, molecule: MoleculeId) -> float:
+        """Get the amount (count) = multiplicity * volume * concentration.
+
+        The extensive source of truth for conservation: reactions and flows conserve
+        *amount*, not concentration. With the default volume 1.0 this equals
+        ``total_molecules`` and existing worlds are unchanged.
+        """
+        return (
+            self._multiplicities[compartment]
+            * self._volumes[compartment]
+            * self.get(compartment, molecule)
+        )
+
     # ── Copy and array methods ────────────────────────────────────────────────
 
     def copy(self) -> WorldStateImpl:
@@ -244,6 +288,7 @@ class WorldStateImpl:
             molecule_ids=(
                 list(self._molecule_ids) if self._molecule_ids is not None else None
             ),
+            initial_volumes=self._volumes.copy(),
         )
 
     def as_array(self) -> Any:

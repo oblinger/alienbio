@@ -138,6 +138,8 @@ class WorldImpl:
             ci = comp_to_int[c.id]
             if c.multiplicity != 1.0:
                 state.set_multiplicity(ci, c.multiplicity)
+            if c.volume != 1.0:
+                state.set_volume(ci, c.volume)
             for mol_name, value in c.concentrations.items():
                 if mol_name not in mol_to_int:
                     raise KeyError(
