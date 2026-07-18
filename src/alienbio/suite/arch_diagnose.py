@@ -140,9 +140,12 @@ class DiagnosePerturbationRecipe:
     verb: str = "diagnose"
 
     def build_question(self, skeleton: Skeleton, world: WorldImpl) -> Question:
-        """The candidate set — every molecule id, sorted — as a ``node_set`` question."""
-        candidates = sorted(world.chemistry.molecules)
-        return Question(structured=candidates, kind="node_set")
+        """The candidate set — every molecule id — as a ``node_set`` question.
+
+        ``node_set`` payloads are sets: ``parse`` returns a set, so a list here
+        would fail the pipeline's round-trip guard (``parse(render(q)) == q``).
+        """
+        return Question(structured=set(world.chemistry.molecules), kind="node_set")
 
     def build_key(self, skeleton: Skeleton, world: WorldImpl) -> Answer:
         """The perturbed node — read off the skeleton binding by construction."""

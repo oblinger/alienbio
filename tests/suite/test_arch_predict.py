@@ -187,3 +187,24 @@ def test_archetype_factory_shape_and_key() -> None:
     assert grade_answer(key, key, recipe.grader_spec()) == 1.0
     distractors = recipe.build_distractors(skeleton, world, Seed(1))
     assert grade_answer(distractors[0], key, recipe.grader_spec()) < 1.0
+
+
+def test_predict_key_renders_only_with_response_tokens_in_vocab():
+    """Regression (audit F1): up/down/same are not world nodes, so the key renders
+    only when build_vocabulary is given them via extra_tokens — and fails loudly
+    (KeyError) otherwise, which is exactly what the pipeline guard would hit."""
+    import pytest
+
+    from alienbio.suite.vocab import build_vocabulary
+
+    world, skeleton, rid = draft_prediction_world(Seed(0), n_nodes=4)
+    recipe = PredictResponseRecipe(reaction_id=rid, target_id=skeleton.binding["target"])
+    key = recipe.build_key(skeleton, world)
+    assert key.value in RESPONSE_TOKENS
+
+    vocab = build_vocabulary(world, extra_tokens=RESPONSE_TOKENS)
+    back = parse(render(key, vocab), vocab, kind="node_id", as_answer=True)
+    assert back == key
+
+    with pytest.raises(KeyError):
+        render(key, build_vocabulary(world))  # tokens absent -> loud failure

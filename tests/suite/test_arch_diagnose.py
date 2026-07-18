@@ -81,7 +81,7 @@ def test_question_presents_full_candidate_set() -> None:
     recipe = DiagnosePerturbationRecipe()
     q = recipe.build_question(skeleton, world)
     assert q.kind == "node_set"
-    assert list(q.structured) == sorted(world.chemistry.molecules)
+    assert q.structured == set(world.chemistry.molecules)  # a set (round-trippable)
     # The chosen target is among the candidates presented.
     assert skeleton.binding["target"] in q.structured
 
@@ -131,3 +131,16 @@ def test_recipe_end_to_end_via_archetype() -> None:
     assert grade_answer(key, key, recipe.grader_spec()) == 1.0
     distractors = recipe.build_distractors(skeleton, world, Seed(1))
     assert grade_answer(distractors[0], key, recipe.grader_spec()) < 1.0
+
+
+def test_diagnosis_node_set_question_round_trips():
+    """Regression (audit F2): a ``node_set`` question must be a set, not a list —
+    ``parse`` returns a set, so a list fails the pipeline guard ``parse(render(q)) == q``."""
+    from alienbio.suite.vocab import build_vocabulary
+
+    world, skeleton = draft_diagnosis_world(Seed(3), n_nodes=4)
+    q = DiagnosePerturbationRecipe().build_question(skeleton, world)
+    assert isinstance(q.structured, set)
+    vocab = build_vocabulary(world)
+    back = parse(render(q, vocab, verb="diagnose"), vocab, kind="node_set", verb="diagnose")
+    assert back == q

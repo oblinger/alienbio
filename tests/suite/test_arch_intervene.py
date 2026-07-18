@@ -164,3 +164,17 @@ def test_explicit_target_value_overrides_natural() -> None:
     score = make_target_scorer(target_id, goal)(timeline)
     assert 0.0 < score < 1.0
     assert math.isfinite(score)
+
+
+def test_intervention_node_set_question_round_trips():
+    """Regression (audit F2): a ``node_set`` question must be a set, not a list."""
+    from alienbio.suite.dist import Seed
+    from alienbio.suite.render import parse, render
+    from alienbio.suite.vocab import build_vocabulary
+
+    world, skeleton, (target_id, target_value) = draft_intervention_world(Seed(1))
+    q = DesignInterventionRecipe(target_value=target_value).build_question(skeleton, world)
+    assert isinstance(q.structured, set)
+    vocab = build_vocabulary(world)
+    back = parse(render(q, vocab, verb="intervene"), vocab, kind="node_set", verb="intervene")
+    assert back == q

@@ -183,8 +183,12 @@ class DesignInterventionRecipe:
         return skeleton.binding[self.role_name]
 
     def build_question(self, skeleton: Skeleton, world: WorldImpl) -> Question:
-        """The target molecule as a single-element ``node_set`` question."""
-        return Question(structured=[self._target_id(skeleton)], kind="node_set")
+        """The target molecule as a single-element ``node_set`` question.
+
+        A set, not a list — ``parse`` returns a set, so the pipeline round-trip
+        guard (``parse(render(q)) == q``) requires set-valued ``node_set`` payloads.
+        """
+        return Question(structured={self._target_id(skeleton)}, kind="node_set")
 
     def build_key(self, skeleton: Skeleton, world: WorldImpl) -> Answer:
         """Trivial key (the scalar target) — outcome tasks grade via the scorer."""
