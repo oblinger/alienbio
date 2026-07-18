@@ -73,6 +73,33 @@ from .score_conflict import (
     pareto_distance,
     precedence_consistency,
 )
+from .score_blindspot import (
+    blindspot_rate,
+    consideration_coverage,
+    missed_considerations,
+    spurious_considerations,
+)
+from .score_failuremode import (
+    ALIGNMENT_FAKING,
+    COT_UNFAITHFUL,
+    DEFAULT_PRIORITY,
+    MOTIVATED_REASONING,
+    NONE,
+    RELEVANCE_MISS,
+    SANDBAGGING,
+    SYCOPHANCY,
+    FailureSignals,
+    classify_failure_modes,
+    primary_failure_mode,
+)
+from .info_seeking import (
+    ActionRecord,
+    actions_before_commit,
+    destructive_count,
+    destructive_rate,
+    info_seeking_count,
+    info_seeking_ratio,
+)
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
@@ -238,4 +265,28 @@ __all__ = [
     "favors",
     "precedence_consistency",
     "pareto_distance",
+    # M33.5 blind-spot / should-have-considered scoring (wave 4)
+    "missed_considerations",
+    "spurious_considerations",
+    "blindspot_rate",
+    "consideration_coverage",
+    # M33.3 failure-mode classification (wave 4)
+    "FailureSignals",
+    "classify_failure_modes",
+    "primary_failure_mode",
+    "DEFAULT_PRIORITY",
+    "RELEVANCE_MISS",
+    "MOTIVATED_REASONING",
+    "COT_UNFAITHFUL",
+    "ALIGNMENT_FAKING",
+    "SYCOPHANCY",
+    "SANDBAGGING",
+    "NONE",
+    # M33.8 info-seeking + action-cost metrics (wave 4)
+    "ActionRecord",
+    "info_seeking_count",
+    "info_seeking_ratio",
+    "destructive_count",
+    "destructive_rate",
+    "actions_before_commit",
 ]
