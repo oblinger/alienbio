@@ -47,6 +47,19 @@ from .generative import (
     generative_intervene,
     generative_predict,
 )
+from .observation import (
+    Observation,
+    add_measurement_noise,
+    choose_hidden,
+    full_observation,
+    project_observation,
+)
+from .score_divergence import final_state_distance, normalized_divergence
+from .score_calibration import (
+    brier_score,
+    expected_calibration_error,
+    mean_brier,
+)
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
@@ -186,4 +199,17 @@ __all__ = [
     "generative_diagnose",
     "generative_predict",
     "generative_intervene",
+    # M28.2 observability + M28.3 measurement-noise dials (wave 2)
+    "Observation",
+    "full_observation",
+    "choose_hidden",
+    "project_observation",
+    "add_measurement_noise",
+    # M33.10 divergence scorer (wave 2)
+    "final_state_distance",
+    "normalized_divergence",
+    # M33.8 calibration scorers (wave 2)
+    "brier_score",
+    "mean_brier",
+    "expected_calibration_error",
 ]
