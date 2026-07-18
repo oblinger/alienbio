@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Union
+from typing import Any, Mapping, Optional, Union
 
 from .types import Answer, Question
 
@@ -62,6 +62,31 @@ _TEMPLATES: dict[tuple[bool, str], tuple[str, str]] = {
     (False, "scalar"): ("What value is ", "?"),
     (False, "json"): ("What data is ", "?"),
 }
+
+# Per-(verb, kind) question framings (M27.2). An archetype's ``verb`` selects a
+# discovery-family framing phrase; a ``(verb, kind)`` with no entry falls back to
+# the generic ``(False, kind)`` template above. Verbs frame *questions* only —
+# answers are verb-independent. Still deterministic templating, never an LLM.
+_VERB_TEMPLATES: dict[tuple[str, str], tuple[str, str]] = {
+    ("identify", "ordered_path"): ("Which pathway connects: ", "?"),
+    ("identify", "node_set"): ("Which nodes make up: ", "?"),
+    ("identify", "node_id"): ("Which node is ", "?"),
+    ("diagnose", "node_id"): ("Which node was perturbed in ", "?"),
+    ("explain", "json"): ("How do you explain ", "?"),
+}
+
+
+def _question_template(kind: str, verb: Optional[str]) -> Optional[tuple[str, str]]:
+    """The (prefix, suffix) for a question of ``kind``, verb-framed if available.
+
+    Returns the ``(verb, kind)`` framing when one exists, else the generic
+    ``(False, kind)`` template, else ``None`` (unsupported kind).
+    """
+    if verb is not None:
+        framed = _VERB_TEMPLATES.get((verb, kind))
+        if framed is not None:
+            return framed
+    return _TEMPLATES.get((False, kind))
 
 
 @dataclass(frozen=True)
@@ -146,18 +171,30 @@ def _parse_payload(middle: str, vocabulary: Vocabulary, kind: str) -> Any:
     raise ValueError(f"unsupported kind {kind!r}")
 
 
-def render(node: Union[Question, Answer], vocabulary: Vocabulary) -> str:
+def render(
+    node: Union[Question, Answer],
+    vocabulary: Vocabulary,
+    *,
+    verb: Optional[str] = None,
+) -> str:
     """Render ``node`` to faithful text over ``vocabulary``.
 
-    Deterministic: the same ``(node, vocabulary)`` always yields a byte-identical
-    string. A token absent from ``vocabulary`` raises ``KeyError`` (never guessed).
+    Deterministic: the same ``(node, vocabulary, verb)`` always yields a
+    byte-identical string. A token absent from ``vocabulary`` raises ``KeyError``
+    (never guessed). ``verb`` selects a discovery-family question framing (M27.2);
+    it is ignored for answers and falls back to the generic template when the
+    ``(verb, kind)`` pair has no specific framing. Round-trip with the *same*
+    ``verb``: ``parse(render(q, v, verb=w), v, kind=q.kind, verb=w) == q``.
     """
     as_answer = isinstance(node, Answer)
     kind = node.kind
-    key = (as_answer, kind)
-    if key not in _TEMPLATES:
+    if as_answer:
+        template = _TEMPLATES.get((True, kind))
+    else:
+        template = _question_template(kind, verb)
+    if template is None:
         raise ValueError(f"unsupported kind {kind!r} for {'Answer' if as_answer else 'Question'}")
-    prefix, suffix = _TEMPLATES[key]
+    prefix, suffix = template
     payload = node.value if as_answer else node.structured
     middle = _render_payload(payload, vocabulary, kind)
     return f"{prefix}{middle}{suffix}"
@@ -169,18 +206,23 @@ def parse(
     *,
     kind: str,
     as_answer: bool = False,
+    verb: Optional[str] = None,
 ) -> Union[Question, Answer]:
     """Inverse of :func:`render` for the fixed-vocabulary case.
 
     ``parse(render(x, v), v, kind=x.kind, as_answer=isinstance(x, Answer)) == x``
-    for every supported ``kind``. A phrase absent from ``vocabulary`` raises
-    ``ValueError`` (never guessed); malformed text (wrong template) raises
-    ``ValueError``.
+    for every supported ``kind``. Pass the same ``verb`` used to render a
+    verb-framed question so the templates match. A phrase absent from
+    ``vocabulary`` raises ``ValueError`` (never guessed); malformed text (wrong
+    template) raises ``ValueError``.
     """
-    key = (as_answer, kind)
-    if key not in _TEMPLATES:
+    if as_answer:
+        template = _TEMPLATES.get((True, kind))
+    else:
+        template = _question_template(kind, verb)
+    if template is None:
         raise ValueError(f"unsupported kind {kind!r} for {'Answer' if as_answer else 'Question'}")
-    prefix, suffix = _TEMPLATES[key]
+    prefix, suffix = template
     if not (text.startswith(prefix) and text.endswith(suffix)):
         raise ValueError(
             f"text does not match the {kind!r} "

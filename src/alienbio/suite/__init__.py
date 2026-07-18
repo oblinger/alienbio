@@ -21,6 +21,8 @@ from .pressure import (
 from .render import Vocabulary, parse, render
 from .vocab import build_vocabulary
 from .validity import is_shortcut_resistant, non_obvious_causal
+from .archetypes import IdentifyPathwayRecipe, identify_pathway
+from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
 from .dist import (
@@ -132,4 +134,9 @@ __all__ = [
     "build_vocabulary",
     "non_obvious_causal",
     "is_shortcut_resistant",
+    # M27.1 archetypes + M27.4 wiring
+    "identify_pathway",
+    "IdentifyPathwayRecipe",
+    "build_suite",
+    "draft_world",
 ]

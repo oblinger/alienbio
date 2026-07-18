@@ -175,3 +175,44 @@ def test_answer_and_question_templates_distinct():
     # Parsing an answer's text as a question must fail (wrong template).
     with pytest.raises(ValueError):
         parse(ans_text, vocab, kind="node_id", as_answer=False)
+
+
+# ── 5. Verb-framed question templates (M27.2) ───────────────────────────────
+
+
+def test_verb_selects_discovery_framing():
+    vocab = build_vocab()
+    q = Question(structured=["n0", "n2"], kind="ordered_path")
+    framed = render(q, vocab, verb="identify")
+    generic = render(q, vocab)
+    assert framed.startswith("Which pathway connects: ")
+    assert framed != generic  # the verb changed the framing
+
+
+def test_verb_question_round_trips_with_same_verb():
+    vocab = build_vocab()
+    q = Question(structured=["n0", "n1", "n2"], kind="ordered_path")
+    text = render(q, vocab, verb="identify")
+    back = parse(text, vocab, kind="ordered_path", as_answer=False, verb="identify")
+    assert back == q
+
+
+def test_unknown_verb_falls_back_to_generic_template():
+    vocab = build_vocab()
+    q = Question(structured=["n0", "n1"], kind="ordered_path")
+    assert render(q, vocab, verb="no_such_verb") == render(q, vocab)
+
+
+def test_verb_ignored_for_answers():
+    vocab = build_vocab()
+    a = Answer(value=["n0", "n1"], kind="ordered_path")
+    assert render(a, vocab, verb="identify") == render(a, vocab)
+
+
+def test_verb_framed_text_does_not_parse_as_generic():
+    vocab = build_vocab()
+    q = Question(structured=["n0", "n2"], kind="ordered_path")
+    framed = render(q, vocab, verb="identify")
+    # Parsing verb-framed text without the verb must fail (template mismatch).
+    with pytest.raises(ValueError):
+        parse(framed, vocab, kind="ordered_path", as_answer=False)
