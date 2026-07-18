@@ -174,6 +174,27 @@ class WorldSimulatorImpl:
 
         return new_state
 
+    def _desired_extent(
+        self,
+        frozen: WorldStateImpl,
+        reaction: ReactionSpec,
+        compartment: CompartmentId,
+    ) -> float:
+        """Pre-rationing reaction extent for one step — the rate-law → extent seam (F012 Q3).
+
+        The sole rate law today is constant mass-action:
+        ``rate_constant * Π conc**stoich * dt`` from the frozen start-of-step state, floored
+        at 0. A future count-based (per-capita / zeroth-order, for volumeless containers) or
+        catalytic law adds a branch here keyed on the reaction's rate-law kind; the
+        competition / proportional-rationing machinery in ``_apply_reactions`` is unaffected,
+        because it consumes only the returned extent.
+        """
+        rate = reaction.rate_constant
+        for mol_id, stoich in reaction.reactants.items():
+            rate *= frozen.get(compartment, mol_id) ** stoich
+        rate *= self._dt
+        return max(0.0, rate)
+
     def _apply_reactions(
         self,
         new_state: WorldStateImpl,
@@ -189,14 +210,10 @@ class WorldSimulatorImpl:
         extents are applied together to ``new_state``. This is order-independent
         and reduces to the C1 clamp when reactions do not compete.
         """
-        # 1. Desired extent per reaction from the frozen state (mass-action).
-        desired: List[float] = []
-        for reaction in reactions:
-            rate = reaction.rate_constant
-            for mol_id, stoich in reaction.reactants.items():
-                rate *= frozen.get(compartment, mol_id) ** stoich
-            rate *= self._dt
-            desired.append(max(0.0, rate))
+        # 1. Desired extent per reaction from the frozen state (via the rate-law seam).
+        desired: List[float] = [
+            self._desired_extent(frozen, reaction, compartment) for reaction in reactions
+        ]
 
         # 2. Competition: demand per molecule, then per-molecule feasible ratio.
         demand: Dict[MoleculeId, float] = {}
