@@ -136,10 +136,12 @@ class Reaction(Protocol):
         ...
 
     @property
-    def modifiers(self) -> Dict[Molecule, str]:
+    def modifiers(self) -> Dict[Molecule, Any]:
         """Catalyst/regulator molecules acting on the reaction without being
-        stoichiometrically consumed, mapped to an opaque role tag (e.g. an
-        enzyme with role ``"catalyst"``). Empty for an unmodified reaction."""
+        stoichiometrically consumed, mapped to a modulation value: a bidirectional
+        rate-modulation descriptor (``bio.reaction.Modulation`` — kind + params, e.g.
+        an activator/inhibitor) or a bare opaque role tag ``str`` (e.g. an enzyme with
+        role ``"catalyst"``), which is rate-inert. Empty for an unmodified reaction."""
         ...
 
     @property

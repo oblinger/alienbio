@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Self, Union
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Mapping, Optional, TYPE_CHECKING, Self, Union
 
 from ..infra.entity import Entity
 
@@ -17,6 +18,53 @@ RateFunction = Callable[["State"], float]
 RateValue = Union[float, RateFunction]
 
 
+@dataclass(frozen=True)
+class Modulation:
+    """A modifier's effect on its reaction's rate (F015 S2 bidirectional modulation).
+
+    Ship-now form is LINEAR (F015 Q1): an ``"activator"`` (param ``a``) scales the rate
+    up via ``(1 + a * [modifier])``; an ``"inhibitor"`` (param ``Ki``) scales it down via
+    dividing by ``(1 + [modifier] / Ki)``. Any other ``kind`` (including the label-only
+    default ``""``) is rate-inert — a pure documentation tag, contributing a factor of
+    exactly ``1.0``. Non-linear kinds (``"michaelis"``, ``"hill"``) are future branches at
+    the same seam (``WorldSimulatorImpl._modulation_factor``); do not add them here yet.
+
+    Frozen + a pure function of the frozen start-of-step state elsewhere (F015 Q4): this
+    dataclass only carries the parameters, it has no simulation behavior of its own.
+    """
+
+    kind: str = ""
+    a: Optional[float] = None
+    Ki: Optional[float] = None
+
+    @classmethod
+    def from_value(cls, value: "Union[Modulation, str]") -> "Modulation":
+        """Coerce a bare ``str`` role tag into a label-only, rate-inert ``Modulation``.
+
+        Backward-compat (F015 Q2): every existing call site passes a bare ``str`` role
+        (e.g. ``"catalyst"``); that role becomes ``Modulation(kind=<the string>)``, whose
+        factor is exactly ``1.0`` — matching today, where the role never reached the
+        simulator.
+        """
+        if isinstance(value, Modulation):
+            return value
+        return cls(kind=value)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize non-default fields (for ``attributes()``/``hydrate()`` round-trips)."""
+        result: Dict[str, Any] = {"kind": self.kind}
+        if self.a is not None:
+            result["a"] = self.a
+        if self.Ki is not None:
+            result["Ki"] = self.Ki
+        return result
+
+
+# A modifier's value: either the new first-class Modulation, or (for backward compat)
+# a bare opaque role-tag string, which is inert (factor 1.0) — see Modulation.from_value.
+ModifierValue = Union[Modulation, str]
+
+
 class ReactionImpl(Entity, head="Reaction"):
     """Implementation: A reaction transforming reactants into products.
 
@@ -25,7 +73,8 @@ class ReactionImpl(Entity, head="Reaction"):
     - reactants: molecules consumed (with stoichiometric coefficients)
     - products: molecules produced (with stoichiometric coefficients)
     - modifiers: catalysts/regulators acting on the reaction WITHOUT being
-      consumed (enzymes, inhibitors), each mapped to an opaque role tag
+      consumed (enzymes, inhibitors), each mapped to a ``Modulation`` (or a
+      bare opaque role-tag ``str``, for backward compat — see ``Modulation``)
     - rate: constant or function determining reaction speed
 
     Example:
@@ -48,7 +97,7 @@ class ReactionImpl(Entity, head="Reaction"):
         *,
         reactants: Optional[Dict[Molecule, float]] = None,
         products: Optional[Dict[Molecule, float]] = None,
-        modifiers: Optional[Dict[Molecule, str]] = None,
+        modifiers: Optional[Mapping[Molecule, ModifierValue]] = None,
         rate: RateValue = 1.0,
         parent: Optional[Entity] = None,
         dat: Optional[Dat] = None,
@@ -60,8 +109,9 @@ class ReactionImpl(Entity, head="Reaction"):
             name: Local name within parent
             reactants: Dict mapping molecules to stoichiometric coefficients
             products: Dict mapping molecules to stoichiometric coefficients
-            modifiers: Dict mapping catalyst/regulator molecules (not consumed)
-                to an opaque role tag (e.g. "catalyst", "inhibitor")
+            modifiers: Mapping catalyst/regulator molecules (not consumed) to a
+                ``Modulation`` (kind + rate params) or a bare opaque role tag
+                ``str`` (e.g. "catalyst") — a bare string is inert (factor 1.0)
             rate: Reaction rate (constant float or function of State)
             parent: Link to containing entity
             dat: DAT anchor for root reactions
@@ -70,7 +120,7 @@ class ReactionImpl(Entity, head="Reaction"):
         super().__init__(name, parent=parent, dat=dat, description=description)
         self._reactants: Dict[Molecule, float] = reactants.copy() if reactants else {}
         self._products: Dict[Molecule, float] = products.copy() if products else {}
-        self._modifiers: Dict[Molecule, str] = modifiers.copy() if modifiers else {}
+        self._modifiers: Dict[Molecule, ModifierValue] = dict(modifiers) if modifiers else {}
         self._rate: RateValue = rate
 
     @classmethod
@@ -147,8 +197,10 @@ class ReactionImpl(Entity, head="Reaction"):
 
         # Build modifiers dict: {MoleculeImpl: role}.  Accepts the canonical
         # {name: role} mapping (attributes() output) or a bare list of names
-        # (role defaults to "", mirroring the reactant/product list form).
-        modifiers: Dict[Molecule, str] = {}
+        # (role defaults to "", mirroring the reactant/product list form). A
+        # role that is itself a dict is a serialized Modulation (Modulation.to_dict());
+        # everything else (a bare str) stays as-is, inert by default.
+        modifiers: Dict[Molecule, ModifierValue] = {}
         raw_modifiers = data.get("modifiers", {})
         if isinstance(raw_modifiers, dict):
             mod_items = raw_modifiers.items()
@@ -163,7 +215,7 @@ class ReactionImpl(Entity, head="Reaction"):
                     f"Reaction {name!r}: unknown modifier molecule {mol_name!r} "
                     f"(not in chemistry molecules)"
                 )
-            modifiers[molecules[mol_name]] = role
+            modifiers[molecules[mol_name]] = Modulation(**role) if isinstance(role, dict) else role
 
         # Get rate (function or constant)
         rate = data.get("rate", 1.0)
@@ -190,8 +242,9 @@ class ReactionImpl(Entity, head="Reaction"):
         return self._products.copy()
 
     @property
-    def modifiers(self) -> Dict[Molecule, str]:
-        """Catalyst/regulator molecules (not consumed) mapped to a role tag."""
+    def modifiers(self) -> Dict[Molecule, ModifierValue]:
+        """Catalyst/regulator molecules (not consumed) mapped to a ``Modulation``
+        (or a bare opaque role-tag ``str``, for backward compat — see ``Modulation``)."""
         return self._modifiers.copy()
 
     @property
@@ -242,7 +295,7 @@ class ReactionImpl(Entity, head="Reaction"):
         """Add a product to this reaction."""
         self._products[molecule] = coefficient
 
-    def add_modifier(self, molecule: Molecule, role: str = "") -> None:
+    def add_modifier(self, molecule: Molecule, role: ModifierValue = "") -> None:
         """Add a catalyst/regulator (not stoichiometrically consumed)."""
         self._modifiers[molecule] = role
 
@@ -260,10 +313,13 @@ class ReactionImpl(Entity, head="Reaction"):
                 mol.local_name: coef for mol, coef in self._products.items()
             }
 
-        # Serialize modifiers as {molecule_name: role} (catalysts/regulators)
+        # Serialize modifiers as {molecule_name: role} (catalysts/regulators). A bare
+        # str role round-trips as-is; a Modulation serializes via to_dict() so hydrate()
+        # can reconstruct it.
         if self._modifiers:
             result["modifiers"] = {
-                mol.local_name: role for mol, role in self._modifiers.items()
+                mol.local_name: (role.to_dict() if isinstance(role, Modulation) else role)
+                for mol, role in self._modifiers.items()
             }
 
         # Only serialize rate if it's a constant

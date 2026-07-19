@@ -59,7 +59,7 @@ from .atom import AtomImpl, COMMON_ATOMS, get_atom
 from .molecule import MoleculeImpl
 
 # Implementation classes - reactions and flows
-from .reaction import ReactionImpl
+from .reaction import ReactionImpl, Modulation
 from .flow import Flow, MembraneFlow, GeneralFlow
 
 # Implementation classes - containers and compartments
@@ -185,6 +185,7 @@ __all__ = [
     "AtomImpl",
     "MoleculeImpl",
     "ReactionImpl",
+    "Modulation",
     "MembraneFlow",
     "GeneralFlow",
     "ChemistryImpl",

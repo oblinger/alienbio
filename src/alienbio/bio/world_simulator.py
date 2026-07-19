@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 from .world_state import WorldStateImpl
 from .compartment_tree import CompartmentTreeImpl
 from .flow import GeneralFlow
+from .reaction import Modulation
 
 if TYPE_CHECKING:
     from .chemistry import ChemistryImpl
@@ -33,9 +34,11 @@ class ReactionSpec:
         products: Dict[MoleculeId, stoichiometry]
         rate_constant: Base reaction rate
         compartments: Which compartments this reaction occurs in (None = all)
+        modulators: Dict[MoleculeId, Modulation] — non-consumed modifier species that
+            scale the rate (F015 S2); empty for an unmodified reaction (the fast path).
     """
 
-    __slots__ = ("name", "reactants", "products", "rate_constant", "compartments")
+    __slots__ = ("name", "reactants", "products", "rate_constant", "compartments", "modulators")
 
     def __init__(
         self,
@@ -44,12 +47,14 @@ class ReactionSpec:
         products: Dict[MoleculeId, float],
         rate_constant: float = 1.0,
         compartments: Optional[List[CompartmentId]] = None,
+        modulators: Optional[Dict[MoleculeId, Modulation]] = None,
     ) -> None:
         self.name = name
         self.reactants = reactants
         self.products = products
         self.rate_constant = rate_constant
         self.compartments = compartments  # None means all compartments
+        self.modulators = modulators or {}  # empty by default — the no-modifier fast path
 
 
 class WorldSimulatorImpl:
@@ -188,12 +193,44 @@ class WorldSimulatorImpl:
         catalytic law adds a branch here keyed on the reaction's rate-law kind; the
         competition / proportional-rationing machinery in ``_apply_reactions`` is unaffected,
         because it consumes only the returned extent.
+
+        Bidirectional modulation (F015 S2) multiplies in a second, independent factor: a
+        reaction with no modulators (the common case) hits the ``modulators`` emptiness
+        check and skips straight past it — no added allocation, no changed result.
         """
         rate = reaction.rate_constant
         for mol_id, stoich in reaction.reactants.items():
             rate *= frozen.get(compartment, mol_id) ** stoich
+        if reaction.modulators:
+            rate *= self._modulation_factor(frozen, reaction.modulators, compartment)
         rate *= self._dt
         return max(0.0, rate)
+
+    @staticmethod
+    def _modulation_factor(
+        frozen: WorldStateImpl,
+        modulators: Dict[MoleculeId, Modulation],
+        compartment: CompartmentId,
+    ) -> float:
+        """Dimensionless rate-modulation factor from non-consumed modifier species.
+
+        Ship-now LINEAR form (F015 Q1): each ``"activator"`` (param ``a``) multiplies the
+        numerator by ``(1 + a * [modifier])``; each ``"inhibitor"`` (param ``Ki``)
+        multiplies the denominator by ``(1 + [modifier] / Ki)`` — one modifier of each kind
+        reduces to ``(1 + a*[A]) / (1 + [I]/Ki)``. Any other kind (including the label-only
+        default) is inert. Non-linear kinds (``"michaelis"``, ``"hill"``) are trivial future
+        branches here. Pure function of the FROZEN start-of-step state (F015 Q4): deterministic,
+        order-independent (H4).
+        """
+        numerator = 1.0
+        denominator = 1.0
+        for mol_id, modulation in modulators.items():
+            conc = frozen.get(compartment, mol_id)
+            if modulation.kind == "activator" and modulation.a is not None:
+                numerator *= 1.0 + modulation.a * conc
+            elif modulation.kind == "inhibitor" and modulation.Ki is not None:
+                denominator *= 1.0 + conc / modulation.Ki
+        return numerator / denominator
 
     def _apply_reactions(
         self,
@@ -329,6 +366,20 @@ class WorldSimulatorImpl:
                     )
                 products[mol_id] = stoich
 
+            # Compile modulators (non-consumed modifier species that scale the rate —
+            # F015 S2). A bare str role tag coerces to a label-only, rate-inert
+            # Modulation (factor 1.0); reactions with no modifiers compile to an empty
+            # dict, hitting the fast path in _desired_extent.
+            modulators = {}
+            for mol, mod_value in reaction.modifiers.items():
+                mol_id = mol_to_id.get(mol.name)
+                if mol_id is None:
+                    raise KeyError(
+                        f"Reaction {rxn_name!r}: modifier {mol.name!r} not found in "
+                        f"chemistry.molecules"
+                    )
+                modulators[mol_id] = Modulation.from_value(mod_value)
+
             # Get rate constant (only works for constant rates)
             if isinstance(reaction.rate, (int, float)):
                 rate = reaction.rate
@@ -351,6 +402,7 @@ class WorldSimulatorImpl:
                 products=products,
                 rate_constant=rate,
                 compartments=None,  # Apply to all compartments
+                modulators=modulators,
             ))
 
         return cls(
