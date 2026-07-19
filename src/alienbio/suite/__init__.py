@@ -130,6 +130,16 @@ from .reliability_grid import (
     cell_mean,
     two_way_interaction,
 )
+from .mass_trial import (
+    Axis,
+    CellSummary,
+    ConditionKey,
+    ContrastResult,
+    MassTrialRunner,
+    Provenance,
+    ReliabilityMap,
+    condition_grid,
+)
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
@@ -352,4 +362,13 @@ __all__ = [
     "aggregate_cells",
     "cell_mean",
     "two_way_interaction",
+    # M34 mass-trial runner + reliability map (F024, wave 5)
+    "Axis",
+    "ConditionKey",
+    "condition_grid",
+    "MassTrialRunner",
+    "CellSummary",
+    "ContrastResult",
+    "Provenance",
+    "ReliabilityMap",
 ]
