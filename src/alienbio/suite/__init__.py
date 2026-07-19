@@ -61,6 +61,20 @@ from .score_calibration import (
     mean_brier,
 )
 from .deliberation import DeliberationStep, DeliberationTrace
+from .agent import (
+    Action,
+    Agent,
+    Commit,
+    Intervene,
+    Measure,
+    Policy,
+    PolicyStep,
+    ReasoningStep,
+    ScriptedAgent,
+    Wait,
+    WaitUntil,
+)
+from .trial import TrialRecord, condition_key, thread_reasoning_steps
 from .score_surfacing import (
     coverage_at_budget,
     is_monotone_coverage,
@@ -269,6 +283,21 @@ __all__ = [
     # M33.1 deliberation-trace capture — second-wave keystone (wave 3)
     "DeliberationStep",
     "DeliberationTrace",
+    # F020 Agent interface + TrialRecord (Phase-2 D2/D4)
+    "Action",
+    "Agent",
+    "Measure",
+    "Intervene",
+    "Commit",
+    "Wait",
+    "ReasoningStep",
+    "WaitUntil",
+    "PolicyStep",
+    "Policy",
+    "ScriptedAgent",
+    "TrialRecord",
+    "condition_key",
+    "thread_reasoning_steps",
     # M33.4 per-objective surfacing (wave 3)
     "surfacing_depth",
     "surfacing_profile",
