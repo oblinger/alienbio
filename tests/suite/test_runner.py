@@ -123,7 +123,7 @@ def test_wait_only_agent_matches_measure_only_agent_world_evolution():
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_never_committing_agent_stops_at_budget_exceeded():
+def test_never_committing_agent_stops_at_budget_exhausted():
     suite = _identify_pathway_suite()
     world, task = suite.worlds[0], suite.tasks[0]
     mol = next(iter(world.chemistry.molecules))
@@ -135,10 +135,16 @@ def test_never_committing_agent_stops_at_budget_exceeded():
     agent = ScriptedAgent(policy, seed=Seed(0))
     record = run(world, task, agent, {"budget": 3.0}, Seed(5), max_turns=100)
 
-    assert record.terminal_reason == "budget_exceeded"
-    # Measure's default cost is 1.0/turn; budget=3.0 stops after 3 turns.
+    # F023 (M32.1): the Budget abstraction renames the F021 "budget_exceeded"
+    # terminal reason to "budget_exhausted"; the cost-weighted accounting
+    # itself (Measure's default cost is 1.0/turn; budget=3.0 stops after 3
+    # turns) is unchanged.
+    assert record.terminal_reason == "budget_exhausted"
     assert len(record.action_log) == 3
     assert all(a.kind == "measure" for a in record.action_log)
+    assert record.budget == 3.0
+    assert record.spent == 3.0
+    assert record.remaining == 0.0
 
 
 def test_committing_agent_stops_at_committed_not_budget():
@@ -151,6 +157,44 @@ def test_committing_agent_stops_at_committed_not_budget():
 
     assert record.terminal_reason == "committed"
     assert record.objective_score == pytest.approx(1.0)
+
+
+def test_budget_ladder_degrades_turns_monotonically():
+    """F023 (M32.1): the graded ladder ({unlimited, 20, 12, 8, 4}) is a real
+    degradation driver — a smaller budget level stops the trial strictly
+    sooner (fewer turns/actions)."""
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    mol = next(iter(world.chemistry.molecules))
+
+    def policy(observation, seed):
+        del observation, seed
+        return Measure(probe=mol), ()
+
+    turn_counts = []
+    for level in ("20", "12", "8", "4"):
+        agent = ScriptedAgent(policy, seed=Seed(0))
+        record = run(world, task, agent, {"budget": level}, Seed(5), max_turns=1000)
+        assert record.terminal_reason == "budget_exhausted"
+        turn_counts.append(len(record.action_log))
+
+    assert turn_counts == sorted(turn_counts, reverse=True)
+    assert len(set(turn_counts)) == len(turn_counts)  # strictly decreasing
+
+
+def test_budget_unlimited_runs_to_natural_termination():
+    """The ``"unlimited"`` ladder level never stops the trial on budget — it
+    runs to whatever its own natural terminal event is (here, ``Commit``)."""
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    assert isinstance(task.objective, AnswerObjective)
+    agent = ScriptedAgent(_key_commit_policy(task.objective.key.value), seed=Seed(0))
+
+    record = run(world, task, agent, {"budget": "unlimited"}, Seed(7))
+
+    assert record.terminal_reason == "committed"
+    assert record.budget == float("inf")
+    assert record.remaining == float("inf")
 
 
 def test_max_turns_reached_without_commit_or_budget():

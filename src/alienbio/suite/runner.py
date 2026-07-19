@@ -40,17 +40,24 @@ other lever name fails visibly (``ValueError``), as does a ``Measure`` naming
 an unknown probe. ``Commit`` ends the trial (terminal reason ``"committed"``)
 and supplies the answer graded against the task's objective.
 
-**Cost/budget (Q3 = B).** Each action carries an opaque cost — ``Measure``
-cheap, ``Intervene`` dearer, ``Commit``/``Wait`` free by default
-(:data:`_DEFAULT_COST`; a ``params["cost"]`` entry overrides it per call).
-Spend accumulates every turn; once it reaches the ``"budget"`` dial (default
-unlimited) the trial stops with reason ``"budget_exceeded"``. A trial that
-never commits and never exceeds budget stops at ``max_turns``.
+**Cost/budget -> graded time-pressure dial (F023, M32.1).** Each action
+carries an opaque cost — ``Measure`` cheap, ``Intervene`` dearer,
+``Commit``/``Wait`` free by default (:data:`_DEFAULT_COST`; a
+``params["cost"]`` entry overrides it per call). Spend accumulates every
+turn; once it reaches the dialed :class:`Budget`'s ``total`` the trial stops
+with reason ``"budget_exhausted"``. A trial that never commits and never
+exhausts its budget stops at ``max_turns``. The F021 cap (a bare
+``dials["budget"]`` number) is now formalised as :class:`Budget` — one
+value object with a selectable ``unit`` (only ``"turns"`` is implemented; see
+:class:`Budget`'s docstring) — without ripping out the original
+cost-accounting loop; :func:`Budget.from_dial` keeps the old bare-number
+dial shape working unchanged.
 """
 
 from __future__ import annotations
 
 import dataclasses
+import math
 from typing import Any, Mapping, cast
 
 from ..bio.chemistry import ChemistryImpl
@@ -75,6 +82,101 @@ _DEFAULT_COST: dict[type, float] = {
     Commit: 0.0,
     Wait: 0.0,
 }
+
+#: Units :class:`Budget` currently knows how to drain (Q1 = C: ship turns
+#: first). ``"sim_steps"``/``"deadline"`` are documented, additive future
+#: units (meter simulated time / a hard wall-analog instead of action cost);
+#: ``"opportunity_cost"`` (a budget the objective itself also draws on) is a
+#: later, structurally different variant explicitly gated behind its own
+#: build — selecting any of the three today raises rather than silently
+#: behaving like ``"turns"``.
+_IMPLEMENTED_UNITS = frozenset({"turns"})
+_FUTURE_UNITS = frozenset({"sim_steps", "deadline", "opportunity_cost"})
+
+#: The graded ladder for the ``"turns"`` unit (Q1 = C): a named level ->
+#: total-spend cap, from unlimited down to minimal. The EXP-10 degradation
+#: driver / EXP-5 objective-surfacing-depth axis sweep these as a
+#: ``suite.mass_trial``/``suite.conditions`` axis.
+BUDGET_LADDER: Mapping[str, float] = {
+    "unlimited": float("inf"),
+    "20": 20.0,
+    "12": 12.0,
+    "8": 8.0,
+    "4": 4.0,
+}
+
+
+@dataclasses.dataclass(frozen=True)
+class Budget:
+    """A graded spend cap on the agent turn loop, in a selectable ``unit``.
+
+    ``total`` is the cumulative-cost ceiling :func:`run` compares its
+    per-action :func:`_action_cost` spend against — the SAME cost-weighted
+    accounting F021 shipped (``Measure``/``Intervene``/``Commit``/``Wait``
+    each carry an opaque cost), now named and packaged as the ``"turns"``
+    unit rather than ripped out (Q1 = C). ``total = float("inf")`` (the
+    default) is unlimited: the trial never stops on budget, only on
+    ``Commit`` or ``max_turns``.
+
+    Additional units are a documented future surface (see
+    :data:`_FUTURE_UNITS`): ``__post_init__`` raises ``NotImplementedError``
+    for a recognised-but-unbuilt unit and ``ValueError`` for an unknown one,
+    so a caller never silently gets ``"turns"`` semantics under a different
+    unit's name.
+    """
+
+    total: float = float("inf")
+    unit: str = "turns"
+
+    def __post_init__(self) -> None:
+        if self.unit in _FUTURE_UNITS:
+            raise NotImplementedError(
+                f"Budget unit {self.unit!r} is not yet implemented (Q1 = C: "
+                "turns ships first; sim_steps/deadline/opportunity_cost are "
+                "documented future units)"
+            )
+        if self.unit not in _IMPLEMENTED_UNITS:
+            raise ValueError(
+                f"unknown Budget unit {self.unit!r}; expected one of "
+                f"{sorted(_IMPLEMENTED_UNITS | _FUTURE_UNITS)}"
+            )
+
+    @property
+    def unlimited(self) -> bool:
+        """``True`` iff this budget never terminates the loop on its own."""
+        return math.isinf(self.total)
+
+    def exhausted(self, spent: float) -> bool:
+        """Whether cumulative ``spent`` has reached this budget's ``total``."""
+        return spent >= self.total
+
+    @staticmethod
+    def from_dial(value: Any) -> "Budget":
+        """Resolve a ``dials["budget"]`` entry to a :class:`Budget`.
+
+        Accepts, in order: a :class:`Budget` instance (passed through
+        unchanged); ``None`` (the default: unlimited); a
+        :data:`BUDGET_LADDER` level name (``"unlimited"``/``"20"``/``"12"``/
+        ``"8"``/``"4"``); or a raw ``float``/``int`` total — the bare-number
+        shape the original F021 dial used, kept working unchanged so no
+        existing ``dials={"budget": 3.0}`` caller needs to change.
+
+        Raises:
+            ValueError: ``value`` is a string that is not a
+                :data:`BUDGET_LADDER` level.
+        """
+        if isinstance(value, Budget):
+            return value
+        if value is None:
+            return Budget()
+        if isinstance(value, str):
+            if value not in BUDGET_LADDER:
+                raise ValueError(
+                    f"unknown budget ladder level {value!r}; "
+                    f"expected one of {sorted(BUDGET_LADDER)}"
+                )
+            return Budget(total=BUDGET_LADDER[value])
+        return Budget(total=float(value))
 
 
 def _mock_dat(path: str) -> Any:
@@ -211,10 +313,11 @@ def run(
     ``sim_cfg`` burst and fold its end-state back in as the next turn's state.
 
     Terminates on ``Commit`` (``"committed"``), on cumulative action cost
-    reaching the ``dials["budget"]`` dial (default unlimited,
-    ``"budget_exceeded"``), or after ``max_turns`` turns
+    reaching the ``dials["budget"]`` dial's :class:`Budget` (default
+    unlimited, ``"budget_exhausted"``), or after ``max_turns`` turns
     (``"max_turns"``) — recorded on the returned record's
-    ``terminal_reason``. ``task_id`` is ``task.world`` (the per-task world
+    ``terminal_reason``, alongside the resolved ``budget``/``spent``/
+    ``remaining`` (F023, M32.1). ``task_id`` is ``task.world`` (the per-task world
     name a :func:`~alienbio.suite.pipeline.build_suite` suite assigns, e.g.
     ``"world0"`` — the one field on ``TaskInstance`` that is unique per task).
 
@@ -232,7 +335,7 @@ def run(
     compartments = world.compartments
     chemistry = world.chemistry
     state: WorldStateImpl = world.initial_state
-    budget = float(dials.get("budget", float("inf")))
+    budget = Budget.from_dial(dials.get("budget"))
     spent = 0.0
 
     trace = DeliberationTrace()
@@ -289,8 +392,8 @@ def run(
         if isinstance(action, Commit):
             reason = "committed"
             break
-        if spent >= budget:
-            reason = "budget_exceeded"
+        if budget.exhausted(spent):
+            reason = "budget_exhausted"
             break
     else:
         reason = "max_turns"
@@ -317,4 +420,7 @@ def run(
         action_log=tuple(action_records),
         objective_score=objective_score,
         terminal_reason=reason,
+        budget=budget.total,
+        spent=spent,
+        remaining=budget.total - spent,
     )

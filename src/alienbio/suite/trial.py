@@ -81,10 +81,16 @@ class TrialRecord:
     ``effect_size`` aggregation needs it.
 
     ``terminal_reason`` (F021, Q3 = B) is why the run stopped: ``"committed"``
-    / ``"budget_exceeded"`` / ``"max_turns"`` for a record built by
+    / ``"budget_exhausted"`` / ``"max_turns"`` for a record built by
     ``suite.runner.run``. It defaults to ``""`` (not recorded) so every
     existing hand-built fixture (this module's own tests included)
     constructs unchanged.
+
+    ``budget``/``spent``/``remaining`` (F023, M32.1) are the resolved
+    ``suite.runner.Budget.total``, the cumulative per-action cost spent, and
+    ``budget - spent`` at the moment the trial stopped. They default to an
+    unlimited, unspent budget (``float("inf")``/``0.0``/``float("inf")``) so
+    every existing hand-built fixture constructs unchanged.
     """
 
     task_id: str
@@ -94,6 +100,9 @@ class TrialRecord:
     action_log: tuple[ActionRecord, ...]
     objective_score: float
     terminal_reason: str = ""
+    budget: float = float("inf")
+    spent: float = 0.0
+    remaining: float = float("inf")
 
     @cached_property
     def deliberation_depth(self) -> int:
