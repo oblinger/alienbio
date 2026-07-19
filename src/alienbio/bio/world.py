@@ -31,6 +31,7 @@ from typing import Mapping, Optional
 
 from .chemistry import ChemistryImpl
 from .compartment_tree import CompartmentTreeImpl
+from .flow import Flow, TransportFlux
 from .world_state import WorldStateImpl
 
 # A compartment id (a readable string, e.g. ``"cell"`` / ``"c0"``).
@@ -53,6 +54,29 @@ class Compartment:
     volume: float
     concentrations: Mapping[str, float] = field(default_factory=dict)
     multiplicity: float = 1.0
+
+
+@dataclass(frozen=True)
+class Transport:
+    """A cross-compartment flux spec, in real (string) ids (F016/S3).
+
+    Blocks (e.g. ``suite.blocks.TransportBlock``) author these at ``realize``
+    time, when only NodeId container refs and molecule NAMES are known (the
+    concrete int-indexed tree doesn't exist yet — it's built by
+    :func:`build_tree` inside :class:`WorldImpl`'s own constructor). ``WorldImpl``
+    resolves each ``Transport`` into an int-indexed
+    :class:`~alienbio.bio.flow.TransportFlux` using the SAME ``comp_to_int``/
+    molecule-index mapping :func:`build_tree` and the molecule axis establish,
+    so a flux's references always line up with however the tree is (re)built.
+    """
+
+    origin: NodeId
+    dest: NodeId
+    stoichiometry: Mapping[str, float]
+    driver_molecule: str
+    rate_constant: float = 1.0
+    rate_law: str = "gradient"  # "gradient" | "first_order"
+    name: str = ""
 
 
 def build_tree(
@@ -110,12 +134,13 @@ class WorldImpl:
     ``chemistry.molecules.keys()`` — the same order the simulator uses.
     """
 
-    __slots__ = ("_chemistry", "_compartments", "_initial_state")
+    __slots__ = ("_chemistry", "_compartments", "_initial_state", "_flows", "_flow_objs")
 
     def __init__(
         self,
         chemistry: ChemistryImpl,
         compartments: tuple[Compartment, ...],
+        flows: tuple[Transport, ...] = (),
     ) -> None:
         self._chemistry = chemistry
         self._compartments = tuple(compartments)
@@ -149,6 +174,49 @@ class WorldImpl:
                 state.set(ci, mol_to_int[mol_name], value)
         self._initial_state = state
 
+        # Resolve each string-id Transport spec into an int-indexed
+        # TransportFlux, using the SAME comp_to_int / mol_to_int mapping just
+        # built above (F016/S3). ``flows`` defaults to empty, so a world that
+        # never sets it is byte-identical to before this field existed.
+        self._flows = tuple(flows)
+        resolved_flows: list[Flow] = []
+        for tr in self._flows:
+            if tr.origin not in comp_to_int:
+                raise KeyError(
+                    f"transport {tr.name!r} references unknown origin compartment "
+                    f"{tr.origin!r}"
+                )
+            if tr.dest not in comp_to_int:
+                raise KeyError(
+                    f"transport {tr.name!r} references unknown dest compartment "
+                    f"{tr.dest!r}"
+                )
+            if tr.driver_molecule not in mol_to_int:
+                raise KeyError(
+                    f"transport {tr.name!r} references unknown driver molecule "
+                    f"{tr.driver_molecule!r}"
+                )
+            stoich_int: dict[int, float] = {}
+            for mol_name2, count in tr.stoichiometry.items():
+                if mol_name2 not in mol_to_int:
+                    raise KeyError(
+                        f"transport {tr.name!r} references unknown molecule "
+                        f"{mol_name2!r}"
+                    )
+                stoich_int[mol_to_int[mol_name2]] = count
+            resolved_flows.append(
+                TransportFlux(
+                    origin=comp_to_int[tr.origin],
+                    dest=comp_to_int[tr.dest],
+                    stoichiometry=stoich_int,
+                    driver_molecule=mol_to_int[tr.driver_molecule],
+                    rate_constant=tr.rate_constant,
+                    rate_law=tr.rate_law,
+                    name=tr.name,
+                )
+            )
+        self._flow_objs = tuple(resolved_flows)
+
     @property
     def chemistry(self) -> ChemistryImpl:
         """The chemistry defining molecules and reactions."""
@@ -163,6 +231,21 @@ class WorldImpl:
     def initial_state(self) -> WorldStateImpl:
         """The derived self-describing initial :class:`WorldStateImpl`."""
         return self._initial_state
+
+    @property
+    def flows(self) -> tuple[Transport, ...]:
+        """The raw, string-id :class:`Transport` specs this world was built
+        with — the shape a fresh :class:`WorldImpl` reconstruction (e.g.
+        ``suite.runner._world_from_state``) re-threads through the
+        constructor, so cross-compartment flux survives a per-turn rebuild."""
+        return self._flows
+
+    @property
+    def flow_objs(self) -> tuple[Flow, ...]:
+        """The int-indexed, simulator-ready :class:`~alienbio.bio.flow.Flow`
+        objects resolved from :attr:`flows` — what
+        ``WorldSimulatorImpl.from_chemistry`` expects for its ``flows=`` arg."""
+        return self._flow_objs
 
     def __repr__(self) -> str:
         return (

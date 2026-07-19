@@ -101,8 +101,12 @@ def simulate(
 
     # 2. Create the simulator on that same tree. WorldImpl built ``initial_state``
     #    with the molecule order from_chemistry uses (chemistry.molecules.keys()),
-    #    so the state indices already align with the simulator's.
-    sim = WorldSimulatorImpl.from_chemistry(chem, tree, dt=sim_cfg.dt)
+    #    so the state indices already align with the simulator's. ``flow_objs``
+    #    is the int-resolved, simulator-ready form of ``world.flows`` (F016/S3);
+    #    it defaults to empty, so a non-transport world is byte-identical.
+    sim = WorldSimulatorImpl.from_chemistry(
+        chem, tree, flows=list(world.flow_objs), dt=sim_cfg.dt
+    )
 
     # 3. Integrate with the real physics. ``run`` returns independent copies
     #    (WorldSimulatorImpl.run copies at each sample), and each copy carries the

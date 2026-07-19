@@ -4,6 +4,9 @@ Flow hierarchy:
 - Flow (abstract base): common interface for all flows
 - MembraneFlow: transport across parent-child boundary with stoichiometry
 - GeneralFlow: arbitrary state modifications (placeholder, needs general interpreter)
+- TransportFlux: cross-compartment flux between ANY two compartments (F016/S3),
+  amount-conserving in AMOUNT-space (not concentration) regardless of the two
+  compartments' volumes/multiplicities
 """
 
 from __future__ import annotations
@@ -385,4 +388,222 @@ class GeneralFlow(Flow):
     def __str__(self) -> str:
         """Short representation."""
         return f"GeneralFlow({self._name})"
+
+
+class TransportFlux(Flow):
+    """Cross-compartment flux: moves conserved AMOUNT (not concentration)
+    between two independently-addressed compartments (F016/S3, skeleton
+    decision S3 / coverage gap G3).
+
+    Unlike :class:`MembraneFlow` (anchored to a parent-child pair via the
+    tree), ``origin``/``dest`` here are two arbitrary compartments — no tree
+    relationship required, which is what lets a :class:`~alienbio.suite.blocks.
+    SpatialLatticeBlock` wire an arbitrary neighbor graph.
+
+    Rate law (Q1=C, gradient default) — the event rate is driven by ONE
+    ``driver_molecule``'s concentration:
+
+    - ``rate_law="gradient"`` (default): Fickian, ``rate_constant *
+      ([X]_origin - [X]_dest)`` — drives the driver species toward equal
+      concentration across the two pools (the mechanism a diffusive lattice
+      relaxes through).
+    - ``rate_law="first_order"``: ``rate_constant * [X]_origin`` — a
+      pump/boundary-flavored unidirectional law (no dependence on ``dest``).
+
+    Either law's raw rate is floored at 0: this ONE flux is strictly
+    ``origin -> dest``. A reversed local gradient (or a negative first-order
+    rate) contributes nothing from THIS flux — wire a second, reversed
+    ``TransportFlux`` for true bidirectional equilibration (e.g. a lattice's
+    neighbor pair in each direction). This also protects against oscillation:
+    once the driver species reaches equality, tiny numerical overshoot floors
+    to 0 instead of flip-flopping sign every step.
+
+    ``stoichiometry`` (``{molecule_id: count}``, exactly like
+    ``MembraneFlow``) lets several species move together per event — active
+    co-transport needs no new law, just an extra (possibly negative-count,
+    counter-direction) entry co-transporting an energy carrier. Every species
+    is rationed against the SAME shared event count (so a co-transported group
+    moves in lockstep): for each species, the event count is clamped so its
+    LOSING compartment's :meth:`WorldStateImpl.amount` never goes negative —
+    the amount-conservation invariant (F012 count basis) this class exists to
+    guarantee. The identical transferred amount ``Δn`` leaves the losing pool
+    and enters the other, so ``Σ amount`` is invariant regardless of the two
+    compartments' volumes/multiplicities.
+    """
+
+    __slots__ = ("_dest", "_stoichiometry", "_driver_molecule", "_rate_constant", "_rate_law")
+
+    def __init__(
+        self,
+        origin: CompartmentId,
+        dest: CompartmentId,
+        stoichiometry: Dict[int, float],
+        driver_molecule: int,
+        rate_constant: float = 1.0,
+        rate_law: str = "gradient",
+        name: str = "",
+    ) -> None:
+        """Initialize a cross-compartment transport flux.
+
+        Args:
+            origin: The compartment this flux moves species OUT OF (the "src" pool)
+            dest: The compartment this flux moves species INTO (the "dst" pool)
+            stoichiometry: Molecule id -> count moved per event (all species move
+                together, in lockstep, scaled by the shared event count)
+            driver_molecule: Which molecule id's concentration drives the rate law
+            rate_constant: ``D`` (gradient law) or ``k`` (first-order law)
+            rate_law: ``"gradient"`` (Fickian, default) or ``"first_order"``
+            name: Human-readable name for this flow
+
+        Raises:
+            ValueError: if ``rate_law`` is not one of the two supported laws.
+        """
+        if rate_law not in ("gradient", "first_order"):
+            raise ValueError(
+                f"TransportFlux rate_law must be 'gradient' or 'first_order', "
+                f"got {rate_law!r}"
+            )
+        if not name:
+            name = f"transport_{origin}_to_{dest}"
+        super().__init__(origin, name)
+
+        self._dest = dest
+        self._stoichiometry = dict(stoichiometry)
+        self._driver_molecule = driver_molecule
+        self._rate_constant = rate_constant
+        self._rate_law = rate_law
+
+    @property
+    def dest(self) -> CompartmentId:
+        """The compartment this flux moves species INTO."""
+        return self._dest
+
+    @property
+    def stoichiometry(self) -> Dict[int, float]:
+        """Molecule id -> count moved per event (shared event count)."""
+        return self._stoichiometry.copy()
+
+    @property
+    def driver_molecule(self) -> int:
+        """Which molecule id's concentration drives the rate law."""
+        return self._driver_molecule
+
+    @property
+    def rate_constant(self) -> float:
+        """``D`` (gradient law) or ``k`` (first-order law)."""
+        return self._rate_constant
+
+    @property
+    def rate_law(self) -> str:
+        """``"gradient"`` (Fickian) or ``"first_order"``."""
+        return self._rate_law
+
+    @property
+    def is_membrane_flow(self) -> bool:
+        """False - this is not a parent-child membrane flow."""
+        return False
+
+    @property
+    def is_general_flow(self) -> bool:
+        """False - this is not an arbitrary-edit general flow."""
+        return False
+
+    def compute_flux(
+        self,
+        state: WorldStateImpl,
+        tree: CompartmentTreeImpl,
+    ) -> float:
+        """Raw (unfloored, unrationed) event rate from the configured rate law.
+
+        Args:
+            state: Current world state with concentrations
+            tree: Compartment topology (unused — origin/dest need no tree
+                relationship)
+
+        Returns:
+            Event rate (events per unit time); may be negative (floored to 0
+            in :meth:`apply`).
+        """
+        conc_src = state.get(self._origin, self._driver_molecule)
+        if self._rate_law == "first_order":
+            return self._rate_constant * conc_src
+        # gradient (default): Fickian, driven toward equal concentration
+        conc_dst = state.get(self._dest, self._driver_molecule)
+        return self._rate_constant * (conc_src - conc_dst)
+
+    def apply(
+        self,
+        state: WorldStateImpl,
+        tree: CompartmentTreeImpl,
+        dt: float = 1.0,
+    ) -> None:
+        """Apply this flux to the state (mutates in place).
+
+        Computes the event rate, floors it at 0, rations it against every
+        transported species' available AMOUNT in its losing compartment (so
+        no species is ever driven negative), then moves the SAME clamped
+        ``Δn`` out of the losing pool and into the other for each species —
+        the amount-conserving bookkeeping this class exists to guarantee.
+
+        Args:
+            state: World state to modify
+            tree: Compartment topology (unused)
+            dt: Time step
+        """
+        event_count = max(self.compute_flux(state, tree) * dt, 0.0)
+        if event_count <= 0.0:
+            return
+
+        # Ration: for each species, the compartment losing amount this event
+        # is origin when count > 0 (species moves origin -> dest), else dest
+        # (a negative count reverses that one species' direction — e.g. an
+        # antiported energy carrier). Clamp the SHARED event count so no
+        # species' losing pool goes negative.
+        for mol, count in self._stoichiometry.items():
+            if count == 0:
+                continue
+            losing = self._origin if count > 0 else self._dest
+            available = state.amount(losing, mol)
+            max_event = available / abs(count)
+            if max_event < event_count:
+                event_count = max(max_event, 0.0)
+
+        if event_count <= 0.0:
+            return
+
+        origin_scale = state.get_multiplicity(self._origin) * state.get_volume(self._origin)
+        dest_scale = state.get_multiplicity(self._dest) * state.get_volume(self._dest)
+        for mol, count in self._stoichiometry.items():
+            delta_n = event_count * count
+            if origin_scale > 0:
+                state.set(
+                    self._origin, mol, state.get(self._origin, mol) - delta_n / origin_scale
+                )
+            if dest_scale > 0:
+                state.set(self._dest, mol, state.get(self._dest, mol) + delta_n / dest_scale)
+
+    def attributes(self) -> Dict[str, Any]:
+        """Semantic content for serialization."""
+        return {
+            "type": "transport",
+            "name": self._name,
+            "origin": self._origin,
+            "dest": self._dest,
+            "stoichiometry": self._stoichiometry.copy(),
+            "driver_molecule": self._driver_molecule,
+            "rate_constant": self._rate_constant,
+            "rate_law": self._rate_law,
+        }
+
+    def __repr__(self) -> str:
+        """Full representation."""
+        stoich_str = ", ".join(f"{m}:{c}" for m, c in self._stoichiometry.items())
+        return (
+            f"TransportFlux(origin={self._origin}, dest={self._dest}, "
+            f"stoich={{{stoich_str}}}, rate={self._rate_constant}, law={self._rate_law!r})"
+        )
+
+    def __str__(self) -> str:
+        """Short representation."""
+        return f"TransportFlux({self._name})"
 

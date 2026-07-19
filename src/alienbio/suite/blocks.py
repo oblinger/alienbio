@@ -62,7 +62,7 @@ from typing import Callable, Mapping, Optional, Sequence, cast
 
 from ..bio.molecule import MoleculeImpl
 from ..bio.reaction import Modulation, ReactionImpl
-from ..bio.world import NodeId
+from ..bio.world import Compartment, NodeId, Transport
 from ..infra.mk import mk
 from .dist import Constant, Dist, Seed
 from .skeleton import (
@@ -622,3 +622,199 @@ class CooperativeBindingBlock(SkeletonBlock):
             n=self.n.sample(seed.child("n")),
         )
         return _modulator_fragment(self.ports, self.modifier_port, bound, {}, rate, modulation, ns)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# F016 (M38.4 / S3) — cross-compartment transport: a flux moving ONE bound
+# species between two named containers, amount-conserving (see
+# ``bio.flow.TransportFlux``); ``SpatialLatticeBlock`` is a thin K-compartment
+# chain built the same way.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_DEFAULT_DEST_CONTAINER: NodeId = "cell2"
+
+
+@dataclass(frozen=True)
+class TransportBlock(SkeletonBlock):
+    """TRANSPORT: ONE ``bio.flow.TransportFlux`` moving its bound ``pool``
+    species from its own port's container (the ``origin``, Q4=A-flavored
+    "src side") to ``dest_container`` (the "dst side" — a bare container id,
+    not a port: it's the SAME species, just a different compartment column,
+    not a separately-bound pool).
+
+    The single port is ``IN`` (like :class:`SinkBlock`, this block "drains"
+    its bound pool — here, out to another compartment rather than to ``∅``);
+    something else (typically a :class:`SourceBlock`) must supply the ``OUT``
+    side for :meth:`Skeleton.validate`'s producer/consumer check when used
+    standalone. Unconditionally declares BOTH of its own two ``Compartment``
+    records (self-contained — it never assumes an ambient default container),
+    so composing several ``TransportBlock``s that SHARE a container (e.g. a
+    lattice chain) relies on ``Fragment.merge``'s dedup-identical-declaration
+    rule.
+
+    ``rate_law`` (Q1=C): ``"gradient"`` (default, Fickian — equilibrates
+    toward equal concentration) or ``"first_order"`` (pump/boundary-flavored,
+    ``k * [X]_origin``, no dependence on the dest side).
+    """
+
+    rate: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    rate_law: str = "gradient"  # "gradient" | "first_order"
+    dest_container: NodeId = _DEFAULT_DEST_CONTAINER
+    src_volume: float = 1.0
+    dest_volume: float = 1.0
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        port: str = "pool",
+        container: Optional[NodeId] = None,
+        dest_container: NodeId = _DEFAULT_DEST_CONTAINER,
+        rate: Optional[Dist[float]] = None,
+        rate_law: str = "gradient",
+        src_volume: float = 1.0,
+        dest_volume: float = 1.0,
+        params: Optional[Tags] = None,
+    ) -> "TransportBlock":
+        return cls(
+            name=name,
+            role=Role.TRANSPORT,
+            ports=(Port(port, container, PortDir.IN),),
+            rate=rate if rate is not None else Constant(1.0),
+            rate_law=rate_law,
+            dest_container=dest_container,
+            src_volume=src_volume,
+            dest_volume=dest_volume,
+            params=params or {},
+        )
+
+    def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
+        port = self.ports[0]
+        molecule = bound[port.name]
+        src_container = _container_of(self.ports)
+        rate_val = self.rate.sample(seed.child("rate"))
+        flow_id = f"{ns}/transport"
+        transport = Transport(
+            origin=src_container,
+            dest=self.dest_container,
+            stoichiometry={molecule.name: 1.0},
+            driver_molecule=molecule.name,
+            rate_constant=rate_val,
+            rate_law=self.rate_law,
+            name=flow_id,
+        )
+        compartments = (
+            Compartment(src_container, None, "cell", self.src_volume),
+            Compartment(self.dest_container, src_container, "cell", self.dest_volume),
+        )
+        return Fragment(
+            molecules={molecule.name: molecule},
+            compartments=compartments,
+            flows=(transport,),
+            provenance=(Provenance("", src_container, flow_id=flow_id),),
+        )
+
+
+@dataclass(frozen=True)
+class SpatialLatticeBlock(SkeletonBlock):
+    """TRANSPORT: a thin 1-D chain of ``k`` compartments, nearest-neighbor
+    coupled by passive (gradient) transport sharing ONE diffusion coefficient
+    — the scaffolding a spatial-gradient-relaxation test needs.
+
+    A leaf with no ports/pool-bindings: it mints its own diffusing species and
+    wires everything directly into its own ``Fragment`` (containers, the
+    molecule, and every edge's flux) rather than going through the
+    port-resolution machinery, since the SAME species living in ``k``
+    different compartments has no natural "producer"/"consumer" port split.
+    Each neighbor edge gets a REVERSED PAIR of ``TransportFlux`` specs (one
+    each direction) — a single one-directional flux only relaxes a
+    monotonically-sloped gradient (its rate is floored at 0 when the local
+    gradient reverses); the pair equilibrates any stamped profile toward
+    flat, regardless of shape.
+
+    ``initial`` maps a cell INDEX (``0 .. k-1``) to its stamped initial
+    concentration — absent indices default to 0 (the normal ``WorldImpl``
+    behavior for an un-seeded molecule/container pair).
+    """
+
+    k: int = 3
+    molecule: str = "x"
+    diffusion: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    volume: float = 1.0
+    initial: Mapping[int, float] = field(default_factory=dict)
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        k: int = 3,
+        molecule: str = "x",
+        diffusion: Optional[Dist[float]] = None,
+        volume: float = 1.0,
+        initial: Optional[Mapping[int, float]] = None,
+        params: Optional[Tags] = None,
+    ) -> "SpatialLatticeBlock":
+        if k < 2:
+            raise SkeletonError(f"SpatialLatticeBlock requires k >= 2, got {k}")
+        return cls(
+            name=name,
+            role=Role.TRANSPORT,
+            k=k,
+            molecule=molecule,
+            diffusion=diffusion if diffusion is not None else Constant(1.0),
+            volume=volume,
+            initial=dict(initial or {}),
+            params=params or {},
+        )
+
+    def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
+        cell_ids = [f"{ns}/cell{i}" for i in range(self.k)]
+        compartments = tuple(
+            Compartment(cid, None if i == 0 else cell_ids[i - 1], "cell", self.volume)
+            for i, cid in enumerate(cell_ids)
+        )
+        molecule = cast(MoleculeImpl, mk.M(f"{ns}/{self.molecule}"))
+        d = self.diffusion.sample(seed.child("diffusion"))
+
+        flows: list[Transport] = []
+        provenance: list[Provenance] = []
+        for i in range(self.k - 1):
+            a, b = cell_ids[i], cell_ids[i + 1]
+            fwd_id = f"{ns}/edge{i}_fwd"
+            rev_id = f"{ns}/edge{i}_rev"
+            flows.append(
+                Transport(
+                    origin=a,
+                    dest=b,
+                    stoichiometry={molecule.name: 1.0},
+                    driver_molecule=molecule.name,
+                    rate_constant=d,
+                    rate_law="gradient",
+                    name=fwd_id,
+                )
+            )
+            flows.append(
+                Transport(
+                    origin=b,
+                    dest=a,
+                    stoichiometry={molecule.name: 1.0},
+                    driver_molecule=molecule.name,
+                    rate_constant=d,
+                    rate_law="gradient",
+                    name=rev_id,
+                )
+            )
+            provenance.append(Provenance("", a, flow_id=fwd_id))
+            provenance.append(Provenance("", b, flow_id=rev_id))
+
+        initial = {(cell_ids[i], molecule.name): value for i, value in self.initial.items()}
+
+        return Fragment(
+            molecules={molecule.name: molecule},
+            compartments=compartments,
+            flows=tuple(flows),
+            initial=initial,
+            provenance=tuple(provenance),
+        )

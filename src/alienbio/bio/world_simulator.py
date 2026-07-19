@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
 
 from .world_state import WorldStateImpl
 from .compartment_tree import CompartmentTreeImpl
-from .flow import GeneralFlow
+from .flow import Flow
 from .reaction import Modulation
 
 if TYPE_CHECKING:
@@ -105,7 +105,7 @@ class WorldSimulatorImpl:
         self,
         tree: CompartmentTreeImpl,
         reactions: List[ReactionSpec],
-        flows: List[GeneralFlow],
+        flows: Sequence[Flow],
         num_molecules: int,
         dt: float = 1.0,
     ) -> None:
@@ -135,7 +135,7 @@ class WorldSimulatorImpl:
         return self._reactions
 
     @property
-    def flows(self) -> List[GeneralFlow]:
+    def flows(self) -> Sequence[Flow]:
         """Flow specifications."""
         return self._flows
 
@@ -349,7 +349,7 @@ class WorldSimulatorImpl:
         cls,
         chemistry: ChemistryImpl,
         tree: CompartmentTreeImpl,
-        flows: Optional[List[GeneralFlow]] = None,
+        flows: Optional[Sequence[Flow]] = None,
         dt: float = 1.0,
     ) -> WorldSimulatorImpl:
         """Create simulator from a Chemistry and compartment tree.

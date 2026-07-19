@@ -62,7 +62,7 @@ from typing import Any, Mapping, cast
 
 from ..bio.chemistry import ChemistryImpl
 from ..bio.reaction import ReactionImpl
-from ..bio.world import Compartment, WorldImpl
+from ..bio.world import Compartment, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
 from .agent import Action, Agent, Commit, Intervene, Measure, Wait
 from .deliberation import DeliberationTrace
@@ -203,6 +203,7 @@ def _world_from_state(
     compartments: tuple[Compartment, ...],
     chemistry: ChemistryImpl,
     state: WorldStateImpl,
+    flows: tuple[Transport, ...] = (),
 ) -> WorldImpl:
     """Rebuild a fresh, immutable ``WorldImpl`` seeded from ``state``.
 
@@ -214,6 +215,13 @@ def _world_from_state(
     ever READ (:meth:`WorldStateImpl.get` / ``get_multiplicity`` /
     ``get_volume``) — never mutated, and the returned ``WorldImpl`` owns an
     entirely new ``WorldStateImpl`` (built by its own, unmodified constructor).
+
+    ``flows`` (F016/S3) is the original world's ``Transport`` specs, threaded
+    forward UNCHANGED so cross-compartment flux survives this per-turn
+    rebuild — ``WorldImpl.__init__`` re-resolves them against the freshly
+    built tree, which (same topology, same node order) always assigns the
+    same int ids, so this is a lossless round-trip. Defaults to empty, so a
+    non-transport world's rebuild is unaffected.
 
     Raises:
         ValueError: if ``state`` is not self-describing (no ``compartment_ids``
@@ -239,7 +247,7 @@ def _world_from_state(
                 volume=state.get_volume(ci),
             )
         )
-    return WorldImpl(chemistry, tuple(rebuilt))
+    return WorldImpl(chemistry, tuple(rebuilt), flows=flows)
 
 
 def _chemistry_with_rate(
@@ -347,7 +355,7 @@ def run(
     reason = "max_turns"
 
     for turn in range(max_turns):
-        turn_world = _world_from_state(compartments, chemistry, state)
+        turn_world = _world_from_state(compartments, chemistry, state, world.flows)
 
         observation = narrow_observation(state, dials, seed.child(f"turn/{turn}/observe"))
         action, reasoning_steps = agent.act(observation)
@@ -373,7 +381,7 @@ def run(
                     f"Intervene: unknown lever {action.lever!r} "
                     "(not a reaction or molecule in this world's chemistry)"
                 )
-            turn_world = _world_from_state(compartments, chemistry, state)
+            turn_world = _world_from_state(compartments, chemistry, state, world.flows)
         elif isinstance(action, Wait):
             pass
         elif isinstance(action, Commit):
