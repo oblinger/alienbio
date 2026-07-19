@@ -33,6 +33,26 @@ S2 rate-modulation, no S3 transport — those are F015/F016):
 
 Every block is domain-neutral: biology lives only in opaque ``name`` tags on
 molecules/pools; nothing here branches on a biological concept.
+
+F015 S2 (M38.3) adds four **pattern-block** modifiers, now that the world
+simulator reads a ``Modulation`` record and multiplies a reaction's rate by a
+bidirectional factor (``WorldSimulatorImpl._modulation_factor``). Each turns
+what used to be a multi-reaction idiom (e.g. a separate "signal cascade" or an
+``S + E -> ES -> P + E`` enzyme mechanism) into ONE ``ReactionImpl`` carrying a
+non-consumed modifier species, via the shared :func:`_modulator_fragment`
+realize body:
+
+- :class:`SignalingBlock` — a control wire: one linear ``"activator"`` or
+  ``"inhibitor"`` modifier (``kind=`` selects which) attached to an
+  ``in -> out`` reaction.
+- :class:`InhibitionBlock` — a dedicated linear ``"inhibitor"`` config (the
+  same attachment ``SignalingBlock(kind="inhibitor")`` already covers, kept
+  separate for a single-purpose, no-``kind``-arg block).
+- :class:`EnzymeBlock` — a saturating ``"michaelis"`` catalyst modifier on a
+  ``substrate -> product`` reaction; no ``ES`` intermediate pool.
+- :class:`CooperativeBindingBlock` — a cooperative ``"hill"`` modifier
+  (exponent ``n``) on an ``in -> out`` reaction; higher ``n`` sharpens the
+  response into a step around ``K``.
 """
 
 from __future__ import annotations
@@ -41,7 +61,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Mapping, Optional, Sequence, cast
 
 from ..bio.molecule import MoleculeImpl
-from ..bio.reaction import ReactionImpl
+from ..bio.reaction import Modulation, ReactionImpl
 from ..bio.world import NodeId
 from ..infra.mk import mk
 from .dist import Constant, Dist, Seed
@@ -338,3 +358,267 @@ class PressureBlock(SinkBlock):
             times = _draw_poisson_times(seed.child(ns), self.poisson)
             object.__setattr__(self, "insult_times", times)
         return fragment
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# F015 S2 (M38.3) — pattern-blocks: one modifier-bearing reaction, not a
+# multi-reaction idiom.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _modulator_fragment(
+    ports: tuple[Port, ...],
+    modifier_port: str,
+    bound: Mapping[str, MoleculeImpl],
+    stoich: Mapping[str, float],
+    rate: float,
+    modulation: Modulation,
+    ns: str,
+) -> Fragment:
+    """Shared ``realize`` body for the S2 modulation blocks.
+
+    Every port except ``modifier_port`` becomes a reactant (``IN``) or product
+    (``OUT``) of ONE reaction, exactly like :meth:`ReactionBlock.realize`;
+    ``modifier_port`` resolves to a non-consumed modifier species instead —
+    attached via ``ReactionImpl.modifiers`` with the given ``modulation``, never
+    added to ``reactants``/``products`` (so it never enters the F012 balance
+    gate, per ``bio.conservation``).
+    """
+    reactants: dict[MoleculeImpl, float] = {}
+    products: dict[MoleculeImpl, float] = {}
+    for port in ports:
+        if port.name == modifier_port:
+            continue
+        molecule = bound[port.name]
+        coef = stoich.get(port.name, 1.0)
+        if port.direction is PortDir.IN:
+            reactants[molecule] = coef
+        else:
+            products[molecule] = coef
+
+    modifier_mol = bound[modifier_port]
+    rxn_id = f"{ns}/rxn"
+    container = _container_of(ports)
+    reaction = cast(
+        ReactionImpl,
+        mk.R(rxn_id, reactants, products, modifiers={modifier_mol: modulation}, rate=rate),
+    )
+    molecules = {m.name: m for m in list(reactants) + list(products) + [modifier_mol]}
+    return Fragment(
+        molecules=molecules,
+        reactions={rxn_id: reaction},
+        provenance=(Provenance(rxn_id, container),),
+    )
+
+
+@dataclass(frozen=True)
+class SignalingBlock(SkeletonBlock):
+    """SIGNALING: a control wire — ONE ``in -> out`` reaction, its rate scaled
+    by a linear ``"activator"`` or ``"inhibitor"`` ``modifier`` species
+    (``kind=`` selects which; params ``a``/``Ki`` are ``Dist`` holes sampled
+    with the block's own namespaced seed). Replaces the old multi-reaction
+    "signaling cascade" idiom with one attachment.
+    """
+
+    rate: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    kind: str = "activator"  # "activator" or "inhibitor" (Modulation.kind)
+    a: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    Ki: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    modifier_port: str = "modifier"
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        in_port: str = "in",
+        out_port: str = "out",
+        modifier_port: str = "modifier",
+        container: Optional[NodeId] = None,
+        rate: Optional[Dist[float]] = None,
+        kind: str = "activator",
+        a: Optional[Dist[float]] = None,
+        Ki: Optional[Dist[float]] = None,
+        params: Optional[Tags] = None,
+    ) -> "SignalingBlock":
+        if kind not in ("activator", "inhibitor"):
+            raise SkeletonError(f"SignalingBlock kind must be 'activator' or 'inhibitor', got {kind!r}")
+        return cls(
+            name=name,
+            role=Role.SIGNALING,
+            ports=(
+                Port(in_port, container, PortDir.IN),
+                Port(out_port, container, PortDir.OUT),
+                Port(modifier_port, container, PortDir.IN),
+            ),
+            rate=rate if rate is not None else Constant(1.0),
+            kind=kind,
+            a=a if a is not None else Constant(1.0),
+            Ki=Ki if Ki is not None else Constant(1.0),
+            modifier_port=modifier_port,
+            params=params or {},
+        )
+
+    def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
+        rate = self.rate.sample(seed.child("rate"))
+        if self.kind == "activator":
+            modulation = Modulation(kind="activator", a=self.a.sample(seed.child("a")))
+        else:
+            modulation = Modulation(kind="inhibitor", Ki=self.Ki.sample(seed.child("Ki")))
+        return _modulator_fragment(self.ports, self.modifier_port, bound, {}, rate, modulation, ns)
+
+
+@dataclass(frozen=True)
+class InhibitionBlock(SkeletonBlock):
+    """SIGNALING (inhibitory config): ONE ``in -> out`` reaction, its rate
+    divided by a linear ``"inhibitor"`` ``modifier`` — ``1 / (1 + [I] / Ki)``.
+    A dedicated, single-purpose config of the same attachment
+    :class:`SignalingBlock` generalizes (``kind="inhibitor"``).
+    """
+
+    rate: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    Ki: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    modifier_port: str = "modifier"
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        in_port: str = "in",
+        out_port: str = "out",
+        modifier_port: str = "modifier",
+        container: Optional[NodeId] = None,
+        rate: Optional[Dist[float]] = None,
+        Ki: Optional[Dist[float]] = None,
+        params: Optional[Tags] = None,
+    ) -> "InhibitionBlock":
+        return cls(
+            name=name,
+            role=Role.SIGNALING,
+            ports=(
+                Port(in_port, container, PortDir.IN),
+                Port(out_port, container, PortDir.OUT),
+                Port(modifier_port, container, PortDir.IN),
+            ),
+            rate=rate if rate is not None else Constant(1.0),
+            Ki=Ki if Ki is not None else Constant(1.0),
+            modifier_port=modifier_port,
+            params=params or {},
+        )
+
+    def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
+        rate = self.rate.sample(seed.child("rate"))
+        modulation = Modulation(kind="inhibitor", Ki=self.Ki.sample(seed.child("Ki")))
+        return _modulator_fragment(self.ports, self.modifier_port, bound, {}, rate, modulation, ns)
+
+
+@dataclass(frozen=True)
+class EnzymeBlock(SkeletonBlock):
+    """SIGNALING (catalytic config): ONE ``substrate -> product`` reaction, its
+    rate scaled by a saturating ``"michaelis"`` ``enzyme`` modifier —
+    ``Vmax * [enzyme] / (K + [enzyme])`` (hyperbolic in the enzyme's OWN
+    concentration, the same convention every modulator kind uses). No ``ES``
+    intermediate pool — one reaction replaces the old
+    ``S + E -> ES -> P + E`` mechanism idiom.
+    """
+
+    rate: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    Vmax: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    K: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    modifier_port: str = "enzyme"
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        substrate_port: str = "substrate",
+        product_port: str = "product",
+        modifier_port: str = "enzyme",
+        container: Optional[NodeId] = None,
+        rate: Optional[Dist[float]] = None,
+        Vmax: Optional[Dist[float]] = None,
+        K: Optional[Dist[float]] = None,
+        params: Optional[Tags] = None,
+    ) -> "EnzymeBlock":
+        return cls(
+            name=name,
+            role=Role.SIGNALING,
+            ports=(
+                Port(substrate_port, container, PortDir.IN),
+                Port(product_port, container, PortDir.OUT),
+                Port(modifier_port, container, PortDir.IN),
+            ),
+            rate=rate if rate is not None else Constant(1.0),
+            Vmax=Vmax if Vmax is not None else Constant(1.0),
+            K=K if K is not None else Constant(1.0),
+            modifier_port=modifier_port,
+            params=params or {},
+        )
+
+    def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
+        rate = self.rate.sample(seed.child("rate"))
+        modulation = Modulation(
+            kind="michaelis",
+            Vmax=self.Vmax.sample(seed.child("Vmax")),
+            K=self.K.sample(seed.child("K")),
+        )
+        return _modulator_fragment(self.ports, self.modifier_port, bound, {}, rate, modulation, ns)
+
+
+@dataclass(frozen=True)
+class CooperativeBindingBlock(SkeletonBlock):
+    """SIGNALING (cooperative config): ONE ``in -> out`` reaction, its rate
+    scaled by a Hill-form ``"hill"`` ``modifier`` — ``Vmax * [modifier]**n /
+    (K**n + [modifier]**n)``. Higher cooperativity ``n`` sharpens the response
+    into a step around ``K`` (vs the hyperbolic response at ``n=1``, the
+    :class:`EnzymeBlock` degenerate case).
+    """
+
+    rate: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    Vmax: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    K: Dist[float] = field(default_factory=lambda: Constant(1.0))
+    n: Dist[float] = field(default_factory=lambda: Constant(2.0))
+    modifier_port: str = "modifier"
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        in_port: str = "in",
+        out_port: str = "out",
+        modifier_port: str = "modifier",
+        container: Optional[NodeId] = None,
+        rate: Optional[Dist[float]] = None,
+        Vmax: Optional[Dist[float]] = None,
+        K: Optional[Dist[float]] = None,
+        n: Optional[Dist[float]] = None,
+        params: Optional[Tags] = None,
+    ) -> "CooperativeBindingBlock":
+        return cls(
+            name=name,
+            role=Role.SIGNALING,
+            ports=(
+                Port(in_port, container, PortDir.IN),
+                Port(out_port, container, PortDir.OUT),
+                Port(modifier_port, container, PortDir.IN),
+            ),
+            rate=rate if rate is not None else Constant(1.0),
+            Vmax=Vmax if Vmax is not None else Constant(1.0),
+            K=K if K is not None else Constant(1.0),
+            n=n if n is not None else Constant(2.0),
+            modifier_port=modifier_port,
+            params=params or {},
+        )
+
+    def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
+        rate = self.rate.sample(seed.child("rate"))
+        modulation = Modulation(
+            kind="hill",
+            Vmax=self.Vmax.sample(seed.child("Vmax")),
+            K=self.K.sample(seed.child("K")),
+            n=self.n.sample(seed.child("n")),
+        )
+        return _modulator_fragment(self.ports, self.modifier_port, bound, {}, rate, modulation, ns)

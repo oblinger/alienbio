@@ -24,10 +24,11 @@ class Modulation:
 
     Ship-now form is LINEAR (F015 Q1): an ``"activator"`` (param ``a``) scales the rate
     up via ``(1 + a * [modifier])``; an ``"inhibitor"`` (param ``Ki``) scales it down via
-    dividing by ``(1 + [modifier] / Ki)``. Any other ``kind`` (including the label-only
-    default ``""``) is rate-inert — a pure documentation tag, contributing a factor of
-    exactly ``1.0``. Non-linear kinds (``"michaelis"``, ``"hill"``) are future branches at
-    the same seam (``WorldSimulatorImpl._modulation_factor``); do not add them here yet.
+    dividing by ``(1 + [modifier] / Ki)``. Two saturable kinds (M38.3): ``"michaelis"``
+    (params ``Vmax``/``K``) and ``"hill"`` (additionally ``n``) — see the field docs
+    below and ``WorldSimulatorImpl._modulation_factor``. Any other ``kind`` (including
+    the label-only default ``""``) is rate-inert — a pure documentation tag,
+    contributing a factor of exactly ``1.0``.
 
     Frozen + a pure function of the frozen start-of-step state elsewhere (F015 Q4): this
     dataclass only carries the parameters, it has no simulation behavior of its own.
@@ -36,6 +37,15 @@ class Modulation:
     kind: str = ""
     a: Optional[float] = None
     Ki: Optional[float] = None
+    #: Saturable-kind params (F015 M38.3): ``"michaelis"`` uses ``Vmax``/``K``
+    #: (``Vmax * [modifier] / (K + [modifier])``); ``"hill"`` additionally uses
+    #: the cooperativity exponent ``n`` (``Vmax * [modifier]**n / (K**n +
+    #: [modifier]**n)``). Both are keyed off the MODIFIER's own concentration,
+    #: same as the linear ``a``/``Ki`` kinds — see
+    #: ``WorldSimulatorImpl._modulation_factor``.
+    Vmax: Optional[float] = None
+    K: Optional[float] = None
+    n: Optional[float] = None
 
     @classmethod
     def from_value(cls, value: "Union[Modulation, str]") -> "Modulation":
@@ -57,6 +67,12 @@ class Modulation:
             result["a"] = self.a
         if self.Ki is not None:
             result["Ki"] = self.Ki
+        if self.Vmax is not None:
+            result["Vmax"] = self.Vmax
+        if self.K is not None:
+            result["K"] = self.K
+        if self.n is not None:
+            result["n"] = self.n
         return result
 
 

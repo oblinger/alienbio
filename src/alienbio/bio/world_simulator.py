@@ -214,23 +214,48 @@ class WorldSimulatorImpl:
     ) -> float:
         """Dimensionless rate-modulation factor from non-consumed modifier species.
 
-        Ship-now LINEAR form (F015 Q1): each ``"activator"`` (param ``a``) multiplies the
+        LINEAR form (F015 Q1): each ``"activator"`` (param ``a``) multiplies the
         numerator by ``(1 + a * [modifier])``; each ``"inhibitor"`` (param ``Ki``)
         multiplies the denominator by ``(1 + [modifier] / Ki)`` — one modifier of each kind
-        reduces to ``(1 + a*[A]) / (1 + [I]/Ki)``. Any other kind (including the label-only
-        default) is inert. Non-linear kinds (``"michaelis"``, ``"hill"``) are trivial future
-        branches here. Pure function of the FROZEN start-of-step state (F015 Q4): deterministic,
-        order-independent (H4).
+        reduces to ``(1 + a*[A]) / (1 + [I]/Ki)``.
+
+        SATURABLE forms (M38.3), each an independent multiplicative term keyed off the
+        modifier's own concentration (same convention as the linear kinds above):
+        ``"michaelis"`` contributes ``Vmax * [modifier] / (K + [modifier])`` (hyperbolic
+        saturation, the pattern-block seam for ``EnzymeBlock``); ``"hill"`` contributes
+        ``Vmax * [modifier]**n / (K**n + [modifier]**n)`` (cooperative/sigmoidal, the seam
+        for ``CooperativeBindingBlock``). A zero denominator (``K == 0`` and ``[modifier]
+        == 0``) contributes ``0.0`` rather than raising.
+
+        Any other kind (including the label-only default) is inert. Pure function of the
+        FROZEN start-of-step state (F015 Q4): deterministic, order-independent (H4).
         """
         numerator = 1.0
         denominator = 1.0
+        saturable = 1.0
         for mol_id, modulation in modulators.items():
             conc = frozen.get(compartment, mol_id)
             if modulation.kind == "activator" and modulation.a is not None:
                 numerator *= 1.0 + modulation.a * conc
             elif modulation.kind == "inhibitor" and modulation.Ki is not None:
                 denominator *= 1.0 + conc / modulation.Ki
-        return numerator / denominator
+            elif (
+                modulation.kind == "michaelis"
+                and modulation.Vmax is not None
+                and modulation.K is not None
+            ):
+                denom = modulation.K + conc
+                saturable *= (modulation.Vmax * conc / denom) if denom > 0.0 else 0.0
+            elif (
+                modulation.kind == "hill"
+                and modulation.Vmax is not None
+                and modulation.K is not None
+                and modulation.n is not None
+            ):
+                conc_n = conc ** modulation.n
+                denom = modulation.K ** modulation.n + conc_n
+                saturable *= (modulation.Vmax * conc_n / denom) if denom > 0.0 else 0.0
+        return saturable * numerator / denominator
 
     def _apply_reactions(
         self,
