@@ -79,6 +79,12 @@ class TrialRecord:
     ``objective_score`` is the one exception frozen in eagerly, since it comes
     free from the grader at run time and every ``reliability_grid`` /
     ``effect_size`` aggregation needs it.
+
+    ``terminal_reason`` (F021, Q3 = B) is why the run stopped: ``"committed"``
+    / ``"budget_exceeded"`` / ``"max_turns"`` for a record built by
+    ``suite.runner.run``. It defaults to ``""`` (not recorded) so every
+    existing hand-built fixture (this module's own tests included)
+    constructs unchanged.
     """
 
     task_id: str
@@ -87,6 +93,7 @@ class TrialRecord:
     deliberation_trace: DeliberationTrace
     action_log: tuple[ActionRecord, ...]
     objective_score: float
+    terminal_reason: str = ""
 
     @cached_property
     def deliberation_depth(self) -> int:

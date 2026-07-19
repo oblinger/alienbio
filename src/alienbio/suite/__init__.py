@@ -52,6 +52,7 @@ from .observation import (
     add_measurement_noise,
     choose_hidden,
     full_observation,
+    narrow_observation,
     project_observation,
 )
 from .score_divergence import final_state_distance, normalized_divergence
@@ -75,6 +76,7 @@ from .agent import (
     WaitUntil,
 )
 from .trial import TrialRecord, condition_key, thread_reasoning_steps
+from .runner import run
 from .score_surfacing import (
     coverage_at_budget,
     is_monotone_coverage,
@@ -273,6 +275,7 @@ __all__ = [
     "choose_hidden",
     "project_observation",
     "add_measurement_noise",
+    "narrow_observation",
     # M33.10 divergence scorer (wave 2)
     "final_state_distance",
     "normalized_divergence",
@@ -298,6 +301,8 @@ __all__ = [
     "TrialRecord",
     "condition_key",
     "thread_reasoning_steps",
+    # F021 ScenarioRunner (agent loop, Phase-2 D-spine)
+    "run",
     # M33.4 per-objective surfacing (wave 3)
     "surfacing_depth",
     "surfacing_profile",

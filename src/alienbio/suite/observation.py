@@ -13,6 +13,9 @@ is the pure pipeline turning ground truth into what the agent actually observes:
 - :func:`project_observation` drops the hidden ids (partial observability).
 - :func:`add_measurement_noise` multiplies surviving values by seeded relative
   Gaussian instrument noise (measurement error).
+- :func:`narrow_observation` (F021) composes all three into the one
+  dial-driven entry point ``suite.runner.run`` calls every turn: ground truth
+  in, agent-visible :data:`Observation` out.
 
 Every stochastic step draws from a :class:`~alienbio.suite.dist.Seed`-derived
 ``numpy.random.Generator`` — never the ``random`` module or numpy's global
@@ -21,7 +24,7 @@ state — so identical inputs always yield identical observations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Collection, Sequence, cast
+from typing import TYPE_CHECKING, Any, Collection, Mapping, Sequence, cast
 
 from .dist import Seed
 
@@ -121,3 +124,56 @@ def add_measurement_noise(
         }
         for compartment in obs
     )
+
+
+def narrow_observation(
+    state: "WorldState", dials: Mapping[str, Any], seed: Seed
+) -> Observation:
+    """Ground truth -> agent-visible :data:`Observation`, driven by ``dials``.
+
+    The single shared narrower :func:`~alienbio.suite.runner.run` calls once
+    per turn (single source of truth over :func:`full_observation` /
+    :func:`choose_hidden` / :func:`project_observation` /
+    :func:`add_measurement_noise` — no second copy of this composition).
+
+    Two opaque, independently-optional dials, read straight off ``dials``:
+
+    - ``"observability"`` — fraction of molecule ids VISIBLE, in ``[0.0,
+      1.0]`` (the same convention as the legacy
+      ``agent.session``/``build.visibility`` observability dial: ``1.0`` =
+      fully observable). ``None`` (unset, the default) or ``1.0`` is the
+      identity — no ids hidden. Internally translated to the hidden
+      COMPLEMENT fraction :func:`choose_hidden` expects.
+    - ``"observation_noise"`` — relative Gaussian sigma fed to
+      :func:`add_measurement_noise`. ``None`` or ``0.0`` is the identity.
+
+    Both draws use independent child seeds (``"observability"`` /
+    ``"noise"``) derived from ``seed``, so ``(state, dials, seed)`` always
+    yields the identical narrowed :data:`Observation`. Any other ``dials``
+    entry is opaque and ignored here.
+
+    Raises:
+        ValueError: if ``observability`` is set but ``state`` is not
+            self-describing (no ``molecule_ids`` to hide from).
+    """
+    obs = full_observation(state)
+
+    observability = dials.get("observability")
+    if observability is not None and float(observability) < 1.0:
+        impl = cast("WorldStateImpl", state)
+        mol_ids = impl.molecule_ids
+        if mol_ids is None:
+            raise ValueError(
+                "narrow_observation: observability dial requires a "
+                "self-describing WorldState (molecule_ids); this state is pure-int"
+            )
+        hidden = choose_hidden(
+            mol_ids, 1.0 - float(observability), seed.child("observability")
+        )
+        obs = project_observation(obs, hidden)
+
+    noise = dials.get("observation_noise")
+    if noise:
+        obs = add_measurement_noise(obs, float(noise), seed.child("noise"))
+
+    return obs
