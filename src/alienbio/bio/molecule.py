@@ -25,9 +25,12 @@ class MoleculeImpl(Entity, head="Molecule"):
         name: Human-readable name (e.g., 'glucose', 'water')
         symbol: Chemical formula derived from atoms (e.g., 'C6H12O6', 'H2O')
         molecular_weight: Computed from atom weights
+        formation_energy: Free energy of formation, an opaque assigned scalar (F018);
+            ``None`` means energy-neutral — the molecule books nothing in the energy
+            accounting layer (``bio/energy.py``). Additive/optional, like ``atoms``.
     """
 
-    __slots__ = ("_atoms", "_bdepth", "_name")
+    __slots__ = ("_atoms", "_bdepth", "_name", "_formation_energy")
 
     def __init__(
         self,
@@ -39,6 +42,7 @@ class MoleculeImpl(Entity, head="Molecule"):
         atoms: Optional[Dict[AtomImpl, int]] = None,
         bdepth: int = 0,
         name: Optional[str] = None,
+        formation_energy: Optional[float] = None,
     ) -> None:
         """Initialize a molecule.
 
@@ -50,11 +54,15 @@ class MoleculeImpl(Entity, head="Molecule"):
             atoms: Atom composition as {AtomImpl: count}
             bdepth: Biosynthetic depth (0 = primitive)
             name: Human-readable name (defaults to local_name)
+            formation_energy: Free energy of formation (F018), an opaque assigned
+                scalar. ``None`` (default) means energy-neutral — backward-compatible
+                with every existing caller that doesn't pass it.
         """
         super().__init__(local_name, parent=parent, dat=dat, description=description)
         self._atoms: Dict[AtomImpl, int] = atoms.copy() if atoms else {}
         self._bdepth = bdepth
         self._name = name if name is not None else local_name
+        self._formation_energy = formation_energy
 
     @classmethod
     def hydrate(
@@ -90,6 +98,7 @@ class MoleculeImpl(Entity, head="Molecule"):
             dat=dat,
             description=data.get("description", ""),
             bdepth=data.get("bdepth", 0),
+            formation_energy=data.get("formation_energy"),
             # atoms not hydrated here - would need atom registry
         )
 
@@ -102,6 +111,11 @@ class MoleculeImpl(Entity, head="Molecule"):
     def bdepth(self) -> int:
         """Biosynthetic depth (0 = primitive, 4+ = complex)."""
         return self._bdepth
+
+    @property
+    def formation_energy(self) -> Optional[float]:
+        """Free energy of formation (F018), or ``None`` if energy-neutral."""
+        return self._formation_energy
 
     @property
     def name(self) -> str:
@@ -157,6 +171,8 @@ class MoleculeImpl(Entity, head="Molecule"):
             result["atoms"] = {atom.symbol: count for atom, count in self._atoms.items()}
         if self._bdepth != 0:
             result["bdepth"] = self._bdepth
+        if self._formation_energy is not None:
+            result["formation_energy"] = self._formation_energy
         if self._name != self._local_name:
             result["display_name"] = self._name
         return result
@@ -170,6 +186,8 @@ class MoleculeImpl(Entity, head="Molecule"):
             parts.append(f"symbol={self.symbol!r}")
         if self._bdepth != 0:
             parts.append(f"bdepth={self._bdepth}")
+        if self._formation_energy is not None:
+            parts.append(f"formation_energy={self._formation_energy}")
         if self.description:
             parts.append(f"description={self.description!r}")
         return f"MoleculeImpl({', '.join(parts)})"
