@@ -17,7 +17,7 @@ from alienbio.suite.arch_diagnose import (
 from alienbio.suite.dist import Seed
 from alienbio.suite.grade import grade_answer
 from alienbio.suite.render import Vocabulary, parse, render
-from alienbio.suite.types import Skeleton, TaskArchetype
+from alienbio.suite.types import CarveResult, TaskArchetype
 
 
 def _vocab(world) -> Vocabulary:
@@ -102,7 +102,7 @@ def test_target_selection_is_seed_deterministic() -> None:
 
 def test_draft_produces_directly_built_one_role_skeleton() -> None:
     world, skeleton = draft_diagnosis_world(Seed(0), n_nodes=4)
-    assert isinstance(skeleton, Skeleton)
+    assert isinstance(skeleton, CarveResult)
     assert tuple(r.name for r in skeleton.motif.roles) == ("target",)
     assert skeleton.motif.roles[0].type_tag == "perturbed_node"
     # Constructed directly — no carve, so no synthesized nodes / removals.

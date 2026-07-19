@@ -30,10 +30,10 @@ from .grade import grade_answer, grade_outcome
 from .render import parse, render
 from .types import (
     AnswerObjective,
+    CarveResult,
     Motif,
     Objective,
     Question,
-    Skeleton,
     Suite,
     SuiteSpec,
     TaskArchetype,
@@ -102,7 +102,7 @@ def draft_world(
     return WorldImpl(chem, (comp,))
 
 
-def _carve_or_raise(chem, motif: Motif, seed: Seed) -> Skeleton:
+def _carve_or_raise(chem, motif: Motif, seed: Seed) -> CarveResult:
     """Carve ``motif`` into ``chem`` or raise with the failure reason."""
     result = carve(chem, motif, seed)
     if isinstance(result, CarveFail):
@@ -257,7 +257,7 @@ def _resolve_objective(
     i: int,
     archetype: TaskArchetype,
     recipe,
-    skeleton: Skeleton,
+    skeleton: CarveResult,
     world: WorldImpl,
     drafted_objective: Optional[Objective],
 ) -> Objective:

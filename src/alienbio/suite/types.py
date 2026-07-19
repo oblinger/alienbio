@@ -99,7 +99,7 @@ class Motif:
 
 
 @dataclass(frozen=True)
-class Skeleton:
+class CarveResult:
     """A concrete binding of a motif's roles to host nodes, plus edits."""
 
     motif: Motif
@@ -206,18 +206,18 @@ Objective = Union[AnswerObjective, OutcomeObjective]
 
 
 #: A generator-based world drafter: given a seed, returns a hosted world, a
-#: directly-constructed :class:`Skeleton` (ground truth by *generation choice* —
+#: directly-constructed :class:`CarveResult` (ground truth by *generation choice* —
 #: no carve), and optionally a pre-built :class:`Objective`. Outcome archetypes
 #: build their own per-world scorer and return it here; answer archetypes return
 #: ``None`` and let the pipeline build an :class:`AnswerObjective` from the
 #: recipe's skeleton-read key. This is the seam that lets ``build_suite``
 #: materialize archetypes whose ground truth is *chosen* (diagnose / predict /
 #: intervene) alongside those whose ground truth is *carved* (identify_pathway).
-Drafter = Callable[[Seed], tuple["WorldImpl", Skeleton, Optional[Objective]]]
+Drafter = Callable[[Seed], tuple["WorldImpl", CarveResult, Optional[Objective]]]
 
 
 class ObjectiveRecipe(Protocol):
-    """Turns a carved :class:`Skeleton` into a task's ``Question`` + ``Objective``.
+    """Turns a carved :class:`CarveResult` into a task's ``Question`` + ``Objective``.
 
     Named by the architecture (:doc:`Suite Construction Data Model` —
     ``TaskArchetype.recipe: ObjectiveRecipe``) but never defined in code until
@@ -230,16 +230,16 @@ class ObjectiveRecipe(Protocol):
     **off the skeleton by construction** — we hold the answer because we built it.
     """
 
-    def build_question(self, skeleton: Skeleton, world: WorldImpl) -> Question:
+    def build_question(self, skeleton: CarveResult, world: WorldImpl) -> Question:
         """Emit the structured, opaque question (``kind`` matches FT08 render kinds)."""
         ...
 
-    def build_key(self, skeleton: Skeleton, world: WorldImpl) -> Answer:
+    def build_key(self, skeleton: CarveResult, world: WorldImpl) -> Answer:
         """Read the ground-truth answer off the skeleton by construction."""
         ...
 
     def build_distractors(
-        self, skeleton: Skeleton, world: WorldImpl, seed: Seed
+        self, skeleton: CarveResult, world: WorldImpl, seed: Seed
     ) -> tuple[Answer, ...]:
         """Plausible near-miss answers (for MC framings / incorrect-answer generation)."""
         ...
@@ -285,7 +285,7 @@ class TaskInstance:
 
     archetype: str
     world: str
-    skeleton: Skeleton
+    skeleton: CarveResult
     objective: Objective
     question: Question
     setup: Any

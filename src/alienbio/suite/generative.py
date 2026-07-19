@@ -2,7 +2,7 @@
 
 The M29 task families (``diagnose_perturbation``, ``predict_response``,
 ``design_intervention``) choose their ground truth by *generation* — a drafter
-constructs a :class:`~alienbio.suite.types.Skeleton` directly (binding a role to
+constructs a :class:`~alienbio.suite.types.CarveResult` directly (binding a role to
 a chosen node) rather than carving a motif out of a host. Their bare factories
 (in ``arch_diagnose`` / ``arch_predict`` / ``arch_intervene``) build the
 *recipe + motif* but not the drafter, so they run only in isolation.
@@ -41,7 +41,7 @@ from .arch_predict import (
     predict_response,
 )
 from .dist import Seed
-from .types import Objective, Skeleton, TaskArchetype
+from .types import CarveResult, Objective, TaskArchetype
 from .verify import SimConfig
 from ..bio.world import WorldImpl
 
@@ -59,7 +59,7 @@ def generative_diagnose(
 
     base = diagnose_perturbation(n_nodes=n_nodes)
 
-    def drafter(seed: Seed) -> tuple[WorldImpl, Skeleton, Optional[Objective]]:
+    def drafter(seed: Seed) -> tuple[WorldImpl, CarveResult, Optional[Objective]]:
         world, skeleton = draft_diagnosis_world(
             seed, n_nodes=n_nodes, distractor_count=distractor_count
         )
@@ -86,7 +86,7 @@ def generative_predict(
     target_id = f"m{n_nodes - 1}"  # the terminal sink
     base = predict_response(reaction_id, target_id, factor=factor)
 
-    def drafter(seed: Seed) -> tuple[WorldImpl, Skeleton, Optional[Objective]]:
+    def drafter(seed: Seed) -> tuple[WorldImpl, CarveResult, Optional[Objective]]:
         world, skeleton, drafted_reaction_id = draft_prediction_world(
             seed, n_nodes=n_nodes, factor=factor
         )
@@ -119,7 +119,7 @@ def generative_intervene(
         target_value=target_value if target_value is not None else 0.0
     )
 
-    def drafter(seed: Seed) -> tuple[WorldImpl, Skeleton, Optional[Objective]]:
+    def drafter(seed: Seed) -> tuple[WorldImpl, CarveResult, Optional[Objective]]:
         world, skeleton, (target_id, goal) = draft_intervention_world(
             seed, n_nodes=n_nodes, target_value=target_value, sim_cfg=sim_cfg
         )

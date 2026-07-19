@@ -9,7 +9,7 @@ first, ``identify_pathway`` — the template for the rest — per the M27 design
 
 The recipe is **skeleton-first**: because the pipeline carves the motif into the
 world and *then* asks the question, the ground-truth key is read off the carved
-:class:`Skeleton` by construction — we hold the answer because we built the
+:class:`CarveResult` by construction — we hold the answer because we built the
 structure. The engines only ever *invoke* a recipe; they never inspect it.
 """
 
@@ -24,10 +24,10 @@ from .types import (
     FeatureSet,
     GraderSpec,
     Motif,
+    CarveResult,
     Predicate,
     Question,
     RoleSlot,
-    Skeleton,
     TaskArchetype,
 )
 
@@ -55,7 +55,7 @@ class IdentifyPathwayRecipe:
     """Recipe for ``identify_pathway``: recover a hidden linear chain.
 
     Holds the ordered role names of the chain (``r0 … r_{n-1}``); every method
-    reads the concrete answer off the carved ``Skeleton.binding`` — which maps
+    reads the concrete answer off the carved ``CarveResult.binding`` — which maps
     each role name to the host node it was bound to — so the key is correct by
     construction. Question kind and answer kind are both ``ordered_path``: the
     question renders the chain's *endpoints*, the answer the *full ordered chain*.
@@ -64,22 +64,22 @@ class IdentifyPathwayRecipe:
     role_names: tuple[str, ...]
     verb: str = "identify"
 
-    def _path(self, skeleton: Skeleton) -> list[str]:
+    def _path(self, skeleton: CarveResult) -> list[str]:
         """The ordered host-node chain the carve bound this motif's roles to."""
         return [skeleton.binding[name] for name in self.role_names]
 
-    def build_question(self, skeleton: Skeleton, world: "WorldImpl") -> Question:
+    def build_question(self, skeleton: CarveResult, world: "WorldImpl") -> Question:
         """The chain's endpoints (start, end) as an ``ordered_path`` question."""
         path = self._path(skeleton)
         endpoints = [path[0], path[-1]]
         return Question(structured=endpoints, kind="ordered_path")
 
-    def build_key(self, skeleton: Skeleton, world: "WorldImpl") -> Answer:
+    def build_key(self, skeleton: CarveResult, world: "WorldImpl") -> Answer:
         """The full ordered chain — read off the skeleton by construction."""
         return Answer(value=self._path(skeleton), kind="ordered_path")
 
     def build_distractors(
-        self, skeleton: Skeleton, world: "WorldImpl", seed: Seed
+        self, skeleton: CarveResult, world: "WorldImpl", seed: Seed
     ) -> tuple[Answer, ...]:
         """Plausible near-miss paths: an interior swap and the reversed chain.
 

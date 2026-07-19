@@ -130,6 +130,7 @@ from .dist import (
 from .types import (
     Answer,
     AnswerObjective,
+    CarveResult,
     Difficulty,
     Directive,
     FeatureSet,
@@ -145,7 +146,6 @@ from .types import (
     Renderable,
     RoleSlot,
     ScriptedOp,
-    Skeleton,
     Suite,
     SuiteSpec,
     Tags,
@@ -176,7 +176,7 @@ __all__ = [
     # L3
     "RoleSlot",
     "Motif",
-    "Skeleton",
+    "CarveResult",
     # L4
     "Directive",
     "Op",

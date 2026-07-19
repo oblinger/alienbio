@@ -25,7 +25,7 @@ molecule<->reaction edges still realize as reactant/product incidence.
 Two operations:
 - :func:`carve` — find a reuse-maximal, injective, predicate-gated embedding of a motif
   into a host, synthesizing the minimum number of new nodes when (and only when) a role
-  has no working host candidate. Returns a :class:`~alienbio.suite.types.Skeleton` or a
+  has no working host candidate. Returns a :class:`~alienbio.suite.types.CarveResult` or a
   :class:`CarveFail`.
 - :func:`splice` — deterministically reconstruct the host with a skeleton's edits applied
   (synthesized nodes created, motif edges realized, removed nodes dropped).
@@ -48,9 +48,9 @@ from ..bio.molecule import MoleculeImpl
 from ..bio.reaction import ReactionImpl
 from .dist import Seed
 from .types import (
+    CarveResult,
     Motif,
     NodeId,
-    Skeleton,
 )
 
 
@@ -102,7 +102,7 @@ def carve(
     motif: Motif,
     seed: Seed = Seed(0),
     allow_add: bool = True,
-) -> Skeleton | CarveFail:
+) -> CarveResult | CarveFail:
     """Embed ``motif`` into ``host``, reusing host nodes maximally.
 
     For each role, candidates are the existing host nodes passing every constraint
@@ -113,7 +113,7 @@ def carve(
     equivalently fewest synthesized) is chosen deterministically; ``seed`` only
     breaks ties among equal-quality embeddings.
 
-    Returns a :class:`~alienbio.suite.types.Skeleton` (with ``added`` listing the
+    Returns a :class:`~alienbio.suite.types.CarveResult` (with ``added`` listing the
     synthesized node ids, sorted) or a :class:`CarveFail` when no embedding exists
     (e.g. a role has no candidate and ``allow_add`` is False).
     """
@@ -209,7 +209,7 @@ def carve(
     binding = chosen[2]
     synth_roles = chosen[3]
     added = tuple(sorted(f"{name}#new" for name in synth_roles))
-    return Skeleton(motif=motif, binding=binding, added=added, removed=())
+    return CarveResult(motif=motif, binding=binding, added=added, removed=())
 
 
 def _rebuild(
@@ -227,7 +227,7 @@ def _rebuild(
     )
 
 
-def splice(host: ChemistryImpl, skeleton: Skeleton) -> ChemistryImpl:
+def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
     """Return a new host with ``skeleton``'s edits applied (deterministic).
 
     Creates each synthesized node (an atom-free :class:`~alienbio.bio.molecule.MoleculeImpl`

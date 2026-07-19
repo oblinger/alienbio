@@ -5,7 +5,7 @@ a small reaction network in which exactly one molecule has been perturbed, name
 that molecule from the candidate set. Unlike ``identify_pathway`` (whose ground
 truth is *recovered* by carving a hidden motif out of an authored host), this
 archetype's ground truth is a **generation choice** — we *pick* the perturbed
-node when drafting the world. So the drafter constructs the :class:`Skeleton`
+node when drafting the world. So the drafter constructs the :class:`CarveResult`
 directly with a hand-built binding rather than carving: a recipe never inspects
 how a binding arose, so a directly-built one is indistinguishable from a carved
 one to every downstream engine.
@@ -30,10 +30,10 @@ from .types import (
     Answer,
     FeatureSet,
     GraderSpec,
+    CarveResult,
     Motif,
     Question,
     RoleSlot,
-    Skeleton,
     TaskArchetype,
 )
 
@@ -62,13 +62,13 @@ def draft_diagnosis_world(
     *,
     n_nodes: int = 4,
     distractor_count: int = 0,
-) -> tuple[WorldImpl, Skeleton]:
+) -> tuple[WorldImpl, CarveResult]:
     """Draft a small reaction network and *choose* one molecule as perturbed.
 
     Builds ``n_nodes`` molecules ``m0 … m_{n-1}`` chained by ``n_nodes - 1``
     unidirectional reactions, plus ``distractor_count`` off-chain molecules
     ``d0 …`` (extra candidates that widen the answer set). One molecule is picked
-    as the perturbed ``target`` seed-deterministically, and a :class:`Skeleton` is
+    as the perturbed ``target`` seed-deterministically, and a :class:`CarveResult` is
     **constructed directly** (never carved) binding the sole ``target`` role to
     that molecule id.
 
@@ -121,7 +121,7 @@ def draft_diagnosis_world(
         name=TARGET_ROLE, type_tag=PERTURBED_TAG, constraints=(_is_molecule,)
     )
     motif = Motif(roles=(role,), edges=())
-    skeleton = Skeleton(motif=motif, binding={TARGET_ROLE: target_id})
+    skeleton = CarveResult(motif=motif, binding={TARGET_ROLE: target_id})
     return world, skeleton
 
 
@@ -139,7 +139,7 @@ class DiagnosePerturbationRecipe:
     target_role: str = TARGET_ROLE
     verb: str = "diagnose"
 
-    def build_question(self, skeleton: Skeleton, world: WorldImpl) -> Question:
+    def build_question(self, skeleton: CarveResult, world: WorldImpl) -> Question:
         """The candidate set — every molecule id — as a ``node_set`` question.
 
         ``node_set`` payloads are sets: ``parse`` returns a set, so a list here
@@ -147,12 +147,12 @@ class DiagnosePerturbationRecipe:
         """
         return Question(structured=set(world.chemistry.molecules), kind="node_set")
 
-    def build_key(self, skeleton: Skeleton, world: WorldImpl) -> Answer:
+    def build_key(self, skeleton: CarveResult, world: WorldImpl) -> Answer:
         """The perturbed node — read off the skeleton binding by construction."""
         return Answer(value=skeleton.binding[self.target_role], kind="node_id")
 
     def build_distractors(
-        self, skeleton: Skeleton, world: WorldImpl, seed: Seed
+        self, skeleton: CarveResult, world: WorldImpl, seed: Seed
     ) -> tuple[Answer, ...]:
         """Every other molecule id as a near-miss ``node_id`` distractor.
 

@@ -12,7 +12,7 @@ The pieces are deliberately separable so an integration layer can wire them
 either way:
 
 - :func:`draft_intervention_world` builds a host network and CHOOSES the ground
-  truth directly — it constructs the :class:`Skeleton` by hand (binding the
+  truth directly — it constructs the :class:`CarveResult` by hand (binding the
   ``target`` role to a real molecule id) rather than carving, then returns the
   ``(target_molecule_id, target_value)`` goal. The ``target_value`` defaults to
   the concentration the target naturally reaches, so the objective is coherent
@@ -48,13 +48,13 @@ from ..infra.mk import mk
 from .dist import Seed
 from .types import (
     Answer,
+    CarveResult,
     FeatureSet,
     GraderSpec,
     Motif,
     OutcomeObjective,
     Question,
     RoleSlot,
-    Skeleton,
     TaskArchetype,
     Timeline,
 )
@@ -160,7 +160,7 @@ def make_intervention_objective(
 class DesignInterventionRecipe:
     """Recipe for ``design_intervention``: drive the target to its goal.
 
-    Skeleton-first like the pathway recipe — the target molecule id is read off
+    CarveResult-first like the pathway recipe — the target molecule id is read off
     ``skeleton.binding[role_name]`` by construction (we bound it, so we hold it).
     ``target_value`` is the goal concentration (a dial parameter, not a graded
     key). Because the task is outcome-scored:
@@ -178,11 +178,11 @@ class DesignInterventionRecipe:
     role_name: str = TARGET_ROLE
     verb: str = "intervene"
 
-    def _target_id(self, skeleton: Skeleton) -> str:
+    def _target_id(self, skeleton: CarveResult) -> str:
         """The target molecule id — read off the skeleton by construction."""
         return skeleton.binding[self.role_name]
 
-    def build_question(self, skeleton: Skeleton, world: WorldImpl) -> Question:
+    def build_question(self, skeleton: CarveResult, world: WorldImpl) -> Question:
         """The target molecule as a single-element ``node_set`` question.
 
         A set, not a list — ``parse`` returns a set, so the pipeline round-trip
@@ -190,12 +190,12 @@ class DesignInterventionRecipe:
         """
         return Question(structured={self._target_id(skeleton)}, kind="node_set")
 
-    def build_key(self, skeleton: Skeleton, world: WorldImpl) -> Answer:
+    def build_key(self, skeleton: CarveResult, world: WorldImpl) -> Answer:
         """Trivial key (the scalar target) — outcome tasks grade via the scorer."""
         return Answer(value=self.target_value, kind="scalar")
 
     def build_distractors(
-        self, skeleton: Skeleton, world: WorldImpl, seed: Seed
+        self, skeleton: CarveResult, world: WorldImpl, seed: Seed
     ) -> tuple[Answer, ...]:
         """No distractors: an outcome task has no multiple-choice framing."""
         return ()
@@ -233,7 +233,7 @@ def draft_intervention_world(
     n_nodes: int = 4,
     target_value: Optional[float] = None,
     sim_cfg: SimConfig = SimConfig(),
-) -> tuple[WorldImpl, Skeleton, tuple[str, float]]:
+) -> tuple[WorldImpl, CarveResult, tuple[str, float]]:
     """Draft an intervention world + hand-built skeleton + ``(target_id, goal)``.
 
     Builds a linear reaction chain ``m0 -> m1 -> … -> m_{n-1}`` (``n = n_nodes``,
@@ -242,7 +242,7 @@ def draft_intervention_world(
     (the dynamics), leaving the molecular structure — and therefore the chosen
     target id — seed-invariant; the world is deterministic in ``seed``.
 
-    Ground truth is CHOSEN directly, not carved: the returned :class:`Skeleton`
+    Ground truth is CHOSEN directly, not carved: the returned :class:`CarveResult`
     binds the ``target`` role straight to the sink molecule id (verified to be a
     real molecule, never a reaction node). ``target_value`` defaults to the
     concentration the target naturally reaches under :func:`simulate` — so the
@@ -298,7 +298,7 @@ def draft_intervention_world(
         baseline = simulate(world, sim_cfg, seed.child("draft-sim"))
         target_value = _final_concentration(baseline, target_mol_id)
 
-    skeleton = Skeleton(
+    skeleton = CarveResult(
         motif=_intervention_motif(),
         binding={TARGET_ROLE: target_mol_id},
     )

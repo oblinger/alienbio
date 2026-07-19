@@ -1,7 +1,7 @@
 """Tests for M27.1 — the ``identify_pathway`` archetype + its recipe.
 
 The load-bearing property is **skeleton-first key derivation**: given a carved
-``Skeleton`` binding the chain roles to host nodes, the recipe reads the correct
+``CarveResult`` binding the chain roles to host nodes, the recipe reads the correct
 ordered path off the binding by construction, and the grader self-scores it 1.0.
 """
 
@@ -16,11 +16,11 @@ from alienbio.suite.archetypes import (
 )
 from alienbio.suite.dist import Seed
 from alienbio.suite.grade import grade_answer
-from alienbio.suite.types import Motif, Skeleton
+from alienbio.suite.types import CarveResult, Motif
 
 
-def _skeleton(role_to_node: dict[str, str], motif: Motif) -> Skeleton:
-    return Skeleton(motif=motif, binding=role_to_node)
+def _skeleton(role_to_node: dict[str, str], motif: Motif) -> CarveResult:
+    return CarveResult(motif=motif, binding=role_to_node)
 
 
 def test_identify_pathway_builds_a_chain_motif():

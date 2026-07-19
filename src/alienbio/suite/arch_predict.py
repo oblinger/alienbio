@@ -11,7 +11,7 @@ the baseline world and the perturbed world and comparing the target's final
 concentration. The response is therefore correct by construction — it is the
 observed outcome of the exact simulation, recomputed deterministically.
 
-The drafter constructs the :class:`Skeleton` directly (never carves): a recipe
+The drafter constructs the :class:`CarveResult` directly (never carves): a recipe
 never inspects how a binding arose. The binding records the *structural* facts
 of the task — ``binding['perturbed']`` (the perturbed reaction id) and
 ``binding['target']`` (the molecule whose response is predicted). The response
@@ -42,10 +42,10 @@ from .types import (
     Answer,
     FeatureSet,
     GraderSpec,
+    CarveResult,
     Motif,
     Question,
     RoleSlot,
-    Skeleton,
     TaskArchetype,
 )
 from .verify import SimConfig, simulate
@@ -129,7 +129,7 @@ def draft_prediction_world(
     *,
     n_nodes: int = 4,
     factor: float = DEFAULT_FACTOR,
-) -> tuple[WorldImpl, Skeleton, str]:
+) -> tuple[WorldImpl, CarveResult, str]:
     """Draft a chain network and fix a perturbation target reaction + target molecule.
 
     Builds ``n_nodes`` molecules ``m0 … m_{n-1}`` chained by ``n_nodes - 1``
@@ -193,7 +193,7 @@ def draft_prediction_world(
         name=TARGET_ROLE, type_tag="response_target", constraints=(_is_molecule,)
     )
     motif = Motif(roles=(perturbed_role, target_role), edges=())
-    skeleton = Skeleton(
+    skeleton = CarveResult(
         motif=motif, binding={PERTURBED_ROLE: reaction_id, TARGET_ROLE: target_id}
     )
     return world, skeleton, reaction_id
@@ -219,7 +219,7 @@ class PredictResponseRecipe:
     seed: Seed = field(default_factory=lambda: Seed(0))
     tol: float = DEFAULT_TOL
 
-    def build_question(self, skeleton: Skeleton, world: WorldImpl) -> Question:
+    def build_question(self, skeleton: CarveResult, world: WorldImpl) -> Question:
         """What was perturbed + what to predict, as a ``node_set`` question.
 
         The two structural facts (perturbed reaction id, target molecule id) as a
@@ -230,7 +230,7 @@ class PredictResponseRecipe:
             structured={self.reaction_id, self.target_id}, kind="node_set"
         )
 
-    def build_key(self, skeleton: Skeleton, world: WorldImpl) -> Answer:
+    def build_key(self, skeleton: CarveResult, world: WorldImpl) -> Answer:
         """The simulated response token — computed from real physics by construction."""
         token = predicted_response(
             world,
@@ -244,7 +244,7 @@ class PredictResponseRecipe:
         return Answer(value=token, kind="node_id")
 
     def build_distractors(
-        self, skeleton: Skeleton, world: WorldImpl, seed: Seed
+        self, skeleton: CarveResult, world: WorldImpl, seed: Seed
     ) -> tuple[Answer, ...]:
         """The other two response tokens as ``node_id`` distractors.
 

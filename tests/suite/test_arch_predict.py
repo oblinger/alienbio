@@ -23,7 +23,7 @@ from alienbio.suite.arch_predict import (
 from alienbio.suite.dist import Seed
 from alienbio.suite.grade import grade_answer
 from alienbio.suite.render import Vocabulary, parse, render
-from alienbio.suite.types import Skeleton, TaskArchetype
+from alienbio.suite.types import CarveResult, TaskArchetype
 
 # The verb template the orchestrator will splice into render._VERB_TEMPLATES at
 # integration; register it here so the verb-framed question round-trip is exercised
@@ -166,7 +166,7 @@ def test_binding_records_reaction_and_molecule_not_swapped() -> None:
 def test_draft_produces_directly_built_two_role_skeleton() -> None:
     world, skeleton, _ = draft_prediction_world(Seed(0), n_nodes=4)
     del world
-    assert isinstance(skeleton, Skeleton)
+    assert isinstance(skeleton, CarveResult)
     assert set(r.name for r in skeleton.motif.roles) == {"perturbed", "target"}
     assert skeleton.added == ()
     assert skeleton.removed == ()

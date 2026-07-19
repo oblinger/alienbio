@@ -58,7 +58,7 @@ def test_generative_diagnose_materializes_green():
         assert obj.key.value in world.chemistry.molecules
         assert obj.key.value not in world.chemistry.reactions
         assert grade_answer(obj.key, obj.key, obj.grader) == 1.0
-        # Skeleton was constructed directly — no carve edits.
+        # CarveResult was constructed directly — no carve edits.
         assert t.skeleton.added == () and t.skeleton.removed == ()
 
 
