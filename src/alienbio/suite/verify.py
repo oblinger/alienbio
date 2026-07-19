@@ -103,9 +103,15 @@ def simulate(
     #    with the molecule order from_chemistry uses (chemistry.molecules.keys()),
     #    so the state indices already align with the simulator's. ``flow_objs``
     #    is the int-resolved, simulator-ready form of ``world.flows`` (F016/S3);
-    #    it defaults to empty, so a non-transport world is byte-identical.
+    #    ``population_law_objs`` is the same for ``world.population_laws`` (F017).
+    #    Both default to empty, so a non-transport/non-population world is
+    #    byte-identical.
     sim = WorldSimulatorImpl.from_chemistry(
-        chem, tree, flows=list(world.flow_objs), dt=sim_cfg.dt
+        chem,
+        tree,
+        flows=list(world.flow_objs),
+        dt=sim_cfg.dt,
+        population_laws=list(world.population_law_objs),
     )
 
     # 3. Integrate with the real physics. ``run`` returns independent copies

@@ -68,7 +68,7 @@ from ..bio.chemistry import ChemistryImpl
 from ..bio.conservation import ConservationError, validate_conservation
 from ..bio.molecule import MoleculeImpl
 from ..bio.reaction import ReactionImpl
-from ..bio.world import Compartment, NodeId, Transport, WorldImpl
+from ..bio.world import Compartment, NodeId, PopulationLawSpec, Transport, WorldImpl
 from ..infra.mk import mk
 from .dist import Seed
 from .types import Tags, Timeline
@@ -112,6 +112,7 @@ class Role(Enum):
     SIGNALING = "signaling"
     TRANSPORT = "transport"
     PRESSURE = "pressure"
+    POPULATION = "population"
 
 
 @dataclass(frozen=True)
@@ -151,14 +152,17 @@ class Provenance:
     ``flow_id`` (F016/S3) is the sibling handle for a block that produces a
     cross-compartment :class:`~alienbio.bio.world.Transport` flux rather than
     (or in addition to) a reaction — e.g. :class:`~alienbio.suite.blocks.
-    TransportBlock`. Additive: ``""`` (the default) for every reaction-only
-    block, so existing ``Provenance(reaction_id, container_id)`` call sites
-    are unchanged.
+    TransportBlock`. ``population_law_id`` (F017) is the same sibling handle for
+    a block that produces a count-based rate law (growth/death/count-flow) on
+    the multiplicity axis — e.g. :class:`~alienbio.suite.blocks.PopulationBlock`.
+    Additive: ``""`` (the default) for every reaction-only block, so existing
+    ``Provenance(reaction_id, container_id)`` call sites are unchanged.
     """
 
     reaction_id: str
     container_id: NodeId
     flow_id: str = ""
+    population_law_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -173,6 +177,10 @@ class Fragment:
     containers/molecules by NAME at realize time (the int-indexed tree doesn't
     exist yet); :meth:`Skeleton.materialize` threads these straight into
     ``WorldImpl``, which resolves them once its own tree is built.
+    ``population_laws`` (F017) is the same shape for count-based rate-law specs
+    (:data:`~alienbio.bio.world.PopulationLawSpec`) — a block (e.g.
+    :class:`~alienbio.suite.blocks.PopulationBlock`) can only reference
+    containers/molecules by NAME at realize time, exactly like ``flows``.
     :meth:`merge` is the collision-checked union two sibling fragments (or a
     block's own fragment + its children's) combine through.
     """
@@ -183,6 +191,7 @@ class Fragment:
     initial: Mapping[tuple[NodeId, str], float] = field(default_factory=dict)
     provenance: tuple[Provenance, ...] = ()
     flows: tuple[Transport, ...] = ()
+    population_laws: tuple[PopulationLawSpec, ...] = ()
 
     def merge(self, other: "Fragment") -> "Fragment":
         """Union two fragments; raise :class:`SkeletonError` on a real collision.
@@ -228,6 +237,7 @@ class Fragment:
             initial={**self.initial, **other.initial},
             provenance=self.provenance + other.provenance,
             flows=self.flows + other.flows,
+            population_laws=self.population_laws + other.population_laws,
         )
 
 
@@ -321,6 +331,37 @@ def final_amount(timeline: Timeline, molecule_id: str) -> float:
         ) from None
     arr = state.as_array()
     return float(sum(row[j] for row in arr))
+
+
+def final_multiplicity(timeline: Timeline, compartment_id: str) -> float:
+    """Final ``multiplicity`` of ``compartment_id`` (F017 — a population block's
+    ground-truth read).
+
+    Reads ``timeline.states[-1]`` (a self-describing ``WorldStateImpl``), locates
+    the compartment on its id axis, and reads its ``multiplicity``. Mirrors
+    :func:`final_amount` for the multiplicity axis.
+
+    Raises:
+        ValueError: if the timeline has no states, or the final state carries no
+            ``compartment_ids`` axis.
+        KeyError: if ``compartment_id`` is absent from the state's compartment axis.
+    """
+    if not timeline.states:
+        raise ValueError("timeline has no states to read ground truth from")
+    state = cast("WorldStateImpl", timeline.states[-1])
+    comp_ids = state.compartment_ids
+    if comp_ids is None:
+        raise ValueError(
+            "final timeline state is not self-describing (no compartment_ids); "
+            "cannot locate the target compartment"
+        )
+    try:
+        ci = comp_ids.index(compartment_id)
+    except ValueError:
+        raise KeyError(
+            f"compartment id {compartment_id!r} is not on the state's compartment axis"
+        ) from None
+    return state.get_multiplicity(ci)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -566,7 +607,12 @@ class Skeleton:
         compartments = fragment.compartments or (Compartment("cell", None, "cell", 1.0),)
         if fragment.initial:
             compartments = _seed_initial(compartments, fragment.initial)
-        world = WorldImpl(chem, compartments, flows=fragment.flows)
+        world = WorldImpl(
+            chem,
+            compartments,
+            flows=fragment.flows,
+            population_laws=fragment.population_laws,
+        )
 
         # Cache: frozen dataclass, so this is the one deliberate escape hatch
         # (see module docstring) — materialize "stores" chemistry + the

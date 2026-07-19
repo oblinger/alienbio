@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
 from .world_state import WorldStateImpl
 from .compartment_tree import CompartmentTreeImpl
 from .flow import Flow
+from .population import MolDelta, MultDelta, PopulationLaw
 from .reaction import Modulation
 
 if TYPE_CHECKING:
@@ -99,7 +100,7 @@ class WorldSimulatorImpl:
         assert history[0].tree is history[-1].tree
     """
 
-    __slots__ = ("_tree", "_reactions", "_flows", "_num_molecules", "_dt")
+    __slots__ = ("_tree", "_reactions", "_flows", "_population_laws", "_num_molecules", "_dt")
 
     def __init__(
         self,
@@ -108,6 +109,7 @@ class WorldSimulatorImpl:
         flows: Sequence[Flow],
         num_molecules: int,
         dt: float = 1.0,
+        population_laws: Optional[Sequence[PopulationLaw]] = None,
     ) -> None:
         """Initialize world simulator.
 
@@ -117,10 +119,15 @@ class WorldSimulatorImpl:
             flows: List of flow specifications
             num_molecules: Number of molecules in vocabulary
             dt: Time step size
+            population_laws: Optional list of count-based rate-law records driving
+                the multiplicity axis (F017); empty (the default) is the fast path —
+                ``step`` skips the population pass entirely, so an existing world is
+                byte-identical.
         """
         self._tree = tree
         self._reactions = reactions
         self._flows = flows
+        self._population_laws = population_laws or []
         self._num_molecules = num_molecules
         self._dt = dt
 
@@ -138,6 +145,11 @@ class WorldSimulatorImpl:
     def flows(self) -> Sequence[Flow]:
         """Flow specifications."""
         return self._flows
+
+    @property
+    def population_laws(self) -> Sequence[PopulationLaw]:
+        """Count-based rate-law records driving the multiplicity axis (F017)."""
+        return self._population_laws
 
     @property
     def num_molecules(self) -> int:
@@ -177,7 +189,39 @@ class WorldSimulatorImpl:
         for flow in self._flows:
             flow.apply(new_state, self._tree, self._dt)
 
+        # Apply the population pass (F017 — the FIRST multiplicity-update path).
+        # Empty is the fast path: no allocation, byte-identical to every world
+        # built before this field existed.
+        if self._population_laws:
+            self._apply_population_laws(new_state, state)
+
         return new_state
+
+    def _apply_population_laws(
+        self,
+        new_state: WorldStateImpl,
+        frozen: WorldStateImpl,
+    ) -> None:
+        """Apply every population law's Δmultiplicity/Δconcentration together
+        (F017 Q1=A — a separate per-compartment pass, order-independent).
+
+        Each law's :meth:`~alienbio.bio.population.PopulationLaw.contribute` reads
+        ONLY the frozen start-of-step state and accumulates into the two delta
+        dicts; only after every law has contributed are the accumulated totals
+        written to ``new_state``. This lets several laws touch the same
+        compartment/pool in one step (e.g. growth and death on the same
+        population) without one law's write clobbering another's read of the
+        frozen baseline.
+        """
+        mult_delta: MultDelta = {}
+        mol_delta: MolDelta = {}
+        for law in self._population_laws:
+            law.contribute(frozen, self._dt, mult_delta, mol_delta)
+
+        for comp, delta in mult_delta.items():
+            new_state.set_multiplicity(comp, new_state.get_multiplicity(comp) + delta)
+        for (comp, mol), delta in mol_delta.items():
+            new_state.set(comp, mol, new_state.get(comp, mol) + delta)
 
     def _desired_extent(
         self,
@@ -351,6 +395,7 @@ class WorldSimulatorImpl:
         tree: CompartmentTreeImpl,
         flows: Optional[Sequence[Flow]] = None,
         dt: float = 1.0,
+        population_laws: Optional[Sequence[PopulationLaw]] = None,
     ) -> WorldSimulatorImpl:
         """Create simulator from a Chemistry and compartment tree.
 
@@ -359,6 +404,8 @@ class WorldSimulatorImpl:
             tree: Compartment topology
             flows: Optional list of flows (empty if not provided)
             dt: Time step
+            population_laws: Optional list of count-based rate-law records (F017;
+                empty if not provided — the no-op fast path)
 
         Returns:
             Configured WorldSimulatorImpl
@@ -436,6 +483,7 @@ class WorldSimulatorImpl:
             flows=flows or [],
             num_molecules=len(mol_names),
             dt=dt,
+            population_laws=population_laws or [],
         )
 
     def __repr__(self) -> str:
@@ -444,5 +492,6 @@ class WorldSimulatorImpl:
             f"WorldSimulatorImpl(compartments={self._tree.num_compartments}, "
             f"molecules={self._num_molecules}, "
             f"reactions={len(self._reactions)}, "
-            f"flows={len(self._flows)}, dt={self._dt})"
+            f"flows={len(self._flows)}, population_laws={len(self._population_laws)}, "
+            f"dt={self._dt})"
         )

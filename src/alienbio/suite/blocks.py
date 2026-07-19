@@ -58,11 +58,11 @@ realize body:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Mapping, Optional, Sequence, cast
+from typing import Any, Callable, Mapping, Optional, Sequence, cast
 
 from ..bio.molecule import MoleculeImpl
 from ..bio.reaction import Modulation, ReactionImpl
-from ..bio.world import Compartment, NodeId, Transport
+from ..bio.world import Compartment, DeathLaw, GrowthLaw, NodeId, Transport
 from ..infra.mk import mk
 from .dist import Constant, Dist, Seed
 from .skeleton import (
@@ -76,6 +76,7 @@ from .skeleton import (
     SkeletonBlock,
     SkeletonError,
     final_amount,
+    final_multiplicity,
 )
 from .types import Tags, Timeline
 from .verify import SimConfig
@@ -818,3 +819,161 @@ class SpatialLatticeBlock(SkeletonBlock):
             initial=initial,
             provenance=tuple(provenance),
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# F017 (Skeleton S8 G6) — population-as-counts: a nested population
+# compartment whose ``multiplicity`` grows/shrinks via resource-coupled
+# count-based rate laws (see ``bio.population``), the simulator's FIRST
+# multiplicity-update path.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class PopulationBlock(SkeletonBlock):
+    """POPULATION: a nested population compartment (``multiplicity``) plus an
+    adjacent resource pool, wired by a resource-coupled
+    :class:`~alienbio.bio.world.GrowthLaw` and an optional
+    :class:`~alienbio.bio.world.DeathLaw` (F017).
+
+    A leaf with no ports/pool-bindings — like :class:`SpatialLatticeBlock`, it
+    mints its own resource + biomass species and both compartments directly
+    into its own ``Fragment``, since a population count has no natural
+    producer/consumer port split. Unconditionally declares BOTH compartments
+    (self-contained, like :class:`TransportBlock`): ``pop`` (root, carrying
+    ``initial_multiplicity`` and a fixed per-instance ``biomass_conc`` — Q4=A
+    born-full: every instance, old or new, holds the SAME per-instance
+    concentration) and ``pool`` (its child, seeded with ``resource_initial``
+    concentration of the named resource).
+
+    **Growth (Q3=A/Q4=A born-full).** ``extent = growth_rate · N · [resource] · dt``;
+    a growth of ``ΔN`` draws ``growth_stoich · ΔN`` resource AMOUNT from ``pool`` —
+    declared explicitly so the coupling is inspectable. Conservation is structural
+    when ``growth_stoich == volume · biomass_conc`` (the default ``1.0``/``1.0``
+    pairing balances by construction): the new instances' biomass amount
+    (``ΔN · volume · biomass_conc``) exactly matches the resource amount drawn.
+    ``growth_stoich == 0.0`` is the deliberately-leaky uncoupled config exercised
+    by the conservation red-then-green test — biomass still accrues but nothing
+    funds it, so the F012 amount-canary fires. Because growth consumes ``pool``,
+    the population plateaus as the resource draws down — logistic boundedness
+    from nutrient limitation, no arbitrary cap.
+
+    **Death (optional).** ``death_rate`` defaults to ``Constant(0.0)`` — a sampled
+    value of exactly ``0.0`` adds no :class:`~alienbio.bio.world.DeathLaw` (the
+    no-op default, mirroring ``PressureBlock``'s optional-arm convention);
+    otherwise it shrinks ``pop``'s multiplicity at ``death_rate · N``.
+
+    **Observable/controllable.** :meth:`ground_truth` reads ``pop``'s final
+    multiplicity (:func:`~alienbio.suite.skeleton.final_multiplicity`) — the
+    observable surface; the resource pool's concentration is an ordinary molecule
+    in the assembled chemistry, so it is already a valid ``Intervene``/``Measure``
+    control-surface lever via the existing mechanism (no new lever kind needed).
+    """
+
+    initial_multiplicity: float = 1.0
+    resource_name: str = "resource"
+    resource_initial: float = 100.0
+    growth_rate: Dist[float] = field(default_factory=lambda: Constant(0.01))
+    growth_stoich: float = 1.0
+    death_rate: Dist[float] = field(default_factory=lambda: Constant(0.0))
+    volume: float = 1.0
+    resource_volume: float = 1.0
+    biomass_name: str = "biomass"
+    biomass_conc: float = 1.0
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        initial_multiplicity: float = 1.0,
+        resource_name: str = "resource",
+        resource_initial: float = 100.0,
+        growth_rate: Optional[Dist[float]] = None,
+        growth_stoich: float = 1.0,
+        death_rate: Optional[Dist[float]] = None,
+        volume: float = 1.0,
+        resource_volume: float = 1.0,
+        biomass_name: str = "biomass",
+        biomass_conc: float = 1.0,
+        params: Optional[Tags] = None,
+    ) -> "PopulationBlock":
+        return cls(
+            name=name,
+            role=Role.POPULATION,
+            initial_multiplicity=initial_multiplicity,
+            resource_name=resource_name,
+            resource_initial=resource_initial,
+            growth_rate=growth_rate if growth_rate is not None else Constant(0.01),
+            growth_stoich=growth_stoich,
+            death_rate=death_rate if death_rate is not None else Constant(0.0),
+            volume=volume,
+            resource_volume=resource_volume,
+            biomass_name=biomass_name,
+            biomass_conc=biomass_conc,
+            params=params or {},
+        )
+
+    def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
+        pop_container = f"{ns}/pop"
+        pool_container = f"{ns}/pool"
+        resource = cast(MoleculeImpl, mk.M(f"{ns}/{self.resource_name}"))
+        biomass = cast(MoleculeImpl, mk.M(f"{ns}/{self.biomass_name}"))
+
+        growth_rate_val = self.growth_rate.sample(seed.child("growth_rate"))
+        growth_id = f"{ns}/growth"
+        growth = GrowthLaw(
+            compartment=pop_container,
+            resource_compartment=pool_container,
+            resource=resource.name,
+            stoich=self.growth_stoich,
+            rate_constant=growth_rate_val,
+            name=growth_id,
+        )
+        population_laws: list[Any] = [growth]
+        provenance = [Provenance("", pop_container, population_law_id=growth_id)]
+
+        death_rate_val = self.death_rate.sample(seed.child("death_rate"))
+        if death_rate_val != 0.0:
+            death_id = f"{ns}/death"
+            population_laws.append(
+                DeathLaw(compartment=pop_container, rate_constant=death_rate_val, name=death_id)
+            )
+            provenance.append(Provenance("", pop_container, population_law_id=death_id))
+
+        compartments = (
+            Compartment(
+                pop_container,
+                None,
+                "cell",
+                self.volume,
+                concentrations={biomass.name: self.biomass_conc},
+                multiplicity=self.initial_multiplicity,
+            ),
+            Compartment(
+                pool_container,
+                pop_container,
+                "cell",
+                self.resource_volume,
+                concentrations={resource.name: self.resource_initial},
+            ),
+        )
+        return Fragment(
+            molecules={resource.name: resource, biomass.name: biomass},
+            compartments=compartments,
+            population_laws=tuple(population_laws),
+            provenance=tuple(provenance),
+        )
+
+    def ground_truth(self, timeline: Timeline) -> Any:
+        """Final multiplicity of the population compartment.
+
+        Reads the resolved container id off ``provenance`` (populated by
+        materialize) rather than reconstructing it from ``self.name``, since the
+        block's realize-time ``ns`` is the full namespaced tree path (e.g.
+        ``"root/colony"``), not the bare authored name.
+        """
+        if not self.provenance:
+            raise SkeletonError(f"{self.name!r} has unresolved provenance; call materialize() first")
+        pop_container = self.provenance[0].container_id
+        return final_multiplicity(timeline, pop_container)

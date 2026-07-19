@@ -27,11 +27,12 @@ simulator agree on indices without any positional reload.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Union
 
 from .chemistry import ChemistryImpl
 from .compartment_tree import CompartmentTreeImpl
 from .flow import Flow, TransportFlux
+from .population import CountFlow, PerCapitaDeath, PerCapitaGrowth, PopulationLaw
 from .world_state import WorldStateImpl
 
 # A compartment id (a readable string, e.g. ``"cell"`` / ``"c0"``).
@@ -77,6 +78,59 @@ class Transport:
     rate_constant: float = 1.0
     rate_law: str = "gradient"  # "gradient" | "first_order"
     name: str = ""
+
+
+@dataclass(frozen=True)
+class GrowthLaw:
+    """A resource-coupled per-capita growth spec, in real (string) ids (F017).
+
+    Blocks (e.g. ``suite.blocks.PopulationBlock``) author these at ``realize`` time,
+    when only NodeId container refs and molecule NAMES are known. ``WorldImpl``
+    resolves each ``GrowthLaw`` into an int-indexed
+    :class:`~alienbio.bio.population.PerCapitaGrowth` using the SAME ``comp_to_int``/
+    molecule-index mapping :func:`build_tree` and the molecule axis establish.
+    """
+
+    compartment: NodeId
+    resource_compartment: NodeId
+    resource: str
+    stoich: float
+    rate_constant: float = 1.0
+    name: str = ""
+
+
+@dataclass(frozen=True)
+class DeathLaw:
+    """A per-capita death spec, in real (string) ids (F017).
+
+    ``release_compartment``/``release_resource`` are optional (``None`` = no
+    release) — the reverse of :class:`GrowthLaw`'s resource draw.
+    """
+
+    compartment: NodeId
+    rate_constant: float = 1.0
+    release_compartment: Optional[NodeId] = None
+    release_resource: Optional[str] = None
+    release_stoich: float = 0.0
+    name: str = ""
+
+
+@dataclass(frozen=True)
+class CountFlowSpec:
+    """A size-class count-flow spec, in real (string) ids (F017) — moves
+    Δmultiplicity ``origin -> dest`` (a maturation edge, parallel to
+    :class:`Transport` but on the multiplicity axis)."""
+
+    origin: NodeId
+    dest: NodeId
+    rate_constant: float = 1.0
+    name: str = ""
+
+
+#: Any of the three raw, string-id population-law specs a block can emit
+#: (F017) — resolved by ``WorldImpl`` into the matching int-indexed
+#: :class:`~alienbio.bio.population.PopulationLaw` subclass.
+PopulationLawSpec = Union[GrowthLaw, DeathLaw, CountFlowSpec]
 
 
 def build_tree(
@@ -134,13 +188,22 @@ class WorldImpl:
     ``chemistry.molecules.keys()`` — the same order the simulator uses.
     """
 
-    __slots__ = ("_chemistry", "_compartments", "_initial_state", "_flows", "_flow_objs")
+    __slots__ = (
+        "_chemistry",
+        "_compartments",
+        "_initial_state",
+        "_flows",
+        "_flow_objs",
+        "_population_laws",
+        "_population_law_objs",
+    )
 
     def __init__(
         self,
         chemistry: ChemistryImpl,
         compartments: tuple[Compartment, ...],
         flows: tuple[Transport, ...] = (),
+        population_laws: tuple[PopulationLawSpec, ...] = (),
     ) -> None:
         self._chemistry = chemistry
         self._compartments = tuple(compartments)
@@ -217,6 +280,95 @@ class WorldImpl:
             )
         self._flow_objs = tuple(resolved_flows)
 
+        # Resolve each string-id population-law spec into an int-indexed
+        # PopulationLaw, using the SAME comp_to_int / mol_to_int mapping (F017).
+        # ``population_laws`` defaults to empty, so a world that never sets it is
+        # byte-identical to before this field existed (WorldSimulatorImpl's
+        # population pass is a no-op with an empty list).
+        self._population_laws = tuple(population_laws)
+        resolved_laws: list[PopulationLaw] = []
+        for law in self._population_laws:
+            if isinstance(law, GrowthLaw):
+                if law.compartment not in comp_to_int:
+                    raise KeyError(
+                        f"growth law {law.name!r} references unknown compartment "
+                        f"{law.compartment!r}"
+                    )
+                if law.resource_compartment not in comp_to_int:
+                    raise KeyError(
+                        f"growth law {law.name!r} references unknown resource "
+                        f"compartment {law.resource_compartment!r}"
+                    )
+                if law.resource not in mol_to_int:
+                    raise KeyError(
+                        f"growth law {law.name!r} references unknown resource "
+                        f"molecule {law.resource!r}"
+                    )
+                resolved_laws.append(
+                    PerCapitaGrowth(
+                        compartment=comp_to_int[law.compartment],
+                        resource_compartment=comp_to_int[law.resource_compartment],
+                        resource=mol_to_int[law.resource],
+                        stoich=law.stoich,
+                        rate_constant=law.rate_constant,
+                        name=law.name,
+                    )
+                )
+            elif isinstance(law, DeathLaw):
+                if law.compartment not in comp_to_int:
+                    raise KeyError(
+                        f"death law {law.name!r} references unknown compartment "
+                        f"{law.compartment!r}"
+                    )
+                release_compartment_int: Optional[int] = None
+                release_resource_int: Optional[int] = None
+                if law.release_compartment is not None:
+                    if law.release_compartment not in comp_to_int:
+                        raise KeyError(
+                            f"death law {law.name!r} references unknown release "
+                            f"compartment {law.release_compartment!r}"
+                        )
+                    release_compartment_int = comp_to_int[law.release_compartment]
+                if law.release_resource is not None:
+                    if law.release_resource not in mol_to_int:
+                        raise KeyError(
+                            f"death law {law.name!r} references unknown release "
+                            f"molecule {law.release_resource!r}"
+                        )
+                    release_resource_int = mol_to_int[law.release_resource]
+                resolved_laws.append(
+                    PerCapitaDeath(
+                        compartment=comp_to_int[law.compartment],
+                        rate_constant=law.rate_constant,
+                        release_compartment=release_compartment_int,
+                        release_resource=release_resource_int,
+                        release_stoich=law.release_stoich,
+                        name=law.name,
+                    )
+                )
+            elif isinstance(law, CountFlowSpec):
+                if law.origin not in comp_to_int:
+                    raise KeyError(
+                        f"count flow {law.name!r} references unknown origin "
+                        f"compartment {law.origin!r}"
+                    )
+                if law.dest not in comp_to_int:
+                    raise KeyError(
+                        f"count flow {law.name!r} references unknown dest "
+                        f"compartment {law.dest!r}"
+                    )
+                resolved_laws.append(
+                    CountFlow(
+                        origin=comp_to_int[law.origin],
+                        dest=comp_to_int[law.dest],
+                        rate_constant=law.rate_constant,
+                        name=law.name,
+                    )
+                )
+            else:
+                raise TypeError(f"unknown population-law spec type: {type(law).__name__}")
+        self._population_law_objs = tuple(resolved_laws)
+
     @property
     def chemistry(self) -> ChemistryImpl:
         """The chemistry defining molecules and reactions."""
@@ -246,6 +398,22 @@ class WorldImpl:
         objects resolved from :attr:`flows` — what
         ``WorldSimulatorImpl.from_chemistry`` expects for its ``flows=`` arg."""
         return self._flow_objs
+
+    @property
+    def population_laws(self) -> tuple[PopulationLawSpec, ...]:
+        """The raw, string-id :data:`PopulationLawSpec` specs this world was built
+        with — the shape a fresh :class:`WorldImpl` reconstruction (e.g.
+        ``suite.runner._world_from_state``) re-threads through the constructor, so
+        population dynamics survive a per-turn rebuild (F017, mirrors :attr:`flows`)."""
+        return self._population_laws
+
+    @property
+    def population_law_objs(self) -> tuple[PopulationLaw, ...]:
+        """The int-indexed, simulator-ready :class:`~alienbio.bio.population.
+        PopulationLaw` objects resolved from :attr:`population_laws` — what
+        ``WorldSimulatorImpl.from_chemistry`` expects for its ``population_laws=``
+        arg."""
+        return self._population_law_objs
 
     def __repr__(self) -> str:
         return (
