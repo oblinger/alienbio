@@ -14,7 +14,7 @@
 
 ## New Execution Model
 
-The execution pipeline: <span style="white-space: nowrap">DAT Spec + Bio → <b>.build()</b> → DAT Folder → <b>.run()</b> → Results</span>
+The execution pipeline: <span style="white-space: nowrap">DAT Spec + Bio → `<b>`.build()</b> → DAT Folder → `<b>`.run()</b> → Results</span>
 
 **Build** uses the DAT spec as a template to create a new folder, then calls the Bio generators to populate it with biological content.
 
@@ -195,7 +195,7 @@ for seed in range(10):
 
 Experiments run scenarios across multiple agents and seeds, then generate reports.
 
-Experiment pipeline: <span style="white-space: nowrap">Experiment (YAML) → <b>.build()</b> → Experiment (DAT) containing Scenario DATs → <b>.run()</b> → Results + Reports</span>
+Experiment pipeline: <span style="white-space: nowrap">Experiment (YAML) → `<b>`.build()</b> → Experiment (DAT) containing Scenario DATs → `<b>`.run()</b> → Results + Reports</span>
 
 ```yaml
 experiment.mutualism:

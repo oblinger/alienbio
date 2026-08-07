@@ -15,7 +15,7 @@ raw: dict = bio.dehydrate(entity: Entity)
 
 ## Description
 
-Hydration converts a raw YAML dict into a typed Entity ready for building and evaluation. It's the second stage of the processing pipeline: <span style="white-space: nowrap">name → <b>.fetch()</b> → dict → <b>.hydrate()</b> → entity → <b>.build()</b> → expanded → <b>.eval()</b> → result</span>
+Hydration converts a raw YAML dict into a typed Entity ready for building and evaluation. It's the second stage of the processing pipeline: <span style="white-space: nowrap">name → `<b>`.fetch()</b> → dict → `<b>`.hydrate()</b> → entity → `<b>`.build()</b> → expanded → `<b>`.eval()</b> → result</span>
 
 **Note:** `fetch()` includes hydration by default. Most users don't need to call `hydrate()` directly — use `fetch("specifier")` to get a hydrated entity. Call `hydrate()` only when you have a raw dict from another source or need fine-grained control over the pipeline.
 

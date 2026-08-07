@@ -56,7 +56,7 @@ Custom types registered via `@biotype` decorator. See [[Decorators]].
 
 ## Processing Flow
 
-Specs go through stages before execution: <span style="white-space: nowrap">name → <b>.fetch()</b> → dict → <b>.hydrate()</b> → entity → <b>.build()</b> → expanded → <b>.eval()</b> → result</span>
+Specs go through stages before execution: <span style="white-space: nowrap">name → `<b>`.fetch()</b> → dict → `<b>`.hydrate()</b> → entity → `<b>`.build()</b> → expanded → `<b>`.eval()</b> → result</span>
 
 1. **Fetch**: Load YAML from source tree (returns raw dict)
 2. **Hydrate**: Resolve `!ref` and `!include` placeholders, build scope tree, instantiate types

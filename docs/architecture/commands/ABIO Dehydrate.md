@@ -14,7 +14,7 @@ raw: dict = bio.dehydrate(entity: Entity)
 
 ## Description
 
-Dehydration reverses hydration, converting a typed Entity back to a plain dict that can be serialized to YAML. This is the inverse of the hydration step in the processing pipeline: <span style="white-space: nowrap">name → <b>.fetch()</b> → dict → <b>.hydrate()</b> → entity → <b>.build()</b> → expanded → <b>.eval()</b> → result</span>
+Dehydration reverses hydration, converting a typed Entity back to a plain dict that can be serialized to YAML. This is the inverse of the hydration step in the processing pipeline: <span style="white-space: nowrap">name → `<b>`.fetch()</b> → dict → `<b>`.hydrate()</b> → entity → `<b>`.build()</b> → expanded → `<b>`.eval()</b> → result</span>
 
 ## Use Cases
 

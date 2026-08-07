@@ -54,7 +54,7 @@ See [[ABIO Roadmap#M1.5 — Refactoring & Cleanup]] for full task list.
 
 ## Execution Pipeline
 
-<div style="text-align: center; font-size: 1.1em">name → <b>.fetch()</b> → dict → <b>.hydrate()</b> → tree → <b>.build()</b> → expanded → <b>.eval()</b> → result</div>
+<div style="text-align: center; font-size: 1.1em">name → `<b>`.fetch()</b> → dict → `<b>`.hydrate()</b> → tree → `<b>`.build()</b> → expanded → `<b>`.eval()</b> → result</div>
 
 | Method | Input | Output | What Happens |
 |--------|-------|--------|--------------|
