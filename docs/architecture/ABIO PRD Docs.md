@@ -417,7 +417,7 @@ background:
 
 ### 4.7 Visibility Specification
 
-Controls what the AI can observe about the world. See [[ASP Notes#Visibility Model]] for detailed level definitions.
+Controls what the AI can observe about the world. See [[AUP Notes#Visibility Model]] for detailed level definitions.
 
 ```yaml
 visibility:
@@ -932,7 +932,7 @@ scenario = gen.generate("mutualism_hidden_dependency.yaml", seed=42)
 
 - [[Generator]] — Base generator protocol
 - [[MoleculeGenerator]], [[ReactionGenerator]], [[ContainerGenerator]] — Component generators
-- [[ASP Notes#Generator Requirements Wish List]] — Original requirements
+- [[AUP Notes#Generator Requirements Wish List]] — Original requirements
 - [[ASP B10 - World Specification Example]] — Hand-authored example
 - [[Expr]] — Expression language for distributions
 - [[Visibility Model]] — Visibility specification details
