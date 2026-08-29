@@ -774,6 +774,7 @@ def run_experiment(
         extra_dials=spec.fixed_dials,
         on_trial=on_trial,
         skip=skip,
+        matched_dials=("agent", "model"),
     )
 
     (resolved_out / "map.json").write_text(rmap.to_json())

@@ -50,7 +50,7 @@ import itertools
 import json
 import statistics
 from dataclasses import dataclass, replace
-from typing import Any, Callable, Mapping, Optional, Sequence, cast
+from typing import Any, Callable, Collection, Mapping, Optional, Sequence, cast
 
 from ..bio.world import WorldImpl
 from .agent import Agent
@@ -372,8 +372,16 @@ class MassTrialRunner:
         extra_dials: Mapping[str, Any] = {},
         on_trial: Optional[Callable[[str, int, TrialRecord], None]] = None,
         skip: Optional[Callable[[str, int], Optional[TrialRecord]]] = None,
+        matched_dials: Collection[str] = (),
     ) -> ReliabilityMap:
         """Run ``trials_per_condition`` seeded trials for every cell of ``axes``.
+
+        ``matched_dials`` (M46.8) names swept dials that must NOT enter the
+        per-trial seed label — e.g. ``("agent", "model")`` — so cells that
+        differ only in those dials draw the identical world and agent seeds:
+        a scripted control arm and a live-model arm then run on byte-identical
+        worlds. The ``condition_key``, ``label`` handed to ``on_trial``/``skip``
+        and the statistics are unaffected; only seed derivation is.
 
         For every condition (in sorted-``condition_key`` order, for a stable
         map regardless of ``axes``' own argument order) and every trial index
@@ -462,7 +470,12 @@ class MassTrialRunner:
                             on_trial(label, i, existing)
                         continue
 
-                trial_seed = base_seed.child(f"{label}/{i}")
+                seed_label = (
+                    _condition_label(tuple((n, v) for n, v in key if n not in matched_dials))
+                    if matched_dials
+                    else label
+                )
+                trial_seed = base_seed.child(f"{seed_label}/{i}")
                 run_dials = {**extra_dials, **dials}
                 task: Optional[TaskInstance] = None
                 try:

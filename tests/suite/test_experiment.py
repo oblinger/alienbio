@@ -19,6 +19,7 @@ import yaml
 
 from alienbio.suite.dist import Seed
 from alienbio.suite.experiment import (
+    DRAFTERS,
     ExperimentSpec,
     aggregate,
     load_spec,
@@ -84,20 +85,27 @@ def test_load_spec_refuses_a_floating_model_alias(tmp_path):
     assert spec.model == "claude-sonnet-4-20250514"
 
 
-def test_agent_axis_runs_control_arms_in_one_grid(tmp_path):
+def test_agent_axis_runs_control_arms_in_one_grid(tmp_path, monkeypatch):
     # M46.8: agent kind as a grid axis — every arm shares the world seeds.
     spec = load_spec(
         _write_spec(tmp_path, axes={"rung": ["single"], "agent": ["idle", "measure-commit"]}, agent="idle")
     )
+    draft_seeds: dict[str, list[int]] = {}
+    original = DRAFTERS["conflict"]
+
+    def spying(seed, dials, **kwargs):
+        draft_seeds.setdefault(str(dials["agent"]), []).append(seed.value)
+        return original(seed, dials, **kwargs)
+
+    monkeypatch.setitem(DRAFTERS, "conflict", spying)
     rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
     assert len(rmap.cells) == 2
     lines = [json.loads(l) for l in (tmp_path / "out" / "records.jsonl").read_text().splitlines()]
     assert {d["agent"] for d in lines} == {"idle", "measure-commit"}
     assert all(d["model"] is None for d in lines)
-    by_agent = {}
-    for d in lines:
-        by_agent.setdefault(d["agent"], []).append(d["task_id"])
-    assert by_agent["idle"] == by_agent["measure-commit"]  # matched worlds
+    # Matched arms: both agent levels drafted their worlds from identical seeds.
+    assert draft_seeds["idle"] == draft_seeds["measure-commit"]
+    assert len(draft_seeds["idle"]) == 2
 
 
 def test_agent_axis_with_llm_is_refused_on_a_non_neutral_drafter(tmp_path):
