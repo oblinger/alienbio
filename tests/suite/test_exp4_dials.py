@@ -22,7 +22,7 @@ from alienbio.suite.brief import (
 from alienbio.suite.dist import Seed
 from alienbio.suite.experiment import (
     AGENTS,
-    BRIEF_ONLY_DIALS,
+    WORLD_INVARIANT_DIALS,
     DRAFTERS,
     load_spec,
     record_from_json,
@@ -119,7 +119,7 @@ def test_exp4_zero_runs_paired_across_belief_arms(tmp_path):
     spec = load_spec(REPO / "catalog" / "experiments" / "exp4.yaml")
     assert set(spec.axes[0][1]) == set(MONITORING_PRESETS) or any(n == "monitoring" for n, _ in spec.axes)
     assert "survey-commit" in AGENTS
-    assert {"monitoring", "framing", "constitution"} <= set(BRIEF_ONLY_DIALS)
+    assert {"monitoring", "framing", "constitution"} <= set(WORLD_INVARIANT_DIALS)
 
     payload = yaml.safe_load((REPO / "catalog" / "experiments" / "exp4.yaml").read_text())
     payload.update(
