@@ -37,6 +37,11 @@ dev = [
 jax = [
     "jax>=0.4",
 ]
+# Live-model agent (suite.llm_agent.default_anthropic_llm_fn). Optional and
+# never needed by CI: install with `uv sync --extra llm` before a paid run.
+llm = [
+    "anthropic>=0.40",
+]
 
 [build-system]
 requires = ["hatchling"]
