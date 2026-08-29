@@ -1,0 +1,21 @@
+# M46.12 — the instrument's zero.
+#
+# The neutral identify_pathway substrate driven by the measure-commit
+# ScriptedAgent: zero model calls, zero cost, and a known answer (the null
+# commit scores 0.0 by construction). Every seam a paid run will use —
+# spec load, grid, drafter, brief, runner, record store, manifest, report —
+# is exercised here first. `bio suite run catalog/experiments/exp4-zero.yaml`.
+#
+# The paid sibling is exp4-first-live.yaml: same substrate, agent llm. The
+# no-peeking guard refuses an llm agent on any other drafter.
+name: exp4-zero
+drafter: identify_pathway
+agent: measure-commit
+axes:
+  pathway_length: [3, 4]
+trials_per_condition: 2
+base_seed: 7
+fixed_dials:
+  max_turns: 6
+  sim_steps: 10
+out_dir: runs/exp4-zero
