@@ -49,7 +49,9 @@ from .conflict_gen import draft_conflict_world
 from .deliberation import DeliberationStep, DeliberationTrace
 from .dist import Constant, Seed
 from .info_seeking import ActionRecord
+from .effect_size import cohens_d, welch_t
 from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, price_for
+from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
 from .observation import Observation
 from .pipeline import build_suite
@@ -104,6 +106,9 @@ class ExperimentSpec:
     expected_turns: int = 8
     expected_prompt_tokens: int = 1500
     expected_output_tokens: int = 300
+    #: M46.9 — the statistical design the run is committed to (None = undeclared;
+    #: a declared design refuses a spec with too few trials per condition).
+    design: Optional[PowerDesign] = None
 
 
 #: Keys ``load_spec``/``spec_from_dict`` will not build a spec without.
@@ -126,6 +131,7 @@ _OPTIONAL_KEYS: frozenset[str] = frozenset(
         "expected_turns",
         "expected_prompt_tokens",
         "expected_output_tokens",
+        "design",
     }
 )
 
@@ -159,6 +165,7 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "expected_turns": spec.expected_turns,
         "expected_prompt_tokens": spec.expected_prompt_tokens,
         "expected_output_tokens": spec.expected_output_tokens,
+        "design": spec.design.to_dict() if spec.design is not None else None,
     }
 
 
@@ -201,7 +208,44 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         expected_output_tokens=_validate_positive_int(
             "expected_output_tokens", d.get("expected_output_tokens", 300)
         ),
+        design=_validate_design(d.get("design"), d["trials_per_condition"], axes),
     )
+
+
+def _validate_design(value: Any, trials_per_condition: int, axes: Sequence[tuple[str, tuple[Any, ...]]]) -> Optional[PowerDesign]:
+    """M46.9 — parse the declared design and refuse an under-powered spec.
+
+    A design that names a ``primary_contrast`` must name a swept axis and two
+    of its levels; ``trials_per_condition`` must be at least the design's
+    required n — otherwise the spec is refused here, before any spend, with
+    the number it needs.
+    """
+    if value is None:
+        return None
+    if isinstance(value, PowerDesign):
+        design = value
+    elif isinstance(value, Mapping):
+        design = PowerDesign.from_dict(value)
+    else:
+        raise ValueError(f"experiment spec: design must be a mapping, got {value!r}")
+    pc = design.primary_contrast
+    if pc is not None:
+        levels_by_axis = {name: set(levels) for name, levels in axes}
+        if pc["axis"] not in levels_by_axis:
+            raise ValueError(f"experiment spec: design.primary_contrast axis {pc['axis']!r} is not a swept axis")
+        for end in ("low", "high"):
+            if pc[end] not in levels_by_axis[pc["axis"]]:
+                raise ValueError(
+                    f"experiment spec: design.primary_contrast {end}={pc[end]!r} is not a level of axis {pc['axis']!r}"
+                )
+    required = design.required_trials_per_condition
+    if trials_per_condition < required:
+        raise ValueError(
+            f"experiment spec: design needs {required} trials per condition to detect "
+            f"d={design.target_effect_d} at alpha={design.alpha}, power={design.power}; "
+            f"spec asks for {trials_per_condition} — raise trials_per_condition or relax the design"
+        )
+    return design
 
 
 def _validate_cost_ceiling(value: Any) -> Optional[float]:
@@ -856,6 +900,8 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "cost_usd_spent": 0.0,
         "stopped_reason": None,
         "usage_totals": None,
+        # M46.9 — the statistical design, stated before the spend.
+        "design": spec.design.to_dict() if spec.design is not None else None,
     }
 
 
@@ -1148,5 +1194,66 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
                 f"welch_t={contrast.welch_t:.4f}"
             )
 
+    design = manifest.get("design")
+    if design:
+        lines.append("")
+        lines.append("Design (M46.9, declared before the spend):")
+        n_spec = (manifest.get("spec") or {}).get("trials_per_condition")
+        required = design.get("required_trials_per_condition")
+        verdict = "ok" if (n_spec is not None and required is not None and n_spec >= required) else "UNDERPOWERED"
+        lines.append(
+            f"  target d={design.get('target_effect_d')} alpha={design.get('alpha')} "
+            f"power={design.get('power')} -> required n={required}; spec n={n_spec} ({verdict})"
+        )
+        m = len(rmap.contrasts)
+        policy = design.get("multiple_comparison", "none")
+        alpha = float(design.get("alpha", 0.05))
+        adjusted = bonferroni_alpha(alpha, m) if policy == "bonferroni" else alpha
+        lines.append(f"  multiple comparisons: policy={policy} contrasts={m} alpha_used={adjusted:.5f}")
+        pc = design.get("primary_contrast")
+        if pc:
+            result = primary_contrast_result(rmap, pc)
+            if result is None:
+                lines.append(
+                    f"  primary contrast {pc['axis']}: {pc['low']} -> {pc['high']}: "
+                    "not computable (fewer than 2 scored trials on a side)"
+                )
+            else:
+                lines.append(
+                    f"  primary contrast {pc['axis']}: {pc['low']} -> {pc['high']}: "
+                    f"cohens_d={result['cohens_d']:.4f} welch_t={result['welch_t']:.4f} "
+                    f"(n_low={result['n_low']}, n_high={result['n_high']})"
+                )
+
     lines.append("")
     return "\n".join(lines)
+
+
+def primary_contrast_result(rmap: ReliabilityMap, contrast: Mapping[str, Any]) -> Optional[dict[str, Any]]:
+    """Cohen's d / Welch t for the declared primary contrast, pooling every
+    scored record at ``axis == low`` against every one at ``axis == high``
+    (all other swept dials pooled). ``None`` when a side has fewer than two
+    scored records or the pooled standard deviation is zero."""
+    axis, low, high = contrast["axis"], contrast["low"], contrast["high"]
+    low_scores: list[float] = []
+    high_scores: list[float] = []
+    for record in rmap.records:
+        if record.terminal_reason == "error":
+            continue
+        level = dict(record.condition_key).get(axis)
+        if level == low:
+            low_scores.append(record.objective_score)
+        elif level == high:
+            high_scores.append(record.objective_score)
+    if len(low_scores) < 2 or len(high_scores) < 2:
+        return None
+    try:
+        d = cohens_d(high_scores, low_scores)
+    except ValueError:
+        return None
+    return {
+        "cohens_d": d,
+        "welch_t": welch_t(high_scores, low_scores),
+        "n_low": len(low_scores),
+        "n_high": len(high_scores),
+    }

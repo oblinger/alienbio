@@ -125,6 +125,25 @@ def test_axis_levels_are_validated_at_load(tmp_path):
         load_spec(_write_spec(tmp_path, axes={"model": ["claude-sonnet-4-latest"]}))
 
 
+def test_design_refuses_an_underpowered_spec_and_is_recorded(tmp_path):
+    # M46.9: a declared design sizes the run; too few trials is refused at load.
+    design = {"target_effect_d": 2.0, "primary_contrast": {"axis": "rung", "low": "single", "high": "forced"}}
+    with pytest.raises(ValueError, match="trials per condition"):
+        load_spec(_write_spec(tmp_path, design=design, trials_per_condition=2))
+    with pytest.raises(ValueError, match="not a swept axis"):
+        load_spec(_write_spec(tmp_path, design={"target_effect_d": 2.0, "primary_contrast": {"axis": "pi", "low": 0, "high": 1}}, trials_per_condition=9))
+    # d=2.0: 2*(2.8016/2)^2 = 3.92 -> 4, +1 = 5 trials per condition.
+    spec = load_spec(_write_spec(tmp_path, design=design, trials_per_condition=5))
+    assert spec.design is not None and spec.design.required_trials_per_condition == 5
+    rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
+    manifest = json.loads((tmp_path / "out" / "manifest.json").read_text())
+    assert manifest["design"]["required_trials_per_condition"] == 5
+    report = (tmp_path / "out" / "report.txt").read_text()
+    assert "Design (M46.9" in report and "(ok)" in report
+    assert "primary contrast rung: single -> forced" in report
+    assert len(rmap.records) == 10
+
+
 def test_record_lines_carry_model_and_memory(tmp_path):
     spec = load_spec(_write_spec(tmp_path))
     run_experiment(spec, out_dir=str(tmp_path / "out"))

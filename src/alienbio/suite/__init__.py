@@ -173,6 +173,7 @@ from .experiment import (
     run_experiment,
 )
 from .llm_agent import MODEL_PRICES_USD_PER_MTOK, UsageMeter, cost_usd, price_for
+from .power import PowerDesign, bonferroni_alpha, detectable_effect, trials_for_effect
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
