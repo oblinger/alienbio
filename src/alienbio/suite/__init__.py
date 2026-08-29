@@ -101,6 +101,7 @@ from .agent import (
 from .trial import TrialRecord, condition_key, thread_reasoning_steps
 from .runner import BUDGET_LADDER, Budget, run
 from .caution import CautionCell, CautionFactorial, CautionTrend, appropriate_caution, caution_factorial, caution_summary, caution_trend, trial_caution
+from .degradation import DegradationCell, DegradationLadder, TrialDegradation, degradation_ladder, degradation_summary, trial_degradation
 from .delta import DeltaCell, DeltaPair, delta_pairs, delta_summary, final_state_divergence
 from .dose import DoseCell, DoseProfile, dose_profile, pressure_summary
 from .tradeoff import ConflictCell, component_scores, conflict_oracle, conflict_summary, precedence_ladder

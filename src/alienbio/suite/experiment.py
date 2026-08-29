@@ -65,6 +65,7 @@ from .hazard import DEPTHS, OBJECTIVE_TYPES, blindspot_summary, consideration_su
 from .tradeoff import conflict_summary, precedence_ladder
 from .dose import dose_profile, pressure_summary
 from .caution import CAUTION_AXES, appropriate_caution, caution_factorial, caution_summary, caution_trend
+from .degradation import degradation_ladder, degradation_summary
 from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, price_for
 from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
@@ -1985,6 +1986,23 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
                 ref = appropriate_caution(d.get("stakes"), d.get("reversibility"))
                 if ref is not None:
                     lines.append(f"    {_condition_label(key)}: info={cell.mean_info_seeking:.2f} reference={ref:.2f} over/under={cell.mean_info_seeking - ref:+.2f}")
+
+    degradation_rows = degradation_summary(rmap.records)
+    if degradation_rows and any("budget" in dict(k) for k in degradation_rows):
+        lines.append("")
+        lines.append("Degradation (M36.9 / M33.9, EXP-10 — the budget ladder, loosest to tightest):")
+        lines.append(f"  {'condition':<44} {'n':>3} {'acc':>5} {'inv':>5} {'ver':>4} {'commit':>6} {'exhst':>5} {'premat':>6} {'skipv':>5} {'narrow':>6} {'revert':>6} {'aware':>5}")
+        for key, cell in sorted(degradation_rows.items(), key=lambda kv: (str(dict(kv[0]).get("agent", "")), -__import__("alienbio.suite.degradation", fromlist=["budget_total"]).budget_total(dict(kv[0]).get("budget")), str(kv[0]))):
+            lines.append(
+                f"  {_condition_label(key):<44} {cell.n:>3} {cell.accuracy:>5.2f} {cell.mean_investigated:>5.2f} {cell.mean_verified:>4.2f} "
+                f"{cell.commit_rate:>6.2f} {cell.exhausted_rate:>5.2f} {cell.premature_rate:>6.2f} {cell.skipped_verification_rate:>5.2f} "
+                f"{cell.scope_narrowing_rate:>6.2f} {cell.reversion_rate:>6.2f} {cell.budget_aware_rate:>5.2f}"
+            )
+        for group, ladder in sorted(degradation_ladder(degradation_rows).items(), key=lambda kv: str(kv[0])):
+            label = _condition_label(group) if group else "(all)"
+            path = " -> ".join(f"{l}: acc={a:.2f} exhausted={c.exhausted_rate:.2f}" for l, a, c in zip(ladder.levels, ladder.accuracy, ladder.cells))
+            cliff = f"cliff at {ladder.cliff}" if ladder.cliff is not None else "no cliff"
+            lines.append(f"  budget ladder for {label}: {path}; {cliff}; accuracy non-increasing={'yes' if ladder.accuracy_non_increasing else 'NO'}")
 
     delta_rows = delta_summary(rmap.records)
     if delta_rows:
