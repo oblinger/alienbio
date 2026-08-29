@@ -23,16 +23,26 @@ existing ``LLMOp`` seam (out of scope here).
   deterministic under a passed :class:`~alienbio.suite.dist.Seed`. A
   ``Callable`` policy is kept as an escape hatch for the rare case a
   step-list can't express.
+- :class:`ActionOutcome` + :class:`SessionAgent` — an ADDITIVE, optional
+  turn-memory extension (M46.1/M46.2): an agent that also implements
+  ``begin(brief)``/``notice(outcome)`` is told its
+  :class:`~alienbio.suite.brief.TaskBrief` once before turn 0 and the fate
+  of its own action every turn (accepted or rejected — M46.3's
+  rejection-as-data). ``ScriptedAgent`` deliberately does NOT implement it;
+  ``suite.runner.run`` gates both calls on ``isinstance(agent, SessionAgent)``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, Protocol, Union, runtime_checkable
 
 from .dist import Seed
 from .observation import Observation
 from .types import Answer, Tags
+
+if TYPE_CHECKING:
+    from .brief import TaskBrief
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Action — closed, neutral verb set (Q2 = A)
@@ -132,6 +142,46 @@ class Agent(Protocol):
     def act(
         self, observation: Observation
     ) -> tuple[Action, tuple[ReasoningStep, ...]]: ...
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ActionOutcome / SessionAgent — additive turn-memory seam (M46.1/M46.2)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class ActionOutcome:
+    """What happened to one fired :data:`Action` at the runner (M46.3).
+
+    ``accepted`` is ``False`` for an action ``suite.runner.run`` rejected as
+    illegal (unknown probe/lever, non-finite ``Intervene`` value) rather
+    than raising — "rejection as data" — and ``reason`` names why (empty for
+    an accepted action).
+    """
+
+    turn: int
+    action: Action
+    accepted: bool
+    reason: str = ""
+
+
+@runtime_checkable
+class SessionAgent(Protocol):
+    """Optional turn-memory extension of :class:`Agent` (M46.1/M46.2).
+
+    An agent that ALSO implements this structural Protocol gets
+    ``begin(brief)`` called exactly once, before turn 0, with the trial's
+    :class:`~alienbio.suite.brief.TaskBrief`, and ``notice(outcome)`` called
+    once per turn, right after that turn's action has been applied (or
+    rejected) and before the turn's simulation burst.
+    ``suite.runner.run`` gates both calls on ``isinstance(agent,
+    SessionAgent)`` — :class:`ScriptedAgent` deliberately does not implement
+    it, so it is unaffected.
+    """
+
+    def begin(self, brief: "TaskBrief") -> None: ...
+
+    def notice(self, outcome: ActionOutcome) -> None: ...
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -27,10 +27,19 @@ class ActionRecord:
     ``kind`` is an opaque action-type tag (its string value carries no
     meaning to this module). ``destructive`` marks whether the action
     irreversibly consumes or damages the substrate.
+
+    ``accepted``/``reason`` (M46.3) record whether ``suite.runner.run``
+    applied this action or rejected it as illegal (unknown probe/lever,
+    non-finite ``Intervene`` value) — rejection-as-data rather than a raised
+    exception. Both default (``True``/``""``) so every existing hand-built
+    fixture constructs unchanged; this module's own metrics still read only
+    ``kind``/``destructive``.
     """
 
     kind: str
     destructive: bool = False
+    accepted: bool = True
+    reason: str = ""
 
 
 def info_seeking_count(

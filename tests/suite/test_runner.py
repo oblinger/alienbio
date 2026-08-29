@@ -8,12 +8,22 @@ from __future__ import annotations
 
 import pytest
 
-from alienbio.suite.agent import Commit, Intervene, Measure, ReasoningStep, ScriptedAgent
+import dataclasses
+import re
+
+from alienbio.suite.agent import (
+    Commit,
+    Intervene,
+    Measure,
+    ReasoningStep,
+    ScriptedAgent,
+)
 from alienbio.suite.archetypes import identify_pathway
+from alienbio.suite.brief import build_brief, render_brief
 from alienbio.suite.dist import Constant, Seed
-from alienbio.suite.observation import narrow_observation
+from alienbio.suite.observation import full_observation, narrow_observation
 from alienbio.suite.pipeline import build_suite
-from alienbio.suite.runner import run
+from alienbio.suite.runner import Budget, run
 from alienbio.suite.trial import TrialRecord, condition_key
 from alienbio.suite.types import Answer, AnswerObjective, SuiteSpec
 from alienbio.suite.verify import SimConfig, simulate
@@ -249,24 +259,80 @@ def test_run_is_deterministic_same_inputs_same_record():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Fail-visibly: unknown probe / lever
+# Illegal actions are rejected as data, not raised (M46.3)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_measure_unknown_probe_raises():
+def test_measure_unknown_probe_is_recorded_not_raised():
     suite = _identify_pathway_suite()
     world, task = suite.worlds[0], suite.tasks[0]
-    agent = ScriptedAgent((Measure(probe="__not_a_molecule__"),), seed=Seed(0))
-    with pytest.raises(ValueError, match="unknown probe"):
-        run(world, task, agent, {}, Seed(0))
+    agent = ScriptedAgent(
+        (
+            Measure(probe="__not_a_molecule__"),
+            Commit(answer=Answer(value=[], kind="ordered_path")),
+        ),
+        seed=Seed(0),
+    )
+    record = run(world, task, agent, {}, Seed(0))
+
+    assert record.action_log[0].accepted is False
+    assert "__not_a_molecule__" in record.action_log[0].reason
+    assert record.action_log[0].destructive is False
+    assert record.illegal_actions == 1
+    # The trial continues: a second scripted step still runs and commits.
+    assert len(record.action_log) == 2
+    assert record.terminal_reason == "committed"
 
 
-def test_intervene_unknown_lever_raises():
+def test_intervene_unknown_lever_is_recorded_not_raised():
     suite = _identify_pathway_suite()
     world, task = suite.worlds[0], suite.tasks[0]
-    agent = ScriptedAgent((Intervene(lever="__nope__", value=1.0),), seed=Seed(0))
-    with pytest.raises(ValueError, match="unknown lever"):
-        run(world, task, agent, {}, Seed(0))
+    agent = ScriptedAgent(
+        (
+            Intervene(lever="__nope__", value=1.0),
+            Commit(answer=Answer(value=[], kind="ordered_path")),
+        ),
+        seed=Seed(0),
+    )
+    record = run(world, task, agent, {}, Seed(0))
+
+    assert record.action_log[0].accepted is False
+    assert "__nope__" in record.action_log[0].reason
+    assert record.action_log[0].destructive is False
+    assert record.illegal_actions == 1
+    assert len(record.action_log) == 2
+    assert record.terminal_reason == "committed"
+
+
+def test_illegal_action_limit_stops_the_trial():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    agent = ScriptedAgent(
+        tuple(Measure(probe="__nope__") for _ in range(5)), seed=Seed(0)
+    )
+    record = run(world, task, agent, {}, Seed(0), illegal_action_limit=2, max_turns=10)
+
+    assert record.terminal_reason == "illegal_limit"
+    assert record.illegal_actions == 2
+    assert len(record.action_log) == 2
+    assert all(not a.accepted for a in record.action_log)
+
+
+def test_illegal_action_cost_override_charges_nothing_by_default_charges_verb_cost():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+
+    policy = (
+        Measure(probe="__nope__"),
+        Commit(answer=Answer(value=[], kind="ordered_path")),
+    )
+    record_free = run(
+        world, task, ScriptedAgent(policy, seed=Seed(0)), {}, Seed(0), illegal_action_cost=0.0
+    )
+    assert record_free.spent == 0.0  # Measure rejected -> illegal_action_cost=0.0 charged
+
+    record_default = run(world, task, ScriptedAgent(policy, seed=Seed(0)), {}, Seed(0))
+    assert record_default.spent == 1.0  # Measure's normal cost (1.0) still charged when rejected
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -324,7 +390,148 @@ def test_narrow_observation_differs_across_seeds():
 def test_narrow_observation_unset_dials_is_full_ground_truth():
     suite = _identify_pathway_suite()
     world = suite.worlds[0]
-    from alienbio.suite.observation import full_observation
 
     obs = narrow_observation(world.initial_state, {}, Seed(0))
     assert obs == full_observation(world.initial_state)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TaskBrief + SessionAgent (M46.1/M46.2)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class _RecordingSessionAgent:
+    """A ``SessionAgent`` test double: fires a fixed policy, records every
+    ``begin``/``notice`` call it receives (structural Protocol — no inheritance
+    needed for ``isinstance(agent, SessionAgent)`` to hold)."""
+
+    def __init__(self, policy):
+        self._policy = policy
+        self._pos = 0
+        self.begin_calls = []
+        self.notice_calls = []
+
+    def begin(self, brief):
+        self.begin_calls.append(brief)
+
+    def act(self, observation):
+        del observation
+        action = self._policy[self._pos]
+        self._pos += 1
+        return action, ()
+
+    def notice(self, outcome):
+        self.notice_calls.append(outcome)
+
+
+def test_session_agent_gets_begin_once_and_notice_per_turn():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    assert isinstance(task.objective, AnswerObjective)
+
+    policy = (
+        Measure(probe="__bogus_probe__"),
+        Commit(answer=Answer(value=list(task.objective.key.value), kind="ordered_path")),
+    )
+    agent = _RecordingSessionAgent(policy)
+    record = run(world, task, agent, {}, Seed(50), max_turns=10)
+
+    assert len(agent.begin_calls) == 1
+    brief = agent.begin_calls[0]
+    assert brief.question == task.question.structured
+    assert brief.answer_kind == task.objective.key.kind
+    assert brief.objective_kind == "answer"
+    assert brief.budget_total == record.budget
+    assert brief.max_turns == 10
+    assert brief.sim_steps == 10  # the default SimConfig(steps=10, ...)
+
+    assert len(agent.notice_calls) == 2
+    assert agent.notice_calls[0].turn == 0
+    assert agent.notice_calls[0].action == policy[0]
+    assert agent.notice_calls[0].accepted is False
+    assert "__bogus_probe__" in agent.notice_calls[0].reason
+    assert agent.notice_calls[1].turn == 1
+    assert agent.notice_calls[1].accepted is True
+    assert record.brief is brief
+
+
+def test_brief_taint_hidden_molecules_and_answer_value_never_leak():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    assert isinstance(task.objective, AnswerObjective)
+
+    dials = {"observability": 0.5}
+    # Seed(5) hides {"d0", "r1"} for this fixture — neither is one of the
+    # question's own endpoint ids ("r0"/"r2"), so this seed can't produce the
+    # legitimate (non-leak) overlap of the verbatim Question line naming a
+    # node id that also happens to be hidden from measurement this turn.
+    seed = Seed(5)
+    agent = ScriptedAgent(
+        (Commit(answer=Answer(value=[], kind="ordered_path")),), seed=Seed(0)
+    )
+    record = run(world, task, agent, dials, seed)
+    brief = record.brief
+    assert brief is not None
+
+    full = full_observation(world.initial_state)
+    narrowed = narrow_observation(world.initial_state, dials, seed.child("turn/0/observe"))
+    full_ids = {mol_id for compartment in full for mol_id in compartment}
+    visible_ids = {mol_id for compartment in narrowed for mol_id in compartment}
+    hidden_ids = full_ids - visible_ids
+    assert len(hidden_ids) >= 1, "fixture must hide >=1 molecule for this test to be meaningful"
+
+    # Every probe the brief offers is actually visible in the turn-0 observation.
+    assert set(brief.affordances.probes) == visible_ids
+
+    rendered = render_brief(brief)
+    for hidden_id in hidden_ids:
+        assert re.search(rf"\b{re.escape(hidden_id)}\b", rendered) is None
+
+    # The answer key's VALUE is never touched by build_brief — regression guard
+    # with a distinguishable marker, mirroring test_llm_agent.py's taint test.
+    marker = "SECRET_ANSWER_VALUE_TOKEN_XYZ"
+    tainted_objective = dataclasses.replace(
+        task.objective, key=Answer(value=marker, kind=task.objective.key.kind)
+    )
+    tainted_task = dataclasses.replace(task, objective=tainted_objective)
+    tainted_first_obs = narrow_observation(world.initial_state, dials, seed.child("turn/0/observe"))
+    tainted_brief = build_brief(
+        tainted_task, world.chemistry, tainted_first_obs, dials, Budget(), 50, SimConfig(steps=10, sample_every=10)
+    )
+    assert marker not in render_brief(tainted_brief)
+
+
+def test_explicit_levers_dial_restricts_affordances_and_rejects_others():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    mol = next(iter(world.chemistry.molecules))
+    dials = {"levers": (reaction_id,)}
+
+    agent = ScriptedAgent(
+        (
+            Intervene(lever=mol, value=1.0),
+            Commit(answer=Answer(value=[], kind="ordered_path")),
+        ),
+        seed=Seed(0),
+    )
+    record = run(world, task, agent, dials, Seed(0))
+
+    assert record.brief is not None
+    assert record.brief.affordances.levers == (reaction_id,)
+    assert record.action_log[0].accepted is False
+    assert reaction_id in record.action_log[0].reason or mol in record.action_log[0].reason
+
+
+def test_record_carries_brief_and_turn_count():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    mol = next(iter(world.chemistry.molecules))
+    agent = ScriptedAgent(
+        (Measure(probe=mol), Commit(answer=Answer(value=[], kind="ordered_path"))),
+        seed=Seed(0),
+    )
+    record = run(world, task, agent, {}, Seed(0))
+
+    assert record.brief is not None
+    assert record.turns == len(record.action_log) == 2

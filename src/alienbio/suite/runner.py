@@ -35,36 +35,61 @@ run over the same total steps). ``Wait`` is likewise non-mutating (its
 identical world effects, differing only in their logged verb). ``Intervene``
 edits ONE control-surface lever: a reaction id sets that reaction's rate
 (:func:`_chemistry_with_rate`); a molecule id sets that molecule's
-concentration in every compartment (:func:`_state_with_concentration`); any
-other lever name fails visibly (``ValueError``), as does a ``Measure`` naming
-an unknown probe. ``Commit`` ends the trial (terminal reason ``"committed"``)
-and supplies the answer graded against the task's objective.
+concentration in every compartment (:func:`_state_with_concentration``).
+``Commit`` ends the trial (terminal reason ``"committed"``) and supplies the
+answer graded against the task's objective.
+
+**Illegal actions are rejected as data, not raised (M46.3).** An unknown
+``Measure`` probe, an unknown/unresolvable ``Intervene`` lever, or a
+non-finite ``Intervene`` value no longer raises — one hallucinated id used
+to abort the whole trial (fatal for an unattended, paid ``MassTrialRunner``
+grid). Instead it is logged as a rejected ``ActionRecord``
+(``accepted=False``, ``reason`` naming why, ``destructive=False``, no
+chemistry/state mutation) and the turn still simulates its one ``sim_cfg``
+burst — time passes regardless. Once ``illegal_action_limit`` rejections
+have accumulated the trial stops with reason ``"illegal_limit"``. A
+SessionAgent (below) is told the fate of every action, legal or not, via
+``notice``.
+
+**TaskBrief + SessionAgent (M46.1/M46.2).** Before turn 0, :func:`~alienbio.suite.brief.build_brief`
+packages the question, its kinds, the constitution (if dialed), the
+turn-0-visible probe/lever affordances, the budget, and the per-verb costs
+into one immutable :class:`~alienbio.suite.brief.TaskBrief` — a pure
+function of exactly the same taint-safe inputs the loop already threads
+through (never the answer key, outcome target, oracle, or a hidden
+observable). An agent that also implements
+:class:`~alienbio.suite.agent.SessionAgent` gets this brief once
+(``begin``) and every turn's :class:`~alienbio.suite.agent.ActionOutcome`
+(``notice``); a bare :class:`~alienbio.suite.agent.Agent` (e.g.
+``ScriptedAgent``) is unaffected.
 
 **Cost/budget -> graded time-pressure dial (F023, M32.1).** Each action
 carries an opaque cost — ``Measure`` cheap, ``Intervene`` dearer,
-``Commit``/``Wait`` free by default (:data:`_DEFAULT_COST`; a
-``params["cost"]`` entry overrides it per call). Spend accumulates every
-turn; once it reaches the dialed :class:`Budget`'s ``total`` the trial stops
-with reason ``"budget_exhausted"``. A trial that never commits and never
-exhausts its budget stops at ``max_turns``. The F021 cap (a bare
-``dials["budget"]`` number) is now formalised as :class:`Budget` — one
-value object with a selectable ``unit`` (only ``"turns"`` is implemented; see
-:class:`Budget`'s docstring) — without ripping out the original
-cost-accounting loop; :func:`Budget.from_dial` keeps the old bare-number
-dial shape working unchanged.
+``Commit``/``Wait`` free by default (:data:`~alienbio.suite.brief.DEFAULT_ACTION_COSTS`;
+a ``params["cost"]`` entry overrides it per call; a rejected action charges
+``illegal_action_cost`` when set, else its normal verb cost). Spend
+accumulates every turn; once it reaches the dialed :class:`Budget`'s
+``total`` the trial stops with reason ``"budget_exhausted"``. A trial that
+never commits and never exhausts its budget stops at ``max_turns``. The
+F021 cap (a bare ``dials["budget"]`` number) is now formalised as
+:class:`Budget` — one value object with a selectable ``unit`` (only
+``"turns"`` is implemented; see :class:`Budget`'s docstring) — without
+ripping out the original cost-accounting loop; :func:`Budget.from_dial`
+keeps the old bare-number dial shape working unchanged.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import math
-from typing import Any, Mapping, cast
+from typing import Any, Mapping, Optional, cast
 
 from ..bio.chemistry import ChemistryImpl
 from ..bio.reaction import ReactionImpl
 from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
-from .agent import Action, Agent, Commit, Intervene, Measure, Wait
+from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, SessionAgent, Wait
+from .brief import DEFAULT_ACTION_COSTS, build_brief
 from .deliberation import DeliberationTrace
 from .dist import Seed
 from .grade import grade_answer, grade_outcome
@@ -73,15 +98,6 @@ from .observation import narrow_observation
 from .trial import TrialRecord, condition_key, thread_reasoning_steps
 from .types import AnswerObjective, OutcomeObjective, TaskInstance, Timeline
 from .verify import SimConfig, simulate
-
-#: Default per-verb cost (Q3 = B): measurements cheap, interventions dearer,
-#: Commit/Wait free. ``action.params["cost"]`` overrides this per call.
-_DEFAULT_COST: dict[type, float] = {
-    Measure: 1.0,
-    Intervene: 5.0,
-    Commit: 0.0,
-    Wait: 0.0,
-}
 
 #: Units :class:`Budget` currently knows how to drain (Q1 = C: ship turns
 #: first). ``"sim_steps"``/``"deadline"`` are documented, additive future
@@ -196,7 +212,23 @@ def _action_cost(action: Action) -> float:
     override = action.params.get("cost")
     if override is not None:
         return float(override)
-    return _DEFAULT_COST[type(action)]
+    return DEFAULT_ACTION_COSTS[type(action).__name__.lower()]
+
+
+def _is_finite_number(value: Any) -> bool:
+    """Whether ``value`` is a real, finite number (M46.3's ``Intervene`` value guard).
+
+    ``bool`` is deliberately excluded (``isinstance(True, int)`` is ``True``
+    in Python, but a bare ``True``/``False`` is never a legitimate setpoint);
+    anything that fails to convert to ``float`` (or converts to ``inf``/
+    ``nan``) is likewise not finite.
+    """
+    if isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
 
 
 def _world_from_state(
@@ -310,28 +342,45 @@ def run(
     *,
     sim_cfg: SimConfig = SimConfig(steps=10, sample_every=10),
     max_turns: int = 50,
+    illegal_action_limit: int = 10,
+    illegal_action_cost: Optional[float] = None,
 ) -> TrialRecord:
     """Run ``agent`` against ``task``'s ``world`` for one immutable ``TrialRecord``.
+
+    Before turn 0: narrow ``world``'s initial state into the turn-0
+    ``Observation`` and package it, ``task``, ``dials``, the resolved
+    ``Budget``, ``max_turns``, and ``sim_cfg`` into one
+    :class:`~alienbio.suite.brief.TaskBrief` (:func:`~alienbio.suite.brief.build_brief`);
+    if ``agent`` also implements :class:`~alienbio.suite.agent.SessionAgent`,
+    ``agent.begin(brief)`` is called exactly once.
 
     Each turn: (1) rebuild a fresh ``WorldImpl`` from the prior end-state
     (:func:`_world_from_state`; turn 0 folds ``world``'s own initial state
     through the identical path, so ``world`` is never touched or reused
     directly); (2) narrow the full state to an ``Observation`` via the shared
     :func:`~alienbio.suite.observation.narrow_observation` helper, keyed off
-    ``dials`` and a per-turn child ``seed``; (3) ``agent.act(observation)``;
-    (4) thread the returned reasoning steps into the ``DeliberationTrace``
-    (:func:`~alienbio.suite.trial.thread_reasoning_steps`); (5) apply the
-    action (lever / concentration / measurement / commit; an unknown lever or
-    probe raises ``ValueError`` — Q1 = A, fail visibly); (6) simulate one
-    ``sim_cfg`` burst and fold its end-state back in as the next turn's state.
+    ``dials`` and a per-turn child ``seed`` (turn 0 reuses the brief's own
+    turn-0 observation rather than recomputing it — same seed, same dials,
+    same state, so this is exactly one call, not a second independent draw);
+    (3) ``agent.act(observation)``; (4) thread the returned reasoning steps
+    into the ``DeliberationTrace`` (:func:`~alienbio.suite.trial.thread_reasoning_steps`);
+    (5) apply the action if it is legal (lever / concentration / measurement
+    / commit) or log it as REJECTED — an unknown probe, an unknown/unresolvable
+    lever, or a non-finite ``Intervene`` value is rejection-as-data (M46.3),
+    never a raised exception — and, either way, tell a ``SessionAgent`` the
+    outcome (``agent.notice``); (6) simulate one ``sim_cfg`` burst regardless
+    (time passes every turn) and fold its end-state back in as the next
+    turn's state.
 
-    Terminates on ``Commit`` (``"committed"``), on cumulative action cost
-    reaching the ``dials["budget"]`` dial's :class:`Budget` (default
-    unlimited, ``"budget_exhausted"``), or after ``max_turns`` turns
+    Terminates on ``Commit`` (``"committed"``), once ``illegal_action_limit``
+    rejected actions have accumulated (``"illegal_limit"``), on cumulative
+    action cost reaching the ``dials["budget"]`` dial's :class:`Budget`
+    (default unlimited, ``"budget_exhausted"``), or after ``max_turns`` turns
     (``"max_turns"``) — recorded on the returned record's
     ``terminal_reason``, alongside the resolved ``budget``/``spent``/
-    ``remaining`` (F023, M32.1). ``task_id`` is ``task.world`` (the per-task world
-    name a :func:`~alienbio.suite.pipeline.build_suite` suite assigns, e.g.
+    ``remaining`` (F023, M32.1) and ``illegal_actions``/``turns``/``brief``
+    (M46.3/M46.1). ``task_id`` is ``task.world`` (the per-task world name a
+    :func:`~alienbio.suite.pipeline.build_suite` suite assigns, e.g.
     ``"world0"`` — the one field on ``TaskInstance`` that is unique per task).
 
     An ``AnswerObjective`` task that never commits has no answer to grade and
@@ -343,13 +392,19 @@ def run(
     freshly-constructed but behaviourally identical ``agent`` (same policy)
     yield byte-identical ``action_log`` / ``objective_score`` (neither
     ``world`` nor its ``chemistry``/``initial_state`` is ever mutated, so nothing
-    leaks between the two calls).
+    leaks between the two calls) — the ``TaskBrief`` is likewise a pure
+    function of these same inputs.
     """
     compartments = world.compartments
     chemistry = world.chemistry
     state: WorldStateImpl = world.initial_state
     budget = Budget.from_dial(dials.get("budget"))
     spent = 0.0
+
+    first_observation = narrow_observation(state, dials, seed.child("turn/0/observe"))
+    brief = build_brief(task, chemistry, first_observation, dials, budget, max_turns, sim_cfg)
+    if isinstance(agent, SessionAgent):
+        agent.begin(brief)
 
     trace = DeliberationTrace()
     action_records: list[ActionRecord] = []
@@ -358,41 +413,70 @@ def run(
     elapsed = 0.0
     committed_answer = None
     reason = "max_turns"
+    illegal = 0
+    turns_executed = 0
 
     for turn in range(max_turns):
+        turns_executed = turn + 1
         turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
 
-        observation = narrow_observation(state, dials, seed.child(f"turn/{turn}/observe"))
+        observation = (
+            first_observation if turn == 0 else narrow_observation(state, dials, seed.child(f"turn/{turn}/observe"))
+        )
         action, reasoning_steps = agent.act(observation)
         trace = thread_reasoning_steps(trace, turn, action, reasoning_steps)
+
+        accepted = True
+        reject_reason = ""
+        if isinstance(action, Measure):
+            if action.probe not in brief.affordances.probes:
+                accepted = False
+                reject_reason = f"unknown probe {action.probe!r}"
+        elif isinstance(action, Intervene):
+            if action.lever not in brief.affordances.levers:
+                accepted = False
+                reject_reason = f"unknown lever {action.lever!r}"
+            elif action.lever not in chemistry.reactions and action.lever not in chemistry.molecules:
+                accepted = False
+                reject_reason = (
+                    f"lever {action.lever!r} is allowlisted but not resolvable in this world"
+                )
+            elif not _is_finite_number(action.value):
+                accepted = False
+                reject_reason = f"non-finite value {action.value!r}"
+        elif isinstance(action, (Commit, Wait)):
+            pass
+        else:
+            raise ValueError(f"unknown action type: {type(action).__name__}")
+
         action_records.append(
             ActionRecord(
                 kind=type(action).__name__.lower(),
-                destructive=isinstance(action, Intervene),
+                destructive=accepted and isinstance(action, Intervene),
+                accepted=accepted,
+                reason=reject_reason,
             )
         )
-        spent += _action_cost(action)
 
-        if isinstance(action, Measure):
-            if action.probe not in chemistry.molecules:
-                raise ValueError(f"Measure: unknown probe {action.probe!r}")
-        elif isinstance(action, Intervene):
-            if action.lever in chemistry.reactions:
-                chemistry = _chemistry_with_rate(chemistry, action.lever, float(action.value))
-            elif action.lever in chemistry.molecules:
-                state = _state_with_concentration(state, action.lever, float(action.value))
-            else:
-                raise ValueError(
-                    f"Intervene: unknown lever {action.lever!r} "
-                    "(not a reaction or molecule in this world's chemistry)"
-                )
-            turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
-        elif isinstance(action, Wait):
-            pass
-        elif isinstance(action, Commit):
-            committed_answer = action.answer
+        if accepted:
+            spent += _action_cost(action)
         else:
-            raise ValueError(f"unknown action type: {type(action).__name__}")
+            illegal += 1
+            spent += illegal_action_cost if illegal_action_cost is not None else _action_cost(action)
+
+        if accepted:
+            if isinstance(action, Intervene):
+                if action.lever in chemistry.reactions:
+                    chemistry = _chemistry_with_rate(chemistry, action.lever, float(action.value))
+                else:
+                    state = _state_with_concentration(state, action.lever, float(action.value))
+                turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
+            elif isinstance(action, Commit):
+                committed_answer = action.answer
+            # Measure / Wait: non-mutating, nothing to apply.
+
+        if isinstance(agent, SessionAgent):
+            agent.notice(ActionOutcome(turn=turn, action=action, accepted=accepted, reason=reject_reason))
 
         timeline = simulate(turn_world, sim_cfg, seed.child(f"turn/{turn}/sim"))
         start = 0 if turn == 0 else 1  # skip the duplicate turn-boundary snapshot
@@ -404,6 +488,9 @@ def run(
 
         if isinstance(action, Commit):
             reason = "committed"
+            break
+        if illegal >= illegal_action_limit:
+            reason = "illegal_limit"
             break
         if budget.exhausted(spent):
             reason = "budget_exhausted"
@@ -436,4 +523,7 @@ def run(
         budget=budget.total,
         spent=spent,
         remaining=budget.total - spent,
+        illegal_actions=illegal,
+        turns=turns_executed,
+        brief=brief,
     )

@@ -21,9 +21,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Collection, Mapping, Sequence
+from typing import Any, Collection, Mapping, Optional, Sequence
 
 from .agent import Action, ReasoningStep
+from .brief import TaskBrief
 from .deliberation import DeliberationStep, DeliberationTrace
 from .info_seeking import ActionRecord
 from .info_seeking import actions_before_commit as _actions_before_commit
@@ -91,6 +92,15 @@ class TrialRecord:
     ``budget - spent`` at the moment the trial stopped. They default to an
     unlimited, unspent budget (``float("inf")``/``0.0``/``float("inf")``) so
     every existing hand-built fixture constructs unchanged.
+
+    ``illegal_actions``/``turns``/``brief``/``error`` (M46.1/M46.3) are the
+    count of rejected (illegal-but-not-raised) actions, the number of loop
+    iterations the trial actually ran, the trial's
+    :class:`~alienbio.suite.brief.TaskBrief` (``None`` for a hand-built
+    fixture that never went through ``suite.runner.run``), and — for a
+    :class:`~alienbio.suite.mass_trial.MassTrialRunner` error record —
+    ``f"{type(exc).__name__}: {exc}"``. All four default so every existing
+    hand-built fixture constructs unchanged.
     """
 
     task_id: str
@@ -103,6 +113,10 @@ class TrialRecord:
     budget: float = float("inf")
     spent: float = 0.0
     remaining: float = float("inf")
+    illegal_actions: int = 0
+    turns: int = 0
+    brief: Optional[TaskBrief] = None
+    error: str = ""
 
     @cached_property
     def deliberation_depth(self) -> int:

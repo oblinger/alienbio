@@ -13,6 +13,8 @@ import csv
 import io
 import json
 
+import pytest
+
 from alienbio.suite.agent import Commit, ScriptedAgent
 from alienbio.suite.conflict_gen import draft_conflict_world
 from alienbio.suite.dist import Seed, Uniform
@@ -160,6 +162,10 @@ def test_mass_trial_reproducible_same_inputs_same_map():
         k: (c.cohens_d, c.welch_t) for k, c in r2.contrasts.items()
     }
 
+    # M46.3: records are populated on a normal run and none are errors.
+    assert len(r1.records) == 6 * len(RUNG_LEVELS) * len(SPLIT_LEVELS)
+    assert all(r.terminal_reason != "error" for r in r1.records)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Widening: adding a level to an axis only ADDS cells, never perturbs existing ones
@@ -230,3 +236,49 @@ def test_to_csv_round_trip():
         assert float(ci_low) <= float(mean) <= float(ci_high)
         seen_conditions.add((rung, split))
     assert len(seen_conditions) == len(rmap.cells)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# on_error — per-trial fault isolation (M46.3)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_on_error_record_isolates_the_failing_condition():
+    def failing_agent_factory(seed, dials):
+        if dials["rung"] == "forced":
+            raise RuntimeError("boom")
+        return _agent_factory(seed, dials)
+
+    trials_per_condition = 3
+    rmap = MassTrialRunner().run(
+        _AXES, _drafter, failing_agent_factory, trials_per_condition=trials_per_condition, base_seed=Seed(200)
+    )
+
+    assert rmap.provenance.failed_trials == trials_per_condition * len(SPLIT_LEVELS)
+    assert not any(dict(key)["rung"] == "forced" for key in rmap.cells)
+
+    total_trials = trials_per_condition * len(RUNG_LEVELS) * len(SPLIT_LEVELS)
+    assert len(rmap.records) == total_trials
+
+    errors = [r for r in rmap.records if r.terminal_reason == "error"]
+    assert len(errors) == trials_per_condition * len(SPLIT_LEVELS)
+    assert all("RuntimeError" in r.error and "boom" in r.error for r in errors)
+    assert all(r.objective_score == 0.0 for r in errors)
+
+
+def test_on_error_raise_propagates():
+    def failing_agent_factory(seed, dials):
+        del seed, dials
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        MassTrialRunner().run(
+            _AXES, _drafter, failing_agent_factory, trials_per_condition=1, base_seed=Seed(1), on_error="raise"
+        )
+
+
+def test_on_error_bogus_value_raises_value_error():
+    with pytest.raises(ValueError):
+        MassTrialRunner().run(
+            _AXES, _drafter, _agent_factory, trials_per_condition=1, base_seed=Seed(1), on_error="bogus"
+        )

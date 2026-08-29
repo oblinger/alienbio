@@ -24,12 +24,22 @@ an immutable :class:`ReliabilityMap`.
   derived seed — a process pool is a safe, purely-additive future upgrade
   (swap the inner ``for`` loop for a pool ``map`` over the same per-trial
   seeds); it is not built here (RAM: thousands of parallel simulator
-  processes would exhaust it).
+  processes would exhaust it). ``on_error="record"`` (the default, M46.3)
+  ISOLATES each trial: a drafter/agent/runner exception is caught and folded
+  into an error ``TrialRecord`` (``terminal_reason="error"``) instead of
+  aborting the whole grid — one hallucinated id or a flaky generator no
+  longer costs every other cell's already-collected data.
+  ``on_error="raise"`` keeps the original propagate-on-first-failure
+  behaviour.
 - :class:`ReliabilityMap` — the frozen aggregate: per-cell
   :class:`CellSummary` (n/mean/std + confidence interval), per-axis-pair
-  interaction contrasts, per-axis-pair effect-size contrasts, and a
-  ``Provenance`` record (axes + base seed + trials-per-condition) — plus
-  ``to_json``/``to_csv`` serialization for offline analysis.
+  interaction contrasts, per-axis-pair effect-size contrasts, a
+  ``Provenance`` record (axes + base seed + trials-per-condition +
+  ``failed_trials``) — plus every raw :class:`~alienbio.suite.trial.TrialRecord`
+  (error records included, in run order) retained on ``.records`` for the
+  per-trial scorers, and ``to_json``/``to_csv`` serialization for offline
+  analysis. Error records are excluded from the cell/interaction/contrast
+  STATISTICS (they are not measurements) but are always kept in ``.records``.
 """
 
 from __future__ import annotations
@@ -39,18 +49,19 @@ import io
 import itertools
 import json
 import statistics
-from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Sequence, cast
+from dataclasses import dataclass, replace
+from typing import Any, Callable, Mapping, Optional, Sequence, cast
 
 from ..bio.world import WorldImpl
 from .agent import Agent
+from .deliberation import DeliberationTrace
 from .dist import Seed
 from .effect_size import cohens_d, welch_t
 from .reliability_grid import CellStats, aggregate_cells, two_way_interaction
 from .runner import run as run_trial
 from .stats_summary import mean_confidence_interval
 from .trial import TrialRecord, condition_key
-from .types import TaskInstance
+from .types import TaskInstance, Timeline
 
 #: One sorted ``(dial_name, level)`` tuple — identical shape to
 #: :func:`~alienbio.suite.trial.condition_key`'s output and what
@@ -120,11 +131,18 @@ class ContrastResult:
 class Provenance:
     """What produced a :class:`ReliabilityMap`: the swept axes, the base seed,
     and the fixed per-condition trial count (Q1 = C: a fixed floor, not a
-    power-driven top-up)."""
+    power-driven top-up).
+
+    ``failed_trials`` (M46.3) is how many ``(condition, trial)`` units raised
+    under ``on_error="record"`` — always ``0`` under ``on_error="raise"``
+    (a failure there propagates instead). Defaults to ``0`` so every
+    existing hand-built fixture constructs unchanged.
+    """
 
     axes: tuple[tuple[str, tuple[Any, ...]], ...]
     base_seed: Seed
     trials_per_condition: int
+    failed_trials: int = 0
 
 
 @dataclass(frozen=True)
@@ -142,12 +160,19 @@ class ReliabilityMap:
     pooled raw scores, pooling across any other swept axes) using
     :func:`~alienbio.suite.effect_size.cohens_d` /
     :func:`~alienbio.suite.effect_size.welch_t`.
+
+    ``records`` (M46.3) is every :class:`~alienbio.suite.trial.TrialRecord`
+    this run produced, in run order — error records (``on_error="record"``)
+    included — the per-trial data the M33 scorers read; previously discarded
+    once folded into ``cells``. Defaults to ``()`` so every existing
+    hand-built fixture constructs unchanged.
     """
 
     cells: Mapping[ConditionKey, CellSummary]
     interactions: Mapping[tuple[str, str], float]
     contrasts: Mapping[tuple[str, str], ContrastResult]
     provenance: Provenance
+    records: tuple[TrialRecord, ...] = ()
 
     def to_json(self) -> str:
         """Serialize to a JSON string (cells + interactions + contrasts + provenance)."""
@@ -156,6 +181,7 @@ class ReliabilityMap:
                 "axes": [[name, list(levels)] for name, levels in self.provenance.axes],
                 "base_seed": self.provenance.base_seed.value,
                 "trials_per_condition": self.provenance.trials_per_condition,
+                "failed_trials": self.provenance.failed_trials,
             },
             "cells": [
                 {
@@ -328,6 +354,7 @@ class MassTrialRunner:
         agent_factory: AgentFactory,
         trials_per_condition: int,
         base_seed: Seed,
+        on_error: str = "record",
     ) -> ReliabilityMap:
         """Run ``trials_per_condition`` seeded trials for every cell of ``axes``.
 
@@ -342,6 +369,25 @@ class MassTrialRunner:
         runner never inspects a dial name or level itself, keeping it
         axis-agnostic and decoupled from any one dial-generator module.
 
+        ``on_error`` (M46.3) controls per-trial fault isolation:
+
+        - ``"record"`` (default): a ``drafter``/``agent_factory``/``run``
+          exception for one ``(condition, trial)`` unit is caught and folded
+          into an error :class:`~alienbio.suite.trial.TrialRecord`
+          (``terminal_reason="error"``, ``error=f"{type(exc).__name__}:
+          {exc}"``, ``task_id`` = the drafted task's ``world`` if the
+          drafter got that far, else the condition label) instead of
+          aborting the whole grid; every other ``(condition, trial)`` unit
+          still runs. Error records are excluded from the returned
+          ``cells``/``interactions``/``contrasts`` statistics but are always
+          present in ``ReliabilityMap.records`` and counted in
+          ``Provenance.failed_trials``.
+        - ``"raise"``: today's original behaviour — the first exception
+          propagates and aborts the run.
+
+        Raises:
+            ValueError: ``on_error`` is neither ``"record"`` nor ``"raise"``.
+
         Reproducible: identical ``(axes, drafter, agent_factory,
         trials_per_condition, base_seed)`` always yields byte-identical cell
         means/CIs (every seed is a pure function of the condition's own key
@@ -349,18 +395,41 @@ class MassTrialRunner:
         order) — widening an axis with new levels only adds new cells, it
         never perturbs an existing cell's per-trial seeds.
         """
+        if on_error not in ("record", "raise"):
+            raise ValueError(f"MassTrialRunner.run: unknown on_error {on_error!r}; expected 'record' or 'raise'")
+
         axes_tuple = tuple((name, tuple(levels)) for name, levels in axes)
         keys = sorted(condition_grid(axes_tuple), key=lambda k: str(k))
 
         records: list[TrialRecord] = []
+        failed_trials = 0
         for key in keys:
             dials = dict(key)
             label = _condition_label(key)
             for i in range(trials_per_condition):
                 trial_seed = base_seed.child(f"{label}/{i}")
-                world, task = drafter(trial_seed.child("draft"), dials)
-                agent = agent_factory(trial_seed.child("agent"), dials)
-                record = run_trial(world, task, agent, dials, trial_seed.child("run"))
+                task: Optional[TaskInstance] = None
+                try:
+                    world, task = drafter(trial_seed.child("draft"), dials)
+                    agent = agent_factory(trial_seed.child("agent"), dials)
+                    record = run_trial(world, task, agent, dials, trial_seed.child("run"))
+                except Exception as exc:
+                    if on_error == "raise":
+                        raise
+                    failed_trials += 1
+                    record = TrialRecord(
+                        task_id=task.world if task is not None else label,
+                        condition_key=key,
+                        final_timeline=Timeline(times=(), states=()),
+                        deliberation_trace=DeliberationTrace(),
+                        action_log=(),
+                        objective_score=0.0,
+                        terminal_reason="error",
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
                 records.append(record)
 
-        return _aggregate(records, axes_tuple, base_seed, trials_per_condition)
+        successful = tuple(r for r in records if r.terminal_reason != "error")
+        rmap = _aggregate(successful, axes_tuple, base_seed, trials_per_condition)
+        provenance = replace(rmap.provenance, failed_trials=failed_trials)
+        return replace(rmap, records=tuple(records), provenance=provenance)

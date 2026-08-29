@@ -13,8 +13,9 @@ import os
 
 import pytest
 
-from alienbio.suite.agent import Commit, Intervene, Measure, ScriptedAgent, Wait
+from alienbio.suite.agent import ActionOutcome, Commit, Intervene, Measure, ScriptedAgent, Wait
 from alienbio.suite.archetypes import identify_pathway
+from alienbio.suite.brief import build_brief
 from alienbio.suite.dist import Constant, Seed
 from alienbio.suite.llm_agent import (
     DEFAULT_DIRECTIVE,
@@ -22,10 +23,11 @@ from alienbio.suite.llm_agent import (
     default_anthropic_llm_fn,
     render_observation,
 )
-from alienbio.suite.observation import project_observation
+from alienbio.suite.observation import narrow_observation, project_observation
 from alienbio.suite.pipeline import build_suite
-from alienbio.suite.runner import run
+from alienbio.suite.runner import Budget, run
 from alienbio.suite.types import Answer, AnswerObjective, SuiteSpec
+from alienbio.suite.verify import SimConfig
 
 
 def _identify_pathway_suite(pathway_length: int = 3, n_tasks: int = 1, seed_val: int = 1):
@@ -173,6 +175,115 @@ def test_llm_agent_and_scripted_agent_are_interchangeable_at_the_call_site():
         action, reasoning = agent.act(_obs())
         assert isinstance(action, Commit)
         assert isinstance(reasoning, tuple)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TaskBrief + turn memory (M46.1/M46.2)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_begin_composes_directive_from_brief():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    assert isinstance(task.objective, AnswerObjective)
+
+    dials = {"observability": 1.0, "constitution": "Do no harm."}
+    first_obs = narrow_observation(world.initial_state, dials, Seed(0).child("turn/0/observe"))
+    brief = build_brief(
+        task, world.chemistry, first_obs, dials, Budget(), 10, SimConfig(steps=10, sample_every=10)
+    )
+
+    captured = []
+
+    def llm_fn(directive, context, seed):
+        captured.append(directive)
+        return {"type": "commit", "answer": {"value": None, "kind": "json"}}
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0))
+    agent.begin(brief)
+    agent.act(first_obs)
+
+    directive = captured[0]
+    assert json.dumps(brief.question, sort_keys=True) in directive
+    assert str(brief.answer_kind) in directive
+    for probe in brief.affordances.probes:
+        assert probe in directive
+    for lever in brief.affordances.levers:
+        assert lever in directive
+    assert "Do no harm." in directive
+
+
+def test_history_records_prior_turn_action_observation_and_outcome():
+    replies = [
+        {"type": "measure", "probe": "probe_x", "reasoning": "look"},
+        {"type": "commit", "answer": {"value": "done", "kind": "scalar"}},
+    ]
+    calls = []
+
+    def llm_fn(directive, context, seed):
+        calls.append(context)
+        return replies[len(calls) - 1]
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0))
+    obs0 = _obs(1.0)
+    action0, _ = agent.act(obs0)
+    agent.notice(ActionOutcome(turn=0, action=action0, accepted=False, reason="unknown probe 'zz'"))
+    obs1 = _obs(2.0)
+    agent.act(obs1)
+
+    history = calls[1]["history"]
+    assert len(history) == 1
+    entry = history[0]
+    assert entry["action"] == {"type": "measure", "probe": "probe_x"}
+    assert entry["observation"] == [dict(c) for c in obs0]
+    assert entry["outcome"] == {"accepted": False, "reason": "unknown probe 'zz'"}
+
+
+def test_memory_none_omits_history_key():
+    def llm_fn(directive, context, seed):
+        assert "history" not in context
+        return {"type": "measure", "probe": "probe_x"}
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0), memory="none")
+    agent.act(_obs(1.0))
+    agent.act(_obs(2.0))
+
+
+def test_memory_int_k_keeps_only_the_last_k_entries():
+    calls = []
+
+    def llm_fn(directive, context, seed):
+        calls.append(context)
+        return {"type": "measure", "probe": "probe_x"}
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0), memory=1)
+    agent.act(_obs(1.0))
+    agent.act(_obs(2.0))
+    agent.act(_obs(3.0))
+
+    assert "history" in calls[0] and calls[0]["history"] == []
+    assert len(calls[2]["history"]) == 1
+    assert calls[2]["history"][0]["turn"] == 1  # only the most recent prior turn
+
+
+def test_memory_invalid_value_raises():
+    def llm_fn(directive, context, seed):
+        return {"type": "measure", "probe": "probe_x"}
+
+    with pytest.raises(ValueError):
+        LLMAgent(llm_fn=llm_fn, seed=Seed(0), memory="sometimes")
+
+
+def test_prompt_hashes_one_per_real_call_and_differ_across_turns():
+    def llm_fn(directive, context, seed):
+        return {"type": "measure", "probe": "probe_x"}
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0))
+    assert agent.prompt_hashes == ()
+    agent.act(_obs(1.0))
+    agent.act(_obs(2.0))
+    assert len(agent.prompt_hashes) == 2
+    assert agent.prompt_hashes[0] != agent.prompt_hashes[1]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
