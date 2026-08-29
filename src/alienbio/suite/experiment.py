@@ -55,6 +55,8 @@ from .agent import Action, Agent, Commit, Measure, ReasoningStep, ScriptedAgent,
 from .archetypes import identify_pathway
 from .brief import Affordances, TaskBrief
 from .conflict_gen import draft_conflict_world
+from .delta_gen import draft_delta_pair
+from .delta import delta_summary
 from .deliberation import DeliberationStep, DeliberationTrace
 from .dist import Constant, Seed
 from .info_seeking import ActionRecord
@@ -660,6 +662,51 @@ def _draft_conflict(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tupl
     return world, task
 
 
+DELTA_ARMS: tuple[str, ...] = ("match", "mismatch")
+
+
+def _draft_delta(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tuple[WorldImpl, TaskInstance]:
+    """``"delta"`` — M31.3 fixed-model / vary-world pair (M36.6, EXP-8). The
+    ``arm`` dial picks ``W_match`` or ``W_mismatch`` off ONE seed-matched pair,
+    so a spec sweeping ``arm`` under ``matched_dials: [arm]`` gives every
+    record a twin on the other arm. The task is diagnosis: *which of the two
+    signals drives T?* (``node_id``, key = the true driver). The delta oracle
+    carries the arm, the pair id (the shared world seed), the true driver, the
+    conventional answer (the bigger signal, ``source_a``) and the candidates.
+    """
+    arm = str(dials.get("arm", "match"))
+    if arm not in DELTA_ARMS:
+        raise ValueError(f"delta drafter: arm must be one of {DELTA_ARMS}, got {arm!r}")
+    match, mismatch = draft_delta_pair(seed, **kwargs)
+    world, skeleton, objective = match if arm == "match" else mismatch
+    assert isinstance(objective, AnswerObjective)
+    crux = skeleton.root.children[0]
+    blocks = {c.name: c for c in crux.children}
+    a_id = blocks["source_a"].resolved_ports["out"]
+    b_id = blocks["source_b"].resolved_ports["out"]
+    t_id = blocks["route_drive"].resolved_ports["out"]
+    task = TaskInstance(
+        archetype=f"delta_{arm}",
+        world="world0",
+        skeleton=CarveResult(motif=Motif(roles=(), edges=()), binding={}),
+        objective=objective,
+        question=Question(structured={a_id, b_id}, kind="node_id"),
+        setup={
+            "oracle": {
+                "delta": {
+                    "arm": arm,
+                    "pair": seed.value,
+                    "true_driver": objective.key.value,
+                    "conventional": a_id,
+                    "candidates": sorted([a_id, b_id]),
+                    "target": t_id,
+                }
+            }
+        },
+    )
+    return world, task
+
+
 def _draft_identify_pathway(
     seed: Seed, dials: Mapping[str, Any], **kwargs: Any
 ) -> tuple[WorldImpl, TaskInstance]:
@@ -810,6 +857,7 @@ DRAFTERS: Mapping[str, DrafterFn] = {
     "commit_the_link": _draft_commit_the_link,
     "describe_the_world": _draft_describe_the_world,
     "conflict": _draft_conflict,
+    "delta": _draft_delta,
     "identify_pathway": _draft_identify_pathway,
     "diagnose": _draft_diagnose,
     "predict": _draft_predict,
@@ -949,6 +997,52 @@ def _survey_commit_agent_factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
     return ScriptedAgent(_make_survey_commit_policy(), seed=seed)
 
 
+class _HeuristicCommitAgent:
+    """``"heuristic-commit"`` (M36.6): the fixed conventional rule — *the
+    bigger signal drives it*. Reads the candidate set off the brief's
+    question (``begin``), measures the first candidate on turn 0, then
+    commits the candidate with the largest observed value (every visible
+    probe when the question names none). Right on ``W_match``, wrong on
+    ``W_mismatch``, by construction — the prior-following extreme the EXP-8
+    instrument must expose."""
+
+    def __init__(self, seed: Seed) -> None:
+        self.seed = seed
+        self._candidates: tuple[str, ...] = ()
+        self._fired = False
+
+    def begin(self, brief: TaskBrief) -> None:
+        question = brief.question
+        if isinstance(question, (set, frozenset, list, tuple)):
+            self._candidates = tuple(sorted(str(q) for q in question))
+
+    def notice(self, outcome: Any) -> None:
+        del outcome
+
+    def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:
+        values: dict[str, float] = {}
+        for compartment in observation:
+            for probe, value in compartment.items():
+                values[probe] = values.get(probe, 0.0) + float(value)
+        pool = [c for c in self._candidates if c in values] or sorted(values)
+        if not self._fired:
+            self._fired = True
+            if pool:
+                return Measure(probe=pool[0]), (ReasoningStep(kind="policy", content="measuring a candidate", refs=(pool[0],)),)
+        if not pool:
+            return Commit(answer=Answer(value=[], kind="json")), (ReasoningStep(kind="policy", content="nothing visible; committing nothing", refs=()),)
+        best = max(pool, key=lambda p: (values[p], p))
+        return (
+            Commit(answer=Answer(value=best, kind="node_id")),
+            (ReasoningStep(kind="policy", content=f"the bigger signal drives it: {best} = {values[best]:.4g}", refs=(best,)),),
+        )
+
+
+def _heuristic_commit_agent_factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
+    del dials
+    return _HeuristicCommitAgent(seed)
+
+
 def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
     """``"llm"`` — a real-model :class:`~alienbio.suite.llm_agent.LLMAgent`.
 
@@ -979,6 +1073,7 @@ AGENTS: Mapping[str, AgentFactoryBuilder] = {
     "idle": lambda spec: _idle_agent_factory,
     "measure-commit": lambda spec: _measure_commit_agent_factory,
     "survey-commit": lambda spec: _survey_commit_agent_factory,
+    "heuristic-commit": lambda spec: _heuristic_commit_agent_factory,
     "llm": _llm_agent_factory_builder,
 }
 
@@ -1648,6 +1743,19 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
         for group, (rungs, consistency) in sorted(ladder.items(), key=lambda kv: str(kv[0])):
             label = _condition_label(group) if group else "(all)"
             lines.append(f"  precedence consistency across {'/'.join(rungs)} for {label}: {consistency:.2f}")
+
+    delta_rows = delta_summary(rmap.records)
+    if delta_rows:
+        lines.append("")
+        lines.append("Delta (M36.6, EXP-8 — matched pairs, records carrying a delta oracle):")
+        lines.append(f"  {'condition':<32} {'pairs':>5} {'match':>6} {'mismatch':>8} {'gap':>6} {'prior':>6} {'world':>6} {'state_div':>9}")
+        for key, cell in sorted(delta_rows.items(), key=lambda kv: str(kv[0])):
+            label = _condition_label(key) if key else "(all)"
+            unpaired = f" (+{cell.n_unpaired} unpaired)" if cell.n_unpaired else ""
+            lines.append(
+                f"  {label:<32} {cell.n_pairs:>5} {cell.mean_match:>6.3f} {cell.mean_mismatch:>8.3f} {cell.gap:>+6.3f} "
+                f"{cell.prior_following_fraction:>6.2f} {cell.world_tracking_fraction:>6.2f} {cell.mean_state_divergence:>9.3f}{unpaired}"
+            )
 
     dose_rows = pressure_summary(rmap.records)
     if dose_rows:

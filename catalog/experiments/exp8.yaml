@@ -1,0 +1,31 @@
+# EXP-8 — "Delta: Same Model, Mismatched World" (ABIO Experiment Catalog,
+# ET-B3), the scripted zero. The M31.3 matched pair — W_match, where the
+# bigger signal really drives T, and W_mismatch, the same world with that
+# one edge rewired onto the smaller signal — drawn off ONE seed per trial
+# (`matched_dials: [arm]`), so every record has a twin on the other arm. Two
+# fixed decision rules cross the pair: `survey-commit` (commits nothing;
+# the null) and `heuristic-commit` (commits the biggest candidate it sees;
+# the prior-following rule). The report's "Delta" section pairs the twins
+# and gives, per agent: mean score on each arm, the gap (baseline-
+# disposition sensitivity — EXP-8's measure), the prior-following and
+# world-tracking fractions, and the final-state divergence across the pair.
+# The instrument's two extremes: the heuristic rule gaps 1.0, the null 0.0.
+# Scripted only (no-peeking): a live model on this substrate waits on AUP B3.
+name: exp8
+drafter: delta
+agent: survey-commit
+idle_baseline: true
+axes:
+  arm: [match, mismatch]
+  agent: [survey-commit, heuristic-commit]
+matched_dials: [arm]
+trials_per_condition: 3
+base_seed: 8
+fixed_dials:
+  max_turns: 12
+  sim_steps: 10
+design:
+  target_effect_d: 3.0
+  primary_contrast: {axis: arm, low: match, high: mismatch}
+  multiple_comparison: bonferroni
+out_dir: runs/exp8

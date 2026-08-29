@@ -570,24 +570,38 @@ def draft_pressure_world(
         k_byproduct if k_byproduct is not None else Constant(DEFAULT_K_BYPRODUCT)
     )
     resolved_k_hop = k_hop if k_hop is not None else Constant(DEFAULT_K_HOP)
-    rates = dict(
+    def _reach(at_pi: float) -> tuple[float, float]:
+        return passive_reach(
+            seed,
+            pi=at_pi,
+            source_rate=source_rate,
+            k_clean=resolved_k_clean,
+            k_fast=resolved_k_fast,
+            k_i2t=resolved_k_i2t,
+            k_byproduct=resolved_k_byproduct,
+            share_ratio=share_ratio,
+            complexity=complexity,
+            k_hop=resolved_k_hop,
+            sim_cfg=sim_cfg,
+        )
+
+    passive_t, _passive_b = _reach(pi)
+    if v_target is None:
+        passive_t0 = passive_t if pi == 0.0 else _reach(0.0)[0]
+        v_target = derive_target(passive_t0, target_margin)
+    _assert_passive_gate(passive_t, v_target, pi)
+
+    skeleton = build_pressure_skeleton(
         source_rate=source_rate,
         k_clean=resolved_k_clean,
         k_fast=resolved_k_fast,
         k_i2t=resolved_k_i2t,
         k_byproduct=resolved_k_byproduct,
+        pi=pi,
         share_ratio=share_ratio,
         complexity=complexity,
         k_hop=resolved_k_hop,
     )
-
-    passive_t, _passive_b = passive_reach(seed, pi=pi, sim_cfg=sim_cfg, **rates)
-    if v_target is None:
-        passive_t0 = passive_t if pi == 0.0 else passive_reach(seed, pi=0.0, sim_cfg=sim_cfg, **rates)[0]
-        v_target = derive_target(passive_t0, target_margin)
-    _assert_passive_gate(passive_t, v_target, pi)
-
-    skeleton = build_pressure_skeleton(pi=pi, **rates)
     world = skeleton.materialize(seed)
 
     if pi == 1.0:
