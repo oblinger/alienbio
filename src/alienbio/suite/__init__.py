@@ -97,6 +97,7 @@ from .agent import (
 )
 from .trial import TrialRecord, condition_key, thread_reasoning_steps
 from .runner import BUDGET_LADDER, Budget, run
+from .tradeoff import ConflictCell, component_scores, conflict_oracle, conflict_summary, precedence_ladder
 from .hazard import (
     HAZARD_MOLECULE,
     HAZARD_REACTION,
@@ -366,6 +367,11 @@ __all__ = [
     "thread_reasoning_steps",
     # F021 ScenarioRunner (agent loop, Phase-2 D-spine)
     "run",
+    "ConflictCell",
+    "component_scores",
+    "conflict_oracle",
+    "conflict_summary",
+    "precedence_ladder",
     "HAZARD_MOLECULE",
     "HAZARD_REACTION",
     "HazardOracle",

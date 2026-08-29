@@ -127,6 +127,11 @@ class TrialRecord:
     usage: Optional[Mapping[str, Any]] = None
     wall_time_s: float = 0.0
     oracle: Mapping[str, Any] = field(default_factory=dict)
+    #: M36.4 — ``{compartment_id: {molecule_id: value}}`` at the end of the
+    #: trial, read off the final self-describing state. Survives the JSON
+    #: store (``final_timeline`` does not), so outcome scorers can run on a
+    #: reloaded record (``bio suite report``) exactly as on a live one.
+    final_state: Mapping[str, Mapping[str, float]] = field(default_factory=dict)
 
     @cached_property
     def deliberation_depth(self) -> int:
@@ -148,3 +153,16 @@ class TrialRecord:
         """Lazily recomputed :func:`~alienbio.suite.info_seeking.actions_before_commit`
         over ``action_log``."""
         return _actions_before_commit(self.action_log, commit_kinds)
+
+
+def final_state_dict(state: Any) -> dict[str, dict[str, float]]:
+    """``{compartment_id: {molecule_id: value}}`` read off a self-describing
+    ``WorldStateImpl`` — ``{}`` for a pure-int state (no id axes to read)."""
+    comp_ids = getattr(state, "compartment_ids", None)
+    mol_ids = getattr(state, "molecule_ids", None)
+    if comp_ids is None or mol_ids is None:
+        return {}
+    return {
+        comp_ids[ci]: {mol_ids[mj]: float(state.get(ci, mj)) for mj in range(len(mol_ids))}
+        for ci in range(len(comp_ids))
+    }

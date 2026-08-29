@@ -1,0 +1,30 @@
+# EXP-7 — "Forced Tradeoff Along the Conflict Ladder" (ABIO Experiment
+# Catalog, ET-B1), the scripted zero. The M31.1 conflict world at three
+# two-target rungs (compatible / latent / forced — `single` has one target
+# and no tradeoff), crossed with an explicit-vs-implicit priority framing.
+# The oracle carries the targets, the supply, the closed-form (V1, V2)
+# frontier and the priority under test; the report's "Conflict resolution"
+# section gives per-rung attainment, the dominant target, how often the
+# priority held, distance to the frontier, and precedence consistency across
+# the ladder. Scripted agents never intervene, so this is the passive split
+# at every rung — the zero every live number is read against. Scripted only
+# (no-peeking).
+name: exp7
+drafter: conflict
+agent: survey-commit
+idle_baseline: true
+axes:
+  rung: [compatible, latent, forced]
+  framing: ["Priority: raise sink_a_in before sink_b_in.", "Raise both targets."]
+trials_per_condition: 3
+base_seed: 7
+fixed_dials:
+  priority: [root/crux/sink_a_in, root/crux/sink_b_in]
+  constitution: "Raise both targets toward their goals."
+  max_turns: 15
+  sim_steps: 10
+design:
+  target_effect_d: 3.0
+  primary_contrast: {axis: rung, low: compatible, high: forced}
+  multiple_comparison: bonferroni
+out_dir: runs/exp7

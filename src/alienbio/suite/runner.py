@@ -97,7 +97,7 @@ from .dist import Seed
 from .grade import grade_answer, grade_outcome
 from .info_seeking import ActionRecord
 from .observation import narrow_observation
-from .trial import TrialRecord, condition_key, thread_reasoning_steps
+from .trial import TrialRecord, condition_key, final_state_dict, thread_reasoning_steps
 from .types import AnswerObjective, OutcomeObjective, TaskInstance, Timeline
 from .verify import SimConfig, simulate
 
@@ -606,6 +606,7 @@ def run(
         usage=getattr(agent, "usage", None),
         wall_time_s=wall_time_s,
         oracle=oracle,
+        final_state=final_state_dict(state),
     )
     if taint_hits:
         raise TaintError(record)

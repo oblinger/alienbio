@@ -54,6 +54,7 @@ from .dist import Constant, Seed
 from .info_seeking import ActionRecord
 from .effect_size import cohens_d, welch_t
 from .hazard import DEPTHS, OBJECTIVE_TYPES, blindspot_summary, consideration_summary, hazard_surfacing_summary
+from .tradeoff import conflict_summary, precedence_ladder
 from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, price_for
 from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
@@ -61,7 +62,7 @@ from .observation import Observation
 from .pipeline import build_suite
 from .pressure_gen import draft_pressure_world
 from .runner import run
-from .trial import TrialRecord
+from .trial import TrialRecord, final_state_dict
 from .verify import SimConfig
 from .types import (
     Answer,
@@ -621,13 +622,17 @@ def _draft_conflict(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tupl
     world, _skeleton, objective = draft_conflict_world(seed, rung=rung, **kwargs)
     assert isinstance(objective, OutcomeObjective)
     t_id = objective.target[0]
+    # M36.4 — EXP-7's conflict oracle: the targets, the supply that bounds
+    # them, the closed-form (V1, V2) frontier and the priority under test.
+    from .tradeoff import conflict_oracle
+
     task = TaskInstance(
         archetype=f"conflict_{rung}",
         world="world0",
         skeleton=CarveResult(motif=Motif(roles=(), edges=()), binding={}),
         objective=objective,
         question=Question(structured={"kind": "outcome", "target": t_id}, kind="json"),
-        setup={},
+        setup={"oracle": {"conflict": conflict_oracle(objective, rung, dials.get("priority"))}},
     )
     return world, task
 
@@ -978,17 +983,7 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def _final_state_dict(state: WorldStateImpl) -> dict[str, dict[str, float]]:
-    """``{compartment_id: {molecule_id: value}}`` read off a self-describing
-    ``WorldStateImpl`` — ``{}`` for a pure-int state (no id axes to read)."""
-    comp_ids = state.compartment_ids
-    mol_ids = state.molecule_ids
-    if comp_ids is None or mol_ids is None:
-        return {}
-    return {
-        comp_ids[ci]: {mol_ids[mj]: state.get(ci, mj) for mj in range(len(mol_ids))}
-        for ci in range(len(comp_ids))
-    }
+_final_state_dict = final_state_dict
 
 
 def _brief_to_json(brief: TaskBrief) -> dict[str, Any]:
@@ -1043,7 +1038,7 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
     times = record.final_timeline.times
     states = record.final_timeline.states
     final_time = times[-1] if times else None
-    final_state = _final_state_dict(cast(WorldStateImpl, states[-1])) if states else {}
+    final_state = dict(record.final_state) or (_final_state_dict(cast(WorldStateImpl, states[-1])) if states else {})
 
     return {
         "label": label,
@@ -1133,6 +1128,7 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         usage=d.get("usage"),
         wall_time_s=d.get("wall_time_s", 0.0),
         oracle=dict(d.get("oracle") or {}),
+        final_state=dict(d.get("final_state") or {}),
     )
 
 
@@ -1567,6 +1563,22 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
         for key, (n, rate, per_type) in sorted(blind_rows.items(), key=lambda kv: str(kv[0])):
             cells = "".join(f" {per_type[t][1]:>12.3f}" if t in per_type else f" {'-':>12}" for t in types)
             lines.append(f"  {_condition_label(key):<40} {n:>4} {rate:>10.3f}{cells}")
+
+    conflict_rows = conflict_summary(rmap.records)
+    if conflict_rows:
+        lines.append("")
+        lines.append("Conflict resolution (M36.4, EXP-7 — records carrying a conflict oracle):")
+        lines.append(f"  {'condition':<40} {'n':>4} {'scores':<28} {'dominant':<24} {'precedence':>10} {'pareto_d':>9}")
+        for key, cell in sorted(conflict_rows.items(), key=lambda kv: str(kv[0])):
+            scores = " ".join(f"{cid.rsplit('/', 1)[-1]}={v:.2f}" for cid, v in cell.mean_scores.items())
+            dom = f"{cell.dominant.rsplit('/', 1)[-1]} ({cell.dominant_fraction:.2f})" if cell.dominant else "-"  # "tie (1.00)" = no preference
+            prec = f"{cell.precedence_fraction:.2f}" if cell.precedence_fraction is not None else "-"
+            pareto = f"{cell.mean_pareto_distance:.3f}" if cell.mean_pareto_distance is not None else "-"
+            lines.append(f"  {_condition_label(key):<40} {cell.n:>4} {scores:<28} {dom:<24} {prec:>10} {pareto:>9}")
+        ladder = precedence_ladder(conflict_rows)
+        for group, (rungs, consistency) in sorted(ladder.items(), key=lambda kv: str(kv[0])):
+            label = _condition_label(group) if group else "(all)"
+            lines.append(f"  precedence consistency across {'/'.join(rungs)} for {label}: {consistency:.2f}")
 
     twins = idle_baseline_comparison(rmap)
     if twins:
