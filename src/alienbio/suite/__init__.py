@@ -164,12 +164,15 @@ from .mass_trial import (
 from .experiment import (
     AGENTS,
     DRAFTERS,
+    CostEstimate,
     ExperimentSpec,
     aggregate,
+    estimate_cost,
     load_spec,
     render_report,
     run_experiment,
 )
+from .llm_agent import MODEL_PRICES_USD_PER_MTOK, UsageMeter, cost_usd, price_for
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
 from ..bio.world import Compartment, WorldImpl
@@ -420,4 +423,11 @@ __all__ = [
     "render_report",
     "DRAFTERS",
     "AGENTS",
+    # M45.5 — usage accounting, cost ceiling, dry-run cost estimate
+    "UsageMeter",
+    "MODEL_PRICES_USD_PER_MTOK",
+    "price_for",
+    "cost_usd",
+    "estimate_cost",
+    "CostEstimate",
 ]

@@ -34,6 +34,8 @@ def test_suite_run_dry_prints_grid_summary_and_exits_0(tmp_path, capsys):
     assert "drafter: conflict" in captured.out
     assert "agent: idle" in captured.out
     assert "no-peeking" in captured.out
+    assert "estimated cost" in captured.out
+    assert "cost ceiling: none" in captured.out
 
 
 def test_suite_no_verb_exits_2(capsys):

@@ -57,8 +57,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
-from typing import Any, Mapping, Optional, Sequence, Union, cast
+import time
+from dataclasses import dataclass, field
+from typing import Any, Callable, Mapping, Optional, Sequence, Union, cast
 
 from .agent import Action, ActionOutcome, Commit, Intervene, Measure, ReasoningStep, Wait
 from .brief import TaskBrief, render_brief
@@ -71,6 +74,174 @@ from .types import Answer, Directive
 #: comparable — matches the repo's own ``config`` default
 #: (``providers.anthropic.default_model``).
 PINNED_MODEL = "claude-sonnet-4-20250514"
+
+#: Indirection over ``time.sleep`` so :func:`_call_with_retry`'s backoff is
+#: unit-testable (a test monkeypatches this module attribute rather than the
+#: stdlib) without ever actually sleeping.
+_sleep = time.sleep
+
+#: Published Anthropic API list prices (USD per million tokens, input/output)
+#: for the pinned model ids this repo runs, as of those generations' release
+#: (M45.5). A model absent here has no known price — :func:`price_for` raises
+#: rather than guess, unless the caller supplies an explicit override.
+MODEL_PRICES_USD_PER_MTOK: Mapping[str, tuple[float, float]] = {
+    "claude-sonnet-4-20250514": (3.0, 15.0),
+    "claude-opus-4-20250514": (15.0, 75.0),
+    "claude-3-5-haiku-20241022": (0.8, 4.0),
+}
+
+
+def price_for(model: str, override: Optional[tuple[float, float]] = None) -> tuple[float, float]:
+    """``(input, output)`` USD-per-million-token price for ``model``.
+
+    ``override`` wins when given (an ``ExperimentSpec.price_usd_per_mtok``,
+    e.g.); otherwise the published :data:`MODEL_PRICES_USD_PER_MTOK` entry.
+
+    Raises:
+        ValueError: ``model`` is not in :data:`MODEL_PRICES_USD_PER_MTOK` and
+            no ``override`` is given — a paid sweep must never guess a price.
+    """
+    if override is not None:
+        return override
+    if model not in MODEL_PRICES_USD_PER_MTOK:
+        raise ValueError(
+            f"price_for: no published price for model {model!r}; pass an "
+            "explicit price_usd_per_mtok override"
+        )
+    return MODEL_PRICES_USD_PER_MTOK[model]
+
+
+def cost_usd(
+    input_tokens: int,
+    output_tokens: int,
+    price: tuple[float, float],
+    cache_read_tokens: int = 0,
+    cache_write_tokens: int = 0,
+) -> float:
+    """USD cost of one call's token counts at ``price`` = ``(input, output)`` USD/MTok.
+
+    Cache-read tokens are priced at 10% of the input rate and cache-write
+    tokens at 125% of the input rate — Anthropic's published cache ratios.
+    """
+    input_price, output_price = price
+    total = (
+        input_tokens * input_price
+        + output_tokens * output_price
+        + cache_read_tokens * input_price * 0.10
+        + cache_write_tokens * input_price * 1.25
+    )
+    return total / 1_000_000.0
+
+
+@dataclass
+class UsageMeter:
+    """Real provider-reported usage, accumulated across every call it sees.
+
+    ``per_call`` keeps one entry per real model call (``model``,
+    ``input_tokens``, ``output_tokens``, ``cache_read_tokens``,
+    ``cache_write_tokens``, ``latency_s``, ``attempt``); ``events`` keeps one
+    entry per retried rate-limit/server/connection error (``kind``,
+    ``attempt``, ``wait_s``, ``message``) — never swallowed silently.
+    """
+
+    calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
+    per_call: list[dict[str, Any]] = field(default_factory=list)
+    events: list[dict[str, Any]] = field(default_factory=list)
+
+    def record(
+        self,
+        *,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        cache_read_tokens: int = 0,
+        cache_write_tokens: int = 0,
+        latency_s: float,
+        attempt: int = 1,
+    ) -> None:
+        """Fold one real call's usage into the running totals + ``per_call`` log."""
+        self.calls += 1
+        self.input_tokens += input_tokens
+        self.output_tokens += output_tokens
+        self.cache_read_tokens += cache_read_tokens
+        self.cache_write_tokens += cache_write_tokens
+        self.per_call.append(
+            {
+                "model": model,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cache_read_tokens": cache_read_tokens,
+                "cache_write_tokens": cache_write_tokens,
+                "latency_s": latency_s,
+                "attempt": attempt,
+            }
+        )
+
+    def snapshot(self) -> dict[str, Any]:
+        """The running totals only (``calls`` + the four token counters)."""
+        return {
+            "calls": self.calls,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "cache_read_tokens": self.cache_read_tokens,
+            "cache_write_tokens": self.cache_write_tokens,
+        }
+
+
+def _retry_kind(exc: BaseException) -> Optional[str]:
+    """Which retry bucket ``exc`` falls into, matched by class NAME (not
+    ``isinstance``) so this module never needs to import ``anthropic`` — a
+    test can raise a plain class sharing the real exception's name."""
+    name = type(exc).__name__
+    if name == "RateLimitError":
+        return "rate_limit"
+    if name == "APIConnectionError":
+        return "connection_error"
+    if name == "APIStatusError" and getattr(exc, "status_code", 0) >= 500:
+        return "server_error"
+    return None
+
+
+def _call_with_retry(
+    create: Callable[[], Any],
+    meter: Optional[UsageMeter],
+    max_attempts: int,
+    backoff_s: float,
+) -> Any:
+    """Call ``create()``, retrying on a rate-limit/server/connection error.
+
+    Every retried attempt appends a ``{"kind", "attempt", "wait_s",
+    "message"}`` event — to ``meter.events`` when a meter is given, else
+    logged (never swallowed silently). Backoff is ``backoff_s * 2**(attempt
+    - 1)``, slept through the module-level :data:`_sleep` indirection. Any
+    exception NOT matched by :func:`_retry_kind` propagates immediately;
+    after ``max_attempts`` total attempts the last exception is re-raised.
+    """
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return create()
+        except Exception as exc:
+            kind = _retry_kind(exc)
+            if kind is None:
+                raise
+            wait_s = backoff_s * 2 ** (attempt - 1)
+            event = {
+                "kind": kind,
+                "attempt": attempt,
+                "wait_s": wait_s,
+                "message": str(exc)[:200],
+            }
+            if meter is not None:
+                meter.events.append(event)
+            else:
+                logging.getLogger(__name__).warning("LLM retry event: %s", event)
+            if attempt >= max_attempts:
+                raise
+            _sleep(wait_s)
 
 #: The static task briefing/constitution (:data:`~alienbio.suite.types.Directive`)
 #: handed to the model as ``LLMOp``'s ``directive`` — fixed at construction,
@@ -318,6 +489,7 @@ class LLMAgent:
         max_retries: int = 3,
         token_ceiling: Optional[int] = None,
         memory: Memory = "full",
+        meter: Optional[UsageMeter] = None,
     ) -> None:
         if isinstance(memory, int) and not isinstance(memory, bool):
             if memory < 0:
@@ -333,9 +505,11 @@ class LLMAgent:
         self.seed = seed
         self.max_retries = max_retries
         self.token_ceiling = token_ceiling
+        self.meter = meter or UsageMeter()
         self.brief: Optional[TaskBrief] = None
         self._turn = 0
         self._tokens_spent = 0
+        self._turn_usage: list[dict[str, Any]] = []
         self._history: list[dict[str, Any]] = []
         self._prompt_hashes: list[str] = []
         self._prompt_texts: list[str] = []
@@ -383,6 +557,17 @@ class LLMAgent:
         """One ``sha256(system_prompt + "\\n" + canonical(context))`` hex digest
         per REAL model call (groundwork for M46.10) — read-only."""
         return tuple(self._prompt_hashes)
+
+    @property
+    def usage(self) -> dict[str, Any]:
+        """Real provider-reported usage this agent has accrued (M45.5).
+
+        ``self.meter.snapshot()`` (totals) plus ``per_turn`` (one
+        ``{"turn", "calls", "input_tokens", ...}`` delta dict per turn that
+        made a real call — a mock ``llm_fn`` that never touches ``self.meter``
+        leaves every delta at zero) and ``events`` (the meter's retry log).
+        """
+        return {**self.meter.snapshot(), "per_turn": list(self._turn_usage), "events": list(self.meter.events)}
 
     def begin(self, brief: TaskBrief) -> None:
         """:class:`~alienbio.suite.agent.SessionAgent`: told the trial's brief once, before turn 0.
@@ -437,10 +622,13 @@ class LLMAgent:
         )
         estimate = _estimate_tokens(self._system, context)
         turn = self._turn
-        if (
-            self.token_ceiling is not None
-            and self._tokens_spent + estimate > self.token_ceiling
-        ):
+        # M45.5: once the meter has real usage, the ceiling check uses
+        # whichever of the heuristic chars/4 running total or the real
+        # provider-reported total is larger — real usage never makes the
+        # guard LESS conservative than the estimate alone would.
+        meter_tokens = self.meter.input_tokens + self.meter.output_tokens
+        spent_so_far = max(self._tokens_spent + estimate, meter_tokens)
+        if self.token_ceiling is not None and spent_so_far > self.token_ceiling:
             content = (
                 f"token ceiling ({self.token_ceiling}) would be exceeded "
                 f"at turn {self._turn} (spent~{self._tokens_spent}, "
@@ -467,9 +655,16 @@ class LLMAgent:
         prompt_text = self._system + "\n" + canonical(context)
         self._prompt_hashes.append(hashlib.sha256(prompt_text.encode("utf-8")).hexdigest())
         self._prompt_texts.append(prompt_text)
+        # M45.5: bracket the real model call(s) with meter snapshots so this
+        # turn's usage delta lands in `_turn_usage` regardless of outcome — a
+        # mock `llm_fn` in tests that never touches `self.meter` leaves every
+        # delta at zero (see `usage`'s docstring).
+        before = self.meter.snapshot()
         try:
             raw = self._op(context)
         except ValueError as exc:
+            after = self.meter.snapshot()
+            self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}})
             # M46.4: parse exhaustion is data, not a raise — the trial ends with
             # a tagged null Commit (like the token-ceiling guard) so the record
             # carries the failure and a mass-trial sweep keeps going.
@@ -494,6 +689,8 @@ class LLMAgent:
             )
             self._turn += 1
             return action, reasoning
+        after = self.meter.snapshot()
+        self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}})
         action, reasoning = _parse_action(raw)
         self._history.append(
             {
@@ -509,7 +706,13 @@ class LLMAgent:
 
 
 def default_anthropic_llm_fn(
-    model: str = PINNED_MODEL, max_tokens: int = 1024, *, structured: bool = True
+    model: str = PINNED_MODEL,
+    max_tokens: int = 1024,
+    *,
+    structured: bool = True,
+    meter: Optional[UsageMeter] = None,
+    max_attempts: int = 5,
+    backoff_s: float = 1.0,
 ) -> LLMFn:
     """Build a real Anthropic-backed :data:`~alienbio.suite.ops.LLMFn` (opt-in only).
 
@@ -535,6 +738,14 @@ def default_anthropic_llm_fn(
     non-JSON reply). ``seed`` is accepted (to match :data:`LLMFn`) but not
     forwarded to the provider — Claude has no literal-seed control; only the
     ``LLMOp`` cache key is seed-varied.
+
+    ``meter`` (M45.5), when given, has every successful call's
+    ``response.usage`` folded in (input/output/cache-read/cache-write token
+    counts, wall latency, 1-based attempt number). A
+    ``RateLimitError``/``APIConnectionError``/``APIStatusError`` (5xx) is
+    retried up to ``max_attempts`` total attempts with ``backoff_s *
+    2**(attempt-1)`` exponential backoff (:func:`_call_with_retry`); any
+    other exception propagates immediately.
 
     Raises:
         RuntimeError: no Anthropic API key is set in the environment.
@@ -570,15 +781,35 @@ def default_anthropic_llm_fn(
 
     def llm_fn(directive: Directive, context: Any, seed: Seed) -> Any:
         del seed  # accepted for LLMFn shape; Claude has no literal-seed control
-        response = client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            system=directive,
-            messages=[
-                {"role": "user", "content": json.dumps(context, sort_keys=True)}
-            ],
-            **tool_kwargs,
-        )
+        attempt_count = [0]
+
+        def create() -> Any:
+            attempt_count[0] += 1
+            start = time.perf_counter()
+            response = client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=directive,
+                messages=[
+                    {"role": "user", "content": json.dumps(context, sort_keys=True)}
+                ],
+                **tool_kwargs,
+            )
+            latency_s = time.perf_counter() - start
+            if meter is not None:
+                usage = response.usage
+                meter.record(
+                    model=model,
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
+                    cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+                    cache_write_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
+                    latency_s=latency_s,
+                    attempt=attempt_count[0],
+                )
+            return response
+
+        response = _call_with_retry(create, meter, max_attempts, backoff_s)
         return reply_from_content(response.content)
 
     return llm_fn

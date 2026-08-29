@@ -101,6 +101,12 @@ class TrialRecord:
     :class:`~alienbio.suite.mass_trial.MassTrialRunner` error record —
     ``f"{type(exc).__name__}: {exc}"``. All four default so every existing
     hand-built fixture constructs unchanged.
+
+    ``usage``/``wall_time_s`` (M45.5) are the agent's real provider-usage
+    snapshot (``getattr(agent, "usage", None)`` — ``None`` for a
+    ``ScriptedAgent``, which has none) and the wall-clock seconds
+    ``suite.runner.run`` spent end to end. Both default so every existing
+    hand-built fixture constructs unchanged.
     """
 
     task_id: str
@@ -118,6 +124,8 @@ class TrialRecord:
     brief: Optional[TaskBrief] = None
     error: str = ""
     taint_hits: tuple[str, ...] = ()
+    usage: Optional[Mapping[str, Any]] = None
+    wall_time_s: float = 0.0
 
     @cached_property
     def deliberation_depth(self) -> int:

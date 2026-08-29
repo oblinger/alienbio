@@ -13,6 +13,7 @@ import os
 
 import pytest
 
+import alienbio.suite.llm_agent as llm_agent_mod
 from alienbio.suite.agent import ActionOutcome, Commit, Intervene, Measure, ScriptedAgent, Wait
 from alienbio.suite.archetypes import identify_pathway
 from alienbio.suite.brief import build_brief
@@ -21,8 +22,12 @@ from alienbio.suite.llm_agent import (
     ACTION_INPUT_SCHEMA,
     DEFAULT_DIRECTIVE,
     LLMAgent,
+    UsageMeter,
+    _call_with_retry,
+    cost_usd,
     default_anthropic_llm_fn,
     extract_action_json,
+    price_for,
     render_observation,
     reply_from_content,
 )
@@ -354,6 +359,188 @@ def test_prompt_hashes_one_per_real_call_and_differ_across_turns():
     # M46.10: the exact prompt text is kept beside each hash for the taint audit.
     assert len(agent.prompt_texts) == 2
     assert all(DEFAULT_DIRECTIVE in t and "probe_x" in t for t in agent.prompt_texts)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Usage accounting / pricing / retry-backoff (M45.5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_usage_meter_record_and_snapshot_arithmetic():
+    meter = UsageMeter()
+    meter.record(model="m", input_tokens=10, output_tokens=5, latency_s=0.1)
+    meter.record(
+        model="m",
+        input_tokens=20,
+        output_tokens=7,
+        cache_read_tokens=3,
+        cache_write_tokens=1,
+        latency_s=0.2,
+        attempt=2,
+    )
+    snap = meter.snapshot()
+    assert snap == {
+        "calls": 2,
+        "input_tokens": 30,
+        "output_tokens": 12,
+        "cache_read_tokens": 3,
+        "cache_write_tokens": 1,
+    }
+    assert len(meter.per_call) == 2
+    assert meter.per_call[1]["attempt"] == 2
+    assert meter.per_call[1]["latency_s"] == 0.2
+    assert meter.events == []
+
+
+def test_price_for_unknown_model_raises_and_override_wins():
+    with pytest.raises(ValueError, match="no published price"):
+        price_for("some-unknown-model-20260101")
+    assert price_for("some-unknown-model-20260101", override=(1.0, 2.0)) == (1.0, 2.0)
+    # An override wins even for a KNOWN model.
+    assert price_for("claude-sonnet-4-20250514", override=(9.0, 9.0)) == (9.0, 9.0)
+    assert price_for("claude-sonnet-4-20250514") == (3.0, 15.0)
+
+
+def test_cost_usd_with_cache_tokens():
+    price = (2.0, 10.0)
+    # 1,000,000 input @ $2 + 1,000,000 output @ $10 = $12.00
+    assert cost_usd(1_000_000, 1_000_000, price) == pytest.approx(12.0)
+    # Cache-read priced at 10% of input, cache-write at 125% of input.
+    assert cost_usd(
+        0, 0, price, cache_read_tokens=1_000_000, cache_write_tokens=0
+    ) == pytest.approx(2.0 * 0.10)
+    assert cost_usd(
+        0, 0, price, cache_read_tokens=0, cache_write_tokens=1_000_000
+    ) == pytest.approx(2.0 * 1.25)
+
+
+class _FakeRateLimitError(Exception):
+    pass
+
+
+class _FakeAPIStatusError(Exception):
+    def __init__(self, message: str, status_code: int):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def _renamed(cls, name):
+    """A subclass sharing ``name`` (``_retry_kind`` matches by class NAME)."""
+    return type(name, (cls,), {})
+
+
+def test_call_with_retry_retries_rate_limit_then_succeeds(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(llm_agent_mod, "_sleep", lambda s: sleeps.append(s))
+
+    rate_limit_cls = _renamed(_FakeRateLimitError, "RateLimitError")
+    calls = [0]
+
+    def create():
+        calls[0] += 1
+        if calls[0] < 3:
+            raise rate_limit_cls("slow down")
+        return "ok"
+
+    meter = UsageMeter()
+    result = _call_with_retry(create, meter, max_attempts=5, backoff_s=1.0)
+
+    assert result == "ok"
+    assert calls[0] == 3
+    assert len(meter.events) == 2
+    assert all(e["kind"] == "rate_limit" for e in meter.events)
+    assert sleeps == [1.0, 2.0]
+
+
+def test_call_with_retry_non_retryable_status_propagates_with_no_event():
+    status_cls = _renamed(_FakeAPIStatusError, "APIStatusError")
+    calls = [0]
+
+    def create():
+        calls[0] += 1
+        raise status_cls("bad request", 400)
+
+    meter = UsageMeter()
+    with pytest.raises(Exception, match="bad request"):
+        _call_with_retry(create, meter, max_attempts=5, backoff_s=1.0)
+    assert calls[0] == 1
+    assert meter.events == []
+
+
+def test_call_with_retry_exhausts_max_attempts_and_reraises_last_error(monkeypatch):
+    monkeypatch.setattr(llm_agent_mod, "_sleep", lambda s: None)
+    rate_limit_cls = _renamed(_FakeRateLimitError, "RateLimitError")
+    calls = [0]
+
+    def create():
+        calls[0] += 1
+        raise rate_limit_cls(f"attempt {calls[0]}")
+
+    meter = UsageMeter()
+    with pytest.raises(Exception, match="attempt 3"):
+        _call_with_retry(create, meter, max_attempts=3, backoff_s=0.5)
+    assert calls[0] == 3
+    assert len(meter.events) == 3
+
+
+def test_llm_agent_usage_per_turn_deltas_when_mock_records_into_agent_meter():
+    def llm_fn(directive, context, seed):
+        agent.meter.record(model="m", input_tokens=100, output_tokens=20, latency_s=0.01)
+        return {"type": "measure", "probe": "probe_x"}
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0))
+    agent.act(_obs())
+    agent.act(_obs())
+
+    usage = agent.usage
+    assert usage["calls"] == 2
+    assert usage["input_tokens"] == 200
+    assert usage["output_tokens"] == 40
+    assert len(usage["per_turn"]) == 2
+    assert usage["per_turn"][0] == {
+        "turn": 0,
+        "calls": 1,
+        "input_tokens": 100,
+        "output_tokens": 20,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+    }
+    assert usage["per_turn"][1]["turn"] == 1
+    assert usage["events"] == []
+
+
+def test_llm_agent_usage_is_zero_when_mock_never_touches_meter():
+    def llm_fn(directive, context, seed):
+        return {"type": "measure", "probe": "probe_x"}
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0))
+    agent.act(_obs())
+    usage = agent.usage
+    assert usage["calls"] == 0
+    assert usage["per_turn"] == [
+        {
+            "turn": 0,
+            "calls": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        }
+    ]
+
+
+def test_token_ceiling_still_aborts_before_a_call_with_a_meter():
+    calls = []
+
+    def llm_fn(directive, context, seed):
+        calls.append(1)
+        return {"type": "measure", "probe": "probe_x"}
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0), token_ceiling=1)
+    action, _ = agent.act(_obs())
+    assert isinstance(action, Commit)
+    assert action.params["aborted"] == "token_ceiling"
+    assert calls == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════

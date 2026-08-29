@@ -282,3 +282,42 @@ def test_on_error_bogus_value_raises_value_error():
         MassTrialRunner().run(
             _AXES, _drafter, _agent_factory, trials_per_condition=1, base_seed=Seed(1), on_error="bogus"
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# stop — clean early termination of the whole grid (M45.5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_stop_hook_halts_the_grid_after_n_trials():
+    seen = []
+
+    def stop():
+        return len(seen) >= 3
+
+    def on_trial(label, i, record):
+        seen.append((label, i))
+
+    rmap = MassTrialRunner().run(
+        _AXES,
+        _drafter,
+        _agent_factory,
+        trials_per_condition=8,
+        base_seed=Seed(300),
+        on_trial=on_trial,
+        stop=stop,
+    )
+
+    assert len(seen) == 3
+    assert rmap.provenance.stopped_early is True
+    assert len(rmap.records) == 3
+    # The map is built purely from the partial records that landed.
+    assert sum(summary.stats.n for summary in rmap.cells.values()) == 3
+
+
+def test_stop_hook_never_firing_leaves_stopped_early_false():
+    rmap = MassTrialRunner().run(
+        _AXES, _drafter, _agent_factory, trials_per_condition=2, base_seed=Seed(301), stop=lambda: False
+    )
+    assert rmap.provenance.stopped_early is False
+    assert len(rmap.records) == 2 * len(RUNG_LEVELS) * len(SPLIT_LEVELS)

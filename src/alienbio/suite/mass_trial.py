@@ -137,12 +137,19 @@ class Provenance:
     under ``on_error="record"`` — always ``0`` under ``on_error="raise"``
     (a failure there propagates instead). Defaults to ``0`` so every
     existing hand-built fixture constructs unchanged.
+
+    ``stopped_early`` (M45.5) is ``True`` iff :meth:`MassTrialRunner.run`'s
+    ``stop`` hook fired before the grid finished (e.g. a cost ceiling) —
+    the map it produced is built from whatever ``(condition, trial)`` units
+    already existed at that point, not the full planned grid. Defaults to
+    ``False`` so every existing hand-built fixture constructs unchanged.
     """
 
     axes: tuple[tuple[str, tuple[Any, ...]], ...]
     base_seed: Seed
     trials_per_condition: int
     failed_trials: int = 0
+    stopped_early: bool = False
 
 
 @dataclass(frozen=True)
@@ -182,6 +189,7 @@ class ReliabilityMap:
                 "base_seed": self.provenance.base_seed.value,
                 "trials_per_condition": self.provenance.trials_per_condition,
                 "failed_trials": self.provenance.failed_trials,
+                "stopped_early": self.provenance.stopped_early,
             },
             "cells": [
                 {
@@ -373,6 +381,7 @@ class MassTrialRunner:
         on_trial: Optional[Callable[[str, int, TrialRecord], None]] = None,
         skip: Optional[Callable[[str, int], Optional[TrialRecord]]] = None,
         matched_dials: Collection[str] = (),
+        stop: Optional[Callable[[], bool]] = None,
     ) -> ReliabilityMap:
         """Run ``trials_per_condition`` seeded trials for every cell of ``axes``.
 
@@ -438,6 +447,16 @@ class MassTrialRunner:
         - ``"raise"``: today's original behaviour — the first exception
           propagates and aborts the run.
 
+        ``stop`` (M45.5), when given, is consulted (``stop()``) right BEFORE
+        every FRESH trial — after the ``skip`` check has already found
+        nothing to reuse, so a resumed unit is never blocked from replaying.
+        Once it returns ``True`` the whole grid stops cleanly: no further
+        ``(condition, trial)`` unit is drafted or run, and the returned
+        :class:`ReliabilityMap` is built from exactly the records that
+        already exist (``Provenance.stopped_early`` is set ``True``). This is
+        the cost-ceiling seam: a caller closes over a running spend total and
+        returns ``True`` once it reaches a cap.
+
         Raises:
             ValueError: ``on_error`` is neither ``"record"`` nor ``"raise"``.
 
@@ -456,7 +475,10 @@ class MassTrialRunner:
 
         records: list[TrialRecord] = []
         failed_trials = 0
+        stopped_early = False
         for key in keys:
+            if stopped_early:
+                break
             dials = dict(key)
             label = _condition_label(key)
             for i in range(trials_per_condition):
@@ -469,6 +491,10 @@ class MassTrialRunner:
                         if on_trial is not None:
                             on_trial(label, i, existing)
                         continue
+
+                if stop is not None and stop():
+                    stopped_early = True
+                    break
 
                 seed_label = (
                     _condition_label(tuple((n, v) for n, v in key if n not in matched_dials))
@@ -503,5 +529,5 @@ class MassTrialRunner:
 
         successful = tuple(r for r in records if r.terminal_reason != "error")
         rmap = _aggregate(successful, axes_tuple, base_seed, trials_per_condition)
-        provenance = replace(rmap.provenance, failed_trials=failed_trials)
+        provenance = replace(rmap.provenance, failed_trials=failed_trials, stopped_early=stopped_early)
         return replace(rmap, records=tuple(records), provenance=provenance)

@@ -19,9 +19,12 @@ import yaml
 
 from alienbio.suite.dist import Seed
 from alienbio.suite.experiment import (
+    AGENTS,
     DRAFTERS,
+    CostEstimate,
     ExperimentSpec,
     aggregate,
+    estimate_cost,
     load_spec,
     record_from_json,
     record_to_json,
@@ -29,6 +32,7 @@ from alienbio.suite.experiment import (
     spec_from_dict,
     spec_to_dict,
 )
+from alienbio.suite.llm_agent import cost_usd
 from alienbio.suite.mass_trial import MassTrialRunner
 from alienbio.suite.trial import TrialRecord
 
@@ -413,3 +417,122 @@ def test_mass_trial_extra_dials_and_hooks():
 
     assert len(calls) == 0  # drafter never called: skip supplied the record
     assert rmap2.records == (record,)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 10. estimate_cost / cost_ceiling_usd (M45.5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_estimate_cost_scripted_spec_is_zero():
+    spec = _conflict_idle_spec("est-scripted")
+    estimate = estimate_cost(spec)
+    assert isinstance(estimate, CostEstimate)
+    assert estimate.llm_trials == 0
+    assert estimate.usd == 0.0
+    assert estimate.model is None
+
+
+def test_estimate_cost_agent_axis_matches_hand_computed_formula():
+    spec = ExperimentSpec(
+        name="est-axis",
+        axes=(("rung", ("single", "forced")), ("agent", ("idle", "llm"))),
+        drafter="conflict",
+        agent="idle",
+        trials_per_condition=2,
+        base_seed=1,
+        model="claude-sonnet-4-20250514",
+        price_usd_per_mtok=(1.0, 2.0),
+        expected_turns=4,
+        expected_prompt_tokens=100,
+        expected_output_tokens=10,
+    )
+    estimate = estimate_cost(spec)
+
+    # 1 "llm" agent-axis level x 2 "rung" levels x 2 trials_per_condition.
+    assert estimate.llm_trials == 1 * 2 * 2
+    assert estimate.turns_per_trial == 4
+
+    # memory defaults to "full": sum_{t=0}^{3} 100 * (1 + t/2).
+    input_per_trial = sum(100 * (1 + t / 2) for t in range(4))
+    output_per_trial = 10 * 4
+    expected_input_tokens = round(input_per_trial * estimate.llm_trials)
+    expected_output_tokens = round(output_per_trial * estimate.llm_trials)
+    assert estimate.input_tokens == expected_input_tokens
+    assert estimate.output_tokens == expected_output_tokens
+
+    expected_usd = cost_usd(expected_input_tokens, expected_output_tokens, (1.0, 2.0))
+    assert estimate.usd == pytest.approx(expected_usd)
+    assert estimate.model == "claude-sonnet-4-20250514"
+
+
+def test_estimate_cost_unknown_model_without_override_raises():
+    spec = ExperimentSpec(
+        name="est-unknown",
+        axes=(),
+        drafter="identify_pathway",
+        agent="llm",
+        trials_per_condition=1,
+        base_seed=1,
+        model="totally-unknown-model-20260101",
+    )
+    with pytest.raises(ValueError, match="no published price"):
+        estimate_cost(spec)
+
+
+def test_load_spec_rejects_negative_cost_ceiling(tmp_path):
+    path = _write_spec(tmp_path, cost_ceiling_usd=-1.0)
+    with pytest.raises(ValueError, match="cost_ceiling_usd"):
+        load_spec(path)
+
+
+def test_cost_ceiling_stops_the_run_after_first_trial(tmp_path, monkeypatch):
+    from alienbio.suite.agent import Commit as _Commit
+    from alienbio.suite.types import Answer as _Answer
+
+    class _BigUsageAgent:
+        def act(self, observation):
+            del observation
+            return _Commit(answer=_Answer(value=[], kind="ordered_path")), ()
+
+        @property
+        def usage(self):
+            return {
+                "calls": 1,
+                "input_tokens": 1_000_000,
+                "output_tokens": 0,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 0,
+            }
+
+    def big_usage_agent_builder(spec):
+        def factory(seed, dials):
+            del seed, dials
+            return _BigUsageAgent()
+
+        return factory
+
+    monkeypatch.setitem(AGENTS, "idle", big_usage_agent_builder)
+
+    spec = ExperimentSpec(
+        name="ceiling",
+        axes=(("rung", ("single",)),),
+        drafter="conflict",
+        agent="idle",
+        trials_per_condition=2,
+        base_seed=1,
+        price_usd_per_mtok=(3.0, 15.0),
+        cost_ceiling_usd=2.0,
+    )
+    out_dir = tmp_path / "run"
+    rmap = run_experiment(spec, out_dir=str(out_dir))
+
+    assert rmap.provenance.stopped_early is True
+    assert len(rmap.records) == 1
+
+    manifest = json.loads((out_dir / "manifest.json").read_text())
+    assert manifest["stopped_reason"] == "cost_ceiling"
+    assert manifest["cost_usd_spent"] >= 2.0
+
+    lines = (out_dir / "records.jsonl").read_text().strip().splitlines()
+    assert len(lines) == 1

@@ -20,6 +20,7 @@ from typing import Optional
 from alienbio.suite.experiment import (
     NEUTRAL_DRAFTERS,
     aggregate,
+    estimate_cost,
     load_spec,
     render_report,
     run_experiment,
@@ -107,6 +108,16 @@ def _run(rest: list[str], verbose: bool) -> int:
         print(f"model: {spec.model}")
         print(f"out_dir: {resolved_out}")
         print("no-peeking: ok" if no_peeking_ok else "no-peeking: VIOLATION")
+        estimate = estimate_cost(spec)
+        if estimate.llm_trials == 0:
+            print("estimated cost: $0.00, no llm arm")
+        else:
+            print(
+                f"estimated cost: ${estimate.usd:.4f} for {estimate.llm_trials} llm "
+                f"trials x {estimate.turns_per_trial} turns — {estimate.formula}"
+            )
+        ceiling = spec.cost_ceiling_usd
+        print(f"cost ceiling: {'none' if ceiling is None else f'${ceiling:.4f}'}")
         return 0
 
     def progress(message: str) -> None:

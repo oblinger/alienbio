@@ -32,7 +32,7 @@ import json
 import platform
 import re
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Protocol, Sequence, Union, cast
@@ -49,7 +49,7 @@ from .conflict_gen import draft_conflict_world
 from .deliberation import DeliberationStep, DeliberationTrace
 from .dist import Constant, Seed
 from .info_seeking import ActionRecord
-from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL
+from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, price_for
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
 from .observation import Observation
 from .pipeline import build_suite
@@ -98,6 +98,12 @@ class ExperimentSpec:
     token_ceiling: Optional[int] = None
     fixed_dials: Mapping[str, Any] = field(default_factory=dict)
     out_dir: Optional[str] = None
+    #: M45.5 — the cost ceiling + dry-run cost-estimate dials.
+    cost_ceiling_usd: Optional[float] = None
+    price_usd_per_mtok: Optional[tuple[float, float]] = None
+    expected_turns: int = 8
+    expected_prompt_tokens: int = 1500
+    expected_output_tokens: int = 300
 
 
 #: Keys ``load_spec``/``spec_from_dict`` will not build a spec without.
@@ -108,7 +114,19 @@ _REQUIRED_KEYS: frozenset[str] = frozenset(
 #: Every other recognised top-level key — everything else is a typo (M46.5:
 #: an unknown key must not silently become a no-op).
 _OPTIONAL_KEYS: frozenset[str] = frozenset(
-    {"drafter_kwargs", "model", "memory", "token_ceiling", "fixed_dials", "out_dir"}
+    {
+        "drafter_kwargs",
+        "model",
+        "memory",
+        "token_ceiling",
+        "fixed_dials",
+        "out_dir",
+        "cost_ceiling_usd",
+        "price_usd_per_mtok",
+        "expected_turns",
+        "expected_prompt_tokens",
+        "expected_output_tokens",
+    }
 )
 
 _ALL_KEYS: frozenset[str] = _REQUIRED_KEYS | _OPTIONAL_KEYS
@@ -134,6 +152,13 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "base_seed": spec.base_seed,
         "fixed_dials": dict(spec.fixed_dials),
         "out_dir": spec.out_dir,
+        "cost_ceiling_usd": spec.cost_ceiling_usd,
+        "price_usd_per_mtok": (
+            list(spec.price_usd_per_mtok) if spec.price_usd_per_mtok is not None else None
+        ),
+        "expected_turns": spec.expected_turns,
+        "expected_prompt_tokens": spec.expected_prompt_tokens,
+        "expected_output_tokens": spec.expected_output_tokens,
     }
 
 
@@ -167,7 +192,53 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         token_ceiling=d.get("token_ceiling"),
         fixed_dials=dict(d.get("fixed_dials") or {}),
         out_dir=d.get("out_dir"),
+        cost_ceiling_usd=_validate_cost_ceiling(d.get("cost_ceiling_usd")),
+        price_usd_per_mtok=_validate_price_override(d.get("price_usd_per_mtok")),
+        expected_turns=_validate_positive_int("expected_turns", d.get("expected_turns", 8)),
+        expected_prompt_tokens=_validate_positive_int(
+            "expected_prompt_tokens", d.get("expected_prompt_tokens", 1500)
+        ),
+        expected_output_tokens=_validate_positive_int(
+            "expected_output_tokens", d.get("expected_output_tokens", 300)
+        ),
     )
+
+
+def _validate_cost_ceiling(value: Any) -> Optional[float]:
+    """``cost_ceiling_usd`` must be a positive number, or absent (``None``)."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        raise ValueError(f"experiment spec: cost_ceiling_usd must be > 0, got {value!r}")
+    return float(value)
+
+
+def _validate_price_override(value: Any) -> Optional[tuple[float, float]]:
+    """``price_usd_per_mtok`` must be a 2-sequence of non-negative numbers, or absent."""
+    if value is None:
+        return None
+    try:
+        seq = list(value)
+    except TypeError:
+        raise ValueError(
+            f"experiment spec: price_usd_per_mtok must be a 2-sequence of "
+            f"non-negative numbers, got {value!r}"
+        )
+    if len(seq) != 2 or any(
+        isinstance(v, bool) or not isinstance(v, (int, float)) or v < 0 for v in seq
+    ):
+        raise ValueError(
+            f"experiment spec: price_usd_per_mtok must be a 2-sequence of "
+            f"non-negative numbers, got {value!r}"
+        )
+    return (float(seq[0]), float(seq[1]))
+
+
+def _validate_positive_int(name: str, value: Any) -> int:
+    """``dials[name]`` must be a positive ``int`` (M45.5's ``expected_*`` dials)."""
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"experiment spec: {name} must be a positive int, got {value!r}")
+    return value
 
 
 _PINNED_MODEL_RE = re.compile(r".*-\d{8}$")
@@ -214,6 +285,117 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
         raise ValueError(f"load_spec: missing required experiment spec key(s): {missing}")
 
     return spec_from_dict(raw)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CostEstimate — a dry-run cost projection over a spec's grid (M45.5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class CostEstimate:
+    """A dry-run USD cost projection over an :class:`ExperimentSpec`'s grid,
+    from :func:`estimate_cost`. ``formula`` is a one-line human-readable
+    rendering of the arithmetic that produced ``usd``."""
+
+    llm_trials: int
+    turns_per_trial: int
+    input_tokens: int
+    output_tokens: int
+    usd: float
+    model: Optional[str]
+    formula: str
+
+
+def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
+    """Project ``spec``'s USD cost from its grid shape alone — no trial runs.
+
+    ``llm_trials`` is the number of ``(condition, trial)`` units whose
+    ``agent`` dial resolves to ``"llm"``: every cell if ``spec.agent ==
+    "llm"`` and there is no ``agent`` axis, else the count of cells whose
+    ``agent`` axis level is ``"llm"`` (times ``trials_per_condition``). Zero
+    llm trials means ``usd = 0.0``, ``model = None``, and no price lookup is
+    even attempted (an all-scripted spec never needs a known price).
+
+    Per-trial input tokens (``P`` = ``expected_prompt_tokens``, ``T`` =
+    ``expected_turns``) depend on ``spec.memory``: ``"full"`` sums
+    ``P * (1 + t/2)`` over ``t`` in ``range(T)`` (each prior turn's history
+    roughly adds half a turn's worth of tokens); ``"none"`` is flat ``P *
+    T``; an ``int`` k is ``P * T * (1 + min(k, T-1)/2)``. Output tokens are
+    flat ``O * T`` (``O`` = ``expected_output_tokens``). ``usd`` is
+    :func:`~alienbio.suite.llm_agent.cost_usd` at
+    :func:`~alienbio.suite.llm_agent.price_for` ``(model,
+    spec.price_usd_per_mtok)``.
+
+    Raises:
+        ValueError: ``llm_trials > 0``, the resolved model has no published
+            price, and ``spec.price_usd_per_mtok`` gives no override.
+    """
+    total_cells = 1
+    for _name, levels in spec.axes:
+        total_cells *= len(levels)
+
+    agent_axis = next((levels for name, levels in spec.axes if name == "agent"), None)
+    if agent_axis is not None:
+        llm_levels = sum(1 for level in agent_axis if str(level) == "llm")
+        other_cells = 1
+        for name, levels in spec.axes:
+            if name != "agent":
+                other_cells *= len(levels)
+        llm_trials = llm_levels * other_cells * spec.trials_per_condition
+    elif spec.agent == "llm":
+        llm_trials = total_cells * spec.trials_per_condition
+    else:
+        llm_trials = 0
+
+    turns = spec.expected_turns
+    if llm_trials == 0:
+        return CostEstimate(
+            llm_trials=0,
+            turns_per_trial=turns,
+            input_tokens=0,
+            output_tokens=0,
+            usd=0.0,
+            model=None,
+            formula="0 llm trials -> $0.00",
+        )
+
+    prompt_tokens = spec.expected_prompt_tokens
+    output_tokens = spec.expected_output_tokens
+    memory = spec.memory
+    if memory == "full":
+        input_per_trial = sum(prompt_tokens * (1 + t / 2) for t in range(turns))
+        memory_desc = "full"
+    elif memory == "none":
+        input_per_trial = prompt_tokens * turns
+        memory_desc = "none"
+    else:
+        k = cast(int, memory)
+        input_per_trial = prompt_tokens * turns * (1 + min(k, turns - 1) / 2)
+        memory_desc = f"k={k}"
+    output_per_trial = output_tokens * turns
+
+    total_input_tokens = round(input_per_trial * llm_trials)
+    total_output_tokens = round(output_per_trial * llm_trials)
+
+    model = spec.model or PINNED_MODEL
+    price = price_for(model, spec.price_usd_per_mtok)
+    usd = cost_usd(total_input_tokens, total_output_tokens, price)
+
+    formula = (
+        f"{llm_trials} llm_trials x ({turns} turns, memory={memory_desc}: "
+        f"{input_per_trial:.0f} input + {output_per_trial:.0f} output tok/trial) "
+        f"@ ${price[0]}/${price[1]} per MTok = ${usd:.4f}"
+    )
+    return CostEstimate(
+        llm_trials=llm_trials,
+        turns_per_trial=turns,
+        input_tokens=total_input_tokens,
+        output_tokens=total_output_tokens,
+        usd=usd,
+        model=model,
+        formula=formula,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -539,6 +721,8 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
         "taint_hits": list(record.taint_hits),
         "turns": record.turns,
         "error": record.error,
+        "usage": dict(record.usage) if record.usage is not None else None,
+        "wall_time_s": record.wall_time_s,
         "action_log": [
             {"kind": a.kind, "destructive": a.destructive, "accepted": a.accepted, "reason": a.reason}
             for a in record.action_log
@@ -595,6 +779,8 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         turns=d["turns"],
         brief=brief,
         error=d["error"],
+        usage=d.get("usage"),
+        wall_time_s=d.get("wall_time_s", 0.0),
     )
 
 
@@ -663,6 +849,13 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "trials_planned": trials_planned,
         "trials_completed": 0,
         "failed_trials": 0,
+        # M45.5 — the dry-run projection, pinned at start so a run's actual
+        # spend (written at the end) can be compared against what it expected.
+        "cost_estimate": asdict(estimate_cost(spec)),
+        "cost_ceiling_usd": spec.cost_ceiling_usd,
+        "cost_usd_spent": 0.0,
+        "stopped_reason": None,
+        "usage_totals": None,
     }
 
 
@@ -700,6 +893,15 @@ def run_experiment(
     Writes ``manifest.json`` once at the start (updated at the end),
     ``records.jsonl`` incrementally (one line per fresh trial), and, on
     completion, ``map.json``/``map.csv``/``report.txt``.
+
+    ``spec.cost_ceiling_usd`` (M45.5), when set, is checked against a running
+    ``spent_usd`` total (every landed record's ``usage``, priced via
+    :func:`~alienbio.suite.llm_agent.price_for` /
+    :func:`~alienbio.suite.llm_agent.cost_usd`) before each fresh trial; once
+    reached the grid stops cleanly (``manifest["stopped_reason"] ==
+    "cost_ceiling"``) rather than overspending. The manifest also carries the
+    dry-run ``cost_estimate`` (pinned at the start) and the actual
+    ``cost_usd_spent``/``usage_totals`` (written at the end).
 
     Raises:
         ValueError: ``spec`` pairs agent ``"llm"`` with a non-neutral drafter
@@ -750,21 +952,47 @@ def run_experiment(
 
     agent_factory = _agent_factory_for(spec)
 
+    # M45.5 — a running USD total over every landed record's real usage (both
+    # freshly-run and resumed/``skip``-reused), fed to `stop` below so a
+    # sweep with a `cost_ceiling_usd` halts cleanly rather than overspending.
+    spent_state = {"usd": 0.0}
+
     def on_trial(label: str, i: int, record: TrialRecord) -> None:
+        cond = dict(record.condition_key)
+        kind = str(cond.get("agent", spec.agent))
+        # M45.11: the persisted "model" field means "this trial ran a live
+        # model" — still gated on kind == "llm" so a scripted arm's line
+        # keeps reading "model": null (unchanged pre-M45.5 contract).
+        persisted_model = (cond.get("model") or spec.model or PINNED_MODEL) if kind == "llm" else None
+        # M45.5: cost accounting keys off USAGE, not kind — a "scripted arm"
+        # (record.usage is None) skips the price lookup entirely, but any
+        # agent that DOES expose usage is priced under the model in force
+        # for this trial (falling back to spec.model / PINNED_MODEL).
+        if record.usage:
+            cost_model = cond.get("model") or spec.model or PINNED_MODEL
+            price = price_for(cost_model, spec.price_usd_per_mtok)
+            spent_state["usd"] += cost_usd(
+                record.usage.get("input_tokens", 0),
+                record.usage.get("output_tokens", 0),
+                price,
+                cache_read_tokens=record.usage.get("cache_read_tokens", 0),
+                cache_write_tokens=record.usage.get("cache_write_tokens", 0),
+            )
         if (label, i) not in existing_by_key:
             payload = record_to_json(record, label, i)
             # M45.11: the model and memory policy in force ride on EVERY line,
             # not only the manifest, so a record store can be read alone.
-            cond = dict(record.condition_key)
-            kind = str(cond.get("agent", spec.agent))
             payload["agent"] = kind
-            payload["model"] = (cond.get("model") or spec.model or PINNED_MODEL) if kind == "llm" else None
+            payload["model"] = persisted_model
             payload["memory"] = spec.memory
             line = _canonical_json(payload)
             with records_path.open("a") as f:
                 f.write(line + "\n")
         if progress is not None:
             progress(f"{label}#{i} {record.terminal_reason} score={record.objective_score}")
+
+    def stop() -> bool:
+        return spec.cost_ceiling_usd is not None and spent_state["usd"] >= spec.cost_ceiling_usd
 
     rmap = MassTrialRunner().run(
         list(spec.axes),
@@ -777,14 +1005,31 @@ def run_experiment(
         on_trial=on_trial,
         skip=skip,
         matched_dials=("agent", "model"),
+        stop=stop,
     )
 
     (resolved_out / "map.json").write_text(rmap.to_json())
     (resolved_out / "map.csv").write_text(rmap.to_csv())
 
+    usage_totals = {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+    }
+    for record in rmap.records:
+        if record.usage:
+            for key in usage_totals:
+                usage_totals[key] += record.usage.get(key, 0)
+
     manifest["finished_at"] = _utc_now_iso()
     manifest["trials_completed"] = len(rmap.records)
     manifest["failed_trials"] = rmap.provenance.failed_trials
+    manifest["cost_usd_spent"] = spent_state["usd"]
+    manifest["cost_ceiling_usd"] = spec.cost_ceiling_usd
+    manifest["stopped_reason"] = "cost_ceiling" if rmap.provenance.stopped_early else None
+    manifest["usage_totals"] = usage_totals
     manifest_path.write_text(json.dumps(manifest, indent=2))
 
     (resolved_out / "report.txt").write_text(render_report(rmap, manifest))
@@ -836,6 +1081,24 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
         f"Trials planned: {manifest.get('trials_planned')}   "
         f"completed: {manifest.get('trials_completed')}   "
         f"failed: {manifest.get('failed_trials')}"
+    )
+
+    ceiling = manifest.get("cost_ceiling_usd")
+    ceiling_str = f"${ceiling:.4f}" if ceiling is not None else "none"
+    estimate_usd = (manifest.get("cost_estimate") or {}).get("usd", 0.0)
+    lines.append(
+        f"Cost: spent ${manifest.get('cost_usd_spent', 0.0):.4f} "
+        f"(ceiling {ceiling_str}) — estimate was ${estimate_usd:.4f}"
+    )
+    usage_totals = manifest.get("usage_totals") or {}
+    total_wall_time_s = sum(r.wall_time_s for r in rmap.records)
+    lines.append(
+        f"Usage: calls={usage_totals.get('calls', 0)} "
+        f"input_tokens={usage_totals.get('input_tokens', 0)} "
+        f"output_tokens={usage_totals.get('output_tokens', 0)} "
+        f"cache_read_tokens={usage_totals.get('cache_read_tokens', 0)} "
+        f"cache_write_tokens={usage_totals.get('cache_write_tokens', 0)}   "
+        f"wall_time_s={total_wall_time_s:.3f}"
     )
     lines.append("")
 

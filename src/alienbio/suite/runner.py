@@ -83,6 +83,7 @@ from __future__ import annotations
 import dataclasses
 import math
 import re
+import time
 from typing import Any, Mapping, Optional, cast
 
 from ..bio.chemistry import ChemistryImpl
@@ -410,6 +411,11 @@ def run(
     timeline regardless of whether the trial committed (it scores the WORLD
     trajectory, not a submitted answer).
 
+    ``wall_time_s`` (M45.5) is ``time.perf_counter()`` measured from entry to
+    the built record; ``usage`` is ``getattr(agent, "usage", None)`` — an
+    ``LLMAgent``'s real provider-usage snapshot, or ``None`` for a
+    ``ScriptedAgent``, which has none.
+
     Deterministic in ``(world, task, agent, dials, seed)``: two calls with a
     freshly-constructed but behaviourally identical ``agent`` (same policy)
     yield byte-identical ``action_log`` / ``objective_score`` (neither
@@ -417,6 +423,7 @@ def run(
     leaks between the two calls) — the ``TaskBrief`` is likewise a pure
     function of these same inputs.
     """
+    start_time = time.perf_counter()
     compartments = world.compartments
     chemistry = world.chemistry
     state: WorldStateImpl = world.initial_state
@@ -553,6 +560,7 @@ def run(
         objective_score = 0.0  # AnswerObjective task, no Commit: nothing to grade
 
     taint_hits = audit_prompts(agent, brief, chemistry, task)
+    wall_time_s = time.perf_counter() - start_time
 
     record = TrialRecord(
         task_id=task.world,
@@ -569,6 +577,8 @@ def run(
         turns=turns_executed,
         brief=brief,
         taint_hits=taint_hits,
+        usage=getattr(agent, "usage", None),
+        wall_time_s=wall_time_s,
     )
     if taint_hits:
         raise TaintError(record)

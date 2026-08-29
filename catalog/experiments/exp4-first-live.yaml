@@ -10,6 +10,7 @@ drafter: identify_pathway
 agent: llm
 memory: full
 token_ceiling: 20000
+cost_ceiling_usd: 1.00
 axes:
   pathway_length: [3]
 trials_per_condition: 1

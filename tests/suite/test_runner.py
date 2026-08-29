@@ -634,3 +634,47 @@ def test_record_carries_brief_and_turn_count():
 
     assert record.brief is not None
     assert record.turns == len(record.action_log) == 2
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# usage / wall_time_s (M45.5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_scripted_run_has_no_usage_and_positive_wall_time():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    assert isinstance(task.objective, AnswerObjective)
+
+    agent = ScriptedAgent(_key_commit_policy(task.objective.key.value), seed=Seed(0))
+    record = run(world, task, agent, {}, Seed(7))
+
+    assert record.usage is None
+    assert record.wall_time_s > 0.0
+
+
+class _UsageExposingAgent:
+    """A test double exposing ``usage`` (like ``LLMAgent``) but never calling a model."""
+
+    def __init__(self, usage):
+        self._usage = usage
+
+    def act(self, observation):
+        del observation
+        return Commit(answer=Answer(value=[], kind="ordered_path")), ()
+
+    @property
+    def usage(self):
+        return self._usage
+
+
+def test_agent_usage_lands_on_the_record():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+
+    fake_usage = {"calls": 3, "input_tokens": 100, "output_tokens": 20}
+    agent = _UsageExposingAgent(fake_usage)
+    record = run(world, task, agent, {}, Seed(0))
+
+    assert record.usage == fake_usage
+    assert record.wall_time_s > 0.0
