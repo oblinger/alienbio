@@ -1162,7 +1162,7 @@ class TestDatExecution:
         import os
         from dvc_dat import Dat
 
-        os.chdir("/Users/oblinger/ob/proj/ABIO/alienbio")
+        os.chdir(Path(__file__).resolve().parents[2])  # repo root, never a hardcoded absolute path (T012)
         dat = Dat.load("catalog/jobs/hardcoded_test")
 
         # Check DAT loaded
@@ -1175,7 +1175,7 @@ class TestDatExecution:
         import os
         from dvc_dat import Dat
 
-        os.chdir("/Users/oblinger/ob/proj/ABIO/alienbio")
+        os.chdir(Path(__file__).resolve().parents[2])  # repo root, never a hardcoded absolute path (T012)
         dat = Dat.load("catalog/jobs/hardcoded_test")
         success, result = dat.run()
 
@@ -1192,7 +1192,7 @@ class TestDatExecution:
         import os
         from dvc_dat import Dat
 
-        os.chdir("/Users/oblinger/ob/proj/ABIO/alienbio")
+        os.chdir(Path(__file__).resolve().parents[2])  # repo root, never a hardcoded absolute path (T012)
         dat = Dat.load("catalog/jobs/hardcoded_test")
         success, result = dat.run()
 
@@ -1208,7 +1208,7 @@ class TestDatExecution:
         import os
         from dvc_dat import Dat
 
-        os.chdir("/Users/oblinger/ob/proj/ABIO/alienbio")
+        os.chdir(Path(__file__).resolve().parents[2])  # repo root, never a hardcoded absolute path (T012)
         dat = Dat.load("catalog/jobs/hardcoded_test")
         success, result = dat.run()
 
