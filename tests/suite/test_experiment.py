@@ -144,6 +144,20 @@ def test_design_refuses_an_underpowered_spec_and_is_recorded(tmp_path):
     assert len(rmap.records) == 10
 
 
+def test_idle_baseline_flag_adds_the_matched_idle_arm(tmp_path):
+    # M45.7: idle_baseline: true expands the grid with an agent axis of
+    # (agent, idle) so every condition has a do-nothing twin under the same seeds.
+    spec = load_spec(_write_spec(tmp_path, agent="measure-commit", idle_baseline=True))
+    assert ("agent", ("measure-commit", "idle")) in spec.axes
+    assert spec_from_dict(spec_to_dict(spec)).axes == spec.axes  # no double expansion
+    rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
+    assert len(rmap.cells) == 4
+    report = (tmp_path / "out" / "report.txt").read_text()
+    assert "Idle baseline (M45.7" in report and "measure-commit=" in report and "idle=" in report
+    # A spec whose agent is already idle, or which sweeps agent itself, is left alone.
+    assert not any(n == "agent" for n, _ in load_spec(_write_spec(tmp_path, agent="idle", idle_baseline=True)).axes)
+
+
 def test_record_lines_carry_model_and_memory(tmp_path):
     spec = load_spec(_write_spec(tmp_path))
     run_experiment(spec, out_dir=str(tmp_path / "out"))

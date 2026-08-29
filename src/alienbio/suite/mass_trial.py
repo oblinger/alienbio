@@ -349,9 +349,17 @@ def _aggregate(
         low = _pooled_raw_scores(raw_by_key, axis_a, a0, axis_b, b0)
         high = _pooled_raw_scores(raw_by_key, axis_a, a1, axis_b, b1)
         if len(low) >= 2 and len(high) >= 2:
-            contrasts[(axis_a, axis_b)] = ContrastResult(
-                cohens_d=cohens_d(high, low), welch_t=welch_t(high, low)
-            )
+            try:
+                contrasts[(axis_a, axis_b)] = ContrastResult(
+                    cohens_d=cohens_d(high, low), welch_t=welch_t(high, low)
+                )
+            except ValueError:
+                # Zero pooled variance — every trial on both diagonals scored
+                # identically (a deterministic scripted sweep does this). The
+                # effect size is undefined, not zero: the pair is simply
+                # absent from ``contrasts``, exactly like a pair with too few
+                # observations, rather than crashing the whole aggregation.
+                continue
 
     provenance = Provenance(axes=axes, base_seed=base_seed, trials_per_condition=trials_per_condition)
     return ReliabilityMap(cells=cells, interactions=interactions, contrasts=contrasts, provenance=provenance)

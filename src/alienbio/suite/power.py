@@ -127,7 +127,12 @@ class PowerDesign:
 
     @staticmethod
     def from_dict(d: Mapping[str, Any]) -> "PowerDesign":
-        unknown = sorted(set(d) - {"target_effect_d", "alpha", "power", "primary_contrast", "multiple_comparison"})
+        # ``required_trials_per_condition`` is derived (to_dict emits it so a
+        # manifest is self-describing); accepted on the way back in and recomputed.
+        unknown = sorted(
+            set(d)
+            - {"target_effect_d", "alpha", "power", "primary_contrast", "multiple_comparison", "required_trials_per_condition"}
+        )
         if unknown:
             raise ValueError(f"PowerDesign: unknown design key(s): {unknown}")
         if "target_effect_d" not in d:

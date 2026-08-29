@@ -31,6 +31,7 @@ import hashlib
 import json
 import platform
 import re
+import statistics
 import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -111,6 +112,10 @@ class ExperimentSpec:
     design: Optional[PowerDesign] = None
     #: M45.6 — trials in flight at once (live-model sweeps are I/O-bound).
     concurrency: int = 1
+    #: M45.7 — add the matched idle arm automatically: an ``agent`` axis of
+    #: ``(agent, "idle")`` under the same world seeds, so every condition has
+    #: its do-nothing twin beside it. Expanded into ``axes`` at load.
+    idle_baseline: bool = False
 
 
 #: Keys ``load_spec``/``spec_from_dict`` will not build a spec without.
@@ -135,6 +140,7 @@ _OPTIONAL_KEYS: frozenset[str] = frozenset(
         "expected_output_tokens",
         "design",
         "concurrency",
+        "idle_baseline",
     }
 )
 
@@ -170,6 +176,7 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "expected_output_tokens": spec.expected_output_tokens,
         "design": spec.design.to_dict() if spec.design is not None else None,
         "concurrency": spec.concurrency,
+        "idle_baseline": spec.idle_baseline,
     }
 
 
@@ -178,6 +185,11 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
     -> :class:`ExperimentSpec`. Optional keys default exactly as the class does."""
     axes_raw = d["axes"]
     axes = tuple((name, tuple(levels)) for name, levels in axes_raw.items())
+    idle_baseline = bool(d.get("idle_baseline", False))
+    if idle_baseline and d["agent"] != "idle" and not any(name == "agent" for name, _ in axes):
+        # M45.7: the idle twin is just another arm of the grid — M46.8's
+        # matched seeds make it the baseline for the same (condition, trial).
+        axes = axes + (("agent", (d["agent"], "idle")),)
     model = d.get("model")
     if model is not None:
         _require_pinned_model(model)
@@ -214,6 +226,7 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         ),
         design=_validate_design(d.get("design"), d["trials_per_condition"], axes),
         concurrency=_validate_positive_int("concurrency", d.get("concurrency", 1)),
+        idle_baseline=idle_baseline,
     )
 
 
@@ -1231,8 +1244,45 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
                     f"(n_low={result['n_low']}, n_high={result['n_high']})"
                 )
 
+    twins = idle_baseline_comparison(rmap)
+    if twins:
+        lines.append("")
+        lines.append("Idle baseline (M45.7, matched seeds):")
+        for cond, live_agent, live_mean, idle_mean, n in twins:
+            delta = live_mean - idle_mean
+            lines.append(
+                f"  {cond}: {live_agent}={live_mean:.4f} idle={idle_mean:.4f} delta={delta:+.4f} (n={n})"
+            )
+
     lines.append("")
     return "\n".join(lines)
+
+
+def idle_baseline_comparison(rmap: ReliabilityMap) -> list[tuple[str, str, float, float, int]]:
+    """Per condition (agent dial removed), the live arm's mean score beside its
+    idle twin's — ``(condition_label, live_agent, live_mean, idle_mean, n)``,
+    only for conditions that have both arms with scored records."""
+    by_cond: dict[tuple[tuple[str, Any], ...], dict[str, list[float]]] = {}
+    for record in rmap.records:
+        if record.terminal_reason == "error":
+            continue
+        key = dict(record.condition_key)
+        agent = str(key.pop("agent", ""))
+        if not agent:
+            continue
+        cond = tuple(sorted(key.items()))
+        by_cond.setdefault(cond, {}).setdefault(agent, []).append(record.objective_score)
+    rows: list[tuple[str, str, float, float, int]] = []
+    for cond, arms in sorted(by_cond.items(), key=lambda kv: str(kv[0])):
+        idle = arms.get("idle")
+        if not idle:
+            continue
+        for agent, scores in sorted(arms.items()):
+            if agent == "idle" or not scores:
+                continue
+            label = "&".join(f"{n}={v}" for n, v in cond) or "(all)"
+            rows.append((label, agent, statistics.fmean(scores), statistics.fmean(idle), min(len(scores), len(idle))))
+    return rows
 
 
 def primary_contrast_result(rmap: ReliabilityMap, contrast: Mapping[str, Any]) -> Optional[dict[str, Any]]:

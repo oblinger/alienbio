@@ -49,7 +49,7 @@ def test_power_design_validation_and_round_trip():
     assert design.required_trials_per_condition == 26
     d = design.to_dict()
     assert d["required_trials_per_condition"] == 26
-    assert PowerDesign.from_dict({k: v for k, v in d.items() if k != "required_trials_per_condition"}) == design
+    assert PowerDesign.from_dict(d) == design  # the derived n round-trips harmlessly
     with pytest.raises(ValueError, match="multiple_comparison"):
         PowerDesign(target_effect_d=0.5, multiple_comparison="holm")
     with pytest.raises(ValueError, match="primary_contrast"):
