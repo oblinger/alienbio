@@ -585,7 +585,9 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "python_version": platform.python_version(),
         "platform": platform.platform(),
         "hostname": platform.node(),
-        "model": spec.model,
+        # The model actually in force: a live run without an explicit model
+        # uses PINNED_MODEL, and the manifest must say so, not "None".
+        "model": (spec.model or PINNED_MODEL) if spec.agent == "llm" else spec.model,
         "memory": spec.memory,
         "directive_sha256": directive_sha256,
         "started_at": started_at,
