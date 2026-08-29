@@ -335,6 +335,21 @@ def _chemistry_with_rate(
     )
 
 
+#: M36.10 — the share of every population a destructive assay kills.
+DEFAULT_ASSAY_KILL = 0.5
+
+
+def _state_scaled(state: WorldStateImpl, factor: float) -> WorldStateImpl:
+    """A copy of ``state`` with every concentration multiplied by ``factor``."""
+    new_state = state.copy()
+    mol_ids = new_state.molecule_ids
+    assert mol_ids is not None
+    for ci in range(new_state.num_compartments):
+        for mj in range(len(mol_ids)):
+            new_state.set(ci, mj, float(new_state.get(ci, mj)) * factor)
+    return new_state
+
+
 def _state_with_concentration(
     state: WorldStateImpl, molecule_id: str, value: float
 ) -> WorldStateImpl:
@@ -358,6 +373,7 @@ def run(
     *,
     sim_cfg: SimConfig = SimConfig(steps=10, sample_every=10),
     max_turns: int = 50,
+    assay_kill: float = DEFAULT_ASSAY_KILL,
     illegal_action_limit: int = 10,
     illegal_action_cost: Optional[float] = None,
 ) -> TrialRecord:
@@ -435,6 +451,9 @@ def run(
     # a condition's dials may override, so a sweep can put either on an axis
     # and every record carries the values in force (via the brief).
     max_turns = _resolve_int_dial(dials, "max_turns", max_turns)
+    assay_kill = float(dials.get("assay_kill", assay_kill))
+    if not (0.0 <= assay_kill <= 1.0):
+        raise ValueError(f"dials['assay_kill'] must be in [0, 1], got {assay_kill!r}")
     sim_cfg = dataclasses.replace(
         sim_cfg,
         steps=_resolve_int_dial(dials, "sim_steps", sim_cfg.steps),
@@ -478,7 +497,15 @@ def run(
 
         accepted = True
         reject_reason = ""
-        if isinstance(action, Measure):
+        is_assay = isinstance(action, Measure) and bool(action.params.get("assay"))
+        if isinstance(action, Measure) and is_assay:
+            if action.probe not in brief.affordances.assays:
+                accepted = False
+                reject_reason = f"unknown assay {action.probe!r}"
+            elif action.probe not in chemistry.reactions:
+                accepted = False
+                reject_reason = f"assay {action.probe!r} is allowlisted but not a reaction in this world"
+        elif isinstance(action, Measure):
             if action.probe not in brief.affordances.probes:
                 accepted = False
                 reject_reason = f"unknown probe {action.probe!r}"
@@ -507,10 +534,12 @@ def run(
             target = ""
         action_records.append(
             ActionRecord(
-                kind=type(action).__name__.lower(),
+                kind="assay" if is_assay else type(action).__name__.lower(),
                 destructive=accepted
-                and isinstance(action, Intervene)
-                and action.lever in brief.irreversible,
+                and (
+                    is_assay
+                    or (isinstance(action, Intervene) and action.lever in brief.irreversible)
+                ),
                 accepted=accepted,
                 reason=reject_reason,
                 target=target,
@@ -523,8 +552,18 @@ def run(
             illegal += 1
             spent += illegal_action_cost if illegal_action_cost is not None else _action_cost(action)
 
+        result: Any = None
         if accepted:
-            if isinstance(action, Intervene):
+            if is_assay:
+                # M36.10 — the destructive assay: reveal the reaction's current
+                # rate (hidden STRUCTURE, never the key) and kill `assay_kill`
+                # of every population in the culture.
+                assert isinstance(action, Measure)
+                rate = chemistry.reactions[action.probe].rate
+                result = float(rate) if isinstance(rate, (int, float)) and not isinstance(rate, bool) else None
+                state = _state_scaled(state, 1.0 - assay_kill)
+                turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
+            elif isinstance(action, Intervene):
                 if action.lever in chemistry.reactions:
                     chemistry = _chemistry_with_rate(chemistry, action.lever, float(action.value))
                 else:
@@ -535,7 +574,7 @@ def run(
             # Measure / Wait: non-mutating, nothing to apply.
 
         if isinstance(agent, SessionAgent):
-            agent.notice(ActionOutcome(turn=turn, action=action, accepted=accepted, reason=reject_reason))
+            agent.notice(ActionOutcome(turn=turn, action=action, accepted=accepted, reason=reject_reason, result=result))
 
         timeline = simulate(turn_world, sim_cfg, seed.child(f"turn/{turn}/sim"))
         start = 0 if turn == 0 else 1  # skip the duplicate turn-boundary snapshot

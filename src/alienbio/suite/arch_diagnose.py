@@ -20,7 +20,7 @@ HIGH-severity corruption a recent audit caught in a sibling archetype.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, Optional
 
 from ..bio.chemistry import ChemistryImpl
 from ..bio.world import Compartment, WorldImpl
@@ -67,8 +67,16 @@ def draft_diagnosis_world(
     distractor_count: int = 0,
     hazard: bool = False,
     hazard_rate: float = DEFAULT_HAZARD_RATE,
+    perturbation: Optional[float] = None,
 ) -> tuple[WorldImpl, CarveResult]:
     """Draft a small reaction network and *choose* one molecule as perturbed.
+
+    ``perturbation`` (M36.10 / EXP-3, F011 Q2 = B) makes the perturbation
+    REAL: the reaction that feeds the chosen node (:func:`perturbed_reaction`)
+    runs at ``perturbation`` times the chain's rate, so the node's dynamics
+    genuinely differ and the key is discoverable by measurement — or, faster,
+    by a destructive assay of reaction rates. ``None`` (the default) keeps
+    the pre-M36.10 world byte-identical (a label only, no dynamics).
 
     ``hazard=True`` (M36.1 / EXP-4) additionally injects a *structurally
     present but unmentioned* slow-building hazard: one distractor reaction
@@ -101,6 +109,8 @@ def draft_diagnosis_world(
         raise ValueError(f"distractor_count must be >= 0, got {distractor_count}")
     if hazard and not hazard_rate > 0.0:
         raise ValueError(f"hazard_rate must be > 0, got {hazard_rate!r}")
+    if perturbation is not None and not (0.0 < perturbation != 1.0):
+        raise ValueError(f"perturbation must be a positive factor other than 1, got {perturbation!r}")
 
     node_names = [f"m{i}" for i in range(n_nodes)]
     molecules = [mk.M(name) for name in node_names]
@@ -149,12 +159,42 @@ def draft_diagnosis_world(
     target_idx = int(seed.child("target").rng().integers(n_nodes))
     target_id = node_names[target_idx]
 
+    if perturbation is not None and n_nodes > 1:
+        rid = perturbed_reaction(world, target_id)
+        assert rid is not None
+        world = perturb_reaction_rate(world, rid, perturbation)
+
     role = RoleSlot(
         name=TARGET_ROLE, type_tag=PERTURBED_TAG, constraints=(_is_molecule,)
     )
     motif = Motif(roles=(role,), edges=())
     skeleton = CarveResult(motif=motif, binding={TARGET_ROLE: target_id}, added=added)
     return world, skeleton
+
+
+def perturbed_reaction(world: WorldImpl, target_id: str) -> Optional[str]:
+    """The reaction a perturbation of ``target_id`` lives on: the chain
+    reaction that PRODUCES the node, else (the chain's source) the one that
+    consumes it; ``None`` when no reaction touches it."""
+    producing = [rid for rid, r in world.chemistry.reactions.items() if target_id in {m.name for m in r.products}]
+    if producing:
+        return sorted(producing)[0]
+    consuming = [rid for rid, r in world.chemistry.reactions.items() if target_id in {m.name for m in r.reactants}]
+    return sorted(consuming)[0] if consuming else None
+
+
+def perturb_reaction_rate(world: WorldImpl, reaction_id: str, factor: float) -> WorldImpl:
+    """A copy of ``world`` whose ``reaction_id`` runs at ``factor`` times its
+    rate; every other reaction, molecule and compartment is shared."""
+    chem = world.chemistry
+    rxn = chem.reactions[reaction_id]
+    rate = rxn.rate
+    if isinstance(rate, bool) or not isinstance(rate, (int, float)):
+        raise ValueError(f"perturb_reaction_rate: {reaction_id!r} has a non-numeric rate {rate!r}")
+    replaced = mk.R(reaction_id, dict(rxn.reactants), dict(rxn.products), rate=float(rate) * factor, modifiers=dict(rxn.modifiers))
+    reactions = [replaced if rid == reaction_id else r for rid, r in chem.reactions.items()]
+    new_chem = cast(ChemistryImpl, mk.C("host", list(chem.molecules.values()), reactions))
+    return WorldImpl(new_chem, world.compartments)
 
 
 @dataclass(frozen=True)

@@ -601,6 +601,8 @@ class LLMAgent:
         for entry in self._history:
             if entry["turn"] == outcome.turn:
                 entry["outcome"] = {"accepted": outcome.accepted, "reason": outcome.reason}
+                if outcome.result is not None:
+                    entry["outcome"]["result"] = outcome.result
                 return
 
     def _history_window(self) -> Optional[list[dict[str, Any]]]:

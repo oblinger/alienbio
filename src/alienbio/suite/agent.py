@@ -163,6 +163,9 @@ class ActionOutcome:
     action: Action
     accepted: bool
     reason: str = ""
+    #: M36.10 — what an accepted action returned, when it returns anything:
+    #: a destructive assay's revealed reaction rate. ``None`` otherwise.
+    result: Any = None
 
 
 @runtime_checkable

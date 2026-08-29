@@ -52,6 +52,7 @@ def generative_diagnose(
     distractor_count: int = 3,
     hazard: bool = False,
     hazard_rate: float = DEFAULT_HAZARD_RATE,
+    perturbation: Optional[float] = None,
 ) -> TaskArchetype:
     """A ``diagnose_perturbation`` archetype wired for ``build_suite``.
 
@@ -70,6 +71,7 @@ def generative_diagnose(
             distractor_count=distractor_count,
             hazard=hazard,
             hazard_rate=hazard_rate,
+            perturbation=perturbation,
         )
         return world, skeleton, None
 
