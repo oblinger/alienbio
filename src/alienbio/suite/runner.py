@@ -535,9 +535,15 @@ def run(
 
     if reason == "committed" and isinstance(task.objective, AnswerObjective):
         assert committed_answer is not None
-        objective_score = grade_answer(
-            committed_answer, task.objective.key, task.objective.grader
-        )
+        if committed_answer.value is None:
+            # A null answer is an abort sentinel (LLMAgent's token-ceiling /
+            # parse-exhaustion commits, the measure-commit zero): nothing to
+            # grade, and the graders would crash on ``list(None)``. Score 0.
+            objective_score = 0.0
+        else:
+            objective_score = grade_answer(
+                committed_answer, task.objective.key, task.objective.grader
+            )
     elif isinstance(task.objective, OutcomeObjective):
         objective_score = grade_outcome(
             final_timeline, task.objective.scorer, task.objective.target

@@ -223,6 +223,22 @@ def test_max_turns_reached_without_commit_or_budget():
     assert len(record.action_log) == 4
 
 
+def test_null_answer_commit_scores_zero_instead_of_crashing_the_grader():
+    # The abort sentinel Answer(value=None) must land as a scored record: the
+    # ordered_path grader would otherwise raise TypeError on list(None).
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    assert isinstance(task.objective, AnswerObjective)
+
+    def policy(observation, seed):
+        del observation, seed
+        return Commit(answer=Answer(value=None, kind="json"), params={"aborted": "test"}), ()
+
+    record = run(world, task, ScriptedAgent(policy, seed=Seed(0)), {}, Seed(9))
+    assert record.terminal_reason == "committed"
+    assert record.objective_score == 0.0
+
+
 def test_dials_override_max_turns_and_sim_config_and_are_recorded():
     # M46.6: the episode length and physical time per turn are condition
     # parameters — a dial overrides the keyword default and the brief records it.

@@ -24,15 +24,9 @@ def _write_spec(tmp_path):
 def test_suite_run_dry_prints_grid_summary_and_exits_0(tmp_path, capsys):
     spec_path = _write_spec(tmp_path)
 
-    # NOTE: `--` marks end-of-options for the TOP-LEVEL `bio` parser (cli.py),
-    # which is out of scope to change here (cli.py is epilog-line-only in
-    # this task) — its single generic `args` positional (nargs="*") cannot
-    # otherwise absorb a bare `--flag` token (a pre-existing limitation that
-    # affects every subcommand's own flags identically, e.g. `bio battery
-    # spec.yaml --csv` via `cli.main` hits the same "unrecognized arguments"
-    # today). `suite_command` itself parses `--dry` correctly once it
-    # receives it, which is what this test exercises.
-    rc = cli.main(["suite", "run", str(spec_path), "--", "--dry"])
+    # The top-level parser hands everything after the command to the
+    # subcommand verbatim (argparse.REMAINDER), flags included.
+    rc = cli.main(["suite", "run", str(spec_path), "--dry"])
 
     assert rc == 0
     captured = capsys.readouterr()

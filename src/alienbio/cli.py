@@ -72,8 +72,9 @@ Examples:
     )
     parser.add_argument(
         "args",
-        nargs="*",
-        help="Command arguments",
+        nargs=argparse.REMAINDER,
+        help="Command arguments (everything after the command, flags included, "
+        "is handed to the subcommand verbatim; put -v/--version BEFORE the command)",
     )
     parser.add_argument(
         "--version",
