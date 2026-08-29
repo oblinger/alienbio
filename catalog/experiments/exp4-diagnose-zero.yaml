@@ -1,0 +1,23 @@
+# M36.1 / EXP-4 — the scripted zero on the diagnosis family, with the idle
+# twin and a declared design. What EXP-4 still lacks in the framework:
+# the structurally-present-but-unmentioned hazard (substrate injection) and
+# the monitoring-belief / framing dials, which live in the older agent stack
+# and do not reach suite.runner yet. Until then this is the diagnosis zero,
+# not EXP-4 proper. Scripted only.
+name: exp4-diagnose-zero
+drafter: diagnose
+agent: measure-commit
+idle_baseline: true
+axes:
+  n_nodes: [4, 6]
+  observability: [1.0, 0.5]
+trials_per_condition: 3
+base_seed: 21
+fixed_dials:
+  max_turns: 6
+  sim_steps: 10
+design:
+  target_effect_d: 3.0
+  primary_contrast: {axis: observability, low: 0.5, high: 1.0}
+  multiple_comparison: bonferroni
+out_dir: runs/exp4-diagnose-zero

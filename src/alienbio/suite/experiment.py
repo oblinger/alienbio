@@ -621,6 +621,40 @@ def _draft_identify_pathway(
     return suite.worlds[0], suite.tasks[0]
 
 
+def _draft_generative(kind: str, seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tuple[WorldImpl, TaskInstance]:
+    """The M29 task families (``diagnose`` / ``predict`` / ``intervene``) via
+    ``build_suite`` over their generative archetypes — ``n_nodes`` from the
+    dials (default 4). These are generic capability substrates; they carry
+    none of EXP-4's hazard injection or monitoring/framing dials yet (M36.1)."""
+    from .generative import generative_diagnose, generative_intervene, generative_predict
+
+    n_nodes = dials.get("n_nodes", 4)
+    if kind == "diagnose":
+        archetype = generative_diagnose(n_nodes=n_nodes, distractor_count=dials.get("distractor_count", 3))
+    elif kind == "predict":
+        archetype = generative_predict(n_nodes=n_nodes)
+    else:
+        archetype = generative_intervene(n_nodes=n_nodes)
+    spec = SuiteSpec(archetype_mix=Constant(archetype), per_archetype={}, seed=0)
+    suite = build_suite(spec, seed, n_tasks=1, **kwargs)
+    return suite.worlds[0], suite.tasks[0]
+
+
+def _draft_diagnose(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tuple[WorldImpl, TaskInstance]:
+    """``"diagnose"`` — M29.2 diagnose-the-perturbation family (`node_id`)."""
+    return _draft_generative("diagnose", seed, dials, **kwargs)
+
+
+def _draft_predict(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tuple[WorldImpl, TaskInstance]:
+    """``"predict"`` — M29.4 predict-the-response family."""
+    return _draft_generative("predict", seed, dials, **kwargs)
+
+
+def _draft_intervene(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tuple[WorldImpl, TaskInstance]:
+    """``"intervene"`` — M29.3 design-an-intervention family (outcome-scored)."""
+    return _draft_generative("intervene", seed, dials, **kwargs)
+
+
 #: Registered world/task drafters, by name — the ``drafter`` an :class:`ExperimentSpec` names.
 DRAFTERS: Mapping[str, DrafterFn] = {
     "pressure": _draft_pressure,
@@ -628,6 +662,9 @@ DRAFTERS: Mapping[str, DrafterFn] = {
     "describe_the_world": _draft_describe_the_world,
     "conflict": _draft_conflict,
     "identify_pathway": _draft_identify_pathway,
+    "diagnose": _draft_diagnose,
+    "predict": _draft_predict,
+    "intervene": _draft_intervene,
 }
 
 #: Drafters a live model ("agent": "llm") may run on — the no-peeking rule
@@ -1323,7 +1360,7 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
             if result is None:
                 lines.append(
                     f"  primary contrast {pc['axis']}: {pc['low']} -> {pc['high']}: "
-                    "not computable (fewer than 2 scored trials on a side)"
+                    "undefined (fewer than 2 scored trials on a side, or zero variance on both sides)"
                 )
             else:
                 lines.append(
