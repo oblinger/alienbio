@@ -93,6 +93,8 @@ nav:
     - Infrastructure: Architecture/ABIO infra.md
     - Protocols: Architecture/ABIO Protocols.md
     - Biology: Architecture/ABIO biology.md
+    - Suite Construction: Architecture/ABIO Suite Construction.md
+    - Suite Runtime: Architecture/ABIO Suite Runtime.md
   - Classes:
     - Biology:
       - Atom: Architecture/Classes/biology/Atom.md
