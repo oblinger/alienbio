@@ -315,6 +315,28 @@ def test_stop_hook_halts_the_grid_after_n_trials():
     assert sum(summary.stats.n for summary in rmap.cells.values()) == 3
 
 
+def test_concurrency_yields_byte_identical_records_in_the_same_order():
+    # M45.6: every unit is a pure function of its seed, so a pooled run lands
+    # the same records, in the same order, as a serial run.
+    seen_serial: list[tuple[str, int]] = []
+    seen_pooled: list[tuple[str, int]] = []
+    serial = MassTrialRunner().run(
+        _AXES, _drafter, _agent_factory, trials_per_condition=3, base_seed=Seed(302),
+        on_trial=lambda label, i, r: seen_serial.append((label, i)),
+    )
+    pooled = MassTrialRunner().run(
+        _AXES, _drafter, _agent_factory, trials_per_condition=3, base_seed=Seed(302),
+        on_trial=lambda label, i, r: seen_pooled.append((label, i)), concurrency=3,
+    )
+    assert seen_serial == seen_pooled
+    assert [(r.condition_key, r.objective_score, r.terminal_reason) for r in serial.records] == [
+        (r.condition_key, r.objective_score, r.terminal_reason) for r in pooled.records
+    ]
+    assert serial.to_json() == pooled.to_json()
+    with pytest.raises(ValueError, match="concurrency"):
+        MassTrialRunner().run(_AXES, _drafter, _agent_factory, trials_per_condition=1, base_seed=Seed(1), concurrency=0)
+
+
 def test_stop_hook_never_firing_leaves_stopped_early_false():
     rmap = MassTrialRunner().run(
         _AXES, _drafter, _agent_factory, trials_per_condition=2, base_seed=Seed(301), stop=lambda: False

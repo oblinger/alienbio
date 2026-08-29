@@ -109,6 +109,8 @@ class ExperimentSpec:
     #: M46.9 — the statistical design the run is committed to (None = undeclared;
     #: a declared design refuses a spec with too few trials per condition).
     design: Optional[PowerDesign] = None
+    #: M45.6 — trials in flight at once (live-model sweeps are I/O-bound).
+    concurrency: int = 1
 
 
 #: Keys ``load_spec``/``spec_from_dict`` will not build a spec without.
@@ -132,6 +134,7 @@ _OPTIONAL_KEYS: frozenset[str] = frozenset(
         "expected_prompt_tokens",
         "expected_output_tokens",
         "design",
+        "concurrency",
     }
 )
 
@@ -166,6 +169,7 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "expected_prompt_tokens": spec.expected_prompt_tokens,
         "expected_output_tokens": spec.expected_output_tokens,
         "design": spec.design.to_dict() if spec.design is not None else None,
+        "concurrency": spec.concurrency,
     }
 
 
@@ -209,6 +213,7 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
             "expected_output_tokens", d.get("expected_output_tokens", 300)
         ),
         design=_validate_design(d.get("design"), d["trials_per_condition"], axes),
+        concurrency=_validate_positive_int("concurrency", d.get("concurrency", 1)),
     )
 
 
@@ -1051,6 +1056,7 @@ def run_experiment(
         on_trial=on_trial,
         skip=skip,
         matched_dials=("agent", "model"),
+        concurrency=spec.concurrency,
         stop=stop,
     )
 

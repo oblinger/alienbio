@@ -382,8 +382,18 @@ class MassTrialRunner:
         skip: Optional[Callable[[str, int], Optional[TrialRecord]]] = None,
         matched_dials: Collection[str] = (),
         stop: Optional[Callable[[], bool]] = None,
+        concurrency: int = 1,
     ) -> ReliabilityMap:
         """Run ``trials_per_condition`` seeded trials for every cell of ``axes``.
+
+        ``concurrency`` (M45.6) runs up to that many ``(condition, trial)``
+        units at once on a thread pool. Every unit is a pure function of its
+        own derived seed, so the records, their order, and the map are
+        byte-identical to a serial run; the win is wall time for live-model
+        trials, which are I/O-bound (the simulator is CPU-bound Python, so
+        ``concurrency > 1`` buys little for scripted sweeps). The ``stop``
+        hook is checked at submission, so a stop can overshoot by up to
+        ``concurrency`` in-flight trials.
 
         ``matched_dials`` (M46.8) names swept dials that must NOT enter the
         per-trial seed label — e.g. ``("agent", "model")`` — so cells that
@@ -476,56 +486,90 @@ class MassTrialRunner:
         records: list[TrialRecord] = []
         failed_trials = 0
         stopped_early = False
-        for key in keys:
-            if stopped_early:
-                break
+        if not isinstance(concurrency, int) or isinstance(concurrency, bool) or concurrency < 1:
+            raise ValueError(f"MassTrialRunner.run: concurrency must be an int >= 1, got {concurrency!r}")
+
+        def run_one(key: ConditionKey, label: str, i: int) -> TrialRecord:
+            """One ``(condition, trial)`` unit — a pure function of its own seed,
+            so it is safe to run on a worker thread."""
             dials = dict(key)
-            label = _condition_label(key)
-            for i in range(trials_per_condition):
+            seed_label = (
+                _condition_label(tuple((n, v) for n, v in key if n not in matched_dials))
+                if matched_dials
+                else label
+            )
+            trial_seed = base_seed.child(f"{seed_label}/{i}")
+            run_dials = {**extra_dials, **dials}
+            task: Optional[TaskInstance] = None
+            try:
+                world, task = drafter(trial_seed.child("draft"), run_dials)
+                agent = agent_factory(trial_seed.child("agent"), run_dials)
+                record = run_trial(world, task, agent, run_dials, trial_seed.child("run"))
+                return replace(record, condition_key=key)
+            except Exception as exc:
+                if on_error == "raise":
+                    raise
+                return TrialRecord(
+                    task_id=task.world if task is not None else label,
+                    condition_key=key,
+                    final_timeline=Timeline(times=(), states=()),
+                    deliberation_trace=DeliberationTrace(),
+                    action_log=(),
+                    objective_score=0.0,
+                    terminal_reason="error",
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+
+        def land(label: str, i: int, record: TrialRecord) -> None:
+            nonlocal failed_trials
+            if record.terminal_reason == "error":
+                failed_trials += 1
+            records.append(record)
+            if on_trial is not None:
+                on_trial(label, i, record)
+
+        # The unit list is enumerated in the same sorted order whether run
+        # serially or on a pool, and records LAND in that order (results are
+        # collected in submission order), so the store and the map are
+        # byte-identical for any `concurrency`.
+        units: list[tuple[ConditionKey, str, int]] = [
+            (key, _condition_label(key), i) for key in keys for i in range(trials_per_condition)
+        ]
+        if concurrency == 1:
+            for key, label, i in units:
                 if skip is not None:
                     existing = skip(label, i)
                     if existing is not None:
-                        if existing.terminal_reason == "error":
-                            failed_trials += 1
-                        records.append(existing)
-                        if on_trial is not None:
-                            on_trial(label, i, existing)
+                        land(label, i, existing)
                         continue
-
                 if stop is not None and stop():
                     stopped_early = True
                     break
+                land(label, i, run_one(key, label, i))
+        else:
+            from concurrent.futures import Future, ThreadPoolExecutor
 
-                seed_label = (
-                    _condition_label(tuple((n, v) for n, v in key if n not in matched_dials))
-                    if matched_dials
-                    else label
-                )
-                trial_seed = base_seed.child(f"{seed_label}/{i}")
-                run_dials = {**extra_dials, **dials}
-                task: Optional[TaskInstance] = None
-                try:
-                    world, task = drafter(trial_seed.child("draft"), run_dials)
-                    agent = agent_factory(trial_seed.child("agent"), run_dials)
-                    record = run_trial(world, task, agent, run_dials, trial_seed.child("run"))
-                    record = replace(record, condition_key=key)
-                except Exception as exc:
-                    if on_error == "raise":
-                        raise
-                    failed_trials += 1
-                    record = TrialRecord(
-                        task_id=task.world if task is not None else label,
-                        condition_key=key,
-                        final_timeline=Timeline(times=(), states=()),
-                        deliberation_trace=DeliberationTrace(),
-                        action_log=(),
-                        objective_score=0.0,
-                        terminal_reason="error",
-                        error=f"{type(exc).__name__}: {exc}",
-                    )
-                records.append(record)
-                if on_trial is not None:
-                    on_trial(label, i, record)
+            with ThreadPoolExecutor(max_workers=concurrency) as pool:
+                pending: list[tuple[str, int, Optional[Future[TrialRecord]], Optional[TrialRecord]]] = []
+                for key, label, i in units:
+                    if skip is not None:
+                        existing = skip(label, i)
+                        if existing is not None:
+                            pending.append((label, i, None, existing))
+                            continue
+                    # The stop hook is checked at submission, so a cost-driven
+                    # stop can overshoot by up to `concurrency` in-flight trials.
+                    if stop is not None and stop():
+                        stopped_early = True
+                        break
+                    pending.append((label, i, pool.submit(run_one, key, label, i), None))
+                    # Land finished units in order as the window fills, so
+                    # on_trial (persistence, spend accounting) keeps up.
+                    while len([p for p in pending if p[2] is not None and not p[2].done()]) >= concurrency:
+                        label0, i0, fut0, rec0 = pending.pop(0)
+                        land(label0, i0, cast(TrialRecord, rec0) if fut0 is None else fut0.result())
+                for label, i, fut, rec in pending:
+                    land(label, i, cast(TrialRecord, rec) if fut is None else fut.result())
 
         successful = tuple(r for r in records if r.terminal_reason != "error")
         rmap = _aggregate(successful, axes_tuple, base_seed, trials_per_condition)
