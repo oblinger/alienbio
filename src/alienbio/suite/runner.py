@@ -508,7 +508,9 @@ def run(
         action_records.append(
             ActionRecord(
                 kind=type(action).__name__.lower(),
-                destructive=accepted and isinstance(action, Intervene),
+                destructive=accepted
+                and isinstance(action, Intervene)
+                and (not brief.irreversible or action.lever in brief.irreversible),
                 accepted=accepted,
                 reason=reject_reason,
                 target=target,
@@ -606,6 +608,11 @@ def run(
         usage=getattr(agent, "usage", None),
         wall_time_s=wall_time_s,
         oracle=oracle,
+        answer=(
+            {"value": committed_answer.value, "kind": committed_answer.kind}
+            if committed_answer is not None
+            else None
+        ),
         final_state=final_state_dict(state),
     )
     if taint_hits:

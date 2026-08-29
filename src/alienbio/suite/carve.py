@@ -81,18 +81,21 @@ def _node_objs(host: ChemistryImpl) -> Dict[NodeId, object]:
 
 
 def _adjacent(host: ChemistryImpl, u: NodeId, v: NodeId) -> bool:
-    """Whether ``u`` and ``v`` are connected in the bipartite host graph.
+    """Whether the motif edge ``u -> v`` is realized in the bipartite host graph.
 
     True iff ``v`` is a direct bipartite ``neighbors`` of ``u`` (one is a molecule,
-    the other a reaction referencing it) OR a single reaction links them as
-    reactant->product in either direction (the connection ``splice`` synthesizes).
+    the other a reaction referencing it — incidence has no direction) OR a
+    single reaction links them as reactant ``u`` -> product ``v``. The
+    reaction case is DIRECTED (M36.7 fix): ``splice`` realizes a motif edge
+    ``a -> b`` as the reaction ``a -> b``, and a carve that accepted ``b -> a``
+    bound ``identify_pathway``'s chain onto a host backwards for some seeds —
+    minting a key path whose every edge ran against the chemistry (the
+    reversed chain, which the recipe itself lists as a *distractor*).
     """
     if v in host.neighbors(u):
         return True
     for rxn in host.reactions.values():
-        r_ids = {m.name for m in rxn.reactants}
-        p_ids = {m.name for m in rxn.products}
-        if (u in r_ids and v in p_ids) or (v in r_ids and u in p_ids):
+        if u in {m.name for m in rxn.reactants} and v in {m.name for m in rxn.products}:
             return True
     return False
 
@@ -142,9 +145,9 @@ def carve(
         """Whether binding ``name`` to ``node_id`` keeps all satisfiable edges intact."""
         for a, b, _ in edges:
             if a == name:
-                other = b
+                other, forward = b, True
             elif b == name:
-                other = a
+                other, forward = a, False
             else:
                 continue
             if other not in assigned:
@@ -153,7 +156,8 @@ def carve(
             if is_synth or other_synth:
                 # Adjacency to a synthesized node is realized later by splice.
                 continue
-            if not _adjacent(host, node_id, other_id):
+            src, dst = (node_id, other_id) if forward else (other_id, node_id)
+            if not _adjacent(host, src, dst):
                 return False
         return True
 

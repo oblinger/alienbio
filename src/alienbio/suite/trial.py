@@ -132,6 +132,11 @@ class TrialRecord:
     #: store (``final_timeline`` does not), so outcome scorers can run on a
     #: reloaded record (``bio suite report``) exactly as on a live one.
     final_state: Mapping[str, Mapping[str, float]] = field(default_factory=dict)
+    #: M36.7 — the committed :class:`~alienbio.suite.types.Answer` as
+    #: ``{"value", "kind"}`` (``None`` when the trial never committed), so a
+    #: reloaded record can still tell an abstention (empty value) from a
+    #: wrong answer (M33.8's "I don't know" vs false-positive split).
+    answer: Optional[Mapping[str, Any]] = None
 
     @cached_property
     def deliberation_depth(self) -> int:
