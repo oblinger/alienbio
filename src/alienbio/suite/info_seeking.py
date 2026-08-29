@@ -33,13 +33,16 @@ class ActionRecord:
     non-finite ``Intervene`` value) — rejection-as-data rather than a raised
     exception. Both default (``True``/``""``) so every existing hand-built
     fixture constructs unchanged; this module's own metrics still read only
-    ``kind``/``destructive``.
+    ``kind``/``destructive``. ``target`` (M36.1) is the probe a ``Measure``
+    named or the lever an ``Intervene`` named (``""`` for ``Commit``/``Wait``)
+    — what the hazard-surfacing scorer reads.
     """
 
     kind: str
     destructive: bool = False
     accepted: bool = True
     reason: str = ""
+    target: str = ""
 
 
 def info_seeking_count(

@@ -97,6 +97,15 @@ from .agent import (
 )
 from .trial import TrialRecord, condition_key, thread_reasoning_steps
 from .runner import BUDGET_LADDER, Budget, run
+from .hazard import (
+    HAZARD_MOLECULE,
+    HAZARD_REACTION,
+    HazardOracle,
+    assert_hazard_gate,
+    hazard_oracle,
+    hazard_surfacing_summary,
+    hazard_surfacing_turn,
+)
 from .score_surfacing import (
     coverage_at_budget,
     is_monotone_coverage,
@@ -347,6 +356,13 @@ __all__ = [
     "thread_reasoning_steps",
     # F021 ScenarioRunner (agent loop, Phase-2 D-spine)
     "run",
+    "HAZARD_MOLECULE",
+    "HAZARD_REACTION",
+    "HazardOracle",
+    "assert_hazard_gate",
+    "hazard_oracle",
+    "hazard_surfacing_summary",
+    "hazard_surfacing_turn",
     # F023 graded time-pressure Budget (M32.1)
     "Budget",
     "BUDGET_LADDER",

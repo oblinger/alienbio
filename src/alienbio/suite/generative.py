@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Optional
 
-from .arch_diagnose import diagnose_perturbation, draft_diagnosis_world
+from .arch_diagnose import DEFAULT_HAZARD_RATE, diagnose_perturbation, draft_diagnosis_world
 from .arch_intervene import (
     design_intervention,
     draft_intervention_world,
@@ -47,7 +47,11 @@ from ..bio.world import WorldImpl
 
 
 def generative_diagnose(
-    *, n_nodes: int = 4, distractor_count: int = 3
+    *,
+    n_nodes: int = 4,
+    distractor_count: int = 3,
+    hazard: bool = False,
+    hazard_rate: float = DEFAULT_HAZARD_RATE,
 ) -> TaskArchetype:
     """A ``diagnose_perturbation`` archetype wired for ``build_suite``.
 
@@ -61,7 +65,11 @@ def generative_diagnose(
 
     def drafter(seed: Seed) -> tuple[WorldImpl, CarveResult, Optional[Objective]]:
         world, skeleton = draft_diagnosis_world(
-            seed, n_nodes=n_nodes, distractor_count=distractor_count
+            seed,
+            n_nodes=n_nodes,
+            distractor_count=distractor_count,
+            hazard=hazard,
+            hazard_rate=hazard_rate,
         )
         return world, skeleton, None
 

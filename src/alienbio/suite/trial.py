@@ -19,7 +19,7 @@ never invalidates an already-collected batch.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Collection, Mapping, Optional, Sequence
 
@@ -126,6 +126,7 @@ class TrialRecord:
     taint_hits: tuple[str, ...] = ()
     usage: Optional[Mapping[str, Any]] = None
     wall_time_s: float = 0.0
+    oracle: Mapping[str, Any] = field(default_factory=dict)
 
     @cached_property
     def deliberation_depth(self) -> int:

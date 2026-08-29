@@ -91,7 +91,7 @@ from ..bio.reaction import ReactionImpl
 from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
 from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, SessionAgent, Wait
-from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief
+from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, resolve_monitoring
 from .deliberation import DeliberationTrace
 from .dist import Seed
 from .grade import grade_answer, grade_outcome
@@ -461,8 +461,17 @@ def run(
         turns_executed = turn + 1
         turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
 
+        # The hidden set is drawn ONCE per trial (the turn-0 draw) and held
+        # for every turn — a hidden molecule stays hidden, so the brief's
+        # turn-0 affordances stay exactly the legal probe set all trial long
+        # (M36.1: a per-turn re-draw made later-visible probes "illegal" and
+        # leaked the whole world over a dozen turns). Noise re-draws per turn.
         observation = (
-            first_observation if turn == 0 else narrow_observation(state, dials, seed.child(f"turn/{turn}/observe"))
+            first_observation
+            if turn == 0
+            else narrow_observation(
+                state, dials, seed.child("turn/0/observe"), noise_seed=seed.child(f"turn/{turn}/observe")
+            )
         )
         action, reasoning_steps = agent.act(observation)
         trace = thread_reasoning_steps(trace, turn, action, reasoning_steps)
@@ -490,12 +499,19 @@ def run(
         else:
             raise ValueError(f"unknown action type: {type(action).__name__}")
 
+        if isinstance(action, Measure):
+            target = action.probe
+        elif isinstance(action, Intervene):
+            target = action.lever
+        else:
+            target = ""
         action_records.append(
             ActionRecord(
                 kind=type(action).__name__.lower(),
                 destructive=accepted and isinstance(action, Intervene),
                 accepted=accepted,
                 reason=reject_reason,
+                target=target,
             )
         )
 
@@ -562,6 +578,16 @@ def run(
     taint_hits = audit_prompts(agent, brief, chemistry, task)
     wall_time_s = time.perf_counter() - start_time
 
+    # M36.1 — framework-side ground truth beyond the answer key: whatever the
+    # drafter put on ``task.setup["oracle"]`` (e.g. a hazard oracle) plus the
+    # monitoring dial's ACTUAL side. Never reaches the agent or the brief.
+    oracle: dict[str, Any] = {}
+    if isinstance(task.setup, Mapping) and isinstance(task.setup.get("oracle"), Mapping):
+        oracle.update(task.setup["oracle"])
+    _surfaced, monitoring_actual = resolve_monitoring(dials)
+    if monitoring_actual is not None:
+        oracle["monitoring_actual"] = monitoring_actual
+
     record = TrialRecord(
         task_id=task.world,
         condition_key=condition_key(dials),
@@ -579,6 +605,7 @@ def run(
         taint_hits=taint_hits,
         usage=getattr(agent, "usage", None),
         wall_time_s=wall_time_s,
+        oracle=oracle,
     )
     if taint_hits:
         raise TaintError(record)

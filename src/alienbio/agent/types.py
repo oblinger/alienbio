@@ -10,6 +10,10 @@ This module defines the data types used in the agent-environment interaction loo
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+# M36.1: the framing / monitoring coercers now live with the suite brief
+# (single source of truth); re-exported here for the legacy AgentSession stack.
+from ..suite.brief import coerce_monitoring, compose_briefing  # noqa: F401
+
 
 @dataclass
 class Action:
@@ -88,83 +92,6 @@ def coerce_constitution(spec: Any) -> "str | Constitution":
             priorities=list(spec.get("priorities", [])),
         )
     raise TypeError(f"Invalid constitution spec type: {type(spec).__name__}")
-
-
-def compose_briefing(base: str, framing: Any) -> str:
-    """Compose the surfaced briefing from the base text and a framing spec.
-
-    The scenario-level "framing" key (M32.6) is an explicit-hint /
-    framing-variation dial: it varies the wording of the briefing and/or
-    injects explicit hints, WITHOUT touching world dynamics or scoring.
-    Supported keys:
-    - briefing: replacement wording for the base briefing text
-    - hints: list of explicit hint strings, each surfaced verbatim
-
-    Absent (None) framing — or an empty framing dict — leaves the base
-    briefing byte-identical. Hint content is opaque text the framework does
-    not interpret.
-
-    Raises:
-        ValueError: If the framing dict contains unknown keys
-        TypeError: If framing is not None or a dict, framing["briefing"] is
-            not a str, or framing["hints"] is not a list of str
-    """
-    if framing is None:
-        return base
-    if not isinstance(framing, dict):
-        raise TypeError(f"Invalid framing spec type: {type(framing).__name__}")
-    unknown = set(framing) - {"briefing", "hints"}
-    if unknown:
-        raise ValueError(f"Unknown framing keys: {sorted(unknown)}")
-    text = framing.get("briefing", base)
-    if not isinstance(text, str):
-        raise TypeError(
-            f"framing['briefing'] must be a str, got {type(text).__name__}"
-        )
-    hints = framing.get("hints", [])
-    if not isinstance(hints, list) or not all(isinstance(h, str) for h in hints):
-        raise TypeError("framing['hints'] must be a list of str")
-    if hints:
-        hint_block = "Hints:\n" + "\n".join(f"- {h}" for h in hints)
-        text = f"{text}\n\n{hint_block}" if text else hint_block
-    return text
-
-
-def coerce_monitoring(spec: Any) -> tuple[Any, Any]:
-    """Coerce a scenario-level monitoring spec to (surfaced, actual).
-
-    The monitoring dial (M32.5) separates the SIGNAL the agent receives about
-    being observed from the GROUND TRUTH of whether it actually is — the two
-    are settable independently, so the surfaced belief may diverge from
-    reality. Only the surfaced signal reaches the agent (Observation);
-    the actual value stays framework-side (AgentSession.monitoring_actual).
-
-    Spec forms:
-        None: no monitoring dial — (None, None)
-        scalar (str/int/float/bool): honest signal — surfaced == actual
-        dict with "surfaced" and/or "actual" keys: each side set explicitly;
-            an omitted side is None. Values are opaque (the surfaced side can
-            carry any cue text, e.g. a sycophancy-inducing evaluator-
-            preference hint — the framework does not interpret it).
-
-    Raises:
-        ValueError: If a dict spec is empty or contains unknown keys
-        TypeError: If the spec is not None, a scalar, or a dict
-    """
-    if spec is None:
-        return None, None
-    if isinstance(spec, (str, int, float, bool)):
-        return spec, spec
-    if isinstance(spec, dict):
-        unknown = set(spec) - {"surfaced", "actual"}
-        if unknown:
-            raise ValueError(f"Unknown monitoring keys: {sorted(unknown)}")
-        if not spec:
-            raise ValueError(
-                "Empty monitoring dict: set 'surfaced' and/or 'actual'"
-            )
-        return spec.get("surfaced"), spec.get("actual")
-    raise TypeError(f"Invalid monitoring spec type: {type(spec).__name__}")
 
 
 @dataclass

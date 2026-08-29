@@ -24,7 +24,7 @@ state — so identical inputs always yield identical observations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Collection, Mapping, Sequence, cast
+from typing import Optional, TYPE_CHECKING, Any, Collection, Mapping, Sequence, cast
 
 from .dist import Seed
 
@@ -127,7 +127,7 @@ def add_measurement_noise(
 
 
 def narrow_observation(
-    state: "WorldState", dials: Mapping[str, Any], seed: Seed
+    state: "WorldState", dials: Mapping[str, Any], seed: Seed, *, noise_seed: Optional[Seed] = None
 ) -> Observation:
     """Ground truth -> agent-visible :data:`Observation`, driven by ``dials``.
 
@@ -149,8 +149,11 @@ def narrow_observation(
 
     Both draws use independent child seeds (``"observability"`` /
     ``"noise"``) derived from ``seed``, so ``(state, dials, seed)`` always
-    yields the identical narrowed :data:`Observation`. Any other ``dials``
-    entry is opaque and ignored here.
+    yields the identical narrowed :data:`Observation`. ``noise_seed`` (M36.1)
+    lets a caller re-draw the noise per turn while holding the hidden set
+    fixed across a trial: the noise child is derived from ``noise_seed`` when
+    given, else from ``seed``. Any other ``dials`` entry is opaque and
+    ignored here.
 
     Raises:
         ValueError: if ``observability`` is set but ``state`` is not
@@ -174,6 +177,6 @@ def narrow_observation(
 
     noise = dials.get("observation_noise")
     if noise:
-        obs = add_measurement_noise(obs, float(noise), seed.child("noise"))
+        obs = add_measurement_noise(obs, float(noise), (noise_seed or seed).child("noise"))
 
     return obs
