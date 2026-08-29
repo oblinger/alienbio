@@ -145,6 +145,15 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
     model = d.get("model")
     if model is not None:
         _require_pinned_model(model)
+    # M46.8: an ``agent`` / ``model`` axis is validated like the scalar fields.
+    for name, levels in axes:
+        if name == "agent":
+            unknown = sorted(str(level) for level in levels if str(level) not in AGENTS)
+            if unknown:
+                raise ValueError(f"experiment spec: unknown agent axis level(s) {unknown}; expected one of {sorted(AGENTS)}")
+        if name == "model":
+            for level in levels:
+                _require_pinned_model(level)
     return ExperimentSpec(
         name=d["name"],
         axes=axes,
@@ -360,10 +369,12 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
     """
 
     def factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
-        del dials
         from .llm_agent import LLMAgent, default_anthropic_llm_fn
 
-        model = spec.model or PINNED_MODEL
+        # M46.8: a ``model`` axis level overrides the spec's model per trial,
+        # so two generations run inside one grid under identical world seeds.
+        model = dials.get("model") or spec.model or PINNED_MODEL
+        _require_pinned_model(model)
         return LLMAgent(
             default_anthropic_llm_fn(model),
             seed,
@@ -380,6 +391,36 @@ AGENTS: Mapping[str, AgentFactoryBuilder] = {
     "measure-commit": lambda spec: _measure_commit_agent_factory,
     "llm": _llm_agent_factory_builder,
 }
+
+
+def agent_kinds_in_play(spec: ExperimentSpec) -> frozenset[str]:
+    """Every agent kind a run of ``spec`` can construct: the spec's own
+    ``agent`` plus the levels of an ``agent`` axis, if one is swept (M46.8)."""
+    kinds = {spec.agent}
+    for name, levels in spec.axes:
+        if name == "agent":
+            kinds.update(str(level) for level in levels)
+    return frozenset(kinds)
+
+
+def _agent_factory_for(spec: ExperimentSpec) -> AgentFactory:
+    """The per-trial agent factory for ``spec``, honouring ``agent`` / ``model``
+    as **grid axes** (M46.8): the kind is ``dials["agent"]`` when that dial is
+    swept, else ``spec.agent``; the registered builder is resolved once per
+    kind and every trial in the grid shares the world seeds regardless of
+    which arm it belongs to, so a scripted control and a live model are
+    matched by construction."""
+    builders: dict[str, AgentFactory] = {}
+
+    def factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
+        kind = str(dials.get("agent", spec.agent))
+        if kind not in AGENTS:
+            raise ValueError(f"experiment: unknown agent kind {kind!r}; expected one of {sorted(AGENTS)}")
+        if kind not in builders:
+            builders[kind] = AGENTS[kind](spec)
+        return builders[kind](seed, dials)
+
+    return factory
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -636,7 +677,7 @@ def _trials_planned(spec: ExperimentSpec) -> int:
 
 
 def _guard_no_peeking(spec: ExperimentSpec) -> None:
-    if spec.agent == "llm" and spec.drafter not in NEUTRAL_DRAFTERS:
+    if "llm" in agent_kinds_in_play(spec) and spec.drafter not in NEUTRAL_DRAFTERS:
         raise ValueError(
             "run_experiment: the no-peeking rule (ABIO Experiment Catalog "
             f"§ The no-peeking rule) forbids agent 'llm' on drafter {spec.drafter!r}; "
@@ -705,14 +746,17 @@ def run_experiment(
         merged = {**spec.fixed_dials, **dials}
         return DRAFTERS[spec.drafter](seed, merged, **dict(spec.drafter_kwargs))
 
-    agent_factory = AGENTS[spec.agent](spec)
+    agent_factory = _agent_factory_for(spec)
 
     def on_trial(label: str, i: int, record: TrialRecord) -> None:
         if (label, i) not in existing_by_key:
             payload = record_to_json(record, label, i)
             # M45.11: the model and memory policy in force ride on EVERY line,
             # not only the manifest, so a record store can be read alone.
-            payload["model"] = manifest["model"]
+            cond = dict(record.condition_key)
+            kind = str(cond.get("agent", spec.agent))
+            payload["agent"] = kind
+            payload["model"] = (cond.get("model") or spec.model or PINNED_MODEL) if kind == "llm" else None
             payload["memory"] = spec.memory
             line = _canonical_json(payload)
             with records_path.open("a") as f:

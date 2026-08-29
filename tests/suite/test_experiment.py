@@ -84,6 +84,35 @@ def test_load_spec_refuses_a_floating_model_alias(tmp_path):
     assert spec.model == "claude-sonnet-4-20250514"
 
 
+def test_agent_axis_runs_control_arms_in_one_grid(tmp_path):
+    # M46.8: agent kind as a grid axis — every arm shares the world seeds.
+    spec = load_spec(
+        _write_spec(tmp_path, axes={"rung": ["single"], "agent": ["idle", "measure-commit"]}, agent="idle")
+    )
+    rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
+    assert len(rmap.cells) == 2
+    lines = [json.loads(l) for l in (tmp_path / "out" / "records.jsonl").read_text().splitlines()]
+    assert {d["agent"] for d in lines} == {"idle", "measure-commit"}
+    assert all(d["model"] is None for d in lines)
+    by_agent = {}
+    for d in lines:
+        by_agent.setdefault(d["agent"], []).append(d["task_id"])
+    assert by_agent["idle"] == by_agent["measure-commit"]  # matched worlds
+
+
+def test_agent_axis_with_llm_is_refused_on_a_non_neutral_drafter(tmp_path):
+    spec = load_spec(_write_spec(tmp_path, axes={"rung": ["single"], "agent": ["idle", "llm"]}))
+    with pytest.raises(ValueError, match="no-peeking"):
+        run_experiment(spec, out_dir=str(tmp_path / "out"))
+
+
+def test_axis_levels_are_validated_at_load(tmp_path):
+    with pytest.raises(ValueError, match="agent axis"):
+        load_spec(_write_spec(tmp_path, axes={"agent": ["idle", "bogus"]}))
+    with pytest.raises(ValueError, match="model"):
+        load_spec(_write_spec(tmp_path, axes={"model": ["claude-sonnet-4-latest"]}))
+
+
 def test_record_lines_carry_model_and_memory(tmp_path):
     spec = load_spec(_write_spec(tmp_path))
     run_experiment(spec, out_dir=str(tmp_path / "out"))
