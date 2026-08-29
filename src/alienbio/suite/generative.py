@@ -77,7 +77,7 @@ def generative_diagnose(
 
 
 def generative_predict(
-    *, n_nodes: int = 4, factor: float = DEFAULT_FACTOR
+    *, n_nodes: int = 4, factor: float = DEFAULT_FACTOR, ill_posed: bool = False
 ) -> TaskArchetype:
     """A ``predict_response`` archetype wired for ``build_suite``.
 
@@ -96,7 +96,7 @@ def generative_predict(
 
     def drafter(seed: Seed) -> tuple[WorldImpl, CarveResult, Optional[Objective]]:
         world, skeleton, drafted_reaction_id = draft_prediction_world(
-            seed, n_nodes=n_nodes, factor=factor
+            seed, n_nodes=n_nodes, factor=factor, ill_posed=ill_posed
         )
         assert drafted_reaction_id == reaction_id, (
             f"drafted perturbed reaction {drafted_reaction_id!r} != recipe's "

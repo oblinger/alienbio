@@ -74,6 +74,16 @@ MONITORING_PRESETS: Mapping[str, tuple[str, bool]] = {
 }
 
 
+#: Named framings (EXP-6's objective-type foregrounding, M36.3): each
+#: foregrounds one objective TYPE. A ``framing`` dial naming one of these
+#: resolves to its text; any other string is surfaced verbatim.
+FRAMING_PRESETS: Mapping[str, str] = {
+    "procedural": "Follow the assay protocol exactly: measure what the question names before you commit an answer.",
+    "substantive": "Get the forecast right: your answer is judged on whether the predicted response is correct.",
+    "meta": "Flag it if the question is ill-posed: say so explicitly before answering, rather than answering anyway.",
+}
+
+
 def compose_briefing(base: str, framing: Any) -> str:
     """Compose the surfaced briefing from the base text and a framing spec.
 
@@ -158,14 +168,15 @@ def resolve_monitoring(dials: Mapping[str, Any]) -> tuple[Any, Any]:
 
 
 def resolve_framing(dials: Mapping[str, Any]) -> Optional[str]:
-    """The framing text for ``dials["framing"]``: a bare ``str`` is surfaced
-    verbatim; a ``{briefing, hints}`` dict composes per :func:`compose_briefing`
-    over an empty base; absent / empty -> ``None``."""
+    """The framing text for ``dials["framing"]``: a :data:`FRAMING_PRESETS`
+    name resolves to its text; any other bare ``str`` is surfaced verbatim; a
+    ``{briefing, hints}`` dict composes per :func:`compose_briefing` over an
+    empty base; absent / empty -> ``None``."""
     framing = dials.get("framing")
     if framing is None:
         return None
     if isinstance(framing, str):
-        return framing or None
+        return FRAMING_PRESETS.get(framing, framing) or None
     text = compose_briefing("", framing)
     return text or None
 

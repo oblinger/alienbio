@@ -53,7 +53,7 @@ from .deliberation import DeliberationStep, DeliberationTrace
 from .dist import Constant, Seed
 from .info_seeking import ActionRecord
 from .effect_size import cohens_d, welch_t
-from .hazard import DEPTHS, consideration_summary, hazard_surfacing_summary
+from .hazard import DEPTHS, OBJECTIVE_TYPES, blindspot_summary, consideration_summary, hazard_surfacing_summary
 from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, price_for
 from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
@@ -123,6 +123,10 @@ class ExperimentSpec:
     #: ``(agent, "idle")`` under the same world seeds, so every condition has
     #: its do-nothing twin beside it. Expanded into ``axes`` at load.
     idle_baseline: bool = False
+    #: M36.3 — extra swept dials to seed-match beyond :data:`WORLD_INVARIANT_DIALS`:
+    #: a world *variant switch* (EXP-6's ``ill_posed`` trap) whose arms should
+    #: be drawn over the same base world, so the contrast is paired.
+    matched_dials: tuple[str, ...] = ()
 
 
 #: Keys ``load_spec``/``spec_from_dict`` will not build a spec without.
@@ -148,6 +152,7 @@ _OPTIONAL_KEYS: frozenset[str] = frozenset(
         "design",
         "concurrency",
         "idle_baseline",
+        "matched_dials",
     }
 )
 
@@ -184,6 +189,7 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "design": spec.design.to_dict() if spec.design is not None else None,
         "concurrency": spec.concurrency,
         "idle_baseline": spec.idle_baseline,
+        "matched_dials": list(spec.matched_dials),
     }
 
 
@@ -234,7 +240,23 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         design=_validate_design(d.get("design"), d["trials_per_condition"], axes),
         concurrency=_validate_positive_int("concurrency", d.get("concurrency", 1)),
         idle_baseline=idle_baseline,
+        matched_dials=_validate_matched_dials(d.get("matched_dials"), axes),
     )
+
+
+def _validate_matched_dials(value: Any, axes: Sequence[tuple[str, tuple[Any, ...]]]) -> tuple[str, ...]:
+    """M36.3 — ``matched_dials`` must name swept axes (else it is a typo that
+    would silently match nothing)."""
+    if value is None:
+        return ()
+    if isinstance(value, str) or not isinstance(value, (list, tuple)):
+        raise ValueError(f"experiment spec: matched_dials must be a list of axis names, got {value!r}")
+    names = tuple(str(v) for v in value)
+    swept = {name for name, _ in axes}
+    unknown = sorted(n for n in names if n not in swept)
+    if unknown:
+        raise ValueError(f"experiment spec: matched_dials {unknown} are not swept axes")
+    return names
 
 
 def _validate_design(value: Any, trials_per_condition: int, axes: Sequence[tuple[str, tuple[Any, ...]]]) -> Optional[PowerDesign]:
@@ -678,7 +700,7 @@ def _draft_generative(kind: str, seed: Seed, dials: Mapping[str, Any], **kwargs:
                 diag_kwargs["hazard_rate"] = float(dials["hazard_rate"])
         archetype = generative_diagnose(**diag_kwargs)
     elif kind == "predict":
-        archetype = generative_predict(n_nodes=n_nodes)
+        archetype = generative_predict(n_nodes=n_nodes, ill_posed=bool(dials.get("ill_posed", False)))
     else:
         archetype = generative_intervene(n_nodes=n_nodes)
     spec = SuiteSpec(archetype_mix=Constant(archetype), per_archetype={}, seed=0)
@@ -712,6 +734,27 @@ def _draft_generative(kind: str, seed: Seed, dials: Mapping[str, Any], **kwargs:
         setup["oracle"] = {
             **dict(setup.get("oracle") or {}),
             "hazard": oracle.to_dict(),
+            "considerations": schedule,
+        }
+        task = dataclasses.replace(task, setup=setup)
+
+    if kind == "predict":
+        # M36.3 — EXP-6's typed should-have-considered set on the oracle.
+        from .hazard import prediction_considerations
+        from .runner import _resolve_int_dial
+
+        run_defaults = inspect.signature(run).parameters
+        max_turns = _resolve_int_dial(dials, "max_turns", run_defaults["max_turns"].default)
+        ill_posed = bool(dials.get("ill_posed", False))
+        binding = task.skeleton.binding
+        schedule = [
+            c.to_dict()
+            for c in prediction_considerations(binding["perturbed"], binding["target"], ill_posed, max_turns)
+        ]
+        setup = dict(task.setup) if isinstance(task.setup, Mapping) else {}
+        setup["oracle"] = {
+            **dict(setup.get("oracle") or {}),
+            "ill_posed": ill_posed,
             "considerations": schedule,
         }
         task = dataclasses.replace(task, setup=setup)
@@ -1315,7 +1358,7 @@ def run_experiment(
         extra_dials=spec.fixed_dials,
         on_trial=on_trial,
         skip=skip,
-        matched_dials=WORLD_INVARIANT_DIALS,
+        matched_dials=tuple(WORLD_INVARIANT_DIALS) + tuple(spec.matched_dials),
         concurrency=spec.concurrency,
         stop=stop,
     )
@@ -1513,6 +1556,17 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
                 lines.append(
                     f"  {label:<40} {cid:<8} {depth:<8} {n:>4} {surfaced:>9} {on_time:>8} {mean_str:>10}"
                 )
+
+    blind_rows = blindspot_summary(rmap.records)
+    if blind_rows and any(t for _, (_, _, per_type) in blind_rows.items() for t in per_type):
+        lines.append("")
+        lines.append("Blind spots by objective type (M36.3, EXP-6 — coverage of the should-have-considered set):")
+        types = sorted({t for _, (_, _, per_type) in blind_rows.items() for t in per_type}, key=lambda t: (OBJECTIVE_TYPES.index(t) if t in OBJECTIVE_TYPES else 99, t))
+        header = "".join(f" {t:>12}" for t in types)
+        lines.append(f"  {'condition':<40} {'n':>4} {'blindspot':>10}{header}")
+        for key, (n, rate, per_type) in sorted(blind_rows.items(), key=lambda kv: str(kv[0])):
+            cells = "".join(f" {per_type[t][1]:>12.3f}" if t in per_type else f" {'-':>12}" for t in types)
+            lines.append(f"  {_condition_label(key):<40} {n:>4} {rate:>10.3f}{cells}")
 
     twins = idle_baseline_comparison(rmap)
     if twins:

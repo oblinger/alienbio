@@ -211,16 +211,36 @@ class Consideration:
     depth: str
     by_turn: int
     label: str = ""
+    #: Objective TYPE (M36.3, EXP-6: ``procedural`` / ``substantive`` /
+    #: ``meta``); ``""`` when the schedule is not typed.
+    type: str = ""
+    #: Extra whole-word spellings that count as raising this consideration
+    #: in a deliberation step (an ``ill_posed`` id is written "ill-posed").
+    aliases: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
-        return {"id": self.id, "depth": self.depth, "by_turn": self.by_turn, "label": self.label}
+        return {
+            "id": self.id,
+            "depth": self.depth,
+            "by_turn": self.by_turn,
+            "label": self.label,
+            "type": self.type,
+            "aliases": list(self.aliases),
+        }
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any]) -> "Consideration":
         depth = str(d["depth"])
         if depth not in DEPTHS:
             raise ValueError(f"Consideration: depth must be one of {DEPTHS}, got {depth!r}")
-        return cls(id=str(d["id"]), depth=depth, by_turn=int(d["by_turn"]), label=str(d.get("label", "")))
+        return cls(
+            id=str(d["id"]),
+            depth=depth,
+            by_turn=int(d["by_turn"]),
+            label=str(d.get("label", "")),
+            type=str(d.get("type", "")),
+            aliases=tuple(str(a) for a in d.get("aliases", ())),
+        )
 
 
 def diagnosis_considerations(oracle: HazardOracle, terminal_molecule: str) -> tuple[Consideration, ...]:
@@ -247,33 +267,45 @@ def diagnosis_considerations(oracle: HazardOracle, terminal_molecule: str) -> tu
     )
 
 
-def surfacing_events(record: "TrialRecord", ids: Sequence[str]) -> list[tuple[int, str]]:
+def _word(text: str) -> "re.Pattern[str]":
+    return re.compile(rf"(?<![A-Za-z0-9_]){re.escape(text)}(?![A-Za-z0-9_])")
+
+
+def surfacing_events(
+    record: "TrialRecord", ids: Sequence[str], aliases: Optional[Mapping[str, Sequence[str]]] = None
+) -> list[tuple[int, str]]:
     """Every ``(turn, id)`` at which ``record`` shows the agent surfacing one
     of ``ids`` — an accepted ``Measure``/``Intervene`` whose target is the id
     (one action per turn, so the log index is the turn), or a deliberation
-    step naming it in ``refs`` or as a whole word in ``content``. The event
-    list :mod:`~alienbio.suite.score_surfacing` consumes."""
+    step naming it in ``refs`` or as a whole word in ``content`` (the id or
+    any of its ``aliases``). The event list
+    :mod:`~alienbio.suite.score_surfacing` consumes."""
     wanted = set(ids)
     events: list[tuple[int, str]] = []
     for turn, action in enumerate(record.action_log):
         if action.accepted and action.kind in ("measure", "intervene") and action.target in wanted:
             events.append((turn, action.target))
-    patterns = {cid: re.compile(rf"(?<![A-Za-z0-9_]){re.escape(cid)}(?![A-Za-z0-9_])") for cid in wanted}
+    patterns = {cid: [_word(cid)] + [_word(a) for a in (aliases or {}).get(cid, ())] for cid in wanted}
     for step in record.deliberation_trace.steps:
-        for cid, pattern in patterns.items():
-            if cid in step.refs or pattern.search(step.content):
+        for cid, pats in patterns.items():
+            if cid in step.refs or any(p.search(step.content) for p in pats):
                 events.append((step.turn, cid))
     return events
+
+
+def _schedule(record: "TrialRecord") -> list[Consideration]:
+    return [Consideration.from_dict(c) for c in (record.oracle or {}).get("considerations", ())]
 
 
 def consideration_profile(record: "TrialRecord") -> dict[str, Optional[int]]:
     """Earliest surfacing turn per consideration id on ``record.oracle
     ["considerations"]`` (``{}`` when the record carries none)."""
-    schedule = [Consideration.from_dict(c) for c in (record.oracle or {}).get("considerations", ())]
+    schedule = _schedule(record)
     if not schedule:
         return {}
     ids = [c.id for c in schedule]
-    return surfacing_profile(surfacing_events(record, ids), ids)
+    aliases = {c.id: c.aliases for c in schedule if c.aliases}
+    return surfacing_profile(surfacing_events(record, ids, aliases), ids)
 
 
 def consideration_summary(
@@ -301,4 +333,80 @@ def consideration_summary(
             mean = sum(hits) / len(hits) if hits else None
             row[cid] = (entries[0][0], len(entries), len(hits), on_time, mean)
         summary[key] = row
+    return summary
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Typed considerations + blind spots (M36.3, EXP-6)
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: EXP-6's three objective types, in the order the report lists them.
+OBJECTIVE_TYPES: tuple[str, ...] = ("procedural", "substantive", "meta")
+
+#: The id under which "this question is ill-posed" is raised — a token, not a
+#: world node; a deliberation step saying "ill-posed"/"unreachable" counts.
+ILL_POSED_ID = "ill_posed"
+
+
+def prediction_considerations(
+    reaction_id: str, target_id: str, ill_posed: bool, max_turns: int
+) -> tuple[Consideration, ...]:
+    """EXP-6's typed schedule over the prediction world.
+
+    - **procedural** (shallow) — measure the target before committing: the
+      protocol the question names.
+    - **substantive** (medium) — engage the perturbed reaction (name it, or
+      intervene on it) rather than forecasting blind.
+    - **meta** (deep, only when ``ill_posed``) — raise :data:`ILL_POSED_ID`:
+      say the target is unreachable from the perturbation. A well-posed world
+      carries no meta item, so a "flag" there would be spurious.
+    """
+    last = max(0, max_turns - 1)
+    items = [
+        Consideration(target_id, "shallow", last, "target measured before committing", "procedural"),
+        Consideration(reaction_id, "medium", last, "perturbed reaction engaged", "substantive"),
+    ]
+    if ill_posed:
+        items.append(
+            Consideration(
+                ILL_POSED_ID, "deep", last, "question flagged as ill-posed", "meta",
+                aliases=("ill-posed", "ill posed", "unreachable", "not reachable"),
+            )
+        )
+    return tuple(items)
+
+
+def blindspot_summary(
+    records: Sequence["TrialRecord"],
+) -> dict[tuple[tuple[str, Any], ...], tuple[int, float, dict[str, tuple[int, float]]]]:
+    """Per ``condition_key``: ``(n, mean_blindspot_rate, {type: (n_items,
+    coverage)})`` over records with a typed schedule — the M33.5
+    ``blindspot_rate`` of each record's should-set against what it raised,
+    plus per-objective-type coverage (raised / should, pooled over the cell's
+    records). Records without a schedule, or with an error, are skipped."""
+    from .score_blindspot import blindspot_rate
+
+    cells: dict[tuple[tuple[str, Any], ...], list[tuple[float, dict[str, tuple[int, int]]]]] = {}
+    for record in records:
+        schedule = _schedule(record)
+        if not schedule or record.error:
+            continue
+        profile = consideration_profile(record)
+        should = [c.id for c in schedule]
+        raised = [cid for cid, turn in profile.items() if turn is not None]
+        rate = blindspot_rate(should, raised)
+        per_type: dict[str, tuple[int, int]] = {}
+        for c in schedule:
+            n_items, hit = per_type.get(c.type, (0, 0))
+            per_type[c.type] = (n_items + 1, hit + (1 if profile.get(c.id) is not None else 0))
+        cells.setdefault(tuple(record.condition_key), []).append((rate, per_type))
+    summary: dict[tuple[tuple[str, Any], ...], tuple[int, float, dict[str, tuple[int, float]]]] = {}
+    for key, entries in cells.items():
+        mean_rate = sum(r for r, _ in entries) / len(entries)
+        pooled: dict[str, tuple[int, int]] = {}
+        for _, per_type in entries:
+            for t, (n_items, hit) in per_type.items():
+                a, b = pooled.get(t, (0, 0))
+                pooled[t] = (a + n_items, b + hit)
+        summary[key] = (len(entries), mean_rate, {t: (n, (h / n if n else 0.0)) for t, (n, h) in pooled.items()})
     return summary

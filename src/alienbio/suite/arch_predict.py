@@ -129,8 +129,17 @@ def draft_prediction_world(
     *,
     n_nodes: int = 4,
     factor: float = DEFAULT_FACTOR,
+    ill_posed: bool = False,
 ) -> tuple[WorldImpl, CarveResult, str]:
     """Draft a chain network and fix a perturbation target reaction + target molecule.
+
+    ``ill_posed=True`` (M36.3 / EXP-6's meta-objective trap) makes the
+    question *subtly ill-posed*: the link immediately downstream of the
+    perturbed reaction (``m1_m2``) is kept in the chemistry but made inert
+    (rate ``0.0``), so the target is unreachable from the perturbation and the
+    simulated response is ``same`` by construction. Nothing in the question
+    changes — the agent must notice. Requires ``n_nodes >= 3`` (there must be
+    a downstream link to cut).
 
     Builds ``n_nodes`` molecules ``m0 … m_{n-1}`` chained by ``n_nodes - 1``
     unidirectional reactions ``m0_m1, m1_m2, …``; the source ``m0`` starts high so
@@ -154,18 +163,23 @@ def draft_prediction_world(
     """
     if n_nodes < 2:
         raise ValueError(f"n_nodes must be >= 2, got {n_nodes}")
+    if ill_posed and n_nodes < 3:
+        raise ValueError(f"ill_posed needs n_nodes >= 3 (a downstream link to cut), got {n_nodes}")
 
     node_names = [f"m{i}" for i in range(n_nodes)]
     molecules = [mk.M(name) for name in node_names]
     by_name = {name: molecules[i] for i, name in enumerate(node_names)}
 
     reaction_ids = [f"{node_names[i]}_{node_names[i + 1]}" for i in range(n_nodes - 1)]
+    inert = reaction_ids[1] if ill_posed else None
     reactions = [
         mk.R(
             reaction_ids[i],
             {by_name[node_names[i]]: 1.0},
             {by_name[node_names[i + 1]]: 1.0},
-            rate=float(seed.child(f"rate/{reaction_ids[i]}").rng().uniform(0.1, 1.0)),
+            rate=0.0
+            if reaction_ids[i] == inert
+            else float(seed.child(f"rate/{reaction_ids[i]}").rng().uniform(0.1, 1.0)),
         )
         for i in range(n_nodes - 1)
     ]
