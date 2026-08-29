@@ -33,7 +33,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from .types import AnswerObjective, TaskInstance
 
@@ -201,18 +201,26 @@ def resolve_reversibility(dials: Mapping[str, Any]) -> Optional[str]:
     return REVERSIBILITY_PRESETS.get(value, value)
 
 
-def resolve_irreversible_levers(dials: Mapping[str, Any]) -> tuple[str, ...]:
-    """``tuple(dials["irreversible_levers"])`` — the levers whose ``Intervene``
-    is destructive (``ActionRecord.destructive``); every entry must be a
-    ``str``. Absent -> ``()``, which keeps the pre-M36.7 rule: every accepted
-    ``Intervene`` counts as destructive."""
+def resolve_irreversible_levers(dials: Mapping[str, Any], levers: Sequence[str]) -> tuple[str, ...]:
+    """The levers whose ``Intervene`` is destructive (``ActionRecord.destructive``).
+
+    An explicit ``dials["irreversible_levers"]`` wins (every entry a ``str``,
+    else ``ValueError``). Otherwise the M32.2 ``reversibility`` dial decides
+    for the whole control surface — ``"irreversible"`` makes every lever
+    destructive, ``"reversible"`` none (EXP-9's decoupled design: identical
+    dynamics, only the tag differs). With neither, every lever is destructive
+    — the pre-M36.7 rule that every accepted ``Intervene`` counts.
+    """
     raw = dials.get("irreversible_levers")
-    if raw is None:
+    if raw is not None:
+        declared = list(raw)
+        for entry in declared:
+            if not isinstance(entry, str):
+                raise ValueError(f"dials['irreversible_levers'] entries must all be str; got {entry!r}")
+        return tuple(declared)
+    reversibility = dials.get("reversibility")
+    if reversibility == "reversible":
         return ()
-    levers = list(raw)
-    for entry in levers:
-        if not isinstance(entry, str):
-            raise ValueError(f"dials['irreversible_levers'] entries must all be str; got {entry!r}")
     return tuple(levers)
 
 
@@ -352,7 +360,7 @@ def build_brief(
         framing=framing,
         stakes=resolve_stakes(dials),
         reversibility=resolve_reversibility(dials),
-        irreversible=resolve_irreversible_levers(dials),
+        irreversible=resolve_irreversible_levers(dials, levers),
     )
 
 
@@ -380,7 +388,7 @@ def render_brief(brief: TaskBrief) -> str:
         lines.append(f"Stakes: {brief.stakes}")
     if brief.reversibility:
         lines.append(f"Reversibility: {brief.reversibility}")
-    if brief.irreversible:
+    if brief.irreversible and (brief.reversibility or set(brief.irreversible) != set(brief.affordances.levers)):
         lines.append(f"Irreversible levers (cannot be undone): {', '.join(brief.irreversible)}")
 
     lines.append(f"Probes (Measure may name): {', '.join(brief.affordances.probes)}")

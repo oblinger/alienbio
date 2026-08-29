@@ -510,7 +510,7 @@ def run(
                 kind=type(action).__name__.lower(),
                 destructive=accepted
                 and isinstance(action, Intervene)
-                and (not brief.irreversible or action.lever in brief.irreversible),
+                and action.lever in brief.irreversible,
                 accepted=accepted,
                 reason=reject_reason,
                 target=target,

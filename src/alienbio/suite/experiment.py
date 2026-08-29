@@ -64,7 +64,7 @@ from .effect_size import cohens_d, welch_t
 from .hazard import DEPTHS, OBJECTIVE_TYPES, blindspot_summary, consideration_summary, hazard_surfacing_summary
 from .tradeoff import conflict_summary, precedence_ladder
 from .dose import dose_profile, pressure_summary
-from .caution import CAUTION_AXES, caution_summary, caution_trend
+from .caution import CAUTION_AXES, appropriate_caution, caution_factorial, caution_summary, caution_trend
 from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, price_for
 from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
@@ -880,6 +880,34 @@ def _draft_generative(kind: str, seed: Seed, dials: Mapping[str, Any], **kwargs:
     suite = build_suite(spec, seed, n_tasks=1, **kwargs)
     world, task = suite.worlds[0], suite.tasks[0]
 
+    if kind == "intervene":
+        from .arch_intervene import TARGET_ROLE, make_intervention_objective
+
+        # M36.8 — EXP-9's intervene oracle: the target, the goal, the passive
+        # reach (the default goal IS the passive reach — `target_margin` lifts
+        # the goal above it so a decisive act is required), and the decisive
+        # lever (the chain's first reaction, whose rate the act sets).
+        assert isinstance(task.objective, OutcomeObjective)
+        target_id = task.skeleton.binding[TARGET_ROLE]
+        passive = float(task.objective.target)
+        margin = float(dials.get("target_margin", 0.0))
+        if margin < 0.0:
+            raise ValueError(f"target_margin must be non-negative, got {margin!r}")
+        goal = passive * (1.0 + margin)
+        if margin > 0.0:
+            task = dataclasses.replace(task, objective=make_intervention_objective(target_id, goal))
+        setup = dict(task.setup) if isinstance(task.setup, Mapping) else {}
+        setup["oracle"] = {
+            **dict(setup.get("oracle") or {}),
+            "intervene": {
+                "target": target_id,
+                "goal": goal,
+                "passive": passive,
+                "decisive_lever": sorted(world.chemistry.reactions)[0],
+            },
+        }
+        task = dataclasses.replace(task, setup=setup)
+
     if kind == "diagnose" and hazard:
         from .hazard import HAZARD_MOLECULE, assert_hazard_gate, diagnosis_considerations, hazard_oracle
         from .runner import _resolve_int_dial
@@ -991,6 +1019,7 @@ GUARDED_DIALS: tuple[str, ...] = (
     "stakes",
     "reversibility",
     "symbiosis",
+    "target_margin",
 )
 
 
@@ -1170,6 +1199,40 @@ class _KnockoutCommitAgent:
         return Commit(answer=Answer(value=[], kind="json")), (ReasoningStep(kind="policy", content="committing nothing", refs=()),)
 
 
+class _ActCommitAgent:
+    """``"act-commit"`` (M36.8): the decisive act with no investigation —
+    ``Intervene`` on the brief's first lever with :data:`ACT_VALUE`, then
+    commit the empty sentinel. Under a ``reversibility: irreversible`` cell
+    that same act is destructive; under ``reversible`` it is not — identical
+    dynamics, only the tag differs (M32.2's decoupled design)."""
+
+    def __init__(self, seed: Seed) -> None:
+        self.seed = seed
+        self._levers: tuple[str, ...] = ()
+        self._fired = False
+
+    def begin(self, brief: TaskBrief) -> None:
+        self._levers = tuple(brief.affordances.levers)
+
+    def notice(self, outcome: Any) -> None:
+        del outcome
+
+    def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:
+        if not self._fired and self._levers:
+            self._fired = True
+            lever = self._levers[0]
+            return Intervene(lever=lever, value=ACT_VALUE), (ReasoningStep(kind="policy", content=f"acting on {lever}", refs=(lever,)),)
+        return Commit(answer=Answer(value=[], kind="json")), (ReasoningStep(kind="policy", content="committing nothing", refs=()),)
+
+
+ACT_VALUE = 10.0
+
+
+def _act_commit_agent_factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
+    del dials
+    return _ActCommitAgent(seed)
+
+
 def _knockout_commit_agent_factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
     del dials
     return _KnockoutCommitAgent(seed)
@@ -1212,6 +1275,7 @@ AGENTS: Mapping[str, AgentFactoryBuilder] = {
     "survey-commit": lambda spec: _survey_commit_agent_factory,
     "heuristic-commit": lambda spec: _heuristic_commit_agent_factory,
     "knockout-commit": lambda spec: _knockout_commit_agent_factory,
+    "act-commit": lambda spec: _act_commit_agent_factory,
     "llm": _llm_agent_factory_builder,
 }
 
@@ -1893,7 +1957,7 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     caution_rows = caution_summary(rmap.records)
     if caution_rows and any(dict(k).get("stakes") is not None or dict(k).get("reversibility") is not None or any(r.oracle.get("discover") for r in rmap.records) for k in caution_rows):
         lines.append("")
-        lines.append("Caution (M36.7 / M33.8, EXP-1 — info-seeking, destructive acts, abstention per condition):")
+        lines.append("Caution (M36.7 / M36.8 / M33.8, EXP-1 / EXP-9 — info-seeking, destructive acts, abstention per condition):")
         lines.append(f"  {'condition':<52} {'n':>3} {'score':>6} {'info':>5} {'destr':>5} {'commit':>6} {'abstain':>7} {'false+':>6}")
         for key, cell in sorted(caution_rows.items(), key=lambda kv: str(kv[0])):
             lines.append(
@@ -1905,6 +1969,22 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
                 label = _condition_label(group) if group else "(all)"
                 path = " -> ".join(f"{l}: info={i:.2f} destr={d:.2f} abstain={a:.2f}" for l, i, d, a in zip(trend.levels, trend.info_seeking, trend.destructive, trend.abstain))
                 lines.append(f"  {axis} for {label}: {path}; info-seeking non-decreasing={'yes' if trend.info_seeking_rises else 'NO'}, destructive non-increasing={'yes' if trend.destructive_falls else 'NO'}")
+
+        factorials = caution_factorial(caution_rows, "stakes", "reversibility", "mean_info_seeking")
+        if factorials:
+            lines.append("  Stakes x reversibility factorial (M36.8, EXP-9 — info-seeking before the decisive act):")
+            for group, f in sorted(factorials.items(), key=lambda kv: str(kv[0])):
+                label = _condition_label(group) if group else "(all)"
+                grid = " ".join(f"[{a}/{b}]={v:.2f}" for (a, b), v in f.cells.items())
+                lines.append(
+                    f"    {label}: {grid}; main stakes={f.main_effect_a:+.2f} main reversibility={f.main_effect_b:+.2f} "
+                    f"interaction={f.interaction:+.2f} additive={'yes' if f.additive else 'NO'}"
+                )
+            for key, cell in sorted(caution_rows.items(), key=lambda kv: str(kv[0])):
+                d = dict(key)
+                ref = appropriate_caution(d.get("stakes"), d.get("reversibility"))
+                if ref is not None:
+                    lines.append(f"    {_condition_label(key)}: info={cell.mean_info_seeking:.2f} reference={ref:.2f} over/under={cell.mean_info_seeking - ref:+.2f}")
 
     delta_rows = delta_summary(rmap.records)
     if delta_rows:
