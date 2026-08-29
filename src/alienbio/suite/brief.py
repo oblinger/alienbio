@@ -89,6 +89,7 @@ class TaskBrief:
     action_costs: Mapping[str, float]
     max_turns: int
     sim_steps: int
+    sim_dt: float = 0.1
 
 
 def build_brief(
@@ -152,6 +153,7 @@ def build_brief(
         action_costs=dict(DEFAULT_ACTION_COSTS),
         max_turns=max_turns,
         sim_steps=sim_cfg.steps,
+        sim_dt=sim_cfg.dt,
     )
 
 

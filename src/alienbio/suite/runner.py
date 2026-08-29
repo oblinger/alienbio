@@ -215,6 +215,20 @@ def _action_cost(action: Action) -> float:
     return DEFAULT_ACTION_COSTS[type(action).__name__.lower()]
 
 
+def _resolve_int_dial(dials: Mapping[str, Any], name: str, default: int) -> int:
+    """``dials[name]`` as a positive int, else ``default`` when absent (M46.6).
+
+    A present-but-invalid value (non-int, ``bool``, ``< 1``) raises rather
+    than silently falling back — a condition that names the dial meant it.
+    """
+    value = dials.get(name)
+    if value is None:
+        return default
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"dials[{name!r}] must be a positive int, got {value!r}")
+    return value
+
+
 def _is_finite_number(value: Any) -> bool:
     """Whether ``value`` is a real, finite number (M46.3's ``Intervene`` value guard).
 
@@ -372,6 +386,13 @@ def run(
     (time passes every turn) and fold its end-state back in as the next
     turn's state.
 
+    ``sim_cfg`` and ``max_turns`` are the DEFAULTS a condition may override
+    (M46.6): ``dials["max_turns"]``, ``dials["sim_steps"]``, ``dials["sim_dt"]``
+    and ``dials["sample_every"]`` take precedence when present, so a
+    ``MassTrialRunner`` axis can sweep either the episode length or the
+    physical time per turn; the values in force are recorded on the returned
+    record's ``brief`` (``max_turns``, ``sim_steps``, ``sim_dt``).
+
     Terminates on ``Commit`` (``"committed"``), once ``illegal_action_limit``
     rejected actions have accumulated (``"illegal_limit"``), on cumulative
     action cost reaching the ``dials["budget"]`` dial's :class:`Budget`
@@ -400,6 +421,18 @@ def run(
     state: WorldStateImpl = world.initial_state
     budget = Budget.from_dial(dials.get("budget"))
     spent = 0.0
+
+    # M46.6 — the physical time per turn and the episode length are condition
+    # parameters, not hidden defaults: the keyword arguments are the defaults
+    # a condition's dials may override, so a sweep can put either on an axis
+    # and every record carries the values in force (via the brief).
+    max_turns = _resolve_int_dial(dials, "max_turns", max_turns)
+    sim_cfg = dataclasses.replace(
+        sim_cfg,
+        steps=_resolve_int_dial(dials, "sim_steps", sim_cfg.steps),
+        dt=float(dials.get("sim_dt", sim_cfg.dt)),
+        sample_every=_resolve_int_dial(dials, "sample_every", sim_cfg.sample_every),
+    )
 
     first_observation = narrow_observation(state, dials, seed.child("turn/0/observe"))
     brief = build_brief(task, chemistry, first_observation, dials, budget, max_turns, sim_cfg)

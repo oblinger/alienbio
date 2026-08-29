@@ -223,6 +223,31 @@ def test_max_turns_reached_without_commit_or_budget():
     assert len(record.action_log) == 4
 
 
+def test_dials_override_max_turns_and_sim_config_and_are_recorded():
+    # M46.6: the episode length and physical time per turn are condition
+    # parameters — a dial overrides the keyword default and the brief records it.
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    mol = next(iter(world.chemistry.molecules))
+
+    def policy(observation, seed):
+        del observation, seed
+        return Measure(probe=mol), ()
+
+    dials = {"max_turns": 3, "sim_steps": 4, "sim_dt": 0.05, "sample_every": 2}
+    record = run(world, task, ScriptedAgent(policy, seed=Seed(0)), dials, Seed(9), max_turns=50)
+
+    assert record.terminal_reason == "max_turns"
+    assert len(record.action_log) == 3
+    assert record.brief is not None
+    assert (record.brief.max_turns, record.brief.sim_steps, record.brief.sim_dt) == (3, 4, 0.05)
+    # 3 turns x (4 steps / sample_every 2) samples + the initial snapshot
+    assert len(record.final_timeline.times) == 1 + 3 * 2
+
+    with pytest.raises(ValueError, match="max_turns"):
+        run(world, task, ScriptedAgent(policy, seed=Seed(0)), {"max_turns": 0}, Seed(9))
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Determinism
 # ═══════════════════════════════════════════════════════════════════════════
