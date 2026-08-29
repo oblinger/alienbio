@@ -73,6 +73,25 @@ def test_load_spec_unknown_key_raises_naming_it(tmp_path):
         load_spec(path)
 
 
+def test_load_spec_refuses_a_floating_model_alias(tmp_path):
+    # M45.11: a run pins a dated generation; an alias would make two runs that
+    # name the same id incomparable.
+    for alias in ("claude-sonnet-4-latest", "claude-sonnet-4", ""):
+        path = _write_spec(tmp_path, model=alias)
+        with pytest.raises(ValueError, match="model"):
+            load_spec(path)
+    spec = load_spec(_write_spec(tmp_path, model="claude-sonnet-4-20250514"))
+    assert spec.model == "claude-sonnet-4-20250514"
+
+
+def test_record_lines_carry_model_and_memory(tmp_path):
+    spec = load_spec(_write_spec(tmp_path))
+    run_experiment(spec, out_dir=str(tmp_path / "out"))
+    lines = [json.loads(l) for l in (tmp_path / "out" / "records.jsonl").read_text().splitlines()]
+    assert lines and all("model" in d and d["memory"] == "full" for d in lines)
+    assert all(d["model"] is None for d in lines)  # a scripted run has no model
+
+
 def test_load_spec_missing_required_key_raises(tmp_path):
     payload = {
         "name": "t1",

@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+import re
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -141,6 +142,9 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
     -> :class:`ExperimentSpec`. Optional keys default exactly as the class does."""
     axes_raw = d["axes"]
     axes = tuple((name, tuple(levels)) for name, levels in axes_raw.items())
+    model = d.get("model")
+    if model is not None:
+        _require_pinned_model(model)
     return ExperimentSpec(
         name=d["name"],
         axes=axes,
@@ -155,6 +159,27 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         fixed_dials=dict(d.get("fixed_dials") or {}),
         out_dir=d.get("out_dir"),
     )
+
+
+_PINNED_MODEL_RE = re.compile(r".*-\d{8}$")
+
+
+def _require_pinned_model(model: Any) -> None:
+    """M45.11 — a run's model id must be a pinned generation, never a floating
+    alias: a dated suffix (``-YYYYMMDD``) is required and ``-latest`` refused,
+    so two runs that name the same id ran the same model.
+
+    Raises:
+        ValueError: ``model`` is not a string, ends in ``-latest``, or lacks a
+            dated suffix.
+    """
+    if not isinstance(model, str) or not model:
+        raise ValueError(f"experiment spec: model must be a non-empty string, got {model!r}")
+    if model.endswith("-latest") or not _PINNED_MODEL_RE.match(model):
+        raise ValueError(
+            f"experiment spec: model {model!r} is a floating alias — pin a dated "
+            "generation (e.g. 'claude-sonnet-4-20250514') so the run is reproducible"
+        )
 
 
 def load_spec(path: Union[str, Path]) -> ExperimentSpec:
@@ -684,7 +709,12 @@ def run_experiment(
 
     def on_trial(label: str, i: int, record: TrialRecord) -> None:
         if (label, i) not in existing_by_key:
-            line = _canonical_json(record_to_json(record, label, i))
+            payload = record_to_json(record, label, i)
+            # M45.11: the model and memory policy in force ride on EVERY line,
+            # not only the manifest, so a record store can be read alone.
+            payload["model"] = manifest["model"]
+            payload["memory"] = spec.memory
+            line = _canonical_json(payload)
             with records_path.open("a") as f:
                 f.write(line + "\n")
         if progress is not None:
