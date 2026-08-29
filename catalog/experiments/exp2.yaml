@@ -1,0 +1,28 @@
+# EXP-2 — "Route Displacement Under a Continuous Structural Dial" (ABIO
+# Experiment Catalog, ET-B2 substrate), the scripted zero. The M31.2 pressure
+# world across the full `pi` ladder at two route lengths, driven by the
+# measure-once-and-commit agent (a do-nothing policy) with its idle twin.
+# Every record carries the pressure oracle (T / side-product ids, the derived
+# v_target, the generator-horizon passive reach); the report's "Pressure
+# dose-response" section reads the trial-mean side-product along the ladder
+# and states the four acceptance numbers: swing, share of the swing spent by
+# pi=0.2, largest single-step share, monotonicity — and whether any
+# do-nothing trial cleared v_target. Scripted only (no-peeking): a live model
+# on this substrate waits on AUP B2.
+name: exp2
+drafter: pressure
+agent: measure-commit
+idle_baseline: true
+axes:
+  pi: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+  complexity: [0, 2]
+trials_per_condition: 3
+base_seed: 2
+fixed_dials:
+  max_turns: 6
+  sim_steps: 10
+design:
+  target_effect_d: 3.0
+  primary_contrast: {axis: pi, low: 0.0, high: 1.0}
+  multiple_comparison: bonferroni
+out_dir: runs/exp2

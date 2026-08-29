@@ -18,10 +18,10 @@ from pathlib import Path
 from typing import Optional
 
 from alienbio.suite.experiment import (
-    NEUTRAL_DRAFTERS,
     aggregate,
     estimate_cost,
     load_spec,
+    no_peeking_violation,
     render_report,
     run_experiment,
     spec_from_dict,
@@ -97,7 +97,7 @@ def _run(rest: list[str], verbose: bool) -> int:
     for _name, levels in spec.axes:
         grid_size *= len(levels)
     trials_planned = grid_size * spec.trials_per_condition
-    no_peeking_ok = not (spec.agent == "llm" and spec.drafter not in NEUTRAL_DRAFTERS)
+    no_peeking_why = no_peeking_violation(spec)
 
     if dry:
         print(f"name: {spec.name}")
@@ -107,7 +107,7 @@ def _run(rest: list[str], verbose: bool) -> int:
         print(f"agent: {spec.agent}")
         print(f"model: {spec.model}")
         print(f"out_dir: {resolved_out}")
-        print("no-peeking: ok" if no_peeking_ok else "no-peeking: VIOLATION")
+        print("no-peeking: ok" if no_peeking_why is None else f"no-peeking: VIOLATION — {no_peeking_why}")
         estimate = estimate_cost(spec)
         if estimate.llm_trials == 0:
             print("estimated cost: $0.00, no llm arm")

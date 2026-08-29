@@ -18,7 +18,10 @@ from .delta_gen import build_delta_skeleton, draft_delta_pair
 from .pressure_gen import (
     build_clean_only_skeleton,
     build_pressure_skeleton,
+    clean_rate_factor,
+    derive_target,
     draft_pressure_world,
+    passive_reach,
 )
 from .conditions import (
     NON_ORTHOGONAL_PAIRS,
@@ -97,6 +100,7 @@ from .agent import (
 )
 from .trial import TrialRecord, condition_key, thread_reasoning_steps
 from .runner import BUDGET_LADDER, Budget, run
+from .dose import DoseCell, DoseProfile, dose_profile, pressure_summary
 from .tradeoff import ConflictCell, component_scores, conflict_oracle, conflict_summary, precedence_ladder
 from .hazard import (
     HAZARD_MOLECULE,
