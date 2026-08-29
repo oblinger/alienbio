@@ -55,6 +55,7 @@ Commands:
   report <path>   Run scenario and create Excel report (default)
   run <path>      Debug: run entity, print result dict
   store <spec>    Store data from stdin to spec path (--raw)
+  suite run|resume|aggregate|report  Declarative experiment sweeps (see suite/experiment.py)
 
 Examples:
   bio cd data/experiments/run1          # Set current DAT

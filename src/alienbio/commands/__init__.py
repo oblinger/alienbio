@@ -15,6 +15,7 @@ Commands:
     report         - Primary command: run scenario, print table, save Excel to temp
     run            - Debug: run entity, print result dict
     store          - Store data to a spec path
+    suite          - Run/resume/aggregate/report a declarative experiment sweep
     view-report    - Open the last generated report in spreadsheet app
 """
 
@@ -29,6 +30,7 @@ from .hydrate import hydrate_command
 from .report import report_command, view_report_command
 from .run import run_command
 from .store import store_command
+from .suite_cmd import suite_command
 
 # Registry of available commands
 COMMANDS = {
@@ -44,6 +46,7 @@ COMMANDS = {
     "report": report_command,
     "run": run_command,
     "store": store_command,
+    "suite": suite_command,
     "view-report": view_report_command,
 }
 
@@ -60,5 +63,6 @@ __all__ = [
     "report_command",
     "run_command",
     "store_command",
+    "suite_command",
     "view_report_command",
 ]

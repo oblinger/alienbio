@@ -158,7 +158,17 @@ from .mass_trial import (
     MassTrialRunner,
     Provenance,
     ReliabilityMap,
+    aggregate_records,
     condition_grid,
+)
+from .experiment import (
+    AGENTS,
+    DRAFTERS,
+    ExperimentSpec,
+    aggregate,
+    load_spec,
+    render_report,
+    run_experiment,
 )
 from .pipeline import build_suite, draft_world
 from .verify import SimConfig, VerifyResult, simulate, verify
@@ -401,4 +411,13 @@ __all__ = [
     "ContrastResult",
     "Provenance",
     "ReliabilityMap",
+    "aggregate_records",
+    # M46.5/M46.7/M46.11 declarative experiment sweeps
+    "ExperimentSpec",
+    "load_spec",
+    "run_experiment",
+    "aggregate",
+    "render_report",
+    "DRAFTERS",
+    "AGENTS",
 ]

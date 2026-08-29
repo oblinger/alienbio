@@ -282,6 +282,20 @@ def _pooled_raw_scores(
     return pooled
 
 
+def aggregate_records(
+    records: Sequence[TrialRecord],
+    axes: tuple[tuple[str, tuple[Any, ...]], ...],
+    base_seed: Seed,
+    trials_per_condition: int,
+) -> ReliabilityMap:
+    """Public alias for :func:`_aggregate` (M46.5): rebuild a :class:`ReliabilityMap`
+    from a stored ``list[TrialRecord]`` + its provenance alone — no drafting,
+    no re-running, the exact reducer :class:`MassTrialRunner` itself uses. The
+    entry point ``suite.experiment.aggregate`` reads a record store through.
+    """
+    return _aggregate(records, axes, base_seed, trials_per_condition)
+
+
 def _aggregate(
     records: Sequence[TrialRecord],
     axes: tuple[tuple[str, tuple[Any, ...]], ...],
@@ -355,6 +369,9 @@ class MassTrialRunner:
         trials_per_condition: int,
         base_seed: Seed,
         on_error: str = "record",
+        extra_dials: Mapping[str, Any] = {},
+        on_trial: Optional[Callable[[str, int, TrialRecord], None]] = None,
+        skip: Optional[Callable[[str, int], Optional[TrialRecord]]] = None,
     ) -> ReliabilityMap:
         """Run ``trials_per_condition`` seeded trials for every cell of ``axes``.
 
@@ -368,6 +385,34 @@ class MassTrialRunner:
         ``{dial_name: level}`` mapping (``dict(condition_key)``) — this
         runner never inspects a dial name or level itself, keeping it
         axis-agnostic and decoupled from any one dial-generator module.
+
+        ``extra_dials`` (M46.5) is merged UNDER the condition's own swept
+        dials (``{**extra_dials, **dials}``) before being handed to
+        ``drafter``, ``agent_factory``, and :func:`~alienbio.suite.runner.run`
+        — so a caller (:func:`~alienbio.suite.experiment.run_experiment`'s
+        ``fixed_dials``) can apply a dial to EVERY condition (e.g.
+        ``max_turns``) without it becoming part of the swept axes. The
+        returned record's ``condition_key`` is reset to the swept ``key``
+        alone afterwards (``dataclasses.replace``) — ``extra_dials`` widens
+        what a trial SEES, never what a cell is BINNED on.
+
+        ``on_trial`` (M46.5), when given, is called right after each record
+        is produced — fresh (drafted and run) or reused via ``skip`` — as
+        ``on_trial(label, i, record)``. This is the persistence hook: a
+        caller writes the record to a store as it lands, rather than only
+        after the whole grid finishes. Exceptions from ``on_trial`` propagate
+        (a persistence failure must be loud, not swallowed).
+
+        ``skip`` (M46.5), when given, is consulted as ``skip(label, i)``
+        BEFORE drafting: if it returns a :class:`~alienbio.suite.trial.TrialRecord`,
+        that record is used as-is — nothing is drafted, no agent is built,
+        :func:`~alienbio.suite.runner.run` is never called — and it is
+        counted in ``records``/``on_trial`` exactly like a fresh one (folded
+        into the returned statistics unless its ``terminal_reason ==
+        "error"``, and into ``Provenance.failed_trials`` if it is). This is
+        the resume seam: a caller backs ``skip`` by an on-disk record store
+        keyed by ``(label, i)`` so a crashed run only redoes the trials it
+        never finished.
 
         ``on_error`` (M46.3) controls per-trial fault isolation:
 
@@ -407,12 +452,24 @@ class MassTrialRunner:
             dials = dict(key)
             label = _condition_label(key)
             for i in range(trials_per_condition):
+                if skip is not None:
+                    existing = skip(label, i)
+                    if existing is not None:
+                        if existing.terminal_reason == "error":
+                            failed_trials += 1
+                        records.append(existing)
+                        if on_trial is not None:
+                            on_trial(label, i, existing)
+                        continue
+
                 trial_seed = base_seed.child(f"{label}/{i}")
+                run_dials = {**extra_dials, **dials}
                 task: Optional[TaskInstance] = None
                 try:
-                    world, task = drafter(trial_seed.child("draft"), dials)
-                    agent = agent_factory(trial_seed.child("agent"), dials)
-                    record = run_trial(world, task, agent, dials, trial_seed.child("run"))
+                    world, task = drafter(trial_seed.child("draft"), run_dials)
+                    agent = agent_factory(trial_seed.child("agent"), run_dials)
+                    record = run_trial(world, task, agent, run_dials, trial_seed.child("run"))
+                    record = replace(record, condition_key=key)
                 except Exception as exc:
                     if on_error == "raise":
                         raise
@@ -428,6 +485,8 @@ class MassTrialRunner:
                         error=f"{type(exc).__name__}: {exc}",
                     )
                 records.append(record)
+                if on_trial is not None:
+                    on_trial(label, i, record)
 
         successful = tuple(r for r in records if r.terminal_reason != "error")
         rmap = _aggregate(successful, axes_tuple, base_seed, trials_per_condition)
