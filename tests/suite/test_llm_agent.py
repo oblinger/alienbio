@@ -18,10 +18,13 @@ from alienbio.suite.archetypes import identify_pathway
 from alienbio.suite.brief import build_brief
 from alienbio.suite.dist import Constant, Seed
 from alienbio.suite.llm_agent import (
+    ACTION_INPUT_SCHEMA,
     DEFAULT_DIRECTIVE,
     LLMAgent,
     default_anthropic_llm_fn,
+    extract_action_json,
     render_observation,
+    reply_from_content,
 )
 from alienbio.suite.observation import narrow_observation, project_observation
 from alienbio.suite.pipeline import build_suite
@@ -114,13 +117,77 @@ def test_llm_agent_commit_action_from_mock():
     assert action.answer == Answer(value="X", kind="node_id")
 
 
-def test_llm_agent_malformed_mock_output_raises_after_max_retries():
+def test_llm_agent_malformed_mock_output_aborts_as_data_after_max_retries():
+    # M46.4: parse exhaustion is recorded, not raised — the trial ends with a
+    # tagged null Commit so a mass-trial sweep keeps going.
     def llm_fn(directive, context, seed):
         return {"type": "not_a_real_action"}
 
     agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0), max_retries=3)
-    with pytest.raises(ValueError, match="no schema-valid output"):
-        agent.act(_obs())
+    action, reasoning = agent.act(_obs())
+    assert isinstance(action, Commit)
+    assert action.params == {"aborted": "parse_exhausted"}
+    assert action.answer.value is None
+    assert reasoning[0].kind == "abort" and "3 attempts" in reasoning[0].content
+    assert agent.parse_failures == 3
+    assert agent.aborted == "parse_exhausted"
+
+
+class _Block:
+    def __init__(self, type: str, text: str = "", input=None):
+        self.type = type
+        self.text = text
+        self.input = input
+
+
+def test_extract_action_json_tolerates_fences_and_prose():
+    bare = '{"type": "measure", "probe": "probe_x"}'
+    fenced = "Here is my action:\n```json\n" + bare + "\n```\nDone."
+    prefaced = "I will measure first. " + bare + " That is all."
+    for text in (bare, fenced, prefaced):
+        assert extract_action_json(text) == {"type": "measure", "probe": "probe_x"}
+    assert extract_action_json("no json here at all") is None
+    assert extract_action_json("[1, 2, 3]") is None  # a list is not an action
+
+
+def test_reply_from_content_prefers_tool_use_then_text():
+    payload = {"type": "wait", "duration": 2.0}
+    assert reply_from_content([_Block("text", "ignored"), _Block("tool_use", input=payload)]) == payload
+    fenced = _Block("text", "```json\n{\"type\": \"wait\", \"duration\": 1.0}\n```")
+    assert reply_from_content([fenced]) == {"type": "wait", "duration": 1.0}
+    assert reply_from_content([_Block("text", "nothing structured")]) == "nothing structured"
+
+
+def test_llm_agent_accepts_a_fenced_string_reply_with_no_retry():
+    def llm_fn(directive, context, seed):
+        return "Sure!\n```json\n{\"type\": \"measure\", \"probe\": \"probe_x\"}\n```"
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0))
+    action, _ = agent.act(_obs())
+    assert action == Measure(probe="probe_x")
+    assert agent.parse_failures == 0
+
+
+def test_llm_agent_counts_each_invalid_reply_before_succeeding():
+    calls = []
+
+    def llm_fn(directive, context, seed):
+        calls.append(seed.value)
+        if len(calls) < 3:
+            return "garbage"
+        return {"type": "wait", "duration": 1.0}
+
+    agent = LLMAgent(llm_fn=llm_fn, seed=Seed(0), max_retries=3)
+    action, _ = agent.act(_obs())
+    assert isinstance(action, Wait)
+    assert agent.parse_failures == 2
+    assert agent.aborted is None
+    assert len(set(calls)) == 3  # every retry rode a distinct child seed
+
+
+def test_action_input_schema_matches_the_validator_vocabulary():
+    assert set(ACTION_INPUT_SCHEMA["properties"]["type"]["enum"]) == {"measure", "intervene", "commit", "wait"}
+    assert ACTION_INPUT_SCHEMA["required"] == ["type"]
 
 
 def test_llm_agent_context_varies_by_turn_even_for_identical_observation():

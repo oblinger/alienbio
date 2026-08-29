@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Mapping, Optional, Sequence, Union, cast
 
 from .agent import Action, ActionOutcome, Commit, Intervene, Measure, ReasoningStep, Wait
@@ -199,6 +200,93 @@ Memory = Union[str, int]
 _MEMORY_STRINGS = frozenset({"none", "full"})
 
 
+#: JSON Schema for the action reply — the provider-native structured-output
+#: contract (M46.4): ``default_anthropic_llm_fn`` offers it as the input schema
+#: of a forced ``emit_action`` tool, so a compliant model never emits prose
+#: around its action at all. Mirrors :func:`_validate_action_json` exactly;
+#: that validator remains the authority (a tool reply is still validated).
+ACTION_INPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "type": {"type": "string", "enum": sorted(_ACTION_KINDS)},
+        "probe": {"type": "string"},
+        "lever": {"type": "string"},
+        "value": {"type": "number"},
+        "duration": {"type": "number"},
+        "answer": {
+            "type": "object",
+            "properties": {
+                "value": {},
+                "kind": {
+                    "type": "string",
+                    "enum": ["node_set", "ordered_path", "node_id", "scalar", "json"],
+                },
+            },
+            "required": ["value", "kind"],
+        },
+        "reasoning": {"type": "string"},
+        "params": {"type": "object"},
+    },
+    "required": ["type"],
+}
+
+_FENCE_RE = re.compile(r"```(?:json|JSON)?\s*(.*?)```", re.DOTALL)
+
+
+def extract_action_json(text: str) -> Optional[dict[str, Any]]:
+    """Pull the one JSON object out of a model reply that is not bare JSON (M46.4).
+
+    Real replies arrive fenced (```` ```json ... ``` ````), prefaced ("Here is
+    my action:"), or with trailing prose. Tries, in order: the whole text as
+    JSON; the contents of each fenced block; the first balanced ``{...}``
+    object found by scanning every ``{`` with ``JSONDecoder.raw_decode``.
+    Returns the first candidate that is a ``dict``, else ``None`` — the
+    caller's ``out_schema`` then decides whether it is a well-formed action.
+    Pure; no model involved.
+    """
+    candidates: list[str] = [text]
+    candidates.extend(m.group(1) for m in _FENCE_RE.finditer(text))
+    decoder = json.JSONDecoder()
+    for candidate in candidates:
+        stripped = candidate.strip()
+        try:
+            parsed = json.loads(stripped)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    for match in re.finditer(r"\{", text):
+        try:
+            parsed, _ = decoder.raw_decode(text, match.start())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return None
+
+
+def reply_from_content(blocks: Sequence[Any]) -> Any:
+    """Turn a provider reply's content blocks into the ``llm_fn`` return value.
+
+    A ``tool_use`` block (the structured path) wins and yields its ``input``
+    dict verbatim; otherwise the concatenated ``text`` blocks are handed to
+    :func:`extract_action_json`, and if even that finds nothing the raw text
+    is returned — which fails ``LLMOp.out_schema`` and rides the retry path.
+    Pure over duck-typed blocks (``.type``, ``.input``, ``.text``) so it is
+    unit-testable without the provider SDK.
+    """
+    for block in blocks:
+        if getattr(block, "type", None) == "tool_use":
+            payload = getattr(block, "input", None)
+            if isinstance(payload, dict):
+                return payload
+    text = "".join(
+        getattr(block, "text", "") for block in blocks if getattr(block, "type", None) == "text"
+    )
+    extracted = extract_action_json(text)
+    return extracted if extracted is not None else text
+
+
 class LLMAgent:
     """A live-model :class:`~alienbio.suite.agent.Agent`, riding the ``LLMOp`` seam.
 
@@ -251,12 +339,35 @@ class LLMAgent:
         self._history: list[dict[str, Any]] = []
         self._prompt_hashes: list[str] = []
         self._system: Directive = directive
-        self._op: LLMOp[dict[str, Any]] = LLMOp(
+        #: M46.4 — every schema-invalid reply (each retry) is counted, never
+        #: silently absorbed; ``aborted`` names why this agent gave up, if it did.
+        self.parse_failures = 0
+        self.aborted: Optional[str] = None
+        self._op: LLMOp[dict[str, Any]] = self._make_op()
+
+    def _tolerant_llm_fn(self, directive: Directive, context: Any, seed: Seed) -> Any:
+        """Wrap the injected ``llm_fn`` so a string reply carrying JSON inside
+        fences or prose still reaches ``out_schema`` as a dict (M46.4)."""
+        out = self.llm_fn(directive, context, seed)
+        if isinstance(out, str):
+            extracted = extract_action_json(out)
+            if extracted is not None:
+                return extracted
+        return out
+
+    def _counting_schema(self, out: Any) -> bool:
+        ok = _validate_action_json(out)
+        if not ok:
+            self.parse_failures += 1
+        return ok
+
+    def _make_op(self) -> LLMOp[dict[str, Any]]:
+        return LLMOp(
             directive=self._system,
-            out_schema=_validate_action_json,
-            llm_fn=llm_fn,
-            seed=seed,
-            max_retries=max_retries,
+            out_schema=self._counting_schema,
+            llm_fn=self._tolerant_llm_fn,
+            seed=self.seed,
+            max_retries=self.max_retries,
         )
 
     @property
@@ -345,10 +456,36 @@ class LLMAgent:
             return action, reasoning
 
         self._tokens_spent += estimate
-        raw = self._op(context)
         self._prompt_hashes.append(
             hashlib.sha256((self._system + "\n" + canonical(context)).encode("utf-8")).hexdigest()
         )
+        try:
+            raw = self._op(context)
+        except ValueError as exc:
+            # M46.4: parse exhaustion is data, not a raise — the trial ends with
+            # a tagged null Commit (like the token-ceiling guard) so the record
+            # carries the failure and a mass-trial sweep keeps going.
+            self.aborted = "parse_exhausted"
+            content = (
+                f"no schema-valid action after {self.max_retries} attempts at turn "
+                f"{turn} ({self.parse_failures} invalid replies so far): {exc}"
+            )
+            reasoning = (ReasoningStep(kind="abort", content=content),)
+            action = Commit(
+                answer=Answer(value=None, kind="json"),
+                params={"aborted": "parse_exhausted"},
+            )
+            self._history.append(
+                {
+                    "turn": turn,
+                    "observation": [dict(c) for c in observation],
+                    "action": {"type": "commit", "aborted": "parse_exhausted"},
+                    "reasoning": None,
+                    "outcome": None,
+                }
+            )
+            self._turn += 1
+            return action, reasoning
         action, reasoning = _parse_action(raw)
         self._history.append(
             {
@@ -364,9 +501,18 @@ class LLMAgent:
 
 
 def default_anthropic_llm_fn(
-    model: str = PINNED_MODEL, max_tokens: int = 1024
+    model: str = PINNED_MODEL, max_tokens: int = 1024, *, structured: bool = True
 ) -> LLMFn:
     """Build a real Anthropic-backed :data:`~alienbio.suite.ops.LLMFn` (opt-in only).
+
+    ``structured=True`` (M46.4, the default) uses the provider-native
+    structured-output path: the action schema (:data:`ACTION_INPUT_SCHEMA`)
+    is offered as a forced ``emit_action`` tool, so the reply is a
+    ``tool_use`` block whose ``input`` IS the action dict — no prose to
+    parse. ``structured=False`` is the plain JSON-mode fallback. Either way
+    the reply goes through :func:`reply_from_content`, which tolerates fences
+    and surrounding prose on a text reply, and through ``LLMOp.out_schema``,
+    which stays the authority on well-formedness.
 
     Resolves the key via ``config.get_api_key("anthropic")`` (``os.environ``
     only — ``ANTHROPIC_API_KEY``, Keychain -> env via ``~/.zshrc``; no
@@ -398,6 +544,22 @@ def default_anthropic_llm_fn(
 
     client = anthropic.Anthropic(api_key=api_key)
 
+    tool_kwargs: dict[str, Any] = {}
+    if structured:
+        tool_kwargs = {
+            "tools": [
+                {
+                    "name": "emit_action",
+                    "description": (
+                        "Emit your next action for this turn as a structured "
+                        "object. Exactly one call per turn."
+                    ),
+                    "input_schema": ACTION_INPUT_SCHEMA,
+                }
+            ],
+            "tool_choice": {"type": "tool", "name": "emit_action"},
+        }
+
     def llm_fn(directive: Directive, context: Any, seed: Seed) -> Any:
         del seed  # accepted for LLMFn shape; Claude has no literal-seed control
         response = client.messages.create(
@@ -407,15 +569,8 @@ def default_anthropic_llm_fn(
             messages=[
                 {"role": "user", "content": json.dumps(context, sort_keys=True)}
             ],
+            **tool_kwargs,
         )
-        text = "".join(
-            block.text
-            for block in response.content
-            if getattr(block, "type", None) == "text"
-        )
-        try:
-            return json.loads(text)
-        except (json.JSONDecodeError, TypeError):
-            return text  # fails out_schema -> LLMOp retries with a child seed
+        return reply_from_content(response.content)
 
     return llm_fn
