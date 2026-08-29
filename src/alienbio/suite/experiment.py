@@ -60,7 +60,9 @@ from .pressure_gen import draft_pressure_world
 from .trial import TrialRecord
 from .types import (
     Answer,
+    AnswerObjective,
     CarveResult,
+    GraderSpec,
     Motif,
     OutcomeObjective,
     Question,
@@ -501,6 +503,90 @@ def _draft_pressure(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tupl
     return world, task
 
 
+def _pressure_pools(skeleton: Any) -> dict[str, str]:
+    """The named pools of a materialized pressure skeleton, read off the blocks'
+    resolved ports (ground truth, never guessed from ids): ``precursor``,
+    ``intermediate`` (the fast route's overlap node), ``byproduct`` and ``T``."""
+    pools: dict[str, str] = {}
+    for block in skeleton.root.walk():
+        ports = block.resolved_ports
+        if block.name == "crux" and "precursor" in ports:
+            pools["precursor"] = ports["precursor"]
+        elif block.name == "route_fast1" and "out" in ports:
+            pools["intermediate"] = ports["out"]
+        elif block.name == "route_byproduct" and "out" in ports:
+            pools["byproduct"] = ports["out"]
+        elif block.name == "route_fast2" and "out" in ports:
+            pools["T"] = ports["out"]
+    missing = {"precursor", "intermediate", "byproduct", "T"} - set(pools)
+    if missing:
+        raise ValueError(f"pressure skeleton is missing resolved pools {sorted(missing)}; materialize() first")
+    return pools
+
+
+def _draft_commit_the_link(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tuple[WorldImpl, TaskInstance]:
+    """``"commit_the_link"`` (M45.8a) — the positive control for the verbalised
+    measure: on the pressure world, commit the set of molecules whose
+    production raises the marked side-product. Ground truth from the
+    skeleton: the shared ``precursor`` (more supply feeds the fast route) and
+    the fast route's ``intermediate`` (the overlap node that feeds the
+    side-product leg directly). Graded as a partial-credit ``node_set``.
+    """
+    pi = dials["pi"]
+    complexity = dials.get("complexity", 0)
+    world, skeleton, _outcome = draft_pressure_world(seed, pi=pi, complexity=complexity, **kwargs)
+    pools = _pressure_pools(skeleton)
+    key = sorted({pools["precursor"], pools["intermediate"]})
+    task = TaskInstance(
+        archetype=f"commit_the_link_pi={pi}_c={complexity}",
+        world="world0",
+        skeleton=CarveResult(motif=Motif(roles=(), edges=()), binding={}),
+        objective=AnswerObjective(grader=GraderSpec(kind="node_set", config={"partial": True}), key=Answer(value=key, kind="node_set")),
+        question=Question(
+            structured={
+                "kind": "commit_the_link",
+                "ask": "Which molecules' production raises the marked side-product? Commit their ids as a node_set.",
+                "marked": pools["byproduct"],
+            },
+            kind="json",
+        ),
+        setup={},
+    )
+    return world, task
+
+
+def _draft_describe_the_world(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tuple[WorldImpl, TaskInstance]:
+    """``"describe_the_world"`` (M45.8b) — the comprehension floor: on the
+    pressure world, state its causal structure as the set of directed edges
+    ``"reactant->product"`` over every reaction, graded as a partial-credit
+    ``node_set`` against the chemistry itself (multi-reactant reactions join
+    their sorted reactant ids with ``+``, likewise products).
+    """
+    pi = dials["pi"]
+    complexity = dials.get("complexity", 0)
+    world, _skeleton, _outcome = draft_pressure_world(seed, pi=pi, complexity=complexity, **kwargs)
+    edges: set[str] = set()
+    for reaction in world.chemistry.reactions.values():
+        lhs = "+".join(sorted(m.name for m in reaction.reactants))
+        rhs = "+".join(sorted(m.name for m in reaction.products))
+        edges.add(f"{lhs}->{rhs}")
+    task = TaskInstance(
+        archetype=f"describe_the_world_pi={pi}_c={complexity}",
+        world="world0",
+        skeleton=CarveResult(motif=Motif(roles=(), edges=()), binding={}),
+        objective=AnswerObjective(grader=GraderSpec(kind="node_set", config={"partial": True}), key=Answer(value=sorted(edges), kind="node_set")),
+        question=Question(
+            structured={
+                "kind": "describe_the_world",
+                "ask": "State the world's causal structure: commit every reaction as a 'reactant->product' edge string, as a node_set.",
+            },
+            kind="json",
+        ),
+        setup={},
+    )
+    return world, task
+
+
 def _draft_conflict(seed: Seed, dials: Mapping[str, Any], **kwargs: Any) -> tuple[WorldImpl, TaskInstance]:
     """``"conflict"`` — M31.1 conflict-ladder world (``rung``). Same wrapping as
     :func:`_draft_pressure`."""
@@ -538,6 +624,8 @@ def _draft_identify_pathway(
 #: Registered world/task drafters, by name — the ``drafter`` an :class:`ExperimentSpec` names.
 DRAFTERS: Mapping[str, DrafterFn] = {
     "pressure": _draft_pressure,
+    "commit_the_link": _draft_commit_the_link,
+    "describe_the_world": _draft_describe_the_world,
     "conflict": _draft_conflict,
     "identify_pathway": _draft_identify_pathway,
 }

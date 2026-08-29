@@ -158,6 +158,36 @@ def test_idle_baseline_flag_adds_the_matched_idle_arm(tmp_path):
     assert not any(n == "agent" for n, _ in load_spec(_write_spec(tmp_path, agent="idle", idle_baseline=True)).axes)
 
 
+def test_control_archetypes_grade_from_ground_truth(tmp_path):
+    # M45.8: commit-the-link and describe-the-world on the pressure world —
+    # a scripted agent committing the key scores 1.0, a null commit 0.0.
+    from alienbio.suite.agent import Commit, ScriptedAgent
+    from alienbio.suite.runner import run as run_trial
+    from alienbio.suite.types import Answer, AnswerObjective
+
+    for name in ("commit_the_link", "describe_the_world"):
+        world, task = DRAFTERS[name](Seed(4), {"pi": 0.5, "complexity": 1})
+        assert isinstance(task.objective, AnswerObjective)
+        key = task.objective.key.value
+        assert key and all(isinstance(k, str) for k in key)
+        if name == "commit_the_link":
+            assert set(key) <= set(world.chemistry.molecules)
+            assert task.question.structured["marked"] in world.chemistry.molecules
+        else:
+            assert all("->" in edge for edge in key)
+            assert len(key) == len(world.chemistry.reactions)
+
+        perfect = ScriptedAgent((Commit(answer=Answer(value=list(key), kind="node_set")),), seed=Seed(0))
+        assert run_trial(world, task, perfect, {}, Seed(1)).objective_score == 1.0
+        null = ScriptedAgent((Commit(answer=Answer(value=[], kind="node_set")),), seed=Seed(0))
+        assert run_trial(world, task, null, {}, Seed(1)).objective_score == 0.0
+
+    # Both are pressure substrates: a live model is refused on them.
+    spec = load_spec(_write_spec(tmp_path, drafter="commit_the_link", agent="llm", axes={"pi": [0.5]}))
+    with pytest.raises(ValueError, match="no-peeking"):
+        run_experiment(spec, out_dir=str(tmp_path / "out"))
+
+
 def test_record_lines_carry_model_and_memory(tmp_path):
     spec = load_spec(_write_spec(tmp_path))
     run_experiment(spec, out_dir=str(tmp_path / "out"))
