@@ -2,7 +2,7 @@
 
 # ABIO Suite Runtime
 
-The Phase-2 layer that makes the [[ABIO Suite Construction|suite-construction]] primitives *live*: an agent acts on a generated world turn by turn, one immutable record per trial comes out, and a mass-trial sweep reduces many records to a reliability map. Everything here lives in `alienbio.suite` (`agent.py`, `brief.py`, `llm_agent.py`, `runner.py`, `trial.py`, `mass_trial.py`, `conditions.py`, `hazard.py`) and is domain-neutral — scorers pattern-match on action *type*, never on a world's vocabulary.
+The Phase-2 layer that makes the [[ABIO Suite Construction|suite-construction]] primitives *live*: an agent acts on a generated world turn by turn, one immutable record per trial comes out, and a mass-trial sweep reduces many records to a reliability map. Everything here lives in `alienbio.suite` (`agent.py`, `brief.py`, `llm_agent.py`, `runner.py`, `trial.py`, `mass_trial.py`, `conditions.py`, `hazard.py`, `tradeoff.py`) and is domain-neutral — scorers pattern-match on action *type*, never on a world's vocabulary.
 
 ## The turn loop
 
@@ -18,7 +18,7 @@ The Phase-2 layer that makes the [[ABIO Suite Construction|suite-construction]] 
 | 5 · simulate | One `sim_cfg` burst; its end-state is the next turn's state. | `verify.simulate` |
 | 6 · stop | `committed` · `budget_exhausted` (the graded time-pressure `Budget`) · `max_turns` · `illegal_limit`. | `runner.Budget` |
 
-The result is one frozen `TrialRecord`: task id, condition key, final timeline, deliberation trace, action log (accepted and rejected, each with the probe or lever it named), objective score, terminal reason, budget/spent/remaining, illegal-action count, turns, the brief the agent was given, and `oracle` — framework-side ground truth beyond the answer key (a drafter's hazard oracle, the monitoring dial's actual side) that scorers read and the agent never sees.
+The result is one frozen `TrialRecord`: task id, condition key, final timeline, deliberation trace, action log (accepted and rejected, each with the probe or lever it named), objective score, terminal reason, budget/spent/remaining, illegal-action count, turns, the brief the agent was given, `oracle` — framework-side ground truth beyond the answer key (a drafter's hazard or conflict oracle, the monitoring dial's actual side) that scorers read and the agent never sees — and `final_state`, the end-of-trial concentrations, which survive the JSON store so an outcome scorer gives the same answer on a reloaded record as on a live one.
 
 ## Agents
 
@@ -42,6 +42,10 @@ Dial vectors come from `suite.conditions` (`ConditionSpec`, `DialAxis`, sampling
 ## Hazard injection
 
 `suite.hazard` is EXP-4's *structurally-present-but-unmentioned* feature: `draft_diagnosis_world(hazard=True)` adds a slow-building byproduct (`hz`, fed by distractor reaction `rh`) that the recipe excludes from the question and the distractors, so it is in the world and absent from the prompt. `hazard_oracle` simulates the untouched world over the trial's own horizon and records the first turn the byproduct crosses `hazard_threshold`; `assert_hazard_gate` fails the draft if it never does. `hazard_surfacing_turn(record, id)` is the measurement — the earliest accepted `Measure` on the hazard or deliberation-trace mention — and the report's *Hazard surfacing* section gives per-condition rate and mean turn. The scripted zero is `catalog/experiments/exp4.yaml`. On top of the hazard sits a **graded consideration schedule** (`Consideration`: id, depth ∈ shallow/medium/deep, due turn — for the diagnosis world: the byproduct, its source reaction, the chain product it drains), held on `oracle["considerations"]`; `consideration_profile(record)` reads the earliest surfacing turn per id through `score_surfacing`, and the report's *Objective surfacing by depth* section gives surfaced / on-time / mean turn per condition. `hazard_horizon` fixes the hazard's own horizon when `max_turns` is swept as a budget (`catalog/experiments/exp5.yaml`). Considerations may also be **typed** (`procedural` / `substantive` / `meta`): the prediction drafter's `ill_posed` trap (a kept-but-inert downstream link, response `same` by construction) puts a typed should-have-considered set on the oracle, and `blindspot_summary` scores it with M33.5's blind-spot rate per type (*Blind spots by objective type* in the report; `catalog/experiments/exp6.yaml`). A spec's `matched_dials` key adds a world-variant switch such as `ill_posed` to the seed-matched set, pairing its arms over one base world.
+
+## Conflict resolution
+
+`suite.tradeoff` is the seam between the M31.1 conflict ladder and M33.6's closed-form scorers. The `conflict` drafter puts a conflict oracle on the record — targets and goals, the supply that bounds their sum, the closed-form `(V1, V2)` frontier, the rung, the priority under test — and `conflict_summary` reads per-target attainment off `final_state`, reports the target that *strictly* dominated (an exact tie is a tie, not a preference), how often the declared priority held, and the mean Pareto distance; `precedence_ladder` runs `precedence_consistency` across the rungs holding every other dial fixed. Report section *Conflict resolution*; scripted zero `catalog/experiments/exp7.yaml`.
 
 ## What is not here yet
 
