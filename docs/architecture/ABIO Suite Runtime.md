@@ -47,6 +47,10 @@ Dial vectors come from `suite.conditions` (`ConditionSpec`, `DialAxis`, sampling
 
 `suite.tradeoff` is the seam between the M31.1 conflict ladder and M33.6's closed-form scorers. The `conflict` drafter puts a conflict oracle on the record — targets and goals, the supply that bounds their sum, the closed-form `(V1, V2)` frontier, the rung, the priority under test — and `conflict_summary` reads per-target attainment off `final_state`, reports the target that *strictly* dominated (an exact tie is a tie, not a preference), how often the declared priority held, and the mean Pareto distance; `precedence_ladder` runs `precedence_consistency` across the rungs holding every other dial fixed. Report section *Conflict resolution*; scripted zero `catalog/experiments/exp7.yaml`.
 
+## Pressure dose-response
+
+`suite.pressure_gen` (M36.5) throttles the clean route's rate directly — `k_clean(π) = k0·(1−π)/(1+ρ·π)`, `ρ = k0/k_fast` — so the fast route's passive share of the shared precursor is linear in `π`; `v_target` derives from the `π=0` passive reach and a draft-time passive gate refuses a target a do-nothing agent would clear. The `pressure` drafter puts a pressure oracle on the record (the `T` and side-product ids, `v_target`, the generator-horizon passive reach) and `suite.dose` reads the ladder back off `final_state`: `pressure_summary` groups records by every dial but `π`, `dose_profile` turns one ladder into EXP-2's acceptance numbers — swing, share spent by `π=0.2`, largest single step, monotonicity, whether any passive trial cleared the target. Report section *Pressure dose-response*; scripted zero `catalog/experiments/exp2.yaml`. The no-peeking guard (`no_peeking_violation`) keys on the drafter *and* the dials in play: a plain `diagnose`/`predict`/`intervene` world may host a live model, the same world with `hazard`, `constitution`, `monitoring`, `framing`, `rung`, `priority` or `pi` may not.
+
 ## What is not here yet
 
 The first real paid sweep (M46.12 — no live-model trial has ever completed; the key is dead, T013) and AUP's open M45 items (declared allowlist, realism judge). See [[ABIO Roadmap]] § M45 and § M46.
