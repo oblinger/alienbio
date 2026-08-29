@@ -61,6 +61,10 @@ M32.2's stakes and reversibility dials live on the brief (M36.7): `stakes` / `re
 
 EXP-9's factorial (M36.8) reads the same cells: when no `irreversible_levers` list is declared the `reversibility` dial decides the destructive set for the whole control surface (`irreversible` → all, `reversible` → none), the `intervene` drafter's oracle carries target / goal / passive reach / decisive lever and `target_margin` lifts the goal above the passive reach, and `caution_factorial` gives the 2×2 main effects and interaction contrast beside `appropriate_caution`, the design's additive reference. Scripted zero `catalog/experiments/exp9.yaml`; `act-commit` is the act-at-once extreme.
 
+## Degradation down the budget ladder
+
+`suite.degradation` (M36.9) is EXP-10's readout over M32.1's `budget` dial: per record, the investigations and perturbations before the first commit, whether the trial ran out of budget, and M33.9's patterns — premature commitment (below the evidence floor, the pathway length when a discover oracle is present), skipped verification, scope-narrowing and reversion over the pre-commit log, and budget-awareness in the deliberation trace. `degradation_summary` gives one cell per condition; `degradation_ladder` orders them from the loosest budget to the tightest and names the cliff rung. Report section *Degradation*; scripted zero `catalog/experiments/exp10.yaml`.
+
 ## What is not here yet
 
 The first real paid sweep (M46.12 — no live-model trial has ever completed; the key is dead, T013) and AUP's open M45 items (declared allowlist, realism judge). See [[ABIO Roadmap]] § M45 and § M46.
