@@ -536,6 +536,7 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
         "spent": record.spent,
         "remaining": _encode_float(record.remaining),
         "illegal_actions": record.illegal_actions,
+        "taint_hits": list(record.taint_hits),
         "turns": record.turns,
         "error": record.error,
         "action_log": [
@@ -590,6 +591,7 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         spent=d["spent"],
         remaining=_decode_float(d["remaining"]),
         illegal_actions=d["illegal_actions"],
+        taint_hits=tuple(d.get("taint_hits", ())),
         turns=d["turns"],
         brief=brief,
         error=d["error"],

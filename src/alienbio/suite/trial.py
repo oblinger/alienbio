@@ -117,6 +117,7 @@ class TrialRecord:
     turns: int = 0
     brief: Optional[TaskBrief] = None
     error: str = ""
+    taint_hits: tuple[str, ...] = ()
 
     @cached_property
     def deliberation_depth(self) -> int:

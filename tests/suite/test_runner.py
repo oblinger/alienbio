@@ -223,6 +223,64 @@ def test_max_turns_reached_without_commit_or_budget():
     assert len(record.action_log) == 4
 
 
+class _LeakyAgent:
+    """A test double that 'sends' prompts: an Agent exposing prompt_texts."""
+
+    def __init__(self, leak: str, mol: str):
+        self.prompt_texts = (f"system prompt mentions {leak} here",)
+        self._mol = mol
+
+    def act(self, observation):
+        return Commit(answer=Answer(value=[], kind="json")), ()
+
+
+def test_taint_audit_fails_visibly_when_a_prompt_names_a_hidden_id():
+    # M46.10: hide half the molecules; a prompt that names a hidden one is a taint hit.
+    from alienbio.suite.runner import TaintError
+
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    dials = {"observability": 0.5}
+    probe = run(world, task, ScriptedAgent(lambda o, s: (Commit(answer=Answer(value=[], kind="json")), ()), seed=Seed(0)), dials, Seed(3))
+    assert probe.brief is not None
+    hidden = sorted(set(world.chemistry.molecules) - set(probe.brief.affordances.probes))
+    assert hidden, "fixture must hide at least one molecule"
+    question_tokens = {t for t in str(task.question.structured).split() if t}
+    leak = next((h for h in hidden if h not in str(task.question.structured)), None)
+    assert leak is not None
+    del question_tokens
+
+    with pytest.raises(TaintError) as excinfo:
+        run(world, task, _LeakyAgent(leak, hidden[0]), dials, Seed(3))
+    assert leak in excinfo.value.record.taint_hits
+    assert leak in str(excinfo.value)
+
+    # A prompt naming only VISIBLE ids audits clean.
+    clean = _LeakyAgent(probe.brief.affordances.probes[0], hidden[0])
+    record = run(world, task, clean, dials, Seed(3))
+    assert record.taint_hits == ()
+
+
+def test_taint_audit_ignores_key_tokens_the_question_itself_names():
+    # identify_pathway's question states the pathway endpoints, which the key
+    # also contains — naming them is not a leak.
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    assert isinstance(task.objective, AnswerObjective)
+    endpoints = [t for t in task.objective.key.value if t in str(task.question.structured)]
+    assert endpoints
+    agent = _LeakyAgent(endpoints[0], endpoints[0])
+    record = run(world, task, agent, {}, Seed(3))
+    assert record.taint_hits == ()
+    # ...but an interior key node that the question does not name IS a leak.
+    interior = [t for t in task.objective.key.value if t not in str(task.question.structured)]
+    if interior:
+        from alienbio.suite.runner import TaintError
+
+        with pytest.raises(TaintError):
+            run(world, task, _LeakyAgent(interior[0], interior[0]), {}, Seed(3))
+
+
 def test_null_answer_commit_scores_zero_instead_of_crashing_the_grader():
     # The abort sentinel Answer(value=None) must land as a scored record: the
     # ordered_path grader would otherwise raise TypeError on list(None).

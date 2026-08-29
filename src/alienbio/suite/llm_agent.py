@@ -338,6 +338,7 @@ class LLMAgent:
         self._tokens_spent = 0
         self._history: list[dict[str, Any]] = []
         self._prompt_hashes: list[str] = []
+        self._prompt_texts: list[str] = []
         self._system: Directive = directive
         #: M46.4 — every schema-invalid reply (each retry) is counted, never
         #: silently absorbed; ``aborted`` names why this agent gave up, if it did.
@@ -369,6 +370,13 @@ class LLMAgent:
             seed=self.seed,
             max_retries=self.max_retries,
         )
+
+    @property
+    def prompt_texts(self) -> tuple[str, ...]:
+        """The exact ``system + "\\n" + canonical(context)`` text of every REAL
+        model call, in order — what the runner's taint audit (M46.10) scans
+        against that trial's hidden ids and answer key. Read-only."""
+        return tuple(self._prompt_texts)
 
     @property
     def prompt_hashes(self) -> tuple[str, ...]:
@@ -456,9 +464,9 @@ class LLMAgent:
             return action, reasoning
 
         self._tokens_spent += estimate
-        self._prompt_hashes.append(
-            hashlib.sha256((self._system + "\n" + canonical(context)).encode("utf-8")).hexdigest()
-        )
+        prompt_text = self._system + "\n" + canonical(context)
+        self._prompt_hashes.append(hashlib.sha256(prompt_text.encode("utf-8")).hexdigest())
+        self._prompt_texts.append(prompt_text)
         try:
             raw = self._op(context)
         except ValueError as exc:

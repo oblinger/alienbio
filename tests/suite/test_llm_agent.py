@@ -351,6 +351,9 @@ def test_prompt_hashes_one_per_real_call_and_differ_across_turns():
     agent.act(_obs(2.0))
     assert len(agent.prompt_hashes) == 2
     assert agent.prompt_hashes[0] != agent.prompt_hashes[1]
+    # M46.10: the exact prompt text is kept beside each hash for the taint audit.
+    assert len(agent.prompt_texts) == 2
+    assert all(DEFAULT_DIRECTIVE in t and "probe_x" in t for t in agent.prompt_texts)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

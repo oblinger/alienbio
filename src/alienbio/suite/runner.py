@@ -82,6 +82,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import re
 from typing import Any, Mapping, Optional, cast
 
 from ..bio.chemistry import ChemistryImpl
@@ -89,7 +90,7 @@ from ..bio.reaction import ReactionImpl
 from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
 from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, SessionAgent, Wait
-from .brief import DEFAULT_ACTION_COSTS, build_brief
+from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief
 from .deliberation import DeliberationTrace
 from .dist import Seed
 from .grade import grade_answer, grade_outcome
@@ -551,7 +552,9 @@ def run(
     else:
         objective_score = 0.0  # AnswerObjective task, no Commit: nothing to grade
 
-    return TrialRecord(
+    taint_hits = audit_prompts(agent, brief, chemistry, task)
+
+    record = TrialRecord(
         task_id=task.world,
         condition_key=condition_key(dials),
         final_timeline=final_timeline,
@@ -565,4 +568,73 @@ def run(
         illegal_actions=illegal,
         turns=turns_executed,
         brief=brief,
+        taint_hits=taint_hits,
     )
+    if taint_hits:
+        raise TaintError(record)
+    return record
+
+
+class TaintError(RuntimeError):
+    """A prompt actually sent to the model carried a hidden observable id or an
+    answer-key token belonging to that trial's world (M46.10). The offending
+    record is attached as ``record`` (its ``taint_hits`` names the tokens), so a
+    ``MassTrialRunner(on_error="record")`` sweep lands it as a visible error
+    trial rather than either crashing or silently keeping a tainted number."""
+
+    def __init__(self, record: TrialRecord) -> None:
+        self.record = record
+        super().__init__(
+            "taint audit failed: a prompt sent to the model contained "
+            f"{list(record.taint_hits)} (hidden observable ids and/or answer-key tokens)"
+        )
+
+
+def _leaf_strings(value: Any) -> set[str]:
+    """Every string leaf inside a JSON-ish value (answer keys, questions)."""
+    if isinstance(value, str):
+        return {value}
+    if isinstance(value, Mapping):
+        out: set[str] = set()
+        for k, v in value.items():
+            out |= _leaf_strings(k)
+            out |= _leaf_strings(v)
+        return out
+    if isinstance(value, (list, tuple, set, frozenset)):
+        out = set()
+        for v in value:
+            out |= _leaf_strings(v)
+        return out
+    return set()
+
+
+def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: TaskInstance) -> tuple[str, ...]:
+    """M46.10 — scan the prompts an agent actually sent for that trial's secrets.
+
+    Applies only to an agent exposing ``prompt_texts`` (``LLMAgent``); a
+    scripted agent sends nothing and audits clean. The secrets are (a) every
+    molecule id the observability dial hid this trial (all molecules minus the
+    brief's visible probes) and (b) every string leaf of an ``AnswerObjective``
+    key — **minus any token the task's own question legitimately names** (an
+    ``identify_pathway`` question states the pathway's endpoints, which the key
+    also contains; that is the agent-facing question, not a leak). Matching is
+    whole-token (the ids contain ``/`` and ``_``, so the boundary is
+    "not adjacent to another id character"). Returns the sorted hit tokens.
+    """
+    prompts = getattr(agent, "prompt_texts", None)
+    if not prompts:
+        return ()
+    question_tokens = _leaf_strings(brief.question)
+    secrets: set[str] = set(chemistry.molecules) - set(brief.affordances.probes)
+    if isinstance(task.objective, AnswerObjective):
+        secrets |= _leaf_strings(task.objective.key.value)
+    secrets -= question_tokens
+    secrets.discard("")
+    if not secrets:
+        return ()
+    hits: set[str] = set()
+    for text in prompts:
+        for token in secrets:
+            if re.search(r"(?<![A-Za-z0-9_/.-])" + re.escape(token) + r"(?![A-Za-z0-9_/.-])", text):
+                hits.add(token)
+    return tuple(sorted(hits))
