@@ -1,0 +1,149 @@
+# ecosystem.yaml — the language's own smoke test (ABIO Expr § A complete
+# example, as built). A two-organism ecosystem: each organism an energy cycle
+# feeding some conversion chains, the two coupled through a shared waste pool
+# that one organism's enzyme consumes; a task on it; an experiment over it.
+# Every construct of the language appears once; the comment above each says
+# which. Loads trusted (it executes helpers.py); see README.md.
+
+# ESCAPE: execute helpers.py under a trusted load. It registers the heads
+# carrier_weight (a @fn), chain (an @expander), max_pathway_length and
+# no_dead_hops (@guards) and the ecosystem drafter used by the experiment.
+_includes_: [helpers.py]
+
+# ---- bindings ---------------------------------------------------------
+# Untagged YAML is DATA; every tagged node is a FORM. A file is a scope, so
+# each key here is a NAME the rest of the document can use, in any order.
+
+site_K: 0.5                         # literal
+n_species: 2                        # literal
+n_chains: 2                         # literal; the drafter overrides it per condition
+
+# INLINE call: executed once, right here, under this node's seed;
+# base_rate is bound to the RESULT (a number).
+base_rate: !x lognormal(0.3, 0.2)
+
+# QUOTED call: NOT executed. hop_rate is bound to the FORM itself — in
+# effect a lambda over this file's scope. Whoever receives it evaluates it:
+# as a Dist, once per use, under the user's own seed.
+hop_rate: !q lognormal(0.1, 0.3)
+
+# INLINE with an f-string, a comparison and a conditional (quoted because
+# the expression holds quotes).
+label: !x 'f"eco-{n_species}sp-{"fast" if base_rate > 1 else "slow"}"'
+
+# SPECIAL FORM run: evaluate a quoted form now, here. first_hop is bound to
+# one draw.
+first_hop: !x run(hop_rate)
+
+# INLINE: a list display and a conditional; a Python @fn from helpers.py.
+tags: !x '["waste", "energy"] + (["fast"] if base_rate > 1 else [])'
+weights: !x '[carrier_weight(i) for i in range(1, 4)]'
+
+# ---- a template written as structure ----------------------------------
+# SPECIAL FORM template: makes a FUNCTION (an expander head) and binds it to
+# the name. Nothing is generated here; each later call `!energy_cycle ...`
+# evaluates the body afresh, under that call's own child seed, with the
+# parameters bound to that call's arguments. Inside an instance every pool
+# it names is namespaced by the instance (krel.energy.ME1) — except a pool
+# that ARRIVED AS AN ARGUMENT (waste), which keeps the caller's spelling.
+energy_cycle: !template
+  positional: [waste]               # the NAME of one positional parameter
+  params:                           # keyword parameter names + default forms
+    rate: !x base_rate              # a NAME from the enclosing scope
+  body: !block
+    children:
+      activation: !reaction {reactants: [ME1, ME1], products: [ME2], rate: !x rate}
+      work: !reaction
+        reactants: [ME2]
+        # SPECIAL FORM if: only the taken branch is evaluated
+        products: !if
+          cond: !x waste
+          then: !x '["ME3", waste]'
+          else: [ME3]
+      regeneration: !reaction
+        reactants: [ME3]
+        products: [ME1]
+        # QUOTED rate law, compiled: mass action k (= rate, a bound
+        # constant) gated by a Hill response to the modifier pool ME2;
+        # site_K is a file binding.
+        rate: !q rate * hill(ME2, site_K, n=2)
+
+organism: !template
+  positional: [name]
+  params: {chains: 2, waste: null}
+  # SPECIAL FORM let: bindings visible in the body
+  body: !let
+    bindings:
+      route_len: !x max(2, poisson(2))     # builtin + dist in one expr
+      k: !x seed("kinetics")               # SPECIAL FORM seed
+    body: !block
+      children:
+        # STRUCTURAL call, SEQUENCE = positional args
+        energy: !energy_cycle [!x waste]
+        # SPECIAL FORM each with a computed key -> a mapping of blocks
+        routes: !block
+          children: !each
+            over: !x range(chains)
+            as: i
+            key: !x f"chain{i}"
+            # PYTHON EXPANDER (helpers.py): receives forms, returns a
+            # form. Positional args under the reserved key, with keywords.
+            # energy.ME2 is a pool of the nested energy instance, spelled
+            # from here; S{i} is this organism's own pool.
+            body: !chain
+              args: [energy.ME2, !x 'f"S{i}"']
+              length: !x route_len
+              rate: !x hop_rate          # the Dist passes through; chain draws per hop
+              # GUARDS: a bare name, and a call with a keyword argument
+              guards: [no_dead_hops, !x max_pathway_length(max_length=6)]
+              on_fail: retry
+        # a library block: an exogenous drain on the organism's product
+        drain: !sink {pool: S0, rate: 0.05}
+
+# CONSTRUCTOR: an Entity subclass as a head, by its head name. (Built
+# directly, not part of the skeleton — a reaction object in its own right.)
+leak: !Reaction {name: leak, reactants: [ME2], products: [], rate: 0.01}
+
+# ---- the world ----------------------------------------------------------
+world: !world
+  seed: !x seed("world")            # an explicit stream for materialisation
+  initial: {shared_waste: 0.0}      # a POOL NAME as data (a string)
+  skeleton: !skeleton
+    crux: feed
+    root: !block
+      children:
+        # positional + keyword together
+        krel: !organism {args: [krel], chains: !x n_chains, waste: shared_waste}
+        # positional only; every keyword takes its default (no waste)
+        vash: !organism [vash]
+        # a library block, keywords: the coupling. vash's ME2 catalyses the
+        # conversion of krel's waste into vash's ME1.
+        feed: !enzyme
+          substrate: shared_waste
+          product: vash.energy.ME1
+          enzyme: vash.energy.ME2
+          Vmax: !q constant(2.0)    # a Dist passed unsampled
+          K: !ref site_K            # !ref: structural NAME lookup
+
+# ---- a task on it -------------------------------------------------------
+task: !task
+  archetype: ecosystem
+  question: !question {structured: {kind: outcome, target: vash.energy.ME2}, kind: json}
+  # a value-type constructor (OutcomeObjective); the scorer is a trusted
+  # local Python reference, passed as a value (ESCAPE: !py)
+  objective: !outcome {scorer: !py helpers.health_score, target: 4.0}
+
+# ---- an experiment over it ---------------------------------------------
+# `ecosystem` is the drafter helpers.py registers: it loads THIS file under
+# the trial's seed with n_chains bound per condition. `chains` and `max_turns`
+# are the axes — the free names of the quoted calls (an axis feeds the dial
+# of the same name).
+experiment: !experiment
+  name: ecosystem-zero
+  task: !q ecosystem(chains=chains)
+  episode: !q episode(max_turns=max_turns, sim_steps=10)
+  agent: act_commit
+  axes: {chains: [1, 2], max_turns: [4, 8]}
+  trials_per_condition: 2
+  base_seed: 11
+  out_dir: runs/examples/ecosystem

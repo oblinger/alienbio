@@ -20,7 +20,7 @@ from __future__ import annotations
 import importlib
 import runpy
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional
 
 from .env import ExprError
 from .form import Call, Include, PyRef, Quoted
@@ -83,13 +83,23 @@ def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] 
     raise ExprError(f"!include {path!r}: unknown file kind {suffix!r} (yaml / yml / md / txt / py)", str(base))
 
 
-def resolve_py(path: str, *, trusted: bool) -> Any:
-    """``module.attr`` -> the object (longest importable module prefix, then attributes)."""
+def resolve_py(path: str, *, trusted: bool, modules: Optional[Mapping[str, Mapping[str, Any]]] = None) -> Any:
+    """``module.attr`` -> the object: a module executed by ``_includes_`` /
+    ``!include x.py`` (by its file stem) first, else the longest importable
+    module prefix, then attributes."""
     if not trusted:
         raise UnsafeSpecError(f"!py {path!r}: a Python reference requires a trusted load")
     parts = path.split(".")
     if len(parts) < 2 or not all(p.isidentifier() for p in parts):
         raise ExprError(f"!py {path!r}: expected module.attr")
+    if modules and parts[0] in modules:
+        obj: Any = modules[parts[0]]
+        for attr in parts[1:]:
+            try:
+                obj = obj[attr] if isinstance(obj, Mapping) else getattr(obj, attr)
+            except (KeyError, AttributeError):
+                raise ExprError(f"!py {path!r}: no {attr!r} in the included module {parts[0]!r}") from None
+        return obj
     for i in range(len(parts) - 1, 0, -1):
         try:
             obj: Any = importlib.import_module(".".join(parts[:i]))
@@ -104,36 +114,47 @@ def resolve_py(path: str, *, trusted: bool) -> Any:
     raise ExprError(f"!py {path!r}: no importable module prefix")
 
 
-def hydrate(data: Any, *, base: Path, trusted: bool, seen: frozenset[Path] = frozenset()) -> Any:
+def hydrate(
+    data: Any,
+    *,
+    base: Path,
+    trusted: bool,
+    seen: frozenset[Path] = frozenset(),
+    modules: Optional[Mapping[str, Mapping[str, Any]]] = None,
+) -> Any:
     """Replace every :class:`Include` / :class:`PyRef` inside ``data`` (forms
-    included) with what it names. Everything else is returned as is."""
+    included) with what it names. ``modules`` are the ``.py`` includes already
+    executed (stem -> namespace), which ``!py`` resolves against first.
+    Everything else is returned as is."""
+    rec = lambda v: hydrate(v, base=base, trusted=trusted, seen=seen, modules=modules)  # noqa: E731
     if isinstance(data, Include):
         _kind, value = load_include(data.path, base, trusted=trusted, seen=seen)
         return value
     if isinstance(data, PyRef):
-        return resolve_py(data.path, trusted=trusted)
+        return resolve_py(data.path, trusted=trusted, modules=modules)
     if isinstance(data, dict):
-        return {k: hydrate(v, base=base, trusted=trusted, seen=seen) for k, v in data.items()}
+        return {k: rec(v) for k, v in data.items()}
     if isinstance(data, list):
-        return [hydrate(v, base=base, trusted=trusted, seen=seen) for v in data]
+        return [rec(v) for v in data]
     if isinstance(data, Call):
-        return Call(
-            data.head,
-            tuple(hydrate(a, base=base, trusted=trusted, seen=seen) for a in data.args),
-            {k: hydrate(v, base=base, trusted=trusted, seen=seen) for k, v in data.kwargs.items()},
-        )
+        return Call(data.head, tuple(rec(a) for a in data.args), {k: rec(v) for k, v in data.kwargs.items()})
     if isinstance(data, Quoted):
-        return Quoted(hydrate(data.form, base=base, trusted=trusted, seen=seen))
+        return Quoted(rec(data.form))
     return data
 
 
-def include_bindings(entries: Any, base: Path, *, trusted: bool, seen: frozenset[Path] = frozenset()) -> dict[str, Any]:
-    """The ``_includes_:`` list: execute each ``.py``; collect each ``.yaml``
-    file's top-level keys (later entries win among themselves; the including
-    file's own keys win over all of them — the caller applies that)."""
+def include_bindings(
+    entries: Any, base: Path, *, trusted: bool, seen: frozenset[Path] = frozenset()
+) -> tuple[dict[str, Any], dict[str, Mapping[str, Any]]]:
+    """The ``_includes_:`` list: execute each ``.py`` (its namespace is kept
+    under the file's stem, for ``!py``); collect each ``.yaml`` file's
+    top-level keys (later entries win among themselves; the including file's
+    own keys win over all of them — the caller applies that). Returns
+    ``(bindings, modules)``."""
     if not isinstance(entries, list) or not all(isinstance(e, str) for e in entries):
         raise ExprError("_includes_ must be a list of file paths", str(base))
     merged: dict[str, Any] = {}
+    modules: dict[str, Mapping[str, Any]] = {}
     for entry in entries:
         kind, value = load_include(entry, base, trusted=trusted, seen=seen)
         if kind == "yaml":
@@ -142,8 +163,9 @@ def include_bindings(entries: Any, base: Path, *, trusted: bool, seen: frozenset
             merged.update(value)
         elif kind == "text":
             raise ExprError(f"_includes_: {entry!r} is text — give it a name with `key: !include {entry}`", str(base))
-        # "py": executed for its registrations; nothing to bind
-    return merged
+        else:  # "py": executed for its registrations; the namespace answers !py
+            modules[Path(entry).stem] = value
+    return merged, modules
 
 
 __all__ = ["UnsafeSpecError", "hydrate", "include_bindings", "load_include", "resolve_path", "resolve_py", "run_python_file"]

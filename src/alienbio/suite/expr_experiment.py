@@ -229,6 +229,11 @@ def answer(key: Any, grader: GraderSpec, kind: Optional[str] = None, *, env: Env
     return AnswerObjective(grader=grader, key=key_obj)
 
 
+@fn(kind="constructor", summary="a Question: structured content + kind")
+def question(structured: Any, kind: str = "json") -> Question:
+    return Question(structured=structured, kind=str(kind))
+
+
 @fn(kind="constructor", summary="an OutcomeObjective: scorer + target")
 def outcome(scorer: Any, target: Any, *, env: Env) -> OutcomeObjective:
     return OutcomeObjective(scorer=_callable(scorer, "outcome.scorer", env), target=target)
@@ -769,6 +774,7 @@ __all__ = [
     "pattern",
     "power",
     "predict_q",
+    "question",
     "spec_to_text",
     "suite",
     "task",

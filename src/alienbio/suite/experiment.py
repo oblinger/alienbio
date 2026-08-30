@@ -342,6 +342,9 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
     one ``!experiment`` call whose ``task:`` / ``brief:`` / ``episode:`` are
     quoted calls; see :mod:`alienbio.suite.expr_experiment`).
 
+    A file under the repository's ``catalog/`` loads **trusted** (it may
+    ``_includes_`` Python helpers); any other path loads untrusted.
+
     Raises:
         ExprError: the file is not an experiment form, names a dial no head
             declares, sweeps an axis nothing reads, or fails any of the
@@ -349,7 +352,11 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
     """
     from .expr_experiment import load_experiment
 
-    return load_experiment(path)
+    # The framework's own catalog is trusted (its files may include Python
+    # helpers); anything else loads untrusted.
+    resolved = Path(path).resolve()
+    trusted = (_REPO_ROOT / "catalog").resolve() in resolved.parents
+    return load_experiment(path, trusted=trusted)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1025,10 +1032,21 @@ def _adapt(head: Head) -> DrafterFn:
     return drafter
 
 
-#: Registered world/task drafters, by name — the ``drafter`` an :class:`ExperimentSpec`
-#: names — each the :func:`_adapt` of its head. A plain dict so a test may
-#: ``monkeypatch.setitem`` a spy in.
-DRAFTERS: dict[str, DrafterFn] = {name: _adapt(head) for name, head in drafter_heads().items()}
+class _Drafters(dict):
+    """The drafters by name — each the :func:`_adapt` of its head. A dict (so
+    a test may ``monkeypatch.setitem`` a spy in) that also resolves a drafter
+    head registered *after* import — one an experiment file's ``_includes_``
+    brought in (the catalog examples)."""
+
+    def __missing__(self, name: str) -> DrafterFn:
+        if name in _registry and _registry.get(name).kind == "drafter":
+            self[name] = _adapt(_registry.get(name))
+            return self[name]
+        raise KeyError(name)
+
+
+#: Registered world/task drafters, by name — the ``drafter`` an :class:`ExperimentSpec` names.
+DRAFTERS: dict[str, DrafterFn] = _Drafters({name: _adapt(head) for name, head in drafter_heads().items()})
 
 #: Drafters whose WORLD is an AUP-registered substrate — the M31 conflict /
 #: pressure / delta generators and the controls drafted on the pressure world.

@@ -252,10 +252,13 @@ class Env:
             raise ExprError("a spec file must be a mapping at the top level", str(source))
         data = dict(data)
         entries = data.pop("_includes_", None)
-        data = hydrate(data, base=base_dir, trusted=self.ctx.trusted, seen=seen)
+        included: dict[str, Any] = {}
+        modules: dict[str, Mapping[str, Any]] = {}
         if entries is not None:
-            for key, form in include_bindings(entries, base_dir, trusted=self.ctx.trusted, seen=seen).items():
-                data.setdefault(str(key), form)
+            included, modules = include_bindings(entries, base_dir, trusted=self.ctx.trusted, seen=seen)
+        data = hydrate(data, base=base_dir, trusted=self.ctx.trusted, seen=seen, modules=modules)
+        for key, form in included.items():
+            data.setdefault(str(key), form)
         env = self.scope({}, parent=self.bindings)
         for key, form in data.items():
             env.bindings[str(key)] = Lazy(form, env)
