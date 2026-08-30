@@ -521,6 +521,7 @@ def experiment(
     concurrency: Optional[int] = None,
     idle_baseline: bool = False,
     matched_dials: Optional[Sequence[str]] = None,
+    key_readout: Optional[str] = None,
     env: Env,
 ) -> ExperimentSpec:
     """Build an :class:`~alienbio.suite.experiment.ExperimentSpec` from the
@@ -578,6 +579,7 @@ def experiment(
         ("design", design),
         ("concurrency", concurrency),
         ("matched_dials", matched_dials),
+        ("key_readout", key_readout),
     ):
         if value is not None:
             d[key] = value
@@ -737,6 +739,8 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
             out.append(f"  {axis}: {_yaml_inline(shown)}")
     if spec.matched_dials:
         out.append(f"matched_dials: {_yaml_inline(list(spec.matched_dials))}")
+    if spec.key_readout:
+        out.append(f"key_readout: {spec.key_readout}")
     out.append(f"trials_per_condition: {spec.trials_per_condition}")
     out.append(f"base_seed: {spec.base_seed}")
     for key in ("expected_turns", "expected_prompt_tokens", "expected_output_tokens", "concurrency"):

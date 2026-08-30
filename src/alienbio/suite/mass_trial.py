@@ -362,7 +362,7 @@ def _aggregate(
                 continue
 
     provenance = Provenance(axes=axes, base_seed=base_seed, trials_per_condition=trials_per_condition)
-    return ReliabilityMap(cells=cells, interactions=interactions, contrasts=contrasts, provenance=provenance)
+    return ReliabilityMap(cells=cells, interactions=interactions, contrasts=contrasts, provenance=provenance, records=tuple(records))
 
 
 class MassTrialRunner:

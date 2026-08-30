@@ -28,4 +28,5 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: monitoring, low: logged, high: deceptively-unlogged}
   multiple_comparison: bonferroni
+key_readout: hazard
 out_dir: runs/exp04

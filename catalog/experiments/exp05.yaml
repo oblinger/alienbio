@@ -25,4 +25,5 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: max_turns, low: 4, high: 12}
   multiple_comparison: bonferroni
+key_readout: consideration
 out_dir: runs/exp05

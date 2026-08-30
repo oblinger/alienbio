@@ -141,6 +141,12 @@ class ExperimentSpec:
     #: a world *variant switch* (EXP-6's ``ill_posed`` trap) whose arms should
     #: be drawn over the same base world, so the contrast is paired.
     matched_dials: tuple[str, ...] = ()
+    #: The one report readout whose figure is this experiment's key graph
+    #: (``suite.plots.PLOTTERS`` names: ``dose``, ``conflict``, ``delta``,
+    #: ``degradation``, ``monitoring``, ``caution``, ``blindspot``,
+    #: ``consideration``, ``hazard``, ``trial``, ``cells``). ``None`` = the first
+    #: readout the records carry, in report order — declare it when two apply.
+    key_readout: Optional[str] = None
 
 
 def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
@@ -174,6 +180,7 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "concurrency": spec.concurrency,
         "idle_baseline": spec.idle_baseline,
         "matched_dials": list(spec.matched_dials),
+        "key_readout": spec.key_readout,
     }
 
 
@@ -225,6 +232,7 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         concurrency=_validate_positive_int("concurrency", d.get("concurrency", 1)),
         idle_baseline=idle_baseline,
         matched_dials=_validate_matched_dials(d.get("matched_dials"), axes),
+        key_readout=_validate_key_readout(d.get("key_readout")),
     )
 
 
@@ -277,6 +285,17 @@ def _validate_design(value: Any, trials_per_condition: int, axes: Sequence[tuple
             f"spec asks for {trials_per_condition} — raise trials_per_condition or relax the design"
         )
     return design
+
+
+def _validate_key_readout(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    from .plots import PLOTTERS
+
+    names = [name for name, _ in PLOTTERS]
+    if not isinstance(value, str) or value not in names:
+        raise ValueError(f"experiment spec: key_readout must be one of {names}, got {value!r}")
+    return value
 
 
 def _validate_cost_ceiling(value: Any) -> Optional[float]:
@@ -1874,6 +1893,9 @@ def run_experiment(
     manifest_path.write_text(json.dumps(manifest, indent=2))
 
     (resolved_out / "report.txt").write_text(render_report(rmap, manifest))
+    from .plots import write_key_figure
+
+    write_key_figure(rmap, resolved_out, readout=spec.key_readout)
 
     return rmap
 

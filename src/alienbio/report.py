@@ -23,8 +23,10 @@ with no sentence.
 
 from __future__ import annotations
 
+import base64
 import html
 import json
+import os
 import re
 import subprocess
 import sys
@@ -33,7 +35,7 @@ import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Mapping, Optional, Sequence
+from typing import Callable, Mapping, Optional, Sequence, cast
 
 from .capabilities import DIMENSIONS, GLYPH, matrix, phrases
 
@@ -154,6 +156,9 @@ class RunRow:
     failed: int
     spend_usd: Optional[float]
     started: str
+    figure: Optional[Path] = None  # runs/<name>/key.png when the run drew one
+    readout: str = ""
+    caption: str = ""
 
 
 @dataclass
@@ -274,7 +279,13 @@ def run_rows() -> list[RunRow]:
         if report.exists():
             hit = re.search(r"spent \$([0-9.]+)", report.read_text())
             spend = float(hit.group(1)) if hit else None
-        rows.append(RunRow(folder.name, "live model" if model else "scripted", str(model or "—"), int(m.get("trials_completed", 0)), int(m.get("failed_trials", 0)), spend, str(m.get("started_at", ""))[:10]))
+        figure, readout, caption = None, "", ""
+        if (folder / "key.png").exists():
+            figure = folder / "key.png"
+            if (folder / "key.json").exists():
+                meta = json.loads((folder / "key.json").read_text())
+                readout, caption = str(meta.get("readout", "")), str(meta.get("caption", ""))
+        rows.append(RunRow(folder.name, "live model" if model else "scripted", str(model or "—"), int(m.get("trials_completed", 0)), int(m.get("failed_trials", 0)), spend, str(m.get("started_at", ""))[:10], figure, readout, caption))
     rows.sort(key=lambda r: (r.kind != "live model", r.name))
     return rows
 
@@ -341,6 +352,11 @@ def render_markdown(rep: Report) -> str:
             mark = "✅" if r.failed == 0 and r.trials else "❌"
             spend = f"${r.spend_usd:.4f}" if r.spend_usd is not None else "—"
             L.append(f"| {mark} | `{r.name}` | {r.kind} | `{r.model}` | {r.trials} ({r.failed} failed) | {spend} | {r.started} |")
+        figures = [r for r in rep.runs if r.figure is not None]
+        if figures:
+            L += ["", "*Each run's key figure — the one readout the experiment exists for, drawn from its record store (`key.png` beside `report.txt`). Scripted controls give the instrument's zero: the shape a live arm is read against.*"]
+            for r in figures:
+                L += ["", f"### `{r.name}` — {r.readout}", "", f"![{r.name} key figure]({_relative(cast(Path, r.figure))})", "", f"*{r.caption}*"]
     else:
         L.append("*(no run directories)*")
     if rep.notes:
@@ -352,7 +368,7 @@ def render_html(rep: Report) -> str:
     """The Markdown page as HTML — tables, headings, paragraphs; nothing else is needed."""
     md = render_markdown(rep)
     out = ["<!doctype html><meta charset=utf-8><title>ABIO test report</title><style>",
-           "body{font:14px/1.45 -apple-system,Helvetica,sans-serif;margin:28px;max-width:1400px}table{border-collapse:collapse;margin:8px 0 22px}",
+           "body{font:14px/1.45 -apple-system,Helvetica,sans-serif;margin:28px;max-width:1400px}table{border-collapse:collapse;margin:8px 0 22px}img{max-width:100%;border:1px solid #e5e5e5;margin:4px 0}h3{font-size:14px;margin:22px 0 4px}",
            "td,th{border:1px solid #ddd;padding:5px 9px;vertical-align:top;text-align:left}th{background:#f3f3f3}code{background:#f5f5f5;padding:1px 4px}h1{font-size:22px}h2{font-size:17px;margin-top:26px}",
            "</style>"]
     in_table = False
@@ -369,15 +385,31 @@ def render_html(rep: Report) -> str:
             continue
         if in_table:
             out.append("</table>"); in_table = False
+        image = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", line.strip())
+        if image:
+            out.append(f'<img alt="{html.escape(image.group(1))}" src="{_data_uri(REPO / "reports" / image.group(2))}">')
+            continue
         if line.startswith("# "):
             out.append(f"<h1>{_inline(line[2:])}</h1>")
         elif line.startswith("## "):
             out.append(f"<h2>{_inline(line[3:])}</h2>")
+        elif line.startswith("### "):
+            out.append(f"<h3>{_inline(line[4:])}</h3>")
         elif line.strip():
             out.append(f"<p>{_inline(line)}</p>")
     if in_table:
         out.append("</table>")
     return "\n".join(out) + "\n"
+
+
+def _relative(path: Path) -> str:
+    """``path`` relative to ``reports/`` (where the Markdown lives), POSIX-style."""
+    return os.path.relpath(path, REPO / "reports").replace(os.sep, "/")
+
+
+def _data_uri(path: Path) -> str:
+    """A PNG as a self-contained ``data:`` URI, so ``report.html`` travels alone."""
+    return "data:image/png;base64," + base64.b64encode(Path(path).read_bytes()).decode("ascii")
 
 
 def _inline(text: str) -> str:

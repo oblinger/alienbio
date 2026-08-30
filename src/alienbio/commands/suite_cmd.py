@@ -4,7 +4,7 @@ Usage:
     bio suite run <spec.yaml> [--out DIR] [--dry]   # Run (or dry-preview) an ExperimentSpec
     bio suite resume <DIR>                          # Resume a crashed/partial run
     bio suite aggregate <DIR>                       # Rebuild map.json/map.csv from records.jsonl alone
-    bio suite report <DIR>                          # Print + rewrite report.txt from the record store
+    bio suite report <DIR>                          # Print + rewrite report.txt (and key.png) from the record store
     bio suite models                                # Refresh the recorded models.list snapshot (T016; free)
 
 See ``alienbio.suite.experiment`` for the spec format, the ``DRAFTERS``/
@@ -181,6 +181,11 @@ def _report_cmd(rest: list[str], verbose: bool) -> int:
     text = render_report(rmap, manifest)
     print(text)
     (Path(out_dir) / "report.txt").write_text(text)
+    from alienbio.suite.plots import write_key_figure
+
+    png = write_key_figure(rmap, out_dir, readout=(manifest.get("spec") or {}).get("key_readout"))
+    if png is not None and verbose:
+        print(f"bio suite report: wrote {png}")
     return 0
 
 
