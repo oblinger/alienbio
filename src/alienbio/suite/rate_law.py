@@ -4,23 +4,27 @@ A ``rate:`` slot is **not** run by the interpreter. It is a number / ``Dist``
 (the mass-action constant ``k``) or a quoted form in the **rate grammar**,
 compiled once here into a :class:`RateLaw` the engine evaluates every step.
 
-What compiles today is exactly what the engine vectorises: mass action over
-the reactants (implicit — the engine multiplies by the reactant
-concentrations itself) times a product of **modulations** by non-consumed
-modifier pools — the four ``Modulation`` kinds ``bio/reaction.py`` implements:
+Two shapes compile (M47.10). The **product form** — mass action over the
+reactants (implicit) times a product of **modulations** by non-consumed
+modifier pools, the four ``Modulation`` kinds ``bio/reaction.py`` implements:
 
     k
     k * hill(M, K, n=2)
     k * michaelis(M, K) * inhibitor(I, Ki)
-    k * activator(A, a)
 
-``k`` may be a number, a bound constant, or a bound ``Dist``; the modulation
-parameters likewise. A bare name that is not bound in scope is a **pool**
-(a quoted string always is). Anything else — a sum, a quotient, ``exp``,
+compiles to ``RateLaw(k, modulations)`` and realises as a ``ReactionImpl``
+with ``Modulation`` modifiers (the M47.3 path; unchanged). Anything else the
+**rate grammar** admits — a sum, a quotient, ``exp`` / ``log`` / ``sqrt``,
 substrate-saturation kinetics written over a *reactant* (``Vmax * S / (Km +
-S)``) — is refused at load with the node path: the engine cannot run it, and
-nothing falls back to per-step Python. Growing the compiler to the full rate
-grammar on JAX is roadmap M47.10.
+S)``), several modulations mixed with algebra — compiles to a
+:mod:`~alienbio.bio.rate_expr` tree (``RateLaw.expr``) that both simulators
+evaluate: the whole rate when the law names a reactant, else the factor on
+mass action. ``k`` and every parameter may be a number, a bound constant, a
+bound ``Dist`` or a distribution call (drawn once, at world build). A bare
+name that is not bound in scope is a **pool** (a quoted string always is).
+What is still refused, at load with the node path: a head outside the rate
+view (a world-building head, a Python-only function), a bool, a product of
+two distributions.
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Sequence
 
+from ..bio import rate_expr as rx
 from ..bio.reaction import Modulation
 from ..expr.env import Env, ExprError
 from ..expr.form import Call, Name, Quoted
@@ -92,14 +97,46 @@ class ModulationSpec:
 
 @dataclass(frozen=True)
 class RateLaw:
-    """A compiled rate law: ``k`` (a Dist) times zero or more modulations."""
+    """A compiled rate law: ``k`` (a Dist) times zero or more modulations —
+    or, when ``expr`` is set, a compiled rate expression (``bio.rate_expr``
+    tree over pool names, with ``("dist", Dist)`` leaves still to draw)."""
 
     k: Dist[float]
     modulations: tuple[ModulationSpec, ...] = ()
+    expr: Optional[Any] = None
 
     @property
     def modifier_pools(self) -> tuple[str, ...]:
         return tuple(m.pool for m in self.modulations)
+
+    @property
+    def expr_pools(self) -> tuple[str, ...]:
+        """Every pool the expression reads (empty for the product form)."""
+        return tuple(sorted(rx.species_of(self.expr))) if self.expr is not None else ()
+
+    def realize_expr(self, seed: Seed) -> Any:
+        """The expression with every ``Dist`` leaf and parameter drawn under
+        ``seed`` — the tree a ``ReactionImpl`` carries."""
+        counter = [0]
+
+        def draw(dist: Dist[float]) -> float:
+            counter[0] += 1
+            return float(dist.sample(seed.child(f"law{counter[0]}")))
+
+        def walk(node: Any) -> Any:
+            tag = node[0]
+            if tag == "dist":
+                return rx.const(draw(node[1]))
+            if tag == "mod":
+                params = {k: (draw(v) if isinstance(v, Dist) else float(v)) for k, v in node[3].items()}
+                return rx.modulation(node[1], node[2], params)
+            if tag in ("neg", "exp", "log", "sqrt"):
+                return (tag, walk(node[1]))
+            if tag in ("add", "sub", "mul", "div", "pow"):
+                return (tag, walk(node[1]), walk(node[2]))
+            return node
+
+        return walk(self.expr)
 
 
 RATE_VIEW_KINDS: frozenset[str] = frozenset({"rate", "math", "op", "dist"})
@@ -156,7 +193,12 @@ def _constant(form: Any, env: Env, what: str) -> Dist[float]:
     if isinstance(form, Call):
         head = env.head(form.head)
         if head.kind in ("dist", "math"):
-            value = evaluate(form, env)
+            try:
+                value = evaluate(form, env)
+            except ExprError as exc:
+                # a factor that reads a species (``exp(M)``) is not a constant —
+                # the expression compiler's business
+                raise _refuse(env, f"{what} ({exc.message})") from None
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 return Constant(float(value))
             if isinstance(value, Dist):
@@ -245,6 +287,76 @@ def compile_rate(
 
 
 def _compile_form(form: Any, env: Env, *, reactants: Sequence[str], products: Sequence[str]) -> RateLaw:
+    """The product form when the law has that shape; else the general expression."""
+    try:
+        return _compile_product(form, env, reactants=reactants, products=products)
+    except ExprError as exc:
+        if "compilable subset" not in str(exc):
+            raise
+    view_env = env.__class__(env.bindings, env.registry.view(RATE_VIEW_KINDS), env.ctx, env.ns, env.depth)
+    expr = _compile_expr(form, view_env, consumed=set(reactants) | set(products))
+    return RateLaw(k=Constant(1.0), expr=expr)
+
+
+_UNARY_HEADS = {"exp", "log", "sqrt"}
+_BINARY_OPS = {"op:add": "add", "op:sub": "sub", "op:mul": "mul", "op:div": "div", "op:pow": "pow"}
+
+
+def _general_refuse(env: Env, what: str) -> ExprError:
+    return env.error(f"rate law: {what} is outside the rate grammar")
+
+
+def _compile_expr(form: Any, env: Env, *, consumed: set[str]) -> Any:
+    """A form in the rate grammar -> a ``bio.rate_expr`` tree over pool names
+    (with ``("dist", Dist)`` leaves for what is drawn at world build)."""
+    if isinstance(form, bool):
+        raise _general_refuse(env, "a bool")
+    if isinstance(form, (int, float)):
+        return rx.const(float(form))
+    if isinstance(form, str):
+        return rx.species(env.pool(form))
+    if isinstance(form, Name):
+        try:
+            value = env.lookup(form.path)
+        except ExprError:
+            return rx.species(env.pool(form.path))
+        if isinstance(value, bool):
+            raise _general_refuse(env, f"{form.path!r} (a bool)")
+        if isinstance(value, (int, float)):
+            return rx.const(float(value))
+        if isinstance(value, Dist):
+            return ("dist", value)
+        raise _general_refuse(env, f"{form.path!r} (bound to a {type(value).__name__})")
+    if isinstance(form, Quoted):
+        return ("dist", QuotedForm(form.form, env))
+    if isinstance(form, Call):
+        if form.head == "op:neg" and len(form.args) == 1:
+            return ("neg", _compile_expr(form.args[0], env, consumed=consumed))
+        if form.head in _BINARY_OPS and len(form.args) == 2 and not form.kwargs:
+            a, b = (_compile_expr(x, env, consumed=consumed) for x in form.args)
+            return (_BINARY_OPS[form.head], a, b)
+        if form.head.startswith("op:"):
+            raise _general_refuse(env, f"the operator {form.head[3:]!r}")
+        if form.head in _UNARY_HEADS and len(form.args) == 1 and not form.kwargs:
+            return (form.head, _compile_expr(form.args[0], env, consumed=consumed))
+        if form.head in MODULATION_HEADS:
+            spec = _modulation(form, env)
+            return ("mod", spec.kind, spec.pool, dict(spec.params))
+        head = env.head(form.head)  # unknown / out-of-view heads fail here, naming the node
+        if head.kind in ("dist", "math"):
+            value = evaluate(form, env)
+            if isinstance(value, bool):
+                raise _general_refuse(env, f"{form.head}(...) (a bool)")
+            if isinstance(value, (int, float)):
+                return rx.const(float(value))
+            if isinstance(value, Dist):
+                return ("dist", value)
+        raise _general_refuse(env, f"a call of {form.head!r}")
+    raise _general_refuse(env, f"a {type(form).__name__}")
+
+
+def _compile_product(form: Any, env: Env, *, reactants: Sequence[str], products: Sequence[str]) -> RateLaw:
+    """The M47.3 product form: ``k * modulation * ...`` (refuses anything else)."""
     view_env = env.__class__(env.bindings, env.registry.view(RATE_VIEW_KINDS), env.ctx, env.ns, env.depth)
     k: Optional[Dist[float]] = None
     modulations: list[ModulationSpec] = []

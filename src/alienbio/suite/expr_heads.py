@@ -119,27 +119,45 @@ from typing import cast as _cast
 
 @_dataclass(frozen=True)
 class RateLawBlock(ReactionBlock):
-    """A :class:`ReactionBlock` whose rate is a compiled :class:`RateLaw`
-    (M47.3): mass action over the reactant ports times the law's modulations,
-    each attached to its modifier pool as a non-consumed ``ReactionImpl``
-    modifier. The modifier pools are extra ``IN`` ports, so pools-as-names
-    binding wires them like any other."""
+    """A :class:`ReactionBlock` whose rate is a compiled :class:`RateLaw`:
+    mass action over the reactant ports times the law's modulations, each
+    attached to its modifier pool as a non-consumed ``ReactionImpl`` modifier
+    (M47.3) — or, for a law with an expression, the expression itself on the
+    reaction (M47.10). The pools a law reads beyond the reactants and
+    products are extra ``IN`` ports, so pools-as-names binding wires them
+    like any other."""
 
     law: RateLaw = _field(default_factory=lambda: RateLaw(k=Constant(1.0)))
 
+    #: The pools that are neither reactants nor products: modulation modifiers
+    #: (product form) or species an expression reads (M47.10).
+    extra_pools: tuple[str, ...] = ()
+
     def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
-        modifier_pools = set(self.law.modifier_pools)
+        extra = set(self.extra_pools)
         reactants: dict[MoleculeImpl, float] = {}
         products: dict[MoleculeImpl, float] = {}
         for port in self.ports:
-            if port.name in modifier_pools:
+            if port.name in extra:
                 continue
             coef = self.stoich.get(port.name, 1.0)
             (reactants if port.direction is PortDir.IN else products)[bound[port.name]] = coef
-        modifiers = {bound[m.pool]: m.sample(seed.child(f"mod/{m.pool}")) for m in self.law.modulations}
+        modifiers: dict[MoleculeImpl, Any] = {bound[m.pool]: m.sample(seed.child(f"mod/{m.pool}")) for m in self.law.modulations}
         k = float(self.law.k.sample(seed.child("rate")))
         rxn_id = f"{ns}/rxn"
-        reaction = _cast(ReactionImpl, mk.R(rxn_id, reactants, products, modifiers=modifiers, rate=k))
+        rate_law = None
+        if self.law.expr is not None:
+            # M47.10 — the expression, with its draws made, over molecule names;
+            # the species it reads that are not consumed ride as inert modifiers
+            # so the chemistry records the dependency.
+            from ..bio.rate_expr import map_species
+            from ..bio.reaction import Modulation
+
+            rate_law = map_species(self.law.realize_expr(seed.child("law")), lambda pool: bound[pool].name)
+            for pool in self.law.expr_pools:
+                if pool in extra:
+                    modifiers.setdefault(bound[pool], Modulation(kind=""))
+        reaction = _cast(ReactionImpl, mk.R(rxn_id, reactants, products, modifiers=modifiers, rate=k, rate_law=rate_law))
         molecules = {m.name: m for m in [*reactants, *products, *modifiers]}
         container = self.ports[0].container if self.ports else None
         return Fragment(molecules=molecules, reactions={rxn_id: reaction}, provenance=(Provenance(rxn_id, container or "cell"),))
@@ -165,10 +183,12 @@ def reaction(
     ports = tuple(Port(p, container, PortDir.IN) for p in reactant_pools) + tuple(
         Port(p, container, PortDir.OUT) for p in product_pools
     )
-    if not law.modulations:
+    if not law.modulations and law.expr is None:
         return ReactionBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=dict(stoich or {}))
-    ports = ports + tuple(Port(pool, container, PortDir.IN) for pool in law.modifier_pools)
-    return RateLawBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=dict(stoich or {}), law=law)
+    consumed = set(reactant_pools) | set(product_pools)
+    extra = tuple(dict.fromkeys([*law.modifier_pools, *(p for p in law.expr_pools if p not in consumed)]))
+    ports = ports + tuple(Port(pool, container, PortDir.IN) for pool in extra)
+    return RateLawBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=dict(stoich or {}), law=law, extra_pools=extra)
 
 
 @fn(summary="CRUX: one precursor pool feeding two rival routes")

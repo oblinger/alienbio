@@ -203,27 +203,38 @@ r2: !reaction
   products: [P]
   rate: !q k * michaelis(E, 0.5, Vmax=2.0)   # mass action gated by a modifier pool E
 r3: !reaction
+  reactants: [S]
+  products: [P]
+  rate: !q Vmax * S / (Km + S)      # Michaelis-Menten over the substrate: the whole rate
+r4: !reaction
   reactants: [A, B]
   products: [C]
-  rate: !q 0.3 * hill(M, 0.5, n=2) * inhibitor(I, 1.5)
+  rate: !q 0.3 * hill(M, 0.5, n=2) * inhibitor(I, 1.5) + sqrt(A) * exp(-0.1 * I)
 k: 0.4
+Vmax: 2.0
+Km: 0.5
 ```
 
-A `rate:` is **not** run by the interpreter. It is a quoted form in a much smaller language — the **rate grammar** — that the simulator compiles once and evaluates every step; nothing Python runs per step.
+A `rate:` is **not** run by the interpreter. It is a quoted form in a much smaller language — the **rate grammar** — compiled once at world build and evaluated every step by the simulator; nothing Python runs per step.
 
 ```
-rate    ::= k ("*" modulation)*             ; what compiles today
-k       ::= number | name                   ; a constant, or a bound constant / Dist
+rate    ::= k                                ; mass action: k * Π reactant^stoich
+          | k ("*" modulation)*              ; ... times modulations by non-consumed pools
+          | expr                             ; any other admitted expression
+expr    ::= number | name | pool
+          | expr ("+" | "-" | "*" | "/" | "**") expr | "-" expr
+          | ("exp" | "log" | "sqrt") "(" expr ")"
+          | modulation
 modulation ::= "michaelis" "(" pool "," K ["," "Vmax" "=" v] ")"
              | "hill"      "(" pool "," K ["," "n" "=" n] ["," "Vmax" "=" v] ")"
              | "activator" "(" pool "," a ")"
              | "inhibitor" "(" pool "," Ki ")"
-pool    ::= a pool name that is NOT a reactant or product of the reaction
 ```
 
-- The head set is the registry's **rate view**: the four modulation kinds the engine implements (`activator`, `inhibitor`, `michaelis`, `hill` — `bio/reaction.py` `Modulation`) plus the math heads. A rate law that names a world-building head, a distribution, or a Python-only function is rejected at load, with the node's path.
-- A bare number (or a quoted Dist, drawn once at world build) is the mass-action constant `k`; the engine multiplies by the reactant concentrations itself. Each modulation attaches its pool to the reaction as a non-consumed modifier — so a modulation over a reactant or product (substrate-saturation kinetics), a sum, a quotient, or any other algebra is **refused at load** rather than run in Python. Growing the grammar on the vectorised core is M47.10.
-- **As built:** the reference simulator runs mass action plus every modulation; the JAX core (M24) runs mass action only.
+- **Two shapes.** `k (* modulation)*` — the product form — compiles to mass action times `Modulation` modifiers on the reaction. Anything else the grammar admits compiles to a **rate expression** the reaction carries: **the whole rate when the law names a reactant** (`r3`: Michaelis–Menten over the substrate `S`), **the factor on mass action when it names none** (`r4` names `M`, `I` and the reactant `A`, so it is the whole rate; drop the `sqrt(A)` term and it would multiply `k * A * B`).
+- `k`, `Km`, every parameter: a number, a bound constant, a bound `Dist` or a distribution call — drawn once, at world build. A bare name not bound in scope is a **pool** (a quoted string always is); a pool the law reads that the reaction does not consume becomes a non-consumed modifier port, so pools-as-names binding wires it like any other.
+- The head set is the registry's **rate view** (the four modulation kinds, `exp` / `log` / `sqrt` and the math and distribution heads). A law that names a world-building head or a Python-only function, a bool, or a product of two distributions is refused at load, with the node's path.
+- **As built (M47.10):** both simulators run every admitted law — the reference simulator evaluates the expression in Python; the JAX core (M24) lowers it to vectorised ops (and applies modulations, which it used to drop) — and agree to float64 precision (`tests/expr/test_rate_grammar.py`).
 
 This is the split between the two tiers of the language: **`!x` is run once, at generation time, by the interpreter, and speed is irrelevant; a rate law is compiled and runs a million times, so it is restricted to what compiles.**
 

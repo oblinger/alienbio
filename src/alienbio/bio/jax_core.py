@@ -20,6 +20,12 @@ Design notes
   order-independent, provably non-negative, mass-conserving, and reduces to
   the C1 clamp when reactions do not compete -- so it matches the scalar
   simulators, which now use the same simultaneous scheme.
+* **Modulations and compiled rate laws** (M47.10): a reaction's non-consumed
+  modulators (``Modulation`` kinds) are padded into ``[Rn, Mn]`` tensors and
+  applied as a vectorised factor; a compiled rate expression
+  (``bio.rate_expr``) is lowered to JAX ops over the state array and either
+  replaces mass action (when it names a reactant) or multiplies it. Both
+  match ``WorldSimulatorImpl`` to float64 precision.
 * **C1 mass-conservation fix** is subsumed by the simultaneous scheme: for a
   single reaction the proportional ratio collapses to the old tightest-
   available-substrate clamp.
@@ -27,7 +33,9 @@ Design notes
 
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple
+
+from .rate_expr import lower_jax
 
 try:
     import jax
@@ -37,6 +45,7 @@ try:
     HAS_JAX = True
 except ImportError:  # pragma: no cover - exercised only when JAX absent
     HAS_JAX = False
+    jax = jnp = _jax_config = None  # type: ignore[assignment]  (every entry point checks HAS_JAX)
 
 
 def enable_x64() -> None:
@@ -102,6 +111,86 @@ def build_reaction_tensors(
     )
 
 
+#: Modulation kinds by code, for the padded modulation tensors (0 = no slot).
+MOD_KINDS: Tuple[str, ...] = ("", "activator", "inhibitor", "michaelis", "hill")
+
+
+def build_modulation_tensors(
+    reactions: Sequence, dtype
+) -> Optional[Tuple["jnp.ndarray", "jnp.ndarray", "jnp.ndarray"]]:
+    """Pad every reaction's ``modulators`` into ``[Rn, Mn]`` tensors (M47.10):
+    ``mod_mol`` (molecule index, 0 where padded), ``mod_kind`` (code into
+    :data:`MOD_KINDS`, 0 where padded) and ``mod_params`` ``[Rn, Mn, 3]``
+    (``a`` | ``Ki`` | ``K``, ``Vmax``, ``n``). ``None`` when no reaction is
+    modulated — the fast path."""
+    mods = [list(getattr(r, "modulators", {}).items()) for r in reactions]
+    width = max((len(m) for m in mods), default=0)
+    if width == 0:
+        return None
+    rn = len(reactions)
+    mol = [[0] * width for _ in range(rn)]
+    kind = [[0] * width for _ in range(rn)]
+    params = [[[0.0, 1.0, 1.0] for _ in range(width)] for _ in range(rn)]
+    for i, items in enumerate(mods):
+        for j, (mol_id, m) in enumerate(items):
+            code = MOD_KINDS.index(m.kind) if m.kind in MOD_KINDS else 0
+            mol[i][j] = int(mol_id)
+            if code == 1 and m.a is not None:
+                kind[i][j], params[i][j][0] = 1, float(m.a)
+            elif code == 2 and m.Ki is not None:
+                kind[i][j], params[i][j][0] = 2, float(m.Ki)
+            elif code == 3 and m.Vmax is not None and m.K is not None:
+                kind[i][j], params[i][j] = 3, [float(m.K), float(m.Vmax), 1.0]
+            elif code == 4 and m.Vmax is not None and m.K is not None and m.n is not None:
+                kind[i][j], params[i][j] = 4, [float(m.K), float(m.Vmax), float(m.n)]
+    return jnp.array(mol, dtype=jnp.int32), jnp.array(kind, dtype=jnp.int32), jnp.array(params, dtype=dtype)
+
+
+def modulation_factors(S: "jnp.ndarray", mod_mol: "jnp.ndarray", mod_kind: "jnp.ndarray", mod_params: "jnp.ndarray") -> "jnp.ndarray":
+    """The dimensionless modulation factor per ``[Rn, C]`` — the product over
+    a reaction's modulator slots of ``WorldSimulatorImpl._modulation_factor``'s
+    per-kind terms (padded slots contribute 1)."""
+    m = S[:, mod_mol]  # [C, Rn, Mn]
+    m = jnp.transpose(m, (1, 0, 2))  # [Rn, C, Mn]
+    kind = mod_kind[:, None, :]  # [Rn, 1, Mn]
+    p0 = mod_params[:, None, :, 0]
+    p1 = mod_params[:, None, :, 1]
+    p2 = mod_params[:, None, :, 2]
+    one = jnp.ones_like(m)
+    activator = 1.0 + p0 * m
+    inhibitor = 1.0 / (1.0 + m / jnp.where(kind == 2, p0, 1.0))
+    denom_mm = p0 + m
+    michaelis = jnp.where(denom_mm > 0.0, p1 * m / jnp.where(denom_mm > 0.0, denom_mm, 1.0), 0.0)
+    m_n = m ** p2
+    denom_h = p0**p2 + m_n
+    hill = jnp.where(denom_h > 0.0, p1 * m_n / jnp.where(denom_h > 0.0, denom_h, 1.0), 0.0)
+    factor = jnp.where(kind == 1, activator, one)
+    factor = jnp.where(kind == 2, inhibitor, factor)
+    factor = jnp.where(kind == 3, michaelis, factor)
+    factor = jnp.where(kind == 4, hill, factor)
+    return jnp.prod(factor, axis=2)  # [Rn, C]
+
+
+#: A compiled rate law for the core: (reaction index, law over S -> [C], implicit mass action).
+LawFn = Tuple[int, Callable[["jnp.ndarray"], "jnp.ndarray"], bool]
+
+
+def build_rate_laws(reactions: Sequence) -> List[LawFn]:
+    """Lower every reaction's ``rate_law`` (species by molecule ID) to a JAX
+    function over the state array (M47.10)."""
+    laws: List[LawFn] = []
+    for i, r in enumerate(reactions):
+        law = getattr(r, "rate_law", None)
+        if law is None:
+            continue
+
+        def fn(S: "jnp.ndarray", _law: Any = law) -> "jnp.ndarray":
+            return lower_jax(_law, S, lambda mol_id: int(mol_id))
+
+        laws.append((i, fn, bool(getattr(r, "implicit_mass_action", True))))
+    return laws
+
+
 def apply_reactions(
     S: "jnp.ndarray",
     r_stoich: "jnp.ndarray",
@@ -109,6 +198,8 @@ def apply_reactions(
     k: "jnp.ndarray",
     comp_mask: "jnp.ndarray",
     dt: float,
+    modulation: Optional[Tuple["jnp.ndarray", "jnp.ndarray", "jnp.ndarray"]] = None,
+    laws: Sequence[LawFn] = (),
 ) -> "jnp.ndarray":
     """Apply all reactions to state ``S`` [C, M] simultaneously (H4).
 
@@ -141,7 +232,15 @@ def apply_reactions(
     # desired[r, c]: mass-action rate from the frozen state. 0**0 == 1 in jnp,
     # so non-reactant molecules (stoich 0) contribute a factor of 1.
     powers = S[None, :, :] ** r_stoich[:, None, :]  # [Rn, C, M]
-    rate = k[:, None] * jnp.prod(powers, axis=2) * dt  # [Rn, C]
+    mass_action = jnp.prod(powers, axis=2)  # [Rn, C]
+    rate = k[:, None] * mass_action  # [Rn, C]
+    for idx, law_fn, implicit in laws:
+        # M47.10 — a compiled rate law: the whole rate, or the factor on mass action.
+        law_rate = law_fn(S)  # [C]
+        rate = rate.at[idx].set(law_rate * mass_action[idx] if implicit else law_rate)
+    if modulation is not None:
+        rate = rate * modulation_factors(S, *modulation)
+    rate = rate * dt
     desired = jnp.maximum(rate, 0.0) * comp_mask  # [Rn, C]
 
     # demand[c, m] = total consumption of molecule m across reactions.
@@ -186,11 +285,13 @@ def make_step_fn(
     comp_mask: "jnp.ndarray",
     dt: float,
     native_flows: Sequence[Tuple[int, int, int, float]],
+    modulation: Optional[Tuple["jnp.ndarray", "jnp.ndarray", "jnp.ndarray"]] = None,
+    laws: Sequence[LawFn] = (),
 ):
     """Build a pure ``S -> S`` single-step function (reactions then flows)."""
 
     def step(S: "jnp.ndarray") -> "jnp.ndarray":
-        S = apply_reactions(S, r_stoich, p_stoich, k, comp_mask, dt)
+        S = apply_reactions(S, r_stoich, p_stoich, k, comp_mask, dt, modulation, laws)
         if native_flows:
             S = apply_native_flows(S, native_flows, dt)
         return S

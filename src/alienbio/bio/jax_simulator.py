@@ -85,6 +85,10 @@ class JaxWorldSimulator:
             )
         )
 
+        # Modulations and compiled rate laws (M47.10).
+        self._modulation = jax_core.build_modulation_tensors(reactions, self._dtype)
+        self._laws = jax_core.build_rate_laws(reactions)
+
         # Pure device kernels.
         self._step_fn = jax_core.make_step_fn(
             self._r_stoich,
@@ -93,6 +97,8 @@ class JaxWorldSimulator:
             self._comp_mask,
             self._dt,
             self._native_flows,
+            self._modulation,
+            self._laws,
         )
         self._jit_step_fn = jax.jit(self._step_fn)
         self._run_fn = jax_core.make_run_fn(self._step_fn)

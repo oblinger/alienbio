@@ -11,6 +11,7 @@ from .compartment_tree import CompartmentTreeImpl
 from .flow import Flow
 from .population import MolDelta, MultDelta, PopulationLaw
 from .reaction import Modulation
+from .rate_expr import eval_rate, implicit_mass_action, map_species
 
 if TYPE_CHECKING:
     from .chemistry import ChemistryImpl
@@ -39,7 +40,7 @@ class ReactionSpec:
             scale the rate (F015 S2); empty for an unmodified reaction (the fast path).
     """
 
-    __slots__ = ("name", "reactants", "products", "rate_constant", "compartments", "modulators")
+    __slots__ = ("name", "reactants", "products", "rate_constant", "compartments", "modulators", "rate_law", "implicit_mass_action")
 
     def __init__(
         self,
@@ -49,6 +50,7 @@ class ReactionSpec:
         rate_constant: float = 1.0,
         compartments: Optional[List[CompartmentId]] = None,
         modulators: Optional[Dict[MoleculeId, Modulation]] = None,
+        rate_law: Optional[Any] = None,
     ) -> None:
         self.name = name
         self.reactants = reactants
@@ -56,6 +58,13 @@ class ReactionSpec:
         self.rate_constant = rate_constant
         self.compartments = compartments  # None means all compartments
         self.modulators = modulators or {}  # empty by default — the no-modifier fast path
+        #: M47.10 — a compiled rate expression (``bio.rate_expr`` tree, species by
+        #: molecule ID). When it names a reactant it IS the rate; otherwise mass
+        #: action over the reactants is implicit and the law multiplies it.
+        self.rate_law = rate_law
+        self.implicit_mass_action = (
+            implicit_mass_action(rate_law, reactants) if rate_law is not None else True
+        )
 
 
 class WorldSimulatorImpl:
@@ -242,9 +251,17 @@ class WorldSimulatorImpl:
         reaction with no modulators (the common case) hits the ``modulators`` emptiness
         check and skips straight past it — no added allocation, no changed result.
         """
-        rate = reaction.rate_constant
-        for mol_id, stoich in reaction.reactants.items():
-            rate *= frozen.get(compartment, mol_id) ** stoich
+        if reaction.rate_law is not None:
+            # M47.10 — the compiled expression: the whole rate when it names a
+            # reactant, else the factor multiplying mass action.
+            rate = eval_rate(reaction.rate_law, lambda mol_id: frozen.get(compartment, mol_id))
+            if reaction.implicit_mass_action:
+                for mol_id, stoich in reaction.reactants.items():
+                    rate *= frozen.get(compartment, mol_id) ** stoich
+        else:
+            rate = reaction.rate_constant
+            for mol_id, stoich in reaction.reactants.items():
+                rate *= frozen.get(compartment, mol_id) ** stoich
         if reaction.modulators:
             rate *= self._modulation_factor(frozen, reaction.modulators, compartment)
         rate *= self._dt
@@ -468,6 +485,16 @@ class WorldSimulatorImpl:
                     rxn_name,
                 )
 
+            rate_law = None
+            if reaction.rate_law is not None:
+                def _column(name: Any, _rxn: str = rxn_name) -> int:
+                    mol_id = mol_to_id.get(str(name))
+                    if mol_id is None:
+                        raise KeyError(f"Reaction {_rxn!r}: rate law names {name!r}, not in chemistry.molecules")
+                    return mol_id
+
+                rate_law = map_species(reaction.rate_law, _column)
+
             reaction_specs.append(ReactionSpec(
                 name=rxn_name,
                 reactants=reactants,
@@ -475,6 +502,7 @@ class WorldSimulatorImpl:
                 rate_constant=rate,
                 compartments=None,  # Apply to all compartments
                 modulators=modulators,
+                rate_law=rate_law,
             ))
 
         return cls(

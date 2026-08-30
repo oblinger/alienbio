@@ -105,7 +105,7 @@ class ReactionImpl(Entity, head="Reaction"):
         )
     """
 
-    __slots__ = ("_reactants", "_products", "_modifiers", "_rate")
+    __slots__ = ("_reactants", "_products", "_modifiers", "_rate", "_rate_law")
 
     def __init__(
         self,
@@ -115,6 +115,7 @@ class ReactionImpl(Entity, head="Reaction"):
         products: Optional[Dict[Molecule, float]] = None,
         modifiers: Optional[Mapping[Molecule, ModifierValue]] = None,
         rate: RateValue = 1.0,
+        rate_law: Optional[Any] = None,
         parent: Optional[Entity] = None,
         dat: Optional[Dat] = None,
         description: str = "",
@@ -129,6 +130,9 @@ class ReactionImpl(Entity, head="Reaction"):
                 ``Modulation`` (kind + rate params) or a bare opaque role tag
                 ``str`` (e.g. "catalyst") — a bare string is inert (factor 1.0)
             rate: Reaction rate (constant float or function of State)
+            rate_law: Optional compiled rate expression (``bio.rate_expr``, species
+                by molecule name) — the whole rate when it names a reactant, else the
+                factor multiplying mass action; ``rate`` is then unused (M47.10)
             parent: Link to containing entity
             dat: DAT anchor for root reactions
             description: Human-readable description
@@ -138,6 +142,9 @@ class ReactionImpl(Entity, head="Reaction"):
         self._products: Dict[Molecule, float] = products.copy() if products else {}
         self._modifiers: Dict[Molecule, ModifierValue] = dict(modifiers) if modifiers else {}
         self._rate: RateValue = rate
+        from .rate_expr import from_json
+
+        self._rate_law: Optional[Any] = from_json(rate_law) if rate_law is not None else None
 
     @classmethod
     def hydrate(
@@ -242,6 +249,7 @@ class ReactionImpl(Entity, head="Reaction"):
             products=products,
             modifiers=modifiers,
             rate=rate,
+            rate_law=data.get("rate_law"),
             parent=parent,
             dat=dat,
             description=data.get("description", ""),
@@ -285,6 +293,12 @@ class ReactionImpl(Entity, head="Reaction"):
             for m, c in self._products.items()
         )
         return f"{reactant_str} -> {product_str}"
+
+    @property
+    def rate_law(self) -> Optional[Any]:
+        """The compiled rate expression (``bio.rate_expr`` tree, species by
+        name), or ``None`` for plain mass action (M47.10)."""
+        return self._rate_law
 
     def set_rate(self, rate: RateValue) -> None:
         """Set the reaction rate."""
@@ -341,6 +355,10 @@ class ReactionImpl(Entity, head="Reaction"):
         # Only serialize rate if it's a constant
         if not callable(self._rate):
             result["rate"] = self._rate
+        if self._rate_law is not None:
+            from .rate_expr import to_json
+
+            result["rate_law"] = to_json(self._rate_law)
 
         return result
 

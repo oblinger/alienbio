@@ -73,7 +73,7 @@ EXP-3 (M36.10) gives the diagnosis world a real perturbation — `perturbation=f
 
 ## What is not here yet
 
-Live-model arms on the AUP-registered substrates wait on the paper (the no-peeking rule); AUP's open M45 items (the declared lever allowlist, the realism judge) and the JAX core's rate-grammar support (M47.10 — today the vectorised core runs mass action only; modulations run on the reference simulator). See [[ABIO Roadmap]] § M45 and § M47.
+Live-model arms on the AUP-registered substrates wait on the paper (the no-peeking rule), and AUP's open M45 items (the declared lever allowlist, the realism judge). The suite's `simulate` still runs the reference simulator; the JAX core matches it on every admitted rate law (M47.10) but is not yet the suite's default backend. See [[ABIO Roadmap]] § M45.
 
 ## See Also
 

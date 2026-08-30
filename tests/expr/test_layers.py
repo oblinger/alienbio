@@ -132,7 +132,7 @@ def test_generative_world_drafters_are_heads_under_the_node_seed():
 # ---------------------------------------------------------------------------
 
 
-def test_rate_law_compiles_k_times_modulations_and_refuses_the_rest():
+def test_rate_law_compiles_k_times_modulations_and_algebra_beyond_it():
     from alienbio.suite.rate_law import RateLaw, compile_rate
 
     env = Env.standard(seed=1, bindings={"k": 0.4, "Kd": 0.5})
@@ -143,9 +143,10 @@ def test_rate_law_compiles_k_times_modulations_and_refuses_the_rest():
     assert law.modulations[0].sample(Seed(1)).n == 2.0 and law.modulations[0].sample(Seed(1)).K == 0.5
     # a constant factor may be computed (exp of a constant, a draw) — it is still a constant k
     assert compile_rate(evaluate(X.quote(X.parse("2 * exp(k)")), env), env).k == Constant(2 * __import__("math").exp(0.4))
-    for bad in ("k + 1", "k / 2", "Vmax * S / (Km + S)", "hill(S, 0.5)", "exp(M)"):
-        with pytest.raises(ExprError):
-            compile_rate(evaluate(X.quote(X.parse(bad)), Env.standard(seed=1, bindings={"k": 1.0, "Vmax": 1.0, "Km": 1.0})), env, reactants=["S"])
+    # beyond the product form the law compiles to an expression (M47.10), not a refusal
+    for algebra in ("k + 1", "k / 2", "Vmax * S / (Km + S)", "hill(S, 0.5)", "exp(M)"):
+        law = compile_rate(evaluate(X.quote(X.parse(algebra)), Env.standard(seed=1, bindings={"k": 1.0, "Vmax": 1.0, "Km": 1.0})), env, reactants=["S"])
+        assert law.expr is not None and law.modulations == ()
     with pytest.raises(ExprError, match="unknown head 'source'"):
         compile_rate(evaluate(X.quote(X.parse("k * source(pool='A')")), env), env)
     assert evaluate(X.parse("hill(0.5, 0.5, n=2)"), env) == pytest.approx(0.5)  # a rate head is a plain function outside a law
