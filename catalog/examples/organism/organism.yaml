@@ -1,0 +1,74 @@
+# organism.yaml — M48.9 example 2: a compartment tree with membrane transport,
+# a spatial diffusion patch, per-compartment initial state, energy accounting
+# and the boundedness gate switched on; a predict task on a transport-limited
+# response. Loads trusted (helpers.py registers the two gates and the
+# drafter the experiment calls). See README.md.
+_includes_: [helpers.py]
+
+# ---- an energy-annotated chemistry ------------------------------------
+# Every molecule carries a free energy of formation; every internal reaction
+# runs downhill (ΔG < 0), which the `energy_valid` gate checks. `feed` and
+# `clear` are boundary reactions (a source and a sink) and are exempt.
+metabolism: !Chemistry
+  molecules:
+    glucose:  {formation_energy: -1.0}
+    pyruvate: {formation_energy: -2.0}
+    lactate:  {formation_energy: -2.5}
+    waste:    {formation_energy: -3.0}
+  reactions:
+    feed:       {reactants: [], products: [glucose], rate: !x feed_rate}
+    glycolysis: {reactants: [glucose], products: [pyruvate, pyruvate], rate: 0.3}
+    ferment:    {reactants: [pyruvate], products: [lactate], rate: 0.2}
+    excrete:    {reactants: [lactate], products: [waste], rate: 0.1}
+    clear:      {reactants: [waste], products: [], rate: 0.05}
+
+feed_rate: 0.5
+transport_rate: 0.3              # the drafter overrides this per condition
+
+# ---- the body: a compartment tree with membrane transport ---------------
+# organism → liver (organ) → hepatocyte (cell) → mitochondrion (organelle).
+# Glucose enters at the organism and must cross two membranes to be
+# metabolised; pyruvate crosses a third into the organelle. Two guards run
+# over the finished world: energy accounting and the boundedness gate.
+body: !World
+  chemistry: !x metabolism
+  compartments:
+    - !Compartment {id: organism, kind: organism, volume: 10.0, concentrations: {glucose: 5.0}}
+    - !Compartment {id: liver, parent: organism, kind: organ, volume: 2.0}
+    - !Compartment {id: hepatocyte, parent: liver, kind: cell, volume: 0.5}
+    - !Compartment {id: mitochondrion, parent: hepatocyte, kind: organelle, volume: 0.1}
+  flows:
+    - !Transport {origin: organism, dest: liver, molecule: glucose, rate: !x transport_rate}
+    - !Transport {origin: liver, dest: hepatocyte, molecule: glucose, rate: !x transport_rate}
+    - !Transport {origin: hepatocyte, dest: mitochondrion, molecule: pyruvate, rate: 0.4}
+    - !Transport {origin: hepatocyte, dest: liver, molecule: lactate, rate: 0.1, rate_law: first_order}
+  guards: [energy_valid, bounded]
+  on_fail: reject
+
+# ---- a tissue patch: spatial diffusion on a lattice ---------------------
+# The block library's spatial primitive: k cells in a row, nearest-neighbour
+# diffusion of one molecule, an initial pulse in cell 0.
+tissue: !world
+  skeleton: !skeleton
+    root: !block
+      children:
+        patch: !lattice {k: 4, molecule: oxygen, diffusion: 0.2, initial: {0: 4.0}}
+
+# ---- a task: predict the response to a throttled step -------------------
+# `predict_q` re-simulates the world with `ferment` slowed by `factor` and
+# reads the direction lactate moves (up / down / same) — the key is computed
+# from the physics, never written down.
+task: !task
+  archetype: organism-predict
+  objective: !predict_q {world: !x body, reaction_id: ferment, target_id: lactate, factor: 0.25, sim: !sim {dt: 0.1, steps: 60}}
+
+# ---- an experiment over the transport rate ------------------------------
+experiment: !experiment
+  name: organism-zero
+  task: !q organism(transport_rate=transport_rate)
+  episode: !q episode(max_turns=4, sim_steps=10)
+  agent: measure_commit
+  axes: {transport_rate: [0.1, 0.4]}
+  trials_per_condition: 2
+  base_seed: 7
+  out_dir: runs/examples/organism

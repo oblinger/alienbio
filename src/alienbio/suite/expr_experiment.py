@@ -113,6 +113,16 @@ def _chemistry(host: Any, what: str, env: Env) -> Any:
     raise env.error(f"{what}: expected a World or a Chemistry, got {type(host).__name__}")
 
 
+def _skeleton_or_empty(skeleton: Any, head: str, env: Env) -> CarveResult:
+    """A hand-built world has no carve: ``skeleton`` may be omitted (an empty
+    CarveResult) for the objective heads that read the world, not the binding."""
+    if skeleton is None:
+        return CarveResult(motif=Motif(roles=(), edges=()), binding={})
+    if not isinstance(skeleton, CarveResult):
+        raise env.error(f"{head}: skeleton must be a CarveResult (see !carve) or omitted")
+    return skeleton
+
+
 def _objective_of(recipe: Any, skeleton: CarveResult, world: WorldImpl) -> dict[str, Any]:
     """What an objective head returns: the question and the objective together."""
     grader = recipe.grader_spec()
@@ -175,33 +185,30 @@ def carve(host: Any, pattern: Motif, allow_add: bool = True, *, env: Env) -> Car
 
 
 @fn(summary="identify-the-pathway objective over a carved chain: {question, objective}")
-def identify(skeleton: CarveResult, world: WorldImpl, roles: Sequence[str], verb: str = "identify", *, env: Env) -> dict[str, Any]:
-    if not isinstance(skeleton, CarveResult):
-        raise env.error("identify: skeleton must be a CarveResult")
+def identify(world: WorldImpl, roles: Sequence[str], skeleton: Optional[CarveResult] = None, verb: str = "identify", *, env: Env) -> dict[str, Any]:
+    skeleton = _skeleton_or_empty(skeleton, "identify", env)
     return _objective_of(IdentifyPathwayRecipe(role_names=tuple(str(r) for r in roles), verb=str(verb)), skeleton, world)
 
 
 @fn(summary="diagnose-the-perturbation objective: {question, objective}")
-def diagnose_q(skeleton: CarveResult, world: WorldImpl, target_role: str = DIAGNOSE_TARGET_ROLE, verb: str = "diagnose", *, env: Env) -> dict[str, Any]:
-    if not isinstance(skeleton, CarveResult):
-        raise env.error("diagnose_q: skeleton must be a CarveResult")
+def diagnose_q(world: WorldImpl, skeleton: Optional[CarveResult] = None, target_role: str = DIAGNOSE_TARGET_ROLE, verb: str = "diagnose", *, env: Env) -> dict[str, Any]:
+    skeleton = _skeleton_or_empty(skeleton, "diagnose_q", env)
     return _objective_of(DiagnosePerturbationRecipe(target_role=str(target_role), verb=str(verb)), skeleton, world)
 
 
 @fn(summary="predict-the-response objective (up/down/same by re-simulation): {question, objective}")
 def predict_q(
-    skeleton: CarveResult,
     world: WorldImpl,
     reaction_id: str,
     target_id: str,
+    skeleton: Optional[CarveResult] = None,
     factor: float = DEFAULT_FACTOR,
     sim: Optional[SimConfig] = None,
     verb: str = "predict",
     *,
     env: Env,
 ) -> dict[str, Any]:
-    if not isinstance(skeleton, CarveResult):
-        raise env.error("predict_q: skeleton must be a CarveResult")
+    skeleton = _skeleton_or_empty(skeleton, "predict_q", env)
     recipe = PredictResponseRecipe(
         reaction_id=str(reaction_id), target_id=str(target_id), factor=float(factor), verb=str(verb),
         sim_cfg=sim or SimConfig(), seed=env.ctx.seed,
@@ -210,9 +217,8 @@ def predict_q(
 
 
 @fn(summary="design-an-intervention objective (outcome-scored): {question, objective}")
-def intervene_q(skeleton: CarveResult, world: WorldImpl, target_value: float, role: str = INTERVENE_TARGET_ROLE, verb: str = "intervene", *, env: Env) -> dict[str, Any]:
-    if not isinstance(skeleton, CarveResult):
-        raise env.error("intervene_q: skeleton must be a CarveResult")
+def intervene_q(world: WorldImpl, target_value: float, skeleton: Optional[CarveResult] = None, role: str = INTERVENE_TARGET_ROLE, verb: str = "intervene", *, env: Env) -> dict[str, Any]:
+    skeleton = _skeleton_or_empty(skeleton, "intervene_q", env)
     return _objective_of(DesignInterventionRecipe(target_value=float(target_value), role_name=str(role), verb=str(verb)), skeleton, world)
 
 

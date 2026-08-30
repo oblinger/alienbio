@@ -590,6 +590,26 @@ def Compartment_(
     )
 
 
+@fn(kind="constructor", name="Transport", summary="a cross-compartment flux record: molecule from origin to dest at a rate")
+def Transport_(
+    origin: str,
+    dest: str,
+    molecule: str,
+    rate: float = 1.0,
+    rate_law: str = "gradient",
+    stoich: float = 1.0,
+    name: str = "",
+    *,
+    env: Env,
+) -> Transport:
+    if rate_law not in ("gradient", "first_order"):
+        raise env.error(f"Transport: rate_law must be 'gradient' or 'first_order', got {rate_law!r}")
+    return Transport(
+        origin=str(origin), dest=str(dest), stoichiometry={str(molecule): float(stoich)}, driver_molecule=str(molecule),
+        rate_constant=float(rate), rate_law=str(rate_law), name=str(name) or f"{origin}->{dest}:{molecule}",
+    )
+
+
 @fn(kind="constructor", name="World", summary="a World from a Chemistry and its compartment records")
 def World(
     chemistry: ChemistryImpl,
@@ -612,7 +632,7 @@ def World(
 
 
 __all__ = [
-    "Chemistry", "Compartment_", "Reaction", "World",
+    "Chemistry", "Compartment_", "Reaction", "Transport_", "World",
     "block", "conflict_world", "cooperative", "crux", "delta_pair", "diagnosis_world", "enzyme", "inhibit",
     "insult", "intervention_world", "lattice", "population", "prediction_world", "pressure_world", "reaction",
     "signal", "sim", "sink", "skeleton", "source", "transport", "verify", "world", "is_form", "ExprError",

@@ -389,12 +389,14 @@ host: !Chemistry
   reactions: [!x leak]
 dimer: !Reaction {reactants: [A, A], products: [{B: 2.0}], rate: 0.3}
 site: !Compartment {kind: cell, volume: 1.0, concentrations: {A: 2.0}}
-w: !World {chemistry: !x host, compartments: [!x site]}
+inner: !Compartment {id: inner, parent: site, kind: organelle, volume: 0.1}
+pipe: !Transport {origin: site, dest: inner, molecule: A, rate: 0.2}
+w: !World {chemistry: !x host, compartments: [!x site, !x inner], flows: [!x pipe]}
 saved: {_type: Reaction, name: r, reactants: [A], products: [B], rate: 0.2}
 ```
 
 - Every registered `Entity` head is a constructor head under its head name — `!Molecule`, `!Reaction`, `!Chemistry` — calling the class's `hydrate` over the mapping. The node's key is the name when none is given. A reaction's sides take names, `{name: coef}` mappings or Molecule objects; a repeated name sums (`[A, A]` is `{A: 2}`); a molecule a reaction names but nothing declares is minted.
-- `!Compartment` and `!World` build the world **records** the simulator runs (`Compartment(id, kind, volume, parent, concentrations, multiplicity)`; `World(chemistry, compartments, flows, population_laws)`). A world built this way is a `World` like any drafted one.
+- `!Compartment`, `!Transport` and `!World` build the world **records** the simulator runs (`Compartment(id, kind, volume, parent, concentrations, multiplicity)` — `parent:` makes a tree; `Transport(origin, dest, molecule, rate, rate_law=gradient|first_order)` a membrane flux; `World(chemistry, compartments, flows, population_laws)`). A world built this way is a `World` like any drafted one.
 - A mapping carrying **`_type: X`** is the untagged spelling of `!X {...}` — kept for saved worlds.
 
 ## Blocks, skeletons and worlds
@@ -444,7 +446,7 @@ design: !power {target_effect_d: 3.0, multiple_comparison: bonferroni}
 agent: !x survey_commit()
 ```
 
-- **Layer 3.** `!pattern` is a motif (roles, edges, per-role constraint predicates); `!carve` finds or synthesises it in a host chemistry; the objective heads `identify` / `diagnose_q` / `predict_q` / `intervene_q` return `{question, objective}` over a skeleton and world; `!answer` / `!outcome` / `!grader` / `!question` are the value types; `!task` assembles a task instance.
+- **Layer 3.** `!pattern` is a motif (roles, edges, per-role constraint predicates); `!carve` finds or synthesises it in a host chemistry; the objective heads `identify` / `diagnose_q` / `predict_q` / `intervene_q` return `{question, objective}` over a world (and a carved skeleton, when there is one — a hand-built world omits it); `!answer` / `!outcome` / `!grader` / `!question` are the value types; `!task` assembles a task instance.
 - **Layer 4 — the ten drafters.** `identify_pathway`, `discover`, `diagnose`, `predict`, `intervene`, `pressure`, `commit_the_link`, `describe_the_world`, `conflict`, `delta`. Each is a head whose **dials are its declared keyword parameters** — typed, one default each — returning a `Draft` `(world, task)` under the node's seed. A dial a drafter does not declare is an error at the call.
 - **Layer 5.** `!suite {tasks: <archetype>, n_tasks: 2}` builds a suite of worlds and tasks; `!cover` partitions feature sets; `!vocabulary` mints an opaque vocabulary over a world's ids.
 - **Layer 6 — the agent side.** `!brief` declares the brief-side dials (`constitution`, `monitoring`, `framing`, `observability`, `observation_noise`, `stakes`, `reversibility`, `irreversible_levers`, `levers`, `assays`, `assay_kill`); `!episode` the episode-side ones (`max_turns`, `budget`, `sim_steps`, `sim_dt`, `sample_every`); `!power` is the statistical design; the agent heads — `idle`, `measure_commit`, `survey_commit`, `heuristic_commit`, `knockout_commit`, `act_commit`, `assay_commit`, `llm(model, memory, token_ceiling)` — each return an agent factory.
@@ -531,7 +533,7 @@ Every head the standard environment registers (`Env.standard()`), by kind. The t
 | guard | `max_size`, `nonempty` |
 | blocks and worlds (fn) | `block`, `cooperative`, `crux`, `enzyme`, `inhibit`, `insult`, `lattice`, `population`, `reaction`, `signal`, `sim`, `sink`, `skeleton`, `source`, `transport`, `world`, `conflict_world`, `delta_pair`, `diagnosis_world`, `intervention_world`, `prediction_world`, `pressure_world` |
 | expander | `verify` |
-| constructor | `Chemistry`, `Compartment`, `Molecule`, `Reaction`, `World`, `answer`, `grader`, `outcome`, `pattern`, `power`, `question`, `task` |
+| constructor | `Chemistry`, `Compartment`, `Molecule`, `Reaction`, `Transport`, `World`, `answer`, `grader`, `outcome`, `pattern`, `power`, `question`, `task` |
 | tasks and suites (fn) | `brief`, `carve`, `cover`, `diagnose_q`, `episode`, `identify`, `intervene_q`, `predict_q`, `suite`, `vocabulary` |
 | drafter | `commit_the_link`, `conflict`, `delta`, `describe_the_world`, `diagnose`, `discover`, `identify_pathway`, `intervene`, `predict`, `pressure` |
 | agent | `act_commit`, `assay_commit`, `heuristic_commit`, `idle`, `knockout_commit`, `llm`, `measure_commit`, `survey_commit` |

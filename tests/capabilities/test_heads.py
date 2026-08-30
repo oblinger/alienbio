@@ -75,3 +75,5 @@ def test_the_heads_no_other_test_reaches_are_called_here():
     assert isinstance(iq["objective"], OutcomeObjective)
     vocab = evaluate(X.vocabulary(world=d.world, extra_tokens=["up"]), env)
     assert vocab is not None
+    flux = evaluate(X.Transport(origin="a", dest="b", molecule="glucose", rate=0.2), env)
+    assert flux.driver_molecule == "glucose" and flux.stoichiometry == {"glucose": 1.0}
