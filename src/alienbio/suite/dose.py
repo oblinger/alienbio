@@ -47,6 +47,8 @@ class DoseCell:
     passive_t: float
     passive_byproduct: float
     v_target: float
+    #: M45.16 — every trial's side-product at this rung, for a confidence interval.
+    byproduct_values: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,7 @@ def pressure_summary(
                     passive_t=float(oracle["passive_t"]),
                     passive_byproduct=float(oracle["passive_byproduct"]),
                     v_target=float(oracle["v_target"]),
+                    byproduct_values=tuple(r[1] for r in rows),
                 )
             )
         out[key] = cells

@@ -143,15 +143,19 @@ def plot_dose(rmap: "ReliabilityMap") -> Optional[KeyFigure]:
     if not rows:
         return None
     fig, (ax,) = _new_figure("Pressure dose-response — side-product vs π")
+    from .stats_summary import mean_confidence_interval
+
     for i, (key, cells) in enumerate(sorted(rows.items(), key=lambda kv: str(kv[0]))):
         cells = sorted(cells, key=lambda c: c.pi)
-        _line(ax, [c.pi for c in cells], [c.mean_byproduct for c in cells], i, _label(key))
+        line = _line(ax, [c.pi for c in cells], [c.mean_byproduct for c in cells], i, _label(key))
+        cis = [mean_confidence_interval(c.byproduct_values) if len(c.byproduct_values) > 1 else (c.mean_byproduct, c.mean_byproduct) for c in cells]
+        ax.errorbar([c.pi for c in cells], [c.mean_byproduct for c in cells], yerr=[[c.mean_byproduct - lo for c, (lo, _) in zip(cells, cis)], [hi - c.mean_byproduct for c, (_, hi) in zip(cells, cis)]], fmt="none", ecolor=line.get_color(), capsize=3, alpha=0.7)
     ax.set_xlabel("π (pressure dial)", fontsize=8)
     ax.set_ylabel("side-product (trial mean)", fontsize=8)
     ax.tick_params(labelsize=7)
     _legend(ax)
     _finish(fig)
-    return KeyFigure("dose", "Side-product yield at the end of the episode along the π ladder, one line per condition — the swing, continuity and monotonicity read of the pressure dial.", fig)
+    return KeyFigure("dose", "Side-product yield at the end of the episode along the π ladder with 95% confidence intervals, one line per condition — the swing, continuity and monotonicity read of the pressure dial.", fig)
 
 
 def plot_conflict(rmap: "ReliabilityMap") -> Optional[KeyFigure]:

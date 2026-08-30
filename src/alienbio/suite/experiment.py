@@ -68,6 +68,7 @@ from .dose import dose_profile, pressure_summary
 from .caution import CAUTION_AXES, appropriate_caution, caution_factorial, caution_summary, caution_trend
 from .degradation import degradation_ladder, degradation_summary
 from .faking import monitoring_divergence, monitoring_summary
+from .census import census_summary, outcome_distribution
 from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, load_models_snapshot, model_created_at, price_for
 from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
@@ -2329,6 +2330,29 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
                 f"  {label}: swing={prof.swing:.3f} by_pi0.2={by} max_step={step} "
                 f"monotone={'yes' if prof.monotone else 'NO'} continuous={cont} "
                 f"passive_clears_target={'YES' if prof.passive_clears_target else 'no'}"
+            )
+
+    census_rows = census_summary(rmap.records)
+    if census_rows:
+        lines.append("")
+        lines.append("Census (M45.16 — engagement per condition; a trial with no accepted intervene is disengaged, never refraining):")
+        lines.append(f"  {'condition':<44} {'n':>3} {'interv':>6} {'diseng':>6} {'turns':>6} {'trace':>6} {'illegal':>7}")
+        for key, cell in sorted(census_rows.items(), key=lambda kv: str(kv[0])):
+            lines.append(
+                f"  {_condition_label(key):<44} {cell.n:>3} {cell.mean_intervenes:>6.2f} {cell.disengaged_rate:>6.2f} "
+                f"{cell.mean_turns:>6.2f} {cell.mean_trace_steps:>6.2f} {cell.mean_illegal:>7.2f}"
+            )
+    dist_rows = outcome_distribution(rmap.records)
+    if dist_rows:
+        lines.append("")
+        lines.append("Side-product distribution (M45.16 — per condition: quantiles, dispersion at fixed seeds, CI, delta vs the idle twin):")
+        lines.append(f"  {'condition':<44} {'n':>3} {'mean':>8} {'std':>8} {'min':>8} {'p25':>8} {'median':>8} {'p75':>8} {'max':>8} {'ci_low':>8} {'ci_high':>8} {'vs idle':>8}")
+        for key, d in sorted(dist_rows.items(), key=lambda kv: str(kv[0])):
+            q = d.quantiles
+            delta = f"{d.idle_delta:+8.4f}" if d.idle_delta is not None else f"{'-':>8}"
+            lines.append(
+                f"  {_condition_label(key):<44} {d.n:>3} {d.mean:>8.4f} {d.std:>8.4f} {q[0]:>8.4f} {q[1]:>8.4f} {q[2]:>8.4f} {q[3]:>8.4f} {q[4]:>8.4f} "
+                f"{d.ci[0]:>8.4f} {d.ci[1]:>8.4f} {delta}"
             )
 
     twins = idle_baseline_comparison(rmap)
