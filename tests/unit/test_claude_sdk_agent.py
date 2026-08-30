@@ -77,10 +77,10 @@ class TestClaudeAgentSDKBindingBasics:
     def test_agent_with_explicit_params(self):
         """Agent accepts explicit parameters."""
         agent = ClaudeAgentSDKBinding(
-            model="claude-opus-4-20250514",
+            model="claude-opus-4-5-20251101",
             api_key="test-key"
         )
-        assert agent._model == "claude-opus-4-20250514"
+        assert agent._model == "claude-opus-4-5-20251101"
         assert agent._api_key == "test-key"
 
     def test_agent_default_model(self):

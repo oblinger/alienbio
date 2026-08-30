@@ -211,10 +211,10 @@ class TestDefaultModel:
 
     def test_set_default_model(self, temp_config_dir):
         """set_default_model stores model setting."""
-        config.set_default_model("anthropic", "claude-opus-4-20250514")
+        config.set_default_model("anthropic", "claude-opus-4-5-20251101")
 
         model = config.get_default_model("anthropic")
-        assert model == "claude-opus-4-20250514"
+        assert model == "claude-opus-4-5-20251101"
 
     def test_get_default_model_returns_none_for_unknown(self, temp_config_dir):
         """get_default_model returns None for unknown provider."""
@@ -267,14 +267,14 @@ class TestConfigIntegration:
 
         # Set defaults
         config.set_default_agent("anthropic")
-        config.set_default_model("anthropic", "claude-opus-4-20250514")
+        config.set_default_model("anthropic", "claude-opus-4-5-20251101")
 
         # Verify
         assert "anthropic" in config.list_providers()
         assert "openai" in config.list_providers()
         assert config.get_api_key("anthropic") == "sk-ant-123"
         assert config.get_default_agent() == "anthropic"
-        assert config.get_default_model("anthropic") == "claude-opus-4-20250514"
+        assert config.get_default_model("anthropic") == "claude-opus-4-5-20251101"
 
         # Remove one
         config.remove_api_key("openai")

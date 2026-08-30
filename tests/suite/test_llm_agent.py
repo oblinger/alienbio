@@ -397,8 +397,8 @@ def test_price_for_unknown_model_raises_and_override_wins():
         price_for("some-unknown-model-20260101")
     assert price_for("some-unknown-model-20260101", override=(1.0, 2.0)) == (1.0, 2.0)
     # An override wins even for a KNOWN model.
-    assert price_for("claude-sonnet-4-20250514", override=(9.0, 9.0)) == (9.0, 9.0)
-    assert price_for("claude-sonnet-4-20250514") == (3.0, 15.0)
+    assert price_for("claude-sonnet-4-5-20250929", override=(9.0, 9.0)) == (9.0, 9.0)
+    assert price_for("claude-sonnet-4-5-20250929") == (3.0, 15.0)
 
 
 def test_cost_usd_with_cache_tokens():

@@ -4,7 +4,7 @@ Usage:
     bio run <scenario_path>
     bio run <scenario_path> --seed 42
     bio run <scenario_path> --agent anthropic
-    bio run <scenario_path> --agent anthropic --model claude-opus-4-20250514
+    bio run <scenario_path> --agent anthropic --model claude-opus-4-5-20251101
     bio run <scenario_path> --agent random --seed 42
 
 Agent types:

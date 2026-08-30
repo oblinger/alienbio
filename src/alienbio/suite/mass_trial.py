@@ -509,6 +509,7 @@ class MassTrialRunner:
             trial_seed = base_seed.child(f"{seed_label}/{i}")
             run_dials = {**extra_dials, **dials}
             task: Optional[TaskInstance] = None
+            agent: Any = None
             try:
                 world, task = drafter(trial_seed.child("draft"), run_dials)
                 agent = agent_factory(trial_seed.child("agent"), run_dials)
@@ -517,6 +518,15 @@ class MassTrialRunner:
             except Exception as exc:
                 if on_error == "raise":
                     raise
+                error = f"{type(exc).__name__}: {exc}"
+                # An exception that carries the trial's own record (TaintError)
+                # lands THAT record — its brief, taint hits and, above all, its
+                # real usage — so the spend behind a failed trial still counts
+                # toward the cost ceiling. (The first paid trial, 2026-08-29,
+                # made ~20 s of model calls and reported usage=None.)
+                carried = getattr(exc, "record", None)
+                if isinstance(carried, TrialRecord):
+                    return replace(carried, condition_key=key, terminal_reason="error", error=error)
                 return TrialRecord(
                     task_id=task.world if task is not None else label,
                     condition_key=key,
@@ -525,7 +535,8 @@ class MassTrialRunner:
                     action_log=(),
                     objective_score=0.0,
                     terminal_reason="error",
-                    error=f"{type(exc).__name__}: {exc}",
+                    error=error,
+                    usage=getattr(agent, "usage", None) if agent is not None else None,
                 )
 
         def land(label: str, i: int, record: TrialRecord) -> None:

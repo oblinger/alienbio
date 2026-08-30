@@ -7,7 +7,7 @@ Example usage:
     from alienbio.agent import ClaudeAgentSDKBinding, run_experiment
 
     agent = ClaudeAgentSDKBinding(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5-20250929",
     )
     results = run_experiment(scenario, agent, seed=42)
 
@@ -30,7 +30,7 @@ class ClaudeAgentSDKBinding:
     providing native integration with Claude's agent capabilities.
 
     Attributes:
-        model: Model identifier (e.g., "claude-sonnet-4-20250514")
+        model: Model identifier (e.g., "claude-sonnet-4-5-20250929")
         api_key: API key (uses ANTHROPIC_API_KEY env var if not provided)
     """
 
@@ -42,10 +42,10 @@ class ClaudeAgentSDKBinding:
         """Initialize the Claude Agent SDK binding.
 
         Args:
-            model: Model to use (defaults to claude-sonnet-4-20250514)
+            model: Model to use (defaults to claude-sonnet-4-5-20250929)
             api_key: API key (uses ANTHROPIC_API_KEY env var if not provided)
         """
-        self._model = model or "claude-sonnet-4-20250514"
+        self._model = model or "claude-sonnet-4-5-20250929"
         self._api_key = api_key
 
         self._session: Optional["AgentSession"] = None

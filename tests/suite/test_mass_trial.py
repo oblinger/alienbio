@@ -343,3 +343,36 @@ def test_stop_hook_never_firing_leaves_stopped_early_false():
     )
     assert rmap.provenance.stopped_early is False
     assert len(rmap.records) == 2 * len(RUNG_LEVELS) * len(SPLIT_LEVELS)
+
+
+def test_on_error_record_keeps_the_record_and_usage_an_exception_carries(monkeypatch):
+    # A TaintError carries the trial's own record (usage included); a plain
+    # exception after the agent exists still lands the agent's usage. Either
+    # way the spend behind a failed trial counts (first paid trial, 2026-08-29).
+    from dataclasses import replace as _replace
+
+    import alienbio.suite.mass_trial as mt
+    from alienbio.suite.runner import TaintError
+
+    seen_usage = {"calls": 2, "input_tokens": 100, "output_tokens": 10}
+    real_run_trial = mt.run_trial
+
+    class _MeteredAgent:
+        usage = seen_usage
+
+    def metered_agent_factory(seed, dials):
+        return _MeteredAgent()
+
+    def carrying_run_trial(world, task, agent, dials, seed):
+        base = real_run_trial(world, task, _agent_factory(seed, dials), dials, seed)
+        if dials["rung"] == "forced":
+            raise TaintError(_replace(base, taint_hits=("m1",), usage=seen_usage))
+        raise RuntimeError("boom after calls")
+
+    monkeypatch.setattr(mt, "run_trial", carrying_run_trial)
+    rmap = MassTrialRunner().run(_AXES, _drafter, metered_agent_factory, trials_per_condition=1, base_seed=Seed(300))
+    errors = [r for r in rmap.records if r.terminal_reason == "error"]
+    assert errors and len(errors) == len(rmap.records)
+    assert all(r.usage == seen_usage for r in errors)
+    carried = [r for r in errors if "TaintError" in (r.error or "")]
+    assert carried and all(r.taint_hits == ("m1",) for r in carried)

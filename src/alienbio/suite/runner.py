@@ -701,17 +701,26 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
     brief's visible probes) and (b) every string leaf of an ``AnswerObjective``
     key — **minus any token the task's own question legitimately names** (an
     ``identify_pathway`` question states the pathway's endpoints, which the key
-    also contains; that is the agent-facing question, not a leak). Matching is
-    whole-token (the ids contain ``/`` and ``_``, so the boundary is
-    "not adjacent to another id character"). Returns the sorted hit tokens.
+    also contains) **and minus the visible probes** (the turn-0 observation the
+    agent is handed names every visible molecule, so a key token that is a
+    visible id — ``identify_pathway``'s interior node under full observability,
+    ``diagnose``'s perturbed node — is something the agent already sees; the
+    secret there is *structure*, which no token scan can see. Found by the
+    first paid trial, 2026-08-29: the audit refused every real prompt because
+    the observation it must contain named the interior node). What remains is
+    exactly what the agent could not otherwise know: hidden ids and key tokens
+    that name nothing visible. Matching is whole-token (the ids contain ``/``
+    and ``_``, so the boundary is "not adjacent to another id character").
+    Returns the sorted hit tokens.
     """
     prompts = getattr(agent, "prompt_texts", None)
     if not prompts:
         return ()
     question_tokens = _leaf_strings(brief.question)
-    secrets: set[str] = set(chemistry.molecules) - set(brief.affordances.probes)
+    visible = set(brief.affordances.probes)
+    secrets: set[str] = set(chemistry.molecules) - visible
     if isinstance(task.objective, AnswerObjective):
-        secrets |= _leaf_strings(task.objective.key.value)
+        secrets |= _leaf_strings(task.objective.key.value) - visible
     secrets -= question_tokens
     secrets.discard("")
     if not secrets:

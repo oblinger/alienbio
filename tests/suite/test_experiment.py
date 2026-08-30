@@ -85,8 +85,8 @@ def test_load_spec_refuses_a_floating_model_alias(tmp_path):
         path = _write_spec(tmp_path, model=alias)
         with pytest.raises(ValueError, match="model"):
             load_spec(path)
-    spec = load_spec(_write_spec(tmp_path, model="claude-sonnet-4-20250514"))
-    assert spec.model == "claude-sonnet-4-20250514"
+    spec = load_spec(_write_spec(tmp_path, model="claude-sonnet-4-5-20250929"))
+    assert spec.model == "claude-sonnet-4-5-20250929"
 
 
 def test_agent_axis_runs_control_arms_in_one_grid(tmp_path, monkeypatch):
@@ -504,7 +504,7 @@ def test_estimate_cost_agent_axis_matches_hand_computed_formula():
         agent="idle",
         trials_per_condition=2,
         base_seed=1,
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5-20250929",
         price_usd_per_mtok=(1.0, 2.0),
         expected_turns=4,
         expected_prompt_tokens=100,
@@ -526,7 +526,7 @@ def test_estimate_cost_agent_axis_matches_hand_computed_formula():
 
     expected_usd = cost_usd(expected_input_tokens, expected_output_tokens, (1.0, 2.0))
     assert estimate.usd == pytest.approx(expected_usd)
-    assert estimate.model == "claude-sonnet-4-20250514"
+    assert estimate.model == "claude-sonnet-4-5-20250929"
 
 
 def test_estimate_cost_unknown_model_without_override_raises():
@@ -599,3 +599,24 @@ def test_cost_ceiling_stops_the_run_after_first_trial(tmp_path, monkeypatch):
 
     lines = (out_dir / "records.jsonl").read_text().strip().splitlines()
     assert len(lines) == 1
+
+
+def test_llm_agent_factory_shares_one_meter_between_provider_fn_and_agent(monkeypatch, tmp_path):
+    # The first paid trial (2026-08-29) reported calls=0 / $0.00 for a 17 s
+    # run: the provider fn was built without a meter while the agent metered
+    # itself. The factory must hand ONE UsageMeter to both.
+    import alienbio.suite.llm_agent as llm_mod
+    from alienbio.suite.experiment import AGENTS
+
+    captured: dict = {}
+
+    def fake_default_anthropic_llm_fn(model, *, meter=None, **kw):
+        captured["model"] = model
+        captured["meter"] = meter
+        return lambda directive, context, seed: {"kind": "commit", "answer": None}
+
+    monkeypatch.setattr(llm_mod, "default_anthropic_llm_fn", fake_default_anthropic_llm_fn)
+    spec = load_spec(_write_spec(tmp_path, agent="llm", model="claude-sonnet-4-5-20250929"))
+    agent = AGENTS["llm"](spec)(Seed(1), {})
+    assert captured["meter"] is not None
+    assert agent.meter is captured["meter"]

@@ -272,13 +272,16 @@ def test_taint_audit_ignores_key_tokens_the_question_itself_names():
     agent = _LeakyAgent(endpoints[0], endpoints[0])
     record = run(world, task, agent, {}, Seed(3))
     assert record.taint_hits == ()
-    # ...but an interior key node that the question does not name IS a leak.
+    # ...and an interior key node the question does not name is NOT a leak
+    # either while it is a visible probe: under full observability the turn-0
+    # observation the agent is handed already names it (the first paid trial,
+    # 2026-08-29, tripped on exactly this). It becomes a leak only when the
+    # observability dial hides it — the case the hidden-id test above covers.
     interior = [t for t in task.objective.key.value if t not in str(task.question.structured)]
-    if interior:
-        from alienbio.suite.runner import TaintError
-
-        with pytest.raises(TaintError):
-            run(world, task, _LeakyAgent(interior[0], interior[0]), {}, Seed(3))
+    assert interior
+    assert interior[0] in record.brief.affordances.probes
+    record = run(world, task, _LeakyAgent(interior[0], interior[0]), {}, Seed(3))
+    assert record.taint_hits == ()
 
 
 def test_null_answer_commit_scores_zero_instead_of_crashing_the_grader():

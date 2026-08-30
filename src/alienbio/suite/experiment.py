@@ -362,7 +362,7 @@ def _require_pinned_model(model: Any) -> None:
     if model.endswith("-latest") or not _PINNED_MODEL_RE.match(model):
         raise ValueError(
             f"experiment spec: model {model!r} is a floating alias — pin a dated "
-            "generation (e.g. 'claude-sonnet-4-20250514') so the run is reproducible"
+            "generation (e.g. 'claude-sonnet-4-5-20250929') so the run is reproducible"
         )
 
 
@@ -1312,17 +1312,23 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
     """
 
     def factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
-        from .llm_agent import LLMAgent, default_anthropic_llm_fn
+        from .llm_agent import LLMAgent, UsageMeter, default_anthropic_llm_fn
 
         # M46.8: a ``model`` axis level overrides the spec's model per trial,
         # so two generations run inside one grid under identical world seeds.
         model = dials.get("model") or spec.model or PINNED_MODEL
         _require_pinned_model(model)
+        # One meter shared by the provider call and the agent, so the real
+        # usage lands on the record and drives the cost ceiling. (The first
+        # paid trial, 2026-08-29, reported calls=0 / $0.00 for a 17 s run:
+        # the llm_fn was built meterless and the agent metered nothing.)
+        meter = UsageMeter()
         return LLMAgent(
-            default_anthropic_llm_fn(model),
+            default_anthropic_llm_fn(model, meter=meter),
             seed,
             memory=spec.memory,
             token_ceiling=spec.token_ceiling,
+            meter=meter,
         )
 
     return factory

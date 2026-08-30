@@ -80,11 +80,11 @@ class TestConversationalLLMAgentBasics:
     def test_agent_with_explicit_params(self):
         """Agent accepts explicit parameters."""
         agent = ConversationalLLMAgent(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5-20250929",
             api="anthropic",
             api_key="test-key"
         )
-        assert agent._model == "claude-sonnet-4-20250514"
+        assert agent._model == "claude-sonnet-4-5-20250929"
         assert agent._api == "anthropic"
         assert agent._api_key == "test-key"
 

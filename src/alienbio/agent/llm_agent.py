@@ -7,7 +7,7 @@ Example usage:
     from alienbio.agent import ConversationalLLMAgent, run_experiment
 
     agent = ConversationalLLMAgent(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5-20250929",
         api="anthropic",
     )
     results = run_experiment(scenario, agent, seed=42)
@@ -28,7 +28,7 @@ class ConversationalLLMAgent:
     actions/measurements to tool definitions and parses LLM responses.
 
     Attributes:
-        model: Model identifier (e.g., "claude-sonnet-4-20250514")
+        model: Model identifier (e.g., "claude-sonnet-4-5-20250929")
         api: API provider ("anthropic" or "openai")
         api_key: API key (uses config if not provided)
     """

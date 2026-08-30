@@ -45,7 +45,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "default_agent": None,
     "providers": {
         "anthropic": {
-            "default_model": "claude-sonnet-4-20250514",
+            "default_model": "claude-sonnet-4-5-20250929",
         },
         "openai": {
             "default_model": "gpt-4o",
@@ -253,7 +253,7 @@ def test_api_key(provider: str) -> tuple[bool, str]:
             client = anthropic.Anthropic(api_key=key)
             # Make a minimal API call
             client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-5-20250929",
                 max_tokens=1,
                 messages=[{"role": "user", "content": "hi"}]
             )

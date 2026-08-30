@@ -72,8 +72,9 @@ from .types import Answer, Directive
 
 #: One Sonnet-class model id, pinned (not a floating alias) so runs are
 #: comparable — matches the repo's own ``config`` default
-#: (``providers.anthropic.default_model``).
-PINNED_MODEL = "claude-sonnet-4-20250514"
+#: (``providers.anthropic.default_model``). Re-pinned 2026-08-29: the
+#: original ``claude-sonnet-4-20250514`` is retired (404 for new keys).
+PINNED_MODEL = "claude-sonnet-4-5-20250929"
 
 #: Indirection over ``time.sleep`` so :func:`_call_with_retry`'s backoff is
 #: unit-testable (a test monkeypatches this module attribute rather than the
@@ -85,9 +86,9 @@ _sleep = time.sleep
 #: (M45.5). A model absent here has no known price — :func:`price_for` raises
 #: rather than guess, unless the caller supplies an explicit override.
 MODEL_PRICES_USD_PER_MTOK: Mapping[str, tuple[float, float]] = {
-    "claude-sonnet-4-20250514": (3.0, 15.0),
-    "claude-opus-4-20250514": (15.0, 75.0),
-    "claude-3-5-haiku-20241022": (0.8, 4.0),
+    "claude-sonnet-4-5-20250929": (3.0, 15.0),
+    "claude-opus-4-5-20251101": (5.0, 25.0),
+    "claude-haiku-4-5-20251001": (1.0, 5.0),
 }
 
 
