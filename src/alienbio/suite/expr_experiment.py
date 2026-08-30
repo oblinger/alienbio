@@ -405,6 +405,7 @@ _scripted_agent_head("heuristic_commit", "heuristic-commit", "commit the biggest
 _scripted_agent_head("knockout_commit", "knockout-commit", "spend the destructive action first")
 _scripted_agent_head("act_commit", "act-commit", "act at once, never investigate")
 _scripted_agent_head("assay_commit", "assay-commit", "run the destructive assay at once")
+_scripted_agent_head("pursue_target", "pursue-target", "pull every declared lever toward the goal, stop at it, never look at the side-product")
 
 
 @fn(kind="agent", summary="a live model over the LLMOp seam", registry_name="llm")
