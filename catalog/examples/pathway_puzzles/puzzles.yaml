@@ -1,0 +1,70 @@
+# puzzles.yaml — M48.9 example 6: pathway puzzles. The suite-construction
+# pipeline end to end on a neutral world: a host drafted with distractors,
+# a chain pattern carved into it, an identify objective graded with partial
+# credit, an opaque vocabulary with the question rendered and parsed back,
+# a coverage plan over puzzle features, and reject-sampling (`!verify`) that
+# keeps only hosts where the pathway is causally non-obvious. Loads trusted
+# (helpers.py). See README.md.
+_includes_: [helpers.py]
+
+pathway_length: 4
+distractors: 3
+
+# 1. a host: the neutral identify_pathway drafter grows `distractors` filler
+#    nodes around the carved chain (suite.augment) — the puzzle's noise
+draft: !x identify_pathway(pathway_length=pathway_length, distractor_count=distractors)
+host: !x draft.world
+
+# 2. the pattern the puzzle is about, carved into the host by name (M27 carve):
+#    the chain is bound to the host's own molecules, never minted fresh
+#    (roles r0 … r{n-1}, an edge per step, every role gated to molecules —
+#    helpers.chain_roles / chain_edges / chain_constraints size it to the dial)
+chain: !pattern
+  roles: !x chain_roles(pathway_length)
+  edges: !x chain_edges(pathway_length)
+  constraints: !x chain_constraints(pathway_length)
+carved: !carve {host: !x host, pattern: !x chain, allow_add: False}
+
+# 3. the objective: recover the ordered chain between the endpoints; the
+#    grader gives longest-correct-prefix partial credit
+puzzle: !identify {world: !x host, skeleton: !x carved, roles: !x chain_names(pathway_length)}
+task: !task {objective: !x puzzle, archetype: pathway-puzzle}
+full_credit: !x grade(puzzle.objective.key.value, puzzle.objective)
+half_credit: !x grade(puzzle.objective.key.value[:2], puzzle.objective)
+no_credit: !x grade([], puzzle.objective)
+
+# 4. the alien vocabulary: every node id gets an opaque phrase; the question
+#    renders through it and parses back to the same structure
+vocab: !vocabulary {world: !x host}
+question_text: !x render_question(puzzle.question, vocab)
+question_back: !x parse_question(question_text, vocab)
+
+# 5. a coverage plan over puzzle features: which feature combinations the
+#    suite must contain, subject to an admissibility rule
+plan: !cover
+  features:
+    - {short: is_short}
+    - {short: is_short, branched: is_branched}
+    - {long: is_long}
+    - {long: is_long, branched: is_branched}
+  admissible: at_most_two
+  aggressiveness: 0.5
+
+# 6. reject-sampling: redraw the host until knocking out the chain's first
+#    step visibly changes the trajectory (validity.non_obvious_causal)
+checked: !verify
+  world: !x identify_pathway(pathway_length=pathway_length, distractor_count=distractors).world
+  perturb: knockout_first
+  valid: non_obvious
+  max_redraws: 6
+  sim: !sim {dt: 0.05, steps: 60}
+
+experiment: !experiment
+  name: pathway-puzzles-zero
+  task: !q puzzles(pathway_length=pathway_length, distractors=distractors)
+  episode: !q episode(max_turns=4, sim_steps=10)
+  agent: survey_commit
+  axes: {pathway_length: [3, 5]}
+  trials_per_condition: 2
+  base_seed: 11
+  out_dir: runs/examples/pathway_puzzles
