@@ -773,8 +773,21 @@ def default_anthropic_llm_fn(
     meter: Optional[UsageMeter] = None,
     max_attempts: int = 5,
     backoff_s: float = 1.0,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    cache_system: bool = True,
 ) -> LLMFn:
     """Build a real Anthropic-backed :data:`~alienbio.suite.ops.LLMFn` (opt-in only).
+
+    ``temperature`` / ``top_p`` (M45.18) are forwarded to every call when
+    given, so the sampling a record was drawn under is the spec's stated
+    number, not the provider default; ``None`` sends nothing (the provider
+    default applies — a run with a live arm is refused upstream unless it
+    declares ``temperature``). ``cache_system`` (M45.19) marks the system
+    prompt — the fixed directive plus the trial's brief, identical for every
+    turn of a trial and for every trial of a condition — as a prompt-cache
+    prefix (``cache_control: ephemeral``); the model sees the same text, the
+    meter's ``cache_read_tokens`` shows the hits.
 
     ``structured=True`` (M46.4, the default) uses the provider-native
     structured-output path: the action schema (:data:`ACTION_INPUT_SCHEMA`)
@@ -839,9 +852,20 @@ def default_anthropic_llm_fn(
             "tool_choice": {"type": "tool", "name": "emit_action"},
         }
 
+    sampling_kwargs: dict[str, Any] = {}
+    if temperature is not None:
+        sampling_kwargs["temperature"] = float(temperature)
+    if top_p is not None:
+        sampling_kwargs["top_p"] = float(top_p)
+
     def llm_fn(directive: Directive, context: Any, seed: Seed) -> Any:
         del seed  # accepted for LLMFn shape; Claude has no literal-seed control
         attempt_count = [0]
+        system: Any = (
+            [{"type": "text", "text": directive, "cache_control": {"type": "ephemeral"}}]
+            if cache_system
+            else directive
+        )
 
         def create() -> Any:
             attempt_count[0] += 1
@@ -849,10 +873,11 @@ def default_anthropic_llm_fn(
             response = client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
-                system=directive,
+                system=system,
                 messages=[
                     {"role": "user", "content": json.dumps(context, sort_keys=True)}
                 ],
+                **sampling_kwargs,
                 **tool_kwargs,
             )
             latency_s = time.perf_counter() - start

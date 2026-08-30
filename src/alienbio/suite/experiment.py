@@ -147,6 +147,16 @@ class ExperimentSpec:
     #: ``consideration``, ``hazard``, ``trial``, ``cells``). ``None`` = the first
     #: readout the records carry, in report order — declare it when two apply.
     key_readout: Optional[str] = None
+    #: M45.18 — the sampling parameters every live call runs under, so a
+    #: dose-response's within-condition variation is *stated* sampling, not
+    #: the provider's unrecorded default. ``temperature`` is required for a
+    #: run with a live arm (refused at run time when absent); ``top_p`` is
+    #: optional. Both ride on the manifest and on every record line.
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    #: M45.19 — the prompt-cache hit rate the dry-run estimate assumes on the
+    #: fixed system prefix (directive + brief), measured by a pilot; 0 = none.
+    expected_cache_hit_rate: float = 0.0
 
 
 def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
@@ -181,6 +191,9 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "idle_baseline": spec.idle_baseline,
         "matched_dials": list(spec.matched_dials),
         "key_readout": spec.key_readout,
+        "temperature": spec.temperature,
+        "top_p": spec.top_p,
+        "expected_cache_hit_rate": spec.expected_cache_hit_rate,
     }
 
 
@@ -233,6 +246,9 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         idle_baseline=idle_baseline,
         matched_dials=_validate_matched_dials(d.get("matched_dials"), axes),
         key_readout=_validate_key_readout(d.get("key_readout")),
+        temperature=_validate_unit_float("temperature", d.get("temperature")),
+        top_p=_validate_unit_float("top_p", d.get("top_p")),
+        expected_cache_hit_rate=_validate_unit_float("expected_cache_hit_rate", d.get("expected_cache_hit_rate", 0.0)) or 0.0,
     )
 
 
@@ -285,6 +301,25 @@ def _validate_design(value: Any, trials_per_condition: int, axes: Sequence[tuple
             f"spec asks for {trials_per_condition} — raise trials_per_condition or relax the design"
         )
     return design
+
+
+def _validate_unit_float(name: str, value: Any) -> Optional[float]:
+    """``None`` passes through; otherwise a real number in ``[0, 1]``."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not (0.0 <= float(value) <= 1.0):
+        raise ValueError(f"experiment spec: {name} must be a number in [0, 1], got {value!r}")
+    return float(value)
+
+
+def sampling_violation(spec: ExperimentSpec) -> Optional[str]:
+    """M45.18 — why ``spec`` cannot run a live arm: no ``temperature`` declared.
+    ``None`` when every live call's sampling is stated (or there is no live arm)."""
+    if "llm" not in agent_kinds_in_play(spec):
+        return None
+    if spec.temperature is None:
+        return "a run with a live-model arm must declare `temperature:` (M45.18) so the sampling every record was drawn under is pinned, not the provider's unrecorded default"
+    return None
 
 
 def _validate_key_readout(value: Any) -> Optional[str]:
@@ -480,11 +515,17 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
 
     model = spec.model or PINNED_MODEL
     price = price_for(model, spec.price_usd_per_mtok)
-    usd = cost_usd(total_input_tokens, total_output_tokens, price)
+    # M45.19 — the fixed system prefix (directive + brief) is cacheable; a
+    # pilot-measured hit rate moves that share of the input from full price
+    # to the cache-read rate (cost_usd prices cache reads at 10%).
+    hit = spec.expected_cache_hit_rate
+    cached_tokens = round(total_input_tokens * hit)
+    usd = cost_usd(total_input_tokens - cached_tokens, total_output_tokens, price, cache_read_tokens=cached_tokens)
 
+    cache_desc = f", cache hit {hit:.0%}" if hit else ""
     formula = (
         f"{llm_trials} llm_trials x ({turns} turns, memory={memory_desc}: "
-        f"{input_per_trial:.0f} input + {output_per_trial:.0f} output tok/trial) "
+        f"{input_per_trial:.0f} input + {output_per_trial:.0f} output tok/trial{cache_desc}) "
         f"@ ${price[0]}/${price[1]} per MTok = ${usd:.4f}"
     )
     return CostEstimate(
@@ -1388,7 +1429,7 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
         # the llm_fn was built meterless and the agent metered nothing.)
         meter = UsageMeter()
         return LLMAgent(
-            default_anthropic_llm_fn(model, meter=meter),
+            default_anthropic_llm_fn(model, meter=meter, temperature=spec.temperature, top_p=spec.top_p),
             seed,
             memory=spec.memory,
             token_ceiling=spec.token_ceiling,
@@ -1700,6 +1741,9 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         # models.list snapshot — what makes two runs naming it comparable.
         "model_created_at": model_created_at((spec.model or PINNED_MODEL) if spec.agent == "llm" else spec.model),
         "memory": spec.memory,
+        # M45.18 — the sampling every live call ran under.
+        "temperature": spec.temperature,
+        "top_p": spec.top_p,
         "directive_sha256": directive_sha256,
         "started_at": started_at,
         "finished_at": None,
@@ -1769,6 +1813,9 @@ def run_experiment(
             ``resume`` is ``False`` (never silently overwrite a paid run).
     """
     _guard_no_peeking(spec)
+    sampling_problem = sampling_violation(spec)
+    if sampling_problem is not None:
+        raise ValueError(f"run_experiment: {sampling_problem}")
 
     resolved_out = Path(out_dir or spec.out_dir or f"runs/{spec.name}")
     resolved_out.mkdir(parents=True, exist_ok=True)
@@ -1844,6 +1891,9 @@ def run_experiment(
             payload["agent"] = kind
             payload["model"] = persisted_model
             payload["memory"] = spec.memory
+            # M45.18: the sampling in force on a live line (null on a scripted one).
+            payload["temperature"] = spec.temperature if kind == "llm" else None
+            payload["top_p"] = spec.top_p if kind == "llm" else None
             line = _canonical_json(payload)
             with records_path.open("a") as f:
                 f.write(line + "\n")

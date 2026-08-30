@@ -10,6 +10,7 @@ name: exp04-first-live
 task: !q identify_pathway(pathway_length=pathway_length)
 episode: !q episode(max_turns=6, sim_steps=10)
 agent: llm
+temperature: 1.0
 token_ceiling: 20000
 cost_ceiling_usd: 1.0
 axes:

@@ -522,6 +522,9 @@ def experiment(
     idle_baseline: bool = False,
     matched_dials: Optional[Sequence[str]] = None,
     key_readout: Optional[str] = None,
+    temperature: Optional[float] = None,
+    top_p: Optional[float] = None,
+    expected_cache_hit_rate: Optional[float] = None,
     env: Env,
 ) -> ExperimentSpec:
     """Build an :class:`~alienbio.suite.experiment.ExperimentSpec` from the
@@ -580,6 +583,9 @@ def experiment(
         ("concurrency", concurrency),
         ("matched_dials", matched_dials),
         ("key_readout", key_readout),
+        ("temperature", temperature),
+        ("top_p", top_p),
+        ("expected_cache_hit_rate", expected_cache_hit_rate),
     ):
         if value is not None:
             d[key] = value
@@ -722,12 +728,15 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
         "token_ceiling": d["token_ceiling"],
         "cost_ceiling_usd": d["cost_ceiling_usd"],
         "price_usd_per_mtok": d["price_usd_per_mtok"],
+        "temperature": d["temperature"],
+        "top_p": d["top_p"],
+        "expected_cache_hit_rate": d["expected_cache_hit_rate"] or None,
         "expected_turns": d["expected_turns"] if d["expected_turns"] != 8 else None,
         "expected_prompt_tokens": d["expected_prompt_tokens"] if d["expected_prompt_tokens"] != 1500 else None,
         "expected_output_tokens": d["expected_output_tokens"] if d["expected_output_tokens"] != 300 else None,
         "concurrency": d["concurrency"] if d["concurrency"] != 1 else None,
     }
-    for key in ("model", "memory", "token_ceiling", "cost_ceiling_usd", "price_usd_per_mtok"):
+    for key in ("model", "memory", "token_ceiling", "cost_ceiling_usd", "price_usd_per_mtok", "temperature", "top_p", "expected_cache_hit_rate"):
         if scalars[key] is not None:
             out.append(f"{key}: {_yaml_inline(scalars[key])}")
     if spec.idle_baseline:
