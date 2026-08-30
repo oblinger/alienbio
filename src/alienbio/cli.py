@@ -42,27 +42,19 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="bio",
-        description="Bio CLI: Run scenarios and create reports",
+        description="bio — the Alien Biology framework CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
-  build <path>    Build spec (resolve includes, refs, defaults)
-  cd              Print current DAT path
-  cd <path>       Set current DAT path
-  expand <path>   Show processed spec (same as build)
-  fetch <spec>    Fetch and display a spec (--raw, --json)
-  hydrate <path>  Fully evaluate spec (resolve all placeholders)
-  report <path>   Run scenario and create Excel report (default)
-  run <path>      Debug: run entity, print result dict
-  store <spec>    Store data from stdin to spec path (--raw)
-  suite run|resume|aggregate|report  Declarative experiment sweeps (see suite/experiment.py)
+  suite run <spec.yaml> [--out DIR] [--dry]   run a declared experiment (catalog/experiments/*.yaml)
+  suite resume|aggregate|report <DIR>         continue / rebuild / print a run directory
+  config [show | set KEY VALUE]               the framework configuration (keys, model)
+  test-matrix [--markdown] [--check]          the capability matrix (roadmap M48.1)
 
 Examples:
-  bio cd data/experiments/run1          # Set current DAT
-  bio fetch catalog/scenarios/mutualism # Display spec as YAML
-  bio hydrate catalog/jobs/test --seed 42  # Evaluate with seed
-  echo '{key: val}' | bio store ./test  # Store to relative path
-  bio catalog/jobs/hardcoded_test       # Create and open Excel report
+  bio suite run catalog/experiments/exp4-zero.yaml --dry
+  bio suite run catalog/examples/ecosystem/ecosystem.yaml
+  bio test-matrix --check
 """,
     )
     parser.add_argument(
