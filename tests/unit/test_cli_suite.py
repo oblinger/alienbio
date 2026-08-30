@@ -2,22 +2,20 @@
 
 from __future__ import annotations
 
-import yaml
-
 import alienbio.cli as cli
 
 
 def _write_spec(tmp_path):
-    payload = {
-        "name": "clitest",
-        "axes": {"rung": ["single"]},
-        "drafter": "conflict",
-        "agent": "idle",
-        "trials_per_condition": 1,
-        "base_seed": 1,
-    }
     path = tmp_path / "spec.yaml"
-    path.write_text(yaml.safe_dump(payload))
+    path.write_text(
+        "!experiment\n"
+        "name: clitest\n"
+        "task: !q conflict(rung=rung)\n"
+        "agent: idle\n"
+        "axes: {rung: [single]}\n"
+        "trials_per_condition: 1\n"
+        "base_seed: 1\n"
+    )
     return path
 
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 
 import pytest
-import yaml
 
 from alienbio.suite.dist import Seed
 from alienbio.suite.experiment import (
@@ -32,6 +31,7 @@ from alienbio.suite.experiment import (
     spec_from_dict,
     spec_to_dict,
 )
+from alienbio.suite.expr_experiment import spec_to_text
 from alienbio.suite.llm_agent import cost_usd
 from alienbio.suite.mass_trial import MassTrialRunner
 from alienbio.suite.trial import TrialRecord
@@ -42,6 +42,8 @@ from alienbio.suite.trial import TrialRecord
 
 
 def _write_spec(tmp_path, **overrides) -> "object":
+    """A small conflict/idle experiment file in the M47.4 form, rendered from
+    the flat dict through ``spec_to_text`` (its inverse is ``load_spec``)."""
     payload = {
         "name": "t1",
         "axes": {"rung": ["single", "forced"]},
@@ -52,7 +54,24 @@ def _write_spec(tmp_path, **overrides) -> "object":
     }
     payload.update(overrides)
     path = tmp_path / "spec.yaml"
-    path.write_text(yaml.safe_dump(payload))
+    path.write_text(spec_to_text(spec_from_dict(payload)))
+    return path
+
+
+_TEXT = """\
+!experiment
+name: t1
+task: !q conflict(rung=rung)
+agent: idle
+axes: {rung: [single, forced]}
+trials_per_condition: 2
+base_seed: 1
+"""
+
+
+def _write_text(tmp_path, text: str) -> "object":
+    path = tmp_path / "spec.yaml"
+    path.write_text(text)
     return path
 
 
@@ -73,8 +92,15 @@ def test_load_spec_round_trips_from_yaml(tmp_path):
 
 
 def test_load_spec_unknown_key_raises_naming_it(tmp_path):
-    path = _write_spec(tmp_path, bogus_key="oops")
+    path = _write_text(tmp_path, _TEXT + "bogus_key: oops\n")
     with pytest.raises(ValueError, match="bogus_key"):
+        load_spec(path)
+
+
+def test_load_spec_unknown_dial_raises_naming_it(tmp_path):
+    # M47.4: a dial no head declares is a load error, not a silently ignored key.
+    path = _write_text(tmp_path, _TEXT.replace("conflict(rung=rung)", "conflict(rung=rung, bogus_dial=1)"))
+    with pytest.raises(ValueError, match="bogus_dial"):
         load_spec(path)
 
 
@@ -82,7 +108,7 @@ def test_load_spec_refuses_a_floating_model_alias(tmp_path):
     # M45.11: a run pins a dated generation; an alias would make two runs that
     # name the same id incomparable.
     for alias in ("claude-sonnet-4-latest", "claude-sonnet-4", ""):
-        path = _write_spec(tmp_path, model=alias)
+        path = _write_text(tmp_path, _TEXT + f"model: {alias!r}\n")
         with pytest.raises(ValueError, match="model"):
             load_spec(path)
     spec = load_spec(_write_spec(tmp_path, model="claude-sonnet-4-5-20250929"))
@@ -197,16 +223,7 @@ def test_record_lines_carry_model_and_memory(tmp_path):
 
 
 def test_load_spec_missing_required_key_raises(tmp_path):
-    payload = {
-        "name": "t1",
-        "axes": {"rung": ["single"]},
-        "drafter": "conflict",
-        # "agent" missing
-        "trials_per_condition": 1,
-        "base_seed": 1,
-    }
-    path = tmp_path / "spec.yaml"
-    path.write_text(yaml.safe_dump(payload))
+    path = _write_text(tmp_path, _TEXT.replace("agent: idle\n", ""))
     with pytest.raises(ValueError, match="agent"):
         load_spec(path)
 
@@ -544,7 +561,7 @@ def test_estimate_cost_unknown_model_without_override_raises():
 
 
 def test_load_spec_rejects_negative_cost_ceiling(tmp_path):
-    path = _write_spec(tmp_path, cost_ceiling_usd=-1.0)
+    path = _write_text(tmp_path, _TEXT + "cost_ceiling_usd: -1.0\n")
     with pytest.raises(ValueError, match="cost_ceiling_usd"):
         load_spec(path)
 

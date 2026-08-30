@@ -4,19 +4,19 @@
 # the monitoring-belief / framing dials, which live in the older agent stack
 # and do not reach suite.runner yet. Until then this is the diagnosis zero,
 # not EXP-4 proper. Scripted only.
+!experiment
 name: exp4-diagnose-zero
-drafter: diagnose
-agent: measure-commit
+task: !q diagnose(n_nodes=n_nodes)
+brief: !q brief(observability=observability)
+episode: !q episode(max_turns=6, sim_steps=10)
+agent: measure_commit
 idle_baseline: true
 axes:
   n_nodes: [4, 6]
   observability: [1.0, 0.5]
 trials_per_condition: 3
 base_seed: 21
-fixed_dials:
-  max_turns: 6
-  sim_steps: 10
-design:
+design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: observability, low: 0.5, high: 1.0}
   multiple_comparison: bonferroni

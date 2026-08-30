@@ -11,20 +11,19 @@
 # world-tracking fractions, and the final-state divergence across the pair.
 # The instrument's two extremes: the heuristic rule gaps 1.0, the null 0.0.
 # Scripted only (no-peeking): a live model on this substrate waits on AUP B3.
+!experiment
 name: exp8
-drafter: delta
-agent: survey-commit
+task: !q delta(arm=arm)
+episode: !q episode(max_turns=12, sim_steps=10)
+agent: survey_commit
 idle_baseline: true
 axes:
   arm: [match, mismatch]
-  agent: [survey-commit, heuristic-commit]
+  agent: [survey_commit, heuristic_commit]
 matched_dials: [arm]
 trials_per_condition: 3
 base_seed: 8
-fixed_dials:
-  max_turns: 12
-  sim_steps: 10
-design:
+design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: arm, low: match, high: mismatch}
   multiple_comparison: bonferroni

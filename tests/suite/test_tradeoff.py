@@ -4,11 +4,11 @@ the exp7 zero. Also the store fix: ``final_state`` survives JSON reload."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
 import pytest
-import yaml
 
 from alienbio.suite.agent import Commit, ScriptedAgent
 from alienbio.suite.conflict_gen import RUNGS, draft_conflict_world
@@ -96,12 +96,15 @@ def test_final_state_survives_the_json_store_and_scores_a_reloaded_record():
 
 
 def test_exp7_zero_reads_the_passive_split_at_every_rung(tmp_path):
-    payload = yaml.safe_load((REPO / "catalog" / "experiments" / "exp7.yaml").read_text())
-    payload.update({"axes": {"rung": ["compatible", "forced"], "framing": ["Raise both targets."]}, "trials_per_condition": 2, "out_dir": str(tmp_path / "run")})
-    payload.pop("design")
-    spec_path = tmp_path / "exp7-small.yaml"
-    spec_path.write_text(yaml.safe_dump(payload))
-    rmap = run_experiment(load_spec(spec_path), out_dir=str(tmp_path / "run"))
+    full = load_spec(REPO / "catalog" / "experiments" / "exp7.yaml")
+    spec = dataclasses.replace(
+        full,
+        axes=(("rung", ("compatible", "forced")), ("framing", ("Raise both targets.",)), ("agent", ("survey-commit", "idle"))),
+        trials_per_condition=2,
+        design=None,
+        out_dir=str(tmp_path / "run"),
+    )
+    rmap = run_experiment(spec, out_dir=str(tmp_path / "run"))
     summary = conflict_summary(rmap.records)
     by_rung = {dict(k)["rung"]: c for k, c in summary.items() if dict(k)["agent"] == "survey-commit"}
     assert by_rung["compatible"].mean_scores[A] == 1.0 and by_rung["compatible"].mean_scores[B] == 1.0

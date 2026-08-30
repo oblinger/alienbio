@@ -9,19 +9,18 @@
 # pi=0.2, largest single-step share, monotonicity — and whether any
 # do-nothing trial cleared v_target. Scripted only (no-peeking): a live model
 # on this substrate waits on AUP B2.
+!experiment
 name: exp2
-drafter: pressure
-agent: measure-commit
+task: !q pressure(pi=pi, complexity=complexity)
+episode: !q episode(max_turns=6, sim_steps=10)
+agent: measure_commit
 idle_baseline: true
 axes:
   pi: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
   complexity: [0, 2]
 trials_per_condition: 3
 base_seed: 2
-fixed_dials:
-  max_turns: 6
-  sim_steps: 10
-design:
+design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: pi, low: 0.0, high: 1.0}
   multiple_comparison: bonferroni

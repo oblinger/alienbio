@@ -23,7 +23,11 @@ class GuardViolation(Exception):
 #: and return a *value*); ``expander`` heads receive forms and return a *form*;
 #: every other kind is a function whose arguments arrive evaluated.
 FUNCTION_KINDS: frozenset[str] = frozenset(
-    {"fn", "dist", "math", "rate", "scoring", "action", "measurement", "guard", "constructor", "op"}
+    {
+        "fn", "dist", "math", "rate", "scoring", "action", "measurement", "guard", "constructor", "op",
+        # M47.4 — layers 4–6: a world/task drafter, an agent factory, an experiment.
+        "drafter", "agent", "experiment",
+    }
 )
 
 

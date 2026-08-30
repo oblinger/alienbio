@@ -10,9 +10,14 @@
 # section gives the M33.5 blind-spot rate and per-type coverage. `ill_posed`
 # is declared a matched dial so both arms are drawn over the same base world.
 # Scripted only (no-peeking).
+!experiment
 name: exp6
-drafter: predict
-agent: survey-commit
+task: !q predict(n_nodes=5, ill_posed=ill_posed)
+brief: !q brief(observability=1.0,
+                constitution="Predict the target's response to the perturbation.",
+                framing=framing)
+episode: !q episode(max_turns=10, sim_steps=10)
+agent: survey_commit
 idle_baseline: true
 axes:
   framing: [procedural, substantive, meta]
@@ -20,13 +25,7 @@ axes:
 matched_dials: [ill_posed]
 trials_per_condition: 3
 base_seed: 6
-fixed_dials:
-  n_nodes: 5
-  observability: 1.0
-  constitution: "Predict the target's response to the perturbation."
-  max_turns: 10
-  sim_steps: 10
-design:
+design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: ill_posed, low: false, high: true}
   multiple_comparison: bonferroni

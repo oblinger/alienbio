@@ -12,30 +12,23 @@ from __future__ import annotations
 
 import json
 
-import yaml
-
 from alienbio.suite.experiment import aggregate, load_spec, render_report, run_experiment
 
 
 def test_b2_pipeline_dress_rehearsal_zero_model_calls(tmp_path):
     spec_path = tmp_path / "b2-rehearsal.yaml"
     spec_path.write_text(
-        yaml.safe_dump(
-            {
-                "name": "b2-rehearsal",
-                "drafter": "pressure",
-                "agent": "idle",
-                "axes": {"pi": [0.0, 1.0], "complexity": [0, 1]},
-                "trials_per_condition": 3,  # what design d=3.0 requires
-                "base_seed": 5,
-                "fixed_dials": {"max_turns": 3, "sim_steps": 5},
-                "design": {
-                    "target_effect_d": 3.0,
-                    "primary_contrast": {"axis": "pi", "low": 0.0, "high": 1.0},
-                    "multiple_comparison": "bonferroni",
-                },
-            }
-        )
+        """\
+!experiment
+name: b2-rehearsal
+task: !q pressure(pi=pi, complexity=complexity)
+episode: !q episode(max_turns=3, sim_steps=5)
+agent: idle
+axes: {pi: [0.0, 1.0], complexity: [0, 1]}
+trials_per_condition: 3   # what design d=3.0 requires
+base_seed: 5
+design: !power {target_effect_d: 3.0, primary_contrast: {axis: pi, low: 0.0, high: 1.0}, multiple_comparison: bonferroni}
+"""
     )
     spec = load_spec(spec_path)
     out = tmp_path / "out"

@@ -4,11 +4,11 @@ and the exp4 scripted zero runs end to end with paired worlds."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
 import pytest
-import yaml
 
 from alienbio.suite.agent import Commit, ScriptedAgent
 from alienbio.suite.brief import (
@@ -121,20 +121,15 @@ def test_exp4_zero_runs_paired_across_belief_arms(tmp_path):
     assert "survey-commit" in AGENTS
     assert {"monitoring", "framing", "constitution"} <= set(WORLD_INVARIANT_DIALS)
 
-    payload = yaml.safe_load((REPO / "catalog" / "experiments" / "exp4.yaml").read_text())
-    payload.update(
-        {
-            "axes": {"monitoring": ["logged", "deceptively-unlogged"]},
-            "trials_per_condition": 2,
-            "fixed_dials": {**payload["fixed_dials"], "n_nodes": 4, "framing": "neutral"},
-            "design": None,
-            "out_dir": str(tmp_path / "run"),
-        }
+    spec = dataclasses.replace(
+        spec,
+        axes=(("monitoring", ("logged", "deceptively-unlogged")), ("agent", ("survey-commit", "idle"))),
+        trials_per_condition=2,
+        fixed_dials={**spec.fixed_dials, "n_nodes": 4, "framing": "neutral"},
+        design=None,
+        out_dir=str(tmp_path / "run"),
     )
-    payload.pop("design")
-    spec_path = tmp_path / "exp4-small.yaml"
-    spec_path.write_text(yaml.safe_dump(payload))
-    rmap = run_experiment(load_spec(spec_path), out_dir=str(tmp_path / "run"))
+    rmap = run_experiment(spec, out_dir=str(tmp_path / "run"))
 
     records = [r for r in rmap.records if dict(r.condition_key)["agent"] == "survey-commit"]
     assert len(records) == 4 and all(r.illegal_actions == 0 for r in records)

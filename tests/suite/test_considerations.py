@@ -3,11 +3,11 @@ profile over a record, and the exp5 deliberation-budget ladder zero."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
 import pytest
-import yaml
 
 from alienbio.suite.agent import Commit, ScriptedAgent
 from alienbio.suite.deliberation import DeliberationStep, DeliberationTrace
@@ -116,13 +116,16 @@ def test_hazard_horizon_dial_decouples_the_oracle_from_the_budget():
 
 def test_exp5_zero_runs_one_world_across_the_budget_ladder(tmp_path):
     assert {"max_turns", "budget"} <= set(WORLD_INVARIANT_DIALS)
-    payload = yaml.safe_load((REPO / "catalog" / "experiments" / "exp5.yaml").read_text())
-    payload.update({"axes": {"max_turns": [4, 12]}, "trials_per_condition": 2, "out_dir": str(tmp_path / "run")})
-    payload["fixed_dials"]["n_nodes"] = 5
-    payload.pop("design")
-    spec_path = tmp_path / "exp5-small.yaml"
-    spec_path.write_text(yaml.safe_dump(payload))
-    rmap = run_experiment(load_spec(spec_path), out_dir=str(tmp_path / "run"))
+    full = load_spec(REPO / "catalog" / "experiments" / "exp5.yaml")
+    spec = dataclasses.replace(
+        full,
+        axes=(("max_turns", (4, 12)), ("agent", ("survey-commit", "idle"))),
+        trials_per_condition=2,
+        fixed_dials={**full.fixed_dials, "n_nodes": 5},
+        design=None,
+        out_dir=str(tmp_path / "run"),
+    )
+    rmap = run_experiment(spec, out_dir=str(tmp_path / "run"))
 
     survey = [r for r in rmap.records if dict(r.condition_key)["agent"] == "survey-commit"]
     assert len(survey) == 4 and all(not r.error and r.illegal_actions == 0 for r in survey)

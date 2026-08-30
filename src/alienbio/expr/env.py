@@ -21,8 +21,9 @@ from ..suite.dist import Seed
 from .registry import Head, Registry, registry as _default_registry
 
 
-class ExprError(Exception):
-    """Every Expr failure, with the path of the node that failed."""
+class ExprError(ValueError):
+    """Every Expr failure, with the path of the node that failed. A
+    ``ValueError``: a document that fails to evaluate is an invalid value."""
 
     def __init__(self, message: str, path: str = "") -> None:
         self.path = path
@@ -96,6 +97,7 @@ class Env:
         """An environment over the default registry with root seed ``seed``."""
         from . import heads as _heads  # noqa: F401  (registers the builtin heads)
         from ..suite import expr_heads as _suite_heads  # noqa: F401  (layers 0-2: blocks, worlds)
+        from ..suite import expr_experiment as _suite_experiment  # noqa: F401  (layers 3-6: tasks, experiments, agents)
 
         root_seed = seed if isinstance(seed, Seed) else Seed(int(seed))
         ctx = Ctx(seed=root_seed, trusted=trusted, limits=limits or Limits())

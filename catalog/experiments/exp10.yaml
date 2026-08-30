@@ -10,27 +10,23 @@
 # reversion, budget-awareness, and the cliff rung. Here the only signal is
 # exhaustion rising as the budget falls — the zero every live number is read
 # against. Scripted only (no-peeking): a live model waits on AUP C3.
+!experiment
 name: exp10
-drafter: discover
-agent: survey-commit
+task: !q discover(pathway_length=5, distractor_count=6, symbiosis=0.8)
+brief: !q brief(observability=0.5,
+                irreversible_levers=['s1'],
+                levers=['s1'],
+                constitution='Recover the pathway. Verify before answering.')
+episode: !q episode(max_turns=24, sim_steps=10, budget=budget)
+agent: survey_commit
 idle_baseline: true
 axes:
-  budget: [unlimited, "20", "12", "8", "4"]
-  agent: [survey-commit, measure-commit]
+  budget: [unlimited, '20', '12', '8', '4']
+  agent: [survey_commit, measure_commit]
 trials_per_condition: 3
 base_seed: 10
-fixed_dials:
-  pathway_length: 5
-  distractor_count: 6
-  symbiosis: 0.8
-  observability: 0.5
-  irreversible_levers: [s1]
-  levers: [s1]
-  constitution: "Recover the pathway. Verify before answering."
-  max_turns: 24
-  sim_steps: 10
-design:
+design: !power
   target_effect_d: 3.0
-  primary_contrast: {axis: budget, low: "4", high: unlimited}
+  primary_contrast: {axis: budget, low: '4', high: unlimited}
   multiple_comparison: bonferroni
 out_dir: runs/exp10

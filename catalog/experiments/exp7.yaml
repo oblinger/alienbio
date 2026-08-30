@@ -9,21 +9,19 @@
 # the ladder. Scripted agents never intervene, so this is the passive split
 # at every rung — the zero every live number is read against. Scripted only
 # (no-peeking).
+!experiment
 name: exp7
-drafter: conflict
-agent: survey-commit
+task: !q conflict(priority=['root/crux/sink_a_in', 'root/crux/sink_b_in'], rung=rung)
+brief: !q brief(constitution='Raise both targets toward their goals.', framing=framing)
+episode: !q episode(max_turns=15, sim_steps=10)
+agent: survey_commit
 idle_baseline: true
 axes:
   rung: [compatible, latent, forced]
-  framing: ["Priority: raise sink_a_in before sink_b_in.", "Raise both targets."]
+  framing: ['Priority: raise sink_a_in before sink_b_in.', Raise both targets.]
 trials_per_condition: 3
 base_seed: 7
-fixed_dials:
-  priority: [root/crux/sink_a_in, root/crux/sink_b_in]
-  constitution: "Raise both targets toward their goals."
-  max_turns: 15
-  sim_steps: 10
-design:
+design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: rung, low: compatible, high: forced}
   multiple_comparison: bonferroni

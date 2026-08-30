@@ -8,14 +8,13 @@
 #
 # The paid sibling is exp4-first-live.yaml: same substrate, agent llm. The
 # no-peeking guard refuses an llm agent on any other drafter.
+!experiment
 name: exp4-zero
-drafter: identify_pathway
-agent: measure-commit
+task: !q identify_pathway(pathway_length=pathway_length)
+episode: !q episode(max_turns=6, sim_steps=10)
+agent: measure_commit
 axes:
   pathway_length: [3, 4]
 trials_per_condition: 2
 base_seed: 7
-fixed_dials:
-  max_turns: 6
-  sim_steps: 10
 out_dir: runs/exp4-zero

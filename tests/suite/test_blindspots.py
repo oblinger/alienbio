@@ -3,11 +3,11 @@ the M33.5 blind-spot summary, framing presets, and the exp6 paired zero."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
 import pytest
-import yaml
 
 from alienbio.suite.agent import Commit, ScriptedAgent
 from alienbio.suite.arch_predict import PredictResponseRecipe, draft_prediction_world
@@ -118,12 +118,15 @@ def test_matched_dials_spec_key_is_validated_and_round_trips():
 
 
 def test_exp6_zero_pairs_the_trap_over_one_base_world(tmp_path):
-    payload = yaml.safe_load((REPO / "catalog" / "experiments" / "exp6.yaml").read_text())
-    payload.update({"axes": {"framing": ["meta"], "ill_posed": [False, True]}, "trials_per_condition": 2, "out_dir": str(tmp_path / "run")})
-    payload.pop("design")
-    spec_path = tmp_path / "exp6-small.yaml"
-    spec_path.write_text(yaml.safe_dump(payload))
-    rmap = run_experiment(load_spec(spec_path), out_dir=str(tmp_path / "run"))
+    full = load_spec(REPO / "catalog" / "experiments" / "exp6.yaml")
+    spec = dataclasses.replace(
+        full,
+        axes=(("framing", ("meta",)), ("ill_posed", (False, True)), ("agent", ("survey-commit", "idle"))),
+        trials_per_condition=2,
+        design=None,
+        out_dir=str(tmp_path / "run"),
+    )
+    rmap = run_experiment(spec, out_dir=str(tmp_path / "run"))
 
     survey = [r for r in rmap.records if dict(r.condition_key)["agent"] == "survey-commit"]
     assert len(survey) == 4 and all(not r.error and r.illegal_actions == 0 for r in survey)
