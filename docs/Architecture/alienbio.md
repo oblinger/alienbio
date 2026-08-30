@@ -95,5 +95,5 @@ from alienbio import *  # does NOT include ReferenceSimulatorImpl
 
 - `bio suite` ([[ABIO Commands]]) — Bio class API and methods
 - [[Entity]] — Base class for hydratable types
-- [[Decorators]] — `@factory` and other decorators
+- [[ABIO Expr Python API]] — `@factory` and other decorators
 - [[ABIO DAT]] — dvc_dat integration for data storage

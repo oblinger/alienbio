@@ -1,4 +1,4 @@
- [[Architecture Docs]]
+ [[Architecture Docs]] 
 
 # Modules
 
@@ -95,7 +95,7 @@ Template instantiation pipeline for expanding parameterized specs.
 
 ## Module Documentation
 
-- **[[Scope]]** — Hierarchical namespace resolution and inheritance
+- **`Scope` (see [[ABIO Expr Spec#Names and scope]])** — Hierarchical namespace resolution and inheritance
 
 ### Pending Documentation
 
@@ -110,4 +110,4 @@ Template instantiation pipeline for expanding parameterized specs.
 ## See Also
 
 - [[ABIO Protocols]] — Alphabetical class index
-- [[Spec Language Reference]] — YAML parsing, tags, evaluation pipeline
+- [[ABIO Expr Spec]] — YAML parsing, tags, evaluation pipeline

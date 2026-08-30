@@ -48,10 +48,10 @@ How the alienbio documentation is organized and our conventions for writing it.
 - Examples and patterns
 
 **Contents:**
-- [[ABIO Expr Spec]] — Intro to spec language (links to [[Spec Language Reference]])
+- [[ABIO Expr Spec]] — Intro to spec language (links to [[ABIO Expr Spec]])
 - [[ABIO Suite Runtime]] — CLI, agents, running experiments
 - [[ABIO Expr Spec]] — Agent interaction protocol
-- [[Generator Spec]] — Template-based generation
+- [[ABIO Expr Spec]] — Template-based generation
 
 ---
 
@@ -89,7 +89,7 @@ The `classes/` folder is organized into three subsystems:
 - **execution/** — Runtime execution (Action, Measurement, Simulator, State, Timeline, etc.)
 
 **Key Documents:**
-- [[Spec Language Reference]] — Complete language specification
+- [[ABIO Expr Spec]] — Complete language specification
 - [[ABIO Protocols]] — All classes alphabetically
 - [[ABIO Modules]] — All modules alphabetically
 - [[ABIO Commands]] — All commands (CLI and Python)
@@ -124,7 +124,7 @@ User Guide provides orientation, then links out:
 
 ```markdown
 <!-- In Core Spec (User Guide) -->
-For complete tag reference, see [[Spec Language Reference]].
+For complete tag reference, see [[ABIO Expr Spec]].
 ```
 
 ### Architecture → API
@@ -214,7 +214,7 @@ module: Scope = Bio.fetch(path: str, as_scope=True)
 ## See Also
 
 - `fetch` (deleted in M47.7) — Previous stage: load from source
-- [[Spec Language Reference]] — Complete language specification
+- [[ABIO Expr Spec]] — Complete language specification
 ```
 
 ### Tables

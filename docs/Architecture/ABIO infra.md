@@ -1,4 +1,4 @@
- [[Architecture Docs]]
+ [[Architecture Docs]] 
 
 # ABIO infra
 Infrastructure: entity base classes, serialization, data management, and configuration.
@@ -13,8 +13,8 @@ Core data classes and identity patterns that all biology objects inherit from.
 - **[[ABIO Data]]** - Organization of the `data/` folder and intent-based categories.
 - **[[ABIO DAT]]** - dvc_dat integration, name resolution, and `_spec_.yaml` format.
 - **the M1 `Bio` facade (deleted in M47.7)** - Higher-level fetch/store/run for biology objects.
-- **[[Spec Language Reference]]** — YAML syntax extensions (`!ev`, `!_`, `!ref`, `!include`, typed keys).
-- **[[Decorators]]** - `@biotype` for hydration, `@scoring`/`@action`/`@measurement`/`@rate` for functions.  
+- **[[ABIO Expr Spec]]** — YAML syntax extensions (`!ev`, `!_`, `!ref`, `!include`, typed keys).
+- **[[ABIO Expr Python API]]** - `@biotype` for hydration, `@scoring`/`@action`/`@measurement`/`@rate` for functions.
 
 ## Installed Packages
 - **[pydantic](https://docs.pydantic.dev/)** - Data validation and settings management.

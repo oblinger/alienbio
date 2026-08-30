@@ -8,18 +8,18 @@ Alphabetical listing of all classes in the Alien Biology system, organized by su
 
 | Subsystem | Classes |
 |-----------|---------|
-| **[[ABIO infra\|Infrastructure]]** | Bio, Entity, Expr, Interpreter, IO |
+| **[[ABIO infra\|Infrastructure]]** | Entity, IO, DAT |
+| **[[ABIO Expr Spec\|Expr]]** | Form (Name, Call, Quoted, Include, PyRef), QuotedForm, Env, Ctx, Limits, Registry, Head, TemplateHead, ExprError, GuardViolation, UnsafeSpecError |
 | **[[ABIO biology\|Biology]]** | Atom, Chemistry, Compartment, CompartmentTree, ContainerGenerator, Flow, Generator, Molecule, MoleculeGenerator, Pathway, Reaction, ReactionGenerator, WorldSimulator, WorldState |
-| **[[ABIO execution\|Execution]]** | Action, Context, Experiment, Measurement, Simulator, State, Step, Task, Test, TestHarness, Timeline, World |
-| **[[ABIO Suite Construction\|Suite construction (M26/M27)]]** | Motif, WorldEnvelope, CarveResult, Skeleton, SkeletonBlock, TaskArchetype, ObjectiveRecipe, TaskInstance, Question, Answer, AnswerObjective, OutcomeObjective, SuiteSpec, Suite, Dist, Seed, Vocabulary, Renderable, Op, LLMOp, Predicate, Directive |
-| **[[ABIO Suite Runtime\|Suite runtime (Phase 2)]]** | Agent, SessionAgent, ScriptedAgent, LLMAgent, Measure, Intervene, Commit, Wait, ActionOutcome, ReasoningStep, TaskBrief, Affordances, Budget, SimConfig, TrialRecord, ActionRecord, DeliberationTrace, MassTrialRunner, ReliabilityMap, Provenance, ConditionSpec |
+| **[[ABIO biology\|Execution]]** | Simulator, State, Timeline, World |
+| **[[ABIO Suite Construction\|Suite construction (M26/M27)]]** | Motif, CarveResult, Skeleton, SkeletonBlock, TaskArchetype, ObjectiveRecipe, TaskInstance, Question, Answer, AnswerObjective, OutcomeObjective, SuiteSpec, Suite, Draft, Dist, Seed, Vocabulary, Renderable, Op, LLMOp, Predicate, Directive |
+| **[[ABIO Suite Runtime\|Suite runtime (Phase 2)]]** | Agent, SessionAgent, ScriptedAgent, LLMAgent, Measure, Intervene, Commit, Wait, ActionOutcome, ReasoningStep, TaskBrief, Affordances, Budget, SimConfig, TrialRecord, ActionRecord, DeliberationTrace, MassTrialRunner, ReliabilityMap, Provenance, ConditionSpec, ExperimentSpec, PowerDesign |
 
-The biology and execution rows name the **protocols** in `alienbio.protocols` (`CompartmentTree`, `State`, `World`, …); their concrete classes in `alienbio.bio` carry an `Impl` suffix (`CompartmentTreeImpl`, `StateImpl`, `WorldImpl`). The suite rows name concrete dataclasses and Protocols in `alienbio.suite` — the M26 neutral shadow types (`StateVector`, `Topology`, a neutral `World`/`Compartment`) were retired in July 2026 (F007) and the suite now builds directly on the biology classes.
+The biology and execution rows name the **protocols** in `alienbio.protocols` (`CompartmentTree`, `State`, `World`, …); their concrete classes in `alienbio.bio` carry an `Impl` suffix (`CompartmentTreeImpl`, `StateImpl`, `WorldImpl`). The Expr row is `alienbio.expr` ([[ABIO Expr Python API]]); the M1 execution stack (Action, Context, Experiment, Measurement, Step, Task, Test, TestHarness, Bio, Interpreter) was deleted in M47.7. The suite rows name concrete dataclasses and Protocols in `alienbio.suite` — the M26 neutral shadow types (`StateVector`, `Topology`, a neutral `World`/`Compartment`) were retired in July 2026 (F007) and the suite now builds directly on the biology classes.
 
 ---
 
 ## A
-- **[[action|Action]]** — Agent action to perturb the system state *(legacy execution protocol)*
 - **[[ABIO Suite Runtime|Action (suite)]]** — The closed neutral verb set `Measure | Intervene | Commit | Wait`; scorers match on type, never on a world's names *(suite runtime)*
 - **[[ABIO Suite Runtime|ActionOutcome]]** — What the runner tells a `SessionAgent` after each action: accepted or rejected, and why *(suite runtime; M46)*
 - **[[ABIO Suite Runtime|ActionRecord]]** — One logged action on a `TrialRecord`: kind, destructive flag, accepted flag and rejection reason *(suite runtime)*
@@ -40,26 +40,30 @@ The biology and execution rows name the **protocols** in `alienbio.protocols` (`
 - **[[CompartmentTree]]** — Hierarchical topology of compartments with parent-child relationships
 - **[[ContainerGenerator]]** — Composable factory for Compartments
 - **[[ABIO Suite Runtime|ConditionSpec]]** — A dial-vector sampler over orthogonal `DialAxis` entries with quantization — how a sweep's condition grid is declared *(suite runtime; M34.1)*
-- **[[Context]]** — Runtime pegboard for all major subsystems
 
 ## D
+- **[[ABIO Expr Python API|Draft]]** — What a drafter head returns: `(world, task)`, a 2-tuple with `.world` / `.task` *(suite; M47.4)*
 - **[[ABIO Suite Runtime|DeliberationTrace]]** — The per-trial sequence of `DeliberationStep`s the runner threads an agent's `ReasoningStep`s into, read by the M33 trace scorers *(suite runtime)*
 - **[[ABIO Suite Construction|Directive]]** — Opaque instruction text a suite Op harness carries; the engine never inspects it *(suite; M26)*
 - **[[Suite Construction Data Model|Dist]]** — A seeded distribution (`Constant`, `Uniform`, `Normal`, `LogNormal`, `Choice`) — every generator parameter is one *(suite; M26)*
 
 ## E
+- **[[ABIO Expr Python API|Env]]** / **Ctx** — The Expr environment: scope chain, registry, and the per-node context (seed, path, trust, limits) *(expr; M47.1)*
+- **[[ABIO Expr Python API|ExprError]]** — Every Expr failure, a `ValueError` carrying the node's path *(expr; M47.1)*
+- **[[ABIO Suite Runtime|ExperimentSpec]]** — One declared experiment, loaded from an `!experiment` file: axes, drafter, agent, fixed dials, design *(suite; M46.5 / M47.4)*
 - **[[entity|Entity]]** — Base class for all biology objects
-- **[[experiment|Experiment]]** — Single world setup with task, agent, scoring
-- **[[Expr]]** — Simple functional expressions for operations and declarations
 
 ## F
+- **[[ABIO Expr Python API|Form]]** — The five shapes a spec evaluates: literal, `Name`, data, `Call`, `Quoted` (plus the load-time `Include` / `PyRef`) *(expr; M47.1)*
 - **[[Flow]]** — Membrane transport between parent-child compartments
 
 ## G
 - **[[generator|Generator]]** — Base class for synthetic biology factories
 
+## H
+- **[[ABIO Expr Python API|Head]]** / **Registry** — A registered callable (function, expander, template, special form, guard, constructor, drafter, agent) and the one kind-tagged table of them *(expr; M47.1)*
+
 ## I
-- **[[Interpreter]]** — Evaluates Expr trees and handles language dispatch
 - **[[IO]]** — Entity I/O: prefix bindings, formatting, parsing, persistence
 
 ## L
@@ -68,7 +72,6 @@ The biology and execution rows name the **protocols** in `alienbio.protocols` (`
 
 ## M
 - **[[ABIO Suite Runtime|MassTrialRunner]]** — Condition grid × seeded trials → `ReliabilityMap`, each trial isolated so one failure is a record rather than the end of the sweep *(suite runtime; M34)*
-- **[[measurement|Measurement]]** — Function to observe system state
 - **[[Molecule]]** — Chemical compound composed of atoms with derived formula and weight
 - **[[MoleculeGenerator]]** — Factory for synthetic molecules
 - **[[Suite Construction Data Model|Motif]]** — An abstract reaction-network pattern with role slots; a `CarveResult` binds it to a concrete world *(suite; M26)*
@@ -78,11 +81,13 @@ The biology and execution rows name the **protocols** in `alienbio.protocols` (`
 - **[[ABIO Suite Construction|Op]]** — Opaque callable operation over a context (its scripted form is ScriptedOp) *(suite; M26)*
 
 ## P
+- **[[ABIO Suite Runtime|PowerDesign]]** — The statistical design a run commits to (`!power`): target effect, alpha, power, primary contrast *(suite; M46.9)*
 - **[[Pathway]]** — Connected sequence of reactions
 - **[[ABIO Suite Construction|Predicate]]** — Opaque callable over a node, only ever invoked, never inspected — a role constraint / world-validity test *(suite; M26)*
 - **[[ABIO Suite Runtime|Provenance]]** — What produced a `ReliabilityMap`: swept axes, base seed, trials per condition, failed-trial count *(suite runtime; M34)*
 
 ## Q
+- **[[ABIO Expr Python API|QuotedForm]]** — A `!q` form as a value: a `Dist` (`sample(seed)`) that also `run(bindings)`s *(expr; M47.1)*
 - **[[Suite Construction Data Model|Question]]** — A structured, opaque JSON-ish question tagged by kind — the agent-facing half of a task, rendered to text by a `Renderable` *(suite; M26)*
 
 ## R
@@ -93,7 +98,6 @@ The biology and execution rows name the **protocols** in `alienbio.protocols` (`
 - **[[ABIO Suite Construction|Renderable]]** — Something that renders itself to text over a vocabulary — deterministic template, never an LLM *(suite; M26)*
 
 ## S
-- **the M1 scenario format (deleted in M47.7)** — Complete runnable unit (chemistry, containers, interface, briefing, constitution)
 - **[[ABIO Suite Runtime|ScriptedAgent]]** — Deterministic, network-free, seeded step/policy agent — the instrument's zero and what keeps CI green *(suite runtime)*
 - **[[Suite Construction Data Model|Seed]]** — A hierarchical deterministic seed; `seed.child(label)` derives every per-condition, per-trial, per-turn seed *(suite; M26)*
 - **[[ABIO Suite Runtime|SessionAgent]]** — The optional Protocol an agent implements to be briefed (`begin(brief)`) and told each action's outcome (`notice(outcome)`) *(suite runtime; M46)*
@@ -101,15 +105,11 @@ The biology and execution rows name the **protocols** in `alienbio.protocols` (`
 - **[[simulator|Simulator]]** — Execution engine for biology dynamics
 - **[[ABIO Suite Construction|Skeleton]]** — The F013 recursive `SkeletonBlock` tree a generator materializes into a world (materialize / validate / oracle); not the pre-F013 `Skeleton`, now `CarveResult` *(suite; M38)*
 - **[[state|State]]** — Snapshot of molecule concentrations
-- **[[step|Step]]** — Single time advancement applying reactions
-- **[[Suite Construction Data Model|Suite]]** / **[[Suite Construction Data Model|SuiteSpec]]** — A materialized suite (worlds + `TaskInstance`s) and the generative spec (archetype mix + per-archetype schemas + seed) it came from *(suite; M26/M27)*
+- **[[Suite Construction Data Model|Suite]]** / **[[Suite Construction Data Model|SuiteSpec]]** — A materialized suite (worlds + `TaskInstance`s) and the archetype mix it came from (`SuiteSpec.per_archetype` / `seed` were unread and are gone, M47.7) *(suite; M26/M27)*
 
 ## T
-- **[[task|Task]]** — Goal specification with scoring criteria
 - **[[Suite Construction Data Model|TaskArchetype]]** / **[[Suite Construction Data Model|TaskInstance]]** — The family a task belongs to (with its `ObjectiveRecipe` and optional drafter), and one concrete task: archetype + world + `CarveResult` + objective + question *(suite; M26/M27)*
 - **[[ABIO Suite Runtime|TaskBrief]]** — What the runner tells the agent at trial start: the question, expected answer kind, constitution, affordances, budget and costs, turn and step limits — never the key, target or hidden state *(suite runtime; M46)*
-- **[[test|Test]]** — Batch of experiments across variations
-- **[[TestHarness]]** — Execution runner with logging and result aggregation
 - **[[timeline|Timeline]]** — Sequence of states with intervention hooks
 - **[[ABIO Suite Runtime|TrialRecord]]** — The frozen unit of observation one agent-run emits: timeline, deliberation trace, action log, objective score, terminal reason, budget accounting, illegal-action count, brief *(suite runtime; M40)*
 
@@ -118,6 +118,5 @@ The biology and execution rows name the **protocols** in `alienbio.protocols` (`
 
 ## W
 - **[[world|World]]** — Complete runnable setup with system, generators, initial conditions
-- **[[Suite Construction Data Model|WorldEnvelope]]** — The constraint envelope a drafted base world must satisfy for a task family *(suite; M26)*
 - **[[WorldSimulator]]** — Multi-compartment simulation engine with reactions and flows
 - **[[WorldState]]** — Dense concentration storage for multi-compartment simulations

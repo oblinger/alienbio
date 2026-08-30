@@ -84,7 +84,7 @@ class FastSimulatorImpl(Simulator):
     ...
 ```
 
-See [[Decorators]] for full `@factory` documentation.
+See [[ABIO Expr Python API]] for full `@factory` documentation.
 
 ---
 
@@ -219,5 +219,5 @@ Code changes: `io()` → `bio.io`
 
 ## See Also
 
-- [[Decorators]] — `@factory` decorator
+- [[ABIO Expr Python API]] — `@factory` decorator
 - the M1 `Bio` facade (deleted in M47.7) — Bio class API

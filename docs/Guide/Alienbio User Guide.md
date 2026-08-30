@@ -8,5 +8,4 @@ User-facing documentation for working with alienbio. See [[Architecture Docs]] f
 
 - [[ABIO Expr Spec]] — the Expr language, by example: data and forms, tags, calls, quoted forms, special forms, templates
 - [[ABIO Expr Python API]] — registering functions, expanders and guards; `X` / `Env` / `evaluate`; trust
-- [[Generator Spec]] — Template-based scenario generation
 - [[ABIO Suite Runtime]] — the runtime: brief, runner, records, the `bio suite` CLI

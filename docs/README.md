@@ -20,7 +20,7 @@ This tree is **mirrored between the code repository (`docs/`) and the vault (`AB
 
 ## Start here
 - **[[Architecture Docs]]** — the architecture index: subsystems, data model, protocols, and the benchmark-generation design ([[ABIO Suite Construction]], [[ABIO PRD Docs|Scenario Generator PRD]]).
-- **[[Alienbio User Guide]]** — usage tutorials: [[ABIO Expr Spec]], [[ABIO Expr Python API]], [[Generator Spec]].
+- **[[Alienbio User Guide]]** — usage tutorials: [[ABIO Expr Spec]], [[ABIO Expr Python API]].
 - **[API Reference](Modules/index.md)** — auto-generated class and function docs.
 
 ## Quick start

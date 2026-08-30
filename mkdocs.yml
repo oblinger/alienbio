@@ -70,7 +70,6 @@ nav:
     - Overview: Guide/Alienbio User Guide.md
     - ABIO Expr Spec: Guide/ABIO Expr Spec.md
     - ABIO Expr Python API: Guide/ABIO Expr Python API.md
-    - Generator Spec: Guide/Generator Spec.md
   - Demos:
     - Gallery: demos/index.md
     - "01: Quick Start": demos/notebooks/01_quick_start.ipynb
@@ -122,12 +121,12 @@ nav:
       - MoleculeGenerator: Architecture/Classes/biology/MoleculeGenerator.md
       - ReactionGenerator: Architecture/Classes/biology/ReactionGenerator.md
   - Commands: Architecture/ABIO Commands.md
-  - Modules:
-    - Scope: Architecture/Scope.md
   - API Reference:
     - Overview: Modules/index.md
     - Bio: Modules/bio.md
     - Infra: Modules/infra.md
     - Protocols: Modules/protocols.md
+    - Expr: Modules/expr.md
+    - Suite: Modules/suite.md
     - Spec Language: Modules/spec_lang.md
     - CLI: Modules/cli.md
