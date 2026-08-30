@@ -95,6 +95,7 @@ class Env:
     ) -> "Env":
         """An environment over the default registry with root seed ``seed``."""
         from . import heads as _heads  # noqa: F401  (registers the builtin heads)
+        from ..suite import expr_heads as _suite_heads  # noqa: F401  (layers 0-2: blocks, worlds)
 
         root_seed = seed if isinstance(seed, Seed) else Seed(int(seed))
         ctx = Ctx(seed=root_seed, trusted=trusted, limits=limits or Limits())
@@ -179,8 +180,23 @@ class Env:
         """A head by name: a locally bound head (a YAML template) shadows the registry."""
         first = name.split(".")[0]
         if first in self.bindings:
-            value = self._force(first, self.bindings[first])
-            if isinstance(value, Head):
+            value = self.bindings[first]
+            # A binding shadows a registered head only when it IS a head — a
+            # template already evaluated, or a not-yet-forced `!template` form.
+            # A document key that merely shares a head's name (`world: !world
+            # {...}`) must not be forced here: that would evaluate the very
+            # node being evaluated (a false "cyclic definition").
+            if isinstance(value, Lazy):
+                if value.state == "done" and isinstance(value.value, Head):
+                    return value.value
+                if value.state == "pending":
+                    from .form import Call as _Call
+
+                    if isinstance(value.form, _Call) and value.form.head == "template":
+                        forced = self._force(first, value)
+                        if isinstance(forced, Head):
+                            return forced
+            elif isinstance(value, Head):
                 return value
         try:
             return self.registry.get(name)
