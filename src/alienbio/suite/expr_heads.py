@@ -461,6 +461,7 @@ def _register_entity_constructor(head_name: str, cls: type) -> None:
             raise env.error(f"{head_name}: {exc}") from exc
 
     construct.__name__ = head_name
+    construct.__module__ = cls.__module__  # a test-defined Entity subclass stays the test's, not the catalog's
     construct.__doc__ = f"``!{head_name} {{...}}`` — ``{cls.__name__}.hydrate`` over the mapping (M47.6)."
     fn(construct, kind="constructor", name=head_name, summary=f"construct a {cls.__name__} (by hydrate)")
 

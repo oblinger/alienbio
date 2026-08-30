@@ -50,7 +50,7 @@ docs-serve:
     uv run mkdocs serve
 
 # Website repo path for deployment
-website_repo := "/Users/oblinger/ob/proj/oblinger.github.io"
+website_repo := "/Users/oblinger/ob/grove/oblinger.github.io"
 
 # Deploy docs to personal website (builds, copies, commits, pushes)
 docs-deploy: docs
