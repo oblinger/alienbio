@@ -1,0 +1,74 @@
+# kinetics.yaml — M48.9 example 4: the kinetics kit. One reaction network that
+# uses every rate-law form the compiled tier admits — a constant k, each of
+# the four modulation kinds, Michaelis–Menten written over the substrate,
+# algebra with exp / sqrt / a sum, several modulations mixed with algebra —
+# and runs on both simulators: helpers.compare() reports the largest
+# reference-vs-JAX divergence. Loads trusted (helpers.py). See README.md.
+_includes_: [helpers.py]
+
+k_fast: 0.6
+k_slow: 0.05
+Km: 0.5
+Vmax: 1.5
+enzyme_level: 0.8               # the drafter overrides this per condition
+
+sk: !skeleton
+  root: !block
+    children:
+      # supplies: the substrate, the enzyme, an activator, an inhibitor, a cooperative modifier
+      feed: !source {pool: S, rate: !x k_fast}
+      keep_E: !source {pool: E, rate: !x enzyme_level * 0.1}
+      keep_A: !source {pool: A, rate: 0.05}
+      keep_I: !source {pool: I, rate: 0.04}
+      keep_M: !source {pool: M, rate: 0.06}
+      # 1. a constant k — mass action, nothing else
+      r_mass: !reaction {reactants: [S], products: [P1], rate: !x k_slow}
+      # 2. the product form: k times one modulation of each kind
+      r_michaelis: !reaction {reactants: [S], products: [P2], rate: !q "k_slow * michaelis(E, Km, Vmax=Vmax)"}
+      r_hill: !reaction {reactants: [S], products: [P3], rate: !q "k_slow * hill(M, 0.4, n=3)"}
+      r_act: !reaction {reactants: [S], products: [P4], rate: !q "k_slow * activator(A, 2.0)"}
+      r_inh: !reaction {reactants: [S], products: [P5], rate: !q "k_slow * inhibitor(I, 0.3)"}
+      # 3. substrate saturation written over the reactant: the whole rate
+      r_mm: !reaction {reactants: [P1], products: [Q1], rate: !q "Vmax * P1 / (Km + P1)"}
+      # 4. algebra: a sum of terms, exp, sqrt — the whole rate (it names P2)
+      r_alg: !reaction {reactants: [P2], products: [Q2], rate: !q '0.1 * sqrt(P2) + 0.05 * exp(-I) * P2'}
+      # 5. two modulations mixed with algebra, as the factor on mass action
+      r_mix: !reaction {reactants: [P3], products: [Q3], rate: !q '0.2 * hill(M, 0.4, n=2) * inhibitor(I, 0.5) + 0.01'}
+      # drains, so every pool has a bounded fate
+      drain: !block
+        children:
+          d1: !sink {pool: Q1, rate: 0.1}
+          d2: !sink {pool: Q2, rate: 0.1}
+          d3: !sink {pool: Q3, rate: 0.1}
+          d4: !sink {pool: P4, rate: 0.1}
+          d5: !sink {pool: P5, rate: 0.1}
+          dE: !sink {pool: E, rate: 0.05}
+          dA: !sink {pool: A, rate: 0.05}
+          dI: !sink {pool: I, rate: 0.05}
+          dM: !sink {pool: M, rate: 0.05}
+
+world: !world {skeleton: !x sk, initial: {S: 2.0, E: !x enzyme_level, A: 0.5, I: 0.2, M: 0.6}}
+
+# the comparison the kit exists for: the largest divergence between the two
+# simulators over `steps` steps of `dt`, on THIS world
+parity: !x compare(world, steps=200, dt=0.02)
+
+# a task on it: which way does Q1 move when the substrate-saturated step is throttled?
+task: !task
+  archetype: kinetics-predict
+  objective: !predict_q
+    world: !x world
+    reaction_id: !x reaction_id(world, "r_mm")
+    target_id: !x molecule_id(world, "Q1")
+    factor: 0.25
+    sim: !sim {dt: 0.05, steps: 80}
+
+experiment: !experiment
+  name: kinetics-zero
+  task: !q kinetics(enzyme_level=enzyme_level)
+  episode: !q episode(max_turns=3, sim_steps=10)
+  agent: measure_commit
+  axes: {enzyme_level: [0.2, 1.0]}
+  trials_per_condition: 2
+  base_seed: 3
+  out_dir: runs/examples/kinetics
