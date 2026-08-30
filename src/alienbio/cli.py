@@ -50,6 +50,7 @@ Commands:
   suite resume|aggregate|report <DIR>         continue / rebuild / print a run directory
   config [show | set KEY VALUE]               the framework configuration (keys, model)
   test-matrix [--markdown] [--check]          the capability matrix (roadmap M48.1)
+  report [--open] [--no-examples]             run the suite; write what it tested + whether it passed (reports/)
 
 Examples:
   bio suite run catalog/experiments/exp4-zero.yaml --dry
@@ -89,8 +90,8 @@ Examples:
     if args.command in COMMANDS:
         return COMMANDS[args.command](args.args, verbose=args.verbose)
 
-    # Otherwise, treat as path and run report (default behavior)
-    return COMMANDS["report"]([args.command] + args.args, verbose=args.verbose)
+    print(f"bio: unknown command {args.command!r}; one of {sorted(COMMANDS)}", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

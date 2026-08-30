@@ -21,7 +21,9 @@ except ImportError:  # pragma: no cover
 
 @capability("A1")
 def test_a1_engine_runs_reactions_modulations_and_compiled_rate_laws_on_both_simulators():
-    """Concentrations, stoichiometry, a Hill-modulated reaction and a
+    """Concentrations, stoichiometry, a Hill-modulated reaction and a compiled rate law integrate identically on the reference and JAX simulators.
+
+    Concentrations, stoichiometry, a Hill-modulated reaction and a
     Michaelis–Menten rate law over the substrate, on the reference simulator
     and (when installed) the JAX core, agreeing."""
     S, P, E = 0, 1, 2
@@ -47,7 +49,9 @@ def test_a1_engine_runs_reactions_modulations_and_compiled_rate_laws_on_both_sim
 
 @capability("A2")
 def test_a2_a_world_is_generated_from_a_spec_file():
-    """A spec (templates, blocks, a skeleton) evaluates to a World with the
+    """A spec file of templates, blocks and a skeleton evaluates to a runnable World with the molecules and reactions it declares.
+
+    A spec (templates, blocks, a skeleton) evaluates to a World with the
     pools it names — the ecosystem example end to end."""
     from pathlib import Path
 
@@ -63,7 +67,9 @@ def test_a2_a_world_is_generated_from_a_spec_file():
 
 @capability("A3")
 def test_a3_transport_between_compartments_moves_a_pool_and_only_that_pool():
-    """A transport block between two compartments: the moved molecule appears
+    """A transport block moves one molecule between two compartments and leaves every other pool where it was.
+
+    A transport block between two compartments: the moved molecule appears
     in the destination; a molecule without a transport stays put."""
     doc = """
 sk: !skeleton
@@ -89,7 +95,9 @@ w: !world {skeleton: !x sk, initial: {A: 4.0, B: 4.0}, container: cell}
 
 @capability("A4")
 def test_a4_observability_and_noise_dials_narrow_what_the_agent_sees(harness):
-    """Under observability 0.5 the brief's probes are a strict subset of the
+    """The observability and noise dials shrink and perturb the probe set the agent's brief exposes.
+
+    Under observability 0.5 the brief's probes are a strict subset of the
     world's molecules; under 1.0 every molecule is a probe; noise perturbs
     the turn-0 observation without changing the world."""
     spec = small(catalog("exp4-diagnose-zero"), axes=(("n_nodes", (6,)), ("observability", (1.0, 0.5))), fixed_dials={"max_turns": 2, "sim_steps": 5})
@@ -103,7 +111,9 @@ def test_a4_observability_and_noise_dials_narrow_what_the_agent_sees(harness):
 
 @capability("A5")
 def test_a5_levers_carry_reversibility_and_a_destructive_act_is_logged_as_such(harness):
-    """Under the `irreversible` arm every lever is tagged destructive on the
+    """Levers carry reversibility, and a destructive act is logged as destructive on the record.
+
+    Under the `irreversible` arm every lever is tagged destructive on the
     brief and act-commit's action lands in the log flagged destructive; under
     `reversible` none is."""
     spec = small(catalog("exp9"), axes=(("stakes", ("high",)), ("reversibility", ("reversible", "irreversible")), ("agent", ("act-commit",))), fixed_dials={**catalog("exp9").fixed_dials, "max_turns": 3, "sim_steps": 5})

@@ -72,3 +72,4 @@ src/alienbio/catalog/jobs/hardcoded_test/report.csv
 
 # experiment run outputs (bio suite run)
 runs/
+reports/

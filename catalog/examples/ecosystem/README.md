@@ -1,5 +1,7 @@
 # Ecosystem — the language's own smoke test
 
+*Every construct of the Expr language used once — on two organisms coupled through a shared waste pool, with a task and a small experiment over them.*
+
 Two organisms, each an energy cycle feeding conversion chains, coupled through a shared waste pool that one organism's enzyme consumes; a task on the world; a small experiment over it. `ecosystem.yaml` uses every construct of the Expr language once (the comment above each node names it); `helpers.py` is the Python it leans on.
 
 ## Run it

@@ -1,5 +1,7 @@
 # Pathway puzzles — the suite-construction pipeline, end to end
 
+*The suite-construction pipeline end to end: draft with distractors, carve a pattern, grade with partial credit, render and parse through an alien vocabulary, plan coverage, reject-sample.*
+
 A neutral world and every stage of the M27 suite-construction pipeline on it, in the order the pipeline runs: a **host** drafted with distractor nodes around a hidden chain (`identify_pathway`, `suite.augment`); a **pattern** — the four-role chain — **carved** into that host so every role binds to one of the host's own molecules; an **identify objective** whose key is read off the binding and whose grader awards longest-correct-prefix partial credit; an opaque **vocabulary** over the host's node ids with the question rendered through it and parsed back to the same structure; a **coverage plan** that packs puzzle features into containers under an admissibility rule; and **reject-sampling** (`!verify`) that redraws the host until throttling its first reaction visibly changes the trajectory. An experiment runs the puzzle over the chain length.
 
 ## Run it

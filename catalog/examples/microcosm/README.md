@@ -1,5 +1,7 @@
 # Microcosm — populations as counts on one resource
 
+*Populations as counts — growth, death, maturation — mass-coupled to one resource, with an intervene task on the carrying capacity.*
+
 Two populations on one shared pond: a grazer in two size classes (juveniles mature into adults by a count flow) and a competitor, each growing in proportion to its count and the pond's food and drawing food *amount* as it grows, dying per capita with adults releasing part of their mass back as detritus that decays into food; an environmental drain on the food is the only pressure; and an `intervene` task on the carrying capacity — bring the pond's food to a level with the supply and the drain as levers.
 
 ## Run it

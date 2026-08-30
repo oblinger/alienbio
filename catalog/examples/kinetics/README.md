@@ -1,5 +1,7 @@
 # Kinetics kit — every rate-law form, on both simulators
 
+*Every rate-law form on one network, run on both simulators and compared to 1e-9, with a predict task on the saturated step.*
+
 One reaction network over a substrate `S` and five modifier / product pools in which every rate-law form the compiled tier admits appears once: a constant `k` (plain mass action); the product form with each of the four modulation kinds (`michaelis`, `hill`, `activator`, `inhibitor`); Michaelis–Menten written over the substrate (the whole rate); algebra with a sum, `exp` and `sqrt`; two modulations mixed with algebra as the factor on mass action. `helpers.compare` runs the same world on the reference simulator and the JAX core and reports the largest divergence — the kit's reason to exist — and a `predict` task asks which way a product moves when the saturated step is throttled.
 
 ## Run it

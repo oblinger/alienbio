@@ -116,6 +116,33 @@ def scan(tests_dir: Optional[Path] = None) -> dict[str, list[str]]:
     return found
 
 
+def _first_sentence(doc: Optional[str]) -> str:
+    """The first paragraph of a docstring, collapsed to one line."""
+    if not doc:
+        return ""
+    para = doc.strip().split("\n\n", 1)[0]
+    return " ".join(para.split())
+
+
+def phrases(tests_dir: Optional[Path] = None) -> dict[str, str]:
+    """``"module::test" -> one-line phrase`` for every decorated test: the first
+    paragraph of its docstring, collapsed. Empty when the test has none — the
+    report shows the gap and :func:`check` refuses it on a built dimension."""
+    root = tests_dir or TESTS_DIR
+    out: dict[str, str] = {}
+    for path in sorted(root.glob("test_*.py")):
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("test_") and _decorator_ids(node):
+                out[f"{path.stem}::{node.name}"] = _first_sentence(ast.get_docstring(node))
+    return out
+
+
+def undocumented(tests_dir: Optional[Path] = None) -> list[str]:
+    """Decorated tests with no docstring sentence to put on the report."""
+    return sorted(t for t, phrase in phrases(tests_dir).items() if not phrase)
+
+
 def matrix(tests_dir: Optional[Path] = None) -> list[tuple[Dimension, list[str]]]:
     """Every dimension with its tests, in the design doc's order."""
     found = scan(tests_dir)
@@ -130,6 +157,12 @@ def unknown_ids(tests_dir: Optional[Path] = None) -> list[str]:
 def check(tests_dir: Optional[Path] = None) -> list[str]:
     """The built / partial dimensions with no test — empty means the gate passes."""
     return [d.id for d, tests in matrix(tests_dir) if d.status in ("built", "partial") and not tests]
+
+
+def check_phrases(tests_dir: Optional[Path] = None) -> list[str]:
+    """The decorated tests with no one-line phrase for the report — empty means
+    every row of ``bio report`` has its sentence."""
+    return undocumented(tests_dir)
 
 
 def glyph(d: Dimension, tests: Iterable[str]) -> str:
@@ -156,4 +189,4 @@ def render_text(tests_dir: Optional[Path] = None) -> str:
     return "\n".join(lines) + "\n"
 
 
-__all__ = ["DIMENSIONS", "BY_ID", "Dimension", "check", "matrix", "render_markdown", "render_text", "scan", "unknown_ids"]
+__all__ = ["DIMENSIONS", "BY_ID", "Dimension", "check", "check_phrases", "matrix", "phrases", "render_markdown", "render_text", "scan", "undocumented", "unknown_ids"]

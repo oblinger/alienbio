@@ -13,6 +13,10 @@ build:
 test:
     uv run pytest tests/ -v
 
+# What the tests test, and whether they passed — one page (reports/report.html)
+report:
+    uv run bio report --open
+
 # Type check with pyright
 check:
     uv run pyright src/

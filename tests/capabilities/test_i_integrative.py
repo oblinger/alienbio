@@ -11,6 +11,7 @@ from .conftest import capability, catalog, small
 
 @capability("I1")
 def test_i1_a_two_axis_sweep_yields_cells_interactions_contrasts_and_idle_baselines(harness):
+    """A two-axis sweep with a declared power design yields cells, interactions, contrasts and matched idle baselines."""
     spec = small(catalog("exp9"), axes=(("stakes", ("low", "high")), ("reversibility", ("reversible", "irreversible"))), trials=3,
                  fixed_dials={**catalog("exp9").fixed_dials, "max_turns": 2, "sim_steps": 5},
                  design=PowerDesign(target_effect_d=3.0, primary_contrast={"axis": "stakes", "low": "low", "high": "high"}))

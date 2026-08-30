@@ -1,5 +1,7 @@
 # Grid — one neutral world under a full experiment
 
+*A neutral world under the full experiment harness: two axes, a power design, matched seeds, an idle twin, bounded concurrency, and a run that is interrupted, resumed, aggregated and reported.*
+
 A grid of reactions — `n_nodes` parallel chains, each `complexity` steps long, every row fed and drained — is the world; the harness around it is the point. The experiment sweeps both dials, declares the comparison it exists to make as a **power design** (`suite.power` sizes the trials), draws the world from **matched seeds** across arms, adds an automatic **idle twin** to every trial (`idle_baseline: True` grows an `agent` axis), runs under **bounded concurrency**, and carries the cost fields the **dry run** reads. The agents are the example's own, registered from `helpers.py` beside the framework's: `trend_commit` watches row 0's product for one step and commits the direction it moved (a plausible heuristic that is wrong on every cell — the unperturbed trend points the other way), `prior_commit` never looks and commits the textbook answer (right on every cell, for no observed reason); both are swept against `idle`, the twin that answers nothing. The test interrupts a run, **resumes** it, **aggregates** the record store back into the reliability map, and **renders the report**.
 
 ## Run it

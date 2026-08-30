@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
@@ -27,6 +29,21 @@ CompartmentId = int
 #: Below this a negative concentration is float rounding of an exact zero, not
 #: a rationing failure; both simulators snap it to zero (M48.6).
 ROUNDING_FLOOR = 1e-12
+
+#: Concentrations below the smallest normal float are read as zero — the
+#: denormals-are-zero convention the JAX core inherits from XLA.
+SUBNORMAL_FLOOR = sys.float_info.min
+
+
+def _flush_subnormals(state: WorldStateImpl) -> WorldStateImpl:
+    """``state`` with every subnormal concentration snapped to zero (a copy
+    only when something needed snapping)."""
+    values = state._concentrations
+    if not any(0.0 < abs(v) < SUBNORMAL_FLOOR for v in values):
+        return state
+    flushed = state.copy()
+    flushed._concentrations = [0.0 if 0.0 < abs(v) < SUBNORMAL_FLOOR else v for v in values]
+    return flushed
 #: The largest desired extent a reaction may ask for in one step: an infinite
 #: rate means "all of it", and the rationing then bounds it by availability.
 RATE_CAP = 1e150
@@ -187,6 +204,12 @@ class WorldSimulatorImpl:
         Returns:
             New state after applying reactions and flows
         """
+        # A subnormal concentration (below ~2.2e-308) is zero. XLA runs with
+        # denormals-are-zero, so the JAX core already reads it as 0; the
+        # reference must too, or a non-Lipschitz law (sqrt(x) at x -> 0) takes
+        # off from a 1e-309 seed on one backend and never on the other (found
+        # by the conformance property under `bio report`, 2026-08-30).
+        state = _flush_subnormals(state)
         new_state = state.copy()
 
         # Apply reactions per compartment with order-independent simultaneous
@@ -238,7 +261,13 @@ class WorldSimulatorImpl:
         for comp, delta in mult_delta.items():
             new_state.set_multiplicity(comp, new_state.get_multiplicity(comp) + delta)
         for (comp, mol), delta in mol_delta.items():
-            new_state.set(comp, mol, new_state.get(comp, mol) + delta)
+            value = new_state.get(comp, mol) + delta
+            # The resource draw is rationed like a reactant, so exact arithmetic
+            # never goes below zero; float rounding can leave -1e-16 — snap it,
+            # as the reaction pass does (found by `bio report`, 2026-08-30).
+            if -ROUNDING_FLOOR < value < 0.0:
+                value = 0.0
+            new_state.set(comp, mol, value)
 
     def _desired_extent(
         self,
