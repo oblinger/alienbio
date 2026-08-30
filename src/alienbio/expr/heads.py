@@ -39,21 +39,73 @@ for _name, _f in {
     "sqrt": math.sqrt,
     "exp": math.exp,
     "log": math.log,
-    "range": lambda *a: list(range(*a)),
     "len": len,
     "int": int,
     "float": float,
     "str": str,
     "bool": bool,
-    "list": list,
     "dict": dict,
-    "sorted": sorted,
-    "zip": lambda *a: [list(t) for t in zip(*a)],
     "all": all,
     "any": any,
-    "reversed": lambda x: list(reversed(x)),
 }.items():
     fn(_f, name=_name, kind="math", summary=_name)
+
+
+# ---- sized builtins: an untrusted expression must not allocate or iterate
+# past ``ctx.limits.entities`` (M48.5 — range(10**9), list(range(...)),
+# sum(range(10**9)) are refused before any work is done).
+
+
+def _sized(x: Any, ctx: Any, what: str) -> Any:
+    """Charge a sized iterable against the session's allocation meter."""
+    if hasattr(x, "__len__") and not isinstance(x, (str, bytes)):
+        try:
+            n = len(x)
+        except TypeError:
+            return x
+        ctx.limits.charge(n, ctx.path, what)
+    return x
+
+
+@fn(kind="math", name="range", summary="range")
+def _range(*a: Any, ctx: Any) -> list[Any]:
+    r = range(*a)
+    return list(_sized(r, ctx, "range"))
+
+
+@fn(kind="math", name="list", summary="list")
+def _list(x: Any = (), *, ctx: Any) -> list[Any]:
+    return list(_sized(x, ctx, "list"))
+
+
+@fn(kind="math", name="sorted", summary="sorted")
+def _sorted(x: Any, *, ctx: Any, key: Any = None, reverse: bool = False) -> list[Any]:
+    return sorted(_sized(x, ctx, "sorted"), key=key, reverse=reverse)
+
+
+@fn(kind="math", name="reversed", summary="reversed")
+def _reversed(x: Any, *, ctx: Any) -> list[Any]:
+    return list(reversed(_sized(x, ctx, "reversed")))
+
+
+@fn(kind="math", name="zip", summary="zip")
+def _zip(*a: Any, ctx: Any) -> list[list[Any]]:
+    return [list(t) for t in zip(*(_sized(x, ctx, "zip") for x in a))]
+
+
+@fn(kind="math", name="sum", summary="sum")
+def _sum(x: Any, start: Any = 0, *, ctx: Any) -> Any:
+    return sum(_sized(x, ctx, "sum"), start)
+
+
+@fn(kind="math", name="max", summary="max")
+def _max(*a: Any, ctx: Any, **kw: Any) -> Any:
+    return max(*(_sized(x, ctx, "max") for x in a), **kw)
+
+
+@fn(kind="math", name="min", summary="min")
+def _min(*a: Any, ctx: Any, **kw: Any) -> Any:
+    return min(*(_sized(x, ctx, "min") for x in a), **kw)
 
 
 # ---- op:* heads (what the inline parser emits for operators) --------------
@@ -65,11 +117,32 @@ def _op(name: str, f: Any) -> None:
 
 _op("add", lambda a, b: a + b)
 _op("sub", lambda a, b: a - b)
-_op("mul", lambda a, b: a * b)
 _op("div", lambda a, b: a / b)
 _op("floordiv", lambda a, b: a // b)
 _op("mod", lambda a, b: a % b)
-_op("pow", lambda a, b: a**b)
+
+
+#: The largest integer exponent an inline expression may raise to (M48.5:
+#: ``10 ** 10 ** 10`` would otherwise hang the interpreter).
+MAX_INT_EXPONENT = 10_000
+
+
+@fn(kind="op", name="op:mul", summary="operator mul")
+def _mul(a: Any, b: Any, *, ctx: Any) -> Any:
+    for seq, n in ((a, b), (b, a)):
+        if isinstance(seq, (str, bytes, list, tuple)) and isinstance(n, int) and not isinstance(n, bool):
+            ctx.limits.charge(len(seq) * max(n, 0), ctx.path, "mul")
+    return a * b
+
+
+@fn(kind="op", name="op:pow", summary="operator pow")
+def _pow(a: Any, b: Any, *, ctx: Any) -> Any:
+    if isinstance(b, int) and not isinstance(b, bool) and abs(b) > MAX_INT_EXPONENT and not isinstance(a, bool) and a not in (0, 1, -1):
+        raise ExprError(f"pow: exponent {b} exceeds {MAX_INT_EXPONENT}", ctx.path)
+    try:
+        return a**b
+    except OverflowError as exc:
+        raise ExprError(f"pow: {exc}", ctx.path) from None
 _op("neg", lambda a: -a)
 _op("pos", lambda a: +a)
 _op("not", lambda a: not a)

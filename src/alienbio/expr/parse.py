@@ -53,6 +53,8 @@ def parse(text: str, *, path: str = "") -> Any:
         tree = validate_expression(text)
     except SyntaxError as exc:
         raise ExprError(f"syntax error in {text!r}: {exc.msg}", path) from None
+    except (RecursionError, MemoryError):
+        raise ExprError(f"expression too deeply nested: {text[:40]!r}…", path) from None
     except UnsafeExpressionError as exc:
         raise ExprError(f"unsafe expression {text!r}: {exc}", path) from None
     return _convert(tree.body, path)

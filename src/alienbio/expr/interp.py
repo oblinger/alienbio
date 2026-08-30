@@ -369,12 +369,18 @@ def _each(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
     over = evaluate(over_form, env.child("over"))
     if isinstance(over, Mapping):
         over = list(over.items())
+    if hasattr(over, "__len__") and not isinstance(over, (str, bytes)):
+        try:
+            n = len(over)
+        except TypeError:
+            n = 0
+        env.ctx.limits.charge(n, env.path, "each")  # refuse BEFORE materialising a range(10**9)
     try:
         items = list(over)
     except TypeError:
         raise env.error(f"each: 'over' is not iterable ({type(over).__name__})") from None
-    if len(items) > env.ctx.limits.entities:
-        raise env.error(f"each: {len(items)} elements exceeds limits.entities={env.ctx.limits.entities}")
+    if not hasattr(over, "__len__"):
+        env.ctx.limits.charge(len(items), env.path, "each")
     result_list: list[Any] = []
     result_map: dict[Any, Any] = {}
     for i, item in enumerate(items):

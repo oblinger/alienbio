@@ -31,13 +31,38 @@ class ExprError(ValueError):
         super().__init__(f"{path}: {message}" if path else message)
 
 
+class Meter:
+    """A cumulative allocation count for one evaluation session (M48.5): every
+    ``each`` iteration, ``range`` / ``list`` element and sequence repetition
+    is charged here, so a bomb that is cheap per step and ruinous in total
+    (``[[0] * 10**5 for _ in range(10**5)]``) is refused when the running
+    total crosses ``limits.entities``, not after the memory is gone."""
+
+    __slots__ = ("allocated",)
+
+    def __init__(self) -> None:
+        self.allocated = 0
+
+
 @dataclass(frozen=True)
 class Limits:
     """Caps the interpreter enforces — exceeding one is an error, never a truncation."""
 
-    entities: int = 1_000_000  # elements a single `each` may produce (build/expand.py's MAX_ENTITY_COUNT)
+    entities: int = 1_000_000  # elements one `each`/`range`/`list` may produce, and in total per session
     depth: int = 200  # evaluation nesting
     attempts: int = 8  # guard retries (M47.5)
+    meter: Meter = field(default_factory=Meter, compare=False, repr=False)
+
+    def charge(self, n: int, path: str, what: str) -> None:
+        """Count ``n`` elements against the session total; raise past the cap."""
+        if n > self.entities:
+            raise ExprError(f"{what}: {n} elements exceeds limits.entities={self.entities}", path)
+        self.meter.allocated += n
+        if self.meter.allocated > self.entities:
+            raise ExprError(
+                f"{what}: {self.meter.allocated} elements allocated in this evaluation exceeds limits.entities={self.entities}",
+                path,
+            )
 
 
 @dataclass(frozen=True)
