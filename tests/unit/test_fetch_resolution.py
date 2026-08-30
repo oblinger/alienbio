@@ -39,7 +39,8 @@ def temp_source_root(tmp_path):
 
     # scenarios/mutualism.yaml
     (scenarios / "mutualism.yaml").write_text("""
-scenario.mutualism:
+mutualism:
+  _type: scenario
   name: Mutualism Test
   interface:
     actions: [feed, adjust]
@@ -53,7 +54,8 @@ scenario.mutualism:
     mutualism_dir = scenarios / "mutualism"
     mutualism_dir.mkdir()
     (mutualism_dir / "index.yaml").write_text("""
-scenario.mutualism_indexed:
+mutualism_indexed:
+  _type: scenario
   name: Mutualism from Index
   variant_a:
     seed: 42
@@ -319,8 +321,8 @@ class TestSourceRootAccess:
         bio.add_source_root(temp_source_root)
 
         result = bio.fetch("scenarios.mutualism", raw=True)
-        assert "scenario.mutualism" in result
-        assert result["scenario.mutualism"]["name"] == "Mutualism Test"
+        assert "mutualism" in result
+        assert result["mutualism"]["name"] == "Mutualism Test"
 
     def test_dig_into_yaml_content(self, temp_source_root):
         """Dotted path digs into YAML structure."""
@@ -349,7 +351,7 @@ class TestSourceRootAccess:
         # but also scenarios/mutualism.yaml which takes precedence
         # This test verifies the file wins over index
         result = bio.fetch("scenarios.mutualism", raw=True)
-        assert result["scenario.mutualism"]["name"] == "Mutualism Test"
+        assert result["mutualism"]["name"] == "Mutualism Test"
 
     def test_explicit_file_over_index(self, temp_source_root):
         """Explicit filename takes precedence over index.yaml."""
@@ -362,7 +364,7 @@ class TestSourceRootAccess:
         # The .yaml file should win
         result = bio.fetch("scenarios.mutualism", raw=True)
         # mutualism.yaml has "Mutualism Test", index.yaml has "Mutualism from Index"
-        assert result["scenario.mutualism"]["name"] == "Mutualism Test"
+        assert result["mutualism"]["name"] == "Mutualism Test"
 
     def test_deeper_yaml_resolution(self, temp_source_root):
         """Greedy matching finds deepest YAML file."""

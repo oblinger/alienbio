@@ -22,7 +22,7 @@ from .builtins import (
     DEFAULT_FUNCTIONS,
     normal, uniform, lognormal, poisson, exponential, choice, discrete,
 )
-from .loader import transform_typed_keys, expand_defaults
+from .loader import expand_defaults
 from .scope import Scope
 
 __all__ = [
@@ -72,7 +72,6 @@ __all__ = [
     "choice",
     "discrete",
     # Loader functions
-    "transform_typed_keys",
     "expand_defaults",
     # Scope
     "Scope",

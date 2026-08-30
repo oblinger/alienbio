@@ -1,53 +1,9 @@
-"""Spec loading and transformation functions."""
+"""Spec loading and transformation functions (the suite/scenario defaults
+expansion; the ``type.name:`` typed-key convention was retired in M47.6)."""
 
 from __future__ import annotations
 from typing import Any
 import copy
-
-
-def transform_typed_keys(data: dict[str, Any], type_registry: set[str] | None = None) -> dict[str, Any]:
-    """Transform type.name keys to nested structure with _type field.
-
-    Args:
-        data: Dict with keys like "world.foo", "suite.bar"
-        type_registry: Set of known type names (default: built-in types)
-
-    Returns:
-        Transformed dict with _type fields
-
-    Example:
-        {"world.foo": {"molecules": {}}}
-        becomes:
-        {"foo": {"_type": "world", "molecules": {}}}
-    """
-    if type_registry is None:
-        type_registry = {"suite", "scenario"}
-
-    result: dict[str, Any] = {}
-
-    for key, value in data.items():
-        if "." in key and isinstance(value, dict):
-            type_name, rest = key.split(".", 1)
-
-            if type_name in type_registry:
-                # Recursively transform nested typed keys in value
-                transformed_value = transform_typed_keys(value, type_registry)
-
-                # Add _type field
-                transformed_value = {"_type": type_name, **transformed_value}
-
-                # Store under the rest of the name
-                result[rest] = transformed_value
-            else:
-                # Not a known type, keep as-is but still recurse
-                result[key] = transform_typed_keys(value, type_registry)
-        elif isinstance(value, dict):
-            # Recurse into non-typed dicts
-            result[key] = transform_typed_keys(value, type_registry)
-        else:
-            result[key] = value
-
-    return result
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

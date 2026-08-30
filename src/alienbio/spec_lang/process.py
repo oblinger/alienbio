@@ -14,7 +14,7 @@ from typing import Any
 
 from .eval import Evaluable, Reference
 from .tags import Include, PyRef, UnsafeSpecError
-from .loader import transform_typed_keys, expand_defaults
+from .loader import expand_defaults
 
 
 def process_and_hydrate(
@@ -25,11 +25,10 @@ def process_and_hydrate(
     Pipeline:
     0. Execute Python includes (register decorators)
     1. Resolve !include tags (inline other files)
-    2. Transform typed keys (key.Type: → key: {_type: Type, ...})
-    3. Resolve !ref tags (cross-references)
-    4. Resolve !py tags (local Python access)
-    5. Expand defaults
-    6. Hydrate to typed objects (if hydrate=True)
+    2. Resolve !ref tags (cross-references)
+    3. Resolve !py tags (local Python access)
+    4. Expand defaults
+    5. Hydrate to typed objects (if hydrate=True)
 
     Args:
         data: Raw dict data to process
@@ -48,7 +47,6 @@ def process_and_hydrate(
         data = {k: v for k, v in data.items() if k != "include"}
 
     data = resolve_includes(data, base_dir, trusted=trusted)
-    data = transform_typed_keys(data)
     data = resolve_refs(data, data.get("constants", {}))
     data = resolve_py_refs(data, base_dir, trusted=trusted)
     data = expand_defaults(data)

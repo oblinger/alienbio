@@ -40,7 +40,6 @@ from .spec_lang import (
     eval_node,
     make_context,
     # Loader functions
-    transform_typed_keys,
     expand_defaults,
 )
 
@@ -106,7 +105,6 @@ __all__ = [
     "eval_node",
     "make_context",
     # Loader functions
-    "transform_typed_keys",
     "expand_defaults",
     # Biology protocols (for type hints)
     "Atom",

@@ -416,18 +416,6 @@ class TestHydrateTypeInstantiation:
         assert hasattr(result, 'name')
         assert result.name == "test"
 
-    def test_hydrate_typed_key_syntax(self):
-        """transform_typed_keys + hydrate creates typed instance."""
-        self._ensure_scenario_registered()
-        from alienbio.spec_lang.loader import transform_typed_keys
-        # Input uses typed key syntax — transform first, then hydrate
-        data = {"scenario.test": {"briefing": "Test briefing"}}
-        transformed = transform_typed_keys(data)
-        assert "test" in transformed
-        result = hydrate(transformed)
-        # After transform + hydrate, should be a typed instance
-        assert "test" in result
-        assert hasattr(result["test"], 'briefing')
 
     def test_hydrate_nested_types(self):
         """Nested typed objects hydrate recursively."""

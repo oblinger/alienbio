@@ -20,7 +20,7 @@ from .resolve import (
 )
 from .process import process_and_hydrate, resolve_includes, resolve_refs, resolve_py_refs
 from .cache import get_global_cache, clear_global_cache
-from .loader import transform_typed_keys, expand_defaults
+from .loader import expand_defaults
 from .eval import hydrate, eval_node, make_context, EvalContext
 from .tags import UnsafeSpecError
 
@@ -573,7 +573,6 @@ class Bio:
         base_dir = str(spec_file.parent)
 
         data = resolve_includes(data, base_dir)
-        data = transform_typed_keys(data)
         data = resolve_refs(data, data.get("constants", {}))
         data = expand_defaults(data)
 

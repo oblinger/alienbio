@@ -156,6 +156,13 @@ def evaluate(form: Any, env: Env) -> Any:
     if isinstance(form, (Include, PyRef)):
         raise env.error(f"{form!r} was not resolved at load — includes are resolved by Env.load / Env.hydrate")
     if isinstance(form, dict):
+        if "_type" in form:
+            # M47.6 — ``{_type: Reaction, ...}`` is the untagged spelling of
+            # ``!Reaction {...}`` (kept for saved worlds).
+            head = form["_type"]
+            if not isinstance(head, str):
+                raise env.error(f"_type must name a head, got {head!r}")
+            return _call(Call(head, (), {k: v for k, v in form.items() if k != "_type"}), env)
         return {k: evaluate(v, env.child(str(k))) for k, v in form.items()}
     if isinstance(form, (list, tuple)):
         return [evaluate(v, env.child(str(i))) for i, v in enumerate(form)]

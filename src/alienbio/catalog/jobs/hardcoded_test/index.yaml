@@ -8,7 +8,8 @@
 # Initial state: A=10, B=10, C=0, D=0
 # Expected: A and B deplete, C increases then converts to D
 
-scenario.hardcoded_test:
+hardcoded_test:
+  _type: scenario
   chemistry:
     molecules:
       A: {name: "Molecule A", bdepth: 0}

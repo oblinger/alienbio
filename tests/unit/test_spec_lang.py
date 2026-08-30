@@ -34,7 +34,6 @@ from alienbio.spec_lang import (
     Evaluable,
     Reference,
     Include,
-    transform_typed_keys,
     expand_defaults,
 )
 from alienbio.spec_lang.decorators import (
@@ -368,77 +367,6 @@ def test_action(sim):
         data = yaml.safe_load(yaml_str)
         assert isinstance(data["content"], Include)
         assert data["content"].path == "myfile.md"
-
-
-# =============================================================================
-# Test Suite: Typed Keys (type.name: parsing)
-# =============================================================================
-
-
-class TestTypedKeys:
-    """Tests for typed key parsing and transformation."""
-
-    def test_typed_key_scenario(self):
-        """scenario.foo: → {"foo": {"_type": "scenario", ...}}"""
-        data = {"scenario.foo": {"molecules": {}}}
-        result = transform_typed_keys(data)
-        assert result == {"foo": {"_type": "scenario", "molecules": {}}}
-
-    def test_typed_key_suite(self):
-        """suite.bar: → {"bar": {"_type": "suite", ...}}"""
-        data = {"suite.bar": {"defaults": {}}}
-        result = transform_typed_keys(data)
-        assert result == {"bar": {"_type": "suite", "defaults": {}}}
-
-    def test_typed_key_unknown_passthrough(self):
-        """unknown.thing: → keeps as-is (not a registered type)"""
-        data = {"unknown.thing": {"data": 1}}
-        result = transform_typed_keys(data)
-        # Unknown type should keep the dotted key as-is
-        assert result == {"unknown.thing": {"data": 1}}
-
-    def test_typed_key_nested(self):
-        """suite.outer: containing scenario.inner: → proper nesting"""
-        data = {
-            "suite.outer": {
-                "defaults": {},
-                "scenario.inner": {"briefing": "Nested"},
-            }
-        }
-        result = transform_typed_keys(data)
-        assert result == {
-            "outer": {
-                "_type": "suite",
-                "defaults": {},
-                "inner": {"_type": "scenario", "briefing": "Nested"},
-            }
-        }
-
-    def test_typed_key_dotted_name(self):
-        """scenario.my.complex.name: → name is my.complex.name"""
-        data = {"scenario.my.complex.name": {"molecules": {}}}
-        result = transform_typed_keys(data)
-        assert result == {"my.complex.name": {"_type": "scenario", "molecules": {}}}
-
-    def test_typed_key_preserves_other_keys(self):
-        """Preserves other keys alongside typed keys"""
-        data = {
-            "constants": {"x": 1},
-            "scenario.myscenario": {"molecules": {}},
-        }
-        result = transform_typed_keys(data)
-        assert result == {
-            "constants": {"x": 1},
-            "myscenario": {"_type": "scenario", "molecules": {}},
-        }
-
-    def test_typed_key_round_trip(self):
-        """Round-trip: parse → serialize → parse yields same structure"""
-        original = {"scenario.foo": {"molecules": {"A": {}}}}
-        transformed = transform_typed_keys(original)
-        # Would need inverse function for full round-trip
-        assert transformed["foo"]["_type"] == "scenario"
-        assert transformed["foo"]["molecules"] == {"A": {}}
 
 
 # =============================================================================
@@ -823,7 +751,8 @@ class TestBioClass:
         scenario_dir.mkdir(parents=True)
         spec_file = scenario_dir / "index.yaml"
         spec_file.write_text("""
-scenario.test:
+test:
+  _type: scenario
   briefing: "Test briefing"
   constitution: "Test constitution"
 """)
@@ -919,10 +848,12 @@ scenario.test:
 constants:
   high_perm: 0.8
 
-suite.test:
+test:
+  _type: suite
   defaults:
     world: base_world
-  scenario.baseline:
+  baseline:
+    _type: scenario
     briefing: "Full knowledge"
     permeability: !ref high_perm
 """)
@@ -958,19 +889,22 @@ world.ecosystem:
     environment:
       substrate: {}
 
-suite.experiments:
+experiments:
+  _type: suite
   defaults:
     world: !ref ecosystem
     constitution: |
       Protect all species.
       Maintain ecosystem balance.
 
-  scenario.baseline:
+  baseline:
+    _type: scenario
     briefing: |
       Full ecosystem knowledge.
       All molecules visible.
 
-  scenario.hidden:
+  hidden:
+    _type: scenario
     briefing: |
       Partial knowledge.
       Some molecules hidden.
@@ -980,7 +914,7 @@ suite.experiments:
         data = yaml.safe_load(spec_file.read_text())
         assert "constants" in data
         assert "world.ecosystem" in data
-        assert "suite.experiments" in data
+        assert "experiments" in data
 
     def test_spec_with_python_include(self, temp_dir):
         """Spec with Python include defining custom functions"""
@@ -1023,36 +957,6 @@ chemistry.test:
         assert "include" not in result
         assert "chemistry.test" in result
 
-    def test_spec_with_multiple_inheritance_levels(self, temp_dir):
-        """Spec with multiple levels of defaults inheritance"""
-        spec_file = temp_dir / "index.yaml"
-        spec_file.write_text("""
-suite.level1:
-  defaults:
-    a: 1
-    config:
-      x: 10
-
-  suite.level2:
-    defaults:
-      b: 2
-      config:
-        y: 20
-
-    suite.level3:
-      defaults:
-        c: 3
-
-      scenario.deep:
-        d: 4
-""")
-
-        data = yaml.safe_load(spec_file.read_text())
-        transformed = transform_typed_keys(data)
-
-        # After expansion, scenario.deep should have a, b, c, d and nested config
-        # This tests the full inheritance chain
-        assert transformed is not None
 
     def test_error_messages_include_context(self, temp_dir):
         """Error messages include context when evaluation fails"""
@@ -1104,37 +1008,6 @@ constants:
         data = yaml.safe_load(yaml_str)
         assert data == {"constants": {"a": 1, "b": 2}}
 
-    def test_deeply_nested_typed_keys(self):
-        """Very deeply nested typed keys"""
-        data = {
-            "suite.a": {
-                "suite.b": {
-                    "suite.c": {
-                        "scenario.d": {"value": "deep"}
-                    }
-                }
-            }
-        }
-        result = transform_typed_keys(data)
-        assert result["a"]["_type"] == "suite"
-        assert result["a"]["b"]["_type"] == "suite"
-        assert result["a"]["b"]["c"]["_type"] == "suite"
-        assert result["a"]["b"]["c"]["d"]["_type"] == "scenario"
-        assert result["a"]["b"]["c"]["d"]["value"] == "deep"
-
-    def test_mixed_typed_and_regular_keys(self):
-        """Mix of typed keys and regular keys"""
-        data = {
-            "constants": {"x": 1},
-            "scenario.foo": {"molecules": {}},
-            "metadata": {"version": "1.0"},
-            "suite.bar": {"defaults": {}},
-        }
-        result = transform_typed_keys(data)
-        assert result["constants"] == {"x": 1}
-        assert result["foo"]["_type"] == "scenario"
-        assert result["metadata"] == {"version": "1.0"}
-        assert result["bar"]["_type"] == "suite"
 
     def test_ev_with_multiline_expression(self):
         """!ev with complex multiline-style expression"""

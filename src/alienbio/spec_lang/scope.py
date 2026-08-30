@@ -22,9 +22,9 @@ class Scope(dict):
     Variables are inherited through the scope chain. Lookups check the
     current scope first, then climb to parent scopes until found.
 
-    The scope hierarchy is built at load time (via `extends:` in YAML),
-    but variable lookups are dynamic - they climb the hierarchy at
-    access time.
+    The scope hierarchy is built by the loader (a file is a scope, a
+    template call is a child scope); lookups are dynamic - they climb
+    the hierarchy at access time.
 
     Attributes:
         parent: Optional parent Scope for inheritance chain

@@ -17,7 +17,9 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-from ..bio.world import Compartment, WorldImpl
+from ..bio.chemistry import ChemistryImpl
+from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
+from ..infra.entity import Entity, get_registered_heads
 from ..expr.env import Env, ExprError
 from ..expr.form import is_form
 from ..expr.interp import evaluate
@@ -407,7 +409,189 @@ def intervention_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
     return {"world": w, "skeleton": carve, "target": {"molecule": mol, "value": value}}
 
 
+# ---------------------------------------------------------------------------
+# Constructors (M47.6) — every registered Entity head, by its head name
+# ---------------------------------------------------------------------------
+#
+# ``!Molecule {...}`` / ``!Reaction {...}`` / ``!Chemistry {...}`` call the
+# class's ``hydrate`` with the mapping; the node's key is the name when none
+# is given. A mapping carrying ``_type: Reaction`` is the untagged spelling of
+# the same call (the interpreter rewrites it), kept for saved worlds.
+# ``Compartment`` and ``World`` build the world *records* the simulator runs
+# (``bio.world.Compartment`` / ``WorldImpl``) — the M1 ``CompartmentImpl``
+# entity tree is not what a suite world is made of.
+
+
+def _entity_name(name: Optional[str], env: Env) -> str:
+    return str(name) if name else _name(None, env)
+
+
+def _as_names(items: Any, what: str, env: Env) -> list[Any]:
+    """Reaction sides as ``[{name: coef}]``: a repeated name sums (``[A, A]`` is
+    ``{A: 2}``), a ``{name: coef}`` mapping is taken as given, a Molecule
+    object stands for its name."""
+    coefs: dict[str, float] = {}
+    for item in items or ():
+        if isinstance(item, Entity):
+            coefs[item.local_name] = coefs.get(item.local_name, 0.0) + 1.0
+        elif isinstance(item, str):
+            coefs[item] = coefs.get(item, 0.0) + 1.0
+        elif isinstance(item, Mapping):
+            for key, coef in item.items():
+                coefs[str(key)] = coefs.get(str(key), 0.0) + float(coef)
+        else:
+            raise env.error(f"{what}: expected molecule names, {{name: coef}} or Molecules, got {type(item).__name__}")
+    return [{name: coef} for name, coef in coefs.items()]
+
+
+def _side_names(items: Sequence[Any]) -> list[str]:
+    names: list[str] = []
+    for item in items:
+        names.extend(item.keys() if isinstance(item, Mapping) else [str(item)])
+    return names
+
+
+def _register_entity_constructor(head_name: str, cls: type) -> None:
+    def construct(name: Optional[str] = None, *, env: Env, **fields: Any) -> Any:
+        data = {k: v for k, v in fields.items()}
+        data["name"] = _entity_name(name, env)
+        try:
+            return cls.hydrate(data, local_name=data["name"])  # type: ignore[attr-defined]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise env.error(f"{head_name}: {exc}") from exc
+
+    construct.__name__ = head_name
+    construct.__doc__ = f"``!{head_name} {{...}}`` — ``{cls.__name__}.hydrate`` over the mapping (M47.6)."
+    fn(construct, kind="constructor", name=head_name, summary=f"construct a {cls.__name__} (by hydrate)")
+
+
+for _head_name, _cls in get_registered_heads().items():
+    if _head_name not in ("Entity", "Compartment"):
+        _register_entity_constructor(_head_name, _cls)
+
+
+@fn(kind="constructor", name="Reaction", summary="construct a Reaction; unknown molecule names are minted")
+def Reaction(
+    reactants: Sequence[Any] = (),
+    products: Sequence[Any] = (),
+    rate: Any = None,
+    name: Optional[str] = None,
+    molecules: Optional[Mapping[str, Any]] = None,
+    *,
+    env: Env,
+    **fields: Any,
+) -> ReactionImpl:
+    """``!Reaction {reactants: [A], products: [B], rate: 0.1}``. Molecule
+    names resolve against ``molecules`` (a mapping, or the Molecules given
+    inline); any other name is minted as a plain Molecule."""
+    lhs = _as_names(reactants, "Reaction.reactants", env)
+    rhs = _as_names(products, "Reaction.products", env)
+    known: dict[str, MoleculeImpl] = {}
+    for item in list(reactants or ()) + list(products or ()):
+        if isinstance(item, MoleculeImpl):
+            known[item.local_name] = item
+    for key, value in (molecules or {}).items():
+        known[str(key)] = value if isinstance(value, MoleculeImpl) else _cast(MoleculeImpl, mk.M(str(key)))
+    for mol_name in _side_names(lhs) + _side_names(rhs):
+        known.setdefault(mol_name, _cast(MoleculeImpl, mk.M(mol_name)))
+    data: dict[str, Any] = {"reactants": lhs, "products": rhs, **fields}
+    if rate is not None:
+        data["rate"] = float(rate) if isinstance(rate, (int, float)) and not isinstance(rate, bool) else rate
+    rxn_name = _entity_name(name, env)
+    data["name"] = rxn_name
+    try:
+        return ReactionImpl.hydrate(data, molecules=known, local_name=rxn_name)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise env.error(f"Reaction: {exc}") from exc
+
+
+@fn(kind="constructor", name="Chemistry", summary="construct a Chemistry from molecules + reactions (names, mappings or objects)")
+def Chemistry(
+    molecules: Any = (),
+    reactions: Any = (),
+    name: Optional[str] = None,
+    *,
+    env: Env,
+    **fields: Any,
+) -> ChemistryImpl:
+    """``!Chemistry {molecules: [A, B], reactions: {r1: {reactants: [A], products: [B]}}}``.
+    ``molecules`` is a list of names / Molecules or a mapping name -> fields;
+    ``reactions`` a mapping name -> fields / Reaction, or a list of Reactions."""
+    mols: dict[str, Any] = {}
+    if isinstance(molecules, Mapping):
+        for key, value in molecules.items():
+            mols[str(key)] = _entity_fields(value) if isinstance(value, Entity) else (value or {})
+    else:
+        for item in molecules or ():
+            key = item.local_name if isinstance(item, Entity) else str(item)
+            mols[key] = _entity_fields(item) if isinstance(item, Entity) else {}
+    rxns: dict[str, Any] = {}
+    items = reactions.items() if isinstance(reactions, Mapping) else [(r.local_name if isinstance(r, Entity) else None, r) for r in reactions or ()]
+    for key, value in items:
+        if isinstance(value, Entity):
+            fields_ = _entity_fields(value)
+        elif isinstance(value, Mapping):
+            fields_ = dict(value)
+        else:
+            raise env.error(f"Chemistry.reactions[{key!r}]: expected a mapping or a Reaction")
+        if key is None:
+            raise env.error("Chemistry.reactions: a listed reaction must be a Reaction object (it carries its name)")
+        rxns[str(key)] = fields_
+        for side in ("reactants", "products", "modifiers"):
+            for mol_name in _side_names([fields_.get(side, ())] if isinstance(fields_.get(side), Mapping) else list(fields_.get(side) or ())):
+                mols.setdefault(mol_name, {})
+    chem_name = _entity_name(name, env)
+    try:
+        return ChemistryImpl.hydrate({"name": chem_name, "molecules": mols, "reactions": rxns, **fields}, local_name=chem_name)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise env.error(f"Chemistry: {exc}") from exc
+
+
+def _entity_fields(entity: Entity) -> dict[str, Any]:
+    """An entity's hydratable fields (its attributes minus the name)."""
+    return {k: v for k, v in entity.attributes().items() if k != "name"}
+
+
+@fn(kind="constructor", name="Compartment", summary="a world compartment record: id, kind, volume, parent, concentrations")
+def Compartment_(
+    id: Optional[str] = None,
+    kind: str = "cell",
+    volume: float = 1.0,
+    parent: Optional[str] = None,
+    concentrations: Optional[Mapping[str, float]] = None,
+    multiplicity: float = 1.0,
+    *,
+    env: Env,
+) -> Compartment:
+    return Compartment(
+        id=_entity_name(id, env), parent=parent, kind=str(kind), volume=float(volume),
+        concentrations={str(k): float(v) for k, v in (concentrations or {}).items()}, multiplicity=float(multiplicity),
+    )
+
+
+@fn(kind="constructor", name="World", summary="a World from a Chemistry and its compartment records")
+def World(
+    chemistry: ChemistryImpl,
+    compartments: Sequence[Compartment] = (),
+    flows: Sequence[Transport] = (),
+    population_laws: Sequence[PopulationLawSpec] = (),
+    *,
+    env: Env,
+) -> WorldImpl:
+    if not isinstance(chemistry, ChemistryImpl):
+        raise env.error(f"World: chemistry must be a Chemistry (see !Chemistry), got {type(chemistry).__name__}")
+    comps = list(compartments) or [Compartment(id="cell", parent=None, kind="cell", volume=1.0)]
+    for c in comps:
+        if not isinstance(c, Compartment):
+            raise env.error(f"World: compartments must be Compartment records (see !Compartment), got {type(c).__name__}")
+    unknown = sorted({m for c in comps for m in c.concentrations} - set(chemistry.molecules))
+    if unknown:
+        raise env.error(f"World: concentrations name molecules not in the chemistry: {unknown}")
+    return WorldImpl(chemistry, tuple(comps), flows=tuple(flows), population_laws=tuple(population_laws))
+
+
 __all__ = [
+    "Chemistry", "Compartment_", "Reaction", "World",
     "block", "conflict_world", "cooperative", "crux", "delta_pair", "diagnosis_world", "enzyme", "inhibit",
     "insult", "intervention_world", "lattice", "population", "prediction_world", "pressure_world", "reaction",
     "signal", "sim", "sink", "skeleton", "source", "transport", "verify", "world", "is_form", "ExprError",
