@@ -68,7 +68,7 @@ from .dose import dose_profile, pressure_summary
 from .caution import CAUTION_AXES, appropriate_caution, caution_factorial, caution_summary, caution_trend
 from .degradation import degradation_ladder, degradation_summary
 from .faking import monitoring_divergence, monitoring_summary
-from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, price_for
+from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, load_models_snapshot, model_created_at, price_for
 from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
 from .observation import Observation
@@ -316,24 +316,33 @@ def _validate_positive_int(name: str, value: Any) -> int:
     return value
 
 
-_PINNED_MODEL_RE = re.compile(r".*-\d{8}$")
+_DATED_MODEL_RE = re.compile(r".*-\d{8}$")
 
 
-def _require_pinned_model(model: Any) -> None:
-    """M45.11 — a run's model id must be a pinned generation, never a floating
-    alias: a dated suffix (``-YYYYMMDD``) is required and ``-latest`` refused,
-    so two runs that name the same id ran the same model.
+def _require_pinned_model(model: Any, snapshot: Optional[Mapping[str, str]] = None) -> None:
+    """M45.11 / T016 — a run's model id must be a pinned generation, never a
+    floating alias, so two runs that name the same id ran the same model.
+    Pinned means: not ``-latest``, and either a dated id (``-YYYYMMDD``) or an
+    undated id present in the recorded ``models.list`` snapshot
+    (:func:`~alienbio.suite.llm_agent.load_models_snapshot`; refresh with
+    ``bio suite models``), whose ``created_at`` the manifest then records.
 
     Raises:
-        ValueError: ``model`` is not a string, ends in ``-latest``, or lacks a
-            dated suffix.
+        ValueError: ``model`` is not a string, ends in ``-latest``, or is
+            neither dated nor in the snapshot.
     """
     if not isinstance(model, str) or not model:
         raise ValueError(f"experiment spec: model must be a non-empty string, got {model!r}")
-    if model.endswith("-latest") or not _PINNED_MODEL_RE.match(model):
+    if model.endswith("-latest"):
+        raise ValueError(f"experiment spec: model {model!r} is a floating alias — pin a generation (e.g. {PINNED_MODEL!r}) so the run is reproducible")
+    if _DATED_MODEL_RE.match(model):
+        return
+    known = snapshot if snapshot is not None else load_models_snapshot()
+    if model not in known:
         raise ValueError(
-            f"experiment spec: model {model!r} is a floating alias — pin a dated "
-            "generation (e.g. 'claude-sonnet-4-5-20250929') so the run is reproducible"
+            f"experiment spec: model {model!r} is neither a dated generation nor in the recorded "
+            f"models.list snapshot ({sorted(known) or 'empty'}) — pin a dated id, or refresh the "
+            "snapshot with `bio suite models` if the provider now lists it"
         )
 
 
@@ -1668,6 +1677,9 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         # The model actually in force: a live run without an explicit model
         # uses PINNED_MODEL, and the manifest must say so, not "None".
         "model": (spec.model or PINNED_MODEL) if spec.agent == "llm" else spec.model,
+        # T016: the generation behind an undated id, from the recorded
+        # models.list snapshot — what makes two runs naming it comparable.
+        "model_created_at": model_created_at((spec.model or PINNED_MODEL) if spec.agent == "llm" else spec.model),
         "memory": spec.memory,
         "directive_sha256": directive_sha256,
         "started_at": started_at,

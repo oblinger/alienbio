@@ -5,6 +5,7 @@ Usage:
     bio suite resume <DIR>                          # Resume a crashed/partial run
     bio suite aggregate <DIR>                       # Rebuild map.json/map.csv from records.jsonl alone
     bio suite report <DIR>                          # Print + rewrite report.txt from the record store
+    bio suite models                                # Refresh the recorded models.list snapshot (T016; free)
 
 See ``alienbio.suite.experiment`` for the spec format, the ``DRAFTERS``/
 ``AGENTS`` registries, and the no-peeking guard.
@@ -52,6 +53,8 @@ def suite_command(args: list[str], verbose: bool = False) -> int:
             return _aggregate_cmd(rest, verbose)
         if verb == "report":
             return _report_cmd(rest, verbose)
+        if verb == "models":
+            return _models_cmd(rest, verbose)
         _usage(f"unknown verb {verb!r}")
         return 2
     except (FileNotFoundError, FileExistsError, ValueError) as exc:
@@ -178,4 +181,21 @@ def _report_cmd(rest: list[str], verbose: bool) -> int:
     text = render_report(rmap, manifest)
     print(text)
     (Path(out_dir) / "report.txt").write_text(text)
+    return 0
+
+
+def _models_cmd(rest: list[str], verbose: bool) -> int:
+    """``bio suite models`` — refresh the recorded ``models.list`` snapshot
+    that lets an undated generation id count as pinned (T016)."""
+    del verbose
+    if rest:
+        _usage("models takes no arguments")
+        return 2
+    from ..suite.llm_agent import fetch_models_snapshot, write_models_snapshot
+
+    models = fetch_models_snapshot()
+    path = write_models_snapshot(models)
+    for model_id, created in models.items():
+        print(f"{model_id}  {created}")
+    print(f"{len(models)} models recorded -> {path}")
     return 0

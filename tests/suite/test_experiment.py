@@ -105,14 +105,57 @@ def test_load_spec_unknown_dial_raises_naming_it(tmp_path):
 
 
 def test_load_spec_refuses_a_floating_model_alias(tmp_path):
-    # M45.11: a run pins a dated generation; an alias would make two runs that
-    # name the same id incomparable.
+    # M45.11 / T016: a run pins a generation — dated, or undated but present in
+    # the recorded models.list snapshot; an alias would make two runs that name
+    # the same id incomparable.
     for alias in ("claude-sonnet-4-latest", "claude-sonnet-4", ""):
         path = _write_text(tmp_path, _TEXT + f"model: {alias!r}\n")
         with pytest.raises(ValueError, match="model"):
             load_spec(path)
     spec = load_spec(_write_spec(tmp_path, model="claude-sonnet-4-5-20250929"))
     assert spec.model == "claude-sonnet-4-5-20250929"
+    spec = load_spec(_write_spec(tmp_path, model="claude-sonnet-5"))  # undated, in the snapshot
+    assert spec.model == "claude-sonnet-5"
+
+
+def test_pinned_model_snapshot_rule(tmp_path, monkeypatch):
+    # T016: the snapshot decides an undated id; a dated id needs no snapshot.
+    from alienbio.suite import llm_agent as llm_mod
+    from alienbio.suite.experiment import _require_pinned_model
+
+    _require_pinned_model("claude-sonnet-4-5-20250929", snapshot={})
+    _require_pinned_model("claude-opus-4-8", snapshot={"claude-opus-4-8": "2026-05-28"})
+    with pytest.raises(ValueError, match="bio suite models"):
+        _require_pinned_model("claude-opus-4-8", snapshot={})
+    with pytest.raises(ValueError, match="floating alias"):
+        _require_pinned_model("claude-opus-4-8-latest", snapshot={"claude-opus-4-8-latest": "x"})
+    # the snapshot round-trips through a fake models.list and the file
+    class _M:
+        def __init__(self, id, created_at):
+            self.id, self.created_at = id, created_at
+    import datetime as dt
+    class _Client:
+        class models:
+            @staticmethod
+            def list(limit=100):
+                return [_M("claude-sonnet-5", dt.datetime(2026, 6, 29, tzinfo=dt.timezone.utc)), _M("claude-opus-4-8", "2026-05-28")]
+    snap = llm_mod.fetch_models_snapshot(_Client())
+    assert snap == {"claude-sonnet-5": "2026-06-29", "claude-opus-4-8": "2026-05-28"}
+    path = llm_mod.write_models_snapshot(snap, tmp_path / "models.json")
+    assert llm_mod.load_models_snapshot(path) == snap
+    assert llm_mod.model_created_at("claude-sonnet-5", snap) == "2026-06-29"
+    assert llm_mod.model_created_at("claude-sonnet-4-5-20250929", snap) is None
+    # the shipped snapshot carries the default pin, so the default is pinned
+    assert llm_mod.PINNED_MODEL in llm_mod.load_models_snapshot()
+    _require_pinned_model(llm_mod.PINNED_MODEL)
+
+
+def test_manifest_records_the_models_created_at(tmp_path):
+    from alienbio.suite.experiment import run_experiment
+    spec = load_spec(_write_spec(tmp_path, agent="idle"))
+    run_experiment(spec, out_dir=str(tmp_path / "run"))
+    manifest = json.loads((tmp_path / "run" / "manifest.json").read_text())
+    assert "model_created_at" in manifest and manifest["model_created_at"] is None  # scripted: no model
 
 
 def test_agent_axis_runs_control_arms_in_one_grid(tmp_path, monkeypatch):

@@ -55,12 +55,14 @@ new runner-level terminal reason) without ever calling the model again.
 
 from __future__ import annotations
 
+import datetime
 import hashlib
 import json
 import logging
 import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence, Union, cast
 
 from .agent import Action, ActionOutcome, Commit, Intervene, Measure, ReasoningStep, Wait
@@ -74,7 +76,7 @@ from .types import Answer, Directive
 #: comparable — matches the repo's own ``config`` default
 #: (``providers.anthropic.default_model``). Re-pinned 2026-08-29: the
 #: original ``claude-sonnet-4-20250514`` is retired (404 for new keys).
-PINNED_MODEL = "claude-sonnet-4-5-20250929"
+PINNED_MODEL = "claude-sonnet-5"
 
 #: Indirection over ``time.sleep`` so :func:`_call_with_retry`'s backoff is
 #: unit-testable (a test monkeypatches this module attribute rather than the
@@ -86,10 +88,65 @@ _sleep = time.sleep
 #: (M45.5). A model absent here has no known price — :func:`price_for` raises
 #: rather than guess, unless the caller supplies an explicit override.
 MODEL_PRICES_USD_PER_MTOK: Mapping[str, tuple[float, float]] = {
+    "claude-sonnet-5": (2.0, 10.0),
+    "claude-opus-5": (5.0, 25.0),
     "claude-sonnet-4-5-20250929": (3.0, 15.0),
     "claude-opus-4-5-20251101": (5.0, 25.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
 }
+
+#: T016 — the recorded ``models.list`` snapshot: ``model id -> created_at``
+#: (ISO date), refreshed by ``bio suite models``. An UNDATED id (the Claude 5
+#: family: ``claude-sonnet-5``, ``claude-opus-4-8``…) is pinned only if it
+#: appears here, and its ``created_at`` goes on the manifest — so two runs
+#: naming the same id are still provably the same generation.
+MODELS_SNAPSHOT_PATH = Path(__file__).with_name("models_snapshot.json")
+
+
+def load_models_snapshot(path: Optional[Path] = None) -> dict[str, str]:
+    """The recorded snapshot as ``{model_id: created_at}``; ``{}`` if none."""
+    path = path or MODELS_SNAPSHOT_PATH
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text())
+    return {str(k): str(v) for k, v in data.get("models", {}).items()}
+
+
+def fetch_models_snapshot(client: Any = None) -> dict[str, str]:
+    """Call the provider's ``models.list`` and return ``{id: created_at}``.
+    ``client`` is any object with ``.models.list(limit=…)`` (the Anthropic
+    SDK client, or a fake in tests); ``None`` builds the real one from the
+    configured key. Free — no tokens are spent."""
+    if client is None:
+        from .. import config
+
+        api_key = config.get_api_key("anthropic")
+        if not api_key:
+            raise RuntimeError("fetch_models_snapshot: no Anthropic API key found — set ANTHROPIC_API_KEY")
+        import anthropic  # type: ignore[import-not-found]
+
+        client = anthropic.Anthropic(api_key=api_key)
+    out: dict[str, str] = {}
+    for m in client.models.list(limit=100):
+        created = getattr(m, "created_at", None)
+        out[str(m.id)] = created.date().isoformat() if isinstance(created, datetime.datetime) else str(created or "")
+    return out
+
+
+def write_models_snapshot(models: Mapping[str, str], path: Optional[Path] = None) -> Path:
+    """Record ``models`` (from :func:`fetch_models_snapshot`) with the UTC
+    time it was taken. Returns the path written."""
+    path = path or MODELS_SNAPSHOT_PATH
+    payload = {"taken_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "models": dict(sorted(models.items()))}
+    path.write_text(json.dumps(payload, indent=2) + "\n")
+    return path
+
+
+def model_created_at(model: Optional[str], snapshot: Optional[Mapping[str, str]] = None) -> Optional[str]:
+    """The recorded ``created_at`` of ``model`` (``None`` when unknown)."""
+    if model is None:
+        return None
+    return (snapshot if snapshot is not None else load_models_snapshot()).get(model)
 
 
 def price_for(model: str, override: Optional[tuple[float, float]] = None) -> tuple[float, float]:
