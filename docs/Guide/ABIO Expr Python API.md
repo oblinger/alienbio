@@ -4,7 +4,7 @@
 
 The Python side of [[ABIO Expr Spec|Expr]]: how a Python function becomes a head a spec can call, how an expander builds structure, how forms are built and evaluated from Python, and where the trust boundary sits.
 
-> **Status.** Documents the API as designed in [[ABIO Expr]] (F007 G4); the `alienbio.expr` package lands with G4. The registration decorators on `main` today are the older per-kind set in [[Decorators]].
+> **Status.** Documents the API as designed in [[ABIO Expr]] and **ratified 2026-08-29**; the `alienbio.expr` package lands with roadmap M47 (F007 G4). The registration decorators on `main` today are the older per-kind set in [[Decorators]].
 
 ## Registering a function — `@fn`
 

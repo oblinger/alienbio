@@ -13,6 +13,7 @@ The specification of **Expr**, the language every alienbio spec file is written 
 | **[[#Inline expressions — `!x`]]** |  |
 | **[[#Calls]]** |  |
 | **[[#Quoted forms — `!q`]]** |  |
+|    [[#Rate laws — the compiled tier]] |  |
 | **[[#Special forms]]** |  |
 |    [[#`let` — local bindings]] |  |
 |    [[#`each` — a loop]] |  |
@@ -28,7 +29,7 @@ The specification of **Expr**, the language every alienbio spec file is written 
 | **[[#Files, includes and trust]]** |  |
 | **[[#Migration from the old tags]]** |  |
 
-> **Status.** Documents Expr as designed in [[ABIO Expr]] (F007 G4); the evaluator lands with G4. Until then the files on disk use the older tags (`!ev`, `!_`) — see § Migration from the old tags.
+> **Status.** Documents Expr as designed in [[ABIO Expr]] and **ratified 2026-08-29**; the evaluator lands with roadmap M47 (F007 G4). Until then the files on disk use the older tags (`!ev`, `!_`) — see § Migration from the old tags.
 
 
 ## A whole file, first
@@ -134,7 +135,7 @@ draw: !x lognormal(rate, 0.3)       # registered function
 first: !x state.get("A", 0.0)       # method call on a value
 ```
 
-An `!x` string is a **Python expression** — never a statement — parsed and checked against the sandbox allowlist, then evaluated with the current scope as its only namespace.
+An `!x` string is a **Python expression** — never a statement — parsed and checked against the sandbox allowlist, then evaluated by the Python interpreter with the current scope as its only namespace. It is not arbitrary Python (see the forbidden list) and it is not fast: it runs **once**, when the world is generated, so a comprehension over a few hundred pools costs nothing. The hot path — a rate law evaluated every simulation step — is a different, compiled tier: § Rate laws.
 
 **Allowed:** literals, names and dotted paths, arithmetic and comparison operators, `and` / `or` / `not`, the conditional expression, f-strings, list / dict / set displays, subscripts and slices, comprehensions, calls of registered heads by name, method calls on values (`x.get(...)`).
 
@@ -178,6 +179,43 @@ A quoted form is **the form itself, as a value** — closed over the scope it wa
 | the experiment runner | `run(form, condition)`: the swept axes bound per condition |
 
 `run(form)` evaluates a quoted form now, in the current scope (optionally with extra bindings: `run(form, {"turns": 8})`). Think of `!q` as a lambda whose parameters are its free names.
+
+### Rate laws — the compiled tier
+
+```yaml
+r1:
+  reactants: [S]
+  products: [P]
+  rate: 0.4                         # a constant k: mass action, k * S
+r2:
+  reactants: [S]
+  products: [P]
+  rate: !q Vmax * S / (Km + S)      # Michaelis-Menten over the species S
+r3:
+  reactants: [A, B]
+  products: [C]
+  rate: !q k * A * B * hill(M, 0.5, n=2)   # mass action gated by a modifier
+```
+
+A `rate:` is **not** run by the interpreter. It is a quoted form in a much smaller language — the **rate grammar** — that the simulator compiles once into a numeric kernel and evaluates every step, vectorised across reactions and compartments (the M24 JAX core). Nothing Python runs per step.
+
+```
+rate    ::= number | name                 ; a constant, or a bound constant
+          | species                       ; a concentration, by pool name
+          | rate ("+" | "-" | "*" | "/") rate
+          | rate "**" number
+          | "hill" "(" species "," rate "," "n" "=" number ")"
+          | "michaelis" "(" species "," rate ")"
+          | "activator" "(" species "," rate ")"
+          | "inhibitor" "(" species "," rate ")"
+          | ("exp" | "log" | "sqrt") "(" rate ")"
+```
+
+- The head set is the registry's **rate view**: the four modulation kinds the engine already implements (`activator`, `inhibitor`, `michaelis`, `hill` — `bio/reaction.py` `Modulation`), the math functions, and nothing else. A rate law that names a world-building head, a distribution, or a Python-only function is rejected at load, with the node's path.
+- A bare number (or a quoted Dist, drawn once at world build) is the mass-action constant `k`; the engine multiplies by the reactant concentrations itself.
+- What compiles is what the engine can vectorise. Today's engine evaluates mass action plus one modulation per reaction; the general grammar above is the target the rate compiler grows into, and a law outside the engine's current support fails at load rather than falling back to Python.
+
+This is the split between the two tiers of the language: **`!x` is run once, at generation time, by the Python interpreter, and speed is irrelevant; a rate law is compiled and runs a million times, so it is restricted to what compiles.**
 
 ## Special forms
 
@@ -363,7 +401,7 @@ The evaluator on `main` today ([[Spec Language Reference]]) uses different spell
 | `!ref name` | `!ref name` | now a lookup at evaluation, not a copy at load |
 | `template.name:` + `_params_` / `_ports_` / `_instantiate_` / `_as_ x{i in 1..n}` | `name: !template` + `params` / pool-name arguments / a call in the body / `!each` | the M1 generator DSL ([[Generator Spec]]) |
 | `_guards_:` | `guards:` on the call | |
-| `extends: base` | `!merge [!x base, {...}]` | |
+| `extends: base` | *dropped* | value inheritance (child mapping overrides a parent's keys); documented, never implemented in the loader, used by no spec. A variant is a template with parameters; a one-off override is `!merge [!x base, {...}]` if the need ever appears |
 | `type.name:` typed keys | `!Type {...}` constructors | |
 
 The rename is mechanical and lands at the close of G4; no aliases survive it.

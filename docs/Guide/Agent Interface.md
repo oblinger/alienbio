@@ -1,4 +1,4 @@
- [[ABIO docs]] → [[Alienbio User Guide]]
+ [[ABIO docs]] → [[Alienbio User Guide]] 
 
 # Agent Interface
 
@@ -185,6 +185,7 @@ class TimelineEvent:
 ```
 
 **Event types:**
+
 | Type | Description | Data fields |
 |------|-------------|-------------|
 | `action` | Agent initiated an action | `name`, `params`, `wait` |
@@ -1112,7 +1113,7 @@ class ClaudeAgentSDKBinding(Agent):
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-4-5-20250929",
         api_key: str = None
     ):
         self.model = model
@@ -1224,10 +1225,10 @@ default_agent: anthropic
 
 models:
   anthropic:
-    default: claude-sonnet-4-20250514
+    default: claude-sonnet-4-5-20250929
     available:
-      - claude-sonnet-4-20250514
-      - claude-opus-4-20250514
+      - claude-sonnet-4-5-20250929
+      - claude-opus-4-5-20251101
       - claude-haiku-3-5-20241022
   openai:
     default: gpt-4o
@@ -1262,7 +1263,7 @@ bio config set-default-agent anthropic
 
 # Test connection
 bio config test-key anthropic
-# Output: ✓ Anthropic API key valid (claude-sonnet-4-20250514 available)
+# Output: ✓ Anthropic API key valid (claude-sonnet-4-5-20250929 available)
 ```
 
 ### Config Module
@@ -1337,7 +1338,7 @@ def get_default_model(provider: str) -> str:
 
 def _builtin_defaults(provider: str) -> str:
     defaults = {
-        "anthropic": "claude-sonnet-4-20250514",
+        "anthropic": "claude-sonnet-4-5-20250929",
         "openai": "gpt-4o"
     }
     return defaults.get(provider, "unknown")
@@ -1361,7 +1362,7 @@ bio run catalog/scenarios/mutualism/hidden_dependency --agent oracle
 bio run catalog/scenarios/mutualism/hidden_dependency --agent human
 
 # Run with specific model
-bio run catalog/scenarios/mutualism/hidden_dependency --agent anthropic --model claude-opus-4-20250514
+bio run catalog/scenarios/mutualism/hidden_dependency --agent anthropic --model claude-opus-4-5-20251101
 
 # Run with seed for reproducibility
 bio run catalog/scenarios/mutualism/hidden_dependency --seed 42
