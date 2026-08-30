@@ -16,7 +16,14 @@ from typing import Any, Callable, Collection, Iterable, Optional
 
 
 class GuardViolation(Exception):
-    """Raised by a guard to reject what a call produced."""
+    """Raised by a guard to reject what a call produced. ``offenders`` names
+    the elements (keys of a produced mapping, dotted for depth) that
+    ``on_fail: prune`` may drop; a violation without them cannot be pruned."""
+
+    def __init__(self, message: str = "guard failed", *, offenders: Collection[str] = ()) -> None:
+        super().__init__(message)
+        self.message = message
+        self.offenders = tuple(offenders)
 
 
 #: Head kinds. ``special`` heads are the interpreter's own (they receive forms
@@ -192,9 +199,10 @@ def guard(
     into: Registry = registry,
     **meta: Any,
 ) -> Any:
-    """Register a guard: ``fn(expanded, ctx, **params)`` raises
-    :class:`GuardViolation` to reject what a call produced (M47.5 wires the
-    ``guards:`` / ``on_fail:`` keywords; registration lands here)."""
+    """Register a guard: ``fn(value, ctx, **params)`` returns ``False`` or
+    raises :class:`GuardViolation` to reject what a call produced. A call's
+    ``guards: [...]`` lists guards by name (defaults) or as calls (parameters);
+    ``on_fail: retry | prune | reject`` decides what a failure does (M47.5)."""
     return _decorate("guard", _f, name=name, guarded=False, guarded_params=(), into=into, meta=meta)
 
 

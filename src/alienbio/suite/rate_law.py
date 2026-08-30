@@ -177,12 +177,12 @@ def _scale(a: Dist[float], b: Dist[float], env: Env, what: str) -> Dist[float]:
 def _pool(form: Any, env: Env) -> str:
     """The modifier pool a modulation names: a string literal, or a bare name not bound in scope."""
     if isinstance(form, str):
-        return form
+        return env.pool(form)
     if isinstance(form, Name):
         try:
             env.lookup(form.path)
         except ExprError:
-            return form.path
+            return env.pool(form.path)
         raise env.error(
             f"rate law: {form.path!r} is bound in scope, so it cannot name a pool here — "
             f"quote it (\"{form.path}\") to mean the pool"

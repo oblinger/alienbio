@@ -59,6 +59,30 @@ class Quoted:
         return f"Quoted({self.form!r})"
 
 
+@dataclass(frozen=True)
+class Include:
+    """``!include path`` — resolved at load time (hydration), before any
+    evaluation: a ``.yaml`` merges in place as forms, ``.md``/``.txt`` reads as
+    text, ``.py`` executes under a trusted load so its decorators register
+    heads. Never reaches the interpreter."""
+
+    path: str
+
+    def __repr__(self) -> str:
+        return f"Include({self.path!r})"
+
+
+@dataclass(frozen=True)
+class PyRef:
+    """``!py module.attr`` — a Python object as a value, resolved at load time
+    under a trusted load only. Not a head: bind it (``let``) to call it."""
+
+    path: str
+
+    def __repr__(self) -> str:
+        return f"PyRef({self.path!r})"
+
+
 Form = Any  # Name | Call | Quoted | list[Form] | dict[str, Form] | scalar
 
 

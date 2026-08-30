@@ -10,6 +10,11 @@
 | call of an **expander** | the head gets the argument forms + env, returns a form; evaluated |
 | call of a **special form** | the head gets the argument forms + env, returns the value |
 
+Any call may carry ``guards: [...]`` and ``on_fail: retry | prune | reject``
+(M47.5): the guards run over what the call produced; ``retry`` re-evaluates
+under the next child seed (up to ``limits.attempts``), ``prune`` drops the
+offenders a guard names, ``reject`` (the default) fails the evaluation.
+
 The special forms are the whole control surface: ``let``, ``each``, ``if``,
 ``quote``, ``run``, ``template``, ``seed`` (and the short-circuit ``op:and`` /
 ``op:or`` the inline parser emits). Anything more is a Python expander.
@@ -21,9 +26,9 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
 
 from ..suite.dist import Seed
-from .env import Env, ExprError, Lazy
-from .form import Call, Name, Quoted, is_form
-from .registry import Head, special
+from .env import INSTANCE_KEY, PASSED_KEY, Env, ExprError, Lazy
+from .form import Call, Include, Name, PyRef, Quoted, is_form
+from .registry import GuardViolation, Head, special
 
 __all__ = ["evaluate", "QuotedForm", "TemplateHead", "ExprError"]
 
@@ -107,7 +112,28 @@ class TemplateHead(Head):
             if key not in bound:
                 bound[key] = evaluate(default, scope_env.child(key))
                 scope_env.bindings[key] = bound[key]
+        # M47.5 — pool names that arrived as arguments keep the caller's
+        # spelling; everything else the body names is namespaced by this
+        # instance (``Env.pool``).
+        passed: dict[str, str] = {}
+        for value in bound.values():
+            for text in _strings_in(value):
+                passed.setdefault(text, env.pool(text))
+        scope_env.bindings[PASSED_KEY] = passed
+        # The instance is named by the key the call is bound to, nested under
+        # the enclosing instance (``krel``; ``c1.krel`` inside instance ``c1``).
+        label = (env.path.rsplit(".", 1)[-1] if env.path else "") or self.name
+        parent = env.bindings.get(INSTANCE_KEY)
+        scope_env.bindings[INSTANCE_KEY] = f"{parent}.{label}" if parent else label
         return evaluate(self.body, scope_env)
+
+
+def _strings_in(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple)):
+        return [v for v in value if isinstance(v, str)]
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +153,8 @@ def evaluate(form: Any, env: Env) -> Any:
         return _call(form, env)
     if isinstance(form, Lazy):
         return env._force("<lazy>", form)
+    if isinstance(form, (Include, PyRef)):
+        raise env.error(f"{form!r} was not resolved at load — includes are resolved by Env.load / Env.hydrate")
     if isinstance(form, dict):
         return {k: evaluate(v, env.child(str(k))) for k, v in form.items()}
     if isinstance(form, (list, tuple)):
@@ -134,7 +162,18 @@ def evaluate(form: Any, env: Env) -> Any:
     return form
 
 
+#: Keywords every call accepts (M47.5): stripped before dispatch.
+GUARD_KEYS: tuple[str, ...] = ("guards", "on_fail")
+ON_FAIL: tuple[str, ...] = ("retry", "prune", "reject")
+
+
 def _call(form: Call, env: Env) -> Any:
+    if any(k in form.kwargs for k in GUARD_KEYS):
+        return _guarded_call(form, env)
+    return _dispatch(form, env)
+
+
+def _dispatch(form: Call, env: Env) -> Any:
     head = env.head(form.head)
     if head.is_special:
         return head.fn(form.args, form.kwargs, env)
@@ -156,6 +195,115 @@ def _call(form: Call, env: Env) -> Any:
         raise
     except TypeError as exc:
         raise env.error(f"{form.head}: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# guards (M47.5)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _Failure:
+    guard: str
+    message: str
+    offenders: tuple[str, ...]
+
+
+def _resolve_guards(forms: Any, env: Env) -> list[tuple[Head, dict[str, Any]]]:
+    """``guards: [name, head(param=..), ...]`` -> (guard head, evaluated params)."""
+    if isinstance(forms, (str, Name, Call)):
+        forms = [forms]
+    if not isinstance(forms, (list, tuple)):
+        raise env.error("guards: expected a list of guard names or guard calls")
+    out: list[tuple[Head, dict[str, Any]]] = []
+    for i, item in enumerate(forms):
+        if isinstance(item, str):
+            name, params = item, {}
+        elif isinstance(item, Name):
+            name, params = item.path, {}
+        elif isinstance(item, Call):
+            if item.args:
+                raise env.error(f"guards[{i}]: {item.head} takes keyword parameters only")
+            name = item.head
+            params = {k: evaluate(v, env.child(f"guards.{i}.{k}")) for k, v in item.kwargs.items()}
+        else:
+            raise env.error(f"guards[{i}]: expected a name or a call, got {type(item).__name__}")
+        head = env.head(name)
+        if head.kind != "guard":
+            raise env.error(f"guards[{i}]: {name!r} is not a guard (it is {head.kind!r})")
+        out.append((head, params))
+    return out
+
+
+def _check_guards(value: Any, guards: Sequence[tuple[Head, Mapping[str, Any]]], env: Env) -> Optional[_Failure]:
+    for head, params in guards:
+        try:
+            ok = head.fn(value, env.ctx, **params)
+        except GuardViolation as exc:
+            return _Failure(head.name, exc.message, exc.offenders)
+        except TypeError as exc:
+            raise env.error(f"guard {head.name}: {exc}") from exc
+        if ok is False:
+            return _Failure(head.name, "returned False", ())
+    return None
+
+
+def _drop(value: Any, dotted: str) -> bool:
+    """Remove ``dotted`` (a key path) from a mapping tree; True if something was removed."""
+    *parents, leaf = dotted.split(".")
+    node = value
+    for step in parents:
+        if not isinstance(node, dict) or step not in node:
+            return False
+        node = node[step]
+    if isinstance(node, dict) and leaf in node:
+        del node[leaf]
+        return True
+    return False
+
+
+def _guarded_call(form: Call, env: Env) -> Any:
+    kwargs = dict(form.kwargs)
+    guard_forms = kwargs.pop("guards", [])
+    on_fail = kwargs.pop("on_fail", "reject")
+    if isinstance(on_fail, Name):
+        on_fail = on_fail.path
+    if on_fail not in ON_FAIL:
+        raise env.error(f"{form.head}: on_fail must be one of {list(ON_FAIL)}, got {on_fail!r}")
+    guards = _resolve_guards(guard_forms, env)
+    inner = Call(form.head, form.args, kwargs)
+    attempts = env.ctx.limits.attempts if on_fail == "retry" else 1
+    failure: Optional[_Failure] = None
+    for n in range(attempts):
+        attempt_env = env if n == 0 else env.child(f"retry{n}")
+        value = _dispatch(inner, attempt_env)
+        failure = _check_guards(value, guards, attempt_env)
+        if failure is None:
+            return value
+        if on_fail == "prune":
+            return _prune(value, failure, guards, env, form.head)
+        if on_fail == "reject":
+            raise env.error(f"{form.head}: rejected by guard {failure.guard}: {failure.message}")
+    assert failure is not None
+    raise env.error(f"{form.head}: guard {failure.guard} still failing after {attempts} attempts: {failure.message}")
+
+
+def _prune(value: Any, failure: Optional[_Failure], guards: Sequence[tuple[Head, Mapping[str, Any]]], env: Env, head: str) -> Any:
+    """Drop the offenders a guard names and re-check, until every guard passes."""
+    if not isinstance(value, dict):
+        raise env.error(f"{head}: on_fail prune needs a produced mapping, got {type(value).__name__}")
+    rounds = 0
+    while failure is not None:
+        if not failure.offenders:
+            raise env.error(f"{head}: guard {failure.guard} names nothing to prune: {failure.message}")
+        removed = [o for o in failure.offenders if _drop(value, o)]
+        if not removed:
+            raise env.error(f"{head}: guard {failure.guard} names offenders {list(failure.offenders)} that are not in the value")
+        rounds += 1
+        if rounds > env.ctx.limits.attempts:
+            raise env.error(f"{head}: pruning did not converge in {rounds} rounds")
+        failure = _check_guards(value, guards, env)
+    return value
 
 
 # ---------------------------------------------------------------------------

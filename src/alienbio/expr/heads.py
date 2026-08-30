@@ -14,7 +14,7 @@ from typing import Any, Iterable, Mapping
 from ..spec_lang import builtins as _b
 from ..spec_lang.safe_eval import UnsafeExpressionError, _check_attr_name
 from .env import Env, ExprError
-from .registry import fn
+from .registry import fn, guard
 
 # ---- distributions ----------------------------------------------------------
 
@@ -140,3 +140,26 @@ def flatten_iter(xs: Iterable[Iterable[Any]]) -> list[Any]:
 
 
 __all__ = ["constant", "flatten_iter", "ExprError"]
+
+
+# ---------------------------------------------------------------------------
+# guards (M47.5) — the two generic ones; domain guards register from Python
+# ---------------------------------------------------------------------------
+
+
+@guard(summary="the produced value is not empty")
+def nonempty(value: Any, ctx: Any) -> bool:
+    del ctx
+    try:
+        return len(value) > 0
+    except TypeError:
+        return value is not None
+
+
+@guard(summary="the produced value has at most n elements")
+def max_size(value: Any, ctx: Any, n: int = 1) -> bool:
+    del ctx
+    try:
+        return len(value) <= int(n)
+    except TypeError:
+        return True

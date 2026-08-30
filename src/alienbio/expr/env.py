@@ -58,6 +58,21 @@ class Ctx:
         return replace(self, seed=self.seed.child(label), path=path)
 
 
+#: The hidden bindings a template instance carries (see :meth:`Env.pool`):
+#: argument string -> the pool name it denotes in the caller's scope, and the
+#: instance's own namespace.
+PASSED_KEY = "__passed__"
+INSTANCE_KEY = "__instance__"
+
+
+def _callable_head(name: str, func: Any) -> Head:
+    """A bound Python callable (``!py``, a ``let``-bound function) as a
+    function head, so ``!x name(...)`` can call it (M47.5)."""
+    from .registry import _injects
+
+    return Head(name=name, kind="fn", fn=func, meta={"summary": f"bound callable {name}"}, injects=_injects(func))
+
+
 class Lazy:
     """A top-level binding whose form is evaluated on first lookup (a name may
     refer to any binding in its file regardless of position; a cycle is an error)."""
@@ -191,13 +206,24 @@ class Env:
             if isinstance(value, Lazy):
                 if value.state == "done" and isinstance(value.value, Head):
                     return value.value
+                if value.state == "done" and callable(value.value):
+                    return _callable_head(first, value.value)
                 if value.state == "pending":
-                    from .form import Call as _Call
+                    from .form import Call as _Call, is_form as _is_form
 
                     if isinstance(value.form, _Call) and value.form.head == "template":
                         forced = self._force(first, value)
                         if isinstance(forced, Head):
                             return forced
+                    # a resolved !py object / a .py include's function: plain
+                    # data that happens to be callable — never a form, so
+                    # forcing it evaluates nothing.
+                    elif not _is_form(value.form) and not isinstance(value.form, (dict, list)) and callable(value.form):
+                        return _callable_head(first, self._force(first, value))
+            elif isinstance(value, Head):
+                return value
+            elif callable(value):
+                return _callable_head(first, value)
             elif isinstance(value, Head):
                 return value
         try:
@@ -207,20 +233,54 @@ class Env:
 
     # ---- files ------------------------------------------------------------
 
-    def load(self, source: Union[str, Path], *, text: Optional[str] = None) -> "Env":
-        """Evaluate a YAML document into a child scope: every top-level key
-        becomes a (lazy) binding. Returns the env whose scope holds them."""
+    def load(self, source: Union[str, Path], *, text: Optional[str] = None, base: Optional[Union[str, Path]] = None) -> "Env":
+        """Load a YAML document into a child scope: every top-level key becomes
+        a (lazy) binding. Includes and ``!py`` references are resolved first
+        (:mod:`alienbio.expr.include`) relative to ``base`` — the file's own
+        directory by default — under this env's trust. Returns the env whose
+        scope holds the bindings."""
+        from .include import hydrate, include_bindings
         from .yaml_tags import load_text
 
+        src = Path(source)
         if text is None:
-            text = Path(source).read_text()
+            text = src.read_text()
+        base_dir = Path(base).resolve() if base is not None else (src.parent.resolve() if src.is_file() else Path.cwd())
+        seen = frozenset({src.resolve()}) if src.is_file() else frozenset()
         data = load_text(text)
         if not isinstance(data, Mapping):
             raise ExprError("a spec file must be a mapping at the top level", str(source))
+        data = dict(data)
+        entries = data.pop("_includes_", None)
+        data = hydrate(data, base=base_dir, trusted=self.ctx.trusted, seen=seen)
+        if entries is not None:
+            for key, form in include_bindings(entries, base_dir, trusted=self.ctx.trusted, seen=seen).items():
+                data.setdefault(str(key), form)
         env = self.scope({}, parent=self.bindings)
         for key, form in data.items():
             env.bindings[str(key)] = Lazy(form, env)
         return env
+
+    def hydrate(self, data: Any, *, base: Optional[Union[str, Path]] = None) -> Any:
+        """Resolve includes / ``!py`` references inside already-loaded forms."""
+        from .include import hydrate
+
+        return hydrate(data, base=Path(base).resolve() if base is not None else Path.cwd(), trusted=self.ctx.trusted)
+
+    # ---- pools ------------------------------------------------------------
+
+    def pool(self, name: Any) -> str:
+        """A pool name as seen from this scope (M47.5): inside a template
+        instance a name is namespaced by the instance (``krel.ME1``) unless it
+        arrived as an argument, in which case it is whatever the caller's
+        scope called it — that is how a parent wires its children. Outside any
+        template the name is itself."""
+        text = str(name)
+        passed = self.bindings.get(PASSED_KEY)
+        if isinstance(passed, Mapping) and text in passed:
+            return str(passed[text])
+        instance = self.bindings.get(INSTANCE_KEY)
+        return f"{instance}.{text}" if instance else text
 
     def force_all(self) -> dict[str, Any]:
         """Evaluate every lazy binding in this scope (not parents); returns them."""

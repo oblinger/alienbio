@@ -71,6 +71,12 @@ def _dist(value: Any, what: str, env: Env) -> Optional[Dist[float]]:
     raise env.error(f"{what}: expected a number, a quoted form or a Dist, got {type(value).__name__}")
 
 
+def _pool(name: Any, env: Env) -> str:
+    """A pool name as this scope spells it (``Env.pool``): namespaced by the
+    template instance unless it arrived as an argument (M47.5)."""
+    return env.pool(name)
+
+
 def _name(name: Optional[str], env: Env) -> str:
     """A block's node name: explicit, else the node's key in the document."""
     if name:
@@ -97,12 +103,12 @@ def _maybe(**kwargs: Any) -> dict[str, Any]:
 
 @fn(summary="SUPPLY: ∅ → pool @ rate")
 def source(pool: str = "out", rate: Any = None, container: Optional[str] = None, name: Optional[str] = None, *, env: Env) -> SourceBlock:
-    return SourceBlock.make(_name(name, env), port=pool, container=container, rate=_dist(rate, "source.rate", env))
+    return SourceBlock.make(_name(name, env), port=_pool(pool, env), container=container, rate=_dist(rate, "source.rate", env))
 
 
 @fn(summary="SINK: pool → ∅ @ rate")
 def sink(pool: str = "in", rate: Any = None, container: Optional[str] = None, name: Optional[str] = None, *, env: Env) -> SinkBlock:
-    return SinkBlock.make(_name(name, env), port=pool, container=container, rate=_dist(rate, "sink.rate", env))
+    return SinkBlock.make(_name(name, env), port=_pool(pool, env), container=container, rate=_dist(rate, "sink.rate", env))
 
 
 from dataclasses import dataclass as _dataclass, field as _field
@@ -151,9 +157,11 @@ def reaction(
 ) -> ReactionBlock:
     if not reactants and not products:
         raise env.error("reaction: needs at least one reactant or product pool")
-    law = compile_rate(rate, env, reactants=[str(p) for p in reactants], products=[str(p) for p in products])
-    ports = tuple(Port(str(p), container, PortDir.IN) for p in reactants) + tuple(
-        Port(str(p), container, PortDir.OUT) for p in products
+    reactant_pools = [_pool(p, env) for p in reactants]
+    product_pools = [_pool(p, env) for p in products]
+    law = compile_rate(rate, env, reactants=reactant_pools, products=product_pools)
+    ports = tuple(Port(p, container, PortDir.IN) for p in reactant_pools) + tuple(
+        Port(p, container, PortDir.OUT) for p in product_pools
     )
     if not law.modulations:
         return ReactionBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=dict(stoich or {}))
@@ -164,7 +172,7 @@ def reaction(
 @fn(summary="CRUX: one precursor pool feeding two rival routes")
 def crux(precursor: str = "precursor", kA: Any = None, kB: Any = None, container: Optional[str] = None, name: Optional[str] = None, *, env: Env) -> ConflictCruxBlock:
     return ConflictCruxBlock.make(
-        _name(name, env), precursor_port=precursor, container=container, kA=_dist(kA, "crux.kA", env), kB=_dist(kB, "crux.kB", env)
+        _name(name, env), precursor_port=_pool(precursor, env), container=container, kA=_dist(kA, "crux.kA", env), kB=_dist(kB, "crux.kB", env)
     )
 
 
@@ -184,9 +192,9 @@ def signal(
 ) -> SignalingBlock:
     return SignalingBlock.make(
         _name(name, env),
-        in_port=in_pool,
-        out_port=out_pool,
-        modifier_port=modifier,
+        in_port=_pool(in_pool, env),
+        out_port=_pool(out_pool, env),
+        modifier_port=_pool(modifier, env),
         container=container,
         kind=kind,
         **_maybe(rate=_dist(rate, "signal.rate", env), a=_dist(a, "signal.a", env), Ki=_dist(Ki, "signal.Ki", env)),
@@ -196,7 +204,7 @@ def signal(
 @fn(summary="INHIBITION: a modifier pool throttles a reaction")
 def inhibit(in_pool: str = "in", out_pool: str = "out", modifier: str = "modifier", Ki: Any = None, rate: Any = None, container: Optional[str] = None, name: Optional[str] = None, *, env: Env) -> InhibitionBlock:
     return InhibitionBlock.make(
-        _name(name, env), in_port=in_pool, out_port=out_pool, modifier_port=modifier, container=container,
+        _name(name, env), in_port=_pool(in_pool, env), out_port=_pool(out_pool, env), modifier_port=_pool(modifier, env), container=container,
         **_maybe(rate=_dist(rate, "inhibit.rate", env), Ki=_dist(Ki, "inhibit.Ki", env)),
     )
 
@@ -204,7 +212,7 @@ def inhibit(in_pool: str = "in", out_pool: str = "out", modifier: str = "modifie
 @fn(summary="ENZYME: catalysed substrate → product")
 def enzyme(substrate: str = "substrate", product: str = "product", enzyme: str = "enzyme", Vmax: Any = None, K: Any = None, rate: Any = None, container: Optional[str] = None, name: Optional[str] = None, *, env: Env) -> EnzymeBlock:
     return EnzymeBlock.make(
-        _name(name, env), substrate_port=substrate, product_port=product, modifier_port=enzyme, container=container,
+        _name(name, env), substrate_port=_pool(substrate, env), product_port=_pool(product, env), modifier_port=_pool(enzyme, env), container=container,
         **_maybe(rate=_dist(rate, "enzyme.rate", env), Vmax=_dist(Vmax, "enzyme.Vmax", env), K=_dist(K, "enzyme.K", env)),
     )
 
@@ -212,7 +220,7 @@ def enzyme(substrate: str = "substrate", product: str = "product", enzyme: str =
 @fn(summary="COOPERATIVE: Hill-shaped response to a modifier pool")
 def cooperative(in_pool: str = "in", out_pool: str = "out", modifier: str = "modifier", Vmax: Any = None, K: Any = None, n: Any = None, rate: Any = None, container: Optional[str] = None, name: Optional[str] = None, *, env: Env) -> CooperativeBindingBlock:
     return CooperativeBindingBlock.make(
-        _name(name, env), in_port=in_pool, out_port=out_pool, modifier_port=modifier, container=container,
+        _name(name, env), in_port=_pool(in_pool, env), out_port=_pool(out_pool, env), modifier_port=_pool(modifier, env), container=container,
         **_maybe(rate=_dist(rate, "cooperative.rate", env), Vmax=_dist(Vmax, "cooperative.Vmax", env), K=_dist(K, "cooperative.K", env), n=_dist(n, "cooperative.n", env)),
     )
 
@@ -224,20 +232,20 @@ def insult(pool: str = "stressed", rate: Any = None, poisson: Optional[Mapping[s
         if not isinstance(poisson, Mapping) or not {"lam", "horizon"} <= set(poisson):
             raise env.error("insult.poisson: expected {lam: .., horizon: ..}")
         schedule = PoissonSchedule(float(poisson["lam"]), float(poisson["horizon"]))
-    return PressureBlock.make(_name(name, env), port=pool, container=container, rate=_dist(rate, "insult.rate", env), poisson=schedule)
+    return PressureBlock.make(_name(name, env), port=_pool(pool, env), container=container, rate=_dist(rate, "insult.rate", env), poisson=schedule)
 
 
 @fn(summary="TRANSPORT: flux of a pool between two compartments")
 def transport(pool: str = "pool", container: Optional[str] = None, dest_container: str = "cell2", rate: Any = None, rate_law: str = "gradient", src_volume: float = 1.0, dest_volume: float = 1.0, name: Optional[str] = None, *, env: Env) -> TransportBlock:
     return TransportBlock.make(
-        _name(name, env), port=pool, container=container, dest_container=dest_container, rate=_dist(rate, "transport.rate", env),
+        _name(name, env), port=_pool(pool, env), container=container, dest_container=dest_container, rate=_dist(rate, "transport.rate", env),
         rate_law=rate_law, src_volume=src_volume, dest_volume=dest_volume,
     )
 
 
 @fn(summary="LATTICE: a k-cell diffusion patch")
 def lattice(k: int = 3, molecule: str = "x", diffusion: Any = None, volume: float = 1.0, initial: Optional[Mapping[int, float]] = None, name: Optional[str] = None, *, env: Env) -> SpatialLatticeBlock:
-    return SpatialLatticeBlock.make(_name(name, env), k=int(k), molecule=molecule, diffusion=_dist(diffusion, "lattice.diffusion", env), volume=volume, initial=initial)
+    return SpatialLatticeBlock.make(_name(name, env), k=int(k), molecule=_pool(molecule, env), diffusion=_dist(diffusion, "lattice.diffusion", env), volume=volume, initial=initial)
 
 
 @fn(summary="POPULATION: counts with per-capita growth/death, mass-coupled to a resource")
@@ -303,7 +311,8 @@ def world(skeleton: Skeleton, initial: Optional[Mapping[str, float]] = None, con
         target_idx = ids.index(container)
     extra: dict[str, float] = {}
     for pool, value in initial.items():
-        mol = pools.get(str(pool), str(pool))
+        spelled = _pool(pool, env)
+        mol = pools.get(spelled, pools.get(str(pool), spelled))
         if mol not in molecules:
             raise env.error(f"world.initial: no pool or molecule {pool!r} in this world")
         extra[mol] = float(value)

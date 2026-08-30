@@ -4,10 +4,11 @@
 ``!ref <name>`` — a name lookup; ``!<head> <mapping>`` — a call with keyword
 arguments (positionals under the reserved key ``args:``); ``!<head> [..]`` —
 positional arguments; ``!<head> <scalar>`` — one positional argument.
-Untagged YAML is data. ``!include`` / ``!py`` stay the loader's own
-(hydration-time) tags, inherited from the spec-language ``SafeLoader``
-registration; ``!ev`` / ``!_`` / ``!quote`` are the legacy spellings and are
-removed at G4 close (M47.7).
+Untagged YAML is data. ``!include`` / ``!py`` are load-time forms
+(:class:`~alienbio.expr.form.Include` / :class:`~alienbio.expr.form.PyRef`),
+resolved by :mod:`alienbio.expr.include` before evaluation (M47.5); ``!ev`` /
+``!_`` / ``!quote`` are the legacy spellings and are removed at G4 close
+(M47.7).
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from typing import Any
 import yaml
 
 from .env import ExprError
-from .form import Call, Name, Quoted
+from .form import Call, Include, Name, PyRef, Quoted
 from .parse import dump as dump_inline
 from .parse import parse
 
@@ -46,6 +47,18 @@ def _ref_constructor(loader: yaml.Loader, node: yaml.Node) -> Any:
     if not isinstance(node, yaml.ScalarNode):
         raise ExprError("!ref takes a name", _mark(node))
     return Name(str(loader.construct_scalar(node)))
+
+
+def _include_constructor(loader: yaml.Loader, node: yaml.Node) -> Any:
+    if not isinstance(node, yaml.ScalarNode):
+        raise ExprError("!include takes a path", _mark(node))
+    return Include(str(loader.construct_scalar(node)))
+
+
+def _py_constructor(loader: yaml.Loader, node: yaml.Node) -> Any:
+    if not isinstance(node, yaml.ScalarNode):
+        raise ExprError("!py takes a dotted module.attr path", _mark(node))
+    return PyRef(str(loader.construct_scalar(node)))
 
 
 def _construct_node(loader: yaml.Loader, node: yaml.Node) -> Any:
@@ -98,6 +111,8 @@ def _mark(node: yaml.Node) -> str:
 ExprLoader.add_constructor("!x", _x_constructor)
 ExprLoader.add_constructor("!q", _q_constructor)
 ExprLoader.add_constructor("!ref", _ref_constructor)
+ExprLoader.add_constructor("!include", _include_constructor)
+ExprLoader.add_constructor("!py", _py_constructor)
 ExprLoader.add_multi_constructor("!", _call_constructor)
 
 
