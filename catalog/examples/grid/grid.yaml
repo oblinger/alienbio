@@ -1,0 +1,61 @@
+# grid.yaml — M48.9 example 7: the grid. One neutral world — `n_nodes`
+# parallel reaction chains, each `complexity` steps long, a grid of
+# reactions — under a FULL experiment: two swept axes, a
+# declared power design, world seeds matched across arms, an automatic idle
+# baseline, bounded concurrency, and the cost fields the dry-run estimate
+# reads. Interrupt it, `bio suite resume` it, `aggregate` and `report` it:
+# the harness, not the biology, is what this example exercises. Loads
+# trusted (helpers.py). See README.md.
+_includes_: [helpers.py]
+
+complexity: 2                    # steps per chain — swept by the experiment
+n_nodes: 3                       # parallel chains — swept by the experiment
+feed: 0.5
+
+# the grid: row r is S{r} -> X{r}_1 -> ... -> P{r}, fed and drained
+# (helpers.grid_children builds the blocks through the source / reaction /
+# sink heads, sized to the two dials)
+sk: !skeleton
+  root: !block {children: !x "grid_children(complexity, n_nodes, feed=feed)"}
+
+world: !world {skeleton: !x sk, initial: {S0: 1.0}}
+
+# the task: which way does row 0's product move when its first step is
+# throttled?
+task: !task
+  archetype: grid-predict
+  objective: !predict_q
+    world: !x world
+    reaction_id: !x first_reaction(world)
+    target_id: !x molecule_id(world, "P0")
+    factor: 0.25
+    sim: !sim {dt: 0.05, steps: 60}
+
+experiment: !experiment
+  name: grid-zero
+  task: !q grid(complexity=complexity, n_nodes=n_nodes)
+  episode: !q episode(max_turns=3, sim_steps=10)
+  # the example's own scripted agents (helpers.trend_commit / prior_commit)
+  # swept beside idle: two controls that answer, each against the twin that
+  # does nothing
+  agent: trend_commit
+  axes: {complexity: [1, 3], n_nodes: [2, 4], agent: [trend_commit, prior_commit, idle]}
+  trials_per_condition: 3
+  base_seed: 17
+  # the run exists to compare short chains with long ones: a large effect,
+  # so three trials per cell suffice (suite.power)
+  design: !power {target_effect_d: 3.0, primary_contrast: {axis: complexity, low: 1, high: 3}}
+  # the world is drawn from the same seed in every arm of one (condition, trial)
+  matched_dials: [complexity, n_nodes]
+  # an `idle` twin for every trial — the score an agent earns by doing nothing
+  # (here the swept agent axis carries it; without one, this adds the arm)
+  idle_baseline: True
+  concurrency: 2
+  # what the dry run reads; zero for scripted agents, a real number once
+  # `agent: llm` is swept in
+  expected_turns: 3
+  expected_prompt_tokens: 1200
+  expected_output_tokens: 200
+  price_usd_per_mtok: [3.0, 15.0]
+  cost_ceiling_usd: 1.0
+  out_dir: runs/examples/grid
