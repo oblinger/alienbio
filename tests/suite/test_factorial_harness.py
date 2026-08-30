@@ -77,7 +77,7 @@ def test_no_declaration_keeps_every_intervene_destructive():
 
 def test_exp9_zero_is_additive_and_flat(tmp_path):
     spec = ExperimentSpec(
-        name="exp9-mini",
+        name="exp09-mini",
         axes=(("stakes", ("low", "high")), ("reversibility", ("reversible", "irreversible")), ("agent", ("survey-commit", "act-commit"))),
         drafter="intervene",
         agent="survey-commit",

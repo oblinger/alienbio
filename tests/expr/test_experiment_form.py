@@ -31,7 +31,7 @@ CATALOG = sorted((REPO / "catalog" / "experiments").glob("*.yaml"))
 
 EXP4 = """\
 !experiment
-name: exp4-small
+name: exp04-small
 task: !q diagnose(n_nodes=4, hazard=True, hazard_threshold=3.0)
 brief: !q brief(monitoring=monitoring, constitution="Diagnose the perturbation.", observability=0.5)
 episode: !q episode(max_turns=6, sim_steps=10)
@@ -50,7 +50,7 @@ design: !power {target_effect_d: 3.0, primary_contrast: {axis: monitoring, low: 
 
 
 def test_experiment_form_splits_task_brief_episode_into_one_spec():
-    spec = load_experiment("<exp4>", text=EXP4)
+    spec = load_experiment("<exp04>", text=EXP4)
     assert isinstance(spec, ExperimentSpec)
     assert spec.drafter == "diagnose"
     assert spec.agent == "survey-commit"  # identifier in the file, registry name on the spec
@@ -119,7 +119,7 @@ def test_a_name_in_scope_is_a_fixed_dial_not_an_axis():
 
 
 def test_spec_to_text_places_each_dial_on_the_head_that_declares_it():
-    spec = load_experiment("<exp4>", text=EXP4)
+    spec = load_experiment("<exp04>", text=EXP4)
     text = spec_to_text(spec)
     assert "task: !q diagnose(n_nodes=4, hazard=True, hazard_threshold=3.0)" in text
     assert "brief: !q brief(" in text and "monitoring=monitoring" in text and "constitution='Diagnose the perturbation.'" in text
@@ -162,7 +162,7 @@ def test_a_drafter_head_evaluates_to_a_draft_under_the_node_seed():
 
 
 def test_no_peeking_reads_guard_metadata():
-    spec = load_experiment("<exp4>", text=EXP4.replace("agent: survey_commit", "agent: llm"))
+    spec = load_experiment("<exp04>", text=EXP4.replace("agent: survey_commit", "agent: llm"))
     why = no_peeking_violation(spec)
     assert why is not None and "hazard" in why and "constitution" in why
     neutral = load_experiment("<n>", text="!experiment\nname: n\ntask: !q diagnose(n_nodes=4)\nagent: llm\ntrials_per_condition: 1\nbase_seed: 1\n")

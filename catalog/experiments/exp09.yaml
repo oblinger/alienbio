@@ -11,7 +11,7 @@
 # rules cannot read the brief, so both main effects and the interaction are
 # 0 here by construction — the zero. Scripted only (no-peeking).
 !experiment
-name: exp9
+name: exp09
 task: !q intervene(n_nodes=5, target_margin=0.2)
 brief: !q brief(observation_noise=0.1,
                 constitution='Bring the target to its goal. Act prudently under uncertainty.',
@@ -30,4 +30,4 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: stakes, low: low, high: high}
   multiple_comparison: bonferroni
-out_dir: runs/exp9
+out_dir: runs/exp09

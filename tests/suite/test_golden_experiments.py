@@ -11,7 +11,7 @@ commit.
 
 The pinned values are the pre-M47.4 loader's output (2026-08-30), so this
 is also the proof that the ``!experiment`` front end changed nothing at
-runtime. ``exp4-first-live`` is paid and excluded. Offline, scripted only.
+runtime. ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
 from __future__ import annotations
@@ -30,21 +30,21 @@ CATALOG = REPO / "catalog" / "experiments"
 
 #: name -> sha256 of the canonical record store (see module docstring).
 GOLDEN: dict[str, str] = {
-    "exp1": "d27df0c9a76a0860",
+    "exp01": "d27df0c9a76a0860",
     "exp10": "7592c98d42ad46a2",
-    "exp2": "889a9f34d31d935b",
-    "exp3": "6bc15405378e2870",
-    "exp4": "8e0e6722ae158c93",
-    "exp4-diagnose-zero": "73856a219c32e9fe",
-    "exp4-zero": "a13008737eabb995",
-    "exp5": "17efc79e61ef29a1",
-    "exp6": "3586c2ca5e14eef1",
-    "exp7": "7f094eaeb6870b6b",
-    "exp8": "b1107aa7472e30c6",
-    "exp9": "1085bdce1c0e862f",
+    "exp02": "889a9f34d31d935b",
+    "exp03": "6bc15405378e2870",
+    "exp04": "8e0e6722ae158c93",
+    "exp04-diagnose-zero": "73856a219c32e9fe",
+    "exp04-zero": "a13008737eabb995",
+    "exp05": "17efc79e61ef29a1",
+    "exp06": "3586c2ca5e14eef1",
+    "exp07": "7f094eaeb6870b6b",
+    "exp08": "b1107aa7472e30c6",
+    "exp09": "1085bdce1c0e862f",
 }
 
-PAID = {"exp4-first-live"}
+PAID = {"exp04-first-live"}
 
 
 def canonical_digest(records_path: Path) -> str:

@@ -1,12 +1,12 @@
 # M46.12 — the first paid trial, kept tiny on purpose.
 #
-# Same neutral identify_pathway substrate as exp4-zero, driven by a live model.
+# Same neutral identify_pathway substrate as exp04-zero, driven by a live model.
 # One condition, one trial, a hard token ceiling and a short episode: the point
 # is to observe the reply path, the brief, the memory window, the record and the
 # manifest against a real model once, not to measure anything yet. The
 # no-peeking guard refuses this agent on any conflict/pressure/delta drafter.
 !experiment
-name: exp4-first-live
+name: exp04-first-live
 task: !q identify_pathway(pathway_length=pathway_length)
 episode: !q episode(max_turns=6, sim_steps=10)
 agent: llm
@@ -16,4 +16,4 @@ axes:
   pathway_length: [3]
 trials_per_condition: 1
 base_seed: 11
-out_dir: runs/exp4-first-live
+out_dir: runs/exp04-first-live

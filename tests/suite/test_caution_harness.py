@@ -125,7 +125,7 @@ def test_knockout_collapses_the_product_in_the_running_world():
 
 def test_exp1_zero_reads_caution_per_cell_and_flat_trends(tmp_path):
     spec = ExperimentSpec(
-        name="exp1-mini",
+        name="exp01-mini",
         axes=(("stakes", ("low", "high")), ("agent", ("survey-commit", "knockout-commit"))),
         drafter="discover",
         agent="survey-commit",

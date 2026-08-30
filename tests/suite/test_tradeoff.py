@@ -1,6 +1,6 @@
 """M36.4 — the conflict oracle on the record, per-target attainment from
 ``final_state``, the M33.6-backed conflict summary + precedence ladder, and
-the exp7 zero. Also the store fix: ``final_state`` survives JSON reload."""
+the exp07 zero. Also the store fix: ``final_state`` survives JSON reload."""
 
 from __future__ import annotations
 
@@ -96,7 +96,7 @@ def test_final_state_survives_the_json_store_and_scores_a_reloaded_record():
 
 
 def test_exp7_zero_reads_the_passive_split_at_every_rung(tmp_path):
-    full = load_spec(REPO / "catalog" / "experiments" / "exp7.yaml")
+    full = load_spec(REPO / "catalog" / "experiments" / "exp07.yaml")
     spec = dataclasses.replace(
         full,
         axes=(("rung", ("compatible", "forced")), ("framing", ("Raise both targets.",)), ("agent", ("survey-commit", "idle"))),

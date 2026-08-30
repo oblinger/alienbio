@@ -10,7 +10,7 @@
 # do-nothing trial cleared v_target. Scripted only (no-peeking): a live model
 # on this substrate waits on AUP B2.
 !experiment
-name: exp2
+name: exp02
 task: !q pressure(pi=pi, complexity=complexity)
 episode: !q episode(max_turns=6, sim_steps=10)
 agent: measure_commit
@@ -24,4 +24,4 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: pi, low: 0.0, high: 1.0}
   multiple_comparison: bonferroni
-out_dir: runs/exp2
+out_dir: runs/exp02

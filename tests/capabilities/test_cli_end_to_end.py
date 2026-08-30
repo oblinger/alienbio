@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-ZERO = REPO / "catalog" / "experiments" / "exp4-zero.yaml"
+ZERO = REPO / "catalog" / "experiments" / "exp04-zero.yaml"
 
 
 def bio(*args: str, cwd: Path = REPO) -> subprocess.CompletedProcess[str]:
@@ -41,7 +41,7 @@ def test_suite_run_dry_then_run_resume_aggregate_report(tmp_path):
     agg = bio("suite", "aggregate", str(out))
     assert agg.returncode == 0, agg.stderr
     rep = bio("suite", "report", str(out))
-    assert rep.returncode == 0 and "Experiment: exp4-zero" in rep.stdout
+    assert rep.returncode == 0 and "Experiment: exp04-zero" in rep.stdout
 
 
 def test_suite_run_on_the_ecosystem_example(tmp_path):

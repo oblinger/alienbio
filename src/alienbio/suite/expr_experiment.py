@@ -16,7 +16,7 @@ world is a *quoted* drafter call and whose agent side is a quoted ``brief``
 (and optionally ``episode``) call::
 
     !experiment
-    name: exp4
+    name: exp04
     task: !q diagnose(n_nodes=6, hazard=True, hazard_threshold=3.0)
     brief: !q brief(monitoring=monitoring, framing=framing,
                     constitution="Diagnose the perturbation.", observability=0.5)

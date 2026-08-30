@@ -11,7 +11,7 @@
 # is declared a matched dial so both arms are drawn over the same base world.
 # Scripted only (no-peeking).
 !experiment
-name: exp6
+name: exp06
 task: !q predict(n_nodes=5, ill_posed=ill_posed)
 brief: !q brief(observability=1.0,
                 constitution="Predict the target's response to the perturbation.",
@@ -29,4 +29,4 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: ill_posed, low: false, high: true}
   multiple_comparison: bonferroni
-out_dir: runs/exp6
+out_dir: runs/exp06

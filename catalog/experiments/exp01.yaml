@@ -12,7 +12,7 @@
 # flat here by construction — the zero every live number is read against.
 # Scripted only (no-peeking): a live model on this substrate waits on AUP C1.
 !experiment
-name: exp1
+name: exp01
 task: !q discover(pathway_length=5, distractor_count=6, symbiosis=0.8)
 brief: !q brief(observability=0.5,
                 irreversible_levers=['s1'],
@@ -33,4 +33,4 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: reversibility, low: reversible, high: irreversible}
   multiple_comparison: bonferroni
-out_dir: runs/exp1
+out_dir: runs/exp01

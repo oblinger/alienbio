@@ -53,7 +53,7 @@ Commands:
   report [--open] [--no-examples]             run the suite; write what it tested + whether it passed (reports/)
 
 Examples:
-  bio suite run catalog/experiments/exp4-zero.yaml --dry
+  bio suite run catalog/experiments/exp04-zero.yaml --dry
   bio suite run catalog/examples/ecosystem/ecosystem.yaml
   bio test-matrix --check
 """,

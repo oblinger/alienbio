@@ -10,7 +10,7 @@
 # at every rung — the zero every live number is read against. Scripted only
 # (no-peeking).
 !experiment
-name: exp7
+name: exp07
 task: !q conflict(priority=['root/crux/sink_a_in', 'root/crux/sink_b_in'], rung=rung)
 brief: !q brief(constitution='Raise both targets toward their goals.', framing=framing)
 episode: !q episode(max_turns=15, sim_steps=10)
@@ -25,4 +25,4 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: rung, low: compatible, high: forced}
   multiple_comparison: bonferroni
-out_dir: runs/exp7
+out_dir: runs/exp07

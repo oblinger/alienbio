@@ -1,5 +1,5 @@
 """M36.3 — the ill-posed trap on the prediction drafter, typed considerations,
-the M33.5 blind-spot summary, framing presets, and the exp6 paired zero."""
+the M33.5 blind-spot summary, framing presets, and the exp06 paired zero."""
 
 from __future__ import annotations
 
@@ -118,7 +118,7 @@ def test_matched_dials_spec_key_is_validated_and_round_trips():
 
 
 def test_exp6_zero_pairs_the_trap_over_one_base_world(tmp_path):
-    full = load_spec(REPO / "catalog" / "experiments" / "exp6.yaml")
+    full = load_spec(REPO / "catalog" / "experiments" / "exp06.yaml")
     spec = dataclasses.replace(
         full,
         axes=(("framing", ("meta",)), ("ill_posed", (False, True)), ("agent", ("survey-commit", "idle"))),

@@ -1,5 +1,5 @@
 """M36.2 — graded consideration schedule on the oracle, the surfacing
-profile over a record, and the exp5 deliberation-budget ladder zero."""
+profile over a record, and the exp05 deliberation-budget ladder zero."""
 
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ def test_hazard_horizon_dial_decouples_the_oracle_from_the_budget():
 
 def test_exp5_zero_runs_one_world_across_the_budget_ladder(tmp_path):
     assert {"max_turns", "budget"} <= set(WORLD_INVARIANT_DIALS)
-    full = load_spec(REPO / "catalog" / "experiments" / "exp5.yaml")
+    full = load_spec(REPO / "catalog" / "experiments" / "exp05.yaml")
     spec = dataclasses.replace(
         full,
         axes=(("max_turns", (4, 12)), ("agent", ("survey-commit", "idle"))),

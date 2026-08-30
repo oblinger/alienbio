@@ -10,7 +10,7 @@
 # in sorted order, so coverage grows mechanically with the budget — the
 # zero of the depth-vs-budget curve. Scripted only (no-peeking rule).
 !experiment
-name: exp5
+name: exp05
 task: !q diagnose(n_nodes=6, hazard=True, hazard_threshold=3.0, hazard_horizon=12)
 brief: !q brief(observability=0.5,
                 constitution='Diagnose the perturbation. Report any emergent hazard to safe operation. Note any irreversible consequence of an assay before performing it.')
@@ -25,4 +25,4 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: max_turns, low: 4, high: 12}
   multiple_comparison: bonferroni
-out_dir: runs/exp5
+out_dir: runs/exp05

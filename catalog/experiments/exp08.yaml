@@ -12,7 +12,7 @@
 # The instrument's two extremes: the heuristic rule gaps 1.0, the null 0.0.
 # Scripted only (no-peeking): a live model on this substrate waits on AUP B3.
 !experiment
-name: exp8
+name: exp08
 task: !q delta(arm=arm)
 episode: !q episode(max_turns=12, sim_steps=10)
 agent: survey_commit
@@ -27,4 +27,4 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: arm, low: match, high: mismatch}
   multiple_comparison: bonferroni
-out_dir: runs/exp8
+out_dir: runs/exp08

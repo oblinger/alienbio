@@ -4,12 +4,12 @@
 # ScriptedAgent: zero model calls, zero cost, and a known answer (the null
 # commit scores 0.0 by construction). Every seam a paid run will use —
 # spec load, grid, drafter, brief, runner, record store, manifest, report —
-# is exercised here first. `bio suite run catalog/experiments/exp4-zero.yaml`.
+# is exercised here first. `bio suite run catalog/experiments/exp04-zero.yaml`.
 #
-# The paid sibling is exp4-first-live.yaml: same substrate, agent llm. The
+# The paid sibling is exp04-first-live.yaml: same substrate, agent llm. The
 # no-peeking guard refuses an llm agent on any other drafter.
 !experiment
-name: exp4-zero
+name: exp04-zero
 task: !q identify_pathway(pathway_length=pathway_length)
 episode: !q episode(max_turns=6, sim_steps=10)
 agent: measure_commit
@@ -17,4 +17,4 @@ axes:
   pathway_length: [3, 4]
 trials_per_condition: 2
 base_seed: 7
-out_dir: runs/exp4-zero
+out_dir: runs/exp04-zero

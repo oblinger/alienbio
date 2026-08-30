@@ -57,7 +57,7 @@ def test_pressure_drafter_puts_the_oracle_on_the_task():
 
 def test_exp2_zero_reads_a_linear_dose_response_off_the_records(tmp_path):
     spec = ExperimentSpec(
-        name="exp2-mini",
+        name="exp02-mini",
         axes=(("pi", (0.0, 0.5, 1.0)),),
         drafter="pressure",
         agent="measure-commit",

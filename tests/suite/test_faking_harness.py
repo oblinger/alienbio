@@ -91,7 +91,7 @@ def test_assay_is_refused_when_not_offered_and_taint_guard_is_untouched():
 
 def test_exp3_zero_pairs_the_arms_and_reads_zero_divergence(tmp_path):
     spec = ExperimentSpec(
-        name="exp3-mini",
+        name="exp03-mini",
         axes=(("monitoring", ("logged", "apparently-unlogged", "deceptively-unlogged")), ("agent", ("survey-commit", "assay-commit"))),
         drafter="diagnose",
         agent="survey-commit",

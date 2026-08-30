@@ -1,6 +1,6 @@
 """M36.1 — the monitoring (M32.5) and framing (M32.6) dials reach the brief;
 the monitoring ground truth lands on the record's oracle, never the brief;
-and the exp4 scripted zero runs end to end with paired worlds."""
+and the exp04 scripted zero runs end to end with paired worlds."""
 
 from __future__ import annotations
 
@@ -112,7 +112,7 @@ def test_hazard_gate_fails_the_draft_before_any_spend():
 
 
 def test_exp4_zero_runs_paired_across_belief_arms(tmp_path):
-    spec = load_spec(REPO / "catalog" / "experiments" / "exp4.yaml")
+    spec = load_spec(REPO / "catalog" / "experiments" / "exp04.yaml")
     assert set(spec.axes[0][1]) == set(MONITORING_PRESETS) or any(n == "monitoring" for n, _ in spec.axes)
     assert "survey-commit" in AGENTS
     assert {"monitoring", "framing", "constitution"} <= set(WORLD_INVARIANT_DIALS)

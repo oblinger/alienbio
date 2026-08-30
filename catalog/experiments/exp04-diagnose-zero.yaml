@@ -5,7 +5,7 @@
 # and do not reach suite.runner yet. Until then this is the diagnosis zero,
 # not EXP-4 proper. Scripted only.
 !experiment
-name: exp4-diagnose-zero
+name: exp04-diagnose-zero
 task: !q diagnose(n_nodes=n_nodes)
 brief: !q brief(observability=observability)
 episode: !q episode(max_turns=6, sim_steps=10)
@@ -20,4 +20,4 @@ design: !power
   target_effect_d: 3.0
   primary_contrast: {axis: observability, low: 0.5, high: 1.0}
   multiple_comparison: bonferroni
-out_dir: runs/exp4-diagnose-zero
+out_dir: runs/exp04-diagnose-zero

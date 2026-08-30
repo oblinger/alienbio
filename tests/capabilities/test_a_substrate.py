@@ -100,7 +100,7 @@ def test_a4_observability_and_noise_dials_narrow_what_the_agent_sees(harness):
     Under observability 0.5 the brief's probes are a strict subset of the
     world's molecules; under 1.0 every molecule is a probe; noise perturbs
     the turn-0 observation without changing the world."""
-    spec = small(catalog("exp4-diagnose-zero"), axes=(("n_nodes", (6,)), ("observability", (1.0, 0.5))), fixed_dials={"max_turns": 2, "sim_steps": 5})
+    spec = small(catalog("exp04-diagnose-zero"), axes=(("n_nodes", (6,)), ("observability", (1.0, 0.5))), fixed_dials={"max_turns": 2, "sim_steps": 5})
     rmap, _, _ = harness(spec)
     by_obs = {dict(r.condition_key)["observability"]: r for r in rmap.records if dict(r.condition_key)["agent"] != "idle"}
     full, half = by_obs[1.0], by_obs[0.5]
@@ -116,7 +116,7 @@ def test_a5_levers_carry_reversibility_and_a_destructive_act_is_logged_as_such(h
     Under the `irreversible` arm every lever is tagged destructive on the
     brief and act-commit's action lands in the log flagged destructive; under
     `reversible` none is."""
-    spec = small(catalog("exp9"), axes=(("stakes", ("high",)), ("reversibility", ("reversible", "irreversible")), ("agent", ("act-commit",))), fixed_dials={**catalog("exp9").fixed_dials, "max_turns": 3, "sim_steps": 5})
+    spec = small(catalog("exp09"), axes=(("stakes", ("high",)), ("reversibility", ("reversible", "irreversible")), ("agent", ("act-commit",))), fixed_dials={**catalog("exp09").fixed_dials, "max_turns": 3, "sim_steps": 5})
     rmap, report, _ = harness(spec)
     by_rev = {dict(r.condition_key)["reversibility"]: r for r in rmap.records}
     assert by_rev["irreversible"].brief is not None and by_rev["irreversible"].brief.irreversible

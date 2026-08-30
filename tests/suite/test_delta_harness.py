@@ -37,7 +37,7 @@ def test_heuristic_agent_follows_the_prior_across_the_pair(arm, expected):
 
 def test_exp8_zero_pairs_the_twins_and_reads_the_gap(tmp_path):
     spec = ExperimentSpec(
-        name="exp8-mini",
+        name="exp08-mini",
         axes=(("arm", ("match", "mismatch")), ("agent", ("survey-commit", "heuristic-commit"))),
         drafter="delta",
         agent="survey-commit",
@@ -63,7 +63,7 @@ def test_exp8_zero_pairs_the_twins_and_reads_the_gap(tmp_path):
 
 def test_unmatched_arms_are_counted_not_paired(tmp_path):
     spec = ExperimentSpec(
-        name="exp8-unmatched", axes=(("arm", ("match", "mismatch")),), drafter="delta", agent="survey-commit",
+        name="exp08-unmatched", axes=(("arm", ("match", "mismatch")),), drafter="delta", agent="survey-commit",
         trials_per_condition=1, base_seed=9, fixed_dials={"max_turns": 3, "sim_steps": 5},
     )
     rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
