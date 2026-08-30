@@ -29,7 +29,7 @@ def test_delta_drafter_arms_share_ids_and_flip_the_answer():
 def test_heuristic_agent_follows_the_prior_across_the_pair(arm, expected):
     world, task = DRAFTERS["delta"](Seed(6), {"arm": arm})
     agent = AGENTS["heuristic-commit"](None)(Seed(0), {})  # type: ignore[arg-type]
-    record = run(world, task, agent, {"arm": arm}, Seed(1))
+    record = run(world, task, agent, {"arm": arm, "levers": []}, Seed(1))
     assert record.terminal_reason == "committed"
     assert record.objective_score == expected
     assert record.oracle["delta"]["arm"] == arm
@@ -43,7 +43,7 @@ def test_exp8_zero_pairs_the_twins_and_reads_the_gap(tmp_path):
         agent="survey-commit",
         trials_per_condition=2,
         base_seed=8,
-        fixed_dials={"max_turns": 6, "sim_steps": 10},
+        fixed_dials={"max_turns": 6, "sim_steps": 10, "levers": []},
         matched_dials=("arm",),
     )
     rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
@@ -64,7 +64,7 @@ def test_exp8_zero_pairs_the_twins_and_reads_the_gap(tmp_path):
 def test_unmatched_arms_are_counted_not_paired(tmp_path):
     spec = ExperimentSpec(
         name="exp08-unmatched", axes=(("arm", ("match", "mismatch")),), drafter="delta", agent="survey-commit",
-        trials_per_condition=1, base_seed=9, fixed_dials={"max_turns": 3, "sim_steps": 5},
+        trials_per_condition=1, base_seed=9, fixed_dials={"max_turns": 3, "sim_steps": 5, "levers": []},
     )
     rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
     pairs, unpaired = delta_pairs(rmap.records)

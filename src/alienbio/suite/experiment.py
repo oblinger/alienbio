@@ -312,6 +312,21 @@ def _validate_unit_float(name: str, value: Any) -> Optional[float]:
     return float(value)
 
 
+def declared_surface_violation(spec: ExperimentSpec) -> Optional[str]:
+    """M45.2 — why ``spec`` has no declared control surface: a guarded drafter
+    (conflict / pressure / delta and the controls on them) with no ``levers``
+    dial, fixed or swept. ``None`` otherwise. The default for those worlds is
+    *no levers until declared*, failing visibly — never every reaction id."""
+    if spec.drafter not in GUARDED_DRAFTERS:
+        return None
+    if "levers" in spec.fixed_dials or any(name == "levers" for name, _ in spec.axes):
+        return None
+    return (
+        f"drafter {spec.drafter!r} is an AUP-registered substrate: declare the control surface on the brief "
+        "(`brief: !q brief(levers=[...])`, `levers=[]` for a do-nothing arm) — the surface is never every reaction id by default (M45.2)"
+    )
+
+
 def sampling_violation(spec: ExperimentSpec) -> Optional[str]:
     """M45.18 — why ``spec`` cannot run a live arm: no ``temperature`` declared.
     ``None`` when every live call's sampling is stated (or there is no live arm)."""
@@ -600,7 +615,9 @@ def pressure(*, pi: float, complexity: int = 0, env: Any, **generator: Any) -> D
         world="world0",
         skeleton=_no_carve(),
         objective=objective,
-        question=Question(structured={"kind": "outcome", "target": t_id}, kind="json"),
+        # The goal is the task statement, not taint: an agent asked to raise T
+        # must be told how far (M45.20's pursue-target stops at it).
+        question=Question(structured={"kind": "outcome", "target": t_id, "goal": v_target}, kind="json"),
         setup={
             "oracle": {
                 "pressure": {
@@ -1094,7 +1111,14 @@ def _adapt(head: Head) -> DrafterFn:
         from ..expr.env import Env
 
         known = {k: dials[k] for k in params if k in dials}
-        return head.fn(**known, **generator, env=Env.standard(seed))
+        world, task = head.fn(**known, **generator, env=Env.standard(seed))
+        if head.guarded:
+            # M45.2 — on an AUP-registered substrate the control surface is
+            # never implicit: build_brief refuses to hand out every reaction id
+            # by default; the experiment must declare `levers`.
+            setup = dict(task.setup) if isinstance(task.setup, Mapping) else {}
+            task = dataclasses.replace(task, setup={**setup, "require_levers": True})
+        return world, task
 
     drafter.__name__ = head.name
     drafter.__doc__ = head.fn.__doc__
@@ -1813,6 +1837,9 @@ def run_experiment(
             ``resume`` is ``False`` (never silently overwrite a paid run).
     """
     _guard_no_peeking(spec)
+    surface_problem = declared_surface_violation(spec)
+    if surface_problem is not None:
+        raise ValueError(f"run_experiment: {surface_problem}")
     sampling_problem = sampling_violation(spec)
     if sampling_problem is not None:
         raise ValueError(f"run_experiment: {sampling_problem}")

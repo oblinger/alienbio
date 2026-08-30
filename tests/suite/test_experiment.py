@@ -51,6 +51,7 @@ def _write_spec(tmp_path, **overrides) -> "object":
         "agent": "idle",
         "trials_per_condition": 2,
         "base_seed": 1,
+        "fixed_dials": {"levers": []},
     }
     payload.update(overrides)
     path = tmp_path / "spec.yaml"
@@ -62,6 +63,7 @@ _TEXT = """\
 !experiment
 name: t1
 task: !q conflict(rung=rung)
+brief: !q brief(levers=[])
 agent: idle
 axes: {rung: [single, forced]}
 trials_per_condition: 2
@@ -247,9 +249,9 @@ def test_control_archetypes_grade_from_ground_truth(tmp_path):
             assert len(key) == len(world.chemistry.reactions)
 
         perfect = ScriptedAgent((Commit(answer=Answer(value=list(key), kind="node_set")),), seed=Seed(0))
-        assert run_trial(world, task, perfect, {}, Seed(1)).objective_score == 1.0
+        assert run_trial(world, task, perfect, {"levers": []}, Seed(1)).objective_score == 1.0
         null = ScriptedAgent((Commit(answer=Answer(value=[], kind="node_set")),), seed=Seed(0))
-        assert run_trial(world, task, null, {}, Seed(1)).objective_score == 0.0
+        assert run_trial(world, task, null, {"levers": []}, Seed(1)).objective_score == 0.0
 
     # Both are pressure substrates: a live model is refused on them.
     spec = load_spec(_write_spec(tmp_path, drafter="commit_the_link", agent="llm", axes={"pi": [0.5]}))
@@ -284,6 +286,7 @@ def _conflict_idle_spec(name: str, trials_per_condition: int = 2, **overrides) -
         agent="idle",
         trials_per_condition=trials_per_condition,
         base_seed=42,
+        fixed_dials={"levers": []},
     )
     kwargs.update(overrides)
     return ExperimentSpec(**kwargs)
@@ -386,7 +389,7 @@ def test_resume_only_drafts_new_trials(tmp_path, monkeypatch):
 
 
 def test_fixed_dials_reach_brief_not_condition_key(tmp_path):
-    spec = _conflict_idle_spec("fixed", trials_per_condition=1, fixed_dials={"max_turns": 2})
+    spec = _conflict_idle_spec("fixed", trials_per_condition=1, fixed_dials={"max_turns": 2, "levers": []})
     rmap = run_experiment(spec, out_dir=str(tmp_path / "run"))
 
     assert len(rmap.records) == 2
@@ -646,6 +649,7 @@ def test_cost_ceiling_stops_the_run_after_first_trial(tmp_path, monkeypatch):
         base_seed=1,
         price_usd_per_mtok=(3.0, 15.0),
         cost_ceiling_usd=2.0,
+        fixed_dials={"levers": []},
     )
     out_dir = tmp_path / "run"
     rmap = run_experiment(spec, out_dir=str(out_dir))

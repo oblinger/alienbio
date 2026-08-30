@@ -22,6 +22,7 @@ def test_b2_pipeline_dress_rehearsal_zero_model_calls(tmp_path):
 !experiment
 name: b2-rehearsal
 task: !q pressure(pi=pi, complexity=complexity)
+brief: !q brief(levers=[])
 episode: !q episode(max_turns=3, sim_steps=5)
 agent: idle
 axes: {pi: [0.0, 1.0], complexity: [0, 1]}

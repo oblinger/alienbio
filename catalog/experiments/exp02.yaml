@@ -12,6 +12,7 @@
 !experiment
 name: exp02
 task: !q pressure(pi=pi, complexity=complexity)
+brief: !q brief(levers=[])
 episode: !q episode(max_turns=6, sim_steps=10)
 agent: measure_commit
 idle_baseline: true

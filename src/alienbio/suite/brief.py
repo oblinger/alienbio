@@ -333,7 +333,10 @@ def build_brief(
     be leaked by the reaction-id vocabulary itself. Otherwise it defaults to
     every reaction id in ``chemistry`` (the world's declared control
     surface) plus the same visible ``probes`` (a molecule lever is only
-    offered if it is already visible).
+    offered if it is already visible) — except on a task whose ``setup``
+    carries ``require_levers`` (every guarded drafter's, M45.2), where the
+    missing dial is a ``ValueError``: on a pressure/conflict/delta world the
+    surface is never implicit.
     """
     probes = tuple(sorted({obs_id for compartment in first_observation for obs_id in compartment}))
 
@@ -346,6 +349,12 @@ def build_brief(
                     f"build_brief: dials['levers'] entries must all be str; got {entry!r}"
                 )
         levers = tuple(levers_list)
+    elif isinstance(task.setup, Mapping) and task.setup.get("require_levers"):
+        raise ValueError(
+            "build_brief: this task's world is an AUP-registered substrate and its control surface must be "
+            "declared — pass dials['levers'] (an empty list for a do-nothing arm); the default of every "
+            "reaction id is refused here (M45.2)"
+        )
     else:
         levers = tuple(sorted(chemistry.reactions)) + probes
 

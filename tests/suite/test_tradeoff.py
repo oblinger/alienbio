@@ -88,7 +88,7 @@ def test_precedence_ladder_orders_rungs_and_scores_consistency():
 
 def test_final_state_survives_the_json_store_and_scores_a_reloaded_record():
     world, task = DRAFTERS["conflict"](Seed(2), {"rung": "latent"})
-    record = run(world, task, ScriptedAgent((Commit(answer=Answer(value=None, kind="json")),), seed=Seed(0)), {"rung": "latent"}, Seed(1))
+    record = run(world, task, ScriptedAgent((Commit(answer=Answer(value=None, kind="json")),), seed=Seed(0)), {"rung": "latent", "levers": []}, Seed(1))
     assert record.final_state and A in record.final_state["root"] if "root" in record.final_state else record.final_state
     back = record_from_json(json.loads(json.dumps(record_to_json(record, "c", 0))))
     assert back.final_state == record.final_state

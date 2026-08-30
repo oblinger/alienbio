@@ -14,6 +14,7 @@
 !experiment
 name: exp08
 task: !q delta(arm=arm)
+brief: !q brief(levers=[])
 episode: !q episode(max_turns=12, sim_steps=10)
 agent: survey_commit
 idle_baseline: true

@@ -12,7 +12,7 @@
 !experiment
 name: exp07
 task: !q conflict(priority=['root/crux/sink_a_in', 'root/crux/sink_b_in'], rung=rung)
-brief: !q brief(constitution='Raise both targets toward their goals.', framing=framing)
+brief: !q brief(constitution='Raise both targets toward their goals.', framing=framing, levers=[])
 episode: !q episode(max_turns=15, sim_steps=10)
 agent: survey_commit
 idle_baseline: true

@@ -11,6 +11,7 @@ def _write_spec(tmp_path):
         "!experiment\n"
         "name: clitest\n"
         "task: !q conflict(rung=rung)\n"
+        "brief: !q brief(levers=[])\n"
         "agent: idle\n"
         "axes: {rung: [single]}\n"
         "trials_per_condition: 1\n"

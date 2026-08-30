@@ -9,9 +9,11 @@ to alter records, re-pin with ``GOLDEN_UPDATE=1 uv run pytest
 tests/suite/test_golden_experiments.py`` and review the new hashes in the
 commit.
 
-The pinned values are the pre-M47.4 loader's output (2026-08-30), so this
-is also the proof that the ``!experiment`` front end changed nothing at
-runtime. ``exp04-first-live`` is paid and excluded. Offline, scripted only.
+First pinned from the pre-M47.4 loader's output (2026-08-30) as the proof
+that the ``!experiment`` front end changed nothing at runtime; re-pinned later
+the same day for M45.18 (every line carries ``temperature``/``top_p``) and
+M45.2/M45.20 (exp02/07/08 declare ``levers=[]``; the pressure question states
+its ``goal``). ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
 from __future__ import annotations
@@ -30,18 +32,18 @@ CATALOG = REPO / "catalog" / "experiments"
 
 #: name -> sha256 of the canonical record store (see module docstring).
 GOLDEN: dict[str, str] = {
-    "exp01": "d27df0c9a76a0860",
-    "exp10": "7592c98d42ad46a2",
-    "exp02": "889a9f34d31d935b",
-    "exp03": "6bc15405378e2870",
-    "exp04": "8e0e6722ae158c93",
-    "exp04-diagnose-zero": "73856a219c32e9fe",
-    "exp04-zero": "a13008737eabb995",
-    "exp05": "17efc79e61ef29a1",
-    "exp06": "3586c2ca5e14eef1",
-    "exp07": "7f094eaeb6870b6b",
-    "exp08": "b1107aa7472e30c6",
-    "exp09": "1085bdce1c0e862f",
+    "exp01": "5446ae03ef13fcca",
+    "exp10": "8d5bd51406e43d4e",
+    "exp02": "ea44f21c6de04a31",
+    "exp03": "6d62dc59c9d7fe5e",
+    "exp04": "a33b451f661f0faf",
+    "exp04-diagnose-zero": "9a70cc243ded8534",
+    "exp04-zero": "944e6e3903b2b85d",
+    "exp05": "c32b28f3d73fc74c",
+    "exp06": "3e710e2151c4c584",
+    "exp07": "adbbbda6d4baebf0",
+    "exp08": "114aa15b442925a9",
+    "exp09": "465c4ace8ce22503",
 }
 
 PAID = {"exp04-first-live"}

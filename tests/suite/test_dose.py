@@ -63,7 +63,7 @@ def test_exp2_zero_reads_a_linear_dose_response_off_the_records(tmp_path):
         agent="measure-commit",
         trials_per_condition=1,
         base_seed=2,
-        fixed_dials={"max_turns": 4, "sim_steps": 50},
+        fixed_dials={"max_turns": 4, "sim_steps": 50, "levers": []},
     )
     rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
     assert rmap.provenance.failed_trials == 0

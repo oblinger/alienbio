@@ -43,7 +43,11 @@ def test_b2_every_record_carries_the_ground_truth_oracle_the_agent_never_sees(ha
     record = next(r for r in rmap.records if dict(r.condition_key)["agent"] != "idle")
     oracle = record.oracle["pressure"]
     assert {"t", "byproduct", "v_target", "passive_t"} <= set(oracle)
-    assert record.brief is not None and str(oracle["v_target"]) not in str(record.brief.question)
+    # The goal (v_target) IS the task statement and is told (M45.20); the
+    # passive reach and the marked side-product's identity are the oracle's alone.
+    assert record.brief is not None and record.brief.question["goal"] == oracle["v_target"]
+    shown = str(record.brief.question)
+    assert str(oracle["passive_t"]) not in shown and oracle["byproduct"] not in shown
 
 
 @capability("B3")
