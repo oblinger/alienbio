@@ -68,7 +68,8 @@ nav:
   - Home: README.md
   - User Guide:
     - Overview: Guide/Alienbio User Guide.md
-    - Core Spec: Guide/Core Spec.md
+    - ABIO Expr Spec: Guide/ABIO Expr Spec.md
+    - ABIO Expr Python API: Guide/ABIO Expr Python API.md
     - Generator Spec: Guide/Generator Spec.md
     - Execution Guide: Guide/Execution Guide.md
     - Agent Interface: Guide/Agent Interface.md

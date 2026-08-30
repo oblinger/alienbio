@@ -374,7 +374,7 @@ This keeps computation close to the templates that use it.
 ## See Also
 
 - [[Alien Vocabulary]] — Naming conventions for organisms, molecules, reactions
-- [[Core Spec]] — YAML foundations, tags, scoping
+- [[ABIO Expr Spec]] — YAML foundations, tags, scoping
 - [[Generator Spec]] — Template-based scenario generation
 - [[Bio]] — Bio class methods including `fetch()` and `build()`
 - [[ABIO Fetch]] — Data sources, resolution order, `!py` tag details

@@ -275,4 +275,4 @@ results.compare(["claude", "gpt-4"])        # side-by-side
 
 - [[Agent Interface]] — detailed agent protocol
 - [[ABIO Scenario|Scenario]] — scenario definition
-- [[Core Spec]] — YAML foundations
+- [[ABIO Expr Spec]] — YAML foundations

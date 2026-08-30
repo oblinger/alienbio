@@ -48,7 +48,7 @@ How the alienbio documentation is organized and our conventions for writing it.
 - Examples and patterns
 
 **Contents:**
-- [[Core Spec]] — Intro to spec language (links to [[Spec Language Reference]])
+- [[ABIO Expr Spec]] — Intro to spec language (links to [[Spec Language Reference]])
 - [[Execution Guide]] — CLI, agents, running experiments
 - [[Agent Interface]] — Agent interaction protocol
 - [[Generator Spec]] — Template-based generation

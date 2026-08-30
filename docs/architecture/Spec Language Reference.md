@@ -325,7 +325,7 @@ Common causes:
 
 ## See Also
 
-- [[Core Spec]] — User guide introduction to spec syntax
+- [[ABIO Expr Spec]] — User guide introduction to spec syntax
 - [[Scope]] — Hierarchical namespace resolution
 - [[Builtins]] — Distribution functions and safe Python builtins
 - [[ABIO Scenario|Scenario]] — Scenario spec format

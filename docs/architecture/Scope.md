@@ -246,4 +246,4 @@ class Scope(dict):
 ## See Also
 - [[Bio (module)|Bio]] — Fetching with `as_scope=True`
 - [[Spec Language Reference]] — YAML syntax, hydration phases, evaluation
-- [[Core Spec]] — User guide introduction to scope and inheritance
+- [[ABIO Expr Spec]] — User guide introduction to scope and inheritance

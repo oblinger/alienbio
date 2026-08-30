@@ -4,7 +4,7 @@
 
 YAML syntax for defining scenario generators — specifications that produce concrete simulation scenarios when instantiated with a random seed. This is the primary authoring format for AI safety experiments in the Alien Biology framework.
 
-**Prerequisites**: [[Core Spec]]
+**Prerequisites**: [[ABIO Expr Spec]]
 
 ---
 
@@ -24,7 +24,7 @@ Then instantiate with different seeds to get reproducible scenario variations:
 scenario_generator_spec + seed → concrete scenario
 ```
 
-The language extends the base [[Core Spec]] with:
+The language extends the base [[ABIO Expr Spec]] with:
 - **Templates** — Reusable, parametric building blocks with typed ports
 - **Composition** — Instantiating and wiring templates together
 - **Distributions** — Sampling from ranges (`normal`, `lognormal`, `discrete`)
@@ -1385,7 +1385,7 @@ The AI sees only the opaque names (ME1, MS1, RX1, etc.). The ground truth in Sec
 
 ## See Also
 
-- [[Core Spec]] — Base YAML syntax
+- [[ABIO Expr Spec]] — Base YAML syntax
 - [[Spec Language Reference]] — Complete language specification (architecture)
 - [[Decorators]] — `@biotype`, `@scoring`, etc.
 
