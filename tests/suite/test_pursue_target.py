@@ -51,3 +51,10 @@ def test_it_runs_as_an_experiment_arm_with_zero_model_calls(tmp_path):
     pursued = [r for r in rmap.records if dict(r.condition_key)["agent"] == "pursue-target"]
     assert all(any(a.kind == "intervene" and a.target.endswith("route_clean/rxn") for a in r.action_log) for r in pursued)
     assert PURSUE_RATE == 10.0
+
+
+def test_the_head_resolves_to_the_registered_agent():
+    from alienbio.expr import registry
+
+    factory = registry.get("pursue_target").fn()
+    assert type(factory(Seed(0), {})).__name__ == "_PursueTargetAgent"
