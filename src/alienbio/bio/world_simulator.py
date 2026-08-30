@@ -24,6 +24,14 @@ MoleculeId = int
 CompartmentId = int
 
 
+#: Below this a negative concentration is float rounding of an exact zero, not
+#: a rationing failure; both simulators snap it to zero (M48.6).
+ROUNDING_FLOOR = 1e-12
+#: The largest desired extent a reaction may ask for in one step: an infinite
+#: rate means "all of it", and the rationing then bounds it by availability.
+RATE_CAP = 1e150
+
+
 class ReactionSpec:
     """Specification for a reaction in the world simulator.
 
@@ -265,7 +273,12 @@ class WorldSimulatorImpl:
         if reaction.modulators:
             rate *= self._modulation_factor(frozen, reaction.modulators, compartment)
         rate *= self._dt
-        return max(0.0, rate)
+        # A rate law can overflow (a quotient over a subnormal) or be undefined;
+        # an infinite desire is "everything available" — the rationing bounds
+        # it once it is finite — and NaN is no reaction (M48.6).
+        if rate != rate:
+            return 0.0
+        return min(max(0.0, rate), RATE_CAP)
 
     @staticmethod
     def _modulation_factor(
@@ -362,11 +375,12 @@ class WorldSimulatorImpl:
             extent = ext * scale
 
             for mol_id, stoich in reaction.reactants.items():
-                new_state.set(
-                    compartment,
-                    mol_id,
-                    new_state.get(compartment, mol_id) - extent * stoich,
-                )
+                remaining = new_state.get(compartment, mol_id) - extent * stoich
+                # Exact arithmetic never goes below zero (the rationing proof);
+                # float rounding can leave -1e-17. Snap that to zero (M48.6).
+                if -ROUNDING_FLOOR < remaining < 0.0:
+                    remaining = 0.0
+                new_state.set(compartment, mol_id, remaining)
             for mol_id, stoich in reaction.products.items():
                 new_state.set(
                     compartment,

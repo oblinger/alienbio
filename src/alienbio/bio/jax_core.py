@@ -111,6 +111,10 @@ def build_reaction_tensors(
     )
 
 
+#: See ``world_simulator.ROUNDING_FLOOR``.
+ROUNDING_FLOOR = 1e-12
+RATE_CAP = 1e150
+
 #: Modulation kinds by code, for the padded modulation tensors (0 = no slot).
 MOD_KINDS: Tuple[str, ...] = ("", "activator", "inhibitor", "michaelis", "hill")
 
@@ -241,6 +245,7 @@ def apply_reactions(
     if modulation is not None:
         rate = rate * modulation_factors(S, *modulation)
     rate = rate * dt
+    rate = jnp.where(jnp.isnan(rate), 0.0, jnp.minimum(rate, RATE_CAP))  # see WorldSimulatorImpl._desired_extent
     desired = jnp.maximum(rate, 0.0) * comp_mask  # [Rn, C]
 
     # demand[c, m] = total consumption of molecule m across reactions.
@@ -254,7 +259,9 @@ def apply_reactions(
     scale = jnp.where(has_reactant[:, None], scale, 1.0)
 
     extent = desired * scale  # [Rn, C]
-    return S + jnp.einsum("rc,rm->cm", extent, net)
+    S = S + jnp.einsum("rc,rm->cm", extent, net)
+    # float rounding of an exact zero -> zero (matches WorldSimulatorImpl, M48.6)
+    return jnp.where((S < 0.0) & (S > -ROUNDING_FLOOR), 0.0, S)
 
 
 def apply_native_flows(
