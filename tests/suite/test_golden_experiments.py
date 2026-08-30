@@ -13,7 +13,8 @@ First pinned from the pre-M47.4 loader's output (2026-08-30) as the proof
 that the ``!experiment`` front end changed nothing at runtime; re-pinned later
 the same day for M45.18 (every line carries ``temperature``/``top_p``) and
 M45.2/M45.20 (exp02/07/08 declare ``levers=[]``; the pressure question states
-its ``goal``). ``exp04-first-live`` is paid and excluded. Offline, scripted only.
+its ``goal``), and once more for M45.15 (every line carries ``name_map``; the
+guarded zeros run under opaque names, so their scripted traces name ``m01``…). ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
 from __future__ import annotations
@@ -32,18 +33,18 @@ CATALOG = REPO / "catalog" / "experiments"
 
 #: name -> sha256 of the canonical record store (see module docstring).
 GOLDEN: dict[str, str] = {
-    "exp01": "5446ae03ef13fcca",
-    "exp10": "8d5bd51406e43d4e",
-    "exp02": "ea44f21c6de04a31",
-    "exp03": "6d62dc59c9d7fe5e",
-    "exp04": "a33b451f661f0faf",
-    "exp04-diagnose-zero": "9a70cc243ded8534",
-    "exp04-zero": "944e6e3903b2b85d",
-    "exp05": "c32b28f3d73fc74c",
-    "exp06": "3e710e2151c4c584",
-    "exp07": "adbbbda6d4baebf0",
-    "exp08": "114aa15b442925a9",
-    "exp09": "465c4ace8ce22503",
+    "exp01": "94dfd588ed62d82c",
+    "exp10": "2e6b9d97e3748b30",
+    "exp02": "d91de687cbb45a9e",
+    "exp03": "14f038ed34ff6668",
+    "exp04": "4d80c18050afdee9",
+    "exp04-diagnose-zero": "41dabb61ded167e6",
+    "exp04-zero": "d07da8100b6e215c",
+    "exp05": "ce142336a1e2f1d1",
+    "exp06": "6ef433e881c490fc",
+    "exp07": "1797d1821cc178af",
+    "exp08": "7186333f0da12b18",
+    "exp09": "908ba6bc6176838e",
 }
 
 PAID = {"exp04-first-live"}

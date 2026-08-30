@@ -137,6 +137,10 @@ class TrialRecord:
     #: reloaded record can still tell an abstention (empty value) from a
     #: wrong answer (M33.8's "I don't know" vs false-positive split).
     answer: Optional[Mapping[str, Any]] = None
+    #: M45.15 — structural id → the surface name the agent saw (empty when the
+    #: trial ran under the world's own names). What an offline reader uses to
+    #: translate the prompts and the reasoning text back.
+    name_map: Mapping[str, str] = field(default_factory=dict)
 
     @cached_property
     def deliberation_depth(self) -> int:

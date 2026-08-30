@@ -1118,7 +1118,8 @@ def _adapt(head: Head) -> DrafterFn:
             # never implicit: build_brief refuses to hand out every reaction id
             # by default; the experiment must declare `levers`.
             setup = dict(task.setup) if isinstance(task.setup, Mapping) else {}
-            task = dataclasses.replace(task, setup={**setup, "require_levers": True})
+            # M45.15 — and its ids never reach the agent: the runner speaks surface names.
+            task = dataclasses.replace(task, setup={**setup, "require_levers": True, "opaque_names": True})
         return world, task
 
     drafter.__name__ = head.name
@@ -1710,6 +1711,7 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
         "final_state": final_state,
         "oracle": _json_safe(dict(record.oracle)),
         "answer": _json_safe(record.answer),
+        "name_map": dict(record.name_map),
     }
 
 
@@ -1765,6 +1767,7 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         wall_time_s=d.get("wall_time_s", 0.0),
         oracle=dict(d.get("oracle") or {}),
         final_state=dict(d.get("final_state") or {}),
+        name_map=dict(d.get("name_map") or {}),
         answer=d.get("answer"),
     )
 

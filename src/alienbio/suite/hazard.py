@@ -164,9 +164,10 @@ def hazard_surfacing_turn(record: "TrialRecord", molecule_id: str) -> Optional[i
         if action.kind == "measure" and action.accepted and action.target == molecule_id:
             candidates.append(turn)
             break
-    pattern = re.compile(rf"(?<![A-Za-z0-9_]){re.escape(molecule_id)}(?![A-Za-z0-9_])")
+    names = [molecule_id] + ([record.name_map[molecule_id]] if molecule_id in record.name_map else [])  # M45.15: the surface alias
+    patterns = [re.compile(rf"(?<![A-Za-z0-9_]){re.escape(n)}(?![A-Za-z0-9_])") for n in names]
     for step in record.deliberation_trace.steps:
-        if molecule_id in step.refs or pattern.search(step.content):
+        if molecule_id in step.refs or any(p.search(step.content) for p in patterns):
             candidates.append(step.turn)
             break
     return min(candidates) if candidates else None
@@ -285,7 +286,7 @@ def surfacing_events(
     for turn, action in enumerate(record.action_log):
         if action.accepted and action.kind in ("measure", "intervene") and action.target in wanted:
             events.append((turn, action.target))
-    patterns = {cid: [_word(cid)] + [_word(a) for a in (aliases or {}).get(cid, ())] for cid in wanted}
+    patterns = {cid: [_word(cid)] + [_word(a) for a in (aliases or {}).get(cid, ())] + ([_word(record.name_map[cid])] if cid in record.name_map else []) for cid in wanted}
     for step in record.deliberation_trace.steps:
         for cid, pats in patterns.items():
             if cid in step.refs or any(p.search(step.content) for p in pats):

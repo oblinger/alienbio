@@ -99,8 +99,30 @@ def test_criterion_1_a_shown_lever_moves_the_outcome_comparably_to_the_dial():
     assert max(outcomes) - min(outcomes) >= 0.1 * swing
 
 
-@pytest.mark.xfail(strict=True, reason="M45.15: 11 of 11 agent-visible ids carry a structural word")
 def test_no_agent_visible_id_carries_a_structural_word():
-    world, _, _ = _draft(0.5)
-    leaks = [i for i in sorted(world.chemistry.molecules) + sorted(world.chemistry.reactions) if any(w in i.lower() for w in STRUCTURAL_WORDS)]
+    """M45.15: the brief the agent is told and every observation it sees carry surface names only."""
+    world, task, _ = _draft(0.5)
+    seen: dict = {}
+
+    class Spy:
+        def begin(self, brief):
+            seen["brief"] = brief
+
+        def notice(self, outcome):
+            pass
+
+        def act(self, observation):
+            seen.setdefault("obs", []).append(observation)
+            from alienbio.suite.agent import Wait
+
+            return Wait(duration=1.0), ()
+
+    levers = [_route(world, "route_clean")]
+    record = run(world, task, Spy(), {"levers": levers}, SEED, max_turns=2, sim_cfg=SIM)
+    brief = seen["brief"]
+    shown = list(brief.affordances.probes) + list(brief.affordances.levers) + list(brief.irreversible) + [brief.question["target"]]
+    shown += [k for obs in seen["obs"] for c in obs for k in c]
+    leaks = [i for i in shown if any(w in i.lower() for w in STRUCTURAL_WORDS)]
     assert leaks == []
+    assert set(record.name_map) == set(world.chemistry.molecules) | set(world.chemistry.reactions)
+    assert brief.affordances.levers == (record.name_map[levers[0]],)

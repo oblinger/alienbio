@@ -92,6 +92,7 @@ from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
 from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, SessionAgent, Wait
 from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, resolve_monitoring
+from .naming import NameMap, OpaqueAgent, build_name_map, opaque_names_requested
 from .deliberation import DeliberationTrace
 from .dist import Seed
 from .grade import grade_answer, grade_outcome
@@ -463,6 +464,12 @@ def run(
 
     first_observation = narrow_observation(state, dials, seed.child("turn/0/observe"))
     brief = build_brief(task, chemistry, first_observation, dials, budget, max_turns, sim_cfg)
+    # M45.15 — on a non-neutral world (or under the ``opaque_names`` dial) the
+    # agent sees and speaks surface names; the runner keeps the world's own.
+    name_map: Optional[NameMap] = None
+    if opaque_names_requested(task.setup, dials):
+        name_map = build_name_map(chemistry, seed.child("names"))
+        agent = OpaqueAgent(agent, name_map)
     if isinstance(agent, SessionAgent):
         agent.begin(brief)
 
@@ -616,7 +623,7 @@ def run(
     else:
         objective_score = 0.0  # AnswerObjective task, no Commit: nothing to grade
 
-    taint_hits = audit_prompts(agent, brief, chemistry, task)
+    taint_hits = audit_prompts(agent, brief, chemistry, task, name_map)
     wall_time_s = time.perf_counter() - start_time
 
     # M36.1 — framework-side ground truth beyond the answer key: whatever the
@@ -653,6 +660,7 @@ def run(
             else None
         ),
         final_state=final_state_dict(state),
+        name_map=dict(name_map.to_surface) if name_map is not None else {},
     )
     if taint_hits:
         raise TaintError(record)
@@ -692,7 +700,7 @@ def _leaf_strings(value: Any) -> set[str]:
     return set()
 
 
-def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: TaskInstance) -> tuple[str, ...]:
+def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: TaskInstance, name_map: Optional[NameMap] = None) -> tuple[str, ...]:
     """M46.10 — scan the prompts an agent actually sent for that trial's secrets.
 
     Applies only to an agent exposing ``prompt_texts`` (``LLMAgent``); a
@@ -723,6 +731,10 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
         secrets |= _leaf_strings(task.objective.key.value) - visible
     secrets -= question_tokens
     secrets.discard("")
+    if name_map is not None:
+        # M45.15: the agent was spoken to in surface names, so a secret leaks in
+        # its surface form — and ANY structural id in a prompt is itself a leak.
+        secrets = {name_map.surface(s) for s in secrets} | set(name_map.to_surface)
     if not secrets:
         return ()
     hits: set[str] = set()
