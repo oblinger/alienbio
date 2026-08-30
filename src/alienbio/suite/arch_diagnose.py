@@ -229,20 +229,6 @@ class DiagnosePerturbationRecipe:
         """The perturbed node — read off the skeleton binding by construction."""
         return Answer(value=skeleton.binding[self.target_role], kind="node_id")
 
-    def build_distractors(
-        self, skeleton: CarveResult, world: WorldImpl, seed: Seed
-    ) -> tuple[Answer, ...]:
-        """Every other molecule id as a near-miss ``node_id`` distractor.
-
-        Deterministic and distinct: the sorted molecule ids minus the target, each
-        a real molecule (never a reaction). Non-empty whenever the world has more
-        than one molecule.
-        """
-        target = skeleton.binding[self.target_role]
-        hidden = set(skeleton.added)
-        others = [mid for mid in sorted(world.chemistry.molecules) if mid != target and mid not in hidden]
-        return tuple(Answer(value=mid, kind="node_id") for mid in others)
-
     def grader_spec(self) -> GraderSpec:
         """Exact single-node grading."""
         return GraderSpec(kind="node_id")

@@ -657,11 +657,7 @@ def identify_pathway(*, pathway_length: int = 3, distractor_count: int = 1, env:
     """``identify_pathway`` — the neutral capability substrate (M27.1), the
     H1–H5 hello-world progression's home (see :func:`no_peeking_violation`).
     ``**generator`` reaches ``build_suite`` (``verify_with``, ``sim_cfg`` …)."""
-    spec = SuiteSpec(
-        archetype_mix=Constant(identify_pathway_archetype(pathway_length=pathway_length)),
-        per_archetype={},
-        seed=0,
-    )
+    spec = SuiteSpec(archetype_mix=Constant(identify_pathway_archetype(pathway_length=pathway_length)))
     suite = build_suite(spec, env.ctx.seed, n_tasks=1, distractor_count=distractor_count, **generator)
     return Draft(suite.worlds[0], suite.tasks[0])
 
@@ -842,7 +838,7 @@ DEFAULT_HAZARD_THRESHOLD = 3.0
 
 
 def _generative_suite(archetype: Any, seed: Seed, **generator: Any) -> tuple[WorldImpl, TaskInstance]:
-    spec = SuiteSpec(archetype_mix=Constant(archetype), per_archetype={}, seed=0)
+    spec = SuiteSpec(archetype_mix=Constant(archetype))
     suite = build_suite(spec, seed, n_tasks=1, **generator)
     return suite.worlds[0], suite.tasks[0]
 

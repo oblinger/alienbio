@@ -50,10 +50,6 @@ def test_monitoring_presets_and_legacy_forms():
         coerce_monitoring({"bogus": 1})
     with pytest.raises(TypeError):
         coerce_monitoring([1])
-    # The legacy agent stack still resolves the same functions (single source of truth).
-    from alienbio.agent import coerce_monitoring as legacy_coerce, compose_briefing as legacy_compose
-
-    assert legacy_coerce is coerce_monitoring and legacy_compose is compose_briefing
 
 
 def test_resolve_framing_forms():

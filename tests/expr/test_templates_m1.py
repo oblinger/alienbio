@@ -1,7 +1,8 @@
 """M47.5 — the M1 generator DSL is subsumed: the Generator Spec's example worlds
 (energy cycle, anabolic chain, producer metabolism, mutualism) written as
-``!template``s evaluate to exactly what ``build.apply_template`` expands them
-to — the proof the M1 DSL (``_params_`` / ``_instantiate_`` / ``_as_`` /
+``!template``s evaluate to exactly what M1's ``build.apply_template`` expanded
+them to — pinned in ``m1_golden.json`` from the last commit that still carried
+the ``build/`` package (M47.7 deleted it) — the proof the M1 DSL (``_params_`` / ``_instantiate_`` / ``_as_`` /
 ``{i in 1..n}`` / port wiring) is expressible with ``template`` / ``each`` /
 ``let`` / ``if`` plus one explicit namespacing head.
 
@@ -25,7 +26,9 @@ from typing import Any, Mapping
 
 import pytest
 
-from alienbio.build import TemplateRegistry, apply_template, parse_template
+import json
+from pathlib import Path
+
 from alienbio.expr import Env, X, evaluate, fn
 from alienbio.expr.yaml_tags import load_text
 
@@ -58,7 +61,7 @@ def m1_namespaced(ns: str, molecules: Mapping[str, Any] = {}, reactions: Mapping
 
 
 # ---------------------------------------------------------------------------
-# the four worlds, M1 side
+# the four worlds, M1 side — the templates whose expansions m1_golden.json pins
 # ---------------------------------------------------------------------------
 
 M1_ENERGY_CYCLE = {
@@ -113,14 +116,7 @@ M1_MUTUALISM = {
 }
 
 
-@pytest.fixture
-def m1_registry() -> TemplateRegistry:
-    reg = TemplateRegistry()
-    reg.register("energy_cycle", parse_template(M1_ENERGY_CYCLE))
-    reg.register("anabolic_chain", parse_template(M1_ANABOLIC_CHAIN))
-    reg.register("producer_metabolism", parse_template(M1_PRODUCER))
-    reg.register("mutualism", parse_template(M1_MUTUALISM))
-    return reg
+M1_GOLDEN: dict[str, Any] = json.loads((Path(__file__).with_name("m1_golden.json")).read_text())
 
 
 # ---------------------------------------------------------------------------
@@ -201,24 +197,24 @@ def expr_values() -> dict[str, Any]:
     return Env.standard(seed=0).load("<m1>", text=EXPR_DOC).force_all()
 
 
-def test_energy_cycle_template_equals_its_m1_expansion(m1_registry, expr_values):
-    m1 = apply_template(m1_registry.get("energy_cycle"), "krel")
+def test_energy_cycle_template_equals_its_m1_expansion(expr_values):
+    m1 = M1_GOLDEN["energy_cycle"]
     assert expr_values["krel_energy"] == m1
     assert set(m1["molecules"]) == {"m.krel.ME1", "m.krel.ME2", "m.krel.ME3"}
     assert m1["reactions"]["r.krel.activation"]["rate"] == 0.1
 
 
-def test_anabolic_chain_template_equals_its_m1_expansion_with_loops(m1_registry, expr_values):
-    # M1's loops are fixed at parse time, so a longer chain is its own M1
+def test_anabolic_chain_template_equals_its_m1_expansion_with_loops(expr_values):
+    # M1's loops were fixed at parse time, so a longer chain was its own M1
     # template; the Expr side is one parametric template.
-    m1 = apply_template(parse_template(_m1_chain(4)), "krel")
+    m1 = M1_GOLDEN["anabolic_chain_4"]
     assert expr_values["krel_chain"] == m1
     assert set(m1["reactions"]) == {"r.krel.build1", "r.krel.build2", "r.krel.build3"}
     assert m1["reactions"]["r.krel.build2"]["reactants"] == ["m.krel.MS2"]
 
 
-def test_producer_metabolism_template_equals_its_m1_expansion_with_nesting_and_ports(m1_registry, expr_values):
-    m1 = apply_template(m1_registry.get("producer_metabolism"), "krel", registry=m1_registry)
+def test_producer_metabolism_template_equals_its_m1_expansion_with_nesting_and_ports(expr_values):
+    m1 = M1_GOLDEN["producer_metabolism"]
     assert expr_values["krel"] == m1
     assert "m.krel.energy.ME1" in m1["molecules"] and "m.krel.chain2.MS3" in m1["molecules"]
     # the port connection: every chain's first build reaction names the energy source
@@ -227,8 +223,8 @@ def test_producer_metabolism_template_equals_its_m1_expansion_with_nesting_and_p
     assert "energy_source" not in m1["reactions"]["r.krel.chain2.build2"]
 
 
-def test_mutualism_template_equals_its_m1_expansion(m1_registry, expr_values):
-    m1 = apply_template(m1_registry.get("mutualism"), "eco", registry=m1_registry)
+def test_mutualism_template_equals_its_m1_expansion(expr_values):
+    m1 = M1_GOLDEN["mutualism"]
     assert expr_values["eco"] == m1
     assert "m.eco.krel.chain2.MS1" in m1["molecules"] and "m.eco.vash.chain2.MS1" not in m1["molecules"]
     # M1 left cross-instance references as written; the template reproduces that

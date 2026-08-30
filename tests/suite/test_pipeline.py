@@ -22,7 +22,7 @@ from alienbio.suite.vocab import build_vocabulary
 
 def _spec(pathway_length: int = 3) -> SuiteSpec:
     arch = identify_pathway(pathway_length=pathway_length)
-    return SuiteSpec(archetype_mix=Constant(arch), per_archetype={}, seed=0)
+    return SuiteSpec(archetype_mix=Constant(arch))
 
 
 # ── draft_world ─────────────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ def test_archetype_mix_choice_is_sampled():
     # A Choice over two pathway lengths still materializes green.
     a3 = identify_pathway(pathway_length=3, archetype_id="p3")
     a4 = identify_pathway(pathway_length=4, archetype_id="p4")
-    spec = SuiteSpec(archetype_mix=Choice((a3, a4)), per_archetype={}, seed=0)
+    spec = SuiteSpec(archetype_mix=Choice((a3, a4)))
     suite = build_suite(spec, Seed(11), n_tasks=4)
     assert len(suite.tasks) == 4
     assert {t.archetype for t in suite.tasks} <= {"p3", "p4"}

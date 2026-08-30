@@ -29,7 +29,7 @@ from alienbio.suite.types import Answer, AnswerObjective, SuiteSpec
 
 def _suite(seed_val: int = 1):
     arch = identify_pathway(pathway_length=3)
-    spec = SuiteSpec(archetype_mix=Constant(arch), per_archetype={}, seed=0)
+    spec = SuiteSpec(archetype_mix=Constant(arch))
     return build_suite(spec, Seed(seed_val), n_tasks=1, distractor_count=1)
 
 

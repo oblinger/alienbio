@@ -1,123 +1,67 @@
-"""Alien Biology: A framework for testing agentic AI reasoning."""
+"""Alien Biology: a generative, parameterized testing framework for agentic
+reasoning over alien biochemistries.
+
+The framework is the ``suite`` package (worlds, tasks, briefs, the runner, the
+experiment harness) over the ``bio`` core (chemistry, compartments, the
+simulators), written in the ``expr`` language (``alienbio.expr``). The M1
+scenario runtime (``Bio.build`` / ``run``, ``@action`` / ``@measurement``)
+was deleted in M47.7 — there is one runtime.
+"""
 
 from dvc_dat import Dat
 
 from .infra import imports  # noqa: F401 - ensures do-referenced modules are loaded
-
 from .infra.entity import Entity
 from .infra.io import IO
 from .infra.mk import mk, Pegboard
 
-# Standard runner for DATs
-from .run import run
+from .spec_lang import biotype, get_biotype
 
-# Spec Language module exports
-from .spec_lang import (
-    # Bio singleton and class
-    bio,
-    Bio,
-    # Decorators
-    biotype,
-    fn,
-    scoring,
-    action,
-    measurement,
-    rate,
-    # Registry access
-    get_biotype,
-    get_action,
-    get_measurement,
-    get_scoring,
-    get_rate,
-    # Evaluation system (new)
-    Evaluable,
-    Quoted,
-    Reference,
-    Include,
-    hydrate,
-    dehydrate,
-    EvalContext,
-    eval_node,
-    make_context,
-    # Loader functions
-    expand_defaults,
-)
-
-# Bio module exports
 from .bio import (
-    # Protocols (for type hints)
     Atom,
     Molecule,
     Reaction,
     Chemistry,
     State,
     Simulator,
-    # Implementation classes
     AtomImpl,
     MoleculeImpl,
     ReactionImpl,
     ChemistryImpl,
     StateImpl,
     ReferenceSimulatorImpl,
-    # Abstract base class for subclassing
     SimulatorBase,
-    # Atom utilities
     COMMON_ATOMS,
     get_atom,
 )
 
-# Config module - API key management
 from . import config
 
 __version__ = "0.1.0"
 
 __all__ = [
-    # Infrastructure
     "Dat",
     "Entity",
     "IO",
     "mk",
     "Pegboard",
-    "run",
-    # Bio singleton and class
-    "bio",
-    "Bio",
-    # Decorators
     "biotype",
-    "fn",
-    "scoring",
-    "action",
-    "measurement",
-    "rate",
     "get_biotype",
-    "get_action",
-    "get_measurement",
-    "get_scoring",
-    "get_rate",
-    # Evaluation system (primary API)
-    "Evaluable",
-    "Quoted",
-    "Reference",
-    "Include",
-    "hydrate",
-    "dehydrate",
-    "EvalContext",
-    "eval_node",
-    "make_context",
-    # Loader functions
-    "expand_defaults",
-    # Biology protocols (for type hints)
     "Atom",
     "Molecule",
     "Reaction",
     "Chemistry",
     "State",
     "Simulator",
-    # Atom utilities
+    "AtomImpl",
+    "MoleculeImpl",
+    "ReactionImpl",
+    "ChemistryImpl",
+    "StateImpl",
+    "ReferenceSimulatorImpl",
+    "SimulatorBase",
     "COMMON_ATOMS",
     "get_atom",
+    "config",
+    "__version__",
 ]
-
-# Implementation classes are importable but not in __all__
-# (not included in "from alienbio import *")
-# Import directly: from alienbio import AtomImpl, MoleculeImpl, etc.

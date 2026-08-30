@@ -11,7 +11,7 @@ execute, ``.yaml`` entries merge their top-level keys into the file's scope
 **Trust.** An untrusted load (the default) may include only ``.yaml`` /
 ``.md`` / ``.txt`` files by a relative path that stays inside the including
 file's directory; ``.py`` includes and ``!py`` raise
-:class:`~alienbio.spec_lang.tags.UnsafeSpecError`. A trusted load
+:class:`UnsafeSpecError`. A trusted load
 (``Env.standard(trusted=True)``) may do all of it, from any path.
 """
 
@@ -22,10 +22,25 @@ import runpy
 from pathlib import Path
 from typing import Any, Mapping
 
-from ..spec_lang.eval import UnsafeIncludeError, _resolve_contained_path
-from ..spec_lang.tags import UnsafeSpecError
 from .env import ExprError
 from .form import Call, Include, PyRef, Quoted
+
+
+class UnsafeSpecError(Exception):
+    """Raised when an untrusted spec asks for code execution (a ``.py``
+    include, ``!py``) or a file outside its own directory."""
+
+
+def _resolve_contained_path(path: str, base: str) -> Path:
+    """Resolve an untrusted include path: relative, no ``..``, inside ``base``."""
+    p = Path(path)
+    if p.is_absolute():
+        raise UnsafeSpecError(f"absolute !include paths are not allowed for untrusted specs: {path!r}")
+    root = Path(base).resolve()
+    resolved = (root / p).resolve()
+    if resolved != root and root not in resolved.parents:
+        raise UnsafeSpecError(f"!include path escapes its base directory: {path!r} (resolved to {resolved}, base {root})")
+    return resolved
 
 YAML_SUFFIXES: frozenset[str] = frozenset({".yaml", ".yml"})
 TEXT_SUFFIXES: frozenset[str] = frozenset({".md", ".txt"})
@@ -37,10 +52,7 @@ def resolve_path(path: str, base: Path, *, trusted: bool) -> Path:
     if trusted:
         p = Path(path)
         return (p if p.is_absolute() else base / p).resolve()
-    try:
-        return _resolve_contained_path(path, str(base))
-    except UnsafeIncludeError as exc:
-        raise UnsafeSpecError(str(exc)) from None
+    return _resolve_contained_path(path, str(base))
 
 
 def run_python_file(target: Path) -> dict[str, Any]:
@@ -134,4 +146,4 @@ def include_bindings(entries: Any, base: Path, *, trusted: bool, seen: frozenset
     return merged
 
 
-__all__ = ["hydrate", "include_bindings", "load_include", "resolve_path", "resolve_py", "run_python_file"]
+__all__ = ["UnsafeSpecError", "hydrate", "include_bindings", "load_include", "resolve_path", "resolve_py", "run_python_file"]

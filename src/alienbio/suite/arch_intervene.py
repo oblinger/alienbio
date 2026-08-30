@@ -194,12 +194,6 @@ class DesignInterventionRecipe:
         """Trivial key (the scalar target) — outcome tasks grade via the scorer."""
         return Answer(value=self.target_value, kind="scalar")
 
-    def build_distractors(
-        self, skeleton: CarveResult, world: WorldImpl, seed: Seed
-    ) -> tuple[Answer, ...]:
-        """No distractors: an outcome task has no multiple-choice framing."""
-        return ()
-
     def grader_spec(self) -> GraderSpec:
         """Outcome grading — routed through :func:`grade_outcome` + the scorer."""
         return GraderSpec(kind="outcome")

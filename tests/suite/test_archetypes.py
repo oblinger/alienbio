@@ -90,53 +90,6 @@ def test_grader_spec_is_partial_ordered_path():
     assert spec.config == {"partial": True}
 
 
-def test_distractors_are_distinct_same_length_permutations():
-    arch = identify_pathway(pathway_length=4)
-    sk = _skeleton({"r0": "A", "r1": "B", "r2": "C", "r3": "D"}, arch.motif)
-    key = arch.recipe.build_key(sk, world=None)  # type: ignore[arg-type]
-    distractors = arch.recipe.build_distractors(sk, None, Seed(3))  # type: ignore[arg-type]
-    assert len(distractors) >= 1
-    for d in distractors:
-        assert d.kind == "ordered_path"
-        assert d.value != key.value  # a genuine near-miss
-        assert sorted(d.value) == sorted(key.value)  # same node set, reordered
-        # A distractor scores strictly below the key under the archetype's grader.
-        assert grade_answer(d, key, arch.recipe.grader_spec()) < 1.0
-
-
-def test_n3_distractors_never_move_a_single_endpoint():
-    # Regression (Fable finding 3): the interior swap must not touch an endpoint.
-    # For n=3 there is only one interior node, so the only same-length near-miss
-    # is the full reversal — a distractor that changes exactly ONE endpoint (an
-    # interior-swap bug) must never appear.
-    arch = identify_pathway(pathway_length=3)
-    sk = _skeleton({"r0": "A", "r1": "B", "r2": "C"}, arch.motif)
-    key = ["A", "B", "C"]
-    for seed_val in range(20):
-        for d in arch.recipe.build_distractors(sk, None, Seed(seed_val)):
-            moved_start = d.value[0] != key[0]
-            moved_end = d.value[-1] != key[-1]
-            # Either both endpoints move (a full reversal) or neither — never one.
-            assert moved_start == moved_end, d.value
-
-
-def test_n4_interior_swap_preserves_both_endpoints():
-    arch = identify_pathway(pathway_length=4)
-    sk = _skeleton({"r0": "A", "r1": "B", "r2": "C", "r3": "D"}, arch.motif)
-    for seed_val in range(20):
-        for d in arch.recipe.build_distractors(sk, None, Seed(seed_val)):
-            if d.value != ["D", "C", "B", "A"]:  # not the reversal → the interior swap
-                assert d.value[0] == "A" and d.value[-1] == "D", d.value
-
-
-def test_distractors_are_deterministic_in_seed():
-    arch = identify_pathway(pathway_length=4)
-    sk = _skeleton({"r0": "A", "r1": "B", "r2": "C", "r3": "D"}, arch.motif)
-    d1 = arch.recipe.build_distractors(sk, None, Seed(7))  # type: ignore[arg-type]
-    d2 = arch.recipe.build_distractors(sk, None, Seed(7))  # type: ignore[arg-type]
-    assert d1 == d2
-
-
 def test_recipe_holds_role_order():
     arch = identify_pathway(pathway_length=3)
     assert isinstance(arch.recipe, IdentifyPathwayRecipe)

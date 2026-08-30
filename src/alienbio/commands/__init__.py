@@ -1,68 +1,18 @@
-"""CLI commands module.
-
-Each subcommand is implemented in its own file.
-The main CLI dispatches to these command modules.
+"""The ``bio`` CLI commands.
 
 Commands:
-    battery        - Run an experiment battery from a YAML spec
-    battery-report - Generate summary report from saved battery results
-    build          - Build/expand a spec (resolve includes, refs, defaults)
-    cd             - Get or set current DAT context
-    compare        - Compare multiple agents on the same scenario
-    expand         - Debug: show processed spec without hydrating
-    fetch          - Fetch and display a spec
-    hydrate        - Fully evaluate a spec (resolve all placeholders)
-    report         - Primary command: run scenario, print table, save Excel to temp
-    run            - Debug: run entity, print result dict
-    store          - Store data to a spec path
-    suite          - Run/resume/aggregate/report a declarative experiment sweep
-    view-report    - Open the last generated report in spreadsheet app
+    suite      - run / resume / aggregate / report a declared experiment
+    config     - show / set the framework configuration (keys, model)
 """
 
-from .battery_cmd import battery_command, battery_report_command
-from .build import build_command
-from .cd import cd_command
-from .compare import compare_command
+from __future__ import annotations
+
 from .config_cmd import config_command
-from .expand import expand_command
-from .fetch import fetch_command
-from .hydrate import hydrate_command
-from .report import report_command, view_report_command
-from .run import run_command
-from .store import store_command
 from .suite_cmd import suite_command
 
-# Registry of available commands
 COMMANDS = {
-    "battery": battery_command,
-    "battery-report": battery_report_command,
-    "build": build_command,
-    "cd": cd_command,
-    "compare": compare_command,
     "config": config_command,
-    "expand": expand_command,
-    "fetch": fetch_command,
-    "hydrate": hydrate_command,
-    "report": report_command,
-    "run": run_command,
-    "store": store_command,
     "suite": suite_command,
-    "view-report": view_report_command,
 }
 
-__all__ = [
-    "COMMANDS",
-    "battery_command",
-    "battery_report_command",
-    "build_command",
-    "cd_command",
-    "compare_command",
-    "expand_command",
-    "fetch_command",
-    "hydrate_command",
-    "report_command",
-    "run_command",
-    "store_command",
-    "suite_command",
-    "view_report_command",
-]
+__all__ = ["COMMANDS", "config_command", "suite_command"]

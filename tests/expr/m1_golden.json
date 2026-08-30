@@ -1,0 +1,364 @@
+{
+ "anabolic_chain_4": {
+  "molecules": {
+   "m.krel.MS1": {
+    "role": "structural"
+   },
+   "m.krel.MS2": {
+    "role": "structural"
+   },
+   "m.krel.MS3": {
+    "role": "structural"
+   },
+   "m.krel.MS4": {
+    "role": "structural"
+   }
+  },
+  "reactions": {
+   "r.krel.build1": {
+    "products": [
+     "m.krel.MS2"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.krel.MS1"
+    ]
+   },
+   "r.krel.build2": {
+    "products": [
+     "m.krel.MS3"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.krel.MS2"
+    ]
+   },
+   "r.krel.build3": {
+    "products": [
+     "m.krel.MS4"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.krel.MS3"
+    ]
+   }
+  }
+ },
+ "energy_cycle": {
+  "molecules": {
+   "m.krel.ME1": {
+    "role": "energy"
+   },
+   "m.krel.ME2": {
+    "role": "energy"
+   },
+   "m.krel.ME3": {
+    "role": "energy"
+   }
+  },
+  "reactions": {
+   "r.krel.activation": {
+    "products": [
+     "m.krel.ME2"
+    ],
+    "rate": 0.1,
+    "reactants": [
+     "m.krel.ME1",
+     "m.krel.ME1"
+    ]
+   },
+   "r.krel.regeneration": {
+    "products": [
+     "m.krel.ME1"
+    ],
+    "reactants": [
+     "m.krel.ME3"
+    ]
+   },
+   "r.krel.work": {
+    "products": [
+     "m.krel.ME3"
+    ],
+    "reactants": [
+     "m.krel.ME2"
+    ]
+   }
+  }
+ },
+ "mutualism": {
+  "molecules": {
+   "m.eco.MW1": {
+    "role": "waste"
+   },
+   "m.eco.krel.chain1.MS1": {
+    "role": "structural"
+   },
+   "m.eco.krel.chain1.MS2": {
+    "role": "structural"
+   },
+   "m.eco.krel.chain1.MS3": {
+    "role": "structural"
+   },
+   "m.eco.krel.chain2.MS1": {
+    "role": "structural"
+   },
+   "m.eco.krel.chain2.MS2": {
+    "role": "structural"
+   },
+   "m.eco.krel.chain2.MS3": {
+    "role": "structural"
+   },
+   "m.eco.krel.energy.ME1": {
+    "role": "energy"
+   },
+   "m.eco.krel.energy.ME2": {
+    "role": "energy"
+   },
+   "m.eco.krel.energy.ME3": {
+    "role": "energy"
+   },
+   "m.eco.vash.chain1.MS1": {
+    "role": "structural"
+   },
+   "m.eco.vash.chain1.MS2": {
+    "role": "structural"
+   },
+   "m.eco.vash.chain1.MS3": {
+    "role": "structural"
+   },
+   "m.eco.vash.energy.ME1": {
+    "role": "energy"
+   },
+   "m.eco.vash.energy.ME2": {
+    "role": "energy"
+   },
+   "m.eco.vash.energy.ME3": {
+    "role": "energy"
+   }
+  },
+  "reactions": {
+   "r.eco.krel.chain1.build1": {
+    "energy_source": "r.eco.krel.energy.work",
+    "products": [
+     "m.eco.krel.chain1.MS2"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.eco.krel.chain1.MS1"
+    ]
+   },
+   "r.eco.krel.chain1.build2": {
+    "products": [
+     "m.eco.krel.chain1.MS3"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.eco.krel.chain1.MS2"
+    ]
+   },
+   "r.eco.krel.chain2.build1": {
+    "energy_source": "r.eco.krel.energy.work",
+    "products": [
+     "m.eco.krel.chain2.MS2"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.eco.krel.chain2.MS1"
+    ]
+   },
+   "r.eco.krel.chain2.build2": {
+    "products": [
+     "m.eco.krel.chain2.MS3"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.eco.krel.chain2.MS2"
+    ]
+   },
+   "r.eco.krel.energy.activation": {
+    "products": [
+     "m.eco.krel.energy.ME2"
+    ],
+    "rate": 0.1,
+    "reactants": [
+     "m.eco.krel.energy.ME1",
+     "m.eco.krel.energy.ME1"
+    ]
+   },
+   "r.eco.krel.energy.regeneration": {
+    "products": [
+     "m.eco.krel.energy.ME1"
+    ],
+    "reactants": [
+     "m.eco.krel.energy.ME3"
+    ]
+   },
+   "r.eco.krel.energy.work": {
+    "products": [
+     "m.eco.krel.energy.ME3"
+    ],
+    "reactants": [
+     "m.eco.krel.energy.ME2"
+    ]
+   },
+   "r.eco.krel_excretes": {
+    "products": [
+     "m.eco.MW1"
+    ],
+    "reactants": [
+     "krel.energy.ME3"
+    ]
+   },
+   "r.eco.vash.chain1.build1": {
+    "energy_source": "r.eco.vash.energy.work",
+    "products": [
+     "m.eco.vash.chain1.MS2"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.eco.vash.chain1.MS1"
+    ]
+   },
+   "r.eco.vash.chain1.build2": {
+    "products": [
+     "m.eco.vash.chain1.MS3"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.eco.vash.chain1.MS2"
+    ]
+   },
+   "r.eco.vash.energy.activation": {
+    "products": [
+     "m.eco.vash.energy.ME2"
+    ],
+    "rate": 0.1,
+    "reactants": [
+     "m.eco.vash.energy.ME1",
+     "m.eco.vash.energy.ME1"
+    ]
+   },
+   "r.eco.vash.energy.regeneration": {
+    "products": [
+     "m.eco.vash.energy.ME1"
+    ],
+    "reactants": [
+     "m.eco.vash.energy.ME3"
+    ]
+   },
+   "r.eco.vash.energy.work": {
+    "products": [
+     "m.eco.vash.energy.ME3"
+    ],
+    "reactants": [
+     "m.eco.vash.energy.ME2"
+    ]
+   },
+   "r.eco.vash_consumes": {
+    "products": [
+     "vash.chain1.MS1"
+    ],
+    "reactants": [
+     "m.eco.MW1"
+    ]
+   }
+  }
+ },
+ "producer_metabolism": {
+  "molecules": {
+   "m.krel.chain1.MS1": {
+    "role": "structural"
+   },
+   "m.krel.chain1.MS2": {
+    "role": "structural"
+   },
+   "m.krel.chain1.MS3": {
+    "role": "structural"
+   },
+   "m.krel.chain2.MS1": {
+    "role": "structural"
+   },
+   "m.krel.chain2.MS2": {
+    "role": "structural"
+   },
+   "m.krel.chain2.MS3": {
+    "role": "structural"
+   },
+   "m.krel.energy.ME1": {
+    "role": "energy"
+   },
+   "m.krel.energy.ME2": {
+    "role": "energy"
+   },
+   "m.krel.energy.ME3": {
+    "role": "energy"
+   }
+  },
+  "reactions": {
+   "r.krel.chain1.build1": {
+    "energy_source": "r.krel.energy.work",
+    "products": [
+     "m.krel.chain1.MS2"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.krel.chain1.MS1"
+    ]
+   },
+   "r.krel.chain1.build2": {
+    "products": [
+     "m.krel.chain1.MS3"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.krel.chain1.MS2"
+    ]
+   },
+   "r.krel.chain2.build1": {
+    "energy_source": "r.krel.energy.work",
+    "products": [
+     "m.krel.chain2.MS2"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.krel.chain2.MS1"
+    ]
+   },
+   "r.krel.chain2.build2": {
+    "products": [
+     "m.krel.chain2.MS3"
+    ],
+    "rate": 0.05,
+    "reactants": [
+     "m.krel.chain2.MS2"
+    ]
+   },
+   "r.krel.energy.activation": {
+    "products": [
+     "m.krel.energy.ME2"
+    ],
+    "rate": 0.1,
+    "reactants": [
+     "m.krel.energy.ME1",
+     "m.krel.energy.ME1"
+    ]
+   },
+   "r.krel.energy.regeneration": {
+    "products": [
+     "m.krel.energy.ME1"
+    ],
+    "reactants": [
+     "m.krel.energy.ME3"
+    ]
+   },
+   "r.krel.energy.work": {
+    "products": [
+     "m.krel.energy.ME3"
+    ],
+    "reactants": [
+     "m.krel.energy.ME2"
+    ]
+   }
+  }
+ }
+}

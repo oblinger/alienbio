@@ -240,7 +240,6 @@ from .types import (
     TaskArchetype,
     TaskInstance,
     Timeline,
-    WorldEnvelope,
 )
 
 __all__ = [
@@ -270,7 +269,6 @@ __all__ = [
     "Op",
     "ScriptedOp",
     "FeatureSet",
-    "WorldEnvelope",
     # L5
     "Answer",
     "Renderable",

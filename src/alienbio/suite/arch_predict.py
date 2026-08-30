@@ -257,22 +257,6 @@ class PredictResponseRecipe:
         )
         return Answer(value=token, kind="node_id")
 
-    def build_distractors(
-        self, skeleton: CarveResult, world: WorldImpl, seed: Seed
-    ) -> tuple[Answer, ...]:
-        """The other two response tokens as ``node_id`` distractors.
-
-        Deterministic and distinct: the fixed three-token vocabulary minus the key
-        token, so exactly two near-miss responses, each a real response token
-        (never a node id).
-        """
-        key_token = self.build_key(skeleton, world).value
-        return tuple(
-            Answer(value=token, kind="node_id")
-            for token in RESPONSE_TOKENS
-            if token != key_token
-        )
-
     def grader_spec(self) -> GraderSpec:
         """Exact single-token grading."""
         return GraderSpec(kind="node_id")

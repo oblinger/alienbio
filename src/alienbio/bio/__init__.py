@@ -121,12 +121,6 @@ from .diagnosis import DiagnoseTask, CureTask
 # Difficulty scaling (M11.3)
 from .difficulty import generate_diagnosis_task
 
-# Test harness (M12)
-from .harness import TestSuite, TestResults, run_suite
-
-# Agent comparison (Advanced Analysis)
-from .comparison import AgentStats, ComparisonTable, compare, compare_by_task
-
 # Quiescence detection
 from .quiescence import QuiescenceTimeout, run_until_quiet
 
@@ -248,21 +242,12 @@ __all__ = [
     "detect_symptoms",
     # Difficulty scaling
     "generate_diagnosis_task",
-    # Test harness
-    "TestSuite",
-    "TestResults",
-    "run_suite",
     # Skinning
     "generate_alien_name",
     "generate_description",
     "generate_name_map",
     "skin_task_description",
     "check_no_earth_terms",
-    # Agent comparison
-    "AgentStats",
-    "ComparisonTable",
-    "compare",
-    "compare_by_task",
     # Quiescence detection
     "QuiescenceTimeout",
     "run_until_quiet",

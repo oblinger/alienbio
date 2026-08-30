@@ -39,7 +39,7 @@ from alienbio.suite.vocab import build_vocabulary
 
 
 def _spec(arch: TaskArchetype) -> SuiteSpec:
-    return SuiteSpec(archetype_mix=Constant(arch), per_archetype={}, seed=0)
+    return SuiteSpec(archetype_mix=Constant(arch))
 
 
 # ── each archetype materializes green ───────────────────────────────────────
@@ -114,16 +114,12 @@ def test_generative_identify_still_materializes_green():
 
 
 def test_mixed_answer_and_outcome_archetypes_materialize_together():
-    spec = SuiteSpec(
-        archetype_mix=Choice(
+    spec = SuiteSpec(archetype_mix=Choice(
             (
                 generative_diagnose(n_nodes=4),
                 generative_intervene(n_nodes=4),
             )
-        ),
-        per_archetype={},
-        seed=0,
-    )
+        ))
     suite = build_suite(spec, Seed(7), n_tasks=6)
     assert len(suite.tasks) == 6
     kinds = {t.archetype for t in suite.tasks}

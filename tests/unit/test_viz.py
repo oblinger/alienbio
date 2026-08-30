@@ -15,8 +15,6 @@ from alienbio.bio import (
     AtomImpl,
     BioSystem,
     ChemistryImpl,
-    ComparisonTable,
-    AgentStats,
     MoleculeImpl,
     ReactionImpl,
     StateImpl,
@@ -38,8 +36,7 @@ from alienbio.viz import (
     population_dynamics,
     envelope_timeline,
     difficulty_curve_plot,
-    agent_comparison_chart,
-)
+    )
 
 
 class MockDat:
@@ -286,19 +283,6 @@ class TestDifficultyCurvePlot:
         assert isinstance(fig, Figure)
         ax = fig.axes[0]
         assert ax.get_xlabel() == "Difficulty"
-        plt.close(fig)
-
-
-class TestAgentComparisonChart:
-    def test_returns_figure(self) -> None:
-        table = ComparisonTable(agents=[
-            AgentStats("oracle", mean=0.9, std=0.05, min=0.8, max=1.0, count=10, pass_rate=1.0),
-            AgentStats("random", mean=0.3, std=0.2, min=0.0, max=0.7, count=10, pass_rate=0.2),
-        ])
-        fig = agent_comparison_chart(table)
-        assert isinstance(fig, Figure)
-        ax = fig.axes[0]
-        assert ax.get_ylabel() == "Score"
         plt.close(fig)
 
 

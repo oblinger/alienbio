@@ -6,9 +6,9 @@ arguments (positionals under the reserved key ``args:``); ``!<head> [..]`` —
 positional arguments; ``!<head> <scalar>`` — one positional argument.
 Untagged YAML is data. ``!include`` / ``!py`` are load-time forms
 (:class:`~alienbio.expr.form.Include` / :class:`~alienbio.expr.form.PyRef`),
-resolved by :mod:`alienbio.expr.include` before evaluation (M47.5); ``!ev`` /
-``!_`` / ``!quote`` are the legacy spellings and are removed at G4 close
-(M47.7).
+resolved by :mod:`alienbio.expr.include` before evaluation (M47.5). The
+legacy ``!ev`` / ``!_`` / ``!quote`` spellings are gone (M47.7): each is a
+load error that names its replacement.
 """
 
 from __future__ import annotations
@@ -23,7 +23,10 @@ from .form import Call, Include, Name, PyRef, Quoted
 from .parse import dump as dump_inline
 from .parse import parse
 
-RESERVED_TAGS: frozenset[str] = frozenset({"x", "q", "ref", "include", "py", "ev", "_", "quote"})
+RESERVED_TAGS: frozenset[str] = frozenset({"x", "q", "ref", "include", "py"})
+
+#: The M1 spellings and what replaced them (M47.7 — no aliases survive).
+LEGACY_TAGS: dict[str, str] = {"ev": "!x", "_": "!q", "quote": "!q"}
 
 
 class ExprLoader(yaml.SafeLoader):
@@ -82,6 +85,8 @@ def _scalar(loader: yaml.Loader, node: yaml.Node) -> Any:
 
 def _call_constructor(loader: yaml.Loader, tag_suffix: str, node: yaml.Node) -> Any:
     head = tag_suffix
+    if head in LEGACY_TAGS:
+        raise ExprError(f"!{head} is the old spelling — write {LEGACY_TAGS[head]}", _mark(node))
     if head in RESERVED_TAGS:
         raise ExprError(f"!{head} is a reserved tag", _mark(node))
     if not head or not all(part.isidentifier() for part in head.replace(":", ".").split(".")):

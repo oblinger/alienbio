@@ -31,7 +31,7 @@ from alienbio.suite.verify import SimConfig, simulate
 
 def _identify_pathway_suite(pathway_length: int = 3, n_tasks: int = 1, seed_val: int = 1):
     arch = identify_pathway(pathway_length=pathway_length)
-    spec = SuiteSpec(archetype_mix=Constant(arch), per_archetype={}, seed=0)
+    spec = SuiteSpec(archetype_mix=Constant(arch))
     return build_suite(spec, Seed(seed_val), n_tasks=n_tasks, distractor_count=1)
 
 

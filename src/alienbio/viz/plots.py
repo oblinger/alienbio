@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from ..bio.state import StateImpl
 from ..bio.world_state import WorldStateImpl
 from ..bio.disease import Symptom, Baseline
-from ..bio.comparison import ComparisonTable
 from .helpers import timeline_to_arrays, world_timeline_to_arrays
 
 
@@ -376,42 +375,3 @@ def difficulty_curve_plot(
         save_or_show(fig, save_path)
     return fig
 
-
-# ---------------------------------------------------------------------------
-# 9. Agent comparison chart
-# ---------------------------------------------------------------------------
-
-def agent_comparison_chart(
-    table: ComparisonTable,
-    *,
-    title: str = "Agent Comparison",
-    save_path: Optional[str] = None,
-) -> Figure:
-    """Grouped bar chart with error bars for agent comparison.
-
-    Args:
-        table: ComparisonTable with ranked agent statistics.
-        title: Figure title.
-        save_path: Optional save path.
-
-    Returns:
-        The matplotlib Figure.
-    """
-    ranking = table.ranking
-    names = [a.agent_name for a in ranking]
-    means = [a.mean for a in ranking]
-    stds = [a.std for a in ranking]
-
-    fig, ax = plt.subplots()
-    x = np.arange(len(names))
-    ax.bar(x, means, yerr=stds, capsize=4, alpha=0.8)
-    ax.set_xticks(x)
-    ax.set_xticklabels(names, rotation=30, ha="right")
-    ax.set_ylabel("Score")
-    ax.set_title(title)
-    fig.tight_layout()
-
-    if save_path is not None:
-        from .helpers import save_or_show
-        save_or_show(fig, save_path)
-    return fig

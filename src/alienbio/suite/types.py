@@ -139,15 +139,6 @@ class FeatureSet:
     features: frozenset[tuple[str, Predicate]] = frozenset()
 
 
-@dataclass(frozen=True)
-class WorldEnvelope:
-    """A parameter schema, required features, and an optional directive."""
-
-    params: ParamSchema
-    must_satisfy: FeatureSet
-    directive: Optional[Directive] = None
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # L5 — question / objective / answer
 # ═══════════════════════════════════════════════════════════════════════════
@@ -238,12 +229,6 @@ class ObjectiveRecipe(Protocol):
         """Read the ground-truth answer off the skeleton by construction."""
         ...
 
-    def build_distractors(
-        self, skeleton: CarveResult, world: WorldImpl, seed: Seed
-    ) -> tuple[Answer, ...]:
-        """Plausible near-miss answers (for MC framings / incorrect-answer generation)."""
-        ...
-
     def grader_spec(self) -> GraderSpec:
         """Which FT06 grader + partial-credit config this archetype grades with."""
         ...
@@ -296,8 +281,6 @@ class SuiteSpec:
     """A generative spec: archetype mix + per-archetype schemas + seed."""
 
     archetype_mix: "Dist[TaskArchetype]"
-    per_archetype: Mapping[str, tuple[ParamSchema, "Dist[Difficulty]"]]
-    seed: int
 
 
 @dataclass(frozen=True)

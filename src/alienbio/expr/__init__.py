@@ -10,6 +10,7 @@ head registry, the three spellings. See the vault's ``ABIO Expr Spec`` and
 """
 
 from .env import Ctx, Env, ExprError, Limits
+from .include import UnsafeSpecError
 from .form import Call, Name, Quoted, contains_form, is_form, walk
 from .interp import QuotedForm, TemplateHead, evaluate
 from .registry import GuardViolation, Head, Registry, expander, fn, guard, registry
@@ -22,6 +23,7 @@ __all__ = [
     "Ctx",
     "Env",
     "ExprError",
+    "UnsafeSpecError",
     "ExprLoader",
     "GuardViolation",
     "Head",

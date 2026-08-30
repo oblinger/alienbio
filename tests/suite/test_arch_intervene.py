@@ -111,22 +111,6 @@ def test_target_binding_is_a_real_molecule() -> None:
     assert target_id not in world.chemistry.reactions
 
 
-def test_recipe_shapes_and_outcome_grader() -> None:
-    world, skeleton, (target_id, target_value) = draft_intervention_world(Seed(5))
-    recipe = DesignInterventionRecipe(target_value=target_value)
-
-    question = recipe.build_question(skeleton, world)
-    assert isinstance(question, Question)
-    assert question.kind == "node_set"
-    assert set(question.structured) == {target_id}
-
-    key = recipe.build_key(skeleton, world)
-    assert isinstance(key, Answer)  # trivial; unused by outcome grading
-
-    assert recipe.build_distractors(skeleton, world, Seed(0)) == ()
-    assert recipe.grader_spec() == GraderSpec(kind="outcome")
-
-
 def test_question_round_trips_over_vocabulary() -> None:
     world, skeleton, _goal = draft_intervention_world(Seed(6))
     recipe = DesignInterventionRecipe(target_value=1.0)

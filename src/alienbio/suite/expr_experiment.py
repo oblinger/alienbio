@@ -282,7 +282,7 @@ def suite(
         mix = Constant(tasks)
     else:
         raise env.error("suite: tasks must be a TaskArchetype or a Dist over them (a quoted choice(...))")
-    spec = SuiteSpec(archetype_mix=mix, per_archetype={}, seed=0)
+    spec = SuiteSpec(archetype_mix=mix)
     return build_suite(spec, env.ctx.seed, n_tasks=int(n_tasks), distractor_count=int(distractor_count), max_redraws=int(max_redraws), sim_cfg=sim or SimConfig())
 
 

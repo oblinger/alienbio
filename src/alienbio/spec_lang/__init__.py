@@ -1,83 +1,24 @@
-"""Spec Language Module.
-
-YAML tags, decorators, and Bio class for loading/saving biology specifications.
-See docs: [[Spec Language]], [[Decorators]], [[Bio]]
+"""What remains of the M1 spec language after M47.7: the pieces the Expr
+language stands on — the distribution builtins, the inline-expression
+allowlist (``safe_eval``), lexical ``Scope``, and the ``@biotype`` class
+registry. The old YAML loader, evaluator, typed keys, rate compiler and
+``Bio`` facade are gone; ``alienbio.expr`` is the one language.
 """
 
-from .bio import Bio, bio, SimulationResult
-from .rate_compiler import compile_rate_expression
-from .compiled_sim import CompiledSimulator, ScenarioSpec, compile_sim
-from .decorators import biotype, fn, scoring, action, measurement, rate
-from .decorators import get_biotype, get_action, get_measurement, get_scoring, get_rate
-from .decorators import biotype_registry, action_registry, measurement_registry
-from .decorators import scoring_registry, rate_registry
-from .tags import Include
-from .eval import (
-    Evaluable, Quoted, Reference,
-    hydrate, dehydrate,
-    EvalContext, eval_node, EvalError,
-    SAFE_BUILTINS, make_context,
-)
-from .builtins import (
-    DEFAULT_FUNCTIONS,
-    normal, uniform, lognormal, poisson, exponential, choice, discrete,
-)
-from .loader import expand_defaults
+from __future__ import annotations
+
+from .builtins import DEFAULT_FUNCTIONS
+from .decorators import biotype, biotype_registry, get_biotype
+from .safe_eval import UnsafeExpressionError, safe_eval, validate_expression
 from .scope import Scope
 
 __all__ = [
-    # Bio singleton and class
-    "bio",
-    "Bio",
-    "SimulationResult",
-    # Decorators
-    "biotype",
-    "fn",
-    "scoring",
-    "action",
-    "measurement",
-    "rate",
-    # Registry access
-    "get_biotype",
-    "get_action",
-    "get_measurement",
-    "get_scoring",
-    "get_rate",
-    # Registries (for testing)
-    "biotype_registry",
-    "action_registry",
-    "measurement_registry",
-    "scoring_registry",
-    "rate_registry",
-    # Tags
-    "Include",
-    # Evaluation system
-    "Evaluable",
-    "Quoted",
-    "Reference",
-    "hydrate",
-    "dehydrate",
-    "EvalContext",
-    "eval_node",
-    "EvalError",
-    "SAFE_BUILTINS",
     "DEFAULT_FUNCTIONS",
-    "make_context",
-    # Built-in distribution functions
-    "normal",
-    "uniform",
-    "lognormal",
-    "poisson",
-    "exponential",
-    "choice",
-    "discrete",
-    # Loader functions
-    "expand_defaults",
-    # Scope
     "Scope",
-    # Rate compilation
-    "compile_rate_expression",
-    "CompiledSimulator",
-    "ScenarioSpec",
-    "compile_sim",
+    "UnsafeExpressionError",
+    "biotype",
+    "biotype_registry",
+    "get_biotype",
+    "safe_eval",
+    "validate_expression",
 ]

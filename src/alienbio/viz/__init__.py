@@ -10,7 +10,6 @@ from .plots import (
     population_dynamics,
     envelope_timeline,
     difficulty_curve_plot,
-    agent_comparison_chart,
 )
 
 __all__ = [
@@ -27,5 +26,4 @@ __all__ = [
     "population_dynamics",
     "envelope_timeline",
     "difficulty_curve_plot",
-    "agent_comparison_chart",
 ]

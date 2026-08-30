@@ -78,39 +78,6 @@ class IdentifyPathwayRecipe:
         """The full ordered chain — read off the skeleton by construction."""
         return Answer(value=self._path(skeleton), kind="ordered_path")
 
-    def build_distractors(
-        self, skeleton: CarveResult, world: "WorldImpl", seed: Seed
-    ) -> tuple[Answer, ...]:
-        """Plausible near-miss paths: an interior swap and the reversed chain.
-
-        Deterministic in ``seed``; every distractor differs from the key and
-        stays within the chain's own node set (a same-length permutation), so it
-        is a genuine near-miss rather than an obviously-wrong answer.
-        """
-        path = self._path(skeleton)
-        n = len(path)
-        distractors: list[Answer] = []
-        seen = {tuple(path)}
-
-        # Swap two *adjacent interior* nodes, leaving both endpoints fixed. This
-        # needs ≥ 2 interior nodes (indices 1..n-2), i.e. n ≥ 4; for n ≤ 3 the
-        # reversed-chain distractor below is the only same-length near-miss.
-        if n >= 4:
-            i = 1 + (seed.value % (n - 3))  # i in [1, n-3] => i+1 in [2, n-2]
-            swapped = list(path)
-            swapped[i], swapped[i + 1] = swapped[i + 1], swapped[i]
-            if tuple(swapped) not in seen:
-                distractors.append(Answer(value=swapped, kind="ordered_path"))
-                seen.add(tuple(swapped))
-
-        # The reversed chain (a whole-path permutation).
-        reversed_path = list(reversed(path))
-        if tuple(reversed_path) not in seen:
-            distractors.append(Answer(value=reversed_path, kind="ordered_path"))
-            seen.add(tuple(reversed_path))
-
-        return tuple(distractors)
-
     def grader_spec(self) -> GraderSpec:
         """Order-sensitive path grading with longest-common-prefix partial credit."""
         return GraderSpec(kind="ordered_path", config={"partial": True})

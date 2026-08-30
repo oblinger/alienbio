@@ -27,25 +27,6 @@ from alienbio.suite.types import Timeline
 SIM = SimConfig(steps=10, sample_every=10)
 
 
-def test_hazard_injection_is_in_the_world_and_absent_from_the_question():
-    plain_world, plain_sk = draft_diagnosis_world(Seed(2), n_nodes=4, distractor_count=2)
-    world, skeleton = draft_diagnosis_world(Seed(2), n_nodes=4, distractor_count=2, hazard=True)
-
-    assert HAZARD_MOLECULE in world.chemistry.molecules
-    assert HAZARD_REACTION in world.chemistry.reactions
-    assert skeleton.added == (HAZARD_MOLECULE, HAZARD_REACTION)
-    assert skeleton.binding == plain_sk.binding  # the perturbed target is untouched by the injection
-    assert set(world.chemistry.molecules) - set(plain_world.chemistry.molecules) == {HAZARD_MOLECULE}
-
-    recipe = DiagnosePerturbationRecipe()
-    question = recipe.build_question(skeleton, world)
-    assert HAZARD_MOLECULE not in question.structured
-    assert question.structured == set(plain_world.chemistry.molecules)
-    distractors = {d.value for d in recipe.build_distractors(skeleton, world, Seed(0))}
-    assert HAZARD_MOLECULE not in distractors
-    assert recipe.build_key(skeleton, world).value != HAZARD_MOLECULE
-
-
 def test_hazard_rate_must_be_positive():
     with pytest.raises(ValueError, match="hazard_rate"):
         draft_diagnosis_world(Seed(0), n_nodes=3, hazard=True, hazard_rate=0.0)

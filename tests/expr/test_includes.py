@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from alienbio.expr import Env, ExprError, X, evaluate, registry
+from alienbio.expr import Env, ExprError, UnsafeSpecError, X, evaluate, registry
 from alienbio.expr.form import Include, PyRef
 from alienbio.expr.yaml_tags import load_text
-from alienbio.spec_lang.tags import UnsafeSpecError
 
 HELPERS = '''
 from alienbio.expr import fn

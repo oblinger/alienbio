@@ -131,25 +131,6 @@ def test_three_response_tokens_are_distinct() -> None:
     assert set(RESPONSE_TOKENS) == {"up", "down", "same"}
 
 
-def test_distractors_are_the_other_two_tokens() -> None:
-    world, skeleton, reaction_id = draft_prediction_world(Seed(6), n_nodes=4)
-    recipe = _recipe(reaction_id, skeleton.binding["target"])
-    key = recipe.build_key(skeleton, world)
-    distractors = recipe.build_distractors(skeleton, world, Seed(0))
-
-    values = [d.value for d in distractors]
-    assert len(values) == 2
-    assert len(set(values)) == 2
-    assert key.value not in values
-    assert set(values) | {key.value} == set(RESPONSE_TOKENS)
-    for d in distractors:
-        assert d.kind == "node_id"
-        # A response token is never a node id in the world.
-        assert d.value not in world.chemistry.molecules
-        assert d.value not in world.chemistry.reactions
-        assert grade_answer(d, key, recipe.grader_spec()) < 1.0
-
-
 def test_binding_records_reaction_and_molecule_not_swapped() -> None:
     world, skeleton, reaction_id = draft_prediction_world(Seed(7), n_nodes=4)
     perturbed = skeleton.binding["perturbed"]
@@ -171,22 +152,6 @@ def test_draft_produces_directly_built_two_role_skeleton() -> None:
     assert skeleton.added == ()
     assert skeleton.removed == ()
     assert set(skeleton.binding) == {"perturbed", "target"}
-
-
-def test_archetype_factory_shape_and_key() -> None:
-    world, skeleton, reaction_id = draft_prediction_world(Seed(8), n_nodes=4)
-    arch = predict_response(reaction_id, skeleton.binding["target"])
-    assert isinstance(arch, TaskArchetype)
-    assert arch.id == "predict_response"
-    assert arch.verb == "predict"
-    assert len(arch.motif.roles) == 2
-    assert isinstance(arch.recipe, PredictResponseRecipe)
-
-    recipe = arch.recipe
-    key = recipe.build_key(skeleton, world)
-    assert grade_answer(key, key, recipe.grader_spec()) == 1.0
-    distractors = recipe.build_distractors(skeleton, world, Seed(1))
-    assert grade_answer(distractors[0], key, recipe.grader_spec()) < 1.0
 
 
 def test_predict_key_renders_only_with_response_tokens_in_vocab():
