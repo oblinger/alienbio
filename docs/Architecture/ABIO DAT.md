@@ -68,4 +68,4 @@ src/dvc_dat -> ../../dvc-dat/dvc_dat
 - [[Spec Language]] - YAML syntax extensions (`!ev`, `!ref`, `!include`, typed keys, jobs)
 - [[ABIO Expr Python API]] - `@biotype` registration for hydration
 - [[ABIO Data]] - Organization of the `data/` folder
-- [[alienbio]] - Top-level operators API
+- [[ABIO alienbio]] - Top-level operators API

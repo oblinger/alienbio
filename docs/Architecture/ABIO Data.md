@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO infra]]
+ [[ABIO Architecture Docs]] → [[ABIO infra]]
 
 # ABIO Data
 Organization of the `data/` folder and intent-based categories.

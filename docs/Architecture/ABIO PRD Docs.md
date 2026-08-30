@@ -7,7 +7,7 @@ Product Requirements Document for synthetic alien biology scenario generation.
 
 ## 1. Overview
 
-The Scenario Generator produces complete alien biology scenarios for AI safety experiments. Unlike low-level generators ([[MoleculeGenerator]], [[ReactionGenerator]], [[ContainerGenerator]]) that produce individual components, the Scenario Generator creates coherent ecosystems with specified structural properties.
+The Scenario Generator produces complete alien biology scenarios for AI safety experiments. Unlike low-level generators ([[ABIO MoleculeGenerator]], [[ABIO ReactionGenerator]], [[ABIO ContainerGenerator]]) that produce individual components, the Scenario Generator creates coherent ecosystems with specified structural properties.
 
 **Key Terminology**:
 | Term | Definition |
@@ -931,8 +931,8 @@ scenario = gen.generate("mutualism_hidden_dependency.yaml", seed=42)
 ## 10. See Also
 
 - [[Generator]] — Base generator protocol
-- [[MoleculeGenerator]], [[ReactionGenerator]], [[ContainerGenerator]] — Component generators
+- [[ABIO MoleculeGenerator]], [[ABIO ReactionGenerator]], [[ABIO ContainerGenerator]] — Component generators
 - [[AUP Notes#Generator Requirements Wish List]] — Original requirements
 - [[ASP B10 - World Specification Example]] — Hand-authored example
-- [[Expr]] — Expression language for distributions
+- [[ABIO Expr Class]] — Expression language for distributions
 - [[Visibility Model]] — Visibility specification details

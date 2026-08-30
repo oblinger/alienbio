@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Pathway
 
@@ -51,5 +51,5 @@ class Pathway(Entity, Protocol):
 
 ## See Also
 - [[ABIO biology]]
-- [[Reaction]] - Individual reactions
-- [[Chemistry]] - Container for molecules and reactions
+- [[ABIO Reaction]] - Individual reactions
+- [[ABIO Chemistry]] - Container for molecules and reactions

@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Atom
 
@@ -93,6 +93,6 @@ class Atom(Protocol):
 ```
 
 ## See Also
-- [[Molecule]] - Composed of atoms
-- [[Chemistry]] - Container for atoms
+- [[ABIO Molecule]] - Composed of atoms
+- [[ABIO Chemistry]] - Container for atoms
 - [[ABIO biology]] - Parent subsystem

@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Molecule
 
@@ -113,8 +113,8 @@ class Molecule(Protocol):
 ```
 
 ## See Also
-- [[Atom]] - Chemical elements
-- [[Reaction]] - Transforms molecules
-- [[Chemistry]] - Container for molecules
-- [[MoleculeGenerator]] - Factory for molecules
+- [[ABIO Atom]] - Chemical elements
+- [[ABIO Reaction]] - Transforms molecules
+- [[ABIO Chemistry]] - Container for molecules
+- [[ABIO MoleculeGenerator]] - Factory for molecules
 - [[ABIO biology]] - Parent subsystem

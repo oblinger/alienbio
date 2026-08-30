@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO Suite Runtime]]
+ [[ABIO Architecture Docs]] → [[ABIO Suite Runtime]]
 
 # World
 
@@ -59,5 +59,5 @@ class World(Protocol):
 ## See Also
 - [[Simulator]] - Execution engine
 - [[Timeline]] - Simulation results
-- [[Chemistry]] - Container being simulated
+- [[ABIO Chemistry]] - Container being simulated
 - [[ABIO Suite Runtime]] - Parent subsystem

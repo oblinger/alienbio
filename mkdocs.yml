@@ -67,7 +67,7 @@ markdown_extensions:
 nav:
   - Home: README.md
   - User Guide:
-    - Overview: Guide/Alienbio User Guide.md
+    - Overview: Guide/ABIO Alienbio User Guide.md
     - ABIO Expr Spec: Guide/ABIO Expr Spec.md
     - ABIO Expr Python API: Guide/ABIO Expr Python API.md
   - Demos:
@@ -84,7 +84,7 @@ nav:
     - "Combo: Alien Exam": demos/notebooks/combo_alien_exam.ipynb
     - "Combo: Ecosystem": demos/notebooks/combo_ecosystem.ipynb
   - Architecture:
-    - Overview: Architecture/Architecture Docs.md
+    - Overview: Architecture/ABIO Architecture Docs.md
     - Data Model: Architecture/ABIO Data.md
     - Files: Architecture/ABIO Files.md
     - Infrastructure: Architecture/ABIO infra.md
@@ -94,39 +94,39 @@ nav:
     - Suite Runtime: Architecture/ABIO Suite Runtime.md
   - Classes:
     - Biology:
-      - Atom: Architecture/Classes/biology/Atom.md
-      - Molecule: Architecture/Classes/biology/Molecule.md
-      - Reaction: Architecture/Classes/biology/Reaction.md
-      - Pathway: Architecture/Classes/biology/Pathway.md
-      - Chemistry: Architecture/Classes/biology/Chemistry.md
-      - Flow: Architecture/Classes/biology/Flow.md
-      - WorldState: Architecture/Classes/biology/WorldState.md
-      - WorldSimulator: Architecture/Classes/biology/WorldSimulator.md
-      - Compartment: Architecture/Classes/biology/Compartment.md
-      - CompartmentTree: Architecture/Classes/biology/CompartmentTree.md
+      - Atom: Architecture/Classes/biology/ABIO Atom.md
+      - Molecule: Architecture/Classes/biology/ABIO Molecule.md
+      - Reaction: Architecture/Classes/biology/ABIO Reaction.md
+      - Pathway: Architecture/Classes/biology/ABIO Pathway.md
+      - Chemistry: Architecture/Classes/biology/ABIO Chemistry.md
+      - Flow: Architecture/Classes/biology/ABIO Flow.md
+      - WorldState: Architecture/Classes/biology/ABIO WorldState.md
+      - WorldSimulator: Architecture/Classes/biology/ABIO WorldSimulator.md
+      - Compartment: Architecture/Classes/biology/ABIO Compartment.md
+      - CompartmentTree: Architecture/Classes/biology/ABIO CompartmentTree.md
     - Execution:
-      - State: Architecture/Classes/execution/state.md
-      - Simulator: Architecture/Classes/execution/simulator.md
-      - Timeline: Architecture/Classes/execution/timeline.md
-      - World: Architecture/Classes/execution/world.md
+      - State: Architecture/Classes/execution/ABIO state.md
+      - Simulator: Architecture/Classes/execution/ABIO simulator.md
+      - Timeline: Architecture/Classes/execution/ABIO timeline.md
+      - World: Architecture/Classes/execution/ABIO world.md
     - Infrastructure:
-      - Entity: Architecture/Classes/infra/entity.md
-      - DAT: Architecture/Classes/infra/DAT.md
-      - IO: Architecture/Classes/infra/IO.md
-      - Expr: Architecture/Classes/infra/Expr.md
-      - Interpreter: Architecture/Classes/infra/Interpreter.md
+      - Entity: Architecture/Classes/infra/ABIO entity.md
+      - DAT: Architecture/Classes/infra/ABIO DAT Class.md
+      - IO: Architecture/Classes/infra/ABIO IO.md
+      - Expr: Architecture/Classes/infra/ABIO Expr Class.md
+      - Interpreter: Architecture/Classes/infra/ABIO Interpreter.md
     - Generators:
-      - Generator: Architecture/Classes/biology/generator.md
-      - ContainerGenerator: Architecture/Classes/biology/ContainerGenerator.md
-      - MoleculeGenerator: Architecture/Classes/biology/MoleculeGenerator.md
-      - ReactionGenerator: Architecture/Classes/biology/ReactionGenerator.md
+      - Generator: Architecture/Classes/biology/ABIO generator.md
+      - ContainerGenerator: Architecture/Classes/biology/ABIO ContainerGenerator.md
+      - MoleculeGenerator: Architecture/Classes/biology/ABIO MoleculeGenerator.md
+      - ReactionGenerator: Architecture/Classes/biology/ABIO ReactionGenerator.md
   - Commands: Architecture/ABIO Commands.md
   - API Reference:
     - Overview: Modules/index.md
-    - Bio: Modules/bio.md
-    - Infra: Modules/infra.md
-    - Protocols: Modules/protocols.md
-    - Expr: Modules/expr.md
-    - Suite: Modules/suite.md
-    - Spec Language: Modules/spec_lang.md
-    - CLI: Modules/cli.md
+    - Bio: Modules/ABIO bio.md
+    - Infra: Modules/ABIO infra Module.md
+    - Protocols: Modules/ABIO protocols.md
+    - Expr: Modules/ABIO expr.md
+    - Suite: Modules/ABIO suite.md
+    - Spec Language: Modules/ABIO spec_lang.md
+    - CLI: Modules/ABIO cli.md

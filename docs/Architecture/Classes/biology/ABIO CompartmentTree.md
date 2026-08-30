@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # CompartmentTree
 
@@ -113,7 +113,7 @@ class CompartmentTree(Protocol):
 ```
 
 ## See Also
-- [[WorldState]] - Concentration storage
-- [[Flow]] - Transport across membranes
-- [[WorldSimulator]] - Uses tree for flow calculations
-- [[Compartment]] - Entity-based compartments
+- [[ABIO WorldState]] - Concentration storage
+- [[ABIO Flow]] - Transport across membranes
+- [[ABIO WorldSimulator]] - Uses tree for flow calculations
+- [[ABIO Compartment]] - Entity-based compartments

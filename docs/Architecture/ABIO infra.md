@@ -1,4 +1,4 @@
- [[Architecture Docs]] 
+ [[ABIO Architecture Docs]] 
 
 # ABIO infra
 Infrastructure: entity base classes, serialization, data management, and configuration.
@@ -6,9 +6,9 @@ Infrastructure: entity base classes, serialization, data management, and configu
 ## Entities
 Core data classes and identity patterns that all biology objects inherit from.
 - **[[Entity]]** - Base protocol for all biology objects.
-- **[[Expr]]** - Functional expression trees for computations and rate equations.
-- **[[Interpreter]]** - Evaluates Expr trees, handles language dispatch and template expansion.
-- **[[IO]]** - Entity I/O: prefix bindings, formatting, parsing, persistence.
+- **[[ABIO Expr Class]]** - Functional expression trees for computations and rate equations.
+- **[[ABIO Interpreter]]** - Evaluates Expr trees, handles language dispatch and template expansion.
+- **[[ABIO IO]]** - Entity I/O: prefix bindings, formatting, parsing, persistence.
 ## Data Management
 - **[[ABIO Data]]** - Organization of the `data/` folder and intent-based categories.
 - **[[ABIO DAT]]** - dvc_dat integration, name resolution, and `_spec_.yaml` format.
@@ -33,4 +33,4 @@ System configuration and settings management.
 *(Protocols to be added)*
 
 ## Testing
-- **[[Testing]]** - Testing paradigm for Python and Rust code.
+- **[[ABIO Testing]]** - Testing paradigm for Python and Rust code.

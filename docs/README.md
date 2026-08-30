@@ -13,14 +13,14 @@ This tree is **mirrored between the code repository (`docs/`) and the vault (`AB
 
 | Folder | Contents | Sync |
 |--------|----------|------|
-| **[[Architecture Docs\|Architecture/]]** | System design — subsystem overviews, PRDs, spec language, per-class and per-command reference. | bidirectional |
-| **[[Alienbio User Guide\|Guide/]]** | How to use the system — core specs, generators, execution, the agent interface. | bidirectional |
+| **[[ABIO Architecture Docs\|Architecture/]]** | System design — subsystem overviews, PRDs, spec language, per-class and per-command reference. | bidirectional |
+| **[[ABIO Alienbio User Guide\|Guide/]]** | How to use the system — core specs, generators, execution, the agent interface. | bidirectional |
 | **Modules/** | Auto-generated Python API reference (from docstrings). | one-way (code → vault) |
 | **diagrams/** | Diagram assets (svg/dot). | one-way (code → vault) |
 
 ## Start here
-- **[[Architecture Docs]]** — the architecture index: subsystems, data model, protocols, and the benchmark-generation design ([[ABIO Suite Construction]], [[ABIO PRD Docs|Scenario Generator PRD]]).
-- **[[Alienbio User Guide]]** — usage tutorials: [[ABIO Expr Spec]], [[ABIO Expr Python API]].
+- **[[ABIO Architecture Docs]]** — the architecture index: subsystems, data model, protocols, and the benchmark-generation design ([[ABIO Suite Construction]], [[ABIO PRD Docs|Scenario Generator PRD]]).
+- **[[ABIO Alienbio User Guide]]** — usage tutorials: [[ABIO Expr Spec]], [[ABIO Expr Python API]].
 - **[API Reference](Modules/index.md)** — auto-generated class and function docs.
 
 ## Quick start

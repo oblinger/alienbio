@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Compartment
 
@@ -164,8 +164,8 @@ class Compartment(Protocol):
 ```
 
 ## See Also
-- [[CompartmentTree]] - Efficient topology for simulation
-- [[WorldState]] - Concentration storage
-- [[Flow]] - Membrane and lateral transport
-- [[Chemistry]] - Reactions and molecules
-- [[WorldSimulator]] - Multi-compartment simulation
+- [[ABIO CompartmentTree]] - Efficient topology for simulation
+- [[ABIO WorldState]] - Concentration storage
+- [[ABIO Flow]] - Membrane and lateral transport
+- [[ABIO Chemistry]] - Reactions and molecules
+- [[ABIO WorldSimulator]] - Multi-compartment simulation

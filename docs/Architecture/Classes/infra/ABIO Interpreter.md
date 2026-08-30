@@ -1,8 +1,8 @@
- [[Architecture Docs]] → [[ABIO infra]]
+ [[ABIO Architecture Docs]] → [[ABIO infra]]
 
 # Interpreter
 
-Evaluates [[Expr]] trees and handles language dispatch.
+Evaluates [[ABIO Expr Class]] trees and handles language dispatch.
 
 ## Overview
 Interpreter bridges expression representation and execution. It detects input forms (Expr, string, escape hatches), expands templates via do.load(), and evaluates or compiles expressions. The Interpreter is the single dispatch point for all expression evaluation.
@@ -232,8 +232,8 @@ class Interpreter(Protocol):
 ```
 
 ## See Also
-- [[Expr]] - Expression tree representation
-- [[IO]] - do.load for template resolution
-- [[Flow]] - Uses Interpreter for rate equations
-- [[Reaction]] - Uses Interpreter for rate equations
-- [[WorldSimulator]] - Uses Interpreter during simulation
+- [[ABIO Expr Class]] - Expression tree representation
+- [[ABIO IO]] - do.load for template resolution
+- [[ABIO Flow]] - Uses Interpreter for rate equations
+- [[ABIO Reaction]] - Uses Interpreter for rate equations
+- [[ABIO WorldSimulator]] - Uses Interpreter during simulation

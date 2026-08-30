@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Generator
 
@@ -47,6 +47,6 @@ Generates multiple instances efficiently.
 
 ## See Also
 - [[ABIO biology]]
-- [[MoleculeGenerator]]
-- [[ReactionGenerator]]
+- [[ABIO MoleculeGenerator]]
+- [[ABIO ReactionGenerator]]
 - [[SystemGenerator]]

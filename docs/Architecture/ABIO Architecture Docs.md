@@ -2,7 +2,7 @@
 # Architecture Docs
 
 Comprehensive specification of the Alien Biology system's design and operation.
-(See [[Alienbio User Guide]] for usage tutorials and [[Modules/index|API Docs]] for class and module signatures.)
+(See [[ABIO Alienbio User Guide]] for usage tutorials and [[Modules/index|API Docs]] for class and module signatures.)
 
 
 ## Alienbio Specification Languages

@@ -133,7 +133,7 @@ Architecture explains concepts, then links to code:
 
 ```markdown
 <!-- In Spec Language Reference -->
-See [[spec_lang|API Reference]] for function signatures.
+See [[ABIO spec_lang|API Reference]] for function signatures.
 ```
 
 ### Cross-References
@@ -156,7 +156,7 @@ Rules and patterns for consistent documentation.
 Every document (except root indexes) starts with a breadcrumb trail above the H1 heading:
 
 ```markdown
- [[Architecture Docs]] → [[ABIO Commands|Commands]]
+ [[ABIO Architecture Docs]] → [[ABIO Commands|Commands]]
 
 # Bio.fetch()
 ```
@@ -314,5 +314,5 @@ The date format is `YYYY-MM-DD` followed by ` — ` and a brief title.
 ## See Also
 
 - [[ABIO docs]] — Documentation root
-- [[Architecture Docs]] — Architecture index
-- [[Alienbio User Guide]] — User guide index
+- [[ABIO Architecture Docs]] — Architecture index
+- [[ABIO Alienbio User Guide]] — User guide index

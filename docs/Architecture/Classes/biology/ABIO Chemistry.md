@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Chemistry
 
@@ -214,9 +214,9 @@ class Chemistry(Protocol):
 ```
 
 ## See Also
-- [[Atom]] - Chemical elements
-- [[Molecule]] - Chemical compounds
-- [[Reaction]] - Transformations between molecules
+- [[ABIO Atom]] - Chemical elements
+- [[ABIO Molecule]] - Chemical compounds
+- [[ABIO Reaction]] - Transformations between molecules
 - [[State]] - Molecule concentrations
 - [[Simulator]] - Step-based simulation
-- [[Compartment]] - Hierarchical biological structures
+- [[ABIO Compartment]] - Hierarchical biological structures

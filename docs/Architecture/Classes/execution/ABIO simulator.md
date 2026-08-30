@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO Suite Runtime]]
+ [[ABIO Architecture Docs]] → [[ABIO Suite Runtime]]
 
 # Simulator
 
@@ -76,7 +76,7 @@ class Simulator(Protocol):
 ```
 
 ## See Also
-- [[WorldSimulator]] - Multi-compartment simulator
+- [[ABIO WorldSimulator]] - Multi-compartment simulator
 - [[State]] - What gets simulated
-- [[Chemistry]] - Molecules and reactions
+- [[ABIO Chemistry]] - Molecules and reactions
 - [[ABIO Suite Runtime]] - Parent subsystem

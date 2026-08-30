@@ -1,11 +1,11 @@
- [[Architecture Docs]] → [[ABIO infra]]
+ [[ABIO Architecture Docs]] → [[ABIO infra]]
 
 # Expr
 
 Functional expression trees for representing computations, rate equations, and structured data.
 
 ## Overview
-Expr provides a uniform way to represent functional expressions as data. Expression trees can be parsed from strings, serialized to YAML/JSON, and evaluated or compiled by an [[Interpreter]]. The format mirrors Python function call syntax for familiarity.
+Expr provides a uniform way to represent functional expressions as data. Expression trees can be parsed from strings, serialized to YAML/JSON, and evaluated or compiled by an [[ABIO Interpreter]]. The format mirrors Python function call syntax for familiarity.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -110,7 +110,7 @@ rate:
 2. Python's `ast` module handles parsing
 3. Natural mapping to Expr structure
 
-**Separation from Interpreter**: Expr is pure data representation. [[Interpreter]] handles evaluation, template expansion, and language dispatch.
+**Separation from Interpreter**: Expr is pure data representation. [[ABIO Interpreter]] handles evaluation, template expansion, and language dispatch.
 
 ## Method Details
 
@@ -219,7 +219,7 @@ class Expr(Protocol):
 
 ## See Also
 
-- [[Interpreter]] - Evaluates Expr trees
-- [[Flow]] - Uses Expr for rate equations
-- [[Reaction]] - Uses Expr for rate equations
-- [[IO]] - do.load for template resolution
+- [[ABIO Interpreter]] - Evaluates Expr trees
+- [[ABIO Flow]] - Uses Expr for rate equations
+- [[ABIO Reaction]] - Uses Expr for rate equations
+- [[ABIO IO]] - do.load for template resolution

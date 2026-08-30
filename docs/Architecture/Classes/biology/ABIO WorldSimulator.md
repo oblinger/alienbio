@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # WorldSimulator
 
@@ -195,8 +195,8 @@ class Simulator(Protocol):
 ```
 
 ## See Also
-- [[WorldState]] - Concentration storage
-- [[CompartmentTree]] - Compartment topology
-- [[Flow]] - Membrane transport
-- [[Reaction]] - Chemical transformations
+- [[ABIO WorldState]] - Concentration storage
+- [[ABIO CompartmentTree]] - Compartment topology
+- [[ABIO Flow]] - Membrane transport
+- [[ABIO Reaction]] - Chemical transformations
 - [[Simulator]] - Legacy single-compartment simulator

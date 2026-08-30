@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO infra]]
+ [[ABIO Architecture Docs]] → [[ABIO infra]]
 
 # Entity
 
@@ -211,6 +211,6 @@ class Entity(Protocol):
 ```
 
 ## See Also
-- [[IO]] - Prefix bindings, formatting, lookup, persistence
+- [[ABIO IO]] - Prefix bindings, formatting, lookup, persistence
 - [[ABIO DAT]] - DAT storage integration
 - [[Context]] - Runtime context for entity display

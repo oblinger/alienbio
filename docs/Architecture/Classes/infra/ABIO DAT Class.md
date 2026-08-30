@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO infra]]
+ [[ABIO Architecture Docs]] → [[ABIO infra]]
 
 # DAT
 

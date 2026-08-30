@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO execution]]
+ [[ABIO Architecture Docs]] → [[ABIO execution]]
 
 # Timeline
 
@@ -71,6 +71,6 @@ class Timeline(Protocol):
 
 ## See Also
 - [[State]] - Individual snapshots
-- [[WorldState]] - Multi-compartment state
+- [[ABIO WorldState]] - Multi-compartment state
 - [[Simulator]] - Produces timelines
 - [[ABIO execution]] - Parent subsystem

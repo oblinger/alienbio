@@ -1,7 +1,7 @@
 ---
 description: "Shared data model for the Suite Construction neutral primitives — the domain-neutral contracts (types + adapters over existing ABIO classes) that carve, cover, verify, grade, render, and sample close over. This is the boundary that keeps the primitives implementation-clean."
 ---
- [[Architecture Docs]] · [[ABIO Suite Construction]] 
+ [[ABIO Architecture Docs]] · [[ABIO Suite Construction]] 
 
 # Suite Construction Data Model
 **Subsystem**: [[ABIO Suite Runtime]] > Benchmark generation
@@ -86,15 +86,15 @@ Suite:     worlds: list[World]; tasks: list[TaskInstance]
 
 | Neutral type | Existing ABIO class |
 |---|---|
-| `Species` | [[Molecule]] (as a node) |
-| `Reaction` | [[Reaction]] |
-| `RateSpec` | [[Expr]] + the rate-compiler |
-| `ReactionNetwork` | [[Chemistry]] |
-| `Compartment` / `Topology` | [[Compartment]] / [[CompartmentTree]] |
-| `StateVector` / `Trace` | [[WorldState]] (+ time axis) |
+| `Species` | [[ABIO Molecule]] (as a node) |
+| `Reaction` | [[ABIO Reaction]] |
+| `RateSpec` | [[ABIO Expr Class]] + the rate-compiler |
+| `ReactionNetwork` | [[ABIO Chemistry]] |
+| `Compartment` / `Topology` | [[ABIO Compartment]] / [[ABIO CompartmentTree]] |
+| `StateVector` / `Trace` | [[ABIO WorldState]] (+ time axis) |
 | `World` | Chemistry + CompartmentTree + WorldState |
-| `Motif` / `Skeleton` | [[Pathway]] (extended with role slots / bindings) |
-| verification integrator | [[WorldSimulator]] |
+| `Motif` / `Skeleton` | [[ABIO Pathway]] (extended with role slots / bindings) |
+| verification integrator | [[ABIO WorldSimulator]] |
 | `Dist` | ABIO `Expr` distributions |
 
 ## The neutral / semantic boundary

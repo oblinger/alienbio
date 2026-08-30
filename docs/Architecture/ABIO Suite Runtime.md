@@ -1,4 +1,4 @@
-[[Architecture Docs]] 
+[[ABIO Architecture Docs]] 
 
 # ABIO Suite Runtime
 
@@ -78,6 +78,6 @@ Live-model arms on the AUP-registered substrates wait on the paper (the no-peeki
 ## See Also
 
 - [[ABIO Suite Construction]] — the M26/M27 pipeline that produces the worlds and tasks this runtime consumes
-- [[Suite Construction Data Model]] — the type model (`TaskInstance`, `Question`, `Answer`, objectives)
+- [[ABIO Suite Construction Data Model]] — the type model (`TaskInstance`, `Question`, `Answer`, objectives)
 - [[ABIO Protocols]] — the class index
 - [[ABIO Expr Spec]] / [[ABIO Expr Python API]] — the language every spec, world and experiment file is written in; the head catalog

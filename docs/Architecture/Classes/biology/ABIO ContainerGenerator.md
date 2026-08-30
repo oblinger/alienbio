@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # ContainerGenerator
 
@@ -61,5 +61,5 @@ organ = organ_gen.generate(n_molecules=10, n_reactions=5, n_children=100, depth=
 - [[ABIO biology]]
 - [[Generator]] - Base protocol
 - [[BioContainer]] - Generated type
-- [[MoleculeGenerator]] - Composed for molecules
-- [[ReactionGenerator]] - Composed for reactions
+- [[ABIO MoleculeGenerator]] - Composed for molecules
+- [[ABIO ReactionGenerator]] - Composed for reactions

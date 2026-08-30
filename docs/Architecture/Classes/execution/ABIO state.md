@@ -1,4 +1,4 @@
- [[Architecture Docs]] → [[ABIO execution]]
+ [[ABIO Architecture Docs]] → [[ABIO execution]]
 
 # State
 
@@ -59,7 +59,7 @@ class State(Protocol):
 ```
 
 ## See Also
-- [[WorldState]] - Multi-compartment state storage
+- [[ABIO WorldState]] - Multi-compartment state storage
 - [[Simulator]] - Advances state
 - [[Timeline]] - Sequence of states
 - [[ABIO execution]] - Parent subsystem
