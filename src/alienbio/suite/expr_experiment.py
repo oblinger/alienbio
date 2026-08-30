@@ -113,11 +113,14 @@ def _chemistry(host: Any, what: str, env: Env) -> Any:
     raise env.error(f"{what}: expected a World or a Chemistry, got {type(host).__name__}")
 
 
-def _skeleton_or_empty(skeleton: Any, head: str, env: Env) -> CarveResult:
+def _skeleton_or_empty(skeleton: Any, head: str, env: Env, binding: Optional[Mapping[str, str]] = None) -> CarveResult:
     """A hand-built world has no carve: ``skeleton`` may be omitted (an empty
-    CarveResult) for the objective heads that read the world, not the binding."""
+    CarveResult) — or ``binding`` may name the roles directly
+    (``{target: glucose}``) for the objective heads that read one."""
     if skeleton is None:
-        return CarveResult(motif=Motif(roles=(), edges=()), binding={})
+        return CarveResult(motif=Motif(roles=(), edges=()), binding={str(k): str(v) for k, v in (binding or {}).items()})
+    if binding:
+        raise env.error(f"{head}: give a skeleton or a binding, not both")
     if not isinstance(skeleton, CarveResult):
         raise env.error(f"{head}: skeleton must be a CarveResult (see !carve) or omitted")
     return skeleton
@@ -131,7 +134,7 @@ def _objective_of(recipe: Any, skeleton: CarveResult, world: WorldImpl) -> dict[
         objective = make_intervention_objective(recipe._target_id(skeleton), recipe.target_value)
     else:
         objective = AnswerObjective(grader=grader, key=recipe.build_key(skeleton, world))
-    return {"question": recipe.build_question(skeleton, world), "objective": objective}
+    return {"question": recipe.build_question(skeleton, world), "objective": objective, "skeleton": skeleton}
 
 
 # ---------------------------------------------------------------------------
@@ -185,14 +188,14 @@ def carve(host: Any, pattern: Motif, allow_add: bool = True, *, env: Env) -> Car
 
 
 @fn(summary="identify-the-pathway objective over a carved chain: {question, objective}")
-def identify(world: WorldImpl, roles: Sequence[str], skeleton: Optional[CarveResult] = None, verb: str = "identify", *, env: Env) -> dict[str, Any]:
-    skeleton = _skeleton_or_empty(skeleton, "identify", env)
+def identify(world: WorldImpl, roles: Sequence[str], skeleton: Optional[CarveResult] = None, binding: Optional[Mapping[str, str]] = None, verb: str = "identify", *, env: Env) -> dict[str, Any]:
+    skeleton = _skeleton_or_empty(skeleton, "identify", env, binding)
     return _objective_of(IdentifyPathwayRecipe(role_names=tuple(str(r) for r in roles), verb=str(verb)), skeleton, world)
 
 
 @fn(summary="diagnose-the-perturbation objective: {question, objective}")
-def diagnose_q(world: WorldImpl, skeleton: Optional[CarveResult] = None, target_role: str = DIAGNOSE_TARGET_ROLE, verb: str = "diagnose", *, env: Env) -> dict[str, Any]:
-    skeleton = _skeleton_or_empty(skeleton, "diagnose_q", env)
+def diagnose_q(world: WorldImpl, skeleton: Optional[CarveResult] = None, binding: Optional[Mapping[str, str]] = None, target_role: str = DIAGNOSE_TARGET_ROLE, verb: str = "diagnose", *, env: Env) -> dict[str, Any]:
+    skeleton = _skeleton_or_empty(skeleton, "diagnose_q", env, binding)
     return _objective_of(DiagnosePerturbationRecipe(target_role=str(target_role), verb=str(verb)), skeleton, world)
 
 
@@ -217,8 +220,8 @@ def predict_q(
 
 
 @fn(summary="design-an-intervention objective (outcome-scored): {question, objective}")
-def intervene_q(world: WorldImpl, target_value: float, skeleton: Optional[CarveResult] = None, role: str = INTERVENE_TARGET_ROLE, verb: str = "intervene", *, env: Env) -> dict[str, Any]:
-    skeleton = _skeleton_or_empty(skeleton, "intervene_q", env)
+def intervene_q(world: WorldImpl, target_value: float, skeleton: Optional[CarveResult] = None, binding: Optional[Mapping[str, str]] = None, role: str = INTERVENE_TARGET_ROLE, verb: str = "intervene", *, env: Env) -> dict[str, Any]:
+    skeleton = _skeleton_or_empty(skeleton, "intervene_q", env, binding)
     return _objective_of(DesignInterventionRecipe(target_value=float(target_value), role_name=str(role), verb=str(verb)), skeleton, world)
 
 
@@ -259,6 +262,7 @@ def task(
     # An objective head returns {question, objective}; accept that pair whole.
     if isinstance(objective, Mapping) and {"question", "objective"} <= set(objective):
         question = question or objective["question"]
+        skeleton = skeleton if skeleton is not None else objective.get("skeleton")
         objective = objective["objective"]
     if not isinstance(objective, (AnswerObjective, OutcomeObjective)):
         raise env.error("task: objective must be an AnswerObjective / OutcomeObjective (or an objective head's result)")

@@ -1,0 +1,56 @@
+# microcosm.yaml — M48.9 example 3: populations as counts. Two populations
+# (a grazer with two size classes, and a competitor) on ONE shared resource
+# pool, mass-coupled: growth draws resource amount, death releases some of
+# it back, juveniles mature into adults by a count flow; an environmental
+# drain on the resource is the only pressure; an intervene task on the
+# carrying capacity. Loads trusted (helpers.py registers the drafter).
+_includes_: [helpers.py]
+
+drain_rate: 0.02                 # the environmental pressure on the resource
+feed_rate: 0.6                   # the drafter overrides this per condition
+
+# ---- the chemistry: one resource, one waste ------------------------------
+chem: !Chemistry
+  molecules: [food, detritus]
+  reactions:
+    supply: {reactants: [], products: [food], rate: !x feed_rate}
+    drain:  {reactants: [food], products: [], rate: !x drain_rate}      # environmental, not biological
+    decay:  {reactants: [detritus], products: [food], rate: 0.05}       # detritus returns to the pool
+
+# ---- the world: compartments with COUNTS ---------------------------------
+# `multiplicity` is the population count. The `pond` holds the shared food;
+# each population compartment is a child of it. Counts change only through
+# the population laws below; molecules change only through the chemistry.
+world: !World
+  chemistry: !x chem
+  compartments:
+    - !Compartment {id: pond, kind: environment, volume: 10.0, concentrations: {food: 4.0}}
+    - !Compartment {id: juveniles, parent: pond, kind: population, volume: 0.1, multiplicity: 20.0}
+    - !Compartment {id: adults, parent: pond, kind: population, volume: 0.2, multiplicity: 5.0}
+    - !Compartment {id: rivals, parent: pond, kind: population, volume: 0.15, multiplicity: 8.0}
+  population_laws:
+    # growth ∝ N · [food]; each new individual draws `stoich` food AMOUNT from the pond
+    - !GrowthLaw {compartment: juveniles, resource_compartment: pond, resource: food, rate: 0.05, stoich: 0.2}
+    - !GrowthLaw {compartment: rivals, resource_compartment: pond, resource: food, rate: 0.04, stoich: 0.3}
+    # juveniles mature into adults: a size-class count flow
+    - !CountFlow {origin: juveniles, dest: adults, rate: 0.03}
+    # death ∝ N; adults release part of their mass back as detritus
+    - !DeathLaw {compartment: adults, rate: 0.02, release_compartment: pond, release_resource: detritus, release_stoich: 0.1}
+    - !DeathLaw {compartment: rivals, rate: 0.03}
+
+# ---- an intervene task on the carrying capacity ---------------------------
+# The carrying capacity is the food the pond can hold; the goal is to bring
+# it to a level, with the supply and the drain the only levers.
+task: !task
+  archetype: microcosm-intervene
+  objective: !intervene_q {world: !x world, target_value: 6.0, binding: {target: food}}
+
+experiment: !experiment
+  name: microcosm-zero
+  task: !q microcosm(feed_rate=feed_rate)
+  episode: !q episode(max_turns=4, sim_steps=10)
+  agent: measure_commit
+  axes: {feed_rate: [0.3, 0.9]}
+  trials_per_condition: 2
+  base_seed: 5
+  out_dir: runs/examples/microcosm

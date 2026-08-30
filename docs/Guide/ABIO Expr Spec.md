@@ -396,7 +396,7 @@ saved: {_type: Reaction, name: r, reactants: [A], products: [B], rate: 0.2}
 ```
 
 - Every registered `Entity` head is a constructor head under its head name — `!Molecule`, `!Reaction`, `!Chemistry` — calling the class's `hydrate` over the mapping. The node's key is the name when none is given. A reaction's sides take names, `{name: coef}` mappings or Molecule objects; a repeated name sums (`[A, A]` is `{A: 2}`); a molecule a reaction names but nothing declares is minted.
-- `!Compartment`, `!Transport` and `!World` build the world **records** the simulator runs (`Compartment(id, kind, volume, parent, concentrations, multiplicity)` — `parent:` makes a tree; `Transport(origin, dest, molecule, rate, rate_law=gradient|first_order)` a membrane flux; `World(chemistry, compartments, flows, population_laws)`). A world built this way is a `World` like any drafted one.
+- `!Compartment`, `!Transport` and `!World` build the world **records** the simulator runs (`Compartment(id, kind, volume, parent, concentrations, multiplicity)` — `parent:` makes a tree; `Transport(origin, dest, molecule, rate, rate_law=gradient|first_order)` a membrane flux; `GrowthLaw` / `DeathLaw` / `CountFlow` the population laws over a compartment's `multiplicity` (counts); `World(chemistry, compartments, flows, population_laws)`). A world built this way is a `World` like any drafted one.
 - A mapping carrying **`_type: X`** is the untagged spelling of `!X {...}` — kept for saved worlds.
 
 ## Blocks, skeletons and worlds
@@ -533,7 +533,7 @@ Every head the standard environment registers (`Env.standard()`), by kind. The t
 | guard | `max_size`, `nonempty` |
 | blocks and worlds (fn) | `block`, `cooperative`, `crux`, `enzyme`, `inhibit`, `insult`, `lattice`, `population`, `reaction`, `signal`, `sim`, `sink`, `skeleton`, `source`, `transport`, `world`, `conflict_world`, `delta_pair`, `diagnosis_world`, `intervention_world`, `prediction_world`, `pressure_world` |
 | expander | `verify` |
-| constructor | `Chemistry`, `Compartment`, `Molecule`, `Reaction`, `Transport`, `World`, `answer`, `grader`, `outcome`, `pattern`, `power`, `question`, `task` |
+| constructor | `Chemistry`, `Compartment`, `CountFlow`, `DeathLaw`, `GrowthLaw`, `Molecule`, `Reaction`, `Transport`, `World`, `answer`, `grader`, `outcome`, `pattern`, `power`, `question`, `task` |
 | tasks and suites (fn) | `brief`, `carve`, `cover`, `diagnose_q`, `episode`, `identify`, `intervene_q`, `predict_q`, `suite`, `vocabulary` |
 | drafter | `commit_the_link`, `conflict`, `delta`, `describe_the_world`, `diagnose`, `discover`, `identify_pathway`, `intervene`, `predict`, `pressure` |
 | agent | `act_commit`, `assay_commit`, `heuristic_commit`, `idle`, `knockout_commit`, `llm`, `measure_commit`, `survey_commit` |

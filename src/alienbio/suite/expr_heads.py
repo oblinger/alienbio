@@ -18,7 +18,7 @@ from dataclasses import replace
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 from ..bio.chemistry import ChemistryImpl
-from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
+from ..bio.world import Compartment, CountFlowSpec, DeathLaw, GrowthLaw, PopulationLawSpec, Transport, WorldImpl
 from ..infra.entity import Entity, get_registered_heads
 from ..expr.env import Env, ExprError
 from ..expr.form import is_form
@@ -610,6 +610,31 @@ def Transport_(
     )
 
 
+@fn(kind="constructor", name="GrowthLaw", summary="a resource-coupled per-capita growth record on a population compartment")
+def GrowthLaw_(compartment: str, resource_compartment: str, resource: str, rate: float = 1.0, stoich: float = 1.0, name: str = "") -> GrowthLaw:
+    return GrowthLaw(
+        compartment=str(compartment), resource_compartment=str(resource_compartment), resource=str(resource),
+        stoich=float(stoich), rate_constant=float(rate), name=str(name) or f"{compartment}:growth",
+    )
+
+
+@fn(kind="constructor", name="DeathLaw", summary="a per-capita death record, optionally releasing a resource on death")
+def DeathLaw_(
+    compartment: str, rate: float = 1.0, release_compartment: Optional[str] = None, release_resource: Optional[str] = None, release_stoich: float = 0.0, name: str = ""
+) -> DeathLaw:
+    return DeathLaw(
+        compartment=str(compartment), rate_constant=float(rate),
+        release_compartment=str(release_compartment) if release_compartment else None,
+        release_resource=str(release_resource) if release_resource else None,
+        release_stoich=float(release_stoich), name=str(name) or f"{compartment}:death",
+    )
+
+
+@fn(kind="constructor", name="CountFlow", summary="a size-class transition: counts move from one population compartment to another")
+def CountFlow_(origin: str, dest: str, rate: float = 1.0, name: str = "") -> CountFlowSpec:
+    return CountFlowSpec(origin=str(origin), dest=str(dest), rate_constant=float(rate), name=str(name) or f"{origin}->{dest}")
+
+
 @fn(kind="constructor", name="World", summary="a World from a Chemistry and its compartment records")
 def World(
     chemistry: ChemistryImpl,
@@ -632,7 +657,7 @@ def World(
 
 
 __all__ = [
-    "Chemistry", "Compartment_", "Reaction", "Transport_", "World",
+    "Chemistry", "Compartment_", "CountFlow_", "DeathLaw_", "GrowthLaw_", "Reaction", "Transport_", "World",
     "block", "conflict_world", "cooperative", "crux", "delta_pair", "diagnosis_world", "enzyme", "inhibit",
     "insult", "intervention_world", "lattice", "population", "prediction_world", "pressure_world", "reaction",
     "signal", "sim", "sink", "skeleton", "source", "transport", "verify", "world", "is_form", "ExprError",

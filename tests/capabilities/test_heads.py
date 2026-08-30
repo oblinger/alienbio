@@ -77,3 +77,7 @@ def test_the_heads_no_other_test_reaches_are_called_here():
     assert vocab is not None
     flux = evaluate(X.Transport(origin="a", dest="b", molecule="glucose", rate=0.2), env)
     assert flux.driver_molecule == "glucose" and flux.stoichiometry == {"glucose": 1.0}
+    growth = evaluate(X.GrowthLaw(compartment="herd", resource_compartment="field", resource="grass", rate=0.1), env)
+    death = evaluate(X.DeathLaw(compartment="herd", rate=0.02, release_compartment="field", release_resource="grass", release_stoich=0.5), env)
+    flow = evaluate(X.CountFlow(origin="calves", dest="herd", rate=0.05), env)
+    assert growth.resource == "grass" and death.release_resource == "grass" and flow.dest == "herd"
