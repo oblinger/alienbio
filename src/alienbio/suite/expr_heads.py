@@ -44,6 +44,11 @@ from .conflict_gen import draft_conflict_world
 from .delta_gen import draft_delta_pair
 from .dist import Constant, Dist, Seed
 from .pressure_gen import draft_pressure_world
+from .rate_law import RateLaw, compile_rate
+from ..bio.molecule import MoleculeImpl
+from ..bio.reaction import ReactionImpl
+from ..infra.mk import mk
+from .skeleton import Fragment, Provenance
 from .skeleton import PoolBinding, Port, PortDir, Role, Skeleton, SkeletonBlock
 from .verify import SimConfig, simulate
 
@@ -100,7 +105,39 @@ def sink(pool: str = "in", rate: Any = None, container: Optional[str] = None, na
     return SinkBlock.make(_name(name, env), port=pool, container=container, rate=_dist(rate, "sink.rate", env))
 
 
-@fn(summary="one mass-action reaction over named pools")
+from dataclasses import dataclass as _dataclass, field as _field
+from typing import cast as _cast
+
+
+@_dataclass(frozen=True)
+class RateLawBlock(ReactionBlock):
+    """A :class:`ReactionBlock` whose rate is a compiled :class:`RateLaw`
+    (M47.3): mass action over the reactant ports times the law's modulations,
+    each attached to its modifier pool as a non-consumed ``ReactionImpl``
+    modifier. The modifier pools are extra ``IN`` ports, so pools-as-names
+    binding wires them like any other."""
+
+    law: RateLaw = _field(default_factory=lambda: RateLaw(k=Constant(1.0)))
+
+    def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
+        modifier_pools = set(self.law.modifier_pools)
+        reactants: dict[MoleculeImpl, float] = {}
+        products: dict[MoleculeImpl, float] = {}
+        for port in self.ports:
+            if port.name in modifier_pools:
+                continue
+            coef = self.stoich.get(port.name, 1.0)
+            (reactants if port.direction is PortDir.IN else products)[bound[port.name]] = coef
+        modifiers = {bound[m.pool]: m.sample(seed.child(f"mod/{m.pool}")) for m in self.law.modulations}
+        k = float(self.law.k.sample(seed.child("rate")))
+        rxn_id = f"{ns}/rxn"
+        reaction = _cast(ReactionImpl, mk.R(rxn_id, reactants, products, modifiers=modifiers, rate=k))
+        molecules = {m.name: m for m in [*reactants, *products, *modifiers]}
+        container = self.ports[0].container if self.ports else None
+        return Fragment(molecules=molecules, reactions={rxn_id: reaction}, provenance=(Provenance(rxn_id, container or "cell"),))
+
+
+@fn(summary="one reaction over named pools; rate is k or a compiled rate law")
 def reaction(
     reactants: Sequence[str] = (),
     products: Sequence[str] = (),
@@ -114,16 +151,14 @@ def reaction(
 ) -> ReactionBlock:
     if not reactants and not products:
         raise env.error("reaction: needs at least one reactant or product pool")
+    law = compile_rate(rate, env, reactants=[str(p) for p in reactants], products=[str(p) for p in products])
     ports = tuple(Port(str(p), container, PortDir.IN) for p in reactants) + tuple(
         Port(str(p), container, PortDir.OUT) for p in products
     )
-    return ReactionBlock(
-        name=_name(name, env),
-        role=_role(role, env),
-        ports=ports,
-        rate=_dist(rate, "reaction.rate", env) or Constant(1.0),
-        stoich=dict(stoich or {}),
-    )
+    if not law.modulations:
+        return ReactionBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=dict(stoich or {}))
+    ports = ports + tuple(Port(pool, container, PortDir.IN) for pool in law.modifier_pools)
+    return RateLawBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=dict(stoich or {}), law=law)
 
 
 @fn(summary="CRUX: one precursor pool feeding two rival routes")

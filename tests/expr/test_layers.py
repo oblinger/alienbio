@@ -125,3 +125,49 @@ def test_generative_world_drafters_are_heads_under_the_node_seed():
     pair = evaluate(X.delta_pair(), env)
     assert len(pair) == 2 and set(pair[0]) == {"world", "skeleton", "objective"}
     assert registry.get("pressure_world").guarded_params == {"pi"}
+
+
+# ---------------------------------------------------------------------------
+# M47.3 — rate laws, the compiled tier
+# ---------------------------------------------------------------------------
+
+
+def test_rate_law_compiles_k_times_modulations_and_refuses_the_rest():
+    from alienbio.suite.rate_law import RateLaw, compile_rate
+
+    env = Env.standard(seed=1, bindings={"k": 0.4, "Kd": 0.5})
+    assert compile_rate(0.4, env) == RateLaw(k=Constant(0.4))
+    law = compile_rate(evaluate(X.quote(X.parse("k * hill(M, Kd, n=2) * inhibitor('I', 0.1)")), env), env, reactants=["S"])
+    assert law.k == Constant(0.4) and [m.kind for m in law.modulations] == ["hill", "inhibitor"]
+    assert law.modifier_pools == ("M", "I")
+    assert law.modulations[0].sample(Seed(1)).n == 2.0 and law.modulations[0].sample(Seed(1)).K == 0.5
+    # a constant factor may be computed (exp of a constant, a draw) — it is still a constant k
+    assert compile_rate(evaluate(X.quote(X.parse("2 * exp(k)")), env), env).k == Constant(2 * __import__("math").exp(0.4))
+    for bad in ("k + 1", "k / 2", "Vmax * S / (Km + S)", "hill(S, 0.5)", "exp(M)"):
+        with pytest.raises(ExprError):
+            compile_rate(evaluate(X.quote(X.parse(bad)), Env.standard(seed=1, bindings={"k": 1.0, "Vmax": 1.0, "Km": 1.0})), env, reactants=["S"])
+    with pytest.raises(ExprError, match="unknown head 'source'"):
+        compile_rate(evaluate(X.quote(X.parse("k * source(pool='A')")), env), env)
+    assert evaluate(X.parse("hill(0.5, 0.5, n=2)"), env) == pytest.approx(0.5)  # a rate head is a plain function outside a law
+
+
+def test_reaction_with_a_rate_law_materializes_with_modifiers():
+    doc = """
+k: 0.4
+sk: !skeleton
+  root: !block
+    children:
+      feed: !source {pool: S, rate: 2.0}
+      mod:  !source {pool: M, rate: 0.1}
+      r1:   !reaction {reactants: [S], products: [P], rate: !q "k * hill(M, 0.5, n=2)"}
+      drain: !sink {pool: P}
+      drainM: !sink {pool: M}
+world: !world {skeleton: !x sk}
+"""
+    env = Env.standard(seed=4).load("law.yaml", text=doc)
+    w = evaluate(X.name("world"), env)
+    rxn = next(r for rid, r in w.chemistry.reactions.items() if rid.startswith("root/r1"))
+    assert rxn.rate == 0.4
+    (mod_mol, modulation), = rxn.modifiers.items()
+    assert mod_mol.name == "root/M" and modulation.kind == "hill" and modulation.n == 2.0
+    assert simulate(w, SimConfig(steps=10)).states[-1] is not None
