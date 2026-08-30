@@ -135,10 +135,11 @@ def test_spec_to_text_places_each_dial_on_the_head_that_declares_it():
 
 def test_drafters_declare_their_dials_and_guards_derive_from_them():
     heads = drafter_heads()
-    assert set(heads) == set(DRAFTERS) == {
+    ten = {
         "pressure", "commit_the_link", "describe_the_world", "conflict", "delta",
         "discover", "identify_pathway", "diagnose", "predict", "intervene",
     }
+    assert ten <= set(heads) and all(name in DRAFTERS for name in heads)  # (a catalog example may register more)
     assert set(dial_params(heads["diagnose"])) == {
         "n_nodes", "distractor_count", "hazard", "hazard_rate", "hazard_threshold", "hazard_horizon",
         "perturbation", "max_turns", "sim_steps", "sim_dt",
