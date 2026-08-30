@@ -9,6 +9,7 @@ The `bio` CLI has two commands. The M1 command set (`build`, `run`, `report`, `f
 | | `bio suite resume <DIR>` | Continue a run from its record store (crashed or cost-stopped). |
 | | `bio suite aggregate <DIR>` | Rebuild the reliability map from `records.jsonl` alone. |
 | | `bio suite report <DIR>` | Render the text report from the record store. |
+| | `bio suite models` | Refresh the recorded `models.list` snapshot (`suite/models_snapshot.json`, id → `created_at`) that lets an undated generation id count as pinned; a free call. |
 | config | `bio config [show \| set KEY VALUE]` | The framework configuration: provider keys (read from the environment), the pinned model. |
 
 Every catalog experiment (`catalog/experiments/*.yaml`) is a `bio suite run` target; the twelve scripted zeros are pinned as golden regressions in CI.
