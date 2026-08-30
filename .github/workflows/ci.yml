@@ -29,6 +29,6 @@ jobs:
       - name: The capability matrix is complete
         run: uv run bio test-matrix --check
       - name: The Expr modules type-check
-        run: uv run pyright src/alienbio/expr src/alienbio/suite/expr_heads.py src/alienbio/suite/expr_experiment.py src/alienbio/suite/rate_law.py src/alienbio/suite/experiment.py src/alienbio/bio/rate_expr.py src/alienbio/capabilities.py
+        run: uv run pyright src/
       - name: The docs build
         run: uv run mkdocs build

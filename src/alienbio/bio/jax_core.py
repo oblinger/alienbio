@@ -33,7 +33,10 @@ Design notes
 
 from __future__ import annotations
 
-from typing import Any, Callable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple, cast
+
+#: A JAX array in annotations — ``Any`` so the module types without JAX installed.
+Array = Any
 
 from .rate_expr import lower_jax
 
@@ -45,7 +48,7 @@ try:
     HAS_JAX = True
 except ImportError:  # pragma: no cover - exercised only when JAX absent
     HAS_JAX = False
-    jax = jnp = _jax_config = None  # type: ignore[assignment]  (every entry point checks HAS_JAX)
+    jax = jnp = _jax_config = cast(Any, None)  # every entry point checks HAS_JAX
 
 
 def enable_x64() -> None:
@@ -59,7 +62,7 @@ def build_reaction_tensors(
     num_molecules: int,
     num_compartments: int,
     dtype,
-) -> Tuple["jnp.ndarray", "jnp.ndarray", "jnp.ndarray", "jnp.ndarray"]:
+) -> Tuple[Array, Array, Array, Array]:
     """Pad reactions into uniform stoichiometry matrices (M24.1).
 
     Args:
@@ -121,7 +124,7 @@ MOD_KINDS: Tuple[str, ...] = ("", "activator", "inhibitor", "michaelis", "hill")
 
 def build_modulation_tensors(
     reactions: Sequence, dtype
-) -> Optional[Tuple["jnp.ndarray", "jnp.ndarray", "jnp.ndarray"]]:
+) -> Optional[Tuple[Array, Array, Array]]:
     """Pad every reaction's ``modulators`` into ``[Rn, Mn]`` tensors (M47.10):
     ``mod_mol`` (molecule index, 0 where padded), ``mod_kind`` (code into
     :data:`MOD_KINDS`, 0 where padded) and ``mod_params`` ``[Rn, Mn, 3]``
@@ -150,7 +153,7 @@ def build_modulation_tensors(
     return jnp.array(mol, dtype=jnp.int32), jnp.array(kind, dtype=jnp.int32), jnp.array(params, dtype=dtype)
 
 
-def modulation_factors(S: "jnp.ndarray", mod_mol: "jnp.ndarray", mod_kind: "jnp.ndarray", mod_params: "jnp.ndarray") -> "jnp.ndarray":
+def modulation_factors(S: Array, mod_mol: Array, mod_kind: Array, mod_params: Array) -> Array:
     """The dimensionless modulation factor per ``[Rn, C]`` — the product over
     a reaction's modulator slots of ``WorldSimulatorImpl._modulation_factor``'s
     per-kind terms (padded slots contribute 1)."""
@@ -176,7 +179,7 @@ def modulation_factors(S: "jnp.ndarray", mod_mol: "jnp.ndarray", mod_kind: "jnp.
 
 
 #: A compiled rate law for the core: (reaction index, law over S -> [C], implicit mass action).
-LawFn = Tuple[int, Callable[["jnp.ndarray"], "jnp.ndarray"], bool]
+LawFn = Tuple[int, Callable[[Array], Array], bool]
 
 
 def build_rate_laws(reactions: Sequence) -> List[LawFn]:
@@ -188,7 +191,7 @@ def build_rate_laws(reactions: Sequence) -> List[LawFn]:
         if law is None:
             continue
 
-        def fn(S: "jnp.ndarray", _law: Any = law) -> "jnp.ndarray":
+        def fn(S: Array, _law: Any = law) -> Array:
             return lower_jax(_law, S, lambda mol_id: int(mol_id))
 
         laws.append((i, fn, bool(getattr(r, "implicit_mass_action", True))))
@@ -196,15 +199,15 @@ def build_rate_laws(reactions: Sequence) -> List[LawFn]:
 
 
 def apply_reactions(
-    S: "jnp.ndarray",
-    r_stoich: "jnp.ndarray",
-    p_stoich: "jnp.ndarray",
-    k: "jnp.ndarray",
-    comp_mask: "jnp.ndarray",
+    S: Array,
+    r_stoich: Array,
+    p_stoich: Array,
+    k: Array,
+    comp_mask: Array,
     dt: float,
-    modulation: Optional[Tuple["jnp.ndarray", "jnp.ndarray", "jnp.ndarray"]] = None,
+    modulation: Optional[Tuple[Array, Array, Array]] = None,
     laws: Sequence[LawFn] = (),
-) -> "jnp.ndarray":
+) -> Array:
     """Apply all reactions to state ``S`` [C, M] simultaneously (H4).
 
     Order-independent, provably non-negative, mass-conserving. Every reaction's
@@ -265,10 +268,10 @@ def apply_reactions(
 
 
 def apply_native_flows(
-    S: "jnp.ndarray",
+    S: Array,
     flows: Sequence[Tuple[int, int, int, float]],
     dt: float,
-) -> "jnp.ndarray":
+) -> Array:
     """Apply linear inter-compartment transfer flows, JAX-native (M24.5).
 
     Each flow is ``(src, dst, molecule, rate)`` and moves
@@ -286,18 +289,18 @@ def apply_native_flows(
 
 
 def make_step_fn(
-    r_stoich: "jnp.ndarray",
-    p_stoich: "jnp.ndarray",
-    k: "jnp.ndarray",
-    comp_mask: "jnp.ndarray",
+    r_stoich: Array,
+    p_stoich: Array,
+    k: Array,
+    comp_mask: Array,
     dt: float,
     native_flows: Sequence[Tuple[int, int, int, float]],
-    modulation: Optional[Tuple["jnp.ndarray", "jnp.ndarray", "jnp.ndarray"]] = None,
+    modulation: Optional[Tuple[Array, Array, Array]] = None,
     laws: Sequence[LawFn] = (),
 ):
     """Build a pure ``S -> S`` single-step function (reactions then flows)."""
 
-    def step(S: "jnp.ndarray") -> "jnp.ndarray":
+    def step(S: Array) -> Array:
         S = apply_reactions(S, r_stoich, p_stoich, k, comp_mask, dt, modulation, laws)
         if native_flows:
             S = apply_native_flows(S, native_flows, dt)
@@ -313,7 +316,7 @@ def make_run_fn(step_fn):
     on-device for the whole trajectory (no per-step host<->device transfer).
     """
 
-    def run(S0: "jnp.ndarray", steps: int) -> "jnp.ndarray":
+    def run(S0: Array, steps: int) -> Array:
         def body(_i, S):
             return step_fn(S)
 

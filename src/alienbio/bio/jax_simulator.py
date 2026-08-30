@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Sequence, Tuple, TYPE_CHECKING, cast
+
+Array = Any  # a JAX array in annotations; see jax_core
 
 try:
     import jax
@@ -11,6 +13,7 @@ try:
     HAS_JAX = True
 except ImportError:
     HAS_JAX = False
+    jax = jnp = cast(Any, None)  # every entry point checks HAS_JAX
 
 from . import jax_core
 
@@ -127,7 +130,7 @@ class JaxWorldSimulator:
 
     # ── Array <-> state conversion ─────────────────────────────────────────────
 
-    def _state_to_array(self, state: "WorldStateImpl") -> "jnp.ndarray":
+    def _state_to_array(self, state: "WorldStateImpl") -> Array:
         flat: List[float] = []
         for c in range(self._num_compartments):
             flat.extend(state.get_compartment(c))
@@ -136,7 +139,7 @@ class JaxWorldSimulator:
         )
 
     def _array_to_state(
-        self, arr: "jnp.ndarray", state: "WorldStateImpl"
+        self, arr: Array, state: "WorldStateImpl"
     ) -> "WorldStateImpl":
         new_state = state.copy()
         values = arr.tolist()

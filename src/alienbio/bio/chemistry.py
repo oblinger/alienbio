@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Self
 
 from ..infra import graph_ops
-from ..infra.entity import Entity
+from ..infra.entity import DatLike, Entity
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
@@ -99,7 +99,7 @@ class ChemistryImpl(Entity, head="Chemistry"):
         molecules: Optional[Dict[str, MoleculeImpl]] = None,
         reactions: Optional[Dict[str, ReactionImpl]] = None,
         parent: Optional[Entity] = None,
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         description: str = "",
     ) -> None:
         """Initialize a chemistry container.
@@ -123,7 +123,7 @@ class ChemistryImpl(Entity, head="Chemistry"):
         cls,
         data: dict[str, Any],
         *,
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         parent: Optional[Entity] = None,
         local_name: Optional[str] = None,
     ) -> Self:

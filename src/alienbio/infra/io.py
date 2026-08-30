@@ -85,7 +85,7 @@ class IO:
         self._orphan_root: Optional[Entity] = None
 
     @property
-    def _data_root(self) -> _RootEntity:
+    def _data_root(self) -> Any:  # a virtual root, duck-typed like the dats
         """Lazy-initialized root entity for D: prefix."""
         if self._root_entity is None:
             self._root_entity = _RootEntity()

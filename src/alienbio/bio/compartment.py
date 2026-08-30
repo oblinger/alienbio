@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from ..infra.entity import Entity
+from ..infra.entity import DatLike, Entity
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
@@ -83,7 +83,7 @@ class CompartmentImpl(Entity, head="Compartment"):
         *,
         volume: float,
         parent: Optional[Entity] = None,
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         description: str = "",
         kind: str = "compartment",
         multiplicity: float = 1.0,
@@ -118,7 +118,7 @@ class CompartmentImpl(Entity, head="Compartment"):
         self._active_reactions: Optional[List[str]] = (
             list(active_reactions) if active_reactions else None
         )
-        self._children: List[CompartmentImpl] = []
+        self._children: List[CompartmentImpl] = []  # type: ignore[assignment]
 
         # Register with parent
         if parent is not None and isinstance(parent, CompartmentImpl):
@@ -155,7 +155,7 @@ class CompartmentImpl(Entity, head="Compartment"):
         return list(self._active_reactions) if self._active_reactions else None
 
     @property
-    def children(self) -> List[CompartmentImpl]:
+    def children(self) -> List[CompartmentImpl]:  # type: ignore[override]
         """Child compartments."""
         return list(self._children)
 

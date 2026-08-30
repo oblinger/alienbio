@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, TYPE_CHECKING, Self
 
-from ..infra.entity import Entity
+from ..infra.entity import DatLike, Entity
 from ..spec_lang.decorators import biotype
 from .atom import AtomImpl
 
@@ -37,7 +37,7 @@ class MoleculeImpl(Entity, head="Molecule"):
         local_name: str,
         *,
         parent: Optional[Entity] = None,
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         description: str = "",
         atoms: Optional[Dict[AtomImpl, int]] = None,
         bdepth: int = 0,
@@ -69,7 +69,7 @@ class MoleculeImpl(Entity, head="Molecule"):
         cls,
         data: dict[str, Any],
         *,
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         parent: Optional[Entity] = None,
         local_name: Optional[str] = None,
     ) -> Self:

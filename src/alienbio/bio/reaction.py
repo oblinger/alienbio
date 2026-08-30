@@ -5,16 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Optional, TYPE_CHECKING, Self, Union
 
-from ..infra.entity import Entity
+from ..infra.entity import DatLike, Entity
 
 if TYPE_CHECKING:
     from dvc_dat import Dat
-    from .molecule import Molecule, MoleculeImpl
-    from .state import State
+    from .molecule import MoleculeImpl
+    from .state import StateImpl
 
 
 # Rate can be a constant or a function of state
-RateFunction = Callable[["State"], float]
+RateFunction = Callable[["StateImpl"], float]
 RateValue = Union[float, RateFunction]
 
 
@@ -111,13 +111,13 @@ class ReactionImpl(Entity, head="Reaction"):
         self,
         name: str,
         *,
-        reactants: Optional[Dict[Molecule, float]] = None,
-        products: Optional[Dict[Molecule, float]] = None,
-        modifiers: Optional[Mapping[Molecule, ModifierValue]] = None,
+        reactants: Optional[Dict[MoleculeImpl, float]] = None,
+        products: Optional[Dict[MoleculeImpl, float]] = None,
+        modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None,
         rate: RateValue = 1.0,
         rate_law: Optional[Any] = None,
         parent: Optional[Entity] = None,
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         description: str = "",
     ) -> None:
         """Initialize a reaction.
@@ -129,7 +129,7 @@ class ReactionImpl(Entity, head="Reaction"):
             modifiers: Mapping catalyst/regulator molecules (not consumed) to a
                 ``Modulation`` (kind + rate params) or a bare opaque role tag
                 ``str`` (e.g. "catalyst") — a bare string is inert (factor 1.0)
-            rate: Reaction rate (constant float or function of State)
+            rate: Reaction rate (constant float or function of StateImpl)
             rate_law: Optional compiled rate expression (``bio.rate_expr``, species
                 by molecule name) — the whole rate when it names a reactant, else the
                 factor multiplying mass action; ``rate`` is then unused (M47.10)
@@ -138,21 +138,21 @@ class ReactionImpl(Entity, head="Reaction"):
             description: Human-readable description
         """
         super().__init__(name, parent=parent, dat=dat, description=description)
-        self._reactants: Dict[Molecule, float] = reactants.copy() if reactants else {}
-        self._products: Dict[Molecule, float] = products.copy() if products else {}
-        self._modifiers: Dict[Molecule, ModifierValue] = dict(modifiers) if modifiers else {}
+        self._reactants: Dict[MoleculeImpl, float] = reactants.copy() if reactants else {}
+        self._products: Dict[MoleculeImpl, float] = products.copy() if products else {}
+        self._modifiers: Dict[MoleculeImpl, ModifierValue] = dict(modifiers) if modifiers else {}
         self._rate: RateValue = rate
         from .rate_expr import from_json
 
         self._rate_law: Optional[Any] = from_json(rate_law) if rate_law is not None else None
 
     @classmethod
-    def hydrate(
+    def hydrate(  # type: ignore[override]
         cls,
         data: dict[str, Any],
         *,
         molecules: dict[str, "MoleculeImpl"],
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         parent: Optional[Entity] = None,
         local_name: Optional[str] = None,
     ) -> Self:
@@ -177,7 +177,7 @@ class ReactionImpl(Entity, head="Reaction"):
             dat = MockDat(f"rxn/{name}")
 
         # Build reactants dict: {MoleculeImpl: coefficient}
-        reactants: Dict[Molecule, float] = {}
+        reactants: Dict[MoleculeImpl, float] = {}
         for r in data.get("reactants", []):
             if isinstance(r, str):
                 # Just a name, coefficient 1
@@ -198,7 +198,7 @@ class ReactionImpl(Entity, head="Reaction"):
                     reactants[molecules[mol_name]] = coef
 
         # Build products dict: {MoleculeImpl: coefficient}
-        products: Dict[Molecule, float] = {}
+        products: Dict[MoleculeImpl, float] = {}
         for p in data.get("products", []):
             if isinstance(p, str):
                 # Just a name, coefficient 1
@@ -223,7 +223,7 @@ class ReactionImpl(Entity, head="Reaction"):
         # (role defaults to "", mirroring the reactant/product list form). A
         # role that is itself a dict is a serialized Modulation (Modulation.to_dict());
         # everything else (a bare str) stays as-is, inert by default.
-        modifiers: Dict[Molecule, ModifierValue] = {}
+        modifiers: Dict[MoleculeImpl, ModifierValue] = {}
         raw_modifiers = data.get("modifiers", {})
         if isinstance(raw_modifiers, dict):
             mod_items = raw_modifiers.items()
@@ -256,17 +256,17 @@ class ReactionImpl(Entity, head="Reaction"):
         )
 
     @property
-    def reactants(self) -> Dict[Molecule, float]:
+    def reactants(self) -> Dict[MoleculeImpl, float]:
         """Reactant molecules and their stoichiometric coefficients."""
         return self._reactants.copy()
 
     @property
-    def products(self) -> Dict[Molecule, float]:
+    def products(self) -> Dict[MoleculeImpl, float]:
         """Product molecules and their stoichiometric coefficients."""
         return self._products.copy()
 
     @property
-    def modifiers(self) -> Dict[Molecule, ModifierValue]:
+    def modifiers(self) -> Dict[MoleculeImpl, ModifierValue]:
         """Catalyst/regulator molecules (not consumed) mapped to a ``Modulation``
         (or a bare opaque role-tag ``str``, for backward compat — see ``Modulation``)."""
         return self._modifiers.copy()
@@ -304,7 +304,7 @@ class ReactionImpl(Entity, head="Reaction"):
         """Set the reaction rate."""
         self._rate = rate
 
-    def get_rate(self, state: State) -> float:
+    def get_rate(self, state: StateImpl) -> float:
         """Get the effective rate for a given state.
 
         Args:
@@ -317,15 +317,15 @@ class ReactionImpl(Entity, head="Reaction"):
             return self._rate(state)
         return self._rate
 
-    def add_reactant(self, molecule: Molecule, coefficient: float = 1.0) -> None:
+    def add_reactant(self, molecule: MoleculeImpl, coefficient: float = 1.0) -> None:
         """Add a reactant to this reaction."""
         self._reactants[molecule] = coefficient
 
-    def add_product(self, molecule: Molecule, coefficient: float = 1.0) -> None:
+    def add_product(self, molecule: MoleculeImpl, coefficient: float = 1.0) -> None:
         """Add a product to this reaction."""
         self._products[molecule] = coefficient
 
-    def add_modifier(self, molecule: Molecule, role: ModifierValue = "") -> None:
+    def add_modifier(self, molecule: MoleculeImpl, role: ModifierValue = "") -> None:
         """Add a catalyst/regulator (not stoichiometrically consumed)."""
         self._modifiers[molecule] = role
 

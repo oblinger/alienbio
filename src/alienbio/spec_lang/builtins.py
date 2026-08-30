@@ -11,7 +11,7 @@ from typing import Any, Callable, TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from .eval import Context
+    from typing import Any as Context  # the M1 eval Context is gone; ctx is duck-typed
 
 
 # =============================================================================

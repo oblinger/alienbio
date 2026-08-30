@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, ClassVar, Dict, Iterator, Optional, Type, Self, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .io import IO
     from dvc_dat import Dat
 
 
@@ -45,6 +46,19 @@ def get_entity_class(name: str) -> Type["Entity"]:
 def get_registered_heads() -> Dict[str, Type["Entity"]]:
     """Get all registered heads (read-only copy)."""
     return _head_registry.copy()
+
+
+#: A dat anchor is duck-typed: a real ``dvc_dat.Dat``, a :class:`MockDat`, or
+#: one of ``infra.io``'s virtual dats. Typed ``Any`` for that reason.
+DatLike = Any
+
+
+def _bio_io() -> "IO":
+    from alienbio import bio
+
+    if bio.io is None:
+        raise RuntimeError("no IO context attached — set `alienbio.bio.io = IO()` before detaching entities or rendering refs")
+    return bio.io
 
 
 class Entity:
@@ -90,7 +104,7 @@ class Entity:
         name: str,
         *,
         parent: Optional[Entity] = None,
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         description: str = "",
     ) -> None:
         """Initialize an entity.
@@ -122,7 +136,7 @@ class Entity:
 
         # Set _top: Dat for root entities, root Entity for non-roots
         if dat is not None:
-            self._top: Entity | Dat = dat
+            self._top: Entity | DatLike = dat
         else:
             # Will be set properly in set_parent()
             self._top = parent.root()  # type: ignore[union-attr]
@@ -136,7 +150,7 @@ class Entity:
         cls,
         data: dict[str, Any],
         *,
-        dat: Optional[Dat] = None,
+        dat: Optional[DatLike] = None,
         parent: Optional[Entity] = None,
         local_name: Optional[str] = None,
     ) -> Self:
@@ -246,8 +260,7 @@ class Entity:
 
         # If parent is None, reparent to orphan root instead
         if parent is None:
-            from alienbio import bio
-            parent = bio.io.orphan_root
+            parent = _bio_io().orphan_root
 
         self._parent = parent
 
@@ -268,8 +281,7 @@ class Entity:
 
         Prints as ORPHAN:name after detaching.
         """
-        from alienbio import bio
-        self.set_parent(bio.io.orphan_root)
+        self.set_parent(_bio_io().orphan_root)
 
     def _update_top(self, new_root: Entity) -> None:
         """Update _top for this entity and all descendants.
@@ -293,6 +305,7 @@ class Entity:
         """
         if not isinstance(self._top, Entity):
             return self._top.get_path_name()  # I am root, _top is Dat
+        assert self._parent is not None
         return f"{self._parent.full_name}.{self._local_name}"
 
     def to_dict(self, recursive: bool = False, _root: Optional[Entity] = None) -> Dict[str, Any]:
@@ -328,8 +341,7 @@ class Entity:
                 child_root = child.root()
                 if child_root is not _root:
                     # Child belongs to a different DAT - use absolute ref
-                    from alienbio import bio
-                    args_dict[name] = bio.io.ref(child, absolute=True)
+                    args_dict[name] = _bio_io().ref(child, absolute=True)
                 else:
                     # Same DAT - inline the child
                     args_dict[name] = child.to_dict(recursive=True, _root=_root)
@@ -436,9 +448,7 @@ class Entity:
         Falls back to full_name if no IO or prefix matches.
         """
         try:
-            from alienbio import bio
-
-            return bio.io.ref(self)
+            return _bio_io().ref(self)
         except Exception:
             # Fall back to full_name if context not available
             try:

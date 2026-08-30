@@ -265,7 +265,7 @@ def test_api_key(provider: str) -> tuple[bool, str]:
 
     elif provider == "openai":
         try:
-            import openai
+            import openai  # type: ignore[import-not-found]
             client = openai.OpenAI(api_key=key)
             # Make a minimal API call
             client.models.list()

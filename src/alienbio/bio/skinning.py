@@ -94,8 +94,8 @@ def generate_description(
         lines.append("")
         lines.append("Processes:")
         for rxn_name, rxn in system.chemistry.reactions.items():
-            reactant_names = [name_map.get(m.name, m.name) for m in rxn.reactants]
-            product_names = [name_map.get(m.name, m.name) for m in rxn.products]
+            reactant_names = [name_map.get(str(m.name), str(m.name)) for m in rxn.reactants]
+            product_names = [name_map.get(str(m.name), str(m.name)) for m in rxn.products]
 
             r_str = " + ".join(reactant_names) if reactant_names else "(source)"
             p_str = " + ".join(product_names) if product_names else "(sink)"

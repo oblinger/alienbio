@@ -21,14 +21,14 @@ def clear_registries() -> None:
 
 
 @overload
-def biotype(cls: type[T]) -> type[T]: ...
+def biotype(cls: type[T], /) -> type[T]: ...
 
 
 @overload
-def biotype(name: str) -> Callable[[type[T]], type[T]]: ...
+def biotype(name: str, /) -> Callable[[type[T]], type[T]]: ...
 
 
-def biotype(arg: type[T] | str | None = None) -> type[T] | Callable[[type[T]], type[T]]:
+def biotype(arg: type[T] | str | None = None, /) -> type[T] | Callable[[type[T]], type[T]]:
     """Register a class for hydration from YAML.
 
     Usage:

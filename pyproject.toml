@@ -63,6 +63,7 @@ select = ["E", "F", "I", "N", "W"]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
 extraPaths = ["src"]
+exclude = ["src/dvc_dat"]   # vendored third-party library, not ours to type
 
 [dependency-groups]
 dev = [

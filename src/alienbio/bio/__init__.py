@@ -264,3 +264,14 @@ __all__ = [
     # mk maker pegboard
     "mk",
 ]
+
+
+from typing import Optional as _Optional, TYPE_CHECKING as _TYPE_CHECKING
+
+if _TYPE_CHECKING:
+    from ..infra.io import IO
+
+#: The IO context entities resolve orphan roots and refs through. ``None``
+#: until one is attached (``alienbio.bio.io = IO()``); an entity that needs
+#: it before then raises, it never invents one.
+io: "_Optional[IO]" = None
