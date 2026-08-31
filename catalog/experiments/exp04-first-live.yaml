@@ -10,7 +10,10 @@ name: exp04-first-live
 task: !q identify_pathway(pathway_length=pathway_length)
 episode: !q episode(max_turns=6, sim_steps=10)
 agent: llm
-temperature: 1.0
+# `provider-fixed`: the pinned Claude 5 model refuses temperature/top_p
+# ("deprecated for this model") — M45.18 amendment 2026-08-31. The first
+# paid trial (2026-08-29) ran on claude-sonnet-4-5 with temperature 1.0.
+temperature: provider-fixed
 token_ceiling: 20000
 cost_ceiling_usd: 1.0
 axes:

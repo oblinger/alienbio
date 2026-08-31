@@ -525,7 +525,7 @@ def experiment(
     idle_baseline: bool = False,
     matched_dials: Optional[Sequence[str]] = None,
     key_readout: Optional[str] = None,
-    temperature: Optional[float] = None,
+    temperature: Optional[Union[float, str]] = None,
     top_p: Optional[float] = None,
     expected_cache_hit_rate: Optional[float] = None,
     env: Env,

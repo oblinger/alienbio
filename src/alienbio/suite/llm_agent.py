@@ -78,6 +78,14 @@ from .types import Answer, Directive
 #: original ``claude-sonnet-4-20250514`` is retired (404 for new keys).
 PINNED_MODEL = "claude-sonnet-5"
 
+#: M45.18 amendment (2026-08-31): the legal `temperature:` spelling for a model
+#: with NO sampling knob. The Claude 5 API refuses `temperature`/`top_p`
+#: outright ("`temperature` is deprecated for this model", probed live
+#: 2026-08-31), so a spec pinned to such a model states its regime with this
+#: literal instead of a number — still a STATED, reproducible regime on every
+#: manifest and record line, which is what M45.18 exists to guarantee.
+PROVIDER_FIXED_SAMPLING = "provider-fixed"
+
 #: Indirection over ``time.sleep`` so :func:`_call_with_retry`'s backoff is
 #: unit-testable (a test monkeypatches this module attribute rather than the
 #: stdlib) without ever actually sleeping.
@@ -773,7 +781,7 @@ def default_anthropic_llm_fn(
     meter: Optional[UsageMeter] = None,
     max_attempts: int = 5,
     backoff_s: float = 1.0,
-    temperature: Optional[float] = None,
+    temperature: Optional[Union[float, str]] = None,
     top_p: Optional[float] = None,
     cache_system: bool = True,
 ) -> LLMFn:
@@ -783,7 +791,11 @@ def default_anthropic_llm_fn(
     given, so the sampling a record was drawn under is the spec's stated
     number, not the provider default; ``None`` sends nothing (the provider
     default applies — a run with a live arm is refused upstream unless it
-    declares ``temperature``). ``cache_system`` (M45.19) marks the system
+    declares ``temperature``). The literal
+    :data:`PROVIDER_FIXED_SAMPLING` (``"provider-fixed"``) sends nothing by
+    declaration: the Claude 5 API refuses sampling params outright
+    ("deprecated for this model"), so on those models the stated regime is
+    the provider's single fixed one. ``cache_system`` (M45.19) marks the system
     prompt — the fixed directive plus the trial's brief, identical for every
     turn of a trial and for every trial of a condition — as a prompt-cache
     prefix (``cache_control: ephemeral``); the model sees the same text, the
@@ -853,7 +865,7 @@ def default_anthropic_llm_fn(
         }
 
     sampling_kwargs: dict[str, Any] = {}
-    if temperature is not None:
+    if temperature is not None and temperature != PROVIDER_FIXED_SAMPLING:
         sampling_kwargs["temperature"] = float(temperature)
     if top_p is not None:
         sampling_kwargs["top_p"] = float(top_p)

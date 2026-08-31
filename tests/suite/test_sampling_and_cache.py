@@ -24,7 +24,7 @@ from alienbio.suite.experiment import (
     spec_from_dict,
     spec_to_dict,
 )
-from alienbio.suite.llm_agent import default_anthropic_llm_fn
+from alienbio.suite.llm_agent import default_anthropic_llm_fn, PROVIDER_FIXED_SAMPLING
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -53,7 +53,19 @@ def test_a_live_arm_without_temperature_is_refused_before_it_runs(tmp_path):
 
 def test_the_catalog_live_file_declares_its_sampling():
     spec = load_spec(REPO / "catalog" / "experiments" / "exp04-first-live.yaml")
-    assert spec.temperature == 1.0 and sampling_violation(spec) is None
+    assert spec.temperature == PROVIDER_FIXED_SAMPLING and sampling_violation(spec) is None
+
+
+def test_provider_fixed_is_a_stated_regime_for_a_knobless_model():
+    """M45.18 amendment (2026-08-31): the Claude 5 API refuses temperature /
+    top_p ("deprecated for this model"), so `temperature: provider-fixed`
+    states the regime, satisfies the live-arm gate, forbids a stray top_p,
+    and sends NO sampling kwargs to the provider."""
+    spec = spec_from_dict({**spec_to_dict(_llm_spec()), "temperature": PROVIDER_FIXED_SAMPLING})
+    assert spec.temperature == PROVIDER_FIXED_SAMPLING and sampling_violation(spec) is None
+    assert spec_from_dict(spec_to_dict(spec)) == spec
+    with pytest.raises(ValueError, match="top_p"):
+        spec_from_dict({**spec_to_dict(_llm_spec()), "temperature": PROVIDER_FIXED_SAMPLING, "top_p": 0.9})
 
 
 def test_the_factory_hands_the_sampling_to_the_provider(monkeypatch):
@@ -101,6 +113,9 @@ def test_the_provider_call_carries_sampling_and_a_cached_system_block(monkeypatc
     plain = default_anthropic_llm_fn("claude-sonnet-5", cache_system=False)
     plain("DIRECTIVE", {"turn": 0}, Seed(1))
     assert calls[1]["system"] == "DIRECTIVE" and "temperature" not in calls[1]
+    fixed = default_anthropic_llm_fn("claude-sonnet-5", temperature=PROVIDER_FIXED_SAMPLING)
+    fixed("DIRECTIVE", {"turn": 0}, Seed(1))
+    assert "temperature" not in calls[2] and "top_p" not in calls[2]
 
 
 def test_a_measured_cache_hit_rate_lowers_the_estimate():

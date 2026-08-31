@@ -69,7 +69,7 @@ from .caution import CAUTION_AXES, appropriate_caution, caution_factorial, cauti
 from .degradation import degradation_ladder, degradation_summary
 from .faking import monitoring_divergence, monitoring_summary
 from .census import census_summary, outcome_distribution
-from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, load_models_snapshot, model_created_at, price_for
+from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, load_models_snapshot, model_created_at, price_for
 from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
 from .observation import Observation
@@ -152,8 +152,12 @@ class ExperimentSpec:
     #: dose-response's within-condition variation is *stated* sampling, not
     #: the provider's unrecorded default. ``temperature`` is required for a
     #: run with a live arm (refused at run time when absent); ``top_p`` is
-    #: optional. Both ride on the manifest and on every record line.
-    temperature: Optional[float] = None
+    #: optional. Both ride on the manifest and on every record line. On a
+    #: model with no sampling knob (the Claude 5 API refuses temperature /
+    #: top_p — "deprecated for this model"), the literal
+    #: ``"provider-fixed"`` is the stated regime; ``top_p`` must then be
+    #: omitted.
+    temperature: Optional[Union[float, str]] = None
     top_p: Optional[float] = None
     #: M45.19 — the prompt-cache hit rate the dry-run estimate assumes on the
     #: fixed system prefix (directive + brief), measured by a pilot; 0 = none.
@@ -247,7 +251,7 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         idle_baseline=idle_baseline,
         matched_dials=_validate_matched_dials(d.get("matched_dials"), axes),
         key_readout=_validate_key_readout(d.get("key_readout")),
-        temperature=_validate_unit_float("temperature", d.get("temperature")),
+        temperature=_validate_sampling(d.get("temperature"), d.get("top_p")),
         top_p=_validate_unit_float("top_p", d.get("top_p")),
         expected_cache_hit_rate=_validate_unit_float("expected_cache_hit_rate", d.get("expected_cache_hit_rate", 0.0)) or 0.0,
     )
@@ -304,6 +308,21 @@ def _validate_design(value: Any, trials_per_condition: int, axes: Sequence[tuple
     return design
 
 
+def _validate_sampling(temperature: Any, top_p: Any) -> Optional[Union[float, str]]:
+    """M45.18: ``temperature`` is a number in [0, 1], or the literal
+    :data:`~alienbio.suite.llm_agent.PROVIDER_FIXED_SAMPLING` declaring the
+    pinned model exposes no sampling knob (the Claude 5 API refuses
+    temperature/top_p — "deprecated for this model"); with the literal,
+    ``top_p`` must be omitted (there is no knob for it either)."""
+    if temperature == PROVIDER_FIXED_SAMPLING:
+        if top_p is not None:
+            raise ValueError(
+                "experiment spec: `temperature: provider-fixed` declares a model with no sampling knob; top_p must be omitted"
+            )
+        return PROVIDER_FIXED_SAMPLING
+    return _validate_unit_float("temperature", temperature)
+
+
 def _validate_unit_float(name: str, value: Any) -> Optional[float]:
     """``None`` passes through; otherwise a real number in ``[0, 1]``."""
     if value is None:
@@ -334,7 +353,11 @@ def sampling_violation(spec: ExperimentSpec) -> Optional[str]:
     if "llm" not in agent_kinds_in_play(spec):
         return None
     if spec.temperature is None:
-        return "a run with a live-model arm must declare `temperature:` (M45.18) so the sampling every record was drawn under is pinned, not the provider's unrecorded default"
+        return (
+            "a run with a live-model arm must state its sampling (M45.18): `temperature:` a number in [0, 1], "
+            "or the literal `provider-fixed` when the pinned model exposes no sampling knob "
+            "(the Claude 5 API refuses temperature/top_p)"
+        )
     return None
 
 

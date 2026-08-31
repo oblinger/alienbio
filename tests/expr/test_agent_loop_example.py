@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from alienbio.expr import Env
+from alienbio.suite.llm_agent import PROVIDER_FIXED_SAMPLING
 from alienbio.suite.experiment import estimate_cost, load_spec, no_peeking_violation, run_experiment
 from alienbio.suite.types import OutcomeObjective
 
@@ -77,5 +78,7 @@ def test_the_live_arm_pins_its_memory_window():
     assert spec.agent == "llm" and spec.memory == 6
     assert spec.axes == ()
     assert "memory" not in dict(spec.axes)
-    assert spec.temperature is not None and spec.top_p is not None
+    # M45.18 amendment (2026-08-31): the pinned Claude 5 model has no
+    # sampling knob, so the stated regime is the `provider-fixed` literal
+    assert spec.temperature == PROVIDER_FIXED_SAMPLING and spec.top_p is None
     assert no_peeking_violation(spec) is None

@@ -13,8 +13,10 @@ experiment: !experiment
   episode: !q episode(max_turns=6, sim_steps=10)
   agent: llm
   memory: 6
-  temperature: 0.0
-  top_p: 1.0
+  # the pinned Claude 5 model exposes no sampling knob (the API refuses
+  # temperature/top_p — "deprecated for this model"); the stated regime is
+  # the provider's single fixed one (M45.18 amendment, 2026-08-31)
+  temperature: provider-fixed
   token_ceiling: 20000
   cost_ceiling_usd: 0.25
   trials_per_condition: 1
