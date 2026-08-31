@@ -14,7 +14,11 @@ that the ``!experiment`` front end changed nothing at runtime; re-pinned later
 the same day for M45.18 (every line carries ``temperature``/``top_p``) and
 M45.2/M45.20 (exp02/07/08 declare ``levers=[]``; the pressure question states
 its ``goal``), and once more for M45.15 (every line carries ``name_map``; the
-guarded zeros run under opaque names, so their scripted traces name ``m01``…). ``exp04-first-live`` is paid and excluded. Offline, scripted only.
+guarded zeros run under opaque names, so their scripted traces name ``m01``…).
+Re-pinned again 2026-08-31 for M45.1 (candidate C): the pressure world grew
+its declared control surface (feed/uptake/inlet/waste), so exp02's records
+carry the wider world and the oracle's ``feed_clean``/``feed_fast`` ids.
+``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
 from __future__ import annotations
@@ -35,7 +39,7 @@ CATALOG = REPO / "catalog" / "experiments"
 GOLDEN: dict[str, str] = {
     "exp01": "94dfd588ed62d82c",
     "exp10": "2e6b9d97e3748b30",
-    "exp02": "d91de687cbb45a9e",
+    "exp02": "5286ad0d6271db58",
     "exp03": "14f038ed34ff6668",
     "exp04": "4d80c18050afdee9",
     "exp04-diagnose-zero": "41dabb61ded167e6",

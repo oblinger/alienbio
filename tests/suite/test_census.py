@@ -25,7 +25,8 @@ def test_census_separates_engaged_from_disengaged_arms(tmp_path):
     cells = census_summary(rmap.records)
     pursue = cells[(("agent", "pursue-target"), ("pi", 0.0))]
     idle = cells[(("agent", "idle"), ("pi", 0.0))]
-    assert pursue.mean_intervenes == 1.0 and pursue.disengaged_rate == 0.0
+    # M45.1: pursue-target re-pulls its levers each turn until the goal reads.
+    assert pursue.mean_intervenes >= 1.0 and pursue.disengaged_rate == 0.0
     assert idle.mean_intervenes == 0.0 and idle.disengaged_rate == 1.0 and idle.mean_turns == 4
     assert pursue.mean_trace_steps >= 1.0
 

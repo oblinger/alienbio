@@ -67,8 +67,11 @@ def test_every_pi_materializes_and_validates_clean(pi: float) -> None:
     assert skeleton.validate() is None
     assert isinstance(objective, OutcomeObjective)
     assert len(world.chemistry.reactions) > 0
-    # No inhibitor clamp any more: precursor, intermediate, T, byproduct.
-    assert len(world.chemistry.molecules) == 4
+    # precursor, intermediate, T, byproduct + the M45.1 control surface's
+    # clean feed, fast feed and waste pools.
+    assert len(world.chemistry.molecules) == 7
+    for rxn in ("uptake_clean", "uptake_waste", "uptake_fast", "inlet_clean", "inlet_fast", "sink_waste"):
+        assert any(rxn in rid for rid in world.chemistry.reactions), rxn
 
 
 @pytest.mark.parametrize("pi", _PIS)
