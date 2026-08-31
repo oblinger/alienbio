@@ -30,6 +30,8 @@ EXPECTED = {
     "exp08": "delta",
     "exp09": "caution",
     "exp10": "degradation",
+    "exp11": "cells",
+    "exp12": "cells",
 }
 
 

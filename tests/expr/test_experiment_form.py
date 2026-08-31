@@ -65,7 +65,7 @@ def test_experiment_form_splits_task_brief_episode_into_one_spec():
 
 
 def test_every_catalog_experiment_loads_and_round_trips():
-    assert len(CATALOG) == 13
+    assert len(CATALOG) == 15
     for path in CATALOG:
         spec = load_spec(path)
         assert spec.drafter in DRAFTERS

@@ -18,6 +18,9 @@ guarded zeros run under opaque names, so their scripted traces name ``m01``…).
 Re-pinned again 2026-08-31 for M45.1 (candidate C): the pressure world grew
 its declared control surface (feed/uptake/inlet/waste), so exp02's records
 carry the wider world and the oracle's ``feed_clean``/``feed_fast`` ids.
+exp11/exp12 (the T025 phase-1 family zeros, with T026 probes and T027
+burial on the records) pinned 2026-08-31; the other ten hashes were
+byte-unchanged by T025-T027 — the new machinery is invisible undeclared.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -49,6 +52,8 @@ GOLDEN: dict[str, str] = {
     "exp07": "1797d1821cc178af",
     "exp08": "7186333f0da12b18",
     "exp09": "908ba6bc6176838e",
+    "exp11": "7ee1b432f51c8618",
+    "exp12": "90a022dd46e28c0f",
 }
 
 PAID = {"exp04-first-live"}

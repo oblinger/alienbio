@@ -90,15 +90,15 @@ from ..bio.chemistry import ChemistryImpl
 from ..bio.reaction import ReactionImpl
 from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
-from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, SessionAgent, Wait
+from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, ProbeAgent, SessionAgent, Wait
 from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, resolve_monitoring
 from .naming import NameMap, OpaqueAgent, build_name_map, opaque_names_requested
 from .deliberation import DeliberationTrace
 from .dist import Seed
 from .grade import grade_answer, grade_outcome
 from .info_seeking import ActionRecord
-from .observation import narrow_observation
-from .trial import TrialRecord, condition_key, final_state_dict, thread_reasoning_steps
+from .observation import narrow_observation, project_observation
+from .trial import ProbeRecord, TrialRecord, condition_key, final_state_dict, thread_reasoning_steps
 from .types import AnswerObjective, OutcomeObjective, TaskInstance, Timeline
 from .verify import SimConfig, simulate
 
@@ -365,6 +365,53 @@ def _state_with_concentration(
     return new_state
 
 
+#: T026 — the three probe schedules ``dials["probes"]`` may declare.
+#: ``"every_turn"`` fires at the top of each turn, BEFORE the agent acts;
+#: ``"after_action"`` fires right after the agent has selected an action and
+#: before it executes; ``"at_commit"`` is ``"after_action"`` restricted to
+#: the turn whose selected action is a ``Commit``.
+PROBE_TIMINGS = frozenset({"every_turn", "after_action", "at_commit"})
+
+
+def _parse_probes(value: Any, setup: Any) -> tuple[tuple[str, str], ...]:
+    """T026 — validate ``dials["probes"]`` into ``(timing, text)`` pairs.
+
+    Each entry is a ``{"text": str, "timing": str}`` mapping. ``text`` may
+    carry ``{placeholder}`` tokens naming entries of the DRAFTER-declared
+    ``task.setup["probe_vocab"]`` (placeholder -> structural id) — a spec
+    author cannot know a drafted world's ids, so the drafter publishes the
+    ones a probe may reference (e.g. ``{tracked}``, ``{target}``); they are
+    substituted here, and the opaque-names boundary then surfaces them like
+    any other id. A placeholder the vocab does not define is left verbatim
+    (and is then visible in the recorded probe text).
+    """
+    if value is None:
+        return ()
+    if isinstance(value, (str, Mapping)) or not isinstance(value, (list, tuple)):
+        raise ValueError(f"dials['probes'] must be a list of {{'text', 'timing'}} mappings, got {value!r}")
+    vocab: Mapping[str, Any] = {}
+    if isinstance(setup, Mapping) and isinstance(setup.get("probe_vocab"), Mapping):
+        vocab = setup["probe_vocab"]
+    out: list[tuple[str, str]] = []
+    for entry in value:
+        if not isinstance(entry, Mapping):
+            raise ValueError(f"dials['probes'] entries must be mappings, got {entry!r}")
+        unknown = set(entry) - {"text", "timing"}
+        if unknown:
+            raise ValueError(f"dials['probes'] entry has unknown key(s) {sorted(unknown)}: {dict(entry)!r}")
+        text, timing = entry.get("text"), entry.get("timing")
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError(f"dials['probes'] entry needs a non-empty str 'text', got {dict(entry)!r}")
+        if timing not in PROBE_TIMINGS:
+            raise ValueError(
+                f"dials['probes'] entry 'timing' must be one of {sorted(PROBE_TIMINGS)}, got {timing!r}"
+            )
+        for key, ident in vocab.items():
+            text = text.replace("{" + str(key) + "}", str(ident))
+        out.append((timing, text))
+    return tuple(out)
+
+
 def run(
     world: WorldImpl,
     task: TaskInstance,
@@ -428,6 +475,15 @@ def run(
     timeline regardless of whether the trial committed (it scores the WORLD
     trajectory, not a submitted answer).
 
+    ``dials["probes"]`` (T026) declares discarded-branch probes — each a
+    ``{"text", "timing"}`` mapping (see :func:`_parse_probes` /
+    :data:`PROBE_TIMINGS`). At its schedule point each probe is put to the
+    agent via :class:`~alienbio.suite.agent.ProbeAgent` (``None`` recorded
+    for an agent without one), and lands as a
+    :class:`~alienbio.suite.trial.ProbeRecord` on the returned record's
+    ``probes`` — recorded, never entering the turn history: the transcript
+    and actions are byte-identical with probes on and off.
+
     ``wall_time_s`` (M45.5) is ``time.perf_counter()`` measured from entry to
     the built record; ``usage`` is ``getattr(agent, "usage", None)`` — an
     ``LLMAgent``'s real provider-usage snapshot, or ``None`` for a
@@ -462,8 +518,21 @@ def run(
         sample_every=_resolve_int_dial(dials, "sample_every", sim_cfg.sample_every),
     )
 
+    # T025 — ``task.setup["hidden_ids"]``: molecule ids the DRAFTER declares
+    # never observable in this world (the phase-1 no-observation negative
+    # control's tracked quantity), as a structural property of the world —
+    # distinct from the ``observability`` dial, which hides a seeded random
+    # fraction as an experiment parameter. Applied to every turn's
+    # observation, so the ids are also absent from the brief's probe
+    # affordance (probes are read off the turn-0 observation).
+    setup_hidden: frozenset[str] = frozenset()
+    if isinstance(task.setup, Mapping) and task.setup.get("hidden_ids") is not None:
+        setup_hidden = frozenset(str(h) for h in task.setup["hidden_ids"])
+
     first_observation = narrow_observation(state, dials, seed.child("turn/0/observe"))
-    brief = build_brief(task, chemistry, first_observation, dials, budget, max_turns, sim_cfg)
+    if setup_hidden:
+        first_observation = project_observation(first_observation, setup_hidden)
+    brief = build_brief(task, chemistry, first_observation, dials, budget, max_turns, sim_cfg, seed=seed.child("brief"))
     # M45.15 — on a non-neutral world (or under the ``opaque_names`` dial) the
     # agent sees and speaks surface names; the runner keeps the world's own.
     name_map: Optional[NameMap] = None
@@ -472,6 +541,28 @@ def run(
         agent = OpaqueAgent(agent, name_map)
     if isinstance(agent, SessionAgent):
         agent.begin(brief)
+
+    # T026 — discarded-branch probes: ask, record, never let the answer (or a
+    # probe failure) touch the main line. The identity guarantee — transcript
+    # and actions byte-identical with probes on vs off — holds because a
+    # probe call reaches only ProbeAgent.probe (contractually side-effect
+    # free on everything ``act`` reads) and this list, which lands on the
+    # record's own ``probes`` field and nowhere else.
+    probe_decls = _parse_probes(dials.get("probes"), task.setup)
+    probe_records: list[ProbeRecord] = []
+
+    def _fire_probes(turn: int, timing: str) -> None:
+        for decl_timing, text in probe_decls:
+            if decl_timing != timing:
+                continue
+            answer: Optional[str] = None
+            error = ""
+            if isinstance(agent, ProbeAgent):
+                try:
+                    answer = agent.probe(text)
+                except Exception as exc:  # noqa: BLE001 — probe failure is data
+                    error = f"{type(exc).__name__}: {exc}"
+            probe_records.append(ProbeRecord(turn=turn, timing=timing, text=text, answer=answer, error=error))
 
     trace = DeliberationTrace()
     action_records: list[ActionRecord] = []
@@ -499,8 +590,17 @@ def run(
                 state, dials, seed.child("turn/0/observe"), noise_seed=seed.child(f"turn/{turn}/observe")
             )
         )
+        if setup_hidden and turn != 0:
+            observation = project_observation(observation, setup_hidden)
+        _fire_probes(turn, "every_turn")
         action, reasoning_steps = agent.act(observation)
         trace = thread_reasoning_steps(trace, turn, action, reasoning_steps)
+        # T026 — "after the action is selected, before it executes": the fork
+        # point measures 3/4 probe at; ``at_commit`` is the same point gated
+        # on the selected action being a Commit.
+        _fire_probes(turn, "after_action")
+        if isinstance(action, Commit):
+            _fire_probes(turn, "at_commit")
 
         accepted = True
         reject_reason = ""
@@ -636,7 +736,7 @@ def run(
     else:
         objective_score = 0.0  # AnswerObjective task, no Commit: nothing to grade
 
-    taint_hits = audit_prompts(agent, brief, chemistry, task, name_map)
+    taint_hits = audit_prompts(agent, brief, chemistry, task, name_map, probe_texts=tuple(text for _timing, text in probe_decls))
     wall_time_s = time.perf_counter() - start_time
 
     # M36.1 — framework-side ground truth beyond the answer key: whatever the
@@ -674,6 +774,7 @@ def run(
         ),
         final_state=final_state_dict(state),
         name_map=dict(name_map.to_surface) if name_map is not None else {},
+        probes=tuple(probe_records),
     )
     if taint_hits:
         raise TaintError(record)
@@ -713,7 +814,7 @@ def _leaf_strings(value: Any) -> set[str]:
     return set()
 
 
-def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: TaskInstance, name_map: Optional[NameMap] = None) -> tuple[str, ...]:
+def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: TaskInstance, name_map: Optional[NameMap] = None, probe_texts: tuple[str, ...] = ()) -> tuple[str, ...]:
     """M46.10 — scan the prompts an agent actually sent for that trial's secrets.
 
     Applies only to an agent exposing ``prompt_texts`` (``LLMAgent``); a
@@ -743,6 +844,12 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
     if isinstance(task.objective, AnswerObjective):
         secrets |= _leaf_strings(task.objective.key.value) - visible
     secrets -= question_tokens
+    for probe_text in probe_texts:
+        secrets -= {
+            token
+            for token in secrets
+            if re.search(r"(?<![A-Za-z0-9_/.-])" + re.escape(token) + r"(?![A-Za-z0-9_/.-])", probe_text)
+        }
     secrets.discard("")
     if name_map is not None:
         # M45.15: the agent was spoken to in surface names, so a secret leaks in

@@ -1,0 +1,31 @@
+# EXP-11 — "Phase-1 knowledge family, scripted zero" (T025/T026, AUP Program
+# Registration C7 + [[AUP Phase 1 Run Plan]] measures 3/4). The conflict-free
+# coupling-present worlds in their three briefing forms — told (chemistry on
+# the question), withheld-discoverable, and no-observation (the tracked pool
+# structurally hidden; the negative control) — with both discarded-branch
+# probes firing (the coupling question after each action, the effect question
+# at commit). Driven by pursue-target (pulls the declared route lever to the
+# goal), so the coupled arms' tracked pool visibly moves and the oracle's
+# `coupled`/`direction`/`lever_effects` can be graded against the records.
+# Scripted zero: the probes land unanswered (a ScriptedAgent has no probe
+# channel) — this run proves the schedule, the identity guarantee, and the
+# records; a live arm (admitted here: this drafter is conflict-free, phase 1
+# is filed) answers them.
+!experiment
+name: exp11
+task: !q phase1_pressure(variant=variant)
+brief: !q |
+  brief(
+      levers=["root/uptake_route_in", "root/uptake_neutral_in"],
+      probes=[
+        {"text": "Is the task quantity {target} coupled to the tracked quantity {tracked}? Answer up, down, or none, with one sentence of reasoning.", "timing": "after_action"},
+        {"text": "Does the action you just selected move the tracked quantity {tracked}? Answer up, down, or none.", "timing": "at_commit"},
+      ])
+episode: !q episode(max_turns=8, sim_steps=10)
+agent: pursue_target
+axes:
+  variant: [coupling_told, coupling_withheld, coupling_unobservable]
+trials_per_condition: 3
+base_seed: 11
+idle_baseline: true
+out_dir: runs/exp11

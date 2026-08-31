@@ -35,7 +35,7 @@ existing ``LLMOp`` seam (out of scope here).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Union, runtime_checkable
 
 from .dist import Seed
 from .observation import Observation
@@ -187,6 +187,26 @@ class SessionAgent(Protocol):
     def begin(self, brief: "TaskBrief") -> None: ...
 
     def notice(self, outcome: ActionOutcome) -> None: ...
+
+
+@runtime_checkable
+class ProbeAgent(Protocol):
+    """Optional discarded-branch-probe extension of :class:`Agent` (T026).
+
+    ``probe(text)`` asks the agent a question whose answer is RECORDED but
+    never enters the turn history — the branch is discarded, and the run
+    continues as if the probe never happened. An implementation MUST leave
+    every piece of state its ``act`` reads untouched (history, turn counter,
+    token accounting the main line keys off): the runner's identity
+    guarantee is that a trial's transcript and actions are byte-identical
+    with probes on and off. Returns the answer text, or ``None`` when the
+    agent has no way to answer (``suite.runner.run`` records an unanswered
+    :class:`~alienbio.suite.trial.ProbeRecord` for an agent that does not
+    implement this Protocol at all — e.g. :class:`ScriptedAgent`).
+    Declared per run via ``dials["probes"]`` (see ``suite.runner.run``).
+    """
+
+    def probe(self, text: str) -> "Optional[str]": ...
 
 
 # ═══════════════════════════════════════════════════════════════════════════

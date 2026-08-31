@@ -584,6 +584,10 @@ class LLMAgent:
         #: silently absorbed; ``aborted`` names why this agent gave up, if it did.
         self.parse_failures = 0
         self.aborted: Optional[str] = None
+        #: T026 — discarded-branch probe accounting: real spend (metered, so
+        #: money stays visible) that must never alter main-line control flow.
+        self._probe_usage: list[dict[str, Any]] = []
+        self._probe_tokens = 0
         self._op: LLMOp[dict[str, Any]] = self._make_op()
 
     def _tolerant_llm_fn(self, directive: Directive, context: Any, seed: Seed) -> Any:
@@ -633,7 +637,10 @@ class LLMAgent:
         made a real call — a mock ``llm_fn`` that never touches ``self.meter``
         leaves every delta at zero) and ``events`` (the meter's retry log).
         """
-        return {**self.meter.snapshot(), "per_turn": list(self._turn_usage), "events": list(self.meter.events)}
+        out = {**self.meter.snapshot(), "per_turn": list(self._turn_usage), "events": list(self.meter.events)}
+        if self._probe_usage:
+            out["per_probe"] = list(self._probe_usage)
+        return out
 
     def begin(self, brief: TaskBrief) -> None:
         """:class:`~alienbio.suite.agent.SessionAgent`: told the trial's brief once, before turn 0.
@@ -671,6 +678,40 @@ class LLMAgent:
                     entry["outcome"]["result"] = outcome.result
                 return
 
+    def probe(self, text: str) -> Optional[str]:
+        """:class:`~alienbio.suite.agent.ProbeAgent` (T026) — answer ``text``
+        on a discarded branch.
+
+        The probe context is a COPY of exactly what the next ``act`` would
+        see (the same memory-policy history window, the same system prompt)
+        plus the probe question — sent through ``llm_fn`` directly (free
+        text, no action schema), on an independent child seed. Nothing the
+        main line reads moves: ``_history``, ``_turn``, and
+        ``_tokens_spent`` are untouched, and the metered probe spend is
+        subtracted from the token-ceiling comparison (see ``act``) — the
+        run continues as if the probe never happened. The probe prompt IS
+        appended to ``prompt_texts``/``prompt_hashes`` so the taint audit
+        covers it like any other prompt.
+        """
+        window = self._history_window()
+        context: dict[str, Any] = {"probe": text, "turn": self._turn}
+        if window is not None:
+            context["history"] = list(window)
+        prompt_text = self._system + "\n" + canonical(context)
+        self._prompt_hashes.append(hashlib.sha256(prompt_text.encode("utf-8")).hexdigest())
+        self._prompt_texts.append(prompt_text)
+        before = self.meter.snapshot()
+        try:
+            raw = self.llm_fn(self._system, context, self.seed.child(f"probe/{len(self._probe_usage)}"))
+        finally:
+            after = self.meter.snapshot()
+            delta = {k: after[k] - before[k] for k in after}
+            self._probe_usage.append({"turn": self._turn, **delta})
+            self._probe_tokens += delta.get("input_tokens", 0) + delta.get("output_tokens", 0)
+        if raw is None:
+            return None
+        return raw if isinstance(raw, str) else canonical(raw)
+
     def _history_window(self) -> Optional[list[dict[str, Any]]]:
         """The ``_history`` slice this turn's context should carry, or ``None``
         for ``memory="none"`` (no ``"history"`` key at all)."""
@@ -694,7 +735,11 @@ class LLMAgent:
         # whichever of the heuristic chars/4 running total or the real
         # provider-reported total is larger — real usage never makes the
         # guard LESS conservative than the estimate alone would.
-        meter_tokens = self.meter.input_tokens + self.meter.output_tokens
+        # T026: probe spend is real (metered, priced) but the branch is
+        # discarded — it must not shift WHEN the main line hits the ceiling,
+        # or probes-on vs probes-off transcripts would diverge; so the
+        # main-line comparison subtracts it.
+        meter_tokens = self.meter.input_tokens + self.meter.output_tokens - self._probe_tokens
         spent_so_far = max(self._tokens_spent + estimate, meter_tokens)
         if self.token_ceiling is not None and spent_so_far > self.token_ceiling:
             content = (

@@ -447,7 +447,7 @@ agent: !x survey_commit()
 ```
 
 - **Layer 3.** `!pattern` is a motif (roles, edges, per-role constraint predicates); `!carve` finds or synthesises it in a host chemistry; the objective heads `identify` / `diagnose_q` / `predict_q` / `intervene_q` return `{question, objective}` over a world (and a carved skeleton, when there is one — a hand-built world omits it); `!answer` / `!outcome` / `!grader` / `!question` are the value types; `!task` assembles a task instance.
-- **Layer 4 — the ten drafters.** `identify_pathway`, `discover`, `diagnose`, `predict`, `intervene`, `pressure`, `commit_the_link`, `describe_the_world`, `conflict`, `delta`. Each is a head whose **dials are its declared keyword parameters** — typed, one default each — returning a `Draft` `(world, task)` under the node's seed. A dial a drafter does not declare is an error at the call.
+- **Layer 4 — the drafters.** `identify_pathway`, `discover`, `diagnose`, `predict`, `intervene`, `pressure`, `commit_the_link`, `describe_the_world`, `conflict`, `delta`, and `phase1_pressure` (T025 — the conflict-free phase-1 pressure family; its `variant` dial picks the C7 form). Each is a head whose **dials are its declared keyword parameters** — typed, one default each — returning a `Draft` `(world, task)` under the node's seed. A dial a drafter does not declare is an error at the call.
 - **Layer 5.** `!suite {tasks: <archetype>, n_tasks: 2}` builds a suite of worlds and tasks; `!cover` partitions feature sets; `!vocabulary` mints an opaque vocabulary over a world's ids.
 - **Layer 6 — the agent side.** `!brief` declares the brief-side dials (`constitution`, `monitoring`, `framing`, `observability`, `observation_noise`, `stakes`, `reversibility`, `irreversible_levers`, `levers` — each entry a lever id or an `{id, max_rate}` mapping declaring that lever's `Intervene` cap —, `assays`, `assay_kill`); `!episode` the episode-side ones (`max_turns`, `budget`, `sim_steps`, `sim_dt`, `sample_every`); `!power` is the statistical design; the agent heads — `idle`, `measure_commit`, `survey_commit`, `heuristic_commit`, `knockout_commit`, `act_commit`, `assay_commit`, `pursue_target`, `llm(model, memory, token_ceiling)` — each return an agent factory.
 
@@ -535,7 +535,7 @@ Every head the standard environment registers (`Env.standard()`), by kind. The t
 | expander | `verify` |
 | constructor | `Chemistry`, `Compartment`, `CountFlow`, `DeathLaw`, `GrowthLaw`, `Molecule`, `Reaction`, `Transport`, `World`, `answer`, `grader`, `outcome`, `pattern`, `power`, `question`, `task` |
 | tasks and suites (fn) | `brief`, `carve`, `cover`, `diagnose_q`, `episode`, `identify`, `intervene_q`, `predict_q`, `suite`, `vocabulary` |
-| drafter | `commit_the_link`, `conflict`, `delta`, `describe_the_world`, `diagnose`, `discover`, `identify_pathway`, `intervene`, `predict`, `pressure` |
+| drafter | `commit_the_link`, `conflict`, `delta`, `describe_the_world`, `diagnose`, `discover`, `identify_pathway`, `intervene`, `phase1_pressure`, `predict`, `pressure` |
 | agent | `act_commit`, `assay_commit`, `heuristic_commit`, `idle`, `knockout_commit`, `llm`, `measure_commit`, `pursue_target`, `survey_commit` |
 | experiment | `experiment` |
 

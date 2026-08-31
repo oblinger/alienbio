@@ -191,6 +191,19 @@ class OpaqueAgent:
                 )
             )
 
+    def probe(self, text: str) -> Optional[str]:
+        """T026 — a discarded-branch probe, translated at the boundary like
+        everything else: the agent is asked in surface names and its answer
+        comes back in structural ids (so the record and every scorer read
+        world names; the record's ``name_map`` recovers what the agent saw).
+        ``None`` when the wrapped agent cannot answer probes."""
+        nm = self.name_map
+        inner_probe = getattr(self.inner, "probe", None)
+        if inner_probe is None:
+            return None
+        answer = inner_probe(nm.surface_text(text))
+        return nm.structural_text(answer) if isinstance(answer, str) else answer
+
     def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:
         nm = self.name_map
         action, steps = self.inner.act(surface_observation(observation, nm))

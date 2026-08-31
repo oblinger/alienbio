@@ -72,6 +72,28 @@ def thread_reasoning_steps(
 
 
 @dataclass(frozen=True)
+class ProbeRecord:
+    """T026 — one discarded-branch probe's outcome (AUP phase 1 measures 2-4).
+
+    ``turn`` is the turn index the probe fired on; ``timing`` is which
+    schedule fired it (``"every_turn"`` / ``"after_action"`` / ``"at_commit"``
+    — see ``suite.runner.run``); ``text`` is the question as asked (after
+    ``probe_vocab`` substitution, in structural ids — the agent saw the
+    surface form under opaque names); ``answer`` is the agent's reply
+    (``None`` for an agent that cannot answer probes, e.g. a
+    :class:`~alienbio.suite.agent.ScriptedAgent` without a ``probe`` method);
+    ``error`` carries a probe-call failure (the trial itself never dies for
+    a probe — the branch is discarded, so its failure is data, not a raise).
+    """
+
+    turn: int
+    timing: str
+    text: str
+    answer: Optional[str] = None
+    error: str = ""
+
+
+@dataclass(frozen=True)
 class TrialRecord:
     """The immutable unit of observation one agent-run emits (Q3 = C).
 
@@ -141,6 +163,10 @@ class TrialRecord:
     #: trial ran under the world's own names). What an offline reader uses to
     #: translate the prompts and the reasoning text back.
     name_map: Mapping[str, str] = field(default_factory=dict)
+    #: T026 — every discarded-branch probe fired this trial, in firing order.
+    #: Empty when ``dials["probes"]`` was not declared (the default), so
+    #: existing fixtures and golden records are byte-unchanged.
+    probes: tuple[ProbeRecord, ...] = ()
 
     @cached_property
     def deliberation_depth(self) -> int:

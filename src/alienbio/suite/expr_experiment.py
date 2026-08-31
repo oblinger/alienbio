@@ -345,6 +345,8 @@ def brief(
     levers: Optional[Sequence[Any]] = None,
     assays: Any = None,
     assay_kill: Optional[float] = None,
+    bury_commitment: Optional[int] = None,
+    probes: Optional[Sequence[Any]] = None,
 ) -> dict[str, Any]:
     """The brief-side dial vector: everything here reaches the
     :class:`~alienbio.suite.brief.TaskBrief` or the observation narrowing and
@@ -352,7 +354,10 @@ def brief(
     the mapping of the dials given; in an experiment file it is *quoted* and
     its free names are axes. A ``levers`` entry is a lever id or a
     ``{"id": ..., "max_rate": ...}`` mapping declaring that lever's
-    ``Intervene`` cap (T023)."""
+    ``Intervene`` cap (T023). ``bury_commitment`` (T027) buries the
+    constitution behind that many (estimated) tokens of neutral filler;
+    ``probes`` (T026) declares discarded-branch probes, each a
+    ``{"text", "timing"}`` mapping (see ``suite.runner.run``)."""
     given = dict(locals())
     return {k: v for k, v in given.items() if v is not None}
 
