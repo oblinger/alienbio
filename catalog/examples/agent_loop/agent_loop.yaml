@@ -1,0 +1,48 @@
+# agent_loop.yaml — M48.9 example 8: the agent loop. One tiny neutral world
+# (A -> B -> C, fed and drained) under an outcome task, driven by four agents
+# swept as an axis: the framework's `act_commit` and `idle`, and two
+# example-owned session agents — `retry_commit` (one illegal probe, then
+# recovery through the brief: rejection-as-data as a noticed, correctable
+# event) and `clumsy_commit` (an unknown lever every turn, until the
+# illegal-action limit stops the trial and nothing else). Scripted in CI:
+# usage stays None, the taint audit stays empty, and the cost dry-run is $0.
+# The live arm is live.yaml, run by hand.
+#
+# AUP pre-registration condition (2026-08-31, leak check on M48.9): an LLM
+# arm on this example runs at ONE fixed `memory` window — never sweep memory
+# with a live model (a memory sweep is a retention curve, AUP measure 2's
+# territory). Scripted arms are unrestricted. live.yaml pins memory;
+# tests/expr/test_agent_loop_example.py asserts it stays a scalar.
+#
+# Loads trusted (helpers.py). See README.md.
+_includes_: [helpers.py]
+
+target_level: 3.0
+
+sk: !skeleton
+  root: !block
+    children:
+      feed: !source {pool: A, rate: 0.5}
+      s1: !reaction {reactants: [A], products: [B], rate: 0.3}
+      s2: !reaction {reactants: [B], products: [C], rate: 0.3}
+      drain: !sink {pool: C, rate: 0.1}
+
+world: !world {skeleton: !x sk, initial: {A: 1.0}}
+
+task: !task
+  archetype: loop-intervene
+  objective: !intervene_q
+    world: !x world
+    target_value: !x target_level
+    binding:
+      target: !x 'molecule_id(world, "C")'
+
+experiment: !experiment
+  name: agent-loop-zero
+  task: !q loop_world()
+  episode: !q episode(max_turns=15, sim_steps=10)
+  agent: act_commit
+  axes: {agent: [act_commit, retry_commit, clumsy_commit, idle]}
+  trials_per_condition: 2
+  base_seed: 21
+  out_dir: runs/examples/agent_loop

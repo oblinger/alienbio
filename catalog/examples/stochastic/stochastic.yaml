@@ -1,0 +1,60 @@
+# stochastic.yaml — M48.9 example 9: the stochastic environment. One
+# homeostatic pool (`X`, fed at a constant rate, consumed into `Y`) under an
+# `!insult` block whose Poisson schedule (`lam`, `horizon`) is drawn
+# reproducibly at materialize time — the same seed always draws the same
+# insult times. `helpers.run_with_insults` integrates the world through the
+# schedule (each insult is an instantaneous loss of `X`), and
+# `helpers.recovered` is the timeline predicate: after each insult, did `X`
+# climb back to `recover_level` within `recover_tau`? Checked, not judged —
+# and honest: an isolated insult always recovers, while a clustered one (a
+# second hit inside the window) may not.
+# A `predict` task (which way does `Y` move when the consumer is throttled?)
+# runs under the observation-noise dial. Framed as robustness, never
+# "pressure": AUP's leak check cleared this example unconditionally
+# (2026-08-31). Loads trusted (helpers.py). See README.md.
+_includes_: [helpers.py]
+
+lam: 0.4                 # insults per unit time
+horizon: 20.0
+recover_level: 1.2
+recover_tau: 4.0
+
+sk: !skeleton
+  root: !block
+    children:
+      feed: !source {pool: X, rate: 0.6}
+      use: !reaction {reactants: [X], products: [Y], rate: 0.3}
+      drain: !sink {pool: Y, rate: 0.2}
+      stress: !insult
+        pool: X
+        rate: 0.02
+        poisson: {lam: !x lam, horizon: !x horizon}
+
+world: !world {skeleton: !x sk, initial: {X: 2.0}}
+
+# the reproducible schedule the materialized skeleton drew, and the world
+# run through it
+schedule: !x insult_times(sk)
+insulted: !x 'run_with_insults(world, schedule, stressed=molecule_id(world, "X"), loss=1.0, horizon=horizon)'
+recovery: !x recovered(insulted, level=recover_level, tau=recover_tau)
+
+# predict under noise: which way does Y move when the consumer is throttled?
+task: !task
+  archetype: stochastic-predict
+  objective: !predict_q
+    world: !x world
+    reaction_id: !x 'reaction_id(world, "use")'
+    target_id: !x 'molecule_id(world, "Y")'
+    factor: 0.25
+    sim: !sim {dt: 0.05, steps: 80}
+
+experiment: !experiment
+  name: stochastic-zero
+  task: !q stochastic_world()
+  brief: !q brief(observation_noise=observation_noise)
+  episode: !q episode(max_turns=3, sim_steps=10)
+  agent: measure_commit
+  axes: {observation_noise: [0.0, 0.3]}
+  trials_per_condition: 2
+  base_seed: 9
+  out_dir: runs/examples/stochastic

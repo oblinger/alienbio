@@ -1,0 +1,51 @@
+# cascade.yaml — M48.9 example 5: the signalling cascade. A ligand-activated
+# receptor drives a `depth`-stage enzymatic amplification chain into a
+# hill-shaped output, with negative feedback (the output accelerates the
+# drain of the first signal) and a reversible buffer absorbing output
+# spikes. One amplification step is throttled to a quarter of its rate; the
+# `diagnose` task asks which node was perturbed. The indirection-depth dial
+# (`depth`) and the observability / noise dials are swept — scripted only.
+#
+# AUP pre-registration condition (2026-08-31, leak check on M48.9): any LLM
+# arm on this example runs at ONE fixed indirection depth and ONE fixed
+# observability / noise setting — never sweep either axis with a live model
+# (an LLM curve along those axes is AUP's registered awareness territory).
+# Scripted arms are unrestricted. tests/expr/test_cascade_example.py runs
+# scripted arms only.
+#
+# Loads trusted (helpers.py). See README.md.
+_includes_: [helpers.py]
+
+depth: 2                    # amplification stages — the indirection dial
+noise: 0.0
+
+sk: !skeleton
+  root: !block
+    children: !x "cascade_children(depth)"
+
+world: !world {skeleton: !x sk, initial: {L: 1.2, R: 1.0, P: 1.5, E: 0.5, B: 1.5, S0: 0.2}}
+
+# the perturbation the task is about: the first amplification step, throttled
+pworld: !x throttle(world, "amp0", factor=0.25)
+
+# diagnose: which node was perturbed? The key is amp0's product, S1 — bound
+# here by construction, exactly what the skeleton oracle holds.
+task: !task
+  archetype: cascade-diagnose
+  objective: !diagnose_q
+    world: !x pworld
+    binding:
+      target: !x 'mol_of(world, "S1")'
+
+
+experiment: !experiment
+  name: cascade-zero
+  task: !q cascade(depth=depth)
+  brief: !q brief(observability=observability, observation_noise=noise)
+  episode: !q episode(max_turns=3, sim_steps=10)
+  agent: measure_commit
+  # scripted-only sweep; an llm arm must pin BOTH of these axes (see header)
+  axes: {depth: [1, 3], observability: [1.0, 0.6]}
+  trials_per_condition: 2
+  base_seed: 5
+  out_dir: runs/examples/cascade

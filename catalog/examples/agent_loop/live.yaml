@@ -1,0 +1,22 @@
+# live.yaml — the agent loop's LLM arm. NOT run by CI: it needs a key and
+# spends real money (`bio suite run catalog/examples/agent_loop/live.yaml
+# --dry` first). Neutral, unguarded world, so the no-peeking guard admits it.
+#
+# AUP condition (2026-08-31): `memory` stays a single fixed value on a live
+# arm — never an axis. tests/expr/test_agent_loop_example.py asserts this
+# file keeps that shape.
+_includes_: [helpers.py]
+
+experiment: !experiment
+  name: agent-loop-live
+  task: !q loop_world()
+  episode: !q episode(max_turns=6, sim_steps=10)
+  agent: llm
+  memory: 6
+  temperature: 0.0
+  top_p: 1.0
+  token_ceiling: 20000
+  cost_ceiling_usd: 0.25
+  trials_per_condition: 1
+  base_seed: 22
+  out_dir: runs/examples/agent-loop-live
