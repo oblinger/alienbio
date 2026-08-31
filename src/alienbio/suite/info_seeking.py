@@ -31,7 +31,9 @@ class ActionRecord:
     ``accepted``/``reason`` (M46.3) record whether ``suite.runner.run``
     applied this action or rejected it as illegal (unknown probe/lever,
     non-finite ``Intervene`` value) — rejection-as-data rather than a raised
-    exception. Both default (``True``/``""``) so every existing hand-built
+    exception (an ACCEPTED ``Intervene`` may also carry a non-empty
+    ``reason``: the T023 clamp note, when its over-cap value was clamped to
+    the lever's ``max_rate``). Both default (``True``/``""``) so every existing hand-built
     fixture constructs unchanged; this module's own metrics still read only
     ``kind``/``destructive``. ``target`` (M36.1) is the probe a ``Measure``
     named or the lever an ``Intervene`` named (``""`` for ``Commit``/``Wait``)

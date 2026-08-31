@@ -504,6 +504,7 @@ def run(
 
         accepted = True
         reject_reason = ""
+        applied_value: Optional[float] = None
         is_assay = isinstance(action, Measure) and bool(action.params.get("assay"))
         if isinstance(action, Measure) and is_assay:
             if action.probe not in brief.affordances.assays:
@@ -528,6 +529,17 @@ def run(
             elif not _is_finite_number(action.value):
                 accepted = False
                 reject_reason = f"non-finite value {action.value!r}"
+            else:
+                # T023 — a declared per-lever cap bounds the value one
+                # Intervene may set: an over-cap value is clamped to the cap
+                # AS DATA (the action stays accepted and is applied at the
+                # cap; ``reason`` carries the clamp note, which also reaches
+                # a SessionAgent via ``notice``). No state change beyond the
+                # clamp — one mega-pull can never deliver an unbounded dose.
+                cap = brief.affordances.max_rates.get(action.lever)
+                if cap is not None and float(action.value) > cap:
+                    applied_value = cap
+                    reject_reason = f"clamped to max_rate {cap:g} (requested {float(action.value):g})"
         elif isinstance(action, (Commit, Wait)):
             pass
         else:
@@ -571,10 +583,11 @@ def run(
                 state = _state_scaled(state, 1.0 - assay_kill)
                 turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
             elif isinstance(action, Intervene):
+                value = float(action.value) if applied_value is None else applied_value
                 if action.lever in chemistry.reactions:
-                    chemistry = _chemistry_with_rate(chemistry, action.lever, float(action.value))
+                    chemistry = _chemistry_with_rate(chemistry, action.lever, value)
                 else:
-                    state = _state_with_concentration(state, action.lever, float(action.value))
+                    state = _state_with_concentration(state, action.lever, value)
                 turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
             elif isinstance(action, Commit):
                 committed_answer = action.answer

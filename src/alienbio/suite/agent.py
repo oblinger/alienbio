@@ -156,7 +156,9 @@ class ActionOutcome:
     ``accepted`` is ``False`` for an action ``suite.runner.run`` rejected as
     illegal (unknown probe/lever, non-finite ``Intervene`` value) rather
     than raising — "rejection as data" — and ``reason`` names why (empty for
-    an accepted action).
+    an accepted action, except an accepted ``Intervene`` whose over-cap value
+    the runner clamped to its lever's ``max_rate``: the clamp note rides here,
+    T023).
     """
 
     turn: int

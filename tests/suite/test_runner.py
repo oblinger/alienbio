@@ -625,6 +625,147 @@ def test_explicit_levers_dial_restricts_affordances_and_rejects_others():
     assert reaction_id in record.action_log[0].reason or mol in record.action_log[0].reason
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# T023 — per-lever max_rate cap (AUP ask, 2026-08-31)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_lever_dict_entry_declares_a_cap_and_an_over_cap_intervene_is_clamped_as_data():
+    """A ``{"id", "max_rate"}`` lever entry caps the Intervene value: an
+    over-cap pull stays ACCEPTED, is applied at the cap, and its
+    ``ActionRecord.reason`` carries the clamp note — never an illegal."""
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    dials = {"levers": ({"id": reaction_id, "max_rate": 2.0},)}
+
+    agent = ScriptedAgent(
+        (
+            Intervene(lever=reaction_id, value=50.0),
+            Commit(answer=Answer(value=[], kind="ordered_path")),
+        ),
+        seed=Seed(0),
+    )
+    record = run(world, task, agent, dials, Seed(0))
+
+    assert record.brief is not None
+    assert record.brief.affordances.levers == (reaction_id,)
+    assert dict(record.brief.affordances.max_rates) == {reaction_id: 2.0}
+    assert record.action_log[0].accepted is True
+    assert "clamped to max_rate 2" in record.action_log[0].reason
+    assert record.illegal_actions == 0
+
+    # The clamp is real: the clamped run is byte-identical to asking for the
+    # cap directly (run() is deterministic).
+    direct = ScriptedAgent(
+        (
+            Intervene(lever=reaction_id, value=2.0),
+            Commit(answer=Answer(value=[], kind="ordered_path")),
+        ),
+        seed=Seed(0),
+    )
+    direct_record = run(world, task, direct, dials, Seed(0))
+    assert record.final_state == direct_record.final_state
+
+
+def test_at_or_under_cap_intervene_carries_no_clamp_note():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    dials = {"levers": ({"id": reaction_id, "max_rate": 2.0},)}
+    agent = ScriptedAgent(
+        (
+            Intervene(lever=reaction_id, value=2.0),
+            Commit(answer=Answer(value=[], kind="ordered_path")),
+        ),
+        seed=Seed(0),
+    )
+    record = run(world, task, agent, dials, Seed(0))
+    assert record.action_log[0].accepted is True
+    assert record.action_log[0].reason == ""
+
+
+def test_neutral_world_str_levers_stay_uncapped():
+    """No cap was declared and the world is not guarded: max_rates is empty
+    and any finite value passes through unclamped (the pre-T023 behavior)."""
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    agent = ScriptedAgent(
+        (
+            Intervene(lever=reaction_id, value=1e9),
+            Commit(answer=Answer(value=[], kind="ordered_path")),
+        ),
+        seed=Seed(0),
+    )
+    record = run(world, task, agent, {"levers": (reaction_id,)}, Seed(0))
+    assert record.brief is not None
+    assert dict(record.brief.affordances.max_rates) == {}
+    assert record.action_log[0].accepted is True
+    assert record.action_log[0].reason == ""
+
+
+def test_drafter_declared_lever_caps_default_and_an_explicit_spec_cap_wins():
+    """``task.setup["lever_caps"]`` is the drafter's declared scale for a
+    lever; a ``max_rate`` on the spec's own lever entry overrides it."""
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    capped_task = dataclasses.replace(task, setup={"lever_caps": {reaction_id: 7.0}})
+
+    def _brief(dials):
+        agent = ScriptedAgent((Commit(answer=Answer(value=[], kind="ordered_path")),), seed=Seed(0))
+        record = run(world, capped_task, agent, dials, Seed(0))
+        assert record.brief is not None
+        return record.brief
+
+    assert dict(_brief({"levers": (reaction_id,)}).affordances.max_rates) == {reaction_id: 7.0}
+    assert dict(_brief({"levers": ({"id": reaction_id, "max_rate": 3.0},)}).affordances.max_rates) == {reaction_id: 3.0}
+
+
+def test_guarded_world_every_declared_lever_gets_the_generous_default_cap():
+    from alienbio.suite.brief import DEFAULT_MAX_RATE
+
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    guarded_task = dataclasses.replace(task, setup={"require_levers": True})
+    agent = ScriptedAgent((Commit(answer=Answer(value=[], kind="ordered_path")),), seed=Seed(0))
+    record = run(world, guarded_task, agent, {"levers": (reaction_id,)}, Seed(0))
+    assert record.brief is not None
+    assert dict(record.brief.affordances.max_rates) == {reaction_id: DEFAULT_MAX_RATE}
+
+
+def test_invalid_lever_entries_and_caps_raise():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    agent = ScriptedAgent((Commit(answer=Answer(value=[], kind="ordered_path")),), seed=Seed(0))
+
+    for bad_levers in (
+        ({"id": reaction_id, "max_rate": -1.0},),
+        ({"id": reaction_id, "max_rate": float("inf")},),
+        ({"id": reaction_id, "max_rate": True},),
+        ({"max_rate": 1.0},),
+        ({"id": reaction_id, "bogus": 1},),
+        (42,),
+    ):
+        with pytest.raises(ValueError):
+            run(world, task, agent, {"levers": bad_levers}, Seed(0))
+
+
+def test_render_brief_shows_the_caps():
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    agent = ScriptedAgent((Commit(answer=Answer(value=[], kind="ordered_path")),), seed=Seed(0))
+    record = run(world, task, agent, {"levers": ({"id": reaction_id, "max_rate": 2.5},)}, Seed(0))
+    assert record.brief is not None
+    text = render_brief(record.brief)
+    assert f"{reaction_id} (max 2.5)" in text
+    assert "clamped" in text
+
+
 def test_record_carries_brief_and_turn_count():
     suite = _identify_pathway_suite()
     world, task = suite.worlds[0], suite.tasks[0]

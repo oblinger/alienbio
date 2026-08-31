@@ -130,6 +130,7 @@ def surface_brief(brief: TaskBrief, nm: NameMap) -> TaskBrief:
             probes=tuple(nm.surface(p) for p in aff.probes),
             levers=tuple(nm.surface(l) for l in aff.levers),
             assays=tuple(nm.surface(a) for a in aff.assays),
+            max_rates={nm.surface(l): cap for l, cap in aff.max_rates.items()},
         ),
         irreversible=tuple(nm.surface(l) for l in brief.irreversible),
     )

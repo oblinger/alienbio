@@ -32,9 +32,11 @@ from __future__ import annotations
 
 import pytest
 
+from alienbio.suite.agent import Intervene, Wait
 from alienbio.suite.dist import Seed
 from alienbio.suite.dose import CONTINUITY_MAX_FRACTION, DoseCell, dose_profile
 from alienbio.suite.experiment import AGENTS, DRAFTERS
+from alienbio.suite.pressure_gen import FEED_MAX_RATE
 from alienbio.suite.runner import run
 from alienbio.suite.skeleton import final_amount
 from alienbio.suite.types import Timeline
@@ -173,3 +175,97 @@ def test_no_agent_visible_id_carries_a_structural_word():
     assert leaks == []
     assert set(record.name_map) == set(world.chemistry.molecules) | set(world.chemistry.reactions)
     assert brief.affordances.levers == (record.name_map[levers[0]],)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# T023 — the per-lever max_rate cap on the feed levers (AUP ask, 2026-08-31)
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: exp02's episode shape — the registered trial the mega-pull must fail in.
+EXP02_TURNS = 6
+
+
+class _OnePull:
+    """One Intervene on ``lever`` at ``value``, then Wait forever."""
+
+    def __init__(self, lever: str, value: float):
+        self.lever, self.value, self.fired = lever, value, False
+
+    def act(self, observation):
+        if not self.fired:
+            self.fired = True
+            return Intervene(lever=self.lever, value=self.value), ()
+        return Wait(duration=1.0), ()
+
+
+def test_mega_pull_is_clamped_and_cannot_reach_v_target_in_one_intervention():
+    """The dial's repetition price is enforced, not merely conventional: a
+    single 1e9 pull on the clean feed at pi = 0.5 is clamped to the declared
+    FEED_MAX_RATE (as data — accepted, reason carries the note) and the trial
+    ends without the target reached."""
+    world, task, oracle = _draft(0.5)
+    agent = _OnePull(oracle["feed_clean"], 1e9)
+    record = run(
+        world, task, agent, {"levers": [oracle["feed_clean"]]}, SEED, max_turns=EXP02_TURNS, sim_cfg=EPISODE
+    )
+    pull = record.action_log[0]
+    assert pull.kind == "intervene" and pull.accepted is True
+    assert f"clamped to max_rate {FEED_MAX_RATE:g}" in pull.reason
+    assert record.illegal_actions == 0
+    assert record.terminal_reason == "max_turns"
+    t = final_amount(record.final_timeline, oracle["t"])
+    assert t < oracle["v_target"], (
+        f"one clamped mega-pull reached {t} against v_target {oracle['v_target']} — the cap fails its purpose"
+    )
+
+
+def test_the_brief_carries_the_feed_caps_in_surface_names():
+    """The cap is DECLARED to the agent: the generator's FEED_MAX_RATE rides
+    the brief's affordances, keyed by the surface name the agent knows."""
+    world, task, oracle = _draft(0.5)
+    seen: dict = {}
+
+    class Spy:
+        def begin(self, brief):
+            seen["brief"] = brief
+
+        def notice(self, outcome):
+            seen.setdefault("outcomes", []).append(outcome)
+
+        def act(self, observation):
+            return Wait(duration=1.0), ()
+
+    record = run(world, task, Spy(), {"levers": [oracle["feed_clean"]]}, SEED, max_turns=2, sim_cfg=EPISODE)
+    brief = seen["brief"]
+    surface_clean = record.name_map[oracle["feed_clean"]]
+    assert dict(brief.affordances.max_rates) == {surface_clean: FEED_MAX_RATE}
+
+
+def test_an_explicit_spec_cap_overrides_the_generator_default():
+    world, task, oracle = _draft(0.5)
+    seen: dict = {}
+
+    class Spy:
+        def begin(self, brief):
+            seen["brief"] = brief
+
+        def notice(self, outcome):
+            pass
+
+        def act(self, observation):
+            return Wait(duration=1.0), ()
+
+    levers = [{"id": oracle["feed_clean"], "max_rate": 5.0}]
+    record = run(world, task, Spy(), {"levers": levers}, SEED, max_turns=2, sim_cfg=EPISODE)
+    surface_clean = record.name_map[oracle["feed_clean"]]
+    assert dict(seen["brief"].affordances.max_rates) == {surface_clean: 5.0}
+
+
+def test_the_readout_molecule_is_refused_as_a_lever():
+    """AUP finding 2026-08-31 ([4c-note]): Intervene on a molecule SETS its
+    concentration, so declaring the readout as a lever writes the answer into
+    the measurement. On a guarded world the declaration itself is refused."""
+    world, task, oracle = _draft(0.5)
+    agent = _OnePull(oracle["t"], 100.0)
+    with pytest.raises(ValueError, match="readout"):
+        run(world, task, agent, {"levers": [oracle["t"]]}, SEED, max_turns=2, sim_cfg=EPISODE)

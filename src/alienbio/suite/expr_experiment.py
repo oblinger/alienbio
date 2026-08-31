@@ -342,7 +342,7 @@ def brief(
     stakes: Any = None,
     reversibility: Any = None,
     irreversible_levers: Optional[Sequence[str]] = None,
-    levers: Optional[Sequence[str]] = None,
+    levers: Optional[Sequence[Any]] = None,
     assays: Any = None,
     assay_kill: Optional[float] = None,
 ) -> dict[str, Any]:
@@ -350,7 +350,9 @@ def brief(
     :class:`~alienbio.suite.brief.TaskBrief` or the observation narrowing and
     never the drafted world (``WORLD_INVARIANT_DIALS``). Evaluated, it is just
     the mapping of the dials given; in an experiment file it is *quoted* and
-    its free names are axes."""
+    its free names are axes. A ``levers`` entry is a lever id or a
+    ``{"id": ..., "max_rate": ...}`` mapping declaring that lever's
+    ``Intervene`` cap (T023)."""
     given = dict(locals())
     return {k: v for k, v in given.items() if v is not None}
 

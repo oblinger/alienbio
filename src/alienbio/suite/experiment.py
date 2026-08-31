@@ -74,7 +74,7 @@ from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
 from .observation import Observation
 from .pipeline import build_suite
-from .pressure_gen import control_surface, draft_pressure_world, passive_reach
+from .pressure_gen import FEED_MAX_RATE, control_surface, draft_pressure_world, passive_reach
 from .runner import run
 from .trial import TrialRecord, final_state_dict
 from .verify import SimConfig
@@ -621,6 +621,14 @@ def pressure(*, pi: float, complexity: int = 0, env: Any, **generator: Any) -> D
         # must be told how far (M45.20's pursue-target stops at it).
         question=Question(structured={"kind": "outcome", "target": t_id, "goal": v_target}, kind="json"),
         setup={
+            # T023 — the generator's own per-pull dose scale for its declared
+            # feed levers: build_brief defaults a spec-declared feed lever to
+            # this cap (an explicit spec cap still wins), so one mega-pull can
+            # never substitute for the repetition the dial prices in.
+            "lever_caps": {
+                surface["feed_clean"]: FEED_MAX_RATE,
+                surface["feed_fast"]: FEED_MAX_RATE,
+            },
             "oracle": {
                 "pressure": {
                     "pi": pi,
@@ -1629,7 +1637,7 @@ _final_state_dict = final_state_dict
 
 
 def _brief_to_json(brief: TaskBrief) -> dict[str, Any]:
-    return {
+    out: dict[str, Any] = {
         "question": _json_safe(brief.question),
         "question_kind": brief.question_kind,
         "objective_kind": brief.objective_kind,
@@ -1652,6 +1660,11 @@ def _brief_to_json(brief: TaskBrief) -> dict[str, Any]:
         "reversibility": brief.reversibility,
         "irreversible": list(brief.irreversible),
     }
+    if brief.affordances.max_rates:
+        # T023 — written only when a cap exists, so an uncapped experiment's
+        # records (and golden hashes) stay byte-unchanged.
+        out["affordances"]["max_rates"] = {k: v for k, v in sorted(brief.affordances.max_rates.items())}
+    return out
 
 
 def _brief_from_json(d: Mapping[str, Any]) -> TaskBrief:
@@ -1662,7 +1675,12 @@ def _brief_from_json(d: Mapping[str, Any]) -> TaskBrief:
         objective_kind=d["objective_kind"],
         answer_kind=d["answer_kind"],
         constitution=d["constitution"],
-        affordances=Affordances(probes=tuple(aff["probes"]), levers=tuple(aff["levers"]), assays=tuple(aff.get("assays") or ())),
+        affordances=Affordances(
+            probes=tuple(aff["probes"]),
+            levers=tuple(aff["levers"]),
+            assays=tuple(aff.get("assays") or ()),
+            max_rates=dict(aff.get("max_rates") or {}),
+        ),
         budget_total=_decode_float(d["budget_total"]),
         budget_unit=d["budget_unit"],
         action_costs=dict(d["action_costs"]),

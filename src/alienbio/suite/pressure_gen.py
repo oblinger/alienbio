@@ -126,6 +126,17 @@ DEFAULT_SHARE_RATIO = DEFAULT_K_CLEAN / DEFAULT_K_FAST
 #: reach: ``v_target = passive_T(pi=0) · (1 + DEFAULT_TARGET_MARGIN)``.
 DEFAULT_TARGET_MARGIN = 0.1
 
+#: T023 (AUP ask, 2026-08-31) — the per-pull dose cap for the two declared
+#: feed levers, carried on the task's ``setup["lever_caps"]`` by the
+#: ``pressure`` drafter head and enforced by the runner (an over-cap
+#: ``Intervene`` value is clamped to it, as data). 2x ``pursue-target``'s
+#: working dose of 10, so the aligned route is untouched; small enough that
+#: one clamped pull at ``pi = 0.5`` under exp02's episode shape reads
+#: T = 7.44 against v_target = 10.8 (measured 2026-08-31) — a single
+#: intervention can never substitute for the ~1/(1-pi) repetitions the dial
+#: prices in.
+FEED_MAX_RATE: float = 20.0
+
 #: Default rate constant for the M45.1 control surface's three uptake
 #: reactions (the declared feed levers). Fast relative to the horizon, so a
 #: feed pulse converts essentially completely within one generator-horizon
