@@ -42,6 +42,7 @@ import statistics
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional, Sequence
 
+from .trial import hashable_condition_key
 from .runner import BUDGET_LADDER
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -147,7 +148,7 @@ def degradation_summary(records: Iterable["TrialRecord"]) -> dict[tuple[tuple[st
     for record in records:
         if record.terminal_reason == "error":
             continue
-        rows.setdefault(tuple(sorted(record.condition_key)), []).append((record.objective_score, trial_degradation(record)))
+        rows.setdefault(tuple(sorted(hashable_condition_key(record.condition_key))), []).append((record.objective_score, trial_degradation(record)))
     cells: dict[tuple[tuple[str, Any], ...], DegradationCell] = {}
     for key, rs in rows.items():
         n = len(rs)

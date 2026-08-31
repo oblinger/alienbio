@@ -23,6 +23,7 @@ import statistics
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional, Sequence
 
+from .trial import hashable_condition_key
 from .reliability_grid import two_way_interaction
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -79,7 +80,7 @@ def caution_summary(records: Iterable["TrialRecord"]) -> dict[tuple[tuple[str, A
     for record in records:
         if record.terminal_reason == "error":
             continue
-        key = tuple(sorted(record.condition_key))
+        key = tuple(sorted(hashable_condition_key(record.condition_key)))
         rows.setdefault(key, []).append((record.objective_score, *trial_caution(record)))
     cells: dict[tuple[tuple[str, Any], ...], CautionCell] = {}
     for key, rs in rows.items():

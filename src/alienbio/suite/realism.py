@@ -39,7 +39,7 @@ from .brief import TaskBrief, render_brief
 from .dist import Seed
 from .naming import NameMap
 from .ops import LLMFn, LLMOp
-from .trial import TrialRecord
+from .trial import TrialRecord, hashable_condition_key
 
 #: The judge's fixed system directive. Third-person by design.
 REALISM_DIRECTIVE = (
@@ -180,6 +180,14 @@ def realism_win_rates(
     ``condition_key``. Deterministic in ``(records order, pool, seed)`` given
     a deterministic judge.
 
+    Bucket keys are canonicalized hashably (list -> tuple, mapping -> sorted
+    item tuple, recursively): a record built by a direct ``suite.runner.run``
+    call carries every dial on its ``condition_key`` — including list-valued
+    ones like ``levers``, which are on every pressure trial — so bucketing on
+    the raw key raised ``TypeError: unhashable type: 'list'`` (AUP bug
+    report, 2026-08-31). Records from ``run_experiment`` were unaffected
+    (``MassTrialRunner`` resets ``condition_key`` to the swept axes).
+
     Raises:
         ValueError: ``pool`` is empty.
     """
@@ -192,7 +200,7 @@ def realism_win_rates(
         child = seed.child(f"realism/{i}")
         reference = pool[child.child("ref").value % len(pool)]
         win = judge_pair(judge, render_transcript(record), reference, child.child("order"))
-        outcomes.setdefault(tuple(record.condition_key), []).append(win)
+        outcomes.setdefault(hashable_condition_key(record.condition_key), []).append(win)
     summaries: dict[tuple[tuple[str, Any], ...], RealismSummary] = {}
     for key, wins_list in outcomes.items():
         n = len(wins_list)

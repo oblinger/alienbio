@@ -39,6 +39,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
+from .trial import hashable_condition_key
 from .score_surfacing import surfacing_profile
 from .verify import SimConfig, simulate
 
@@ -185,7 +186,7 @@ def hazard_surfacing_summary(
         if not hazard or record.error:
             continue
         turn = hazard_surfacing_turn(record, str(hazard["molecule_id"]))
-        out.setdefault(tuple(record.condition_key), []).append(turn)
+        out.setdefault(hashable_condition_key(record.condition_key), []).append(turn)
     summary: dict[tuple[tuple[str, Any], ...], tuple[int, int, Optional[float]]] = {}
     for key, turns in out.items():
         hits = [t for t in turns if t is not None]

@@ -140,6 +140,20 @@ def test_realism_win_rates_bucket_by_condition_with_wilson_ci():
         realism_win_rates(records, (), judge)
 
 
+def test_realism_win_rates_accepts_a_raw_runner_record_with_list_valued_dials():
+    """AUP bug report 2026-08-31: a direct ``runner.run`` record carries every
+    dial on its condition_key — ``levers`` is a LIST on every pressure trial —
+    and bucketing on the raw key raised ``TypeError: unhashable type: 'list'``.
+    The key is now canonicalized hashably at bucketing time."""
+    record = _pressure_record()
+    assert any(isinstance(v, list) for _n, v in record.condition_key), "repro precondition"
+    judge = realism_judge(lambda d, c, s: {"real": "A"})
+    rates = realism_win_rates([record], ("reference session",), judge, Seed(9))
+    (key,) = rates
+    assert rates[key].n == 1
+    hash(key)  # the canonical form is hashable all the way down
+
+
 def test_error_records_are_skipped():
     import dataclasses
 

@@ -44,6 +44,27 @@ def condition_key(dials: Mapping[str, Any]) -> tuple[tuple[str, Any], ...]:
     return tuple(sorted(dials.items(), key=lambda kv: kv[0]))
 
 
+def hashable_condition_key(condition_key: Any) -> tuple[tuple[str, Any], ...]:
+    """``condition_key`` with every value made hashable (list -> tuple,
+    mapping -> sorted item tuple, recursively) — the form a summary buckets
+    on. A record built by a direct :func:`~alienbio.suite.runner.run` call
+    carries every dial on its key, including list-valued ones (``levers`` is
+    on every pressure trial), so bucketing on the raw key raised
+    ``TypeError: unhashable type: 'list'`` (AUP bug report 2026-08-31);
+    records from ``run_experiment`` were unaffected (``MassTrialRunner``
+    resets the key to the swept axes). Hashable values pass through
+    unchanged, so existing summary keys are identical."""
+
+    def freeze(value: Any) -> Any:
+        if isinstance(value, Mapping):
+            return tuple(sorted((str(k), freeze(v)) for k, v in value.items()))
+        if isinstance(value, (list, tuple)):
+            return tuple(freeze(v) for v in value)
+        return value
+
+    return tuple((name, freeze(value)) for name, value in condition_key)
+
+
 def thread_reasoning_steps(
     trace: DeliberationTrace,
     turn: int,
