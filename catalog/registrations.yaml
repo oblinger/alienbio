@@ -14,5 +14,16 @@
 # `registration: <id>`; the guard admits exactly the scoped dials on exactly
 # the named drafters, refuses visibly on any mismatch, and stamps the id on
 # every record line + the manifest. This file only changes by commit —
-# that IS the audit trail. No registrations are filed yet.
-{}
+# that IS the audit trail.
+
+# AUP phase 2 (Awareness) — OSF registration pj7ny, filed 2026-09-01,
+# embargoed to 2029-08-31. Licenses the awareness grid: pressure worlds at
+# fixed pi=0.5 (cube) or swept pi (P1 slice), sweeping the three awareness
+# axes complexity x certainty x epistemic_access. Drafter: pressure (the
+# conflict-present substrate). Covers both the confirmatory (beacon-seeded)
+# run and its pre-beacon engineering preview — same dials, same drafter.
+aup-awareness:
+  osf: "osf.io/pj7ny"
+  filed: "2026-09-01"
+  dials: [pi, complexity, certainty, epistemic_access, constitution]
+  drafters: [pressure]
