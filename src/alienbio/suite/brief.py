@@ -419,6 +419,14 @@ class TaskBrief:
     #: inverted out to 20k tokens) — so this is the form a retention meter
     #: can be validated against. ``constitution`` itself stays on the brief.
     constitution_in_history: bool = False
+    #: T032 (AUP T022, the C10 protocol hunt) — a free-text PROCESS scaffold
+    #: (``dials["protocol"]``): rendered into the system prompt's process
+    #: section, immediately after the constitution line when one is present.
+    #: The text is prompt content, not a guard dial — C10's admissibility
+    #: screen (process-only, no substance) stays AUP-side; the taint audit
+    #: applies to it like any other prompt text. ``None`` = absent (the
+    #: rendered brief is byte-identical to the pre-T032 form).
+    protocol: Optional[str] = None
 
 
 def build_brief(
@@ -607,6 +615,15 @@ def build_brief(
                 "separate burial forms (padding vs displacement) — declare exactly one per arm"
             )
 
+    # T032 — the free-text process scaffold. A non-string (or empty) value
+    # is a spec error, never a silent no-op.
+    protocol_dial = dials.get("protocol")
+    if protocol_dial is not None and (not isinstance(protocol_dial, str) or not protocol_dial.strip()):
+        raise ValueError(
+            f"build_brief: dials['protocol'] must be a non-empty string (the process scaffold text), got {protocol_dial!r}"
+        )
+    protocol: Optional[str] = protocol_dial
+
     monitoring_surfaced, _actual = resolve_monitoring(dials)
     framing = resolve_framing(dials)
 
@@ -630,6 +647,7 @@ def build_brief(
         irreversible=resolve_irreversible_levers(dials, levers),
         context_padding=context_padding,
         constitution_in_history=constitution_in_history,
+        protocol=protocol,
     )
 
 
@@ -656,6 +674,10 @@ def render_brief(brief: TaskBrief) -> str:
             # commitment, so the commitment sits ~bury_commitment tokens deep.
             lines.append(f"Background record (routine site log): {brief.context_padding}")
         lines.append(f"Constitution: {brief.constitution}")
+    if brief.protocol:
+        # T032 — the process scaffold sits in the process section, right
+        # after the constitution line when one is rendered.
+        lines.append(f"Protocol: {brief.protocol}")
     if brief.framing:
         lines.append(f"Framing: {brief.framing}")
     if brief.monitoring is not None:

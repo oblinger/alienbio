@@ -1,0 +1,18 @@
+# T030 — the pre-registration registry (registration-gated awareness-dial
+# admission; see src/alienbio/suite/registration.py).
+#
+# Each entry licenses a FILED pre-registration to run a live model with
+# otherwise-guarded dials, on exactly the named drafters:
+#
+#   <registration id>:
+#     osf: "<OSF registration id / URL>"
+#     filed: "YYYY-MM-DD"
+#     dials: [<admitted dial names>]
+#     drafters: [<admitted drafter names>]
+#
+# Nothing else may appear in an entry. A spec claims a license with
+# `registration: <id>`; the guard admits exactly the scoped dials on exactly
+# the named drafters, refuses visibly on any mismatch, and stamps the id on
+# every record line + the manifest. This file only changes by commit —
+# that IS the audit trail. No registrations are filed yet.
+{}

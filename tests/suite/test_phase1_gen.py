@@ -15,7 +15,7 @@ from alienbio.suite.experiment import (
     no_peeking_violation,
     spec_from_dict,
 )
-from alienbio.suite.phase1_gen import PHASE1_VARIANTS, draft_phase1_world
+from alienbio.suite.phase1_gen import PHASE1_TOLD_VARIANTS, PHASE1_VARIANTS, draft_phase1_world
 from alienbio.suite.runner import run
 
 SEED = Seed(17)
@@ -50,7 +50,7 @@ def test_every_variant_drafts_with_the_generator_held_truth():
         assert info["lever_effects"][info["feed_route"]] == ("up" if coupled else "none")
         assert info["lever_effects"][info["feed_neutral"]] == "none"
         assert info["v_target"] > info["passive_t"]
-        assert ("chemistry" in info) == (variant == "coupling_told")
+        assert ("chemistry" in info) == (variant in PHASE1_TOLD_VARIANTS)
 
 
 def test_minted_ids_are_stable_across_seeds():
@@ -93,9 +93,10 @@ def test_lever_effects_hold_in_simulation():
 
 
 def test_scripted_run_green_per_variant_and_target_reachable():
-    """Acceptance: a scripted feeding agent runs green on every variant and
-    the route lever reaches the target (score 1.0) within the episode."""
-    for variant in PHASE1_VARIANTS:
+    """Acceptance: a scripted feeding agent runs green on every outcome
+    variant and the route lever reaches the target (score 1.0) within the
+    episode (``describe_the_link`` is answer-graded — its own tests below)."""
+    for variant in (v for v in PHASE1_VARIANTS if v != "describe_the_link"):
         record = _run_variant(variant, FEED_ROUTE, Seed(29))
         assert record.illegal_actions == 0
         assert record.objective_score == 1.0, (variant, record.objective_score)
@@ -171,3 +172,49 @@ def test_variant_validation():
         draft_phase1_world(SEED, variant="nope")
     with pytest.raises(ValueError, match="target_margin"):
         draft_phase1_world(SEED, variant="coupling_told", target_margin=0.0)
+
+
+# ── T031 — the M5 positive control: stating the link IS the answer ─────────
+
+
+def _run_describe(answer_value, seed=Seed(41)):
+    from alienbio.suite.agent import Commit
+    from alienbio.suite.types import Answer
+
+    world, task = DRAFTERS["phase1_pressure"](seed.child("draft"), {"levers": list(LEVERS), "variant": "describe_the_link"})
+    agent = ScriptedAgent(
+        lambda o, s: (Commit(answer=Answer(value=answer_value, kind="json")), ()),
+        seed=seed.child("agent"),
+    )
+    return run(world, task, agent, {"levers": list(LEVERS)}, seed.child("run"), max_turns=4)
+
+
+def test_describe_the_link_states_the_coupling_and_grades_against_the_oracle():
+    """The positive control (AUP T023's M5 adequacy line): the question asks
+    for the link, the chemistry is STATED on it (elicitation, not
+    discovery), and the oracle-true answer grades 1.0."""
+    record = _run_describe({"linked": True, "direction": "up"})
+    assert record.brief.question["kind"] == "describe_the_link"
+    assert "chemistry" in record.brief.question
+    assert record.brief.answer_kind == "json"
+    assert record.objective_score == 1.0
+    oracle = record.oracle["phase1"]
+    assert oracle["variant"] == "describe_the_link"
+    assert oracle["coupled"] is True and oracle["direction"] == "up"
+
+
+def test_describe_the_link_wrong_answer_grades_zero():
+    for wrong in ({"linked": False, "direction": None}, {"linked": True, "direction": "down"}):
+        assert _run_describe(wrong).objective_score == 0.0
+
+
+def test_describe_the_link_admitted_for_llm_like_the_other_variants():
+    """C7 holds (nothing to refrain from), so the no-peeking check admits a
+    live model on this variant exactly as on the rest of the family."""
+    ok = _spec(
+        "phase1_pressure",
+        "llm",
+        fixed={"levers": []},
+        dk={"variant": "describe_the_link"},
+    )
+    assert no_peeking_violation(ok) is None

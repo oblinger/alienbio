@@ -27,6 +27,15 @@ is nothing to refrain from and no outcome to select on.
   tracked pool is declared structurally unobservable
   (``task.setup["hidden_ids"]`` — no probe or observation can reveal it).
   The negative control: a knowledge meter must read low here.
+- ``"describe_the_link"`` — T031 (AUP T023's M5 adequacy line): the
+  positive control for the VERBALISED measure, on the told world — the
+  question itself asks whether the task quantity and the tracked quantity
+  are linked and in which direction, with the coupling STATED in the
+  briefing chemistry, so stating the link IS the answer. The drafter head
+  swaps in a json :class:`~alienbio.suite.types.AnswerObjective` graded
+  against the generator-held ``coupled``/``direction`` truth. Conflict-free
+  (C7 holds: nothing to refrain from); tests elicitation capacity, not
+  discovery — PREREG § verbalised's 0.8 floor is checked on this arm.
 
 The **generator holds the coupling truth**: the drafter's oracle carries
 ``coupled`` / ``direction`` / per-lever effects, so measures 3 and 4 grade
@@ -70,7 +79,12 @@ PHASE1_VARIANTS: tuple[str, ...] = (
     "coupling_told",
     "coupling_withheld",
     "coupling_unobservable",
+    "describe_the_link",
 )
+
+#: The variants whose briefing STATES the coupling chemistry on the
+#: structured question (told arm + T031's elicitation positive control).
+PHASE1_TOLD_VARIANTS: frozenset[str] = frozenset({"coupling_told", "describe_the_link"})
 
 #: Default rate holes — mild seeded jitter so worlds differ across seeds
 #: while every run's kinetics stay deterministic (constant once drawn).
@@ -300,8 +314,8 @@ def draft_phase1_world(
             surface["feed_neutral"]: "none",
         },
     }
-    if variant == "coupling_told":
-        # The told arm's briefing chemistry — stated on the structured
+    if variant in PHASE1_TOLD_VARIANTS:
+        # The told arms' briefing chemistry — stated on the structured
         # question (agent-facing by definition, so never taint; ids are
         # surfaced at the opaque-names boundary like everything else).
         info["chemistry"] = {
