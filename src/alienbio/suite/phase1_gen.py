@@ -237,6 +237,20 @@ def phase1_surface(skeleton: Skeleton) -> dict[str, str]:
     return pools
 
 
+def phase1_chemistry_note(driver: str, tracked: str) -> dict[str, Any]:
+    """The told arms' briefing chemistry — the full-causal statement of the
+    coupling, built in exactly one place so the T035 epistemic-access dial's
+    top level reproduces the ``coupling_told`` brief byte-identically."""
+    return {
+        "coupling": {
+            "driver": driver,
+            "tracked": tracked,
+            "direction": "up",
+            "note": "conversion of the driver pool toward the target also produces the tracked pool",
+        }
+    }
+
+
 def draft_phase1_world(
     seed: Seed = Seed(0),
     *,
@@ -318,12 +332,5 @@ def draft_phase1_world(
         # The told arms' briefing chemistry — stated on the structured
         # question (agent-facing by definition, so never taint; ids are
         # surfaced at the opaque-names boundary like everything else).
-        info["chemistry"] = {
-            "coupling": {
-                "driver": surface["inter"],
-                "tracked": byproduct_id,
-                "direction": "up",
-                "note": "conversion of the driver pool toward the target also produces the tracked pool",
-            }
-        }
+        info["chemistry"] = phase1_chemistry_note(surface["inter"], byproduct_id)
     return world, skeleton, objective, info

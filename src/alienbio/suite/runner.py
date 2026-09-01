@@ -94,7 +94,7 @@ from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, Pro
 from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, resolve_monitoring
 from .naming import NameMap, OpaqueAgent, build_name_map, opaque_names_requested
 from .deliberation import DeliberationTrace
-from .dist import Seed
+from .dist import Seed, Uniform
 from .grade import grade_answer, grade_outcome
 from .info_seeking import ActionRecord
 from .observation import narrow_observation, project_observation
@@ -551,6 +551,33 @@ def run(
     probe_decls = _parse_probes(dials.get("probes"), task.setup)
     probe_records: list[ProbeRecord] = []
 
+    # T034 — the P2 certainty dial's harm-window telegraph. The DRAFTER
+    # declares the two branch reactions at the harm split and their ON/OFF
+    # rates (``setup["certainty"]``, chosen so the split's TOTAL drain is the
+    # same in both states — the upstream trajectory is schedule-invariant and
+    # the expected harm equals the deterministic run's exactly, analytically).
+    # Each turn draws one seed-deterministic Bernoulli(p) window: ON turns run
+    # the harm branch at ``k/p`` (and the task branch slower by the same
+    # amount), OFF turns run it at zero. The override touches only the one
+    # simulated burst — it never rebinds the persistent ``chemistry``, so an
+    # ``Intervene`` rate lever composes as usual.
+    certainty_cfg: Optional[Mapping[str, Any]] = None
+    if isinstance(task.setup, Mapping) and task.setup.get("certainty") is not None:
+        certainty_cfg = task.setup["certainty"]
+        if not isinstance(certainty_cfg, Mapping):
+            raise ValueError(f"task.setup['certainty'] must be a mapping, got {certainty_cfg!r}")
+        for key in ("p", "on", "off"):
+            if key not in certainty_cfg:
+                raise ValueError(f"task.setup['certainty'] is missing {key!r}")
+        for state_key in ("on", "off"):
+            for rid in certainty_cfg[state_key]:
+                if rid not in chemistry.reactions:
+                    raise ValueError(
+                        f"task.setup['certainty'][{state_key!r}] names {rid!r}, "
+                        "which is not a reaction in this world"
+                    )
+    certainty_schedule: list[bool] = []
+
     def _fire_probes(turn: int, timing: str) -> None:
         for decl_timing, text in probe_decls:
             if decl_timing != timing:
@@ -696,6 +723,19 @@ def run(
         if isinstance(agent, SessionAgent):
             agent.notice(ActionOutcome(turn=turn, action=action, accepted=accepted, reason=reject_reason, result=result))
 
+        if certainty_cfg is not None:
+            window_on = (
+                float(Uniform(0.0, 1.0).sample(seed.child(f"turn/{turn}/certainty")))
+                < float(certainty_cfg["p"])
+            )
+            certainty_schedule.append(window_on)
+            burst_chemistry = chemistry
+            for rid, rate in certainty_cfg["on" if window_on else "off"].items():
+                burst_chemistry = _chemistry_with_rate(burst_chemistry, rid, float(rate))
+            turn_world = _world_from_state(
+                compartments, burst_chemistry, state, world.flows, world.population_laws
+            )
+
         timeline = simulate(turn_world, sim_cfg, seed.child(f"turn/{turn}/sim"))
         start = 0 if turn == 0 else 1  # skip the duplicate turn-boundary snapshot
         for t, s in zip(timeline.times[start:], timeline.states[start:]):
@@ -775,6 +815,7 @@ def run(
         final_state=final_state_dict(state),
         name_map=dict(name_map.to_surface) if name_map is not None else {},
         probes=tuple(probe_records),
+        certainty_schedule=tuple(certainty_schedule),
     )
     if taint_hits:
         raise TaintError(record)

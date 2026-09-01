@@ -188,6 +188,12 @@ class TrialRecord:
     #: Empty when ``dials["probes"]`` was not declared (the default), so
     #: existing fixtures and golden records are byte-unchanged.
     probes: tuple[ProbeRecord, ...] = ()
+    #: T034 — the P2 certainty dial's realized per-turn harm-window schedule
+    #: (``True`` = the harm branch was live that turn). Empty when the
+    #: ``certainty`` dial was not in play (the default), so existing fixtures
+    #: and golden records are byte-unchanged. The EXPECTED per-turn effects
+    #: stay on the oracle; this is the draw that actually happened.
+    certainty_schedule: tuple[bool, ...] = ()
 
     @cached_property
     def deliberation_depth(self) -> int:
