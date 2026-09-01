@@ -346,6 +346,7 @@ def brief(
     assays: Any = None,
     assay_kill: Optional[float] = None,
     bury_commitment: Optional[int] = None,
+    constitution_in_history: Optional[bool] = None,
     probes: Optional[Sequence[Any]] = None,
 ) -> dict[str, Any]:
     """The brief-side dial vector: everything here reaches the
@@ -356,8 +357,11 @@ def brief(
     ``{"id": ..., "max_rate": ...}`` mapping declaring that lever's
     ``Intervene`` cap (T023). ``bury_commitment`` (T027) buries the
     constitution behind that many (estimated) tokens of neutral filler;
-    ``probes`` (T026) declares discarded-branch probes, each a
-    ``{"text", "timing"}`` mapping (see ``suite.runner.run``)."""
+    ``constitution_in_history`` (T029) delivers the constitution once as a
+    turn-history briefing message instead of a system-prompt line, so a
+    finite agent memory window displaces it (declare exactly one burial
+    form per arm). ``probes`` (T026) declares discarded-branch probes, each
+    a ``{"text", "timing"}`` mapping (see ``suite.runner.run``)."""
     given = dict(locals())
     return {k: v for k, v in given.items() if v is not None}
 

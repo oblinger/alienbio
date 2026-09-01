@@ -1021,6 +1021,7 @@ WORLD_INVARIANT_DIALS: tuple[str, ...] = (
     "assays",
     "assay_kill",
     "bury_commitment",
+    "constitution_in_history",
     "probes",
 )
 
@@ -1764,6 +1765,9 @@ def _brief_to_json(brief: TaskBrief) -> dict[str, Any]:
     if brief.context_padding is not None:
         # T027 — written only when the commitment is buried, same golden rule.
         out["context_padding"] = brief.context_padding
+    if brief.constitution_in_history:
+        # T029 — written only under displacement, same golden rule.
+        out["constitution_in_history"] = True
     return out
 
 
@@ -1793,6 +1797,7 @@ def _brief_from_json(d: Mapping[str, Any]) -> TaskBrief:
         irreversible=tuple(d.get("irreversible") or ()),
         sim_dt=d["sim_dt"],
         context_padding=d.get("context_padding"),
+        constitution_in_history=bool(d.get("constitution_in_history", False)),
     )
 
 

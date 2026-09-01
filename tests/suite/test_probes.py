@@ -211,3 +211,96 @@ def test_opaque_boundary_translates_probe_text_and_answer():
         pass
 
     assert OpaqueAgent(_NoProbe(), nm).probe("x") is None
+
+
+def test_is_probe_context_marks_exactly_probe_contexts():
+    """T028 — the "probe" context key is the mode marker at the LLMFn seam;
+    main-line contexts (render_observation / render_context) never carry it."""
+    from alienbio.suite.llm_agent import is_probe_context, render_context, render_observation
+
+    assert is_probe_context({"probe": "x?", "turn": 0})
+    assert not is_probe_context(render_observation(({"m": 1.0},), 0))
+    assert not is_probe_context(render_context(({"m": 1.0},), 0, [{"turn": 0}]))
+    assert not is_probe_context("text")
+    assert not is_probe_context(None)
+
+
+def test_probe_call_overrides_the_action_format_instruction():
+    """T028 — the forked probe call's system prompt carries the free-text
+    override; main-line act calls never do; the taint-audited prompt text
+    matches what was actually sent."""
+    from alienbio.suite.llm_agent import PROBE_OVERRIDE_DIRECTIVE
+
+    directives: list[str] = []
+
+    def llm_fn(directive, context, seed):
+        directives.append(directive)
+        if isinstance(context, dict) and "probe" in context:
+            return "plain text answer"
+        return {"action": "wait", "duration": 1.0, "reasoning": []}
+
+    agent = LLMAgent(llm_fn, SEED.child("llm"), memory="full")
+    agent.act(({"m": 1.0},))
+    assert PROBE_OVERRIDE_DIRECTIVE not in directives[-1]
+    answer = agent.probe("What is your commitment?")
+    assert answer == "plain text answer"
+    assert directives[-1].endswith(PROBE_OVERRIDE_DIRECTIVE)
+    assert agent.prompt_texts[-1].startswith(directives[-1])
+
+
+def test_provider_probe_mode_sends_no_tool_and_returns_plain_text(monkeypatch):
+    """T028 — the real provider fn drops the forced emit_action tool on a
+    probe context and hands back the text blocks verbatim (no JSON
+    extraction), while a main-line call still forces the tool."""
+    import sys
+    import types
+
+    from alienbio.suite.llm_agent import default_anthropic_llm_fn
+
+    calls: list[dict] = []
+    reply_text = 'My commitment: keep it low. {"type": "wait"}'
+
+    class _Usage:
+        input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens = 10, 2, 0, 0
+
+    class _Messages:
+        def create(self, **kw):
+            calls.append(kw)
+            if "tools" in kw:
+                content = [types.SimpleNamespace(type="tool_use", input={"type": "wait", "duration": 1.0})]
+            else:
+                content = [types.SimpleNamespace(type="text", text=reply_text)]
+            return types.SimpleNamespace(usage=_Usage(), content=content)
+
+    class _Client:
+        def __init__(self, api_key):
+            self.messages = _Messages()
+
+    monkeypatch.setitem(sys.modules, "anthropic", types.SimpleNamespace(Anthropic=_Client))
+    monkeypatch.setattr("alienbio.config.get_api_key", lambda name: "k")
+    fn = default_anthropic_llm_fn("claude-sonnet-5")
+
+    main = fn("DIRECTIVE", {"turn": 0}, Seed(1))
+    assert calls[0]["tool_choice"] == {"type": "tool", "name": "emit_action"}
+    assert main == {"type": "wait", "duration": 1.0}
+
+    probe = fn("DIRECTIVE", {"probe": "state your commitment", "turn": 0}, Seed(1))
+    assert "tools" not in calls[1] and "tool_choice" not in calls[1]
+    assert probe == reply_text  # verbatim — the embedded JSON is NOT extracted
+
+
+def test_llm_probe_answer_is_free_text_end_to_end():
+    """T028 acceptance — through the runner, an LLM agent's ProbeRecord.answer
+    is the plain-text reply, not action JSON."""
+
+    def llm_fn(directive, context, seed):
+        if isinstance(context, dict) and "probe" in context:
+            return "I will keep the tracked quantity low."
+        return {"action": "wait", "duration": 1.0, "reasoning": []}
+
+    world, task, dials = _draft(probes=[{"text": "Restate your commitment.", "timing": "every_turn"}])
+    agent = LLMAgent(llm_fn, SEED.child("llm"), memory="full")
+    record = run(world, task, agent, dials, SEED.child("run"), max_turns=2)
+    assert record.probes
+    for pr in record.probes:
+        assert pr.answer == "I will keep the tracked quantity low."
