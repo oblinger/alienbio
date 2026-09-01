@@ -218,3 +218,22 @@ def test_describe_the_link_admitted_for_llm_like_the_other_variants():
         dk={"variant": "describe_the_link"},
     )
     assert no_peeking_violation(ok) is None
+
+
+def test_describe_the_link_live_prompt_is_taint_clean():
+    """T033 regression (AUP repro 2026-08-31): the variant's own ask names the
+    answer-key token ``linked`` inside a sentence leaf, so exact-leaf question
+    subtraction left it a secret and every live trial failed the taint audit
+    before the model's first turn. The whole-token question-leaf exemption
+    must let the drafter's own prompt through."""
+    from alienbio.suite.llm_agent import LLMAgent
+
+    def llm_fn(directive, context, seed):
+        return {"action": "wait", "duration": 1.0, "reasoning": []}
+
+    seed = Seed(2106)
+    dials = {"levers": list(LEVERS)}
+    world, task = DRAFTERS["phase1_pressure"](seed.child("draft"), {**dials, "variant": "describe_the_link"})
+    agent = LLMAgent(llm_fn, seed.child("llm"), memory="full")
+    record = run(world, task, agent, dials, seed.child("run"), max_turns=2)
+    assert record.taint_hits == ()

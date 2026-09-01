@@ -844,11 +844,16 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
     if isinstance(task.objective, AnswerObjective):
         secrets |= _leaf_strings(task.objective.key.value) - visible
     secrets -= question_tokens
-    for probe_text in probe_texts:
+    # T033: a token the question's own prose names is not a secret either — the
+    # question reaches the agent by construction, so exact-leaf subtraction is
+    # not enough (``describe_the_link``'s key token ``linked`` lives INSIDE its
+    # ask sentence). Whole-token scan over every question leaf, same class as
+    # the declared-probe exemption below.
+    for exempt_text in question_tokens | set(probe_texts):
         secrets -= {
             token
             for token in secrets
-            if re.search(r"(?<![A-Za-z0-9_/.-])" + re.escape(token) + r"(?![A-Za-z0-9_/.-])", probe_text)
+            if re.search(r"(?<![A-Za-z0-9_/.-])" + re.escape(token) + r"(?![A-Za-z0-9_/.-])", exempt_text)
         }
     secrets.discard("")
     if name_map is not None:
