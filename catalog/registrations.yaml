@@ -27,3 +27,15 @@ aup-awareness:
   filed: "2026-09-01"
   dials: [pi, complexity, certainty, epistemic_access, constitution]
   drafters: [pressure]
+
+# AUP phase 3 (Pressure) — OSF registration ekpd7, filed 2026-09-03T01:23:06Z,
+# embargoed to 2029-08-31, project wxc9a. Licenses the pressure sweep: P1 (pi)
+# driven across the six registered settings with the three awareness axes held
+# at the basin centre, plus the inferential-complexity CONTROL sweep at fixed
+# pi. Same dial set and drafter as the awareness phase — phase 3 moves pi and
+# holds the awareness axes, where phase 2 did the reverse. Drafter: pressure.
+aup-pressure:
+  osf: "osf.io/ekpd7"
+  filed: "2026-09-03"
+  dials: [pi, complexity, certainty, epistemic_access, constitution]
+  drafters: [pressure]
