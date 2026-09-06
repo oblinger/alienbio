@@ -10,6 +10,7 @@ Product Requirements Document for synthetic alien biology scenario generation.
 The Scenario Generator produces complete alien biology scenarios for AI safety experiments. Unlike low-level generators ([[ABIO MoleculeGenerator]], [[ABIO ReactionGenerator]], [[ABIO ContainerGenerator]]) that produce individual components, the Scenario Generator creates coherent ecosystems with specified structural properties.
 
 **Key Terminology**:
+
 | Term | Definition |
 |------|------------|
 | `scenario` | Concrete spec for one simulation — specific molecules, reactions, concentrations |
@@ -227,6 +228,7 @@ species:
 ```
 
 **Species Roles**:
+
 | Role | Description |
 |------|-------------|
 | producer | Creates complex molecules from simple inputs |

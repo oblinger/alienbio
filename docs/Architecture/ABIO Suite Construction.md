@@ -12,6 +12,7 @@ The deliverable is a **suite**: many gradable tasks (identify-this-pathway, cure
 
 ## Vocabulary (locked)
 These terms are used precisely throughout; the naming was chosen to avoid the redundancy between "skeleton" the archetype-structure and "skeleton" the concrete instance.
+
 | Term | Meaning |
 |------|---------|
 | **suite** | The deliverable — a set of tasks over a set of worlds, each with an objective + verified ground truth. |
