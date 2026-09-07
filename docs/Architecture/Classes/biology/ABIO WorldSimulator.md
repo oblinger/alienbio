@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO WorldSimulator](hook://p/ABIO%20WorldSimulator) 
  [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # WorldSimulator

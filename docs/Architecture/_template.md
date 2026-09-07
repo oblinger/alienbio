@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [_template](hook://p/_template) 
 # EntityName
 **Subsystem**: [[Parent Subsystem]] > Category
 Brief one-sentence description of what this entity is. Can be multiple lines if needed for the description, but no blank lines in this top section.

@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO DAT Class](hook://p/ABIO%20DAT%20Class) 
  [[ABIO Architecture Docs]] → [[ABIO infra]]
 
 # DAT

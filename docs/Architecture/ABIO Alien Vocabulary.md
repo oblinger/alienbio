@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Alien Vocabulary](hook://p/ABIO%20Alien%20Vocabulary) 
 [[ABIO docs]] → [[ABIO Topics]]
 
 # Alien Vocabulary

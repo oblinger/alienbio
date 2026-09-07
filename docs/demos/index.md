@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [demos index](hook://p/demos%20index) 
 # Demo Gallery
 
 Interactive demonstrations of AlienBio's core capabilities. Each demo is available in three formats:

@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO PRD Docs](hook://p/ABIO%20PRD%20Docs) 
 
 # Scenario Generator PRD
 **Subsystem**: [[ABIO biology]] > Generators

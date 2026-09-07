@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Factory Pegboard API](hook://p/ABIO%20Factory%20Pegboard%20API) 
 # Factory Pegboard API
 
 **Status**: IMPLEMENTED

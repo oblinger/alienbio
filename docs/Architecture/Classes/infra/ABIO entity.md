@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO entity](hook://p/ABIO%20entity) 
  [[ABIO Architecture Docs]] → [[ABIO infra]]
 
 # Entity

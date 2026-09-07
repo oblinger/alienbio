@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO DAT](hook://p/ABIO%20DAT) 
 # ABIO DAT
 **Topic**: [[ABIO Topics]] 
 Data management via dvc_dat integration.

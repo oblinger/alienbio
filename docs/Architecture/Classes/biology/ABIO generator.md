@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [biology ABIO generator](hook://p/biology%20ABIO%20generator) 
  [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Generator

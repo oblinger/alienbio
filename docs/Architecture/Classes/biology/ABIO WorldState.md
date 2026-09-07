@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO WorldState](hook://p/ABIO%20WorldState) 
  [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # WorldState

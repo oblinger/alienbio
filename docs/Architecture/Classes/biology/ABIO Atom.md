@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Atom](hook://p/ABIO%20Atom) 
  [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Atom

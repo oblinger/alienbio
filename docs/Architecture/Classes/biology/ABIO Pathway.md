@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Pathway](hook://p/ABIO%20Pathway) 
  [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Pathway

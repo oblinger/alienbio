@@ -1,3 +1,4 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO MoleculeGenerator](hook://p/ABIO%20MoleculeGenerator) 
  [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # MoleculeGenerator
