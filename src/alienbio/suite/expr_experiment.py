@@ -526,6 +526,9 @@ def experiment(
     drafter_kwargs: Optional[Mapping[str, Any]] = None,
     model: Optional[str] = None,
     memory: Union[str, int] = "full",
+    compact_at: Optional[int] = None,
+    compact_budget: Optional[int] = None,
+    history_token_limit: Optional[int] = None,
     token_ceiling: Optional[int] = None,
     out_dir: Optional[str] = None,
     cost_ceiling_usd: Optional[float] = None,
@@ -604,6 +607,9 @@ def experiment(
         ("top_p", top_p),
         ("expected_cache_hit_rate", expected_cache_hit_rate),
         ("registration", registration),
+        ("compact_at", compact_at),
+        ("compact_budget", compact_budget),
+        ("history_token_limit", history_token_limit),
     ):
         if value is not None:
             d[key] = value
@@ -753,8 +759,11 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
         "expected_prompt_tokens": d["expected_prompt_tokens"] if d["expected_prompt_tokens"] != 1500 else None,
         "expected_output_tokens": d["expected_output_tokens"] if d["expected_output_tokens"] != 300 else None,
         "concurrency": d["concurrency"] if d["concurrency"] != 1 else None,
+        "compact_at": d["compact_at"],
+        "compact_budget": d["compact_budget"],
+        "history_token_limit": d["history_token_limit"],
     }
-    for key in ("model", "memory", "token_ceiling", "cost_ceiling_usd", "price_usd_per_mtok", "temperature", "top_p", "expected_cache_hit_rate"):
+    for key in ("model", "memory", "compact_at", "compact_budget", "history_token_limit", "token_ceiling", "cost_ceiling_usd", "price_usd_per_mtok", "temperature", "top_p", "expected_cache_hit_rate"):
         if scalars[key] is not None:
             out.append(f"{key}: {_yaml_inline(scalars[key])}")
     if spec.idle_baseline:

@@ -842,6 +842,8 @@ def run(
         name_map=dict(name_map.to_surface) if name_map is not None else {},
         probes=tuple(probe_records),
         certainty_schedule=tuple(certainty_schedule),
+        # T049 — the compaction event, if the agent's compact_at trigger ran.
+        compaction=getattr(agent, "compaction", None),
     )
     if taint_hits:
         raise TaintError(record)

@@ -130,6 +130,14 @@ class ExperimentSpec:
     drafter_kwargs: Mapping[str, Any] = field(default_factory=dict)
     model: Optional[str] = None
     memory: Union[str, int] = "full"
+    #: T049 — the realistic-forgetting triggers (LLM agents only; one per
+    #: arm): compaction displacement at a turn (with an optional summary
+    #: token budget) or fill-driven truncation by history volume. A trial
+    #: dial of the same name overrides the spec value, so either can be
+    #: swept as an axis through ``spec_from_dict``.
+    compact_at: Optional[int] = None
+    compact_budget: Optional[int] = None
+    history_token_limit: Optional[int] = None
     token_ceiling: Optional[int] = None
     fixed_dials: Mapping[str, Any] = field(default_factory=dict)
     out_dir: Optional[str] = None
@@ -195,6 +203,9 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "agent": spec.agent,
         "model": spec.model,
         "memory": spec.memory,
+        "compact_at": spec.compact_at,
+        "compact_budget": spec.compact_budget,
+        "history_token_limit": spec.history_token_limit,
         "token_ceiling": spec.token_ceiling,
         "trials_per_condition": spec.trials_per_condition,
         "base_seed": spec.base_seed,
@@ -251,6 +262,9 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         drafter_kwargs=dict(d.get("drafter_kwargs") or {}),
         model=d.get("model"),
         memory=d.get("memory", "full"),
+        compact_at=d.get("compact_at"),
+        compact_budget=d.get("compact_budget"),
+        history_token_limit=d.get("history_token_limit"),
         token_ceiling=d.get("token_ceiling"),
         fixed_dials=dict(d.get("fixed_dials") or {}),
         out_dir=d.get("out_dir"),
@@ -2014,6 +2028,11 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
             memory=spec.memory,
             token_ceiling=spec.token_ceiling,
             meter=meter,
+            # T049 — a trial dial overrides the spec value, so the forgetting
+            # triggers can be swept as axes.
+            compact_at=dials.get("compact_at", spec.compact_at),
+            compact_budget=dials.get("compact_budget", spec.compact_budget),
+            history_token_limit=dials.get("history_token_limit", spec.history_token_limit),
         )
 
     return factory
@@ -2242,6 +2261,11 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
             if record.certainty_schedule
             else {}
         ),
+        **(
+            {"compaction": _json_safe(dict(record.compaction))}
+            if record.compaction is not None
+            else {}
+        ),
     }
 
 
@@ -2309,6 +2333,7 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
             for pr in d.get("probes") or ()
         ),
         certainty_schedule=tuple(bool(x) for x in d.get("certainty_schedule") or ()),
+        compaction=d.get("compaction"),
     )
 
 

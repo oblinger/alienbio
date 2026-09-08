@@ -194,6 +194,13 @@ class TrialRecord:
     #: and golden records are byte-unchanged. The EXPECTED per-turn effects
     #: stay on the oracle; this is the draw that actually happened.
     certainty_schedule: tuple[bool, ...] = ()
+    #: T049 — the compaction-displacement event, when it ran this trial:
+    #: ``{"turn", "budget", "displaced", "summary"}`` (``summary`` is ``None``
+    #: when the summarizer reply was unusable — the displacement still
+    #: happened). ``None`` when the ``compact_at`` trigger was not in play
+    #: (the default), so existing fixtures and golden records are
+    #: byte-unchanged.
+    compaction: Optional[Mapping[str, Any]] = None
 
     @cached_property
     def deliberation_depth(self) -> int:
