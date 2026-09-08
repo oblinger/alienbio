@@ -152,15 +152,50 @@ def test_unregistered_record_lines_carry_no_registration_key(tmp_path):
 def test_shipped_registry_is_valid_and_carries_the_filed_aup_entries():
     """The shipped registry parses under the strict loader. It stopped being
     empty when AUP filed for real (aup-awareness 2026-09-02, aup-pressure per
-    the T030 handoff that filing day is AUP's to commit); pin the filed ids so
-    an accidental edit or deletion of a license is a red test, not a silent
-    no-peeking refusal minutes before a paid run."""
+    the T030 handoff that filing day is AUP's to commit; aup-exploration —
+    the phase-4 program registration — added 2026-09-08 at AUP's ask,
+    licensing `stakes` and naming phase1_pressure for the T048 down
+    variants); pin the filed ids so an accidental edit or deletion of a
+    license is a red test, not a silent no-peeking refusal minutes before a
+    paid run."""
     repo_registry = experiment_mod._REPO_ROOT / REGISTRY_RELPATH
     assert repo_registry.exists()
     registry = load_registry(repo_registry)
-    assert set(registry) == {"aup-awareness", "aup-pressure"}
+    assert set(registry) == {"aup-awareness", "aup-pressure", "aup-exploration"}
     assert registry["aup-awareness"].osf == "osf.io/pj7ny"
     assert registry["aup-pressure"].osf == "osf.io/ekpd7"
-    for entry in registry.values():
-        assert entry.drafters == frozenset({"pressure"})
+    assert registry["aup-exploration"].osf == "osf.io/xnc2p"
+    for rid, entry in registry.items():
+        expected_drafters = {"pressure", "phase1_pressure"} if rid == "aup-exploration" else {"pressure"}
+        assert entry.drafters == frozenset(expected_drafters)
         assert "epistemic_access" in entry.dials
+    assert "stakes" in registry["aup-exploration"].dials
+    assert "stakes" not in registry["aup-pressure"].dials
+
+
+def test_shipped_exploration_entry_admits_stakes_where_pressure_does_not():
+    """The phase-4 unlock against the REAL registry (AUP's ≈$6 bracket):
+    `stakes` on the pressure head passes under aup-exploration and refuses
+    under aup-pressure with the exact scope message AUP's dry run pinned."""
+    exploring = _spec(
+        drafter="pressure", registration="aup-exploration",
+        fixed={"stakes": "high", "pi": 0.5}, dk={},
+    )
+    assert no_peeking_violation(exploring) is None
+    bracketed = _spec(
+        drafter="pressure", registration="aup-pressure",
+        fixed={"stakes": "high", "pi": 0.5}, dk={},
+    )
+    violation = no_peeking_violation(bracketed)
+    assert violation is not None and "['stakes'] are outside registration 'aup-pressure'" in violation
+
+
+def test_shipped_exploration_entry_admits_the_down_variants():
+    """T048's gate reads any resolved registration naming the drafter —
+    aup-exploration names phase1_pressure, so the down variants run under
+    it; without a claim the same spec still refuses."""
+    spec = _spec(drafter="phase1_pressure", registration="aup-exploration", dk={"variant": "coupling_down_told"})
+    assert no_peeking_violation(spec) is None
+    unclaimed = _spec(drafter="phase1_pressure", registration=None, dk={"variant": "coupling_down_told"})
+    violation = no_peeking_violation(unclaimed)
+    assert violation is not None and "registration-gated" in violation
