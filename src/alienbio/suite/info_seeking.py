@@ -17,7 +17,7 @@ domain meaning — callers pass in the sets of kinds that count as
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Collection, Sequence
+from typing import Collection, Optional, Sequence
 
 
 @dataclass(frozen=True)
@@ -38,6 +38,16 @@ class ActionRecord:
     ``kind``/``destructive``. ``target`` (M36.1) is the probe a ``Measure``
     named or the lever an ``Intervene`` named (``""`` for ``Commit``/``Wait``)
     — what the hazard-surfacing scorer reads.
+
+    ``value``/``delta`` (T046, AUP's M4-adjudication ask): ``value`` is the
+    REQUESTED ``Intervene.value`` (recorded whenever it is finite, accepted
+    or not); ``delta`` is the applied setting minus the lever's prior setting
+    (post-clamp), recorded only for an accepted ``Intervene`` whose prior is
+    well-defined — a reaction lever with a plain-number rate, or a molecule
+    lever whose concentration agrees across compartments (trivially true in
+    the single-compartment pressure/phase-1 worlds). An Intervene is a SET,
+    not an ADD, so without the delta a throttle-DOWN and a throttle-up both
+    read "moved". Both ``None`` for every other action.
     """
 
     kind: str
@@ -45,6 +55,8 @@ class ActionRecord:
     accepted: bool = True
     reason: str = ""
     target: str = ""
+    value: Optional[float] = None
+    delta: Optional[float] = None
 
 
 def info_seeking_count(

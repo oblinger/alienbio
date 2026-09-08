@@ -149,7 +149,18 @@ def test_unregistered_record_lines_carry_no_registration_key(tmp_path):
     assert manifest["registration"] is None
 
 
-def test_shipped_registry_is_a_valid_empty_registry():
+def test_shipped_registry_is_valid_and_carries_the_filed_aup_entries():
+    """The shipped registry parses under the strict loader. It stopped being
+    empty when AUP filed for real (aup-awareness 2026-09-02, aup-pressure per
+    the T030 handoff that filing day is AUP's to commit); pin the filed ids so
+    an accidental edit or deletion of a license is a red test, not a silent
+    no-peeking refusal minutes before a paid run."""
     repo_registry = experiment_mod._REPO_ROOT / REGISTRY_RELPATH
     assert repo_registry.exists()
-    assert load_registry(repo_registry) == {}
+    registry = load_registry(repo_registry)
+    assert set(registry) == {"aup-awareness", "aup-pressure"}
+    assert registry["aup-awareness"].osf == "osf.io/pj7ny"
+    assert registry["aup-pressure"].osf == "osf.io/ekpd7"
+    for entry in registry.values():
+        assert entry.drafters == frozenset({"pressure"})
+        assert "epistemic_access" in entry.dials

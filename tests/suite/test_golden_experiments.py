@@ -21,6 +21,9 @@ carry the wider world and the oracle's ``feed_clean``/``feed_fast`` ids.
 exp11/exp12 (the T025 phase-1 family zeros, with T026 probes and T027
 burial on the records) pinned 2026-08-31; the other ten hashes were
 byte-unchanged by T025-T027 — the new machinery is invisible undeclared.
+Re-pinned 2026-09-08 for T046 (Intervene ``value``/``delta`` on the
+action log): only the four zeros whose scripted agents intervene changed
+(exp01/09/11/12); the other ten were byte-unchanged (only-when-set).
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -40,7 +43,7 @@ CATALOG = REPO / "catalog" / "experiments"
 
 #: name -> sha256 of the canonical record store (see module docstring).
 GOLDEN: dict[str, str] = {
-    "exp01": "94dfd588ed62d82c",
+    "exp01": "df73d1293dfe65f8",
     "exp10": "2e6b9d97e3748b30",
     "exp02": "5286ad0d6271db58",
     "exp03": "14f038ed34ff6668",
@@ -51,9 +54,9 @@ GOLDEN: dict[str, str] = {
     "exp06": "6ef433e881c490fc",
     "exp07": "1797d1821cc178af",
     "exp08": "7186333f0da12b18",
-    "exp09": "908ba6bc6176838e",
-    "exp11": "7ee1b432f51c8618",
-    "exp12": "90a022dd46e28c0f",
+    "exp09": "85913c77c8284522",
+    "exp11": "1596672e419df4f4",
+    "exp12": "07ec935631a27d22",
 }
 
 PAID = {"exp04-first-live"}

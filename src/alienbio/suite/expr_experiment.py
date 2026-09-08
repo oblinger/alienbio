@@ -541,6 +541,7 @@ def experiment(
     temperature: Optional[Union[float, str]] = None,
     top_p: Optional[float] = None,
     expected_cache_hit_rate: Optional[float] = None,
+    registration: Optional[str] = None,
     env: Env,
 ) -> ExperimentSpec:
     """Build an :class:`~alienbio.suite.experiment.ExperimentSpec` from the
@@ -602,6 +603,7 @@ def experiment(
         ("temperature", temperature),
         ("top_p", top_p),
         ("expected_cache_hit_rate", expected_cache_hit_rate),
+        ("registration", registration),
     ):
         if value is not None:
             d[key] = value

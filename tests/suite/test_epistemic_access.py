@@ -120,7 +120,7 @@ def test_pressure_family_ladder():
 
 
 def test_validation_fails_visibly():
-    for bad in (-1, 3, True, "told"):
+    for bad in (-1, 4, True, "told"):  # 3 became the T046 lever level
         with pytest.raises(ValueError, match="epistemic_access"):
             DRAFTERS["phase1_pressure"](
                 SEED, {"levers": PHASE1_LEVERS, "variant": "coupling_withheld", "epistemic_access": bad}

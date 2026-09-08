@@ -49,6 +49,14 @@ design: !power {target_effect_d: 3.0, primary_contrast: {axis: monitoring, low: 
 # ---------------------------------------------------------------------------
 
 
+def test_experiment_form_threads_registration():
+    """T046 (AUP 2026-09-01 gap): a registration-gated spec is expressible as
+    a `!experiment` YAML file — the head threads `registration:` through."""
+    spec = load_experiment("<reg>", text=EXP4 + 'registration: aup-awareness\n')
+    assert spec.registration == "aup-awareness"
+    assert load_experiment("<noreg>", text=EXP4).registration is None
+
+
 def test_experiment_form_splits_task_brief_episode_into_one_spec():
     spec = load_experiment("<exp04>", text=EXP4)
     assert isinstance(spec, ExperimentSpec)

@@ -237,18 +237,26 @@ def phase1_surface(skeleton: Skeleton) -> dict[str, str]:
     return pools
 
 
-def phase1_chemistry_note(driver: str, tracked: str) -> dict[str, Any]:
+def phase1_chemistry_note(driver: str, tracked: str, *, lever: Optional[str] = None) -> dict[str, Any]:
     """The told arms' briefing chemistry — the full-causal statement of the
     coupling, built in exactly one place so the T035 epistemic-access dial's
-    top level reproduces the ``coupling_told`` brief byte-identically."""
-    return {
-        "coupling": {
-            "driver": driver,
-            "tracked": tracked,
-            "direction": "up",
-            "note": "conversion of the driver pool toward the target also produces the tracked pool",
-        }
+    top level reproduces the ``coupling_told`` brief byte-identically.
+
+    ``lever`` (T046 — epistemic-access level 3) additionally names which feed
+    lever drains into the driver pool; the default (``None``) path is
+    byte-identical to the pre-T046 note, so tier 2 and the told arms are
+    untouched (phase 2's levels are frozen under the awareness registration).
+    """
+    coupling: dict[str, Any] = {
+        "driver": driver,
+        "tracked": tracked,
+        "direction": "up",
+        "note": "conversion of the driver pool toward the target also produces the tracked pool",
     }
+    if lever is not None:
+        coupling["lever"] = lever
+        coupling["note"] += f"; the feed lever {lever} is the one that drains into the driver pool"
+    return {"coupling": coupling}
 
 
 def draft_phase1_world(

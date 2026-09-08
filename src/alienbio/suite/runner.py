@@ -632,6 +632,12 @@ def run(
         accepted = True
         reject_reason = ""
         applied_value: Optional[float] = None
+        # T046 — the requested Intervene.value and the applied-minus-prior
+        # delta, recorded AS DATA so M4 direction can be adjudicated post hoc
+        # (an Intervene is a SET: without these, a throttle-down of the fast
+        # feed and a throttle-up both read "moved").
+        intervene_value: Optional[float] = None
+        intervene_delta: Optional[float] = None
         is_assay = isinstance(action, Measure) and bool(action.params.get("assay"))
         if isinstance(action, Measure) and is_assay:
             if action.probe not in brief.affordances.assays:
@@ -645,6 +651,8 @@ def run(
                 accepted = False
                 reject_reason = f"unknown probe {action.probe!r}"
         elif isinstance(action, Intervene):
+            if _is_finite_number(action.value):
+                intervene_value = float(action.value)
             if action.lever not in brief.affordances.levers:
                 accepted = False
                 reject_reason = f"unknown lever {action.lever!r}"
@@ -667,6 +675,22 @@ def run(
                 if cap is not None and float(action.value) > cap:
                     applied_value = cap
                     reject_reason = f"clamped to max_rate {cap:g} (requested {float(action.value):g})"
+                applied = float(action.value) if applied_value is None else applied_value
+                if action.lever in chemistry.reactions:
+                    prior = chemistry.reactions[action.lever].rate
+                    if isinstance(prior, (int, float)) and not isinstance(prior, bool):
+                        intervene_delta = applied - float(prior)
+                else:
+                    # A molecule lever: the SET writes every compartment, so
+                    # the prior is well-defined only when the compartments
+                    # agree (trivially true for the single-compartment
+                    # pressure/phase-1 worlds); otherwise delta stays None.
+                    mol_ids = state.molecule_ids
+                    if mol_ids is not None and action.lever in mol_ids:
+                        mj = mol_ids.index(action.lever)
+                        priors = {state.get(ci, mj) for ci in range(state.num_compartments)}
+                        if len(priors) == 1:
+                            intervene_delta = applied - priors.pop()
         elif isinstance(action, (Commit, Wait)):
             pass
         else:
@@ -689,6 +713,8 @@ def run(
                 accepted=accepted,
                 reason=reject_reason,
                 target=target,
+                value=intervene_value,
+                delta=intervene_delta,
             )
         )
 

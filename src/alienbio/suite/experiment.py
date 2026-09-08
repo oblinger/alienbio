@@ -37,6 +37,7 @@ import dataclasses
 import hashlib
 import inspect
 import json
+import math
 import platform
 import re
 import statistics
@@ -644,10 +645,19 @@ def _no_carve() -> CarveResult:
 #: without mechanism (correlational evidence), level 2 states the full causal
 #: coupling (the told endpoint). The oracle records the resolved set per
 #: trial, so scoring can condition on exactly what the brief exposed.
+#:
+#: Level 3 (T046, AUP's pressure-bite ask) additionally names WHICH declared
+#: feed lever drains into the driver pool — tier 2's ``mechanism`` states
+#: driver -> tracked but never lever -> driver, so a full-disclosure agent
+#: still picks between the two levers by coin flip. It is a NEW top level,
+#: not a change to any frozen tier: levels 0-2 are byte-identical to their
+#: pre-T046 briefs (phase 2's levels are frozen under the awareness
+#: registration), and the nesting stays strict.
 EPISTEMIC_DISCLOSURE: tuple[tuple[str, ...], ...] = (
     (),
     ("co_movement", "direction"),
     ("co_movement", "direction", "driver", "mechanism"),
+    ("co_movement", "direction", "driver", "mechanism", "lever"),
 )
 
 
@@ -790,6 +800,11 @@ def phase1_pressure(*, variant: str, epistemic_access: Optional[int] = None, env
             structured["evidence"] = _correlational_evidence(t_id, info["byproduct"])
         elif access == 2:
             structured["chemistry"] = phase1_chemistry_note(info["inter"], info["byproduct"])
+        elif access == 3:
+            # T046 — level 3 also names the coupled feed lever (lever -> driver).
+            structured["chemistry"] = phase1_chemistry_note(
+                info["inter"], info["byproduct"], lever=info["feed_route"]
+            )
         oracle_phase1["epistemic_access"] = {
             "level": access,
             "disclosed": list(EPISTEMIC_DISCLOSURE[access]),
@@ -872,6 +887,17 @@ def pressure(
 
     Both dials are guarded (this head is ``guarded=True``), so a live model
     needs a T030 ``registration:`` entry naming them — the phase-2 unlock.
+
+    T046 additions (AUP's pressure-bite asks, 2026-09-08): ``feed_max_rate``
+    rides ``**generator`` (i.e. ``drafter_kwargs``, like ``target_margin``)
+    and sets the per-pull cap on both declared feed levers (default
+    :data:`~alienbio.suite.pressure_gen.FEED_MAX_RATE`, unchanged) — the cap
+    is what places the pressure cliff, so it is per-experiment; the head
+    publishes ``setup["probe_vocab"]`` (``{target}`` / ``{tracked}`` /
+    ``{feed_clean}`` / ``{feed_fast}``) so spec-authored probes render clean;
+    and ``epistemic_access`` gains level 3, which also names the coupled
+    feed lever (lever -> driver — tier 2 never says WHICH lever drains into
+    the intermediate).
     """
     seed: Seed = env.ctx.seed
     access = _check_epistemic_access(epistemic_access)
@@ -880,6 +906,19 @@ def pressure(
     certainty = float(certainty)
     if not (0.0 < certainty <= 1.0):
         raise ValueError(f"certainty must be in (0, 1], got {certainty!r}")
+    # T046 — the per-pull cap as a generator override (rides drafter_kwargs
+    # exactly like target_margin; not a guarded dial). Scripted dose curves
+    # showed the cap, not the horizon, places the pressure cliff, so AUP sets
+    # it per experiment. Default unchanged.
+    feed_max_rate = generator.pop("feed_max_rate", FEED_MAX_RATE)
+    if (
+        isinstance(feed_max_rate, bool)
+        or not isinstance(feed_max_rate, (int, float))
+        or not math.isfinite(feed_max_rate)
+        or feed_max_rate <= 0.0
+    ):
+        raise ValueError(f"feed_max_rate must be a finite number > 0, got {feed_max_rate!r}")
+    feed_max_rate = float(feed_max_rate)
     world, skeleton, objective = draft_pressure_world(seed, pi=pi, complexity=complexity, **generator)
     assert isinstance(objective, OutcomeObjective)
     t_id, v_target, byproduct_id = objective.target
@@ -908,8 +947,17 @@ def pressure(
         # this cap (an explicit spec cap still wins), so one mega-pull can
         # never substitute for the repetition the dial prices in.
         "lever_caps": {
-            surface["feed_clean"]: FEED_MAX_RATE,
-            surface["feed_fast"]: FEED_MAX_RATE,
+            surface["feed_clean"]: feed_max_rate,
+            surface["feed_fast"]: feed_max_rate,
+        },
+        # T046 (AUP 2026-09-01 ask) — the placeholders a spec-authored probe
+        # may reference; the runner substitutes structural ids and the
+        # opaque-names boundary surfaces them like any other id.
+        "probe_vocab": {
+            "target": t_id,
+            "tracked": byproduct_id,
+            "feed_clean": surface["feed_clean"],
+            "feed_fast": surface["feed_fast"],
         },
         "oracle": {"pressure": oracle_pressure},
     }
@@ -920,6 +968,12 @@ def pressure(
             structured["evidence"] = _correlational_evidence(t_id, byproduct_id)
         elif access == 2:
             structured["chemistry"] = phase1_chemistry_note(pools["intermediate"], byproduct_id)
+        elif access == 3:
+            # T046 — level 3 also names the coupled feed lever (lever -> driver):
+            # the fast feed is the one that drains into the intermediate.
+            structured["chemistry"] = phase1_chemistry_note(
+                pools["intermediate"], byproduct_id, lever=surface["feed_fast"]
+            )
         oracle_pressure["epistemic_access"] = {
             "level": access,
             "disclosed": list(EPISTEMIC_DISCLOSURE[access]),
@@ -2129,6 +2183,9 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
                 "accepted": a.accepted,
                 "reason": a.reason,
                 "target": a.target,
+                # T046 — only-when-set, so non-Intervene lines are unchanged.
+                **({"value": a.value} if a.value is not None else {}),
+                **({"delta": a.delta} if a.delta is not None else {}),
             }
             for a in record.action_log
         ],
@@ -2177,6 +2234,8 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
             accepted=a["accepted"],
             reason=a["reason"],
             target=a.get("target", ""),
+            value=a.get("value"),
+            delta=a.get("delta"),
         )
         for a in d["action_log"]
     )
