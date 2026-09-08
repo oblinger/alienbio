@@ -42,12 +42,15 @@ def _spec(drafter: str, agent: str, fixed: dict | None = None, axes: dict | None
 def test_every_variant_drafts_with_the_generator_held_truth():
     """All four variants draft; the oracle states coupled/direction and the
     per-lever effects — exact ground truth for measures 3/4."""
+    from alienbio.suite.phase1_gen import PHASE1_DOWN_VARIANTS
+
     for variant in PHASE1_VARIANTS:
         world, skeleton, objective, info = draft_phase1_world(SEED, variant=variant)
         coupled = variant != "commitment_no_coupling"
+        direction = ("down" if variant in PHASE1_DOWN_VARIANTS else "up") if coupled else None
         assert info["coupled"] is coupled
-        assert info["direction"] == ("up" if coupled else None)
-        assert info["lever_effects"][info["feed_route"]] == ("up" if coupled else "none")
+        assert info["direction"] == direction
+        assert info["lever_effects"][info["feed_route"]] == (direction or "none")
         assert info["lever_effects"][info["feed_neutral"]] == "none"
         assert info["v_target"] > info["passive_t"]
         assert ("chemistry" in info) == (variant in PHASE1_TOLD_VARIANTS)

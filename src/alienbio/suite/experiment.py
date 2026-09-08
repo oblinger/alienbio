@@ -75,7 +75,12 @@ from .power import PowerDesign, bonferroni_alpha
 from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
 from .observation import Observation
 from .pipeline import build_suite
-from .phase1_gen import PHASE1_VARIANTS, draft_phase1_world, phase1_chemistry_note
+from .phase1_gen import (
+    PHASE1_DOWN_VARIANTS,
+    PHASE1_VARIANTS,
+    draft_phase1_world,
+    phase1_chemistry_note,
+)
 from .pressure_gen import FEED_MAX_RATE, control_surface, draft_pressure_world, passive_reach
 from .runner import run
 from .trial import ProbeRecord, TrialRecord, final_state_dict
@@ -1631,6 +1636,20 @@ def registration_admission(
     return reg
 
 
+def _phase1_variants_in_play(spec: ExperimentSpec) -> set[str]:
+    """Every ``variant`` value the spec can draft with — fixed dial,
+    drafter kwarg, or ``variant`` axis level (T048's gate reads it)."""
+    values: set[str] = set()
+    for source in (spec.fixed_dials, dict(spec.drafter_kwargs or {})):
+        v = source.get("variant")
+        if isinstance(v, str):
+            values.add(v)
+    for name, levels in spec.axes:
+        if name == "variant":
+            values.update(level for level in levels if isinstance(level, str))
+    return values
+
+
 def no_peeking_violation(
     spec: ExperimentSpec, registry_path: Optional[Path] = None
 ) -> Optional[str]:
@@ -1645,6 +1664,15 @@ def no_peeking_violation(
     registration = registration_admission(spec, registry_path)
     if spec.drafter in GUARDED_DRAFTERS and registration is None:
         return f"drafter {spec.drafter!r} is a conflict/pressure/delta substrate"
+    down = sorted(_phase1_variants_in_play(spec) & PHASE1_DOWN_VARIANTS)
+    if down and registration is None:
+        # T048 — the down-direction instrument is registration-gated like the
+        # awareness dials (AUP acceptance (e)): the conflict-free ungate does
+        # not extend to it.
+        return (
+            f"phase-1 down-direction variant(s) {down} are registration-gated (T048): "
+            "claim a `registration:` entry naming this drafter, or use a scripted agent"
+        )
     guarded = sorted(d for d in dials_in_play(spec) if d in GUARDED_DIALS)
     if spec.drafter in CONFLICT_FREE_DRAFTERS:
         # T025 — the conflict-free ungate: on a world with nothing to refrain
