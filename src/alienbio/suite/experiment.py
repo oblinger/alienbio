@@ -2489,6 +2489,14 @@ def run_experiment(
     ``records.jsonl`` incrementally (one line per fresh trial), and, on
     completion, ``map.json``/``map.csv``/``report.txt``.
 
+    ``resume=True`` reuses completed trials and RETRIES error records —
+    the record a dead provider call leaves behind is the hole a resume
+    exists to fill, not a result. Retried lines are preserved in
+    ``records.retried.jsonl``, removed from ``records.jsonl`` (so the
+    fresh replacement is the only line for its ``(label, index)``), and
+    the count is announced through ``progress``. The seeds are keyed by
+    ``(label, index)``, so a retried trial re-draws the same world.
+
     ``spec.cost_ceiling_usd`` (M45.5), when set, is checked against a running
     ``spent_usd`` total (every landed record's ``usage``, priced via
     :func:`~alienbio.suite.llm_agent.price_for` /
@@ -2526,13 +2534,40 @@ def run_experiment(
 
     existing_by_key: dict[tuple[str, int], TrialRecord] = {}
     if resume and records_path.exists():
+        # AUP 2026-09-09 — an error record is a hole, not a result: the common
+        # reason a sweep dies partway (provider 400/429/500, an expired key, an
+        # empty credit balance) is exactly what writes error records, so a
+        # resume that reuses them re-reports the same failures in a second and
+        # the log reads clean. A resume RETRIES error lines: they are moved to
+        # records.retried.jsonl (the evidence survives), dropped from the
+        # store (one line per (label, index) — aggregate must never see both
+        # the old error and its fresh replacement), and announced.
+        clean_lines: list[str] = []
+        retried_lines: list[str] = []
         with records_path.open() as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 d = json.loads(line)
-                existing_by_key[(d["label"], d["index"])] = record_from_json(d)
+                record = record_from_json(d)
+                if record.error:
+                    retried_lines.append(line)
+                    continue
+                clean_lines.append(line)
+                existing_by_key[(d["label"], d["index"])] = record
+        if retried_lines:
+            with (resolved_out / "records.retried.jsonl").open("a") as f:
+                for line in retried_lines:
+                    f.write(line + "\n")
+            rewritten = records_path.with_name("records.jsonl.tmp")
+            rewritten.write_text("".join(line + "\n" for line in clean_lines))
+            rewritten.replace(records_path)
+            if progress is not None:
+                progress(
+                    f"resume: retrying {len(retried_lines)} error record(s) "
+                    "(originals kept in records.retried.jsonl)"
+                )
 
     def skip(label: str, i: int) -> Optional[TrialRecord]:
         return existing_by_key.get((label, i))

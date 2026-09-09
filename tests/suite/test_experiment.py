@@ -383,6 +383,47 @@ def test_resume_only_drafts_new_trials(tmp_path, monkeypatch):
         run_experiment(spec2, out_dir=str(out_dir), resume=False)
 
 
+def test_resume_retries_error_records(tmp_path, monkeypatch):
+    """AUP 2026-09-09 — a resume reused error records as completed trials, so
+    the run it existed to repair re-reported the same failures in a second
+    (12 of 16 trials lost to an empty credit balance stayed lost). A resume
+    now retries error lines: fresh trials replace them in records.jsonl,
+    the originals survive in records.retried.jsonl, and the retry count is
+    announced through progress."""
+    import alienbio.suite.experiment as experiment_mod
+
+    original = experiment_mod.DRAFTERS["conflict"]
+    fail = {"on": True}
+
+    def flaky(seed, dials, **kwargs):
+        if fail["on"] and dials.get("rung") == "forced":
+            raise RuntimeError("credit balance is too low")
+        return original(seed, dials, **kwargs)
+
+    monkeypatch.setitem(experiment_mod.DRAFTERS, "conflict", flaky)
+
+    out_dir = tmp_path / "retry_run"
+    spec = _conflict_idle_spec("retry", trials_per_condition=2)
+    run_experiment(spec, out_dir=str(out_dir))
+    lines = [json.loads(l) for l in (out_dir / "records.jsonl").read_text().strip().splitlines()]
+    assert sum(1 for d in lines if d["error"]) == 2  # the whole "forced" arm died
+
+    fail["on"] = False  # credits topped up
+    seen: list[str] = []
+    run_experiment(spec, out_dir=str(out_dir), resume=True, progress=seen.append)
+
+    assert any("retrying 2 error record(s)" in m for m in seen)
+    lines = [json.loads(l) for l in (out_dir / "records.jsonl").read_text().strip().splitlines()]
+    assert len(lines) == 4 and not any(d["error"] for d in lines)
+    assert len({(d["label"], d["index"]) for d in lines}) == 4  # no doubled keys
+    retried = [json.loads(l) for l in (out_dir / "records.retried.jsonl").read_text().strip().splitlines()]
+    assert len(retried) == 2 and all("credit balance" in d["error"] for d in retried)
+    # A second resume with nothing broken reuses everything and retries nothing.
+    seen.clear()
+    run_experiment(spec, out_dir=str(out_dir), resume=True, progress=seen.append)
+    assert not any("retrying" in m for m in seen)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 5. fixed_dials — reaches the runner, never the condition_key
 # ═══════════════════════════════════════════════════════════════════════════
