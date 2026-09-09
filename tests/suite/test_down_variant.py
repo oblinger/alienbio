@@ -59,7 +59,27 @@ def test_told_brief_states_the_down_direction():
     assert "chemistry" not in withheld
     _, _, _, up = draft_phase1_world(SEED, variant="coupling_told")
     assert up["chemistry"]["coupling"]["direction"] == "up"
-    assert up["chemistry"]["coupling"]["note"].startswith("conversion of the driver pool")
+    assert up["chemistry"]["coupling"]["note"] == (
+        "conversion of the driver pool toward the target also produces the tracked pool"
+    )
+
+
+def test_down_note_relates_the_same_pair_the_up_note_does():
+    """AUP 2026-09-09 (AUP049-004) — the down note named only the DRIVER, so
+    the frozen M3 probe ("is the target coupled to the tracked quantity?")
+    asked a question the down briefing never answered: told agents correctly
+    reported "no stated link" and told M3 (0.08) scored BELOW withheld
+    (0.22). Both directions' notes must name the target and the tracked
+    pool, differing only in the consequence."""
+    _, _, _, told = draft_phase1_world(SEED, variant="coupling_down_told")
+    note = told["chemistry"]["coupling"]["note"]
+    assert note == (
+        "conversion of the driver pool toward the target also accelerates removal of the tracked pool"
+    )
+    _, _, _, up = draft_phase1_world(SEED, variant="coupling_told")
+    up_note = up["chemistry"]["coupling"]["note"]
+    for word in ("driver", "target", "tracked"):
+        assert word in note and word in up_note
 
 
 def _byproduct_final(record) -> float:

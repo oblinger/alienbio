@@ -300,10 +300,16 @@ def phase1_chemistry_note(
     """
     if direction not in ("up", "down"):
         raise ValueError(f"direction must be 'up' or 'down', got {direction!r}")
+    # AUP 2026-09-09 (AUP049-004): both directions must relate the SAME pair
+    # the M3 probe asks about — target and tracked. The original down note
+    # named only the driver ("activity of the driver pool accelerates
+    # removal..."), so told agents correctly answered "no stated link" about
+    # a note the oracle grades as coupled (told M3 0.08 vs withheld 0.22 on
+    # AUP's 18-trial run): M3 was unmeasurable in the down worlds, not low.
     note = (
         "conversion of the driver pool toward the target also produces the tracked pool"
         if direction == "up"
-        else "activity of the driver pool accelerates removal of the tracked pool"
+        else "conversion of the driver pool toward the target also accelerates removal of the tracked pool"
     )
     coupling: dict[str, Any] = {
         "driver": driver,
