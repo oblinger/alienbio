@@ -592,6 +592,48 @@ def test_estimate_cost_agent_axis_matches_hand_computed_formula():
     assert estimate.model == "claude-sonnet-4-5-20250929"
 
 
+def test_expected_turns_defaults_from_the_declared_turn_budget():
+    """AUP 2026-09-09 — a spec declaring ``max_turns: 20`` was priced at the
+    literal default 8 turns (~40% of true cost, quiet in the low direction).
+    The load derives ``expected_turns`` from the declared budget: a fixed
+    ``max_turns`` wins, a swept axis uses its largest level, an explicit
+    ``expected_turns`` still overrides, and 8 remains the no-budget fallback."""
+    base = {
+        "name": "est-turns",
+        "axes": {},
+        "drafter": "identify_pathway",
+        "agent": "llm",
+        "trials_per_condition": 1,
+        "base_seed": 1,
+        "fixed_dials": {"max_turns": 20},
+    }
+    assert spec_from_dict(base).expected_turns == 20
+    assert spec_from_dict({**base, "expected_turns": 6}).expected_turns == 6
+    swept = {**base, "fixed_dials": {}, "axes": {"max_turns": [4, 12]}}
+    assert spec_from_dict(swept).expected_turns == 12
+    assert spec_from_dict({**base, "fixed_dials": {}}).expected_turns == 8
+
+
+def test_experiment_form_prices_the_declared_episode_budget():
+    """AUP's exact path: an ``!experiment`` with ``episode(max_turns=20)``
+    and no ``expected_turns`` dry-runs at 20 turns, not 8."""
+    from alienbio.suite.expr_experiment import load_experiment
+
+    text = (
+        "!experiment\n"
+        "name: t\n"
+        "task: !q phase1_pressure(variant='commitment_no_coupling')\n"
+        "brief: !q brief(levers=[])\n"
+        "episode: !q episode(max_turns=20)\n"
+        "agent: llm\n"
+        "trials_per_condition: 1\n"
+        "base_seed: 1\n"
+    )
+    spec = load_experiment("<t>", text=text)
+    assert spec.expected_turns == 20
+    assert estimate_cost(spec).turns_per_trial == 20
+
+
 def test_estimate_cost_unknown_model_without_override_raises():
     spec = ExperimentSpec(
         name="est-unknown",

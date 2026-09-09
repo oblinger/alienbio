@@ -142,6 +142,11 @@ class ExperimentSpec:
     fixed_dials: Mapping[str, Any] = field(default_factory=dict)
     out_dir: Optional[str] = None
     #: M45.5 — the cost ceiling + dry-run cost-estimate dials.
+    #: ``expected_turns`` is the dry-run turn count; :func:`spec_from_dict`
+    #: defaults it from a declared ``max_turns`` (fixed dial, or the largest
+    #: swept level) when the spec does not set it — the literal 8 is only
+    #: the no-budget-declared fallback. Set it explicitly for a spec whose
+    #: agent is expected to commit well before the budget.
     cost_ceiling_usd: Optional[float] = None
     price_usd_per_mtok: Optional[tuple[float, float]] = None
     expected_turns: int = 8
@@ -270,7 +275,10 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         out_dir=d.get("out_dir"),
         cost_ceiling_usd=_validate_cost_ceiling(d.get("cost_ceiling_usd")),
         price_usd_per_mtok=_validate_price_override(d.get("price_usd_per_mtok")),
-        expected_turns=_validate_positive_int("expected_turns", d.get("expected_turns", 8)),
+        expected_turns=_validate_positive_int(
+            "expected_turns",
+            d["expected_turns"] if d.get("expected_turns") is not None else _default_expected_turns(d.get("fixed_dials") or {}, axes),
+        ),
         expected_prompt_tokens=_validate_positive_int(
             "expected_prompt_tokens", d.get("expected_prompt_tokens", 1500)
         ),
@@ -298,6 +306,26 @@ def _validate_registration_id(value: Any) -> Optional[str]:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"experiment spec: registration must be a non-empty string id, got {value!r}")
     return value
+
+
+def _default_expected_turns(fixed_dials: Mapping[str, Any], axes: Sequence[tuple[str, tuple[Any, ...]]]) -> int:
+    """The dry-run turn count when the spec does not set ``expected_turns``:
+    the declared episode budget, not a constant. A fixed ``max_turns`` dial
+    wins; a swept ``max_turns`` axis uses its largest level (the estimate
+    should read high, not low); 8 only when no budget is declared at all.
+    AUP 2026-09-09: the constant-8 default priced a 20-turn episode at ~40%
+    of its true cost — quiet in exactly the direction an operator checks
+    before spending (``cost_ceiling_usd`` still stops a runaway mid-run;
+    what broke was planning)."""
+    fixed = fixed_dials.get("max_turns")
+    if isinstance(fixed, int) and not isinstance(fixed, bool) and fixed > 0:
+        return fixed
+    for name, levels in axes:
+        if name == "max_turns":
+            declared = [v for v in levels if isinstance(v, int) and not isinstance(v, bool) and v > 0]
+            if declared:
+                return max(declared)
+    return 8
 
 
 def _validate_matched_dials(value: Any, axes: Sequence[tuple[str, tuple[Any, ...]]]) -> tuple[str, ...]:
@@ -535,7 +563,9 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
     even attempted (an all-scripted spec never needs a known price).
 
     Per-trial input tokens (``P`` = ``expected_prompt_tokens``, ``T`` =
-    ``expected_turns``) depend on ``spec.memory``: ``"full"`` sums
+    ``expected_turns`` — defaulted at load from the spec's declared
+    ``max_turns``, so a 20-turn episode is priced at 20 turns unless the
+    spec overrides it) depend on ``spec.memory``: ``"full"`` sums
     ``P * (1 + t/2)`` over ``t`` in ``range(T)`` (each prior turn's history
     roughly adds half a turn's worth of tokens); ``"none"`` is flat ``P *
     T``; an ``int`` k is ``P * T * (1 + min(k, T-1)/2)``. Output tokens are
