@@ -23,6 +23,7 @@ from alienbio.suite.experiment import (
     estimate_cost,
     load_spec,
     no_peeking_violation,
+    unknown_dials_violation,
     render_report,
     run_experiment,
     spec_from_dict,
@@ -111,6 +112,8 @@ def _run(rest: list[str], verbose: bool) -> int:
         print(f"model: {spec.model}")
         print(f"out_dir: {resolved_out}")
         print("no-peeking: ok" if no_peeking_why is None else f"no-peeking: VIOLATION — {no_peeking_why}")
+        dial_problem = unknown_dials_violation(spec)
+        print("dials: ok" if dial_problem is None else f"dials: UNKNOWN — {dial_problem}")
         estimate = estimate_cost(spec)
         if estimate.llm_trials == 0:
             print("estimated cost: $0.00, no llm arm")

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import functools
 import inspect
 import json
 import math
@@ -45,7 +46,7 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping, NamedTuple, Optional, Protocol, Sequence, Union, cast
+from typing import Any, Callable, Iterable, Mapping, NamedTuple, Optional, Protocol, Sequence, Union, cast
 
 import yaml
 
@@ -1560,15 +1561,102 @@ def drafter_heads() -> dict[str, Head]:
     return {name: _registry.get(name) for name in _registry.names() if _registry.get(name).kind == "drafter"}
 
 
+#: Dial names read by the agent factory / the experiment itself rather than
+#: by a drafter, the brief or the episode (see :func:`runtime_dials`).
+_FACTORY_DIALS: frozenset[str] = frozenset(
+    {"agent", "model", "memory", "compact_at", "compact_budget", "history_token_limit"}
+)
+
+
+@functools.cache
+def runtime_dials() -> frozenset[str]:
+    """Every dial name the RUNTIME reads rather than a drafter: the ``brief``
+    and ``episode`` heads' keywords (``suite.expr_experiment`` — the one
+    declaration of the brief-side and episode-side dials, read here by
+    signature so the two cannot drift), :data:`WORLD_INVARIANT_DIALS` and
+    the agent-factory dials. Together with a drafter's own
+    :func:`dial_params` this is the whole set of names a dial vector may
+    carry; anything else is read by nobody (:func:`unknown_dials`)."""
+    from .expr_experiment import brief, episode
+
+    names: set[str] = set(WORLD_INVARIANT_DIALS) | set(_FACTORY_DIALS)
+    for fn in (brief, episode):
+        names.update(
+            name
+            for name, p in inspect.signature(fn).parameters.items()
+            if name not in ("env", "ctx") and p.kind is not inspect.Parameter.VAR_KEYWORD
+        )
+    return frozenset(names)
+
+
+def unknown_dials(drafter: str, names: Iterable[str]) -> list[str]:
+    """The dial ``names`` that neither drafter ``drafter`` nor the runtime
+    reads — sorted, empty when every name lands somewhere.
+
+    AUP 2026-09-10: ``DRAFTERS["pressure"](seed, {"pi": 0, "feed_max_rate":
+    6})`` drafted a world at cap 20 and said nothing — ``feed_max_rate`` is
+    a generator keyword (``drafter_kwargs`` / ``**generator``), not a dial,
+    and the adapter simply did not pass it. Four analysis scripts carried the
+    key on the wrong side; the numbers survived only because nothing read
+    the cap. A key nobody reads is refused, never dropped."""
+    head = _registry.get(drafter) if drafter in _registry else None
+    declared = set(dial_params(head)) if head is not None else set()
+    known = declared | runtime_dials()
+    return sorted(set(names) - known)
+
+
+def unknown_spec_dials(spec: ExperimentSpec) -> list[str]:
+    """:func:`unknown_dials` over everything ``spec`` puts in the dial vector:
+    its ``fixed_dials`` keys and its axis names."""
+    names = set(spec.fixed_dials) | {name for name, _levels in spec.axes}
+    return unknown_dials(spec.drafter, names)
+
+
+def unknown_dials_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why ``spec`` carries a dial nobody reads — ``None`` when it does not.
+    Checked before spend (``run_experiment``, ``bio suite run --dry``) so a
+    misplaced key refuses the run instead of becoming N error records."""
+    unknown = unknown_spec_dials(spec)
+    if not unknown:
+        return None
+    if spec.drafter in _registry:
+        return _unknown_dials_message(_registry.get(spec.drafter), unknown)
+    return f"{spec.drafter}: unknown dial(s) {unknown}"
+
+
+def _unknown_dials_message(head: Head, unknown: Sequence[str]) -> str:
+    takes_generator = any(
+        p.kind is inspect.Parameter.VAR_KEYWORD for p in inspect.signature(head.fn).parameters.values()
+    )
+    hint = (
+        f" Generator overrides (the {head.name} generator's own keywords, e.g. "
+        "feed_max_rate / target_margin on pressure) are not dials: pass them as "
+        "`drafter_kwargs:` in a spec or as keywords on DRAFTERS[...](seed, dials, **generator)."
+        if takes_generator
+        else ""
+    )
+    return (
+        f"{head.name}: unknown dial(s) {list(unknown)} — no drafter, brief, episode or "
+        f"agent setting reads them, so they would change nothing (refused rather than "
+        f"silently dropped). {head.name} reads dials {sorted(dial_params(head))}; the "
+        f"runtime reads {sorted(runtime_dials())}.{hint}"
+    )
+
+
 def _adapt(head: Head) -> DrafterFn:
     """A drafter head as a ``(seed, dials, **generator) -> (world, task)``
     callable: only the dials the head declares are passed (the merged dial
-    vector also carries the brief's), the seed rides on a standard ``Env``."""
+    vector also carries the brief's), the seed rides on a standard ``Env``.
+    A dial neither the head nor the runtime reads is refused
+    (:func:`unknown_dials`)."""
     params = dial_params(head)
 
     def drafter(seed: Seed, dials: Mapping[str, Any], **generator: Any) -> tuple[WorldImpl, TaskInstance]:
         from ..expr.env import Env
 
+        unknown = unknown_dials(head.name, dials)
+        if unknown:
+            raise ValueError(_unknown_dials_message(head, unknown))
         known = {k: dials[k] for k in params if k in dials}
         world, task = head.fn(**known, **generator, env=Env.standard(seed))
         if head.guarded:
@@ -2526,6 +2614,9 @@ def run_experiment(
     """
     registration_admission(spec)  # T030: any mismatched claim refuses here, before spend
     _guard_no_peeking(spec)
+    dial_problem = unknown_dials_violation(spec)
+    if dial_problem is not None:
+        raise ValueError(f"run_experiment: {dial_problem}")
     surface_problem = declared_surface_violation(spec)
     if surface_problem is not None:
         raise ValueError(f"run_experiment: {surface_problem}")
