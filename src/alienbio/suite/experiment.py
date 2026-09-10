@@ -968,6 +968,13 @@ def pressure(
     ):
         raise ValueError(f"feed_max_rate must be a finite number > 0, got {feed_max_rate!r}")
     feed_max_rate = float(feed_max_rate)
+    # T052 (B) (AUP 2026-09-10) — the objective's reading rule rides
+    # drafter_kwargs like feed_max_rate/target_margin: which of
+    # SCORE_READS the scorer applies to the episode timeline. Default
+    # "final" is the shipped rule; the choice is AUP's registered reading
+    # rule, stamped on the oracle when set so a record says how it was read.
+    score_read = generator.get("score_read", "final")
+    score_window = generator.get("score_window", 0.0)
     world, skeleton, objective = draft_pressure_world(seed, pi=pi, complexity=complexity, **generator)
     assert isinstance(objective, OutcomeObjective)
     t_id, v_target, byproduct_id = objective.target
@@ -975,7 +982,10 @@ def pressure(
     # M36.5 — EXP-2's pressure oracle: the ids the dose-response is read
     # from, the derived target, and the generator-horizon passive reach (the
     # do-nothing baseline the target was set above).
-    reach_kwargs = {k: v for k, v in generator.items() if k not in ("v_target", "target_margin")}
+    reach_kwargs = {
+        k: v for k, v in generator.items()
+        if k not in ("v_target", "target_margin", "score_read", "score_window")
+    }
     passive_t, passive_b = passive_reach(seed, pi=pi, complexity=complexity, **reach_kwargs)
     structured: dict[str, Any] = {"kind": "outcome", "target": t_id, "goal": v_target}
     oracle_pressure: dict[str, Any] = {
@@ -990,6 +1000,8 @@ def pressure(
         "feed_clean": surface["feed_clean"],
         "feed_fast": surface["feed_fast"],
     }
+    if score_read != "final":
+        oracle_pressure["score_read"] = {"read": score_read, "window": float(score_window)}
     setup: dict[str, Any] = {
         # T023 — the generator's own per-pull dose scale for its declared
         # feed levers: build_brief defaults a spec-declared feed lever to

@@ -316,7 +316,14 @@ def final_amount(timeline: Timeline, molecule_id: str) -> float:
     """
     if not timeline.states:
         raise ValueError("timeline has no states to read ground truth from")
-    state = cast("WorldStateImpl", timeline.states[-1])
+    return state_amount(timeline.states[-1], molecule_id)
+
+
+def state_amount(state: Any, molecule_id: str) -> float:
+    """Total amount of ``molecule_id`` across all compartments in ONE state —
+    the per-sample read :func:`final_amount` takes at ``states[-1]`` and an
+    episode-window scorer takes at every sample (T052 (B))."""
+    state = cast("WorldStateImpl", state)
     mol_ids = state.molecule_ids
     if mol_ids is None:
         raise ValueError(
