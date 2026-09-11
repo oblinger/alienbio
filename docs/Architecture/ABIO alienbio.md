@@ -1,100 +1,27 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO alienbio](hook://p/ABIO%20alienbio) 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO alienbio](ha://p/ABIO%20alienbio) 
 # alienbio
-**Topic**: [[ABIO Topics]] 
-Top-level module providing access to the alienbio runtime.
+**Topic**: ~~[[ABIO Topics]]~~ 
+The top-level package: what `import alienbio` gives you.
 
 ## Public API
 
-The `alienbio` module exports a curated set of symbols via `__all__`:
-
 ```python
-__all__ = [
-    "bio", "Bio",
-    "hydrate", "dehydrate",
-    "Entity", "Scenario", "Chemistry", "Simulator", "State",
-]
+from alienbio import (
+    Dat, Entity, IO, mk, Pegboard,
+    biotype, get_biotype,
+    Atom, Molecule, Reaction, Chemistry, Simulator,
+    AtomImpl, MoleculeImpl, ReactionImpl, ChemistryImpl,
+    WorldStateImpl, WorldSimulatorImpl,
+    COMMON_ATOMS, get_atom, config,
+)
 ```
 
-### Main API
+The first line is infrastructure, the second the `@biotype` registry, the third the Protocols, then the substrate. The instrument lives in `alienbio.suite` (`load_spec`, `run_experiment`, `DRAFTERS`, `AGENTS`, `render_report`) and the language in `alienbio.expr` (`Env`, `X`, `evaluate`, `fn`, `expander`, `guard`). The `bio` CLI fronts both — see [[ABIO Commands]].
 
-| Export | Type | Description |
-|--------|------|-------------|
-| `bio` | `Bio` | Module-level singleton for CLI and simple scripts |
-| `Bio` | class | Environment class for sandboxes and testing |
+## Entities and the anchor
 
-### Module-level Functions
+Every chemistry object is an `Entity` with a local name and a parent; `mk.M("A")` / `mk.R(...)` / `mk.C(...)` build them, minting a `MockDat` anchor outside a `with mk.anchor(target):` block. `alienbio.bio.io` is the IO attachment point: `None` until one is attached, and an entity that needs it before then raises rather than inventing one.
 
-| Export | Description |
-|--------|-------------|
-| `hydrate(data)` | Convert dict with `_type` to typed object (advanced) |
-| `dehydrate(obj)` | Convert typed object to dict with `_type` (advanced) |
+## What is not here
 
-### Core Protocols
-
-| Export | Description |
-|--------|-------------|
-| `Entity` | Base class for all hydratable types |
-| `Scenario` | Main runnable unit |
-| `Chemistry` | Molecule and reaction definitions |
-| `Simulator` | Simulation engine protocol |
-| `State` | Simulation state protocol |
-
-## Usage
-
-### Simple Usage (Singleton)
-
-```python
-from alienbio import bio
-
-# Fetch and run
-scenario = bio.fetch("catalog/scenarios/mutualism")
-result = bio.run("scenarios.baseline", seed=42)
-
-# Build without running
-built = bio.build("scenarios.test")
-```
-
-### Sandbox Usage (Instance)
-
-```python
-from alienbio import Bio
-
-# Create isolated environment
-sandbox = Bio()
-scenario = sandbox.fetch("catalog/scenarios/test")
-result = sandbox.run(scenario)
-```
-
-### Type Hints
-
-```python
-from alienbio import Entity, Scenario, Chemistry
-
-class MyEntity(Entity):
-    """Custom entity type."""
-    ...
-
-def process_scenario(s: Scenario) -> dict:
-    """Type-hinted function."""
-    ...
-```
-
-### Advanced: Implementation Classes
-
-Implementation classes are importable but NOT in `__all__`:
-
-```python
-from alienbio import ReferenceSimulatorImpl  # works
-from alienbio import *  # does NOT include ReferenceSimulatorImpl
-```
-
-## Star Import
-
-`from alienbio import *` imports only the curated public API — not implementation classes or internal utilities.
-
-## See Also
-
-- `bio suite` ([[ABIO Commands]]) — Bio class API and methods
-- [[Entity]] — Base class for hydratable types
-- [[ABIO Expr Python API]] — `@factory` and other decorators
-- [[ABIO DAT]] — dvc_dat integration for data storage
+The M1 scenario runtime (`bio.fetch / run / build` over `catalog/scenarios`, `Scenario`, the single-compartment `StateImpl` / `ReferenceSimulatorImpl`) was deleted in M47.7 and T056. There is one runtime — `run_experiment` over `catalog/experiments` — and one physics, the world simulator.

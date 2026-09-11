@@ -162,7 +162,7 @@ class Flow(Protocol):
 
     Flow hierarchy:
     - Flow (base): common interface for all flows
-    - MembraneFlow: transport across parent-child membrane with stoichiometry
+    - TransportFlux (bio.flow): amount-conserving transport between any two compartments
     - GeneralFlow: arbitrary state modifications (placeholder)
 
     Each flow is anchored to an origin compartment.
@@ -206,34 +206,10 @@ class Flow(Protocol):
 
 
 @runtime_checkable
-class MembraneFlow(Flow, Protocol):
-    """Protocol for membrane flows with stoichiometry.
-
-    Membrane flows transport molecules across the parent-child boundary.
-    Like reactions, they specify stoichiometry for multiple molecules
-    moving together per event.
-
-    Direction convention:
-    - Positive stoichiometry = molecules move INTO origin (from parent)
-    - Negative stoichiometry = molecules move OUT OF origin (into parent)
-    """
-
-    @property
-    def stoichiometry(self) -> Dict[str, float]:
-        """Molecules and counts moved per event {molecule: count}."""
-        ...
-
-    @property
-    def rate_constant(self) -> float:
-        """Base rate of events per unit time."""
-        ...
-
-
-@runtime_checkable
 class GeneralFlow(Flow, Protocol):
     """Protocol for general flows (placeholder).
 
-    GeneralFlow is a catch-all for flows that don't fit the MembraneFlow pattern.
+    GeneralFlow is a catch-all for flows that don't fit the TransportFlux pattern.
     This includes lateral flows, instance transfers, and arbitrary state edits.
 
     NOTE: This is a placeholder. Full implementation will require a more
@@ -405,60 +381,6 @@ class WorldState(Protocol):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # State (for single-compartment Chemistry simulations)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@runtime_checkable
-class State(Protocol):
-    """Protocol for single-compartment molecule concentration state.
-
-    Simple interface for simulations with one compartment.
-    For multi-compartment simulations, use WorldState instead.
-    """
-
-    @property
-    def chemistry(self) -> Chemistry:
-        """The Chemistry this state belongs to."""
-        ...
-
-    def __getitem__(self, key: str) -> float:
-        """Get concentration by molecule name."""
-        ...
-
-    def __setitem__(self, key: str, value: float) -> None:
-        """Set concentration by molecule name."""
-        ...
-
-    def __contains__(self, key: str) -> bool:
-        """Check if molecule exists in state."""
-        ...
-
-    def __iter__(self) -> Iterator[str]:
-        """Iterate over molecule names."""
-        ...
-
-    def __len__(self) -> int:
-        """Number of molecules in state."""
-        ...
-
-    def get(self, key: str, default: float = 0.0) -> float:
-        """Get concentration with default."""
-        ...
-
-    def get_molecule(self, molecule: Molecule) -> float:
-        """Get concentration by molecule object."""
-        ...
-
-    def set_molecule(self, molecule: Molecule, value: float) -> None:
-        """Set concentration by molecule object."""
-        ...
-
-    def copy(self) -> State:
-        """Create a copy of this state."""
-        ...
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Simulation
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class Simulator(Protocol):

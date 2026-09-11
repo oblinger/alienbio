@@ -134,14 +134,30 @@ def _where(f: Callable[..., Any]) -> str:
 
 def _same_definition(a: Callable[..., Any], b: Callable[..., Any]) -> bool:
     """The same def re-executed — a module re-import, or one helper file
-    copied verbatim across catalog examples — is not a collision: same
-    module and qualified name AND the same compiled body."""
+    copied verbatim across catalog examples — is not a collision: the same
+    module and qualified name AND either the same source location or the
+    same source text. (Bytecode equality is not used: a coverage tracer
+    makes two loads of one file compare unequal.)"""
     if _where(a) != _where(b) or getattr(a, "__module__", None) is None:
         return False
     ca, cb = getattr(a, "__code__", None), getattr(b, "__code__", None)
     if ca is None or cb is None:
         return True
-    return ca.co_code == cb.co_code and ca.co_consts == cb.co_consts and ca.co_names == cb.co_names
+    if ca.co_filename == cb.co_filename and ca.co_firstlineno == cb.co_firstlineno:
+        return True
+    try:
+        return _body(a) == _body(b)
+    except (OSError, TypeError):
+        return False
+
+
+def _body(f: Callable[..., Any]) -> str:
+    """A function's source with its decorator lines dropped — two catalog
+    examples carrying one helper verbatim may differ only in the summary."""
+    lines = inspect.getsource(f).splitlines()
+    while lines and lines[0].lstrip().startswith("@"):
+        lines.pop(0)
+    return "\n".join(lines)
 
 
 #: The one registry.

@@ -1,12 +1,12 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO biology](hook://p/ABIO%20biology) 
- [[ABIO Architecture Docs]]
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO biology](ha://p/ABIO%20biology) 
+ [[ABIO Architecture Docs]] 
 
 # ABIO biology
 Molecules, reactions, pathways, containers, and their generators.
 
 ## Generators
 Base protocols for synthetic biology factories.
-- **[[Generator]]** - Base protocol for factories that produce synthetic biology components.
+- **~~[[Generator]]~~** - Base protocol for factories that produce synthetic biology components.
 
 ## Atoms and Molecules
 Chemical elements and compounds in the alien biology.
@@ -36,7 +36,5 @@ Nestable biological structures from organelles to organisms. All are Entity subc
 Multi-compartment simulation with reactions within compartments and flows across membranes.
 - **[[ABIO WorldState]]** - Dense concentration storage: `[num_compartments × num_molecules]` array. GPU-friendly, O(1) access.
 - **[[ABIO CompartmentTree]]** - Hierarchical topology of compartments. Stores parent-child relationships, separated from concentrations.
-- **[[ABIO Flow]]** - Membrane transport between compartments. Moves molecules across parent-child boundaries (diffusion, active transport).
+- **[[ABIO Flow]]** - Transport between compartments: `TransportFlux` (amount-conserving, between any two compartments) and `GeneralFlow`.
 - **[[ABIO WorldSimulator]]** - Multi-compartment simulation engine. Applies reactions within compartments, flows across membranes.
-- **[[Simulator]]** - Legacy single-compartment simulator. See WorldSimulator for multi-compartment simulations.
-- **[[State]]** - Legacy single-compartment concentrations. See WorldState for multi-compartment storage.

@@ -1,14 +1,19 @@
 """H4: order-independent simultaneous reaction extent.
 
-The three simulators (ReferenceSimulatorImpl, WorldSimulatorImpl, and the JAX
-core via JaxWorldSimulator) apply every reaction's extent from the SAME frozen
-start-of-step state and ration shared reactants by single-pass proportional
-min-ratio scaling. This module pins the four H4 properties:
+The two simulators (WorldSimulatorImpl and the JAX core via JaxWorldSimulator)
+apply every reaction's extent from the SAME frozen start-of-step state and
+ration shared reactants by single-pass proportional min-ratio scaling. This
+module pins the four H4 properties:
 
   * order-independence   -- permuting the reaction list changes nothing
   * non-negativity        -- competing reactions never drive a species negative
   * mass conservation     -- total is non-increasing through depletion
-  * cross-sim agreement   -- all three sims agree on the same chemistry
+  * cross-sim agreement   -- both sims agree on the same chemistry
+
+The M1 single-compartment ``ReferenceSimulatorImpl`` used to be the third arm;
+T056 deleted it (a different physics that only "agreed" because these tests
+hand-coded mass action into its callable rate). ``build_reference`` now names
+the world simulator on a single root, addressed by molecule name.
 """
 
 from __future__ import annotations
@@ -17,11 +22,6 @@ import itertools
 
 import pytest
 
-from alienbio.bio.molecule import MoleculeImpl
-from alienbio.bio.reaction import ReactionImpl
-from alienbio.bio.chemistry import ChemistryImpl
-from alienbio.bio.state import StateImpl
-from alienbio.bio.simulator import ReferenceSimulatorImpl
 from alienbio.bio.compartment_tree import CompartmentTreeImpl
 from alienbio.bio.world_state import WorldStateImpl
 from alienbio.bio.world_simulator import ReactionSpec, WorldSimulatorImpl
@@ -34,11 +34,6 @@ except ImportError:
     HAS_JAX = False
 
 
-class MockDat:
-    def __init__(self, path: str):
-        self.path = path
-
-
 # A reaction described independently of any simulator:
 #   reactants / products : {molecule_name: stoich}, k : rate constant.
 class RxnSpec:
@@ -49,35 +44,31 @@ class RxnSpec:
         self.k = k
 
 
-def _mass_action_rate(reactants, k):
-    """Callable mass-action rate for the Chemistry/Reference path, matching the
-    ID-based world/JAX sims (rate = k * Π conc**stoich)."""
+class _Named:
+    """A single-root world state addressed by molecule name, so the H4 tests
+    read as they did against the M1 single-compartment state."""
 
-    def rate(state):
-        v = k
-        for name, coef in reactants.items():
-            v *= state[name] ** coef
-        return v
+    def __init__(self, state, mol_to_id):
+        self._state, self._ids = state, mol_to_id
 
-    return rate
+    def __getitem__(self, name):
+        return self._state.get(0, self._ids[name])
+
+
+class _NamedSim:
+    def __init__(self, sim, mol_to_id):
+        self._sim, self._ids = sim, mol_to_id
+
+    def step(self, named):
+        return _Named(self._sim.step(named._state), self._ids)
+
+    def run(self, named, steps):
+        return [_Named(s, self._ids) for s in self._sim.run(named._state, steps=steps)]
 
 
 def build_reference(mol_names, rxns, initial, dt):
-    mols = {n: MoleculeImpl(n, dat=MockDat(f"mol/{n}")) for n in mol_names}
-    reactions = {}
-    for r in rxns:
-        reactions[r.name] = ReactionImpl(
-            r.name,
-            reactants={mols[n]: c for n, c in r.reactants.items()},
-            products={mols[n]: c for n, c in r.products.items()},
-            rate=_mass_action_rate(r.reactants, r.k),
-            dat=MockDat(f"rxn/{r.name}"),
-        )
-    chem = ChemistryImpl(
-        "test", molecules=mols, reactions=reactions, dat=MockDat("chem/test")
-    )
-    state = StateImpl(chem, initial=dict(initial))
-    return ReferenceSimulatorImpl(chem, dt=dt), state
+    sim, state, mol_to_id = build_world(mol_names, rxns, initial, dt)
+    return _NamedSim(sim, mol_to_id), _Named(state, mol_to_id)
 
 
 def build_world(mol_names, rxns, initial, dt):
@@ -287,7 +278,7 @@ class TestMassConservation:
 
 @pytest.mark.skipif(not HAS_JAX, reason="JAX not installed")
 class TestCrossSimAgreement:
-    """Reference, World, and JAX now agree on the same chemistry (H4)."""
+    """The name-addressed world, the id-addressed world, and JAX agree on the same chemistry (H4)."""
 
     def _agree(self, mol_names, rxns, initial, steps, dt=1.0, tol=1e-6):
         ref_sim, ref_state = build_reference(mol_names, rxns, initial, dt)

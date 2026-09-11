@@ -5,7 +5,8 @@ The framework is the ``suite`` package (worlds, tasks, briefs, the runner, the
 experiment harness) over the ``bio`` core (chemistry, compartments, the
 simulators), written in the ``expr`` language (``alienbio.expr``). The M1
 scenario runtime (``Bio.build`` / ``run``, ``@action`` / ``@measurement``)
-was deleted in M47.7 — there is one runtime.
+was deleted in M47.7 and its single-compartment simulator, agent/task layer
+and analysis modules in T056 — there is one runtime and one physics.
 """
 
 from dvc_dat import Dat
@@ -22,15 +23,13 @@ from .bio import (
     Molecule,
     Reaction,
     Chemistry,
-    State,
     Simulator,
     AtomImpl,
     MoleculeImpl,
     ReactionImpl,
     ChemistryImpl,
-    StateImpl,
-    ReferenceSimulatorImpl,
-    SimulatorBase,
+    WorldStateImpl,
+    WorldSimulatorImpl,
     COMMON_ATOMS,
     get_atom,
 )
@@ -51,15 +50,13 @@ __all__ = [
     "Molecule",
     "Reaction",
     "Chemistry",
-    "State",
     "Simulator",
     "AtomImpl",
     "MoleculeImpl",
     "ReactionImpl",
     "ChemistryImpl",
-    "StateImpl",
-    "ReferenceSimulatorImpl",
-    "SimulatorBase",
+    "WorldStateImpl",
+    "WorldSimulatorImpl",
     "COMMON_ATOMS",
     "get_atom",
     "config",

@@ -316,14 +316,16 @@ class TestWorldSimulator:
         assert sim.num_molecules == 2
         assert len(sim.reactions) == 1
 
-    def test_from_chemistry_warns_on_callable_rate(self, caplog):
-        """H5: a callable rate law is downgraded to 1.0 with a loud warning."""
+    def test_from_chemistry_refuses_a_non_numeric_rate(self):
+        """T056: a callable rate was the M1 single-compartment simulator's. It
+        used to be DOWNGRADED to mass-action 1.0 with a warning — a silently
+        wrong world; now it refuses. A rate law is `rate_law`."""
         carbon = AtomImpl("C", name="Carbon", atomic_weight=12.0)
         a = MoleculeImpl("A", atoms={carbon: 1}, bdepth=0, dat=MockDat("mol/A"))
         b = MoleculeImpl("B", atoms={carbon: 2}, bdepth=0, dat=MockDat("mol/B"))
         r1 = ReactionImpl(
             "r1", reactants={a: 1.0}, products={b: 1.0},
-            rate=lambda state: 0.5,
+            rate=lambda state: 0.5,  # type: ignore[arg-type]
             dat=MockDat("rxn/r1"),
         )
         chem = ChemistryImpl(
@@ -335,14 +337,8 @@ class TestWorldSimulator:
         tree = CompartmentTreeImpl()
         tree.add_root("organism")
 
-        with caplog.at_level("WARNING"):
-            sim = WorldSimulatorImpl.from_chemistry(chem, tree, dt=0.1)
-
-        assert sim.reactions[0].rate_constant == 1.0
-        assert any(
-            "r1" in record.message and "callable rate" in record.message
-            for record in caplog.records
-        )
+        with pytest.raises(ValueError, match="rate must be a number"):
+            WorldSimulatorImpl.from_chemistry(chem, tree, dt=0.1)
 
     def test_from_chemistry_unknown_reactant_raises(self):
         """M8: a reaction referencing a molecule not in chemistry.molecules raises."""

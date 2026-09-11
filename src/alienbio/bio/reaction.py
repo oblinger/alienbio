@@ -10,12 +10,11 @@ from ..infra.entity import DatLike, Entity
 if TYPE_CHECKING:
     from dvc_dat import Dat
     from .molecule import MoleculeImpl
-    from .state import StateImpl
 
 
-# Rate can be a constant or a function of state
-RateFunction = Callable[["StateImpl"], float]
-RateValue = Union[float, RateFunction]
+#: A reaction's rate constant. (A callable rate was the M1 single-compartment
+#: simulator's; the world simulator compiles ``rate_law`` trees — T056.)
+RateValue = float
 
 
 @dataclass(frozen=True)
@@ -304,19 +303,6 @@ class ReactionImpl(Entity, head="Reaction"):
         """Set the reaction rate."""
         self._rate = rate
 
-    def get_rate(self, state: StateImpl) -> float:
-        """Get the effective rate for a given state.
-
-        Args:
-            state: Current system state
-
-        Returns:
-            Rate value (calls rate function if rate is callable)
-        """
-        if callable(self._rate):
-            return self._rate(state)
-        return self._rate
-
     def add_reactant(self, molecule: MoleculeImpl, coefficient: float = 1.0) -> None:
         """Add a reactant to this reaction."""
         self._reactants[molecule] = coefficient
@@ -352,9 +338,7 @@ class ReactionImpl(Entity, head="Reaction"):
                 for mol, role in self._modifiers.items()
             }
 
-        # Only serialize rate if it's a constant
-        if not callable(self._rate):
-            result["rate"] = self._rate
+        result["rate"] = self._rate
         if self._rate_law is not None:
             from .rate_expr import to_json
 
@@ -372,7 +356,7 @@ class ReactionImpl(Entity, head="Reaction"):
             f"{c}{m.local_name}" if c != 1 else m.local_name
             for m, c in self._products.items()
         )
-        rate_str = "<fn>" if callable(self._rate) else str(self._rate)
+        rate_str = str(self._rate)
         arrow = "->"
         if self._modifiers:
             mod_str = ", ".join(

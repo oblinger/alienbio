@@ -1,5 +1,5 @@
 :>> [[ABIO]] → [[ABIO Docs]] → [ABIO WorldSimulator](hook://p/ABIO%20WorldSimulator) 
- [[ABIO Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # WorldSimulator
 
@@ -200,4 +200,3 @@ class Simulator(Protocol):
 - [[ABIO CompartmentTree]] - Compartment topology
 - [[ABIO Flow]] - Membrane transport
 - [[ABIO Reaction]] - Chemical transformations
-- [[Simulator]] - Legacy single-compartment simulator

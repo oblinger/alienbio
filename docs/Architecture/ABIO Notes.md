@@ -1,5 +1,7 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Notes](hook://p/ABIO%20Notes) 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Notes](ha://p/ABIO%20Notes) 
 # ABIO MISCELLANEOUS NOTES
+
+> Design notes from the M1 era (2026-01 to 2026-02), kept as history. The `bio build|run` verbs, `BioSystem`, `AgentSession` and the scenario runtime they discuss were deleted in M47.7 and T056; the shipped design is [[ABIO Architecture]].
 
 
 ## 2026-01-31 DAT Refactor Idea
@@ -104,7 +106,7 @@ How should the LLM interact with the testbed?
 - **Direct API** — Python function calls, agent receives function signatures
 - **Chat-based** — Natural language commands parsed by the system
 
-Already designed in [[Agent Interface]]:
+Already designed in ~~[[Agent Interface]]~~:
 - Pure Python `AgentSession` with `observe()`, `act()`, `is_done()`
 - `ConversationalLLMAgent` converts to tool/function calls (works with Claude, OpenAI, etc.)
 - Timeline model: actions have initiation time + duration
@@ -121,7 +123,7 @@ How should world state be presented to the LLM?
 - **Structured summary** — Formatted text with sections (Molecules, Reactions, etc.)
 - **Natural language** — "The cell contains glucose (5.2 units), ATP (3.1 units)..."
 
-Already implemented in [[Agent Interface]] `_format_observation()`:
+Already implemented in ~~[[Agent Interface]]~~ `_format_observation()`:
 - Markdown headers for sections ("## Current Observations")
 - Key-value pairs for state (`molecule: concentration`)
 - Nested dicts shown with indentation
@@ -150,7 +152,7 @@ When should we use opaque names (M1, M2, RX7) vs descriptive names (glucose, ATP
 - **Progressive** — Start descriptive (H1-H3), switch to opaque (H4-H5)
 - **Variant-based** — Each test has both variants for comparison
 
-**Decision**: Use **visibility mapping** (aka "skinning") — already designed in [[Generator Spec#Visibility Specification]].
+**Decision**: Use **visibility mapping** (aka "skinning") — already designed in ~~[[Generator Spec#Visibility Specification]]~~.
 
 The system maintains:
 - **Ground truth** — Internal descriptive names (`m.krel.energy.M1`, `r.krel.pathway1.build`)
@@ -172,7 +174,7 @@ How many API calls / tool invocations constitute a "fair" test?
 - **Cost-based** — Actions have costs, total budget in "units"
 - **Time-based** — Wall-clock or token limit
 
-**Decision**: Use **dual budgets** — already designed in [[Agent Interface#Termination Conditions]].
+**Decision**: Use **dual budgets** — already designed in ~~[[Agent Interface#Termination Conditions]]~~.
 
 Two independent limits per scenario:
 - `action.limits.budget` — Cost budget (total action/measurement costs)
@@ -191,7 +193,7 @@ What non-LLM baselines should we include for comparison?
 - **Greedy** — Simple heuristic (e.g., always add the target molecule)
 - **Human** — Interactive CLI for researcher baseline
 
-Already implemented in [[Agent Interface]]:
+Already implemented in ~~[[Agent Interface]]~~:
 - `RandomAgent` — random valid actions, seeded
 - `OracleAgent` — computes optimal policy from ground truth
 - `ScriptedAgent` — follows predefined action sequence
@@ -209,7 +211,7 @@ How do we evaluate free-form responses without using another LLM?
 - **Keyword matching** — Check for presence of key terms
 - **Numerical only** — All answers are numbers with tolerance
 
-**Decision**: **No direct response evaluation** — already designed in [[Agent Interface]].
+**Decision**: **No direct response evaluation** — already designed in ~~[[Agent Interface]]~~.
 
 We don't evaluate what the agent *says*. We evaluate what happens in the *simulation*:
 - Agent interacts with simulation through actions/measurements
@@ -366,7 +368,7 @@ Other operations (report, query, etc.) are just bio commands that can appear in 
 
 "run" is overloaded:
 - DAT has a `.run()` method
-- Spec has a `run:` section  
+- Spec has a `run:` section
 - Bio CLI has `bio run`
 
 Options:

@@ -1,5 +1,5 @@
 :>> [[ABIO]] → [[ABIO Docs]] → [ABIO WorldState](hook://p/ABIO%20WorldState) 
- [[ABIO Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # WorldState
 
@@ -153,4 +153,3 @@ class WorldState(Protocol):
 - [[ABIO CompartmentTree]] - Compartment topology
 - [[ABIO Flow]] - Transport between compartments
 - [[ABIO WorldSimulator]] - Multi-compartment simulation
-- [[State]] - Legacy single-compartment state

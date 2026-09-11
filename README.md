@@ -10,7 +10,7 @@ A framework for testing agentic AI reasoning through procedurally generated biol
 
 ## Documentation
 
-- **[Demos](https://oblinger.github.io/abio-docs/demos/index.html)** - Interactive demonstrations with notebooks, scripts, and output
+- **[Demos](https://oblinger.github.io/abio-docs/demos/index.html)** - The M1-era demo gallery (rendered notebooks and figures, kept as history)
 - **[User Guide](https://oblinger.github.io/abio-docs/Alienbio%20User%20Guide/Alienbio%20User%20Guide.html)** - Core specs, generators, execution, and agent interface
 - **[Architecture](https://oblinger.github.io/abio-docs/architecture/Architecture%20Docs.html)** - System architecture, data model, and protocols
 - **[API Reference](https://oblinger.github.io/abio-docs/api/index.html)** - Auto-generated Python API docs

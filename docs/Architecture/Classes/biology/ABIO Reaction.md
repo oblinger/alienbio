@@ -1,5 +1,5 @@
 :>> [[ABIO]] → [[ABIO Docs]] → [ABIO Reaction](hook://p/ABIO%20Reaction) 
- [[ABIO Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # Reaction
 
@@ -198,7 +198,7 @@ class Reaction(Protocol):
 ## See Also
 - [[ABIO Molecule]] - Reactants and products
 - [[ABIO Chemistry]] - Container for reactions
-- [[State]] - Molecule concentrations for rate functions
-- [[Simulator]] - Applies reactions to advance state
+- [[ABIO WorldState]] - Molecule concentrations per compartment
+- [[ABIO WorldSimulator]] - Applies reactions to advance state
 - [[ABIO ReactionGenerator]] - Factory for reactions
 - [[ABIO Pathway]] - Connected reaction sequences

@@ -193,27 +193,3 @@ def validate_expression(source: str) -> ast.Expression:
     for node in ast.walk(tree):
         _validate_node(node)
     return tree
-
-
-def safe_eval(source: str, namespace: dict[str, Any]) -> Any:
-    """Safely evaluate a spec expression.
-
-    The expression is validated against the AST allowlist, then executed with
-    an empty ``__builtins__`` and ``namespace`` as the only available names.
-
-    Args:
-        source: Python expression string from an (untrusted) spec.
-        namespace: Allowlisted names available to the expression.
-
-    Returns:
-        The result of evaluating the expression.
-
-    Raises:
-        SyntaxError: Invalid expression syntax.
-        UnsafeExpressionError: Expression uses a forbidden construct.
-        Exception: Ordinary runtime errors (NameError, ZeroDivisionError, ...)
-            propagate unchanged.
-    """
-    tree = validate_expression(source)
-    code = compile(tree, "<spec>", "eval")
-    return eval(code, {"__builtins__": {}}, namespace)

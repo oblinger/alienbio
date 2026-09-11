@@ -1,33 +1,25 @@
-"""Bio module: core biology classes for alienbio.
+"""Bio module: the chemistry substrate alienbio's instrument runs on.
 
-This module defines the fundamental biology abstractions:
-
-Protocols (for type hints) - from alienbio.protocols.bio:
-- Atom: protocol for atomic elements
-- Molecule: protocol for molecule entities
-- Reaction: protocol for reaction entities
-- Flow: protocol for transport between compartments
-- Chemistry: protocol for chemistry containers
-- CompartmentTree: protocol for compartment topology
-- WorldState: protocol for multi-compartment concentrations
-- State: protocol for single-compartment concentrations
-- Simulator: protocol for simulators
+Protocols (for type hints) — from ``alienbio.protocols.bio``; the
+implementations conform under ``pyright src/`` (``protocols/_conformance``):
+- Atom, Molecule, Reaction, Chemistry: the entities
+- Flow: transport between compartments (``TransportFlux``, ``GeneralFlow``)
+- CompartmentTree, WorldState: topology and the dense multi-compartment store
+- Simulator: the reference and JAX steppers, which must agree to 1e-9
 
 Implementations:
-- AtomImpl: chemical elements with symbol, name, atomic_weight
-- MoleculeImpl: composed of atoms with bdepth, name, derived symbol/weight
-- ReactionImpl: transformations between molecules with rates
-- Flow hierarchy:
-  - Flow: abstract base class for all flows
-  - MembraneFlow: transport across parent-child membrane with stoichiometry
-  - GeneralFlow: arbitrary state modifications (placeholder, needs interpreter)
-- ChemistryImpl: container for atoms, molecules, and reactions
-- CompartmentImpl: biological compartment with flows, concentrations, reactions
-- CompartmentTreeImpl: hierarchical compartment topology (simulation)
-- WorldStateImpl: multi-compartment concentration storage (simulation)
-- StateImpl: single-compartment concentrations
-- ReferenceSimulatorImpl: basic single-compartment simulator
-- WorldSimulatorImpl: multi-compartment simulator with flows
+- AtomImpl, MoleculeImpl, ReactionImpl (+ Modulation), ChemistryImpl
+- CompartmentImpl, CompartmentTreeImpl, WorldStateImpl
+- WorldImpl: the declarative world and its single resolution point
+- WorldSimulatorImpl / ReactionSpec, and ``jax_simulator.JaxWorldSimulator``
+- TransportFlux, GeneralFlow; PerCapitaGrowth / PerCapitaDeath / CountFlow
+- conservation / energy canaries, the compiled rate grammar (``rate_expr``)
+
+The M1 single-compartment runtime that used to live beside these
+(``ReferenceSimulatorImpl``, ``BioSystem``, ``StateImpl``, the agent/task
+layer, equilibrium/perturbation/quiescence analysis, ``MembraneFlow``) was
+deleted in T056 (2026-09-10): it ran a different physics from the world
+simulator and nothing on the instrument's path imported it.
 """
 
 # Protocols (for type hints) - from central protocols module
@@ -39,11 +31,9 @@ from ..protocols.bio import (
     Atom,
     Molecule,
     Reaction,
-    Flow,
     Chemistry,
     CompartmentTree,
     WorldState,
-    State,
     Simulator,
 )
 
@@ -58,108 +48,23 @@ from . import makers as _makers  # noqa: F401 - registers mk.M / mk.R / mk.C on 
 from .atom import AtomImpl, COMMON_ATOMS, get_atom
 from .molecule import MoleculeImpl
 
-# Implementation classes - reactions and flows
+# Implementation classes - reactions and flows. `Flow` here is the ABC every
+# flow subclasses (the Protocol of the same name is `protocols.bio.Flow`;
+# re-exporting both under one name shadowed the Protocol — T054/T056).
 from .reaction import ReactionImpl, Modulation
-from .flow import Flow, MembraneFlow, GeneralFlow
+from .flow import Flow, GeneralFlow, TransportFlux
 
 # Implementation classes - containers and compartments
 from .chemistry import ChemistryImpl
 from .compartment import CompartmentImpl
 from .compartment_tree import CompartmentTreeImpl
 
-# Implementation classes - state
+# Implementation classes - the world store and simulation
 from .world_state import WorldStateImpl
-from .state import StateImpl
-
-# Implementation classes - simulation
-from .simulator import ReferenceSimulatorImpl, SimulatorBase
 from .world_simulator import WorldSimulatorImpl, ReactionSpec
 
-# Implementation classes - system assembly
-from .biosystem import BioSystem
-
-# Equilibrium analysis
-from .equilibrium import (
-    StabilityResult,
-    HomeostasisTarget,
-    compute_variance,
-    check_stability,
-    run_to_equilibrium,
-    find_unstable_rates,
-    check_homeostasis,
-)
-
-# Agent interface (M7.3)
-from .agent_interface import AgentInterface
-
-# Measurements (M7.1)
-from .measurements import (
-    MeasurementSpec,
-    ConcentrationMeasurement,
-    AllConcentrationsMeasurement,
-    RateMeasurement,
-    MoleculeCountMeasurement,
-    ReactionCountMeasurement,
-)
-
-# Actions (M7.2)
-from .actions import (
-    ActionSpec,
-    AddMoleculeAction,
-    RemoveMoleculeAction,
-    SetConcentrationAction,
-    AdjustRateAction,
-)
-
-# Task framework (M8)
-from .task import Task, PredictTask, TaskResult
-from .experiment import ExperimentResult, run_experiment
-
-# Diagnosis and cure tasks (M11)
-from .diagnosis import DiagnoseTask, CureTask
-
-# Difficulty scaling (M11.3)
-from .difficulty import generate_diagnosis_task
-
-# Quiescence detection
-from .quiescence import QuiescenceTimeout, run_until_quiet
-
-# Skinning (M14)
-from .skinning import (
-    generate_alien_name,
-    generate_description,
-    generate_name_map,
-    skin_task_description,
-    check_no_earth_terms,
-)
-
-# Disease and variation (M10)
-from .disease import (
-    HealthRange,
-    Baseline,
-    Perturbation,
-    Symptom,
-    measure_baseline,
-    generate_perturbations,
-    detect_symptoms,
-)
-
-# Organ generator (M9.2)
-from .organ_generator import (
-    OrganSpec,
-    TransportLink,
-    Organism,
-    generate_organism,
-)
-
-# Perturbation analysis
-from .perturbation import (
-    PerturbationResult,
-    DriftResult,
-    inject_spike,
-    remove_reaction_drift,
-    measure_intervention_response,
-)
+# Population laws (F017)
+from .population import CountFlow, PerCapitaDeath, PerCapitaGrowth, PopulationLaw
 
 __all__ = [
     # Type aliases
@@ -169,93 +74,28 @@ __all__ = [
     "Atom",
     "Molecule",
     "Reaction",
-    "Flow",
     "Chemistry",
     "CompartmentTree",
     "WorldState",
-    "State",
     "Simulator",
     # Implementation classes
     "AtomImpl",
     "MoleculeImpl",
     "ReactionImpl",
     "Modulation",
-    "MembraneFlow",
+    "Flow",
     "GeneralFlow",
+    "TransportFlux",
     "ChemistryImpl",
     "CompartmentImpl",
     "CompartmentTreeImpl",
     "WorldStateImpl",
-    "StateImpl",
-    "ReferenceSimulatorImpl",
     "WorldSimulatorImpl",
     "ReactionSpec",
-    # Abstract base for subclassing
-    "SimulatorBase",
-    # System assembly
-    "BioSystem",
-    # Equilibrium analysis
-    "StabilityResult",
-    "HomeostasisTarget",
-    "compute_variance",
-    "check_stability",
-    "run_to_equilibrium",
-    "find_unstable_rates",
-    "check_homeostasis",
-    # Perturbation analysis
-    "PerturbationResult",
-    "DriftResult",
-    "inject_spike",
-    "remove_reaction_drift",
-    "measure_intervention_response",
-    # Measurements
-    "MeasurementSpec",
-    "ConcentrationMeasurement",
-    "AllConcentrationsMeasurement",
-    "RateMeasurement",
-    "MoleculeCountMeasurement",
-    "ReactionCountMeasurement",
-    # Actions
-    "ActionSpec",
-    "AddMoleculeAction",
-    "RemoveMoleculeAction",
-    "SetConcentrationAction",
-    "AdjustRateAction",
-    # Agent interface
-    "AgentInterface",
-    # Task framework
-    "Task",
-    "PredictTask",
-    "TaskResult",
-    "ExperimentResult",
-    "run_experiment",
-    # Diagnosis and cure tasks
-    "DiagnoseTask",
-    "CureTask",
-    # Disease and variation
-    "HealthRange",
-    "Baseline",
-    "Perturbation",
-    "Symptom",
-    "measure_baseline",
-    "generate_perturbations",
-    "detect_symptoms",
-    # Difficulty scaling
-    "generate_diagnosis_task",
-    # Skinning
-    "generate_alien_name",
-    "generate_description",
-    "generate_name_map",
-    "skin_task_description",
-    "check_no_earth_terms",
-    # Quiescence detection
-    "QuiescenceTimeout",
-    "run_until_quiet",
-    # Organ generator
-    "OrganSpec",
-    "TransportLink",
-    "Organism",
-    "generate_organism",
+    "PopulationLaw",
+    "PerCapitaGrowth",
+    "PerCapitaDeath",
+    "CountFlow",
     # Atom utilities
     "COMMON_ATOMS",
     "get_atom",

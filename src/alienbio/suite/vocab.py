@@ -7,7 +7,7 @@ through. This is *content* for the neutral render engine: it authors the opaque
 surface phrases; the engine's bijection / round-trip guarantees are unchanged.
 
 Alien phrasing reuses the M14 skinning generator
-(:func:`~alienbio.bio.skinning.generate_alien_name`) so the alien-name *style*
+(:func:`generate_alien_name`) so the alien-name *style*
 has a single source of truth.
 """
 
@@ -15,9 +15,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
-from ..bio.skinning import generate_alien_name
+import hashlib
+import random
+from typing import Optional
+
 from .dist import Seed
 from .render import Vocabulary
+
+# Alien syllable pools for opaque names (from the M1 `bio.skinning`, whose
+# only surviving caller is this module — T056).
+_PREFIXES = [
+    "zor", "kth", "vel", "nyx", "pho", "qua", "xen", "myr",
+    "dra", "ith", "glo", "fra", "obe", "ule", "tha", "cri",
+]
+_SUFFIXES = [
+    "ax", "on", "ul", "em", "ix", "ar", "ith", "os",
+    "an", "el", "um", "is", "or", "yl", "en", "at",
+]
+_CONNECTORS = ["-", "'", ".", ""]
+
+
+def generate_alien_name(base: str, *, seed: Optional[int] = None) -> str:
+    """An opaque alien-sounding name for ``base``, deterministic in
+    ``(base, seed)`` (the seed defaults to a hash of ``base``)."""
+    if seed is None:
+        seed = int(hashlib.md5(base.encode()).hexdigest()[:8], 16)
+    rng = random.Random(seed)
+    return f"{rng.choice(_PREFIXES)}{rng.choice(_CONNECTORS)}{rng.choice(_SUFFIXES)}"
 
 if TYPE_CHECKING:
     from ..bio.world import WorldImpl

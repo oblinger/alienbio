@@ -1,12 +1,8 @@
 # Alien Biology Demo Gallery
 
-Pre-computed results from the full demo suite. All images below are checked into the repo — no local execution needed to browse.
+Pre-computed results from the M1-era demo suite. All images below are checked into the repo — no local execution needed to browse.
 
-To re-run all demos locally:
-
-```bash
-uv run python demos/scripts/run_all.py
-```
+These figures are historical: the scripts and notebook builders that produced them ran the M1 single-compartment runtime (`BioSystem`, `AgentInterface`, `generate_organism`), which was deleted in M47.7 and T056 (2026-09-10). The shipped runtime is `bio suite run` over `catalog/experiments/` and the examples under `catalog/examples/` (see the Guide); the notebooks under `notebooks/` are kept as rendered artifacts only.
 
 ---
 

@@ -7,7 +7,7 @@ Protocols are organized by subsystem:
 Usage:
     from alienbio.protocols import Atom, Molecule, Reaction, Chemistry
     from alienbio.protocols.bio import Atom, Molecule, Reaction
-    from alienbio.protocols.bio import State, Simulator
+    from alienbio.protocols.bio import Simulator
 """
 
 # Bio protocols
@@ -16,12 +16,10 @@ from .bio import (
     Molecule,
     Reaction,
     Flow,
-    MembraneFlow,
     GeneralFlow,
     Chemistry,
     CompartmentTree,
     WorldState,
-    State,
     Simulator,
 )
 
@@ -35,12 +33,10 @@ __all__ = [
     "Molecule",
     "Reaction",
     "Flow",
-    "MembraneFlow",
     "GeneralFlow",
     "Chemistry",
     "CompartmentTree",
     "WorldState",
-    "State",
     "Simulator",
     # Execution
 ]

@@ -483,20 +483,14 @@ class WorldSimulatorImpl:
                     )
                 modulators[mol_id] = Modulation.from_value(mod_value)
 
-            # Get rate constant (only works for constant rates)
-            if isinstance(reaction.rate, (int, float)):
-                rate = reaction.rate
-            else:
-                # Callable rate laws aren't supported by the ID-based world
-                # simulator; downgrading to mass-action constant 1.0 silently
-                # would produce a physically wrong world, so make it loud.
-                rate = 1.0
-                logger.warning(
-                    "Reaction %r has a callable rate law that is not a constant "
-                    "number; downgrading to rate_constant=1.0 for the world "
-                    "simulator (mass-action). The world will not reflect the "
-                    "reaction's actual rate law.",
-                    rxn_name,
+            rate = reaction.rate
+            if not isinstance(rate, (int, float)) or isinstance(rate, bool):
+                # A callable rate was the M1 single-compartment simulator's; it
+                # used to be DOWNGRADED to mass-action 1.0 with a warning, i.e. a
+                # silently wrong world. Refuse instead (T056).
+                raise ValueError(
+                    f"reaction {reaction.local_name!r}: rate must be a number (got "
+                    f"{type(rate).__name__}); a rate law is `rate_law`, compiled by rate_expr"
                 )
 
             rate_law = None

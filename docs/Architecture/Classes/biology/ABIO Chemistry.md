@@ -1,5 +1,5 @@
 :>> [[ABIO]] → [[ABIO Docs]] → [ABIO Chemistry](hook://p/ABIO%20Chemistry) 
- [[ABIO Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # Chemistry
 
@@ -218,6 +218,6 @@ class Chemistry(Protocol):
 - [[ABIO Atom]] - Chemical elements
 - [[ABIO Molecule]] - Chemical compounds
 - [[ABIO Reaction]] - Transformations between molecules
-- [[State]] - Molecule concentrations
-- [[Simulator]] - Step-based simulation
+- [[ABIO WorldState]] - Molecule concentrations per compartment
+- [[ABIO WorldSimulator]] - Step-based simulation
 - [[ABIO Compartment]] - Hierarchical biological structures
