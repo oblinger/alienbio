@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 from .conflict_gen import RUNGS, closed_form_frontier
 from .score_conflict import dominant_objective, favors, pareto_distance, precedence_consistency
 from .types import OutcomeObjective
+from .trial import hashable_condition_key
 
 if TYPE_CHECKING:
     from .trial import TrialRecord
@@ -120,7 +121,7 @@ def conflict_summary(records: Sequence["TrialRecord"]) -> dict[ConditionKey, Con
     for record in records:
         if record.error or not (record.oracle or {}).get("conflict"):
             continue
-        cells.setdefault(tuple(record.condition_key), []).append(record)
+        cells.setdefault(hashable_condition_key(record.condition_key), []).append(record)
     summary: dict[ConditionKey, ConflictCell] = {}
     for key, cell in cells.items():
         conflict = cell[0].oracle["conflict"]

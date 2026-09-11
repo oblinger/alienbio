@@ -532,6 +532,11 @@ class MassTrialRunner:
                 # made ~20 s of model calls and reported usage=None.)
                 carried = getattr(exc, "record", None)
                 if isinstance(carried, TrialRecord):
+                    # A TrialError wraps the real failure; the line names
+                    # that failure, not the wrapper.
+                    cause = getattr(exc, "cause", None)
+                    if isinstance(cause, BaseException):
+                        error = f"{type(cause).__name__}: {cause}"
                     return replace(carried, condition_key=key, terminal_reason="error", error=error)
                 return TrialRecord(
                     task_id=task.world if task is not None else label,

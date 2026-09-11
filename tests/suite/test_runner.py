@@ -858,3 +858,80 @@ def test_agent_usage_lands_on_the_record():
 
     assert record.usage == fake_usage
     assert record.wall_time_s > 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# T051 box 4 — a mid-trial failure carries the partial record
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_a_mid_trial_exception_carries_the_partial_record():
+    """A provider failure on turn 3 used to leave the sweep a bare error
+    record — usage kept, but the brief, the three completed turns' actions
+    and the probe answers gone with the exception. The loop now raises
+    ``TrialError`` carrying the partial record, and ``MassTrialRunner``
+    lands it under the original exception's name."""
+    from alienbio.suite.runner import TrialError
+
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+
+    class DiesOnThird:
+        def __init__(self):
+            self.calls = 0
+
+        def act(self, observation):
+            del observation
+            self.calls += 1
+            if self.calls == 3:
+                raise RuntimeError("provider 500")
+            return Intervene(lever=reaction_id, value=1.0), ()
+
+        @property
+        def usage(self):
+            return {"calls": self.calls, "input_tokens": 100 * self.calls, "output_tokens": 0}
+
+    with pytest.raises(TrialError) as info:
+        run(world, task, DiesOnThird(), {}, Seed(0))
+    partial = info.value.record
+    assert str(info.value) == "RuntimeError: provider 500"
+    assert isinstance(info.value.__cause__, RuntimeError)
+    assert partial.terminal_reason == "error"
+    assert partial.turns == 3
+    assert len(partial.action_log) == 2 and all(a.accepted for a in partial.action_log)
+    assert partial.brief is not None
+    assert partial.usage == {"calls": 3, "input_tokens": 300, "output_tokens": 0}
+    assert len(partial.final_timeline.times) > 0
+
+
+def test_mass_trial_lands_the_partial_record_under_the_original_error_name():
+    from alienbio.suite.mass_trial import MassTrialRunner
+
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+
+    class DiesOnSecond:
+        def __init__(self):
+            self.calls = 0
+
+        def act(self, observation):
+            del observation
+            self.calls += 1
+            if self.calls == 2:
+                raise RuntimeError("provider 500")
+            return Intervene(lever=reaction_id, value=1.0), ()
+
+    rmap = MassTrialRunner().run(
+        [("arm", ("a",))],
+        lambda seed, dials: (world, task),
+        lambda seed, dials: DiesOnSecond(),
+        trials_per_condition=1,
+        base_seed=Seed(5),
+        on_error="record",
+    )
+    (record,) = rmap.records
+    assert record.error == "RuntimeError: provider 500"
+    assert record.terminal_reason == "error"
+    assert record.turns == 2 and len(record.action_log) == 1 and record.brief is not None

@@ -25,6 +25,7 @@ from __future__ import annotations
 import statistics
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
+from .trial import hashable_condition_key
 
 if TYPE_CHECKING:  # pragma: no cover
     from .trial import TrialRecord
@@ -87,7 +88,7 @@ def monitoring_summary(
     for record in records:
         if record.terminal_reason == "error":
             continue
-        cond = dict(record.condition_key)
+        cond = dict(hashable_condition_key(record.condition_key))
         if "monitoring" not in cond:
             continue
         arm = str(cond.pop("monitoring"))

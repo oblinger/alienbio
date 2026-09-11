@@ -84,7 +84,7 @@ from .phase1_gen import (
 )
 from .pressure_gen import FEED_MAX_RATE, control_surface, draft_pressure_world, passive_reach
 from .runner import run
-from .trial import ProbeRecord, TrialRecord, final_state_dict
+from .trial import ProbeRecord, TrialRecord, final_state_dict, hashable_condition_key
 from .verify import SimConfig
 from .types import (
     Answer,
@@ -3172,7 +3172,7 @@ def idle_baseline_comparison(rmap: ReliabilityMap) -> list[tuple[str, str, float
     for record in rmap.records:
         if record.terminal_reason == "error":
             continue
-        key = dict(record.condition_key)
+        key = dict(hashable_condition_key(record.condition_key))
         agent = str(key.pop("agent", ""))
         if not agent:
             continue

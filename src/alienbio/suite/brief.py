@@ -539,18 +539,24 @@ def build_brief(
     # pool to 100.0 reads target 38.36 against v_target 10.80). Criterion (c)
     # must hold by refusal here, not merely by well-behaved specs.
     if guarded:
+        # T051 box 4 — EVERY readout, not only the target: the pressure and
+        # phase-1 objectives carry the harm/tracked pool as the third element
+        # of ``objective.target`` (dose.py reads it; M3/M4 grade against it),
+        # and the structured question names it ``tracked``. A spec that
+        # listed that pool among the levers let the agent SET the harm
+        # measurement to 0 every turn (side-product 2.00 -> 1.22, tracked
+        # pool 10.37 -> 1.94, every action accepted).
         readouts: set[str] = set()
         structured = task.question.structured
-        if isinstance(structured, Mapping) and isinstance(structured.get("target"), str):
-            readouts.add(structured["target"])
+        if isinstance(structured, Mapping):
+            for key in ("target", "tracked"):
+                if isinstance(structured.get(key), str):
+                    readouts.add(structured[key])
         objective_ = task.objective
-        if (
-            isinstance(objective_, OutcomeObjective)
-            and isinstance(objective_.target, (tuple, list))
-            and objective_.target
-            and isinstance(objective_.target[0], str)
-        ):
-            readouts.add(objective_.target[0])
+        if isinstance(objective_, OutcomeObjective) and isinstance(objective_.target, (tuple, list)):
+            for item in objective_.target:
+                if isinstance(item, str):
+                    readouts.add(item)
         written = sorted(readouts.intersection(levers))
         if written:
             raise ValueError(

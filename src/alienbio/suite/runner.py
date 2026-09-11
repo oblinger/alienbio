@@ -601,197 +601,232 @@ def run(
     illegal = 0
     turns_executed = 0
 
-    for turn in range(max_turns):
-        turns_executed = turn + 1
-        turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
+    try:
+        for turn in range(max_turns):
+            turns_executed = turn + 1
+            turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
 
-        # The hidden set is drawn ONCE per trial (the turn-0 draw) and held
-        # for every turn — a hidden molecule stays hidden, so the brief's
-        # turn-0 affordances stay exactly the legal probe set all trial long
-        # (M36.1: a per-turn re-draw made later-visible probes "illegal" and
-        # leaked the whole world over a dozen turns). Noise re-draws per turn.
-        observation = (
-            first_observation
-            if turn == 0
-            else narrow_observation(
-                state, dials, seed.child("turn/0/observe"), noise_seed=seed.child(f"turn/{turn}/observe")
-            )
-        )
-        if setup_hidden and turn != 0:
-            observation = project_observation(observation, setup_hidden)
-        _fire_probes(turn, "every_turn")
-        action, reasoning_steps = agent.act(observation)
-        trace = thread_reasoning_steps(trace, turn, action, reasoning_steps)
-        # T026 — "after the action is selected, before it executes": the fork
-        # point measures 3/4 probe at; ``at_commit`` is the same point gated
-        # on the selected action being a Commit.
-        _fire_probes(turn, "after_action")
-        if isinstance(action, Commit):
-            _fire_probes(turn, "at_commit")
-
-        accepted = True
-        reject_reason = ""
-        applied_value: Optional[float] = None
-        # T046 — the requested Intervene.value and the applied-minus-prior
-        # delta, recorded AS DATA so M4 direction can be adjudicated post hoc
-        # (an Intervene is a SET: without these, a throttle-down of the fast
-        # feed and a throttle-up both read "moved").
-        intervene_value: Optional[float] = None
-        intervene_delta: Optional[float] = None
-        is_assay = isinstance(action, Measure) and bool(action.params.get("assay"))
-        if isinstance(action, Measure) and is_assay:
-            if action.probe not in brief.affordances.assays:
-                accepted = False
-                reject_reason = f"unknown assay {action.probe!r}"
-            elif action.probe not in chemistry.reactions:
-                accepted = False
-                reject_reason = f"assay {action.probe!r} is allowlisted but not a reaction in this world"
-        elif isinstance(action, Measure):
-            if action.probe not in brief.affordances.probes:
-                accepted = False
-                reject_reason = f"unknown probe {action.probe!r}"
-        elif isinstance(action, Intervene):
-            if _is_finite_number(action.value):
-                intervene_value = float(action.value)
-            if action.lever not in brief.affordances.levers:
-                accepted = False
-                reject_reason = f"unknown lever {action.lever!r}"
-            elif action.lever not in chemistry.reactions and action.lever not in chemistry.molecules:
-                accepted = False
-                reject_reason = (
-                    f"lever {action.lever!r} is allowlisted but not resolvable in this world"
+            # The hidden set is drawn ONCE per trial (the turn-0 draw) and held
+            # for every turn — a hidden molecule stays hidden, so the brief's
+            # turn-0 affordances stay exactly the legal probe set all trial long
+            # (M36.1: a per-turn re-draw made later-visible probes "illegal" and
+            # leaked the whole world over a dozen turns). Noise re-draws per turn.
+            observation = (
+                first_observation
+                if turn == 0
+                else narrow_observation(
+                    state, dials, seed.child("turn/0/observe"), noise_seed=seed.child(f"turn/{turn}/observe")
                 )
-            elif not _is_finite_number(action.value):
-                accepted = False
-                reject_reason = f"non-finite value {action.value!r}"
-            elif float(action.value) < 0.0:
-                # T051 box 4 — a negative setpoint is rejection-as-data. The
-                # engine never produces a negative concentration itself but
-                # has no guard on INPUT: a molecule lever set to -5 wrote -5
-                # into every compartment and the world ran on it (even-stoich
-                # mass action runs backwards, fractional powers go complex on
-                # the reference path and NaN->0 on JAX). A negative reaction
-                # rate is floored to 0 by ``_desired_extent`` and would have
-                # stalled the reaction with no note on the record.
-                accepted = False
-                reject_reason = f"negative value {float(action.value):g}"
-            else:
-                # T023 — a declared per-lever cap bounds the value one
-                # Intervene may set: an over-cap value is clamped to the cap
-                # AS DATA (the action stays accepted and is applied at the
-                # cap; ``reason`` carries the clamp note, which also reaches
-                # a SessionAgent via ``notice``). No state change beyond the
-                # clamp — one mega-pull can never deliver an unbounded dose.
-                cap = brief.affordances.max_rates.get(action.lever)
-                if cap is not None and float(action.value) > cap:
-                    applied_value = cap
-                    reject_reason = f"clamped to max_rate {cap:g} (requested {float(action.value):g})"
-                applied = float(action.value) if applied_value is None else applied_value
-                if action.lever in chemistry.reactions:
-                    prior = chemistry.reactions[action.lever].rate
-                    if isinstance(prior, (int, float)) and not isinstance(prior, bool):
-                        intervene_delta = applied - float(prior)
-                else:
-                    # A molecule lever: the SET writes every compartment, so
-                    # the prior is well-defined only when the compartments
-                    # agree (trivially true for the single-compartment
-                    # pressure/phase-1 worlds); otherwise delta stays None.
-                    mol_ids = state.molecule_ids
-                    if mol_ids is not None and action.lever in mol_ids:
-                        mj = mol_ids.index(action.lever)
-                        priors = {state.get(ci, mj) for ci in range(state.num_compartments)}
-                        if len(priors) == 1:
-                            intervene_delta = applied - priors.pop()
-        elif isinstance(action, (Commit, Wait)):
-            pass
-        else:
-            raise ValueError(f"unknown action type: {type(action).__name__}")
-
-        if isinstance(action, Measure):
-            target = action.probe
-        elif isinstance(action, Intervene):
-            target = action.lever
-        else:
-            target = ""
-        action_records.append(
-            ActionRecord(
-                kind="assay" if is_assay else type(action).__name__.lower(),
-                destructive=accepted
-                and (
-                    is_assay
-                    or (isinstance(action, Intervene) and action.lever in brief.irreversible)
-                ),
-                accepted=accepted,
-                reason=reject_reason,
-                target=target,
-                value=intervene_value,
-                delta=intervene_delta,
             )
-        )
+            if setup_hidden and turn != 0:
+                observation = project_observation(observation, setup_hidden)
+            _fire_probes(turn, "every_turn")
+            action, reasoning_steps = agent.act(observation)
+            trace = thread_reasoning_steps(trace, turn, action, reasoning_steps)
+            # T026 — "after the action is selected, before it executes": the fork
+            # point measures 3/4 probe at; ``at_commit`` is the same point gated
+            # on the selected action being a Commit.
+            _fire_probes(turn, "after_action")
+            if isinstance(action, Commit):
+                _fire_probes(turn, "at_commit")
 
-        if accepted:
-            spent += _action_cost(action)
-        else:
-            illegal += 1
-            spent += illegal_action_cost if illegal_action_cost is not None else _action_cost(action)
-
-        result: Any = None
-        if accepted:
-            if is_assay:
-                # M36.10 — the destructive assay: reveal the reaction's current
-                # rate (hidden STRUCTURE, never the key) and kill `assay_kill`
-                # of every population in the culture.
-                assert isinstance(action, Measure)
-                rate = chemistry.reactions[action.probe].rate
-                result = float(rate) if isinstance(rate, (int, float)) and not isinstance(rate, bool) else None
-                state = _state_scaled(state, 1.0 - assay_kill)
-                turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
+            accepted = True
+            reject_reason = ""
+            applied_value: Optional[float] = None
+            # T046 — the requested Intervene.value and the applied-minus-prior
+            # delta, recorded AS DATA so M4 direction can be adjudicated post hoc
+            # (an Intervene is a SET: without these, a throttle-down of the fast
+            # feed and a throttle-up both read "moved").
+            intervene_value: Optional[float] = None
+            intervene_delta: Optional[float] = None
+            is_assay = isinstance(action, Measure) and bool(action.params.get("assay"))
+            if isinstance(action, Measure) and is_assay:
+                if action.probe not in brief.affordances.assays:
+                    accepted = False
+                    reject_reason = f"unknown assay {action.probe!r}"
+                elif action.probe not in chemistry.reactions:
+                    accepted = False
+                    reject_reason = f"assay {action.probe!r} is allowlisted but not a reaction in this world"
+            elif isinstance(action, Measure):
+                if action.probe not in brief.affordances.probes:
+                    accepted = False
+                    reject_reason = f"unknown probe {action.probe!r}"
             elif isinstance(action, Intervene):
-                value = float(action.value) if applied_value is None else applied_value
-                if action.lever in chemistry.reactions:
-                    chemistry = _chemistry_with_rate(chemistry, action.lever, value)
+                if _is_finite_number(action.value):
+                    intervene_value = float(action.value)
+                if action.lever not in brief.affordances.levers:
+                    accepted = False
+                    reject_reason = f"unknown lever {action.lever!r}"
+                elif action.lever not in chemistry.reactions and action.lever not in chemistry.molecules:
+                    accepted = False
+                    reject_reason = (
+                        f"lever {action.lever!r} is allowlisted but not resolvable in this world"
+                    )
+                elif not _is_finite_number(action.value):
+                    accepted = False
+                    reject_reason = f"non-finite value {action.value!r}"
+                elif float(action.value) < 0.0:
+                    # T051 box 4 — a negative setpoint is rejection-as-data. The
+                    # engine never produces a negative concentration itself but
+                    # has no guard on INPUT: a molecule lever set to -5 wrote -5
+                    # into every compartment and the world ran on it (even-stoich
+                    # mass action runs backwards, fractional powers go complex on
+                    # the reference path and NaN->0 on JAX). A negative reaction
+                    # rate is floored to 0 by ``_desired_extent`` and would have
+                    # stalled the reaction with no note on the record.
+                    accepted = False
+                    reject_reason = f"negative value {float(action.value):g}"
                 else:
-                    state = _state_with_concentration(state, action.lever, value)
-                turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
-            elif isinstance(action, Commit):
-                committed_answer = action.answer
-            # Measure / Wait: non-mutating, nothing to apply.
+                    # T023 — a declared per-lever cap bounds the value one
+                    # Intervene may set: an over-cap value is clamped to the cap
+                    # AS DATA (the action stays accepted and is applied at the
+                    # cap; ``reason`` carries the clamp note, which also reaches
+                    # a SessionAgent via ``notice``). No state change beyond the
+                    # clamp — one mega-pull can never deliver an unbounded dose.
+                    cap = brief.affordances.max_rates.get(action.lever)
+                    if cap is not None and float(action.value) > cap:
+                        applied_value = cap
+                        reject_reason = f"clamped to max_rate {cap:g} (requested {float(action.value):g})"
+                    applied = float(action.value) if applied_value is None else applied_value
+                    if action.lever in chemistry.reactions:
+                        prior = chemistry.reactions[action.lever].rate
+                        if isinstance(prior, (int, float)) and not isinstance(prior, bool):
+                            intervene_delta = applied - float(prior)
+                    else:
+                        # A molecule lever: the SET writes every compartment, so
+                        # the prior is well-defined only when the compartments
+                        # agree (trivially true for the single-compartment
+                        # pressure/phase-1 worlds); otherwise delta stays None.
+                        mol_ids = state.molecule_ids
+                        if mol_ids is not None and action.lever in mol_ids:
+                            mj = mol_ids.index(action.lever)
+                            priors = {state.get(ci, mj) for ci in range(state.num_compartments)}
+                            if len(priors) == 1:
+                                intervene_delta = applied - priors.pop()
+            elif isinstance(action, (Commit, Wait)):
+                pass
+            else:
+                raise ValueError(f"unknown action type: {type(action).__name__}")
 
-        if isinstance(agent, SessionAgent):
-            agent.notice(ActionOutcome(turn=turn, action=action, accepted=accepted, reason=reject_reason, result=result))
-
-        if certainty_cfg is not None:
-            window_on = (
-                float(Uniform(0.0, 1.0).sample(seed.child(f"turn/{turn}/certainty")))
-                < float(certainty_cfg["p"])
+            if isinstance(action, Measure):
+                target = action.probe
+            elif isinstance(action, Intervene):
+                target = action.lever
+            else:
+                target = ""
+            action_records.append(
+                ActionRecord(
+                    kind="assay" if is_assay else type(action).__name__.lower(),
+                    destructive=accepted
+                    and (
+                        is_assay
+                        or (isinstance(action, Intervene) and action.lever in brief.irreversible)
+                    ),
+                    accepted=accepted,
+                    reason=reject_reason,
+                    target=target,
+                    value=intervene_value,
+                    delta=intervene_delta,
+                )
             )
-            certainty_schedule.append(window_on)
-            burst_chemistry = chemistry
-            for rid, rate in certainty_cfg["on" if window_on else "off"].items():
-                burst_chemistry = _chemistry_with_rate(burst_chemistry, rid, float(rate))
-            turn_world = _world_from_state(
-                compartments, burst_chemistry, state, world.flows, world.population_laws
-            )
 
-        timeline = simulate(turn_world, sim_cfg, seed.child(f"turn/{turn}/sim"))
-        start = 0 if turn == 0 else 1  # skip the duplicate turn-boundary snapshot
-        for t, s in zip(timeline.times[start:], timeline.states[start:]):
-            turn_times.append(elapsed + t)
-            turn_states.append(cast(WorldStateImpl, s))
-        elapsed += timeline.times[-1]
-        state = cast(WorldStateImpl, timeline.states[-1])
+            if accepted:
+                spent += _action_cost(action)
+            else:
+                illegal += 1
+                spent += illegal_action_cost if illegal_action_cost is not None else _action_cost(action)
 
-        if isinstance(action, Commit):
-            reason = "committed"
-            break
-        if illegal >= illegal_action_limit:
-            reason = "illegal_limit"
-            break
-        if budget.exhausted(spent):
-            reason = "budget_exhausted"
-            break
-    else:
-        reason = "max_turns"
+            result: Any = None
+            if accepted:
+                if is_assay:
+                    # M36.10 — the destructive assay: reveal the reaction's current
+                    # rate (hidden STRUCTURE, never the key) and kill `assay_kill`
+                    # of every population in the culture.
+                    assert isinstance(action, Measure)
+                    rate = chemistry.reactions[action.probe].rate
+                    result = float(rate) if isinstance(rate, (int, float)) and not isinstance(rate, bool) else None
+                    state = _state_scaled(state, 1.0 - assay_kill)
+                    turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
+                elif isinstance(action, Intervene):
+                    value = float(action.value) if applied_value is None else applied_value
+                    if action.lever in chemistry.reactions:
+                        chemistry = _chemistry_with_rate(chemistry, action.lever, value)
+                    else:
+                        state = _state_with_concentration(state, action.lever, value)
+                    turn_world = _world_from_state(compartments, chemistry, state, world.flows, world.population_laws)
+                elif isinstance(action, Commit):
+                    committed_answer = action.answer
+                # Measure / Wait: non-mutating, nothing to apply.
+
+            if isinstance(agent, SessionAgent):
+                agent.notice(ActionOutcome(turn=turn, action=action, accepted=accepted, reason=reject_reason, result=result))
+
+            if certainty_cfg is not None:
+                window_on = (
+                    float(Uniform(0.0, 1.0).sample(seed.child(f"turn/{turn}/certainty")))
+                    < float(certainty_cfg["p"])
+                )
+                certainty_schedule.append(window_on)
+                burst_chemistry = chemistry
+                for rid, rate in certainty_cfg["on" if window_on else "off"].items():
+                    burst_chemistry = _chemistry_with_rate(burst_chemistry, rid, float(rate))
+                turn_world = _world_from_state(
+                    compartments, burst_chemistry, state, world.flows, world.population_laws
+                )
+
+            timeline = simulate(turn_world, sim_cfg, seed.child(f"turn/{turn}/sim"))
+            start = 0 if turn == 0 else 1  # skip the duplicate turn-boundary snapshot
+            for t, s in zip(timeline.times[start:], timeline.states[start:]):
+                turn_times.append(elapsed + t)
+                turn_states.append(cast(WorldStateImpl, s))
+            elapsed += timeline.times[-1]
+            state = cast(WorldStateImpl, timeline.states[-1])
+
+            if isinstance(action, Commit):
+                reason = "committed"
+                break
+            if illegal >= illegal_action_limit:
+                reason = "illegal_limit"
+                break
+            if budget.exhausted(spent):
+                reason = "budget_exhausted"
+                break
+        else:
+            reason = "max_turns"
+    except TaintError:
+        raise
+    except Exception as exc:
+        # T051 box 4 — a mid-trial failure (a provider 500 on turn 3, say)
+        # used to leave the sweep a bare error record: usage kept, but the
+        # brief, every completed turn's actions and observations, the probe
+        # answers and the surface-name map were gone with the exception,
+        # even though they were all sitting in these locals. The partial
+        # record rides the exception the same way a TaintError's does, so
+        # ``MassTrialRunner(on_error="record")`` lands what the paid trial
+        # actually did before it died.
+        partial = TrialRecord(
+            task_id=task.world,
+            condition_key=condition_key(dials),
+            final_timeline=Timeline(times=tuple(turn_times), states=tuple(turn_states)),
+            deliberation_trace=trace,
+            action_log=tuple(action_records),
+            objective_score=0.0,
+            terminal_reason="error",
+            budget=budget.total,
+            spent=spent,
+            remaining=budget.total - spent,
+            illegal_actions=illegal,
+            turns=turns_executed,
+            brief=brief,
+            usage=getattr(agent, "usage", None),
+            wall_time_s=time.perf_counter() - start_time,
+            final_state=final_state_dict(state),
+            name_map=dict(name_map.to_surface) if name_map is not None else {},
+            probes=tuple(probe_records),
+            certainty_schedule=tuple(certainty_schedule),
+            compaction=getattr(agent, "compaction", None),
+        )
+        raise TrialError(partial, exc) from exc
 
     final_timeline = Timeline(times=tuple(turn_times), states=tuple(turn_states))
 
@@ -859,6 +894,19 @@ def run(
     if taint_hits:
         raise TaintError(record)
     return record
+
+
+class TrialError(RuntimeError):
+    """A trial died mid-episode (T051 box 4). ``record`` is the partial
+    record built from everything the loop had reached — completed turns,
+    their actions and probes, the brief, the surface-name map, the usage —
+    and ``cause`` is the original exception; ``MassTrialRunner`` lands the
+    record as an error trial under ``cause``'s own type name."""
+
+    def __init__(self, record: TrialRecord, cause: BaseException) -> None:
+        self.record = record
+        self.cause = cause
+        super().__init__(f"{type(cause).__name__}: {cause}")
 
 
 class TaintError(RuntimeError):

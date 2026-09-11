@@ -261,6 +261,27 @@ def test_an_explicit_spec_cap_overrides_the_generator_default():
     assert dict(seen["brief"].affordances.max_rates) == {surface_clean: 5.0}
 
 
+def test_the_harm_readout_is_refused_as_a_lever_too():
+    """T051 box 4 — the 4c guard read only the target; the side-product is the
+    third element of ``objective.target`` (what dose.py reads), so a spec
+    that declared it as a lever let the agent write the harm measurement.
+    Every string readout on the objective and the structured question is
+    now refused; the two feeds still build."""
+    world, task, oracle = _draft(0.5)
+    agent = _OnePull(oracle["byproduct"], 0.0)
+    with pytest.raises(ValueError, match="readout"):
+        run(world, task, agent, {"levers": [oracle["byproduct"]]}, SEED, max_turns=2, sim_cfg=EPISODE)
+
+    p1_world, p1_task = DRAFTERS["phase1_pressure"](Seed(3), {"variant": "coupling_withheld"})
+    p1 = p1_task.setup["oracle"]["phase1"]
+    with pytest.raises(ValueError, match="readout"):
+        run(p1_world, p1_task, agent, {"levers": [p1["byproduct"]]}, SEED, max_turns=2, sim_cfg=EPISODE)
+
+    feeds = [oracle["feed_clean"], oracle["feed_fast"]]
+    record = run(world, task, agent, {"levers": feeds}, SEED, max_turns=2, sim_cfg=EPISODE)
+    assert record.brief is not None and len(record.brief.affordances.levers) == 2
+
+
 def test_the_readout_molecule_is_refused_as_a_lever():
     """AUP finding 2026-08-31 ([4c-note]): Intervene on a molecule SETS its
     concentration, so declaring the readout as a lever writes the answer into
