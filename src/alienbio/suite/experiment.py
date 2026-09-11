@@ -2692,13 +2692,114 @@ def _trials_planned(spec: ExperimentSpec) -> int:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def _guard_no_peeking(spec: ExperimentSpec) -> None:
-    why = no_peeking_violation(spec)
-    if why is not None:
-        raise ValueError(
-            "run_experiment: the no-peeking rule (ABIO Experiment Catalog "
-            f"§ The no-peeking rule) forbids agent 'llm' here: {why}"
-        )
+@dataclass(frozen=True)
+class Preflight:
+    """What :func:`preflight` found: every guard's verdict in the order the run
+    applies them, the resolved ``out_dir``, whether it already holds records,
+    the cost estimate (``None`` when pricing itself refused) and the first
+    refusal as the exception the run would raise."""
+
+    out_dir: Path
+    out_exists: bool
+    checks: tuple[tuple[str, Optional[str]], ...]
+    estimate: Optional[CostEstimate]
+    refusal: Optional[BaseException]
+
+    @property
+    def ok(self) -> bool:
+        return self.refusal is None
+
+    def lines(self) -> list[str]:
+        """The verdicts as ``bio suite run --dry`` prints them."""
+        out = [f"out_dir exists: {'yes (run refuses without resume)' if self.out_exists else 'no'}"]
+        for name, why in self.checks:
+            out.append(f"{name}: ok" if why is None else f"{name}: REFUSED — {why}")
+        return out
+
+
+PREFLIGHT_CHECKS: tuple[str, ...] = (
+    "registration", "no-peeking", "dials", "surface", "sampling", "price", "resume", "out_dir",
+)
+
+
+def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bool = False) -> Preflight:
+    """Every refusal a run can make before spend, in one place (T051 box 5 /
+    T057 proposal 3). :func:`run_experiment` raises the first; ``bio suite
+    run --dry`` prints them all. Before this, ``--dry`` ran two of the guards
+    and the run the rest — a spec with a bogus ``registration:`` printed
+    all-ok and refused on the run — and the per-model price check and the
+    resume-drift check (box 4) had been added to one side only.
+
+    Order: the registration claim, the no-peeking rule, unknown dials, the
+    declared surface, the sampling regime, a price for every model level in
+    play (the estimate), resume drift against the manifest, and ``out_dir``
+    (records present without ``resume``). ``out_dir`` is resolved exactly as
+    the run resolves it and nothing here creates it.
+    """
+    resolved_out = Path(out_dir or spec.out_dir or f"runs/{spec.name}")
+    records_path = resolved_out / "records.jsonl"
+    manifest_path = resolved_out / "manifest.json"
+    out_exists = records_path.exists()
+    checks: list[tuple[str, Optional[str]]] = []
+    refusal: Optional[BaseException] = None
+    estimate: Optional[CostEstimate] = None
+
+    def check(name: str, run_it: Callable[[], Any]) -> None:
+        nonlocal refusal
+        try:
+            run_it()
+        except Exception as exc:  # noqa: BLE001 — every guard refuses by raising
+            checks.append((name, str(exc)))
+            if refusal is None:
+                refusal = exc
+        else:
+            checks.append((name, None))
+
+    def _raise_if(problem: Optional[str], what: str) -> None:
+        if problem is not None:
+            raise ValueError(f"run_experiment: {problem}") if what != "no-peeking" else ValueError(
+                "run_experiment: the no-peeking rule (ABIO Experiment Catalog "
+                f"§ The no-peeking rule) forbids agent 'llm' here: {problem}"
+            )
+
+    check("registration", lambda: registration_admission(spec))
+    check("no-peeking", lambda: _raise_if(no_peeking_violation(spec), "no-peeking"))
+    check("dials", lambda: _raise_if(unknown_dials_violation(spec), "dials"))
+    check("surface", lambda: _raise_if(declared_surface_violation(spec), "surface"))
+    check("sampling", lambda: _raise_if(sampling_violation(spec), "sampling"))
+
+    def _price() -> None:
+        nonlocal estimate
+        estimate = estimate_cost(spec)
+
+    check("price", _price)
+
+    def _resume() -> None:
+        if not (resume and manifest_path.exists()):
+            return
+        try:
+            prior_manifest = json.loads(manifest_path.read_text())
+        except (OSError, ValueError):
+            prior_manifest = {}
+        drift = _resume_spec_drift(prior_manifest.get("spec"), spec)
+        if drift:
+            raise ValueError(
+                f"run_experiment: resume=True but the spec differs from the run's manifest on {drift} — "
+                "a resume continues the SAME experiment (only more trials_per_condition or added axis "
+                f"levels may change); start a new out_dir for a new spec ({resolved_out})"
+            )
+
+    check("resume", _resume)
+
+    def _out_dir() -> None:
+        if out_exists and not resume:
+            raise FileExistsError(
+                f"run_experiment: {resolved_out} already holds records.jsonl "
+                "(pass resume=True to continue, or choose a different out_dir)"
+            )
+
+    check("out_dir", _out_dir)
+    return Preflight(resolved_out, out_exists, tuple(checks), estimate, refusal)
 
 
 def run_experiment(
@@ -2739,28 +2840,14 @@ def run_experiment(
         FileExistsError: ``out_dir`` already holds ``records.jsonl`` and
             ``resume`` is ``False`` (never silently overwrite a paid run).
     """
-    registration_admission(spec)  # T030: any mismatched claim refuses here, before spend
-    _guard_no_peeking(spec)
-    dial_problem = unknown_dials_violation(spec)
-    if dial_problem is not None:
-        raise ValueError(f"run_experiment: {dial_problem}")
-    surface_problem = declared_surface_violation(spec)
-    if surface_problem is not None:
-        raise ValueError(f"run_experiment: {surface_problem}")
-    sampling_problem = sampling_violation(spec)
-    if sampling_problem is not None:
-        raise ValueError(f"run_experiment: {sampling_problem}")
-
-    resolved_out = Path(out_dir or spec.out_dir or f"runs/{spec.name}")
+    # T057 — every guard in one place, in one order, shared with `--dry`.
+    flight = preflight(spec, out_dir=out_dir, resume=resume)
+    if flight.refusal is not None:
+        raise flight.refusal
+    resolved_out = flight.out_dir
     resolved_out.mkdir(parents=True, exist_ok=True)
     records_path = resolved_out / "records.jsonl"
     manifest_path = resolved_out / "manifest.json"
-
-    if records_path.exists() and not resume:
-        raise FileExistsError(
-            f"run_experiment: {resolved_out} already holds records.jsonl "
-            "(pass resume=True to continue, or choose a different out_dir)"
-        )
 
     existing_by_key: dict[tuple[str, int], TrialRecord] = {}
     retried_usd = 0.0
@@ -2835,18 +2922,12 @@ def run_experiment(
 
     started_at = _utc_now_iso()
     if resume and manifest_path.exists():
+        # Drift already refused in preflight; only the start time is carried.
         try:
             prior_manifest = json.loads(manifest_path.read_text())
         except (OSError, ValueError):
             prior_manifest = {}
         started_at = prior_manifest.get("started_at", started_at)
-        drift = _resume_spec_drift(prior_manifest.get("spec"), spec)
-        if drift:
-            raise ValueError(
-                f"run_experiment: resume=True but the spec differs from the run's manifest on {drift} — "
-                "a resume continues the SAME experiment (only more trials_per_condition or added axis "
-                f"levels may change); start a new out_dir for a new spec ({resolved_out})"
-            )
 
     trials_planned = _trials_planned(spec)
     manifest = _build_manifest(spec, trials_planned, started_at)

@@ -20,10 +20,8 @@ from typing import Optional
 
 from alienbio.suite.experiment import (
     aggregate,
-    estimate_cost,
     load_spec,
-    no_peeking_violation,
-    unknown_dials_violation,
+    preflight,
     render_report,
     run_experiment,
     spec_from_dict,
@@ -107,26 +105,29 @@ def _run(rest: list[str], verbose: bool) -> int:
         return 2
 
     spec = load_spec(positional[0])
-    resolved_out = out_dir or spec.out_dir or f"runs/{spec.name}"
     grid_size = 1
     for _name, levels in spec.axes:
         grid_size *= len(levels)
     trials_planned = grid_size * spec.trials_per_condition
-    no_peeking_why = no_peeking_violation(spec)
 
     if dry:
+        # T057 — the same preflight the run makes, every verdict printed;
+        # exit 1 when the run would refuse (it used to print two of the
+        # guards and exit 0 on a spec the run then refused).
+        flight = preflight(spec, out_dir=out_dir)
         print(f"name: {spec.name}")
         print(f"conditions: {grid_size}")
         print(f"trials planned: {trials_planned}")
         print(f"drafter: {spec.drafter}")
         print(f"agent: {spec.agent}")
         print(f"model: {spec.model}")
-        print(f"out_dir: {resolved_out}")
-        print("no-peeking: ok" if no_peeking_why is None else f"no-peeking: VIOLATION — {no_peeking_why}")
-        dial_problem = unknown_dials_violation(spec)
-        print("dials: ok" if dial_problem is None else f"dials: UNKNOWN — {dial_problem}")
-        estimate = estimate_cost(spec)
-        if estimate.llm_trials == 0:
+        print(f"out_dir: {flight.out_dir}")
+        for line in flight.lines():
+            print(line)
+        estimate = flight.estimate
+        if estimate is None:
+            print("estimated cost: unavailable (pricing refused above)")
+        elif estimate.llm_trials == 0:
             print("estimated cost: $0.00, no llm arm")
         else:
             print(
@@ -135,6 +136,10 @@ def _run(rest: list[str], verbose: bool) -> int:
             )
         ceiling = spec.cost_ceiling_usd
         print(f"cost ceiling: {'none' if ceiling is None else f'${ceiling:.4f}'}")
+        if not flight.ok:
+            print(f"preflight: REFUSED — {flight.refusal}")
+            return 1
+        print("preflight: ok")
         return 0
 
     def progress(message: str) -> None:

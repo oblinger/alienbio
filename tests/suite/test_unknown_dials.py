@@ -120,6 +120,7 @@ def test_dry_run_reports_the_dial_check(tmp_path, capsys, monkeypatch):
         }
     )
     monkeypatch.setattr(cmd, "load_spec", lambda _path: bad)
-    assert cmd.suite_command(["run", str(path), "--dry"]) == 0
+    # T057: a dry run that would refuse exits 1 and says so on the dials line.
+    assert cmd.suite_command(["run", str(path), "--dry"]) == 1
     out = capsys.readouterr().out
-    assert "dials: UNKNOWN" in out and "feed_max_rate" in out
+    assert "dials: REFUSED" in out and "feed_max_rate" in out and "preflight: REFUSED" in out
