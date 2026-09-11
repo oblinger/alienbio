@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
 from .world_state import WorldStateImpl
 from .compartment_tree import CompartmentTreeImpl
 from .flow import Flow
-from .population import MolDelta, MultDelta, PopulationLaw
+from .population import PopulationLaw, apply_population_laws
 from .reaction import Modulation
 from .rate_expr import eval_rate, implicit_mass_action, map_species
 
@@ -242,32 +242,9 @@ class WorldSimulatorImpl:
         new_state: WorldStateImpl,
         frozen: WorldStateImpl,
     ) -> None:
-        """Apply every population law's Δmultiplicity/Δconcentration together
-        (F017 Q1=A — a separate per-compartment pass, order-independent).
-
-        Each law's :meth:`~alienbio.bio.population.PopulationLaw.contribute` reads
-        ONLY the frozen start-of-step state and accumulates into the two delta
-        dicts; only after every law has contributed are the accumulated totals
-        written to ``new_state``. This lets several laws touch the same
-        compartment/pool in one step (e.g. growth and death on the same
-        population) without one law's write clobbering another's read of the
-        frozen baseline.
-        """
-        mult_delta: MultDelta = {}
-        mol_delta: MolDelta = {}
-        for law in self._population_laws:
-            law.contribute(frozen, self._dt, mult_delta, mol_delta)
-
-        for comp, delta in mult_delta.items():
-            new_state.set_multiplicity(comp, new_state.get_multiplicity(comp) + delta)
-        for (comp, mol), delta in mol_delta.items():
-            value = new_state.get(comp, mol) + delta
-            # The resource draw is rationed like a reactant, so exact arithmetic
-            # never goes below zero; float rounding can leave -1e-16 — snap it,
-            # as the reaction pass does (found by `bio report`, 2026-08-30).
-            if -ROUNDING_FLOOR < value < 0.0:
-                value = 0.0
-            new_state.set(comp, mol, value)
+        """Apply the population pass — one summed-demand ration shared with the
+        JAX path (:func:`alienbio.bio.population.apply_population_laws`)."""
+        apply_population_laws(self._population_laws, new_state, frozen, self._dt)
 
     def _desired_extent(
         self,

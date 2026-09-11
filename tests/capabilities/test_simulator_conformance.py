@@ -168,11 +168,15 @@ def test_every_block_simulates_finite_on_the_reference_and_matches_jax(name, r, 
     ref = simulate(world, cfg).states[-1]
     n_mol = ref.num_molecules
     _finite_nonnegative(ref, len(world.compartments), n_mol)
-    if HAS_JAX and not world.population_laws:
-        ref_sim = WorldSimulatorImpl.from_chemistry(world.chemistry, world.initial_state.tree, flows=list(world.flow_objs), dt=cfg.dt)
-        jx = JaxWorldSimulator(world.initial_state.tree, ref_sim._reactions, num_molecules=n_mol, dt=cfg.dt, flows=list(world.flow_objs))
+    if HAS_JAX:
+        # Population laws used to be skipped here because JaxWorldSimulator had
+        # no parameter for them and ran a truncated model; it takes them now
+        # (T051 box 4 / T053), so the property covers every block.
+        ref_sim = WorldSimulatorImpl.from_chemistry(world.chemistry, world.initial_state.tree, flows=list(world.flow_objs), dt=cfg.dt, population_laws=list(world.population_laws))
+        jx = JaxWorldSimulator(world.initial_state.tree, ref_sim._reactions, num_molecules=n_mol, dt=cfg.dt, flows=list(world.flow_objs), population_laws=list(world.population_laws))
         jx_final = jx.run(world.initial_state.copy(), steps=cfg.steps)[-1]
         for c in range(len(world.compartments)):
+            assert jx_final.get_multiplicity(c) == pytest.approx(ref.get_multiplicity(c), abs=1e-8, rel=1e-8), (name, c)
             for m in range(n_mol):
                 assert jx_final.get(c, m) == pytest.approx(ref.get(c, m), abs=1e-8, rel=1e-8), (name, c, m)
 

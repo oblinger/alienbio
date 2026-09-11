@@ -282,7 +282,10 @@ def apply_native_flows(
     being left in Python (fixing the F8 "JAX silently drops flows" bug).
     """
     for src, dst, mol, rate in flows:
-        moved = dt * rate * S[src, mol]
+        # Clamp the fraction moved at the whole pool: an unclamped `dt*rate > 1`
+        # drove the source negative with no snap behind it (T051 box 4 / T053).
+        moved = jnp.minimum(dt * rate, 1.0) * S[src, mol]
+        moved = jnp.maximum(moved, 0.0)
         S = S.at[src, mol].add(-moved)
         S = S.at[dst, mol].add(moved)
     return S

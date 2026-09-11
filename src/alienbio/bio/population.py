@@ -43,7 +43,7 @@ after every law has contributed).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .world_state import WorldStateImpl
@@ -455,3 +455,91 @@ class CountFlow(PopulationLaw):
     def __str__(self) -> str:
         """Short representation."""
         return f"CountFlow({self._name})"
+
+
+#: Below this magnitude a negative value is float rounding, not a real draw
+#: (the same floor :mod:`alienbio.bio.world_simulator` snaps reaction residues at).
+ROUNDING_FLOOR = 1e-12
+
+
+def apply_population_laws(
+    laws: "Sequence[PopulationLaw]",
+    new_state: "WorldStateImpl",
+    frozen: "WorldStateImpl",
+    dt: float,
+) -> None:
+    """Apply every law's Δmultiplicity/Δconcentration together, rationing the
+    SUMMED demand on each drained key (T051 box 4 / T053).
+
+    Each law is asked for its deltas against the frozen start-of-step state, so
+    order among laws does not matter. A law's ``contribute`` already limits its
+    own draw to what the frozen state holds, but two laws drawing the same pool
+    each saw the whole pool: two deaths on one compartment took multiplicity to
+    −10 in a step, and the shipped microcosm's two growth laws both draw
+    ``pond/food``. So the per-law contributions are collected separately, the
+    negative contributions to each key are summed, and every law that draws a
+    key short of its demand is scaled by the tightest ratio over the keys it
+    draws — the single-pass min-ratio scheme
+    :meth:`~alienbio.bio.world_simulator.WorldSimulatorImpl._apply_reactions`
+    already uses for shared reactants. A law's whole contribution scales
+    together, so a growth law whose resource draw is cut grows by the same
+    fraction less.
+
+    When no key is over-drawn every ratio is exactly ``1.0`` and each delta is
+    multiplied by ``1.0``, which is bit-exact: worlds that never compete
+    integrate byte-identically to before this pass existed.
+    """
+    per_law: list[tuple[MultDelta, MolDelta]] = []
+    for law in laws:
+        mult: MultDelta = {}
+        mol: MolDelta = {}
+        law.contribute(frozen, dt, mult, mol)
+        per_law.append((mult, mol))
+
+    mult_demand: MultDelta = {}
+    mol_demand: MolDelta = {}
+    for mult, mol in per_law:
+        for comp, delta in mult.items():
+            if delta < 0.0:
+                mult_demand[comp] = mult_demand.get(comp, 0.0) - delta
+        for key, delta in mol.items():
+            if delta < 0.0:
+                mol_demand[key] = mol_demand.get(key, 0.0) - delta
+
+    mult_ratio = {
+        comp: (min(1.0, frozen.get_multiplicity(comp) / dem) if dem > 0.0 else 1.0)
+        for comp, dem in mult_demand.items()
+    }
+    mol_ratio = {
+        (comp, mol_id): (min(1.0, frozen.get(comp, mol_id) / dem) if dem > 0.0 else 1.0)
+        for (comp, mol_id), dem in mol_demand.items()
+    }
+
+    mult_delta: MultDelta = {}
+    mol_delta: MolDelta = {}
+    for mult, mol in per_law:
+        scale = 1.0
+        for comp, delta in mult.items():
+            if delta < 0.0:
+                scale = min(scale, mult_ratio[comp])
+        for key, delta in mol.items():
+            if delta < 0.0:
+                scale = min(scale, mol_ratio[key])
+        for comp, delta in mult.items():
+            mult_delta[comp] = mult_delta.get(comp, 0.0) + delta * scale
+        for key, delta in mol.items():
+            mol_delta[key] = mol_delta.get(key, 0.0) + delta * scale
+
+    for comp, delta in mult_delta.items():
+        value = new_state.get_multiplicity(comp) + delta
+        if -ROUNDING_FLOOR < value < 0.0:
+            value = 0.0
+        new_state.set_multiplicity(comp, value)
+    for (comp, mol_id), delta in mol_delta.items():
+        value = new_state.get(comp, mol_id) + delta
+        # The draw is rationed like a reactant, so exact arithmetic never goes
+        # below zero; float rounding can leave -1e-16 — snap it, as the reaction
+        # pass does (found by `bio report`, 2026-08-30).
+        if -ROUNDING_FLOOR < value < 0.0:
+            value = 0.0
+        new_state.set(comp, mol_id, value)

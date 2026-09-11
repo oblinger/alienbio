@@ -16,6 +16,7 @@ except ImportError:
     jax = jnp = cast(Any, None)  # every entry point checks HAS_JAX
 
 from . import jax_core
+from .population import PopulationLaw, apply_population_laws
 
 if TYPE_CHECKING:
     from .compartment_tree import CompartmentTreeImpl
@@ -59,6 +60,7 @@ class JaxWorldSimulator:
         dt: float = 1.0,
         flows: Optional[List["GeneralFlow"]] = None,
         native_flows: Optional[Sequence[NativeFlow]] = None,
+        population_laws: Optional[Sequence["PopulationLaw"]] = None,
         dtype: str = "float64",
     ) -> None:
         if not HAS_JAX:
@@ -71,6 +73,7 @@ class JaxWorldSimulator:
         self._num_compartments = tree.num_compartments
         self._flows = list(flows) if flows else []
         self._native_flows = list(native_flows) if native_flows else []
+        self._population_laws = list(population_laws) if population_laws else []
 
         if dtype not in ("float64", "float32"):
             raise ValueError(f"dtype must be 'float64' or 'float32', got {dtype!r}")
@@ -163,6 +166,12 @@ class JaxWorldSimulator:
         # Arbitrary Python flows on the host (parity path).
         for flow in self._flows:
             flow.apply(new_state, self._tree, self._dt)
+        # The population pass, host-side for the same reason flows are: it moves
+        # multiplicity, which the device array does not carry. Before T053 this
+        # class had no population parameter at all and a world with laws ran a
+        # different model here in silence (microcosm juveniles 172 vs 20).
+        if self._population_laws:
+            apply_population_laws(self._population_laws, new_state, state, self._dt)
         return new_state
 
     def run(
@@ -199,6 +208,12 @@ class JaxWorldSimulator:
         objects cannot be compiled -- if any are present, raises rather than
         silently dropping them (F8 lesson).  Use ``native_flows`` instead.
         """
+        if self._population_laws:
+            raise ValueError(
+                f"run_fast cannot compile population laws (they move multiplicity, "
+                "which the device array does not carry); use run()/step() for the "
+                "host path."
+            )
         if self._flows:
             raise ValueError(
                 "run_fast cannot compile Python GeneralFlow objects; supply "
@@ -222,6 +237,12 @@ class JaxWorldSimulator:
         differ only in initial concentrations.  Returns the N final states.
         Requires native (or no) flows, same as ``run_fast``.
         """
+        if self._population_laws:
+            raise ValueError(
+                f"run_batch cannot compile population laws (they move multiplicity, "
+                "which the device array does not carry); use run()/step() for the "
+                "host path."
+            )
         if self._flows:
             raise ValueError(
                 "run_batch cannot compile Python GeneralFlow objects; supply "

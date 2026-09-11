@@ -336,3 +336,146 @@ def test_population_persists_across_scenario_runner_turns() -> None:
     # flat instead of still climbing.
     assert all(b > a for a, b in zip(mults, mults[1:]))
     assert mults[-1] > mults[-2] > mults[-3]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Summed-demand rationing across laws (T051 box 4 / T053)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_two_death_laws_on_one_pool_cannot_drive_multiplicity_negative() -> None:
+    """Each law rations against the frozen count, so two laws that each want the
+    whole population used to sum to twice it: multiplicity 10 -> -10 in a step."""
+    tree = CompartmentTreeImpl()
+    pop = tree.add_root("pop")
+    state = WorldStateImpl(tree=tree, num_molecules=1, compartment_ids=["pop"], molecule_ids=["biomass"])
+    state.set_multiplicity(pop, 10.0)
+    sim = WorldSimulatorImpl(
+        tree=tree,
+        reactions=[],
+        flows=[],
+        num_molecules=1,
+        dt=1.0,
+        population_laws=[
+            PerCapitaDeath(compartment=pop, rate_constant=1.0),
+            PerCapitaDeath(compartment=pop, rate_constant=1.0),
+        ],
+    )
+
+    after = sim.step(state)
+
+    assert after.get_multiplicity(pop) == 0.0
+
+
+def test_a_death_and_a_count_flow_share_the_population_they_drain() -> None:
+    """Two DIFFERENT law kinds draining one compartment ration together, and the
+    headcount the flow moves is only what it actually got."""
+    tree = CompartmentTreeImpl()
+    pop = tree.add_root("pop")
+    other = tree.add_child(pop, "pop2")
+    state = WorldStateImpl(
+        tree=tree, num_molecules=1, compartment_ids=["pop", "pop2"], molecule_ids=["biomass"]
+    )
+    state.set_multiplicity(pop, 10.0)
+    state.set_multiplicity(other, 5.0)
+    sim = WorldSimulatorImpl(
+        tree=tree,
+        reactions=[],
+        flows=[],
+        num_molecules=1,
+        dt=1.0,
+        population_laws=[
+            PerCapitaDeath(compartment=pop, rate_constant=0.6),
+            CountFlow(origin=pop, dest=other, rate_constant=0.6),
+        ],
+    )
+
+    after = sim.step(state)
+
+    assert after.get_multiplicity(pop) == pytest.approx(0.0, abs=1e-12)
+    # Demand was 6 + 6 against 10, so each law got 10/12 of what it asked: the
+    # flow moved 5 rather than the 6 it wanted, and the deaths took the other 5.
+    assert after.get_multiplicity(other) == pytest.approx(10.0, abs=1e-12)
+
+
+def test_two_growth_laws_drawing_one_pool_cannot_drive_it_negative() -> None:
+    """The shipped microcosm's shape — two populations feeding on one pool. Each
+    rationed against the whole pool, so a starved step drew it down twice."""
+    tree = CompartmentTreeImpl()
+    pool = tree.add_root("pool")
+    herd = tree.add_child(pool, "herd")
+    rivals = tree.add_child(pool, "rivals")
+    state = WorldStateImpl(
+        tree=tree,
+        num_molecules=1,
+        compartment_ids=["pool", "herd", "rivals"],
+        molecule_ids=["food"],
+    )
+    state.set(pool, 0, 1.0)
+    state.set_multiplicity(herd, 10.0)
+    state.set_multiplicity(rivals, 10.0)
+    sim = WorldSimulatorImpl(
+        tree=tree,
+        reactions=[],
+        flows=[],
+        num_molecules=1,
+        dt=1.0,
+        population_laws=[
+            PerCapitaGrowth(
+                compartment=herd, resource_compartment=pool, resource=0, stoich=1.0, rate_constant=1.0
+            ),
+            PerCapitaGrowth(
+                compartment=rivals, resource_compartment=pool, resource=0, stoich=1.0, rate_constant=1.0
+            ),
+        ],
+    )
+
+    after = sim.step(state)
+
+    assert after.get(pool, 0) >= 0.0
+    assert after.get(pool, 0) == pytest.approx(0.0, abs=1e-12)
+    # Both grew, each by half of what it alone would have taken.
+    assert after.get_multiplicity(herd) == pytest.approx(10.5, abs=1e-12)
+    assert after.get_multiplicity(rivals) == pytest.approx(10.5, abs=1e-12)
+
+
+def test_no_multiplicity_or_concentration_goes_negative_over_a_starved_run() -> None:
+    """The h3b repro regime (a pool fed far below two populations' demand at a
+    large dt): 4000 steps used to log 1155 negative ones."""
+    tree = CompartmentTreeImpl()
+    pool = tree.add_root("pool")
+    herd = tree.add_child(pool, "herd")
+    rivals = tree.add_child(pool, "rivals")
+    state = WorldStateImpl(
+        tree=tree,
+        num_molecules=1,
+        compartment_ids=["pool", "herd", "rivals"],
+        molecule_ids=["food"],
+    )
+    state.set(pool, 0, 5.0)
+    state.set_multiplicity(herd, 8.0)
+    state.set_multiplicity(rivals, 8.0)
+    sim = WorldSimulatorImpl(
+        tree=tree,
+        reactions=[],
+        flows=[],
+        num_molecules=1,
+        dt=0.5,
+        population_laws=[
+            PerCapitaGrowth(
+                compartment=herd, resource_compartment=pool, resource=0, stoich=1.0, rate_constant=0.5
+            ),
+            PerCapitaGrowth(
+                compartment=rivals, resource_compartment=pool, resource=0, stoich=1.0, rate_constant=0.5
+            ),
+            PerCapitaDeath(compartment=herd, rate_constant=0.9),
+            PerCapitaDeath(compartment=rivals, rate_constant=0.9),
+        ],
+    )
+
+    current = state
+    for _ in range(400):
+        current = sim.step(current)
+        assert current.get(pool, 0) >= 0.0
+        for comp in (pool, herd, rivals):
+            assert current.get_multiplicity(comp) >= 0.0

@@ -468,3 +468,75 @@ def test_benchmark_runs():
 
 if __name__ == "__main__":
     run_benchmark()
+
+
+class TestPopulationParity:
+    """T051 box 4 / T053 — the JAX class had no population parameter at all, so
+    a world with population laws ran a different model on that backend in
+    silence (the shipped microcosm: juveniles 172 on the reference, 20 here)."""
+
+    def _fixture(self):
+        from alienbio.bio.population import PerCapitaDeath, PerCapitaGrowth
+
+        tree = CompartmentTreeImpl()
+        pool = tree.add_root("pool")
+        herd = tree.add_child(pool, "herd")
+        state = WorldStateImpl(tree=tree, num_molecules=2)
+        state.set(pool, 1, 50.0)
+        state.set_multiplicity(herd, 4.0)
+        laws = [
+            PerCapitaGrowth(
+                compartment=herd, resource_compartment=pool, resource=1, stoich=1.0, rate_constant=0.02
+            ),
+            PerCapitaDeath(compartment=herd, rate_constant=0.01),
+        ]
+        return tree, state, laws, herd, pool
+
+    def test_population_laws_run_on_the_host_step_and_match_the_reference(self):
+        from alienbio.bio.jax_simulator import JaxWorldSimulator
+
+        tree, state, laws, herd, pool = self._fixture()
+        rxn = ReactionSpec("r1", {0: 1.0}, {1: 1.0}, rate_constant=0.01)
+
+        py = WorldSimulatorImpl(tree, [rxn], [], num_molecules=2, dt=0.1, population_laws=laws)
+        jx = JaxWorldSimulator(tree, [rxn], num_molecules=2, dt=0.1, population_laws=laws)
+
+        pf = py.run(state, steps=100)[-1]
+        jf = jx.run(state, steps=100)[-1]
+
+        assert jf.get_multiplicity(herd) == pytest.approx(pf.get_multiplicity(herd), abs=1e-9)
+        assert jf.get_multiplicity(herd) != pytest.approx(4.0, abs=1e-6)
+        for c in (pool, herd):
+            for m in range(2):
+                assert jf.get(c, m) == pytest.approx(pf.get(c, m), abs=1e-9, rel=1e-9)
+
+    def test_run_fast_refuses_population_laws_rather_than_dropping_them(self):
+        from alienbio.bio.jax_simulator import JaxWorldSimulator
+
+        tree, state, laws, _herd, _pool = self._fixture()
+        jx = JaxWorldSimulator(tree, [], num_molecules=2, dt=0.1, population_laws=laws)
+        with pytest.raises(ValueError, match="population laws"):
+            jx.run_fast(state, steps=5)
+        with pytest.raises(ValueError, match="population laws"):
+            jx.run_batch([state], steps=5)
+
+
+class TestNativeFlowClamp:
+    def test_a_native_flow_faster_than_the_step_cannot_drive_a_pool_negative(self):
+        """`dt * rate > 1` moved more than the pool held, with no snap behind
+        it: a = -0.5 after one step (T051 box 4 / T053)."""
+        from alienbio.bio.jax_simulator import JaxWorldSimulator
+
+        tree = CompartmentTreeImpl()
+        root = tree.add_root("organism")
+        tree.add_child(root, "cell")
+        state = WorldStateImpl(tree=tree, num_molecules=1)
+        state.set(0, 0, 1.0)
+
+        jx = JaxWorldSimulator(
+            tree, [], num_molecules=1, dt=1.0, native_flows=[(0, 1, 0, 1.5)]
+        )
+        after = jx.run(state, steps=1)[-1]
+
+        assert after.get(0, 0) == pytest.approx(0.0, abs=1e-12)
+        assert after.get(1, 0) == pytest.approx(1.0, abs=1e-12)
