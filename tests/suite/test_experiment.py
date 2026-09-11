@@ -852,6 +852,62 @@ def test_cost_ceiling_stops_the_run_after_first_trial(tmp_path, monkeypatch):
     assert len(lines) == 1
 
 
+def test_resume_counts_retried_spend_against_the_ceiling(tmp_path, monkeypatch):
+    """T051 box 4 — a resume moved every error line to records.retried.jsonl
+    and started the ceiling counter at $0, so each press re-armed the full
+    ceiling with the prior press's spend dropped (three presses of a $4
+    ceiling spent $18, each manifest reporting $6). A retried line's real
+    usage now seeds the counter: a resume already at the ceiling runs zero
+    fresh trials and says so."""
+    from alienbio.suite.agent import Commit as _Commit
+    from alienbio.suite.types import Answer as _Answer
+
+    class _SpendThenFail:
+        def act(self, observation):
+            del observation
+            raise RuntimeError("provider 500 after a paid call")
+
+        @property
+        def usage(self):
+            return {"calls": 1, "input_tokens": 1_000_000, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
+
+    monkeypatch.setitem(AGENTS, "idle", lambda spec: (lambda seed, dials: _SpendThenFail()))
+    spec = ExperimentSpec(
+        name="resume-ceiling",
+        axes=(("rung", ("single",)),),
+        drafter="conflict",
+        agent="idle",
+        trials_per_condition=4,
+        base_seed=1,
+        price_usd_per_mtok=(3.0, 15.0),
+        cost_ceiling_usd=4.0,
+        fixed_dials={"levers": []},
+    )
+    out_dir = tmp_path / "run"
+    first = run_experiment(spec, out_dir=str(out_dir))
+    assert first.provenance.stopped_early is True
+    spent_first = json.loads((out_dir / "manifest.json").read_text())["cost_usd_spent"]
+    assert spent_first >= 4.0
+
+    class _Committer:
+        def act(self, observation):
+            del observation
+            return _Commit(answer=_Answer(value=[], kind="ordered_path")), ()
+
+        usage = None
+
+    monkeypatch.setitem(AGENTS, "idle", lambda spec: (lambda seed, dials: _Committer()))
+    seen: list[str] = []
+    second = run_experiment(spec, out_dir=str(out_dir), resume=True, progress=seen.append)
+    manifest = json.loads((out_dir / "manifest.json").read_text())
+    assert manifest["cost_usd_retried"] == pytest.approx(spent_first)
+    assert manifest["cost_usd_spent"] == pytest.approx(spent_first)
+    assert manifest["stopped_reason"] == "cost_ceiling"
+    assert second.provenance.stopped_early is True
+    assert len(second.records) == 0
+    assert not (out_dir / "records.jsonl").read_text().strip()
+
+
 def test_llm_agent_factory_shares_one_meter_between_provider_fn_and_agent(monkeypatch, tmp_path):
     # The first paid trial (2026-08-29) reported calls=0 / $0.00 for a 17 s
     # run: the provider fn was built without a meter while the agent metered

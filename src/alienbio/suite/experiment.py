@@ -2667,6 +2667,7 @@ def run_experiment(
         )
 
     existing_by_key: dict[tuple[str, int], TrialRecord] = {}
+    retried_usd = 0.0
     if resume and records_path.exists():
         # AUP 2026-09-09 — an error record is a hole, not a result: the common
         # reason a sweep dies partway (provider 400/429/500, an expired key, an
@@ -2687,6 +2688,20 @@ def run_experiment(
                 record = record_from_json(d)
                 if record.error:
                     retried_lines.append(line)
+                    # T051 box 4 — a retried line's real usage still counts
+                    # against the ceiling: before, every resume re-armed the
+                    # full ceiling with the prior press's error spend dropped
+                    # (three presses of a $4 ceiling spent $18, each manifest
+                    # reporting $6).
+                    if record.usage:
+                        retried_model = d.get("model") or spec.model or PINNED_MODEL
+                        retried_usd += cost_usd(
+                            record.usage.get("input_tokens", 0),
+                            record.usage.get("output_tokens", 0),
+                            price_for(retried_model, spec.price_usd_per_mtok),
+                            cache_read_tokens=record.usage.get("cache_read_tokens", 0),
+                            cache_write_tokens=record.usage.get("cache_write_tokens", 0),
+                        )
                     continue
                 clean_lines.append(line)
                 existing_by_key[(d["label"], d["index"])] = record
@@ -2726,7 +2741,7 @@ def run_experiment(
     # M45.5 — a running USD total over every landed record's real usage (both
     # freshly-run and resumed/``skip``-reused), fed to `stop` below so a
     # sweep with a `cost_ceiling_usd` halts cleanly rather than overspending.
-    spent_state = {"usd": 0.0}
+    spent_state = {"usd": retried_usd}
 
     def on_trial(label: str, i: int, record: TrialRecord) -> None:
         cond = dict(record.condition_key)
@@ -2809,6 +2824,7 @@ def run_experiment(
     manifest["trials_completed"] = len(rmap.records)
     manifest["failed_trials"] = rmap.provenance.failed_trials
     manifest["cost_usd_spent"] = spent_state["usd"]
+    manifest["cost_usd_retried"] = retried_usd
     manifest["cost_ceiling_usd"] = spec.cost_ceiling_usd
     manifest["stopped_reason"] = "cost_ceiling" if rmap.provenance.stopped_early else None
     manifest["usage_totals"] = usage_totals

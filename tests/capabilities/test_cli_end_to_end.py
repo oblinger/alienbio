@@ -64,3 +64,18 @@ def test_test_matrix_and_config():
 def test_bad_usage_exits_2():
     assert bio("suite").returncode == 2
     assert bio("test-matrix", "--bogus").returncode == 2
+
+
+def test_suite_run_refuses_an_unknown_flag_and_trailing_args(tmp_path):
+    """T051 box 4 — an unknown token fell into the positional list, so
+    ``--dryy`` on a live spec ran it for real, and ``resume DIR extra``
+    ignored the extra silently."""
+    assert bio("suite", "run", str(ZERO), "--dryy").returncode == 2
+    assert bio("suite", "run", str(ZERO), "--out").returncode == 2
+    assert bio("suite", "run", str(ZERO), "second.yaml", "--dry").returncode == 2
+    assert not (REPO / "runs" / "exp04-zero-dryy").exists()
+    verbose_after_verb = bio("suite", "run", str(ZERO), "--dry", "-v")
+    assert verbose_after_verb.returncode == 0
+    assert bio("suite", "resume", str(tmp_path), "extra").returncode == 2
+    assert bio("suite", "aggregate", str(tmp_path), "extra").returncode == 2
+    assert bio("suite", "report", str(tmp_path), "extra").returncode == 2

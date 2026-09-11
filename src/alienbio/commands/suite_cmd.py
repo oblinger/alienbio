@@ -81,18 +81,29 @@ def _run(rest: list[str], verbose: bool) -> int:
     i = 0
     while i < len(rest):
         arg = rest[i]
-        if arg == "--out" and i + 1 < len(rest):
+        if arg == "--out":
+            if i + 1 >= len(rest) or rest[i + 1].startswith("-"):
+                _usage("--out needs a directory")
+                return 2
             out_dir = rest[i + 1]
             i += 2
         elif arg == "--dry":
             dry = True
             i += 1
+        elif arg in ("-v", "--verbose"):
+            verbose = True
+            i += 1
+        elif arg.startswith("-"):
+            # T051 box 4 — an unknown flag used to fall into ``positional``,
+            # so ``--dryy`` on a live spec ran it for real.
+            _usage(f"unknown flag {arg!r}")
+            return 2
         else:
             positional.append(arg)
             i += 1
 
-    if not positional:
-        _usage("suite run requires a spec.yaml path")
+    if len(positional) != 1:
+        _usage("suite run takes exactly one spec.yaml path" + (f", got {positional}" if positional else ""))
         return 2
 
     spec = load_spec(positional[0])
@@ -135,8 +146,8 @@ def _run(rest: list[str], verbose: bool) -> int:
 
 
 def _resume(rest: list[str], verbose: bool) -> int:
-    if not rest:
-        _usage("suite resume requires a run directory")
+    if len(rest) != 1:
+        _usage("suite resume takes exactly one run directory")
         return 2
 
     out_dir = rest[0]
@@ -156,8 +167,8 @@ def _resume(rest: list[str], verbose: bool) -> int:
 
 
 def _aggregate_cmd(rest: list[str], verbose: bool) -> int:
-    if not rest:
-        _usage("suite aggregate requires a run directory")
+    if len(rest) != 1:
+        _usage("suite aggregate takes exactly one run directory")
         return 2
 
     out_dir = rest[0]
@@ -170,8 +181,8 @@ def _aggregate_cmd(rest: list[str], verbose: bool) -> int:
 
 
 def _report_cmd(rest: list[str], verbose: bool) -> int:
-    if not rest:
-        _usage("suite report requires a run directory")
+    if len(rest) != 1:
+        _usage("suite report takes exactly one run directory")
         return 2
 
     out_dir = rest[0]

@@ -497,9 +497,15 @@ class MassTrialRunner:
         if not isinstance(concurrency, int) or isinstance(concurrency, bool) or concurrency < 1:
             raise ValueError(f"MassTrialRunner.run: concurrency must be an int >= 1, got {concurrency!r}")
 
-        def run_one(key: ConditionKey, label: str, i: int) -> TrialRecord:
+        def run_one(key: ConditionKey, label: str, i: int) -> Optional[TrialRecord]:
             """One ``(condition, trial)`` unit — a pure function of its own seed,
-            so it is safe to run on a worker thread."""
+            so it is safe to run on a worker thread. Returns ``None`` when the
+            stop hook is already true at the moment the worker picks the unit
+            up (T051 box 4): a queued-but-unstarted unit then drafts nothing
+            and spends nothing, so a cost-driven stop overshoots by at most
+            the units that were genuinely running when it tripped."""
+            if stop is not None and stop():
+                return None
             dials = dict(key)
             seed_label = (
                 _condition_label(tuple((n, v) for n, v in key if n not in matched_dials))
@@ -539,8 +545,11 @@ class MassTrialRunner:
                     usage=getattr(agent, "usage", None) if agent is not None else None,
                 )
 
-        def land(label: str, i: int, record: TrialRecord) -> None:
-            nonlocal failed_trials
+        def land(label: str, i: int, record: Optional[TrialRecord]) -> None:
+            nonlocal failed_trials, stopped_early
+            if record is None:
+                stopped_early = True
+                return
             if record.terminal_reason == "error":
                 failed_trials += 1
             records.append(record)
@@ -569,26 +578,44 @@ class MassTrialRunner:
             from concurrent.futures import Future, ThreadPoolExecutor
 
             with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                pending: list[tuple[str, int, Optional[Future[TrialRecord]], Optional[TrialRecord]]] = []
+                pending: list[tuple[str, int, Optional[Future[Optional[TrialRecord]]], Optional[TrialRecord]]] = []
+
+                def drain(force: bool) -> None:
+                    # Land, in submission order, every head unit that is a
+                    # reused record or a finished future — so on_trial
+                    # (persistence, spend accounting) has seen every dollar
+                    # already spent before the stop hook is consulted. Before
+                    # T051 box 4 a finished-but-unlanded future did not count
+                    # as in flight, so the window kept admitting units while
+                    # their spend sat unaccounted: a $2 ceiling at concurrency
+                    # 4 ran the whole grid with stopped_reason null.
+                    while pending:
+                        label0, i0, fut0, rec0 = pending[0]
+                        if fut0 is not None and not fut0.done() and not force:
+                            break
+                        pending.pop(0)
+                        land(label0, i0, rec0 if fut0 is None else fut0.result())
+
                 for key, label, i in units:
                     if skip is not None:
                         existing = skip(label, i)
                         if existing is not None:
                             pending.append((label, i, None, existing))
+                            drain(False)
                             continue
-                    # The stop hook is checked at submission, so a cost-driven
-                    # stop can overshoot by up to `concurrency` in-flight trials.
+                    drain(False)
+                    # Everything finished has landed; what can still overshoot
+                    # is the (at most `concurrency`) units genuinely running,
+                    # and each of those re-checks the hook as it starts.
                     if stop is not None and stop():
                         stopped_early = True
                         break
                     pending.append((label, i, pool.submit(run_one, key, label, i), None))
-                    # Land finished units in order as the window fills, so
-                    # on_trial (persistence, spend accounting) keeps up.
                     while len([p for p in pending if p[2] is not None and not p[2].done()]) >= concurrency:
                         label0, i0, fut0, rec0 = pending.pop(0)
-                        land(label0, i0, cast(TrialRecord, rec0) if fut0 is None else fut0.result())
-                for label, i, fut, rec in pending:
-                    land(label, i, cast(TrialRecord, rec) if fut is None else fut.result())
+                        land(label0, i0, rec0 if fut0 is None else fut0.result())
+                        drain(False)
+                drain(True)
 
         successful = tuple(r for r in records if r.terminal_reason != "error")
         rmap = _aggregate(successful, axes_tuple, base_seed, trials_per_condition)

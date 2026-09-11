@@ -337,6 +337,40 @@ def test_concurrency_yields_byte_identical_records_in_the_same_order():
         MassTrialRunner().run(_AXES, _drafter, _agent_factory, trials_per_condition=1, base_seed=Seed(1), concurrency=0)
 
 
+def test_cost_stop_fires_under_concurrency_even_when_trials_finish_instantly():
+    """T051 box 4 — a finished-but-unlanded future did not count as in flight,
+    so with instant trials the window never filled, nothing landed until the
+    trailing loop, and the stop hook was never consulted: a $2 ceiling at
+    concurrency 4 ran the whole grid with ``stopped_early`` False. Every
+    finished unit now lands before the hook is asked, and a worker re-checks
+    it as it starts, so the overshoot is bounded by the units genuinely
+    running when it tripped."""
+    seen = []
+
+    def stop():
+        return len(seen) >= 2
+
+    def on_trial(label, i, record):
+        seen.append((label, i))
+
+    concurrency = 4
+    rmap = MassTrialRunner().run(
+        _AXES,
+        _drafter,
+        _agent_factory,
+        trials_per_condition=8,
+        base_seed=Seed(300),
+        on_trial=on_trial,
+        stop=stop,
+        concurrency=concurrency,
+    )
+    total_units = 8 * len(list(condition_grid(tuple((n, tuple(l)) for n, l in _AXES))))
+    assert rmap.provenance.stopped_early is True
+    assert len(rmap.records) < total_units
+    assert len(rmap.records) <= 2 + concurrency
+    assert len(seen) == len(rmap.records)
+
+
 def test_stop_hook_never_firing_leaves_stopped_early_false():
     rmap = MassTrialRunner().run(
         _AXES, _drafter, _agent_factory, trials_per_condition=2, base_seed=Seed(301), stop=lambda: False

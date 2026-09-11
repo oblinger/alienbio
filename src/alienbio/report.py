@@ -173,6 +173,18 @@ class Report:
     golden_outcome: str = "not run"
     notes: list[str] = field(default_factory=list)
 
+    @property
+    def ok(self) -> bool:
+        """The verdict, computed from what the page shows — never from the
+        pytest exit code alone (T051 box 4: ``--junit`` hard-coded that exit
+        to 0, and a broken example never reached it, so a page whose own
+        rows read ``3 failed`` / ``error: ExprError`` was titled ALL PASSED)."""
+        return (
+            self.pytest_exit == 0
+            and self.totals.get("failed", 0) == 0
+            and all(not r.error and r.failed == 0 for r in self.examples)
+        )
+
 
 def _outcome_of(tests: Sequence[str], outcomes: Mapping[tuple[str, str], Outcome]) -> str:
     seen = [outcomes.get(tuple(t.split("::", 1))) for t in tests]  # type: ignore[arg-type]
@@ -317,7 +329,14 @@ MARK = {"passed": "✅", "failed": "❌", "error": "❌", "skipped": "⏭", "not
 
 def render_markdown(rep: Report) -> str:
     t = rep.totals
-    verdict = "ALL PASSED" if rep.pytest_exit == 0 else f"FAILURES (pytest exit {rep.pytest_exit})"
+    if rep.ok:
+        verdict = "ALL PASSED"
+    elif rep.pytest_exit != 0:
+        verdict = f"FAILURES (pytest exit {rep.pytest_exit})"
+    elif rep.totals.get("failed", 0):
+        verdict = f"FAILURES ({rep.totals['failed']} failed)"
+    else:
+        verdict = "FAILURES (an example did not run clean)"
     L = [f"# ABIO test report — {verdict}", "",
          f"*{rep.generated_at} · {t['passed']} passed, {t['failed']} failed, {t['skipped']} skipped · `just test` is the gate; this page is what the gate tested.*", ""]
     L += ["## 1. Capability matrix — the 35 dimensions and the sentence each proving test carries", "",

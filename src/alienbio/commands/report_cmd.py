@@ -28,10 +28,15 @@ def report_command(args: list[str], verbose: bool = False) -> int:
             open_after = True
         elif a == "--no-examples":
             run_examples = False
-        elif a == "--junit":
-            junit = Path(next(it, ""))
-        elif a == "--out":
-            out_dir = Path(next(it, ""))
+        elif a in ("--junit", "--out"):
+            value = next(it, "")
+            if not value or value.startswith("-"):
+                print(f"bio report: {a} needs a value", file=sys.stderr)
+                return 2
+            if a == "--junit":
+                junit = Path(value)
+            else:
+                out_dir = Path(value)
         else:
             print(__doc__, file=sys.stderr)
             return 2
@@ -53,4 +58,4 @@ def report_command(args: list[str], verbose: bool = False) -> int:
     print(f"bio report: wrote {md} and {html_page}", file=sys.stderr)
     if open_after and sys.platform == "darwin":
         subprocess.run(["open", str(html_page)], check=False)
-    return 0 if exit_code == 0 else 1
+    return 0 if rep.ok else 1

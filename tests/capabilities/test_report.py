@@ -58,3 +58,40 @@ def test_the_page_renders_and_an_example_that_cannot_run_is_reported_not_raised(
     assert "FAILURES" in md and "| ❌ | B2 |" in md and "`grid`" in md and "error: RuntimeError" in md
     page = render_html(rep)
     assert "<table>" in page and "&lt;" not in md and len(DIMENSIONS) == 35
+
+
+def test_the_verdict_is_read_off_the_page_not_the_pytest_exit_code(tmp_path):
+    """T051 box 4 — ``bio report --junit`` hard-coded the pytest exit to 0
+    and a broken example never reached it, so a page whose own rows read
+    ``1 failed`` or ``error: RuntimeError`` was titled ALL PASSED and the
+    command exited 0. The verdict now comes from the totals and the example
+    rows; the command exits 1 on either."""
+    from alienbio.commands.report_cmd import report_command
+
+    junit = tmp_path / "junit.xml"
+    junit.write_text(_JUNIT)
+    outcomes = parse_junit(junit)
+
+    with_failures = build(outcomes, pytest_exit=0, run_examples=False)
+    assert with_failures.totals["failed"] == 1
+    assert with_failures.ok is False
+    assert render_markdown(with_failures).startswith("# ABIO test report — FAILURES")
+
+    clean = {k: v for k, v in outcomes.items() if v != "failed"}
+
+    def broken(spec: Path, out_dir: Path):
+        raise RuntimeError("nope")
+
+    example_broke = build(clean, pytest_exit=0, example_runner=broken)
+    assert example_broke.totals["failed"] == 0
+    assert example_broke.ok is False
+    assert "FAILURES" in render_markdown(example_broke).splitlines()[0]
+
+    def fine(spec: Path, out_dir: Path):
+        return 4, 0, 0.5
+
+    assert build(clean, pytest_exit=0, example_runner=fine).ok is True
+
+    assert report_command(["--junit", str(junit), "--no-examples", "--out", str(tmp_path / "out")]) == 1
+    assert (tmp_path / "out" / "report.md").read_text().startswith("# ABIO test report — FAILURES")
+    assert report_command(["--junit"]) == 2
