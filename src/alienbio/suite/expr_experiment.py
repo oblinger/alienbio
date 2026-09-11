@@ -61,15 +61,9 @@ from .archetypes import IdentifyPathwayRecipe
 from .carve import CarveFail, carve as _carve
 from .cover import Cover, cover as _cover
 from .dist import Constant, Dist, Seed
-from .experiment import (
-    AGENTS,
-    ExperimentSpec,
-    _require_pinned_model,
-    dial_params,
-    drafter_heads,
-    spec_from_dict,
-    spec_to_dict,
-)
+from .agents import AGENTS
+from .drafters import dial_params, drafter_heads
+from .spec import ExperimentSpec, _require_pinned_model, spec_from_dict, spec_to_dict
 from .mass_trial import AgentFactory
 from .pipeline import build_suite
 from .power import PowerDesign

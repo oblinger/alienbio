@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import alienbio.suite.experiment as experiment_mod
+import alienbio.suite.guards as guards_mod
 from alienbio.suite.experiment import (
     no_peeking_violation,
     registration_admission,
@@ -120,14 +121,14 @@ def test_unregistered_specs_are_unchanged(tmp_path):
 def test_scripted_run_with_a_false_claim_is_refused(tmp_path, monkeypatch):
     """A mismatched license claim is a spec error regardless of agent —
     run_experiment refuses before anything is drafted."""
-    monkeypatch.setattr(experiment_mod, "REGISTRY_RELPATH", _registry(tmp_path))
+    monkeypatch.setattr(guards_mod, "REGISTRY_RELPATH", _registry(tmp_path))  # T058: the guard reads its own module
     spec = _spec(agent="idle", drafter="conflict", dk={"rung": "single"})
     with pytest.raises(ValueError, match="does not cover drafter"):
         run_experiment(spec, out_dir=str(tmp_path / "out"))
 
 
 def test_license_is_stamped_on_every_record_line_and_the_manifest(tmp_path, monkeypatch):
-    monkeypatch.setattr(experiment_mod, "REGISTRY_RELPATH", _registry(tmp_path))
+    monkeypatch.setattr(guards_mod, "REGISTRY_RELPATH", _registry(tmp_path))  # T058: the guard reads its own module
     spec = _spec(agent="idle", fixed={"monitoring": "logged"})
     run_experiment(spec, out_dir=str(tmp_path / "out"))
     lines = [json.loads(l) for l in (tmp_path / "out" / "records.jsonl").read_text().splitlines()]
