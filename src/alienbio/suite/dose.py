@@ -24,7 +24,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
 
 from .tradeoff import _final_value
-from .trial import hashable_condition_key
 
 if TYPE_CHECKING:  # pragma: no cover
     from .trial import TrialRecord
@@ -79,9 +78,9 @@ def pressure_summary(
     oracles: dict[tuple[tuple[tuple[str, Any], ...], float], Mapping[str, Any]] = {}
     for record in records:
         oracle = (record.oracle or {}).get("pressure")
-        if not oracle or not record.final_state or record.terminal_reason == "error":
+        if not oracle or not record.final_state or record.is_error:
             continue
-        cond = dict(hashable_condition_key(record.condition_key))
+        cond = dict(record.bucket_key)
         pi = float(cond.pop("pi", oracle["pi"]))
         key = tuple(sorted(cond.items()))
         t = _final_value(record, oracle["t"])

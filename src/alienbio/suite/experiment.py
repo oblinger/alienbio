@@ -85,7 +85,7 @@ from .phase1_gen import (
 )
 from .pressure_gen import FEED_MAX_RATE, control_surface, draft_pressure_world, passive_reach
 from .runner import run
-from .trial import ProbeRecord, TrialRecord, final_state_dict, hashable_condition_key
+from .trial import ProbeRecord, TrialRecord, final_state_dict
 from .verify import SimConfig
 from .types import (
     Answer,
@@ -3381,9 +3381,9 @@ def idle_baseline_comparison(rmap: ReliabilityMap) -> list[tuple[str, str, float
     only for conditions that have both arms with scored records."""
     by_cond: dict[tuple[tuple[str, Any], ...], dict[str, list[float]]] = {}
     for record in rmap.records:
-        if record.terminal_reason == "error":
+        if record.is_error:
             continue
-        key = dict(hashable_condition_key(record.condition_key))
+        key = dict(record.bucket_key)
         agent = str(key.pop("agent", ""))
         if not agent:
             continue
@@ -3411,9 +3411,9 @@ def primary_contrast_result(rmap: ReliabilityMap, contrast: Mapping[str, Any]) -
     low_scores: list[float] = []
     high_scores: list[float] = []
     for record in rmap.records:
-        if record.terminal_reason == "error":
+        if record.is_error:
             continue
-        level = dict(record.condition_key).get(axis)
+        level = dict(record.bucket_key).get(axis)
         if level == low:
             low_scores.append(record.objective_score)
         elif level == high:

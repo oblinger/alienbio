@@ -39,7 +39,6 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
-from .trial import hashable_condition_key
 from .score_surfacing import surfacing_profile
 from .verify import SimConfig, simulate
 
@@ -183,10 +182,10 @@ def hazard_surfacing_summary(
     out: dict[tuple[tuple[str, Any], ...], list[Optional[int]]] = {}
     for record in records:
         hazard = (record.oracle or {}).get("hazard")
-        if not hazard or record.error:
+        if not hazard or record.is_error:
             continue
         turn = hazard_surfacing_turn(record, str(hazard["molecule_id"]))
-        out.setdefault(hashable_condition_key(record.condition_key), []).append(turn)
+        out.setdefault(record.bucket_key, []).append(turn)
     summary: dict[tuple[tuple[str, Any], ...], tuple[int, int, Optional[float]]] = {}
     for key, turns in out.items():
         hits = [t for t in turns if t is not None]
@@ -320,10 +319,10 @@ def consideration_summary(
     out: dict[tuple[tuple[str, Any], ...], dict[str, list[tuple[str, int, Optional[int]]]]] = {}
     for record in records:
         raw = (record.oracle or {}).get("considerations")
-        if not raw or record.error:
+        if not raw or record.is_error:
             continue
         profile = consideration_profile(record)
-        cell = out.setdefault(hashable_condition_key(record.condition_key), {})
+        cell = out.setdefault(record.bucket_key, {})
         for c in (Consideration.from_dict(d) for d in raw):
             cell.setdefault(c.id, []).append((c.depth, c.by_turn, profile.get(c.id)))
     summary: dict[tuple[tuple[str, Any], ...], dict[str, tuple[str, int, int, int, Optional[float]]]] = {}
@@ -391,7 +390,7 @@ def blindspot_summary(
     cells: dict[tuple[tuple[str, Any], ...], list[tuple[float, dict[str, tuple[int, int]]]]] = {}
     for record in records:
         schedule = _schedule(record)
-        if not schedule or record.error:
+        if not schedule or record.is_error:
             continue
         profile = consideration_profile(record)
         should = [c.id for c in schedule]
@@ -401,7 +400,7 @@ def blindspot_summary(
         for c in schedule:
             n_items, hit = per_type.get(c.type, (0, 0))
             per_type[c.type] = (n_items + 1, hit + (1 if profile.get(c.id) is not None else 0))
-        cells.setdefault(hashable_condition_key(record.condition_key), []).append((rate, per_type))
+        cells.setdefault(record.bucket_key, []).append((rate, per_type))
     summary: dict[tuple[tuple[str, Any], ...], tuple[int, float, dict[str, tuple[int, float]]]] = {}
     for key, entries in cells.items():
         mean_rate = sum(r for r, _ in entries) / len(entries)

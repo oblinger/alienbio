@@ -39,7 +39,7 @@ from .brief import TaskBrief, render_brief
 from .dist import Seed
 from .naming import NameMap
 from .ops import LLMFn, LLMOp
-from .trial import TrialRecord, hashable_condition_key
+from .trial import TrialRecord
 
 #: The judge's fixed system directive. Third-person by design.
 REALISM_DIRECTIVE = (
@@ -195,12 +195,12 @@ def realism_win_rates(
         raise ValueError("realism_win_rates: the reference pool is empty")
     outcomes: dict[tuple[tuple[str, Any], ...], list[bool]] = {}
     for i, record in enumerate(records):
-        if record.error:
+        if record.is_error:
             continue
         child = seed.child(f"realism/{i}")
         reference = pool[child.child("ref").value % len(pool)]
         win = judge_pair(judge, render_transcript(record), reference, child.child("order"))
-        outcomes.setdefault(hashable_condition_key(record.condition_key), []).append(win)
+        outcomes.setdefault(record.bucket_key, []).append(win)
     summaries: dict[tuple[tuple[str, Any], ...], RealismSummary] = {}
     for key, wins_list in outcomes.items():
         n = len(wins_list)

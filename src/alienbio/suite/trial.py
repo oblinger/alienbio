@@ -207,6 +207,21 @@ class TrialRecord:
     #: never left or was never seeded, so goldens are byte-unchanged.
     forgetting: Optional[Mapping[str, Any]] = None
 
+    @property
+    def bucket_key(self) -> tuple[tuple[str, Any], ...]:
+        """The ONE key a summary buckets on: ``condition_key`` made hashable
+        and name-sorted (T057 proposal 5). Every analysis family used to
+        re-derive this from the raw key; the 2026-08-31 unhashable bug was
+        patched at three of twelve sites and box 4 found the other nine."""
+        return tuple(sorted(hashable_condition_key(self.condition_key), key=lambda kv: kv[0]))
+
+    @property
+    def is_error(self) -> bool:
+        """The ONE exclusion predicate: an error record, whether it was
+        stamped ``terminal_reason="error"`` or carries an ``error`` message
+        (every writer sets both; two families of readers tested one each)."""
+        return self.terminal_reason == "error" or bool(self.error)
+
     @cached_property
     def deliberation_depth(self) -> int:
         """Lazily-cached step count of ``deliberation_trace`` (PR#155 diagnostic)."""

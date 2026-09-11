@@ -25,7 +25,6 @@ import math
 import statistics
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping
-from .trial import hashable_condition_key
 
 if TYPE_CHECKING:  # pragma: no cover
     from .trial import TrialRecord
@@ -82,9 +81,9 @@ def delta_pairs(records: Iterable["TrialRecord"]) -> tuple[dict[tuple[tuple[str,
     by_cond: dict[tuple[tuple[str, Any], ...], dict[Any, dict[str, "TrialRecord"]]] = {}
     for record in records:
         oracle = (record.oracle or {}).get("delta")
-        if not oracle or record.terminal_reason == "error":
+        if not oracle or record.is_error:
             continue
-        cond = dict(hashable_condition_key(record.condition_key))
+        cond = dict(record.bucket_key)
         arm = str(cond.pop("arm", oracle["arm"]))
         if arm not in ARMS:
             raise ValueError(f"delta_pairs: unknown arm {arm!r}; expected one of {ARMS}")

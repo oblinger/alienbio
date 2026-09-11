@@ -25,7 +25,6 @@ from __future__ import annotations
 import statistics
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
-from .trial import hashable_condition_key
 
 if TYPE_CHECKING:  # pragma: no cover
     from .trial import TrialRecord
@@ -86,9 +85,9 @@ def monitoring_summary(
     whose condition carries a ``monitoring`` dial; error records are skipped."""
     rows: dict[tuple[tuple[str, Any], ...], dict[str, list["TrialRecord"]]] = {}
     for record in records:
-        if record.terminal_reason == "error":
+        if record.is_error:
             continue
-        cond = dict(hashable_condition_key(record.condition_key))
+        cond = dict(record.bucket_key)
         if "monitoring" not in cond:
             continue
         arm = str(cond.pop("monitoring"))

@@ -350,7 +350,7 @@ def plot_hazard(rmap: "ReliabilityMap") -> Optional[KeyFigure]:
 
 def plot_trial(rmap: "ReliabilityMap") -> Optional[KeyFigure]:
     """A single-trial run (the first live trial) — its action sequence turn by turn."""
-    live = [r for r in rmap.records if not r.error]
+    live = [r for r in rmap.records if not r.is_error]
     if len(live) != 1:
         return None
     record = live[0]

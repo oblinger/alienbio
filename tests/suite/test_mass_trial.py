@@ -397,8 +397,8 @@ def test_on_error_record_keeps_the_record_and_usage_an_exception_carries(monkeyp
     def metered_agent_factory(seed, dials):
         return _MeteredAgent()
 
-    def carrying_run_trial(world, task, agent, dials, seed):
-        base = real_run_trial(world, task, _agent_factory(seed, dials), dials, seed)
+    def carrying_run_trial(world, task, agent, dials, seed, **kw):
+        base = real_run_trial(world, task, _agent_factory(seed, dials), dials, seed, **kw)
         if dials["rung"] == "forced":
             raise TaintError(_replace(base, taint_hits=("m1",), usage=seen_usage))
         raise RuntimeError("boom after calls")

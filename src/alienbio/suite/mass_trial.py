@@ -519,7 +519,7 @@ class MassTrialRunner:
             try:
                 world, task = drafter(trial_seed.child("draft"), run_dials)
                 agent = agent_factory(trial_seed.child("agent"), run_dials)
-                record = run_trial(world, task, agent, run_dials, trial_seed.child("run"))
+                record = run_trial(world, task, agent, run_dials, trial_seed.child("run"), swept=[n for n, _ in key])
                 return replace(record, condition_key=key)
             except Exception as exc:
                 if on_error == "raise":

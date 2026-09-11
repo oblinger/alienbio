@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional
 
 from .stats_summary import mean_confidence_interval
-from .trial import hashable_condition_key
 
 if TYPE_CHECKING:
     from .trial import TrialRecord
@@ -45,9 +44,9 @@ def census_summary(records: Iterable["TrialRecord"]) -> dict[ConditionKey, Censu
     """One :class:`CensusCell` per condition key; error records are skipped."""
     rows: dict[ConditionKey, list[tuple[int, int, int, int]]] = {}
     for r in records:
-        if r.error or r.terminal_reason == "error":
+        if r.is_error:
             continue
-        rows.setdefault(hashable_condition_key(r.condition_key), []).append((_intervenes(r), r.turns, len(r.deliberation_trace.steps), r.illegal_actions))
+        rows.setdefault(r.bucket_key, []).append((_intervenes(r), r.turns, len(r.deliberation_trace.steps), r.illegal_actions))
     out: dict[ConditionKey, CensusCell] = {}
     for key, items in rows.items():
         n = len(items)
@@ -100,12 +99,12 @@ def outcome_distribution(
     = ``idle``). Conditions with no readable record are absent."""
     values: dict[ConditionKey, list[float]] = {}
     for r in records:
-        if r.error or r.terminal_reason == "error":
+        if r.is_error:
             continue
         v = read(r)
         if v is None:
             continue
-        values.setdefault(hashable_condition_key(r.condition_key), []).append(v)
+        values.setdefault(r.bucket_key, []).append(v)
     twins: dict[ConditionKey, float] = {}
     for key, vs in values.items():
         d = dict(key)

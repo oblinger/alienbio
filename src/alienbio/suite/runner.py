@@ -84,7 +84,7 @@ import dataclasses
 import math
 import re
 import time
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Collection, Mapping, Optional, cast
 
 from ..bio.chemistry import ChemistryImpl
 from ..bio.reaction import ReactionImpl
@@ -412,6 +412,13 @@ def _parse_probes(value: Any, setup: Any) -> tuple[tuple[str, str], ...]:
     return tuple(out)
 
 
+def _projected_key(dials: Mapping[str, Any], swept: Optional[Collection[str]]) -> tuple[tuple[str, Any], ...]:
+    """The record's condition key: every dial, or only the swept ones."""
+    if swept is None:
+        return condition_key(dials)
+    return condition_key({k: v for k, v in dials.items() if k in swept})
+
+
 def run(
     world: WorldImpl,
     task: TaskInstance,
@@ -424,8 +431,16 @@ def run(
     assay_kill: float = DEFAULT_ASSAY_KILL,
     illegal_action_limit: int = 10,
     illegal_action_cost: Optional[float] = None,
+    swept: Optional[Collection[str]] = None,
 ) -> TrialRecord:
     """Run ``agent`` against ``task``'s ``world`` for one immutable ``TrialRecord``.
+
+    ``swept`` (T057 proposal 5) names the dials that are AXES of the
+    experiment this trial belongs to; the record's ``condition_key`` is then
+    projected to exactly those, which is the key a ``run_experiment`` record
+    carries. Without it every dial is stamped (a direct call's own
+    condition), and a direct record and a grid record for one condition
+    bucket apart in every summary.
 
     Before turn 0: narrow ``world``'s initial state into the turn-0
     ``Observation`` and package it, ``task``, ``dials``, the resolved
@@ -806,7 +821,7 @@ def run(
         # actually did before it died.
         partial = TrialRecord(
             task_id=task.world,
-            condition_key=condition_key(dials),
+            condition_key=_projected_key(dials, swept),
             final_timeline=Timeline(times=tuple(turn_times), states=tuple(turn_states)),
             deliberation_trace=trace,
             action_log=tuple(action_records),
@@ -864,7 +879,7 @@ def run(
 
     record = TrialRecord(
         task_id=task.world,
-        condition_key=condition_key(dials),
+        condition_key=_projected_key(dials, swept),
         final_timeline=final_timeline,
         deliberation_trace=trace,
         action_log=tuple(action_records),

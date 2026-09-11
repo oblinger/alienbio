@@ -45,3 +45,43 @@ def test_pressure_and_census_families_bucket_the_direct_runner_record():
     assert len(pressure_summary([record])[key]) == 1
     (ckey,) = census_summary([record])
     assert census_summary([record])[ckey].n == 1
+
+
+def test_a_direct_run_and_a_grid_run_for_one_condition_bucket_together():
+    """T057 proposal 5 — the key had two spellings (`runner.run` stamped every
+    dial, `MassTrialRunner` the swept axes), so a direct record and a grid
+    record for one condition landed in two buckets. `run(..., swept=)`
+    projects at the source and `TrialRecord.bucket_key` is the one key."""
+    from alienbio.suite.caution import caution_summary
+    from alienbio.suite.dist import Seed
+    from alienbio.suite.experiment import DRAFTERS, _idle_agent_factory
+    from alienbio.suite.runner import run
+
+    dials = {"rung": "single", "levers": [], "max_turns": 2}
+    world, task = DRAFTERS["conflict"](Seed(1), dials)
+    direct = run(world, task, _idle_agent_factory(Seed(1), dials), dials, Seed(1), max_turns=2)
+    projected = run(world, task, _idle_agent_factory(Seed(1), dials), dials, Seed(1), max_turns=2, swept=["rung"])
+
+    assert dict(direct.condition_key).keys() == {"rung", "levers", "max_turns"}
+    assert projected.condition_key == (("rung", "single"),)
+    assert projected.bucket_key == (("rung", "single"),)
+    assert len(caution_summary([projected, projected])) == 1
+    assert direct.is_error is False and hash(direct.bucket_key)
+
+
+def test_no_summary_re_derives_the_bucket_or_the_exclusion():
+    """A grep-lint: the raw-key and the two-predicate patterns must not come back."""
+    import re
+    from pathlib import Path
+
+    suite = Path(__file__).resolve().parents[2] / "src" / "alienbio" / "suite"
+    offenders = []
+    for path in sorted(suite.glob("*.py")):
+        if path.name in ("trial.py", "mass_trial.py"):
+            continue
+        text = path.read_text()
+        for pattern in (r"tuple\(\w+\.condition_key\)", r"hashable_condition_key\(", r'terminal_reason [!=]= "error"'):
+            for m in re.finditer(pattern, text):
+                line = text[: m.start()].count("\n") + 1
+                offenders.append(f"{path.name}:{line}: {m.group(0)}")
+    assert offenders == [], offenders
