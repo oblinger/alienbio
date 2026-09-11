@@ -29,7 +29,7 @@ import pytest
 import json
 from pathlib import Path
 
-from alienbio.expr import Env, X, evaluate, fn
+from alienbio.expr import Env, ExprError, X, evaluate, fn
 from alienbio.expr.yaml_tags import load_text
 
 # ---------------------------------------------------------------------------
@@ -287,3 +287,59 @@ def test_load_text_keeps_template_forms_as_data_until_evaluated():
     doc = load_text(EXPR_DOC)
     assert doc["energy_cycle"].head == "template"
     assert doc["krel_energy"].args == ("krel",)
+
+
+# ---------------------------------------------------------------------------
+# T051 box 4 / T054 #5 — pool namespacing cannot merge two instances
+# ---------------------------------------------------------------------------
+
+_CELL_TEMPLATE = """
+cycle: !template
+  positional: [waste]
+  params: {rate: 1.0, tag: ""}
+  pools: [waste]
+  body: !block
+    children:
+      feed: !source {pool: A, rate: !x rate}
+      burn: !reaction {reactants: [A], products: [B]}
+      dump: !reaction {reactants: [B], products: [!x waste]}
+"""
+
+
+def test_two_instances_with_the_same_key_under_different_parents_refuse_to_share_pools():
+    """`a.cell` and `b.cell` used to be one instance `cell`: one molecule
+    shared by four reactions, no error."""
+    doc = _CELL_TEMPLATE + """
+a: !block
+  children:
+    cell: !cycle [shared_waste]
+b: !block
+  children:
+    cell: !cycle [shared_waste]
+top: !block {children: {a: !x a, b: !x b}}
+sk: !skeleton {root: !x top}
+"""
+    with pytest.raises(ExprError, match="instance name 'cell' is already taken"):
+        Env.standard(seed=2).load("<dup>", text=doc).force_all()
+
+
+def test_a_non_pool_string_argument_does_not_alias_an_internal_pool():
+    """With `pools:` declared, only those parameters' strings keep the
+    caller's spelling; a `tag: A` argument used to de-namespace the internal
+    pool `A` and wire it to the outside world."""
+    doc = _CELL_TEMPLATE + """
+eco: !block
+  children:
+    krel: !cycle {args: [shared_waste], tag: A}
+    drain: !sink {pool: shared_waste, rate: 0.5}
+sk: !skeleton {root: !x eco}
+w: !world {skeleton: !x sk}
+"""
+    molecules = {m.split("/")[-1] for m in Env.standard(seed=2).load("<tag>", text=doc).force_all()["w"].chemistry.molecules}
+    assert {"krel.A", "krel.B", "shared_waste"} <= molecules and "A" not in molecules
+
+
+def test_pools_must_name_parameters():
+    doc = "t: !template {positional: [x], pools: [y], body: !x x}\n"
+    with pytest.raises(ExprError, match="pools names \\['y'\\]"):
+        Env.standard(seed=1).load("<p>", text=doc).force_all()

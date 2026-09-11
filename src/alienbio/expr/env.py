@@ -73,6 +73,10 @@ class Ctx:
     path: str = ""
     trusted: bool = False
     limits: Limits = field(default_factory=Limits)
+    #: Template instance name -> the document path that claimed it; shared by
+    #: every child ctx of one load (``replace`` copies the reference), so a
+    #: second path claiming a name refuses (T054 #5).
+    instances: dict[str, str] = field(default_factory=dict)
 
     @property
     def rng(self) -> np.random.Generator:

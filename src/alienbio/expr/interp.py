@@ -79,12 +79,18 @@ class TemplateHead(Head):
         params: Mapping[str, Any],
         body: Any,
         env: Env,
+        pools: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__(name=name, kind="template", fn=self.expand, meta={"summary": f"template {name}"})
         self.positional = tuple(positional)
         self.params = dict(params)
         self.body = body
         self.env_def = env
+        #: T054 #5 — which parameters carry POOL names. When declared, only
+        #: their strings keep the caller's spelling inside the body; when
+        #: absent (every template written before this), every string argument
+        #: does, and an argument equal to an internal pool name de-namespaces it.
+        self.pools = tuple(pools) if pools is not None else None
 
     def expand(self, args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
         if len(args) > len(self.positional):
@@ -119,15 +125,27 @@ class TemplateHead(Head):
         # spelling; everything else the body names is namespaced by this
         # instance (``Env.pool``).
         passed: dict[str, str] = {}
-        for value in bound.values():
-            for text in _strings_in(value):
+        pool_params = bound.keys() if self.pools is None else [k for k in bound if k in self.pools]
+        for key in pool_params:
+            for text in _strings_in(bound[key]):
                 passed.setdefault(text, env.pool(text))
         scope_env.bindings[PASSED_KEY] = passed
         # The instance is named by the key the call is bound to, nested under
         # the enclosing instance (``krel``; ``c1.krel`` inside instance ``c1``).
         label = (env.path.rsplit(".", 1)[-1] if env.path else "") or self.name
         parent = env.bindings.get(INSTANCE_KEY)
-        scope_env.bindings[INSTANCE_KEY] = f"{parent}.{label}" if parent else label
+        instance = f"{parent}.{label}" if parent else label
+        # T054 #5: two calls with the same key under different parents
+        # (``a.cell`` / ``b.cell``) used to share one namespace and merge their
+        # molecules silently. The instance name is claimed per document path;
+        # a second path claiming it refuses (a retry at the same path does not).
+        prior = env.ctx.instances.setdefault(instance, env.path)
+        if prior != env.path:
+            raise env.error(
+                f"template {self.name!r}: instance name {instance!r} is already taken by the call at "
+                f"{prior!r}; two instances would share every pool — bind them to distinct keys"
+            )
+        scope_env.bindings[INSTANCE_KEY] = instance
         return evaluate(self.body, scope_env)
 
 
@@ -436,7 +454,7 @@ def _seed(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
 
 
 def _template(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
-    _check_kwargs(kwargs, ("positional", "params", "body", "name"), env, "template")
+    _check_kwargs(kwargs, ("positional", "params", "body", "name", "pools"), env, "template")
     if args:
         raise env.error("template: use keywords (positional=, params=, body=)")
     positional = kwargs.get("positional", [])
@@ -450,8 +468,15 @@ def _template(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
     dup = set(positional) & set(params)
     if dup:
         raise env.error(f"template: {sorted(dup)} listed both as positional and as params")
+    pools = kwargs.get("pools")
+    if pools is not None:
+        if not isinstance(pools, (list, tuple)) or not all(isinstance(p, str) for p in pools):
+            raise env.error("template: pools must be a list of parameter names")
+        unknown = sorted(set(pools) - set(positional) - set(params))
+        if unknown:
+            raise env.error(f"template: pools names {unknown}, which are not parameters")
     name = kwargs.get("name") or env.path.rsplit(".", 1)[-1] or "template"
-    return TemplateHead(str(name), positional, params, kwargs["body"], env)
+    return TemplateHead(str(name), positional, params, kwargs["body"], env, pools=pools)
 
 
 def _and(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
