@@ -664,6 +664,17 @@ def run(
             elif not _is_finite_number(action.value):
                 accepted = False
                 reject_reason = f"non-finite value {action.value!r}"
+            elif float(action.value) < 0.0:
+                # T051 box 4 — a negative setpoint is rejection-as-data. The
+                # engine never produces a negative concentration itself but
+                # has no guard on INPUT: a molecule lever set to -5 wrote -5
+                # into every compartment and the world ran on it (even-stoich
+                # mass action runs backwards, fractional powers go complex on
+                # the reference path and NaN->0 on JAX). A negative reaction
+                # rate is floored to 0 by ``_desired_extent`` and would have
+                # stalled the reaction with no note on the record.
+                accepted = False
+                reject_reason = f"negative value {float(action.value):g}"
             else:
                 # T023 — a declared per-lever cap bounds the value one
                 # Intervene may set: an over-cap value is clamped to the cap

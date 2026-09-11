@@ -17,6 +17,7 @@ from alienbio.suite.agent import (
     Measure,
     ReasoningStep,
     ScriptedAgent,
+    Wait,
 )
 from alienbio.suite.archetypes import identify_pathway
 from alienbio.suite.brief import build_brief, render_brief
@@ -623,6 +624,41 @@ def test_explicit_levers_dial_restricts_affordances_and_rejects_others():
     assert record.brief.affordances.levers == (reaction_id,)
     assert record.action_log[0].accepted is False
     assert reaction_id in record.action_log[0].reason or mol in record.action_log[0].reason
+
+
+def test_negative_intervene_value_is_rejected_as_data_and_never_reaches_the_world():
+    """A negative setpoint on a molecule lever used to be written verbatim
+    into every compartment (T051 box 4): the engine guards its own arithmetic
+    against going negative but had no guard on INPUT, so the world ran on
+    -5.0 and even-stoichiometry mass action ran backwards. It is now
+    rejection-as-data, the same shape as a non-finite value: the action is
+    recorded as rejected, the world is untouched, and the trial goes on."""
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reaction_id = next(iter(world.chemistry.reactions))
+    mol = next(iter(world.chemistry.molecules))
+    mol_idx = list(world.chemistry.molecules).index(mol)
+
+    agent = ScriptedAgent(
+        (
+            Intervene(lever=mol, value=-5.0),
+            Intervene(lever=reaction_id, value=-1.0),
+            Wait(duration=1.0),
+            Commit(answer=Answer(value=[], kind="ordered_path")),
+        ),
+        seed=Seed(0),
+    )
+    record = run(world, task, agent, {}, Seed(0))
+
+    for entry in record.action_log[:2]:
+        assert entry.accepted is False
+        assert "negative value" in entry.reason
+    assert record.terminal_reason == "committed"
+    assert record.final_timeline is not None
+    for state in record.final_timeline.states:
+        for c in range(state.num_compartments):
+            assert min(state.get_compartment(c)) >= 0.0
+    assert record.final_timeline.states[-1].get(0, mol_idx) >= 0.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════
