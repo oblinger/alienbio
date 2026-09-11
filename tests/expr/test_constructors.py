@@ -110,3 +110,19 @@ def test_typed_key_convention_is_gone():
 
     assert not hasattr(alienbio, "transform_typed_keys")
     assert not hasattr(spec_lang, "transform_typed_keys")
+
+
+def test_chemistry_refuses_an_id_shared_by_a_molecule_and_a_reaction():
+    """T051 box 4 / T054 #1: the two dicts were independent, so a shared id was
+    accepted here and lost silently in the opaque name map (the reaction won
+    its surface name, the molecule got none, and one token then resolved as
+    the reaction for Intervene and the molecule for Measure)."""
+    doc = (
+        "A: !Molecule {}\n"
+        "x: !Molecule {}\n"
+        "host: !Chemistry\n"
+        "  molecules: [!x A, !x x]\n"
+        "  reactions: [!Reaction {name: x, reactants: [!x A], products: [], rate: 0.01}]\n"
+    )
+    with pytest.raises(ExprError, match="both a molecule and a reaction"):
+        Env.standard(seed=1).load("<c>", text=doc).force_all()

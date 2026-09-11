@@ -29,6 +29,18 @@ from __future__ import annotations
 import math
 from typing import Any, Callable, Hashable, Iterable, Mapping
 
+#: Below this magnitude a concentration is float rounding of an exact zero, not
+#: a real amount: both simulators snap a negative residue this small to zero
+#: (M48.6), and a rate law divides by it as if it were zero. The one constant
+#: both backends and the population pass import (T051 box 4 / T054 — the two
+#: backends carried their own copies, and a `1/[x]` law amplified a 1e-16
+#: residue on one of them into a RATE_CAP extent while the other read exactly 0).
+ROUNDING_FLOOR = 1e-12
+
+#: The largest desired extent a reaction may ask for in one step: an infinite
+#: rate means "all of it", and the rationing then bounds it by availability.
+RATE_CAP = 1e150
+
 RateNode = tuple  # see the module docstring
 
 _BINARY = ("add", "sub", "mul", "div", "pow")
@@ -129,7 +141,7 @@ def eval_rate(node: RateNode, conc: Callable[[Any], float]) -> float:
     if tag == "mul":
         return a * b
     if tag == "div":
-        return a / b if b != 0.0 else 0.0
+        return a / b if abs(b) >= ROUNDING_FLOOR else 0.0
     if tag == "pow":
         return a**b
     raise ValueError(f"unknown rate node {tag!r}")
@@ -169,7 +181,8 @@ def lower_jax(node: RateNode, S: Any, column: Callable[[Any], int]) -> Any:
     if tag == "mul":
         return a * b
     if tag == "div":
-        return jnp.where(b != 0.0, a / jnp.where(b != 0.0, b, 1.0), 0.0)
+        live = jnp.abs(b) >= ROUNDING_FLOOR
+        return jnp.where(live, a / jnp.where(live, b, 1.0), 0.0)
     if tag == "pow":
         return a**b
     raise ValueError(f"unknown rate node {tag!r}")

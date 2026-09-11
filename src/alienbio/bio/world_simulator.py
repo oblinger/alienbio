@@ -13,7 +13,7 @@ from .compartment_tree import CompartmentTreeImpl
 from .flow import Flow
 from .population import PopulationLaw, apply_population_laws
 from .reaction import Modulation
-from .rate_expr import eval_rate, implicit_mass_action, map_species
+from .rate_expr import RATE_CAP, ROUNDING_FLOOR, eval_rate, implicit_mass_action, map_species
 
 if TYPE_CHECKING:
     from .chemistry import ChemistryImpl
@@ -26,9 +26,6 @@ MoleculeId = int
 CompartmentId = int
 
 
-#: Below this a negative concentration is float rounding of an exact zero, not
-#: a rationing failure; both simulators snap it to zero (M48.6).
-ROUNDING_FLOOR = 1e-12
 
 #: Concentrations below the smallest normal float are read as zero — the
 #: denormals-are-zero convention the JAX core inherits from XLA.
@@ -44,9 +41,6 @@ def _flush_subnormals(state: WorldStateImpl) -> WorldStateImpl:
     flushed = state.copy()
     flushed._concentrations = [0.0 if 0.0 < abs(v) < SUBNORMAL_FLOOR else v for v in values]
     return flushed
-#: The largest desired extent a reaction may ask for in one step: an infinite
-#: rate means "all of it", and the rationing then bounds it by availability.
-RATE_CAP = 1e150
 
 
 class ReactionSpec:

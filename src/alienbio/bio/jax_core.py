@@ -38,7 +38,7 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple, cast
 #: A JAX array in annotations — ``Any`` so the module types without JAX installed.
 Array = Any
 
-from .rate_expr import lower_jax
+from .rate_expr import RATE_CAP, ROUNDING_FLOOR, lower_jax
 
 try:
     import jax
@@ -114,9 +114,6 @@ def build_reaction_tensors(
     )
 
 
-#: See ``world_simulator.ROUNDING_FLOOR``.
-ROUNDING_FLOOR = 1e-12
-RATE_CAP = 1e150
 
 #: Modulation kinds by code, for the padded modulation tensors (0 = no slot).
 MOD_KINDS: Tuple[str, ...] = ("", "activator", "inhibitor", "michaelis", "hill")

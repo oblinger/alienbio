@@ -45,6 +45,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Sequence, TYPE_CHECKING
 
+from .rate_expr import ROUNDING_FLOOR
+
 if TYPE_CHECKING:
     from .world_state import WorldStateImpl
 
@@ -457,9 +459,6 @@ class CountFlow(PopulationLaw):
         return f"CountFlow({self._name})"
 
 
-#: Below this magnitude a negative value is float rounding, not a real draw
-#: (the same floor :mod:`alienbio.bio.world_simulator` snaps reaction residues at).
-ROUNDING_FLOOR = 1e-12
 
 
 def apply_population_laws(

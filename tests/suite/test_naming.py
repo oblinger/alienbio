@@ -35,6 +35,18 @@ def test_the_map_is_seed_deterministic_injective_and_structure_free():
         NameMap.of({"a": "m1", "b": "m1"})
 
 
+def test_build_name_map_refuses_a_shared_molecule_reaction_id():
+    """The map is the place that silently LOSES an entry (molecules then
+    reactions into one dict), so it refuses beside ChemistryImpl (T054 #1)."""
+
+    class _Chem:
+        molecules = {"a": None, "x": None}
+        reactions = {"x": None}
+
+    with pytest.raises(ValueError, match="'x'"):
+        build_name_map(_Chem(), Seed(1))  # type: ignore[arg-type]
+
+
 def test_the_agent_sees_surface_names_and_the_record_keeps_structural_ids():
     world, task = DRAFTERS["pressure"](Seed(3), {"pi": 0.0})
     clean = _route(world, "route_clean")

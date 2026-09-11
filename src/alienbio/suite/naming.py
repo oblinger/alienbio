@@ -108,6 +108,15 @@ def build_name_map(chemistry: "ChemistryImpl", seed: Seed) -> NameMap:
     nor the generator's ordering. Deterministic in ``(ids, seed)``."""
     import random
 
+    shared = chemistry.molecules.keys() & chemistry.reactions.keys()
+    if shared:
+        # Belt and braces beside ChemistryImpl's refusal: this is the place that
+        # silently LOSES an entry, since both loops write into one dict.
+        raise ValueError(
+            f"build_name_map: id(s) {sorted(shared)!r} name both a molecule and a "
+            "reaction; one surface name cannot stand for two entities"
+        )
+
     out: dict[str, str] = {}
     for prefix, ids, salt in (("m", sorted(chemistry.molecules), "molecules"), ("r", sorted(chemistry.reactions), "reactions")):
         order = list(ids)

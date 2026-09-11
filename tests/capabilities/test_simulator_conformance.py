@@ -116,6 +116,40 @@ def test_reference_keeps_every_concentration_finite_and_non_negative(sys_):
 
 
 @needs_jax
+def test_a_law_dividing_by_a_species_that_ran_out_agrees_on_both_backends():
+    """The random-systems property found this one (T051 box 4 follow-up): three
+    reactions drain m0 to an exact zero in one step, then a fourth carries the
+    law ``1/[m0]``. The reference's subtraction left a 1e-16 residue and the
+    law read it as a RATE_CAP rate, while the fused JAX update landed on
+    exactly 0.0 and the div guard read it as zero -- the two backends swapped
+    1.04 between m0 and m1. A denominator below ROUNDING_FLOOR now counts as
+    zero on both."""
+    from alienbio.bio.jax_simulator import JaxWorldSimulator
+
+    tree = CompartmentTreeImpl()
+    tree.add_root("organism")
+    state = WorldStateImpl(tree=tree, num_molecules=3)
+    state.set(0, 0, 2.0)
+    state.set(0, 1, 0.0)
+    state.set(0, 2, 2.0)
+    activator = {2: Modulation(kind="activator", a=1.0)}
+    reactions = [
+        ReactionSpec("r0", {0: 2.0}, {1: 1.0}, rate_constant=1.0, modulators=activator),
+        ReactionSpec("r1", {0: 2.0}, {1: 1.0}, rate_constant=1.0, modulators=activator),
+        ReactionSpec("r2", {0: 1.0}, {1: 1.0}, rate_constant=1.0),
+        ReactionSpec("r3", {1: 1.0}, {0: 1.0}, rate_constant=1.0, rate_law=("div", ("const", 1.0), ("species", 0))),
+    ]
+
+    ref = WorldSimulatorImpl(tree, reactions, [], num_molecules=3, dt=0.05).run(state, steps=2)[-1]
+    jx = JaxWorldSimulator(tree, reactions, num_molecules=3, dt=0.05).run(state, steps=2)[-1]
+
+    for m in range(3):
+        assert jx.get(0, m) == pytest.approx(ref.get(0, m), abs=1e-9, rel=1e-9), m
+    assert ref.get(0, 0) == pytest.approx(0.0, abs=1e-9)
+    assert ref.get(0, 1) == pytest.approx(1.04, abs=1e-9)
+
+
+@needs_jax
 @settings(max_examples=60, deadline=None)
 @given(system())
 def test_jax_matches_the_reference_on_random_systems(sys_):

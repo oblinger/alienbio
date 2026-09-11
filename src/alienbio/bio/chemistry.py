@@ -117,6 +117,18 @@ class ChemistryImpl(Entity, head="Chemistry"):
         self.atoms = atoms.copy() if atoms else {}
         self.molecules = molecules.copy() if molecules else {}
         self.reactions = reactions.copy() if reactions else {}
+        # One id cannot name two entities. The two dicts are independent, so a
+        # shared id was accepted here and lost silently downstream: the opaque
+        # name map writes molecules then reactions into one dict, so the
+        # reaction won its surface name, the molecule got none, and the runner
+        # then resolved that one token as the reaction for Intervene and the
+        # molecule for Measure (T051 box 4 / T054 #1).
+        shared = self.molecules.keys() & self.reactions.keys()
+        if shared:
+            raise ValueError(
+                f"chemistry {name!r}: id(s) {sorted(shared)!r} name both a molecule "
+                "and a reaction; ids must be unique across the whole chemistry"
+            )
 
     @classmethod
     def hydrate(
