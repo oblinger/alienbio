@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
 
 from .world_state import WorldStateImpl
 from .compartment_tree import CompartmentTreeImpl
-from .flow import Flow
+from .flow import Flow, apply_flows
 from .population import PopulationLaw, apply_population_laws
 from .reaction import Modulation
 from .rate_expr import RATE_CAP, ROUNDING_FLOOR, eval_rate, implicit_mass_action, map_species
@@ -219,9 +219,10 @@ class WorldSimulatorImpl:
             if active:
                 self._apply_reactions(new_state, state, active, comp)
 
-        # Apply flows between compartments
-        for flow in self._flows:
-            flow.apply(new_state, self._tree, self._dt)
+        # Apply flows between compartments — together, off the frozen state,
+        # rationing the summed demand on each pool (T053; see apply_flows).
+        if self._flows:
+            apply_flows(self._flows, new_state, state, self._tree, self._dt)
 
         # Apply the population pass (F017 — the FIRST multiplicity-update path).
         # Empty is the fast path: no allocation, byte-identical to every world

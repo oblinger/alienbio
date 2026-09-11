@@ -309,3 +309,69 @@ def test_transport_persists_across_scenario_runner_turns() -> None:
     # be flat instead of still climbing.
     assert all(b > a for a, b in zip(dest_concs, dest_concs[1:]))
     assert dest_concs[-1] > dest_concs[-2] > dest_concs[-3]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# T051 box 4 / T053 — the flow pass is simultaneous and rations summed demand
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _three_way(order: list[str], dt: float = 1.0) -> tuple[WorldStateImpl, int, int, int]:
+    """One pool `a` (1.0) drawn by two first-order fluxes each wanting 0.8 of
+    it, into `b` and `c`; `order` names which flux is listed first."""
+    tree = CompartmentTreeImpl()
+    a = tree.add_root("a")
+    b = tree.add_child(a, "b")
+    c = tree.add_child(a, "c")
+    state = WorldStateImpl(tree=tree, num_molecules=1, compartment_ids=["a", "b", "c"], molecule_ids=["x"])
+    state.set(a, 0, 1.0)
+    fluxes = {
+        "ab": TransportFlux(origin=a, dest=b, stoichiometry={0: 1.0}, driver_molecule=0, rate_constant=0.8, rate_law="first_order"),
+        "ac": TransportFlux(origin=a, dest=c, stoichiometry={0: 1.0}, driver_molecule=0, rate_constant=0.8, rate_law="first_order"),
+    }
+    sim = WorldSimulatorImpl(tree=tree, reactions=[], flows=[fluxes[k] for k in order], num_molecules=1, dt=dt)
+    return sim.step(state), a, b, c
+
+
+def test_two_fluxes_over_drawing_one_pool_split_it_independently_of_list_order() -> None:
+    """Sequential application let the first-listed flux take 0.8 and the
+    second the 0.16 that was left (`a=0.04 b=0.80 c=0.16` vs `b=0.16 c=0.80`).
+    Rationing the summed demand off the frozen state gives each half."""
+    first, a, b, c = _three_way(["ab", "ac"])
+    second, _, _, _ = _three_way(["ac", "ab"])
+    for s in (first, second):
+        assert s.get(a, 0) == pytest.approx(0.0, abs=1e-12)
+        assert s.get(b, 0) == pytest.approx(0.5, abs=1e-12)
+        assert s.get(c, 0) == pytest.approx(0.5, abs=1e-12)
+    assert first.get(b, 0) == second.get(b, 0) and first.get(c, 0) == second.get(c, 0)
+
+
+def test_a_non_competing_flux_moves_exactly_what_it_did_before() -> None:
+    """With nothing over-drawn every ratio is exactly 1.0: the move is the
+    flux's own `apply()` on the frozen state, bit for bit."""
+    tree, sim, state, a, b = _two_compartment_sim(1.0, 2.0, 0.3, dt=0.1)
+    state.set(a, 0, 4.0)
+    stepped = sim.step(state)
+    alone = state.copy()
+    sim.flows[0].apply(alone, tree, 0.1)
+    assert stepped.get(a, 0) == alone.get(a, 0) and stepped.get(b, 0) == alone.get(b, 0)
+
+
+def test_the_jax_host_path_runs_the_same_flow_pass() -> None:
+    pytest.importorskip("jax")
+    from alienbio.bio.jax_simulator import JaxWorldSimulator
+
+    tree = CompartmentTreeImpl()
+    a = tree.add_root("a")
+    b = tree.add_child(a, "b")
+    c = tree.add_child(a, "c")
+    state = WorldStateImpl(tree=tree, num_molecules=1, compartment_ids=["a", "b", "c"], molecule_ids=["x"])
+    state.set(a, 0, 1.0)
+    flows = [
+        TransportFlux(origin=a, dest=b, stoichiometry={0: 1.0}, driver_molecule=0, rate_constant=0.8, rate_law="first_order"),
+        TransportFlux(origin=a, dest=c, stoichiometry={0: 1.0}, driver_molecule=0, rate_constant=0.8, rate_law="first_order"),
+    ]
+    ref = WorldSimulatorImpl(tree=tree, reactions=[], flows=flows, num_molecules=1, dt=1.0).step(state)
+    jx = JaxWorldSimulator(tree, [], num_molecules=1, dt=1.0, flows=flows).step(state)
+    for comp in (a, b, c):
+        assert jx.get(comp, 0) == pytest.approx(ref.get(comp, 0), abs=1e-12)

@@ -11,7 +11,7 @@ Flow hierarchy:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .world_state import WorldStateImpl
@@ -363,48 +363,42 @@ class TransportFlux(Flow):
         conc_dst = state.get(self._dest, self._driver_molecule)
         return self._rate_constant * (conc_src - conc_dst)
 
-    def apply(
+    def demand(
         self,
-        state: WorldStateImpl,
+        frozen: WorldStateImpl,
         tree: CompartmentTreeImpl,
         dt: float = 1.0,
-    ) -> None:
-        """Apply this flux to the state (mutates in place).
+    ) -> tuple[float, Dict[tuple[CompartmentId, int], float]]:
+        """The event count this flux wants this step, read off the FROZEN
+        start-of-step state, and the AMOUNT it would draw from each losing
+        ``(compartment, molecule)`` at that count (T053).
 
-        Computes the event rate, floors it at 0, rations it against every
-        transported species' available AMOUNT in its losing compartment (so
-        no species is ever driven negative), then moves the SAME clamped
-        ``Δn`` out of the losing pool and into the other for each species —
-        the amount-conserving bookkeeping this class exists to guarantee.
-
-        Args:
-            state: World state to modify
-            tree: Compartment topology (unused)
-            dt: Time step
+        The losing pool for a species is origin when its count is positive
+        (origin -> dest), else dest (a negative count antiports that species).
         """
-        event_count = max(self.compute_flux(state, tree) * dt, 0.0)
+        event_count = max(self.compute_flux(frozen, tree) * dt, 0.0)
+        draws: Dict[tuple[CompartmentId, int], float] = {}
         if event_count <= 0.0:
-            return
-
-        # Ration: for each species, the compartment losing amount this event
-        # is origin when count > 0 (species moves origin -> dest), else dest
-        # (a negative count reverses that one species' direction — e.g. an
-        # antiported energy carrier). Clamp the SHARED event count so no
-        # species' losing pool goes negative.
+            return 0.0, draws
         for mol, count in self._stoichiometry.items():
             if count == 0:
                 continue
             losing = self._origin if count > 0 else self._dest
-            available = state.amount(losing, mol)
-            max_event = available / abs(count)
-            if max_event < event_count:
-                event_count = max(max_event, 0.0)
+            draws[(losing, mol)] = draws.get((losing, mol), 0.0) + abs(count) * event_count
+        return event_count, draws
 
+    def apply_events(
+        self,
+        state: WorldStateImpl,
+        scales: WorldStateImpl,
+        event_count: float,
+    ) -> None:
+        """Move ``event_count`` events' worth of every species (amounts read
+        against ``scales``' multiplicity x volume), mutating ``state``."""
         if event_count <= 0.0:
             return
-
-        origin_scale = state.get_multiplicity(self._origin) * state.get_volume(self._origin)
-        dest_scale = state.get_multiplicity(self._dest) * state.get_volume(self._dest)
+        origin_scale = scales.get_multiplicity(self._origin) * scales.get_volume(self._origin)
+        dest_scale = scales.get_multiplicity(self._dest) * scales.get_volume(self._dest)
         for mol, count in self._stoichiometry.items():
             delta_n = event_count * count
             if origin_scale > 0:
@@ -413,6 +407,27 @@ class TransportFlux(Flow):
                 )
             if dest_scale > 0:
                 state.set(self._dest, mol, state.get(self._dest, mol) + delta_n / dest_scale)
+
+    def apply(
+        self,
+        state: WorldStateImpl,
+        tree: CompartmentTreeImpl,
+        dt: float = 1.0,
+    ) -> None:
+        """Apply this flux ALONE to ``state`` (mutates in place): the event
+        count read off ``state``, rationed against every transported species'
+        available AMOUNT in its losing compartment, then the same clamped
+        count moved for each species. The stepper does not call this — it
+        runs every flow together through :func:`apply_flows`, which rations
+        the SUMMED demand of all flows on each pool; this is the one-flow
+        path for callers that step a flux by hand.
+        """
+        event_count, draws = self.demand(state, tree, dt)
+        for (comp, mol), amount in draws.items():
+            available = state.amount(comp, mol)
+            if amount > available:
+                event_count = min(event_count, event_count * available / amount if amount > 0 else 0.0)
+        self.apply_events(state, state, max(event_count, 0.0))
 
     def attributes(self) -> Dict[str, Any]:
         """Semantic content for serialization."""
@@ -439,3 +454,48 @@ class TransportFlux(Flow):
         """Short representation."""
         return f"TransportFlux({self._name})"
 
+
+def apply_flows(
+    flows: Sequence[Flow],
+    new_state: WorldStateImpl,
+    frozen: WorldStateImpl,
+    tree: CompartmentTreeImpl,
+    dt: float,
+) -> None:
+    """Apply every flow together, the way the reaction and population passes
+    apply theirs (T051 box 4 / T053): each :class:`TransportFlux` reads its
+    desired event count off the FROZEN start-of-step state, the draws on
+    each losing ``(compartment, molecule)`` are summed across fluxes, every
+    flux is scaled by the tightest ``min(1, available / demand)`` over the
+    pools it draws, and the scaled events are applied at once. The split is
+    then independent of list order (two fluxes over-drawing one pool used to
+    give ``a=0.04 b=0.80 c=0.16`` or ``b=0.16 c=0.80`` depending on which came
+    first) and no pool goes negative. With no pool over-drawn every ratio is
+    exactly 1.0, so non-competing worlds are bit-identical to the old
+    sequential pass EXCEPT that a flux now reads the frozen state rather than
+    its predecessors' writes — the same operator-splitting rule the other two
+    passes already follow. A :class:`GeneralFlow` (an arbitrary edit) cannot
+    state a demand; those run sequentially after the fluxes, as before.
+    """
+    fluxes: list[tuple[TransportFlux, float, Dict[tuple[CompartmentId, int], float]]] = []
+    others: list[Flow] = []
+    demand: Dict[tuple[CompartmentId, int], float] = {}
+    for flow in flows:
+        if isinstance(flow, TransportFlux):
+            events, draws = flow.demand(frozen, tree, dt)
+            fluxes.append((flow, events, draws))
+            for key, amount in draws.items():
+                demand[key] = demand.get(key, 0.0) + amount
+        else:
+            others.append(flow)
+    ratio: Dict[tuple[CompartmentId, int], float] = {}
+    for (comp, mol), dem in demand.items():
+        avail = frozen.amount(comp, mol)
+        ratio[(comp, mol)] = min(1.0, avail / dem) if dem > 0.0 else 1.0
+    for flow, events, draws in fluxes:
+        scale = 1.0
+        for key in draws:
+            scale = min(scale, ratio[key])
+        flow.apply_events(new_state, frozen, events * scale)
+    for flow in others:
+        flow.apply(new_state, tree, dt)

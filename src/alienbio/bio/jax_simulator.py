@@ -16,6 +16,7 @@ except ImportError:
     jax = jnp = cast(Any, None)  # every entry point checks HAS_JAX
 
 from . import jax_core
+from .flow import apply_flows
 from .population import PopulationLaw, apply_population_laws
 
 if TYPE_CHECKING:
@@ -168,9 +169,10 @@ class JaxWorldSimulator:
         # Reactions + any native flows on device.
         arr = self._jit_step_fn(arr)
         new_state = self._array_to_state(arr, state)
-        # Arbitrary Python flows on the host (parity path).
-        for flow in self._flows:
-            flow.apply(new_state, self._tree, self._dt)
+        # Python flows on the host (parity path) — the same shared pass the
+        # reference runs, off the pre-reaction state it was handed (T053).
+        if self._flows:
+            apply_flows(self._flows, new_state, state, self._tree, self._dt)
         # The population pass, host-side for the same reason flows are: it moves
         # multiplicity, which the device array does not carry. Before T053 this
         # class had no population parameter at all and a world with laws ran a
