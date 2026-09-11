@@ -4,7 +4,7 @@ description: "documentation home; mirrored with the alienbio repo docs/"
 # ABIO Docs — Documentation
 The documentation home for Alien Biology — architecture & design, the usage guide, and generated module reference. This tree is mirrored with the `alienbio` repository `docs/` (same paths on both sides).
 
-| -[[ABIO Docs]]- | → [[ABIO]] → [ABIO Docs](hook://p/ABIO%20Docs)<br>: documentation home; mirrored with the alienbio repo docs/ |
+| -[[ABIO Docs]]- | → [[ABIO]] → [ABIO Docs](ha://p/ABIO%20Docs)<br>: documentation home; mirrored with the alienbio repo docs/ |
 | --- | --- |
 | Related | [Repo docs](https://github.com/oblinger/alienbio/tree/main/docs),  [MkDocs site](https://oblinger.github.io/abio-docs/),  [[ABIO]],  [[ABIO Track\|Track]],  [[Modules/index\|API Reference]], |
 | [[ABIO Architecture Docs\|Architecture]]  | [[ABIO biology\|biology]],  [[ABIO infra\|infra]],  [[ABIO Suite Construction\|Suite Construction]],  [[ABIO PRD Docs\|Scenario Gen PRD]],  [[ABIO Naming Conventions\|Naming]],  [[ABIO Notes\|Notes]],   |

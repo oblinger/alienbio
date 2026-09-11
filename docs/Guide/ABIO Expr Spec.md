@@ -49,6 +49,7 @@ k_hop: !q lognormal(0.1, 0.3)       # not executed; a form (a Dist)
 chain: !template                    # a function you can call
   positional: [src, dst]
   params: {length: 2, rate: !x k_hop}
+  pools: [src, dst]                 # the arguments that name pools
   body: !block
     children: !each
       over: !x range(length)
