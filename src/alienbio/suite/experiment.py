@@ -3138,6 +3138,9 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
         for key, cell in sorted(delta_rows.items(), key=lambda kv: str(kv[0])):
             label = _condition_label(key) if key else "(all)"
             unpaired = f" (+{cell.n_unpaired} unpaired)" if cell.n_unpaired else ""
+            if cell.n_pairs == 0:
+                lines.append(f"  {label:<32} {0:>5} no complete pair — every record here lacks its twin on the other arm{unpaired}")
+                continue
             lines.append(
                 f"  {label:<32} {cell.n_pairs:>5} {cell.mean_match:>6.3f} {cell.mean_mismatch:>8.3f} {cell.gap:>+6.3f} "
                 f"{cell.prior_following_fraction:>6.2f} {cell.world_tracking_fraction:>6.2f} {cell.mean_state_divergence:>9.3f}{unpaired}"

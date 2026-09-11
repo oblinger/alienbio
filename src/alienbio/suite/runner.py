@@ -969,6 +969,13 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
     question_tokens = _leaf_strings(brief.question)
     visible = set(brief.affordances.probes)
     secrets: set[str] = set(chemistry.molecules) - visible
+    # T054 #4: a reaction id the brief does not hand the agent (not a declared
+    # lever, not an assay) is hidden structure too — `diagnose`'s chain order
+    # is in `root/stepN/rxn`. Under opaque names every structural id is already
+    # a leak (below); this closes the unguarded drafters, where a
+    # `brief(levers=[...])` allowlist plus a live model is admitted and an
+    # unlisted reaction id in a prompt audited clean.
+    secrets |= set(chemistry.reactions) - set(brief.affordances.levers) - set(brief.affordances.assays)
     if isinstance(task.objective, AnswerObjective):
         secrets |= _leaf_strings(task.objective.key.value) - visible
     secrets -= question_tokens

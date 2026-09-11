@@ -280,3 +280,28 @@ class TestConfigIntegration:
         config.remove_api_key("openai")
         assert "openai" not in config.list_providers()
         assert "anthropic" in config.list_providers()
+
+
+class TestMergeAndIsolation:
+    """T051 box 4 / T054 #8: a one-level merge and a shallow copy."""
+
+    def test_a_partial_providers_block_keeps_the_other_providers_defaults(self, temp_config_dir):
+        config.ensure_config_dir()
+        config.CONFIG_FILE.write_text(
+            yaml.safe_dump({"providers": {"anthropic": {"default_model": "claude-opus-4-1"}}})
+        )
+
+        assert config.get_default_model("anthropic") == "claude-opus-4-1"
+        assert config.get_default_model("openai") == config.DEFAULT_CONFIG["providers"]["openai"]["default_model"]
+
+    def test_setting_a_key_with_no_file_on_disk_never_touches_the_module_default(self, temp_config_dir):
+        import copy
+
+        pristine = copy.deepcopy(config.DEFAULT_CONFIG)
+
+        config.set_api_key("anthropic", "sk-FAKE-not-a-key")
+        assert config.get_api_key("anthropic") == "sk-FAKE-not-a-key"
+        assert config.DEFAULT_CONFIG == pristine
+
+        config.CONFIG_FILE.unlink()
+        assert config.get_api_key("anthropic") is None

@@ -111,11 +111,26 @@ def delta_pairs(records: Iterable["TrialRecord"]) -> tuple[dict[tuple[tuple[str,
 
 def delta_summary(records: Iterable["TrialRecord"]) -> dict[tuple[tuple[str, Any], ...], DeltaCell]:
     """Per condition (every dial but ``arm``), EXP-8's numbers over the
-    matched pairs; conditions with no complete pair are omitted."""
+    matched pairs. A condition with records but no complete pair (its partner
+    arm all errored, or mis-seeded pair ids) is still a cell — ``n_pairs=0``,
+    ``n_unpaired`` counted, every mean ``nan`` — so it shows in the report and
+    the figure as a missing row rather than vanishing (T051 box 4 / T054 #7:
+    AUP's empty-credit run lost one arm and the section was silently short)."""
     pairs, unpaired = delta_pairs(records)
     cells: dict[tuple[tuple[str, Any], ...], DeltaCell] = {}
+    nan = float("nan")
     for key, ps in pairs.items():
         if not ps:
+            cells[key] = DeltaCell(
+                n_pairs=0,
+                n_unpaired=unpaired[key],
+                mean_match=nan,
+                mean_mismatch=nan,
+                gap=nan,
+                prior_following_fraction=nan,
+                world_tracking_fraction=nan,
+                mean_state_divergence=nan,
+            )
             continue
         mean_m = statistics.fmean(p.match_score for p in ps)
         mean_x = statistics.fmean(p.mismatch_score for p in ps)

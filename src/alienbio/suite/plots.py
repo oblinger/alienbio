@@ -182,7 +182,7 @@ def plot_conflict(rmap: "ReliabilityMap") -> Optional[KeyFigure]:
 
 def plot_delta(rmap: "ReliabilityMap") -> Optional[KeyFigure]:
     """EXP-8 — score on the matched arm beside the mismatched arm, per condition."""
-    rows = delta_summary(rmap.records)
+    rows = {k: c for k, c in delta_summary(rmap.records).items() if c.n_pairs > 0}
     if not rows:
         return None
     labels = [_label(k) for k in sorted(rows, key=str)]

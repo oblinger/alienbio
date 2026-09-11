@@ -69,7 +69,43 @@ def test_unmatched_arms_are_counted_not_paired(tmp_path):
     rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
     pairs, unpaired = delta_pairs(rmap.records)
     assert pairs == {(): []} and unpaired == {(): 2}
-    assert delta_summary(rmap.records) == {}
+    # T054 #7: the condition is a cell with no pairs, not an omission.
+    cell = delta_summary(rmap.records)[()]
+    assert cell.n_pairs == 0 and cell.n_unpaired == 2 and cell.gap != cell.gap  # nan
+    manifest = {"name": spec.name, "trials_planned": 2, "trials_completed": 2, "failed_trials": 0, "elapsed_seconds": 0.0, "model": None, "usage": {}, "cost_estimate": {"usd": 0.0}, "git_sha": "", "version": "", "python": "", "platform": ""}
+    report = render_report(rmap, manifest)
+    assert "Delta (M36.6" in report and "no complete pair" in report and "(+2 unpaired)" in report
+
+
+def test_a_condition_whose_partner_arm_all_errored_still_shows_in_the_delta_section(tmp_path):
+    """The AUP 2026-09-09 shape: one arm's trials all landed as error records,
+    so the condition had records but no complete pair and vanished from the
+    section and the figure with no note (T051 box 4 / T054 #7)."""
+    from dataclasses import replace
+
+    spec = ExperimentSpec(
+        name="exp08-lost-arm",
+        axes=(("arm", ("match", "mismatch")), ("agent", ("survey-commit", "heuristic-commit"))),
+        drafter="delta",
+        agent="survey-commit",
+        trials_per_condition=1,
+        base_seed=8,
+        fixed_dials={"max_turns": 3, "sim_steps": 5, "levers": []},
+        matched_dials=("arm",),
+    )
+    rmap = run_experiment(spec, out_dir=str(tmp_path / "out"))
+    records = [
+        replace(r, terminal_reason="error", error="RuntimeError: credit balance too low")
+        if dict(r.condition_key).get("agent") == "heuristic-commit" and dict(r.condition_key).get("arm") == "mismatch"
+        else r
+        for r in rmap.records
+    ]
+
+    cells = delta_summary(records)
+
+    assert cells[(("agent", "survey-commit"),)].n_pairs == 1
+    lost = cells[(("agent", "heuristic-commit"),)]
+    assert lost.n_pairs == 0 and lost.n_unpaired == 1
 
 
 def test_final_state_divergence_is_bounded_and_zero_on_identical_states():

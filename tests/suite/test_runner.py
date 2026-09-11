@@ -285,6 +285,30 @@ def test_taint_audit_ignores_key_tokens_the_question_itself_names():
     assert record.taint_hits == ()
 
 
+def test_taint_audit_catches_a_hidden_reaction_id_without_opaque_names():
+    """T051 box 4 / T054 #4: on an unguarded drafter with a `levers` allowlist
+    (admitted under llm), every reaction id NOT on the allowlist is hidden
+    structure, but the audit scanned only molecules and key tokens — an
+    unlisted reaction id in a prompt audited clean."""
+    from alienbio.suite.runner import TaintError
+
+    suite = _identify_pathway_suite()
+    world, task = suite.worlds[0], suite.tasks[0]
+    reactions = sorted(world.chemistry.reactions)
+    assert len(reactions) >= 2, "fixture must carry two reactions"
+    listed, unlisted = reactions[0], reactions[1]
+    dials = {"levers": [listed]}
+
+    with pytest.raises(TaintError) as excinfo:
+        run(world, task, _LeakyAgent(unlisted, ""), dials, Seed(3))
+    assert unlisted in excinfo.value.record.taint_hits
+
+    # The declared lever is handed to the agent by the brief, so naming it is
+    # not a leak.
+    record = run(world, task, _LeakyAgent(listed, ""), dials, Seed(3))
+    assert record.taint_hits == ()
+
+
 def test_null_answer_commit_scores_zero_instead_of_crashing_the_grader():
     # The abort sentinel Answer(value=None) must land as a scored record: the
     # ordered_path grader would otherwise raise TypeError on list(None).

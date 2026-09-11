@@ -18,6 +18,7 @@ Example usage:
     config = get_config()
 """
 
+import copy
 from pathlib import Path
 from typing import Any, Optional
 import os
@@ -70,16 +71,29 @@ def load_config() -> dict[str, Any]:
     Returns:
         Config dict with api_keys, default_agent, providers
     """
+    # A deep copy, never `.copy()`: the setters below mutate the returned dict
+    # in place, and a shallow copy shared its nested dicts with DEFAULT_CONFIG,
+    # so `set_api_key` with no file on disk wrote the key INTO the module
+    # constant and kept serving it after the file was deleted (T054 #8).
     if not CONFIG_FILE.exists():
-        return DEFAULT_CONFIG.copy()
+        return copy.deepcopy(DEFAULT_CONFIG)
 
     with open(CONFIG_FILE) as f:
         config = yaml.safe_load(f) or {}
 
-    # Merge with defaults for any missing keys
-    result = DEFAULT_CONFIG.copy()
-    result.update(config)
-    return result
+    return _merge(copy.deepcopy(DEFAULT_CONFIG), config)
+
+
+def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """``override`` onto ``base``, recursing through nested dicts so a partial
+    ``providers:`` block adds to the defaults instead of replacing the whole
+    sub-dict (a file naming only anthropic used to drop openai's default model)."""
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _merge(base[key], value)
+        else:
+            base[key] = value
+    return base
 
 
 def save_config(config: dict[str, Any]) -> None:
@@ -253,7 +267,7 @@ def test_api_key(provider: str) -> tuple[bool, str]:
             client = anthropic.Anthropic(api_key=key)
             # Make a minimal API call
             client.messages.create(
-                model="claude-sonnet-5",
+                model=get_default_model(provider) or "claude-sonnet-5",
                 max_tokens=1,
                 messages=[{"role": "user", "content": "hi"}]
             )
