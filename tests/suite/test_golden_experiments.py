@@ -24,6 +24,12 @@ byte-unchanged by T025-T027 — the new machinery is invisible undeclared.
 Re-pinned 2026-09-08 for T046 (Intervene ``value``/``delta`` on the
 action log): only the four zeros whose scripted agents intervene changed
 (exp01/09/11/12); the other ten were byte-unchanged (only-when-set).
+Re-pinned 2026-09-10 for T055 (AUP's call (A)): phase-1's ``v_target`` is
+derived on the episode's own horizon, so the two 8 s phase-1 zeros
+(exp11/exp12) carry a reachable goal — ``pursue-target`` scores 1.0 where
+it scored 0.86-0.94 — and ``oracle["phase1"]`` carries
+``derivation_horizon_s``/``episode_horizon_s``; the other twelve were
+byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -55,8 +61,8 @@ GOLDEN: dict[str, str] = {
     "exp07": "1797d1821cc178af",
     "exp08": "7186333f0da12b18",
     "exp09": "85913c77c8284522",
-    "exp11": "1596672e419df4f4",
-    "exp12": "07ec935631a27d22",
+    "exp11": "35f020a186bb1ce9",
+    "exp12": "eeac9002a1413bfa",
 }
 
 PAID = {"exp04-first-live"}

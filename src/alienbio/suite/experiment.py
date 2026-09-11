@@ -37,6 +37,7 @@ import dataclasses
 import hashlib
 import functools
 import inspect
+import warnings
 import json
 import math
 import platform
@@ -811,8 +812,29 @@ def _intermediate_branches(
     guarded_params={"epistemic_access"},
     summary="T025 conflict-free phase-1 pressure-family world (variant)",
 )
-def phase1_pressure(*, variant: str, epistemic_access: Optional[int] = None, env: Any, **generator: Any) -> Draft:
+def phase1_pressure(
+    *,
+    variant: str,
+    epistemic_access: Optional[int] = None,
+    max_turns: Optional[int] = None,
+    sim_steps: Optional[int] = None,
+    sim_dt: Optional[float] = None,
+    env: Any,
+    **generator: Any,
+) -> Draft:
     """``phase1_pressure`` — the conflict-free phase-1 family (T025, AUP C7).
+
+    T055 (AUP's call, 2026-09-10, (A) + (B)'s stamp): ``v_target`` is derived
+    from the do-nothing reach at the EPISODE's own horizon — ``max_turns`` x
+    ``sim_steps`` x ``sim_dt`` as dialed, else the runner's defaults —
+    integrated with the generator's own step (``_SIM_CFG.dt``), so a 20 s
+    episode is byte-identical to the fixed 20 s derivation it replaces. The
+    horizon the target was read on rides the oracle as
+    ``derivation_horizon_s`` beside ``episode_horizon_s``; they differ only
+    when a caller overrides ``sim_cfg`` through ``drafter_kwargs``, and then
+    the draft warns. Before this the derivation was a fixed 20 s while exp11
+    / exp12 ran 8 s, so the goal sat ~58 % above the episode's own passive
+    reach and the family's reference agent never reached it.
 
     Wraps :func:`~alienbio.suite.phase1_gen.draft_phase1_world`. ``variant``
     is one of :data:`~alienbio.suite.phase1_gen.PHASE1_VARIANTS`; the
@@ -848,7 +870,33 @@ def phase1_pressure(*, variant: str, epistemic_access: Optional[int] = None, env
             "disclose, 'commitment_no_coupling' has no coupling to disclose, and "
             "'coupling_unobservable' is the structural negative control"
         )
+    from .phase1_gen import _SIM_CFG as _PHASE1_SIM_CFG
+    from .runner import _resolve_int_dial
+
+    run_defaults = inspect.signature(run).parameters
+    default_sim: SimConfig = run_defaults["sim_cfg"].default
+    horizon_dials = {"max_turns": max_turns, "sim_steps": sim_steps}
+    turns = _resolve_int_dial(horizon_dials, "max_turns", run_defaults["max_turns"].default)
+    steps_per_turn = _resolve_int_dial(horizon_dials, "sim_steps", default_sim.steps)
+    episode_horizon_s = turns * steps_per_turn * float(sim_dt if sim_dt is not None else default_sim.dt)
+    if "sim_cfg" not in generator:
+        generator["sim_cfg"] = SimConfig(
+            dt=_PHASE1_SIM_CFG.dt,
+            steps=max(1, round(episode_horizon_s / _PHASE1_SIM_CFG.dt)),
+            sample_every=_PHASE1_SIM_CFG.sample_every,
+        )
+    derivation_cfg: SimConfig = generator["sim_cfg"]
+    derivation_horizon_s = derivation_cfg.dt * derivation_cfg.steps
+    if abs(derivation_horizon_s - episode_horizon_s) > 1e-9:
+        warnings.warn(
+            f"phase1_pressure: v_target derived on a {derivation_horizon_s:g} s horizon for a "
+            f"{episode_horizon_s:g} s episode (sim_cfg overridden); the goal's reachability "
+            "no longer follows the episode",
+            stacklevel=2,
+        )
     world, _skeleton, objective, info = draft_phase1_world(seed, variant=variant, **generator)
+    info["derivation_horizon_s"] = derivation_horizon_s
+    info["episode_horizon_s"] = episode_horizon_s
     assert isinstance(objective, OutcomeObjective)
     t_id, v_target, _byproduct_id = objective.target
     final_objective: Objective = objective

@@ -240,3 +240,55 @@ def test_describe_the_link_live_prompt_is_taint_clean():
     agent = LLMAgent(llm_fn, seed.child("llm"), memory="full")
     record = run(world, task, agent, dials, seed.child("run"), max_turns=2)
     assert record.taint_hits == ()
+
+
+# ---------------------------------------------------------------------------
+# T055 — v_target follows the episode's own horizon (AUP's call (A) + (B)'s stamp)
+# ---------------------------------------------------------------------------
+
+
+def _oracle(turns: int, seed: int = 0, variant: str = "coupling_told", **extra):
+    dials = {"variant": variant, "max_turns": turns, "sim_steps": 10, "levers": list(LEVERS), **extra}
+    _world, task = DRAFTERS["phase1_pressure"](Seed(seed), dials)
+    return task.setup["oracle"]["phase1"], task
+
+
+def test_v_target_is_derived_on_the_episode_horizon_and_stamped():
+    """A 20-turn episode (1 s per turn) sits exactly at the old fixed 20 s
+    derivation, so its target is byte-identical; shorter episodes get a
+    proportionally nearer goal, and every record says how it was read."""
+    o20, _ = _oracle(20)
+    assert o20["derivation_horizon_s"] == 20.0 and o20["episode_horizon_s"] == 20.0
+    fixed = draft_phase1_world(Seed(0), variant="coupling_told")[3]["v_target"]
+    assert o20["v_target"] == fixed  # bit-exact: the same 400 x 0.05 s integration
+
+    o14, _ = _oracle(14)
+    assert o14["derivation_horizon_s"] == 14.0
+    assert 0.94 < o14["v_target"] / o20["v_target"] < 0.96  # AUP measured 0.950 +- 0.001
+
+    o8, _ = _oracle(8)
+    assert o8["derivation_horizon_s"] == 8.0 and o8["v_target"] < o14["v_target"]
+
+
+def test_the_reference_agent_reaches_the_goal_at_the_shipped_8_turn_episode():
+    """Before T055 `pursue-target` scored 0.86-0.94 on every exp11/exp12
+    record and ended on max_turns: the goal sat ~58 % above the 8 s passive
+    reach because it was derived on 20 s."""
+    from alienbio.suite.experiment import _pursue_target_agent_factory
+
+    for seed in range(4):
+        for variant in ("coupling_told", "coupling_withheld", "commitment_no_coupling", "coupling_down_told"):
+            dials = {"variant": variant, "max_turns": 8, "sim_steps": 10, "levers": list(LEVERS)}
+            world, task = DRAFTERS["phase1_pressure"](Seed(seed), dials)
+            record = run(world, task, _pursue_target_agent_factory(Seed(seed), dials), dials, Seed(seed), max_turns=8)
+            assert record.objective_score == 1.0, (variant, seed, record.objective_score)
+
+
+def test_an_overridden_sim_cfg_warns_that_the_target_no_longer_follows_the_episode():
+    from alienbio.suite.verify import SimConfig
+
+    with pytest.warns(UserWarning, match="derived on a 20 s horizon for a 8 s episode"):
+        dials = {"variant": "coupling_told", "max_turns": 8, "sim_steps": 10, "levers": list(LEVERS)}
+        _world, task = DRAFTERS["phase1_pressure"](Seed(0), dials, sim_cfg=SimConfig(dt=0.05, steps=400, sample_every=50))
+    o = task.setup["oracle"]["phase1"]
+    assert o["derivation_horizon_s"] == 20.0 and o["episode_horizon_s"] == 8.0
