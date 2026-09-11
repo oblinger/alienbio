@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Chemistry](hook://p/ABIO%20Chemistry) 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Chemistry](ha://p/ABIO%20Chemistry) 
  [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # Chemistry
