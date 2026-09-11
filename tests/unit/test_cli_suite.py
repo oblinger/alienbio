@@ -42,7 +42,7 @@ def test_suite_no_verb_exits_2(capsys):
 
     assert rc == 2
     captured = capsys.readouterr()
-    assert "Usage" in captured.err
+    assert "usage" in captured.err.lower()
 
 
 def test_suite_report_without_manifest_exits_1_no_traceback(tmp_path, capsys):

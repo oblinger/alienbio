@@ -1,5 +1,4 @@
-"""``bio report`` — run the suite once and write what it tested, and whether it
-passed, as one page (``reports/report.md`` + ``report.html``).
+"""run the suite once and write what it tested, and whether it passed (reports/).
 
     bio report                      run tests, run the examples, write reports/
     bio report --open               … and open the HTML page
@@ -10,36 +9,36 @@ passed, as one page (``reports/report.md`` + ``report.html``).
 
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 from pathlib import Path
+
+
+def _parser() -> argparse.ArgumentParser:
+    """One argparse parser (T057 proposal 7): the ``next(it)`` loop this
+    replaces let ``--junit`` eat ``--no-examples`` and a bare ``--out``
+    write the report into the working directory."""
+    parser = argparse.ArgumentParser(prog="bio report", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--open", action="store_true", help="open the HTML page afterwards (macOS)")
+    parser.add_argument("--no-examples", action="store_true", help="skip the fresh example runs")
+    parser.add_argument("--junit", metavar="PATH", type=Path, help="reuse an existing JUnit file instead of running pytest")
+    parser.add_argument("--out", metavar="DIR", type=Path, help="write elsewhere (default: reports/)")
+    return parser
 
 
 def report_command(args: list[str], verbose: bool = False) -> int:
     from alienbio.report import REPO, build, count_cases, parse_junit, render_html, render_markdown, run_pytest
 
     del verbose
-    out_dir = REPO / "reports"
-    junit: Path | None = None
-    run_examples, open_after = True, False
-    it = iter(args)
-    for a in it:
-        if a == "--open":
-            open_after = True
-        elif a == "--no-examples":
-            run_examples = False
-        elif a in ("--junit", "--out"):
-            value = next(it, "")
-            if not value or value.startswith("-"):
-                print(f"bio report: {a} needs a value", file=sys.stderr)
-                return 2
-            if a == "--junit":
-                junit = Path(value)
-            else:
-                out_dir = Path(value)
-        else:
-            print(__doc__, file=sys.stderr)
-            return 2
+    try:
+        ns = _parser().parse_args(args)
+    except SystemExit as exc:  # argparse already printed usage + the error
+        return int(exc.code or 0)
+    out_dir: Path = ns.out if ns.out is not None else REPO / "reports"
+    junit: Path | None = ns.junit
+    run_examples, open_after = not ns.no_examples, ns.open
     out_dir.mkdir(parents=True, exist_ok=True)
     if junit is None:
         junit = out_dir / "junit.xml"

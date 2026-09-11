@@ -1,7 +1,7 @@
-"""suite command: run/resume/aggregate/report a declarative experiment sweep.
+"""run / resume / aggregate / report a declared experiment; models refreshes the pin snapshot.
 
 Usage:
-    bio suite run <spec.yaml> [--out DIR] [--dry]   # Run (or dry-preview) an ExperimentSpec
+    bio suite run <spec.yaml> [--out DIR] [--dry] [-v]   # Run (or dry-preview) an ExperimentSpec
     bio suite resume <DIR>                          # Resume a crashed/partial run
     bio suite aggregate <DIR>                       # Rebuild map.json/map.csv from records.jsonl alone
     bio suite report <DIR>                          # Print + rewrite report.txt (and key.png) from the record store
@@ -13,6 +13,7 @@ See ``alienbio.suite.experiment`` for the spec format, the ``DRAFTERS``/
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -28,6 +29,41 @@ from alienbio.suite.experiment import (
 )
 
 
+SUITE_USAGE = (
+    "bio suite run <spec.yaml> [--out DIR] [--dry] [-v] | resume <DIR> | "
+    "aggregate <DIR> | report <DIR> | models"
+)
+
+
+def _parser() -> argparse.ArgumentParser:
+    """One argparse parser per verb (T057 proposal 7). The hand-rolled loop
+    this replaces sent any unknown token to the positional list, so
+    ``--dryy`` on a live spec ran it for real, a bare ``--out`` became "no
+    ``--out``", and ``-v`` after the verb was silently lost."""
+    parser = argparse.ArgumentParser(prog="bio suite", description=__doc__, add_help=True,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    verbs = parser.add_subparsers(dest="verb", metavar="run|resume|aggregate|report|models")
+
+    def verbose(sub: argparse.ArgumentParser) -> None:
+        sub.add_argument("-v", "--verbose", action="store_true", help="per-trial progress")
+
+    run = verbs.add_parser("run", help="run (or --dry preview) an ExperimentSpec")
+    run.add_argument("spec", help="path to the experiment .yaml")
+    run.add_argument("--out", metavar="DIR", help="run directory (default: runs/<name>)")
+    run.add_argument("--dry", action="store_true", help="print the plan and every preflight verdict; run nothing")
+    verbose(run)
+    for verb, doc in (
+        ("resume", "resume a crashed or partial run from its manifest"),
+        ("aggregate", "rebuild map.json/map.csv from records.jsonl alone"),
+        ("report", "print and rewrite report.txt (and key.png) from the record store"),
+    ):
+        sub = verbs.add_parser(verb, help=doc)
+        sub.add_argument("dir", help="the run directory")
+        verbose(sub)
+    verbose(verbs.add_parser("models", help="refresh the recorded models.list snapshot (free)"))
+    return parser
+
+
 def suite_command(args: list[str], verbose: bool = False) -> int:
     """Dispatch ``bio suite <verb> ...`` to its handler.
 
@@ -38,73 +74,32 @@ def suite_command(args: list[str], verbose: bool = False) -> int:
     Returns:
         Exit code (0 success, 1 a reported user error, 2 bad usage).
     """
-    if not args:
-        _usage()
-        return 2
-
-    verb, rest = args[0], args[1:]
+    parser = _parser()
     try:
-        if verb == "run":
-            return _run(rest, verbose)
-        if verb == "resume":
-            return _resume(rest, verbose)
-        if verb == "aggregate":
-            return _aggregate_cmd(rest, verbose)
-        if verb == "report":
-            return _report_cmd(rest, verbose)
-        if verb == "models":
-            return _models_cmd(rest, verbose)
-        _usage(f"unknown verb {verb!r}")
+        ns = parser.parse_args(args)
+    except SystemExit as exc:  # argparse already printed usage + the error
+        return int(exc.code or 0)
+    if ns.verb is None:
+        parser.print_usage(sys.stderr)
         return 2
+    verbose = verbose or bool(getattr(ns, "verbose", False))
+    try:
+        if ns.verb == "run":
+            return _run(ns.spec, ns.out, ns.dry, verbose)
+        if ns.verb == "resume":
+            return _resume(ns.dir, verbose)
+        if ns.verb == "aggregate":
+            return _aggregate_cmd(ns.dir, verbose)
+        if ns.verb == "report":
+            return _report_cmd(ns.dir, verbose)
+        return _models_cmd(verbose)
     except (FileNotFoundError, FileExistsError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
 
-def _usage(message: Optional[str] = None) -> None:
-    if message:
-        print(f"Error: {message}", file=sys.stderr)
-    print(
-        "Usage: bio suite run <spec.yaml> [--out DIR] [--dry] | "
-        "resume <DIR> | aggregate <DIR> | report <DIR>",
-        file=sys.stderr,
-    )
-
-
-def _run(rest: list[str], verbose: bool) -> int:
-    out_dir: Optional[str] = None
-    dry = False
-    positional: list[str] = []
-
-    i = 0
-    while i < len(rest):
-        arg = rest[i]
-        if arg == "--out":
-            if i + 1 >= len(rest) or rest[i + 1].startswith("-"):
-                _usage("--out needs a directory")
-                return 2
-            out_dir = rest[i + 1]
-            i += 2
-        elif arg == "--dry":
-            dry = True
-            i += 1
-        elif arg in ("-v", "--verbose"):
-            verbose = True
-            i += 1
-        elif arg.startswith("-"):
-            # T051 box 4 — an unknown flag used to fall into ``positional``,
-            # so ``--dryy`` on a live spec ran it for real.
-            _usage(f"unknown flag {arg!r}")
-            return 2
-        else:
-            positional.append(arg)
-            i += 1
-
-    if len(positional) != 1:
-        _usage("suite run takes exactly one spec.yaml path" + (f", got {positional}" if positional else ""))
-        return 2
-
-    spec = load_spec(positional[0])
+def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> int:
+    spec = load_spec(spec_path)
     grid_size = 1
     for _name, levels in spec.axes:
         grid_size *= len(levels)
@@ -150,12 +145,7 @@ def _run(rest: list[str], verbose: bool) -> int:
     return 0
 
 
-def _resume(rest: list[str], verbose: bool) -> int:
-    if len(rest) != 1:
-        _usage("suite resume takes exactly one run directory")
-        return 2
-
-    out_dir = rest[0]
+def _resume(out_dir: str, verbose: bool) -> int:
     manifest_path = Path(out_dir) / "manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"bio suite resume: no manifest.json in {out_dir}")
@@ -171,12 +161,7 @@ def _resume(rest: list[str], verbose: bool) -> int:
     return 0
 
 
-def _aggregate_cmd(rest: list[str], verbose: bool) -> int:
-    if len(rest) != 1:
-        _usage("suite aggregate takes exactly one run directory")
-        return 2
-
-    out_dir = rest[0]
+def _aggregate_cmd(out_dir: str, verbose: bool) -> int:
     rmap = aggregate(out_dir)
     (Path(out_dir) / "map.json").write_text(rmap.to_json())
     (Path(out_dir) / "map.csv").write_text(rmap.to_csv())
@@ -185,12 +170,7 @@ def _aggregate_cmd(rest: list[str], verbose: bool) -> int:
     return 0
 
 
-def _report_cmd(rest: list[str], verbose: bool) -> int:
-    if len(rest) != 1:
-        _usage("suite report takes exactly one run directory")
-        return 2
-
-    out_dir = rest[0]
+def _report_cmd(out_dir: str, verbose: bool) -> int:
     manifest_path = Path(out_dir) / "manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"bio suite report: no manifest.json in {out_dir}")
@@ -208,13 +188,10 @@ def _report_cmd(rest: list[str], verbose: bool) -> int:
     return 0
 
 
-def _models_cmd(rest: list[str], verbose: bool) -> int:
+def _models_cmd(verbose: bool) -> int:
     """``bio suite models`` — refresh the recorded ``models.list`` snapshot
     that lets an undated generation id count as pinned (T016)."""
     del verbose
-    if rest:
-        _usage("models takes no arguments")
-        return 2
     from ..suite.llm_agent import fetch_models_snapshot, write_models_snapshot
 
     models = fetch_models_snapshot()

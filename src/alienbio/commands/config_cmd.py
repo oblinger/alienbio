@@ -1,4 +1,4 @@
-"""Config command: manage API keys and settings.
+"""show / set the framework configuration: API keys, default agent and model.
 
 Usage:
     bio config set-key <provider> <key>      Set API key for provider

@@ -1,31 +1,22 @@
-"""Bio CLI: Command-line interface for Bio operations.
+"""Bio CLI — the ``bio`` front door.
 
-Usage:
-    bio <path>              Run scenario and create report (default)
-    bio build <path>        Build spec (resolve includes, refs, defaults)
-    bio cd                  Print current DAT path
-    bio cd <path>           Set current DAT path
-    bio expand <path>       Show processed spec (same as build)
-    bio fetch <specifier>   Fetch and display a spec
-    bio hydrate <path>      Fully evaluate spec (resolve all placeholders)
-    bio report <path>       Run scenario and create Excel report
-    bio run <path>          Debug: run entity, print result dict
-    bio store <specifier>   Store data from stdin to spec path
-    bio --help              Show help
-    bio --version           Show version
-
-Examples:
-    bio catalog/jobs/hardcoded_test       # Create and open Excel report
-    bio cd data/experiments/run1          # Set current DAT
-    bio fetch catalog/scenarios/mutualism # Display spec as YAML
-    bio hydrate catalog/jobs/test --seed 42  # Evaluate with seed
-    echo '{name: test}' | bio store ./test   # Store data to relative path
+``bio <command> [args...]`` hands everything after the command to that
+command's own parser (each has ``--help``). The commands are the
+:data:`alienbio.commands.COMMANDS` registry; ``bio --help`` lists them from
+it, so this page cannot drift from what runs (T051 box 4 found it
+documenting eight verbs that no longer existed).
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+
+
+def _summary(fn: object) -> str:
+    """The first line of a command module's docstring — its one-line usage."""
+    doc = (sys.modules[fn.__module__].__doc__ or "").strip()  # type: ignore[attr-defined]
+    return doc.splitlines()[0].strip() if doc else ""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,17 +31,14 @@ def main(argv: list[str] | None = None) -> int:
     from alienbio import __version__
     from alienbio.commands import COMMANDS
 
+    commands = "\n".join(f"  {name:<12} {_summary(fn)}" for name, fn in sorted(COMMANDS.items()))
     parser = argparse.ArgumentParser(
         prog="bio",
         description="bio — the Alien Biology framework CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Commands:
-  suite run <spec.yaml> [--out DIR] [--dry]   run a declared experiment (catalog/experiments/*.yaml)
-  suite resume|aggregate|report <DIR>         continue / rebuild / print a run directory
-  config [show | set KEY VALUE]               the framework configuration (keys, model)
-  test-matrix [--markdown] [--check]          the capability matrix (roadmap M48.1)
-  report [--open] [--no-examples]             run the suite; write what it tested + whether it passed (reports/)
+        epilog=f"""
+Commands (each takes --help):
+{commands}
 
 Examples:
   bio suite run catalog/experiments/exp04-zero.yaml --dry
@@ -61,7 +49,7 @@ Examples:
     parser.add_argument(
         "command",
         nargs="?",
-        help="Command (report, run, expand) or path to run as report",
+        help=f"one of {', '.join(sorted(COMMANDS))}",
     )
     parser.add_argument(
         "args",

@@ -19,9 +19,16 @@ def bio(*args: str, cwd: Path = REPO) -> subprocess.CompletedProcess[str]:
 def test_help_lists_the_surviving_commands():
     out = bio("--help")
     assert out.returncode == 0
-    for word in ("suite run", "suite resume|aggregate|report", "config", "test-matrix"):
+    # T057: the front door is generated from COMMANDS, so it names exactly them.
+    for word in ("config", "report", "suite", "test-matrix"):
         assert word in out.stdout
     assert "hardcoded_test" not in out.stdout
+    for stale in ("bio build", "bio expand", "bio hydrate", "bio store"):
+        assert stale not in out.stdout
+    suite_help = bio("suite", "--help")
+    assert suite_help.returncode == 0 and "models" in suite_help.stdout
+    report_help = bio("report", "--help")
+    assert report_help.returncode == 0 and "--junit" in report_help.stdout and "--out" in report_help.stdout
 
 
 def test_suite_run_dry_then_run_resume_aggregate_report(tmp_path):

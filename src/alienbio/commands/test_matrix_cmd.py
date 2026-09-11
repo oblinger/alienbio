@@ -1,4 +1,4 @@
-"""``bio test-matrix`` — the capability matrix (roadmap M48.1).
+"""the capability matrix: dimensions and the tests that prove them (--check gates CI).
 
     bio test-matrix              the 35 dimensions and the tests that prove them
     bio test-matrix --markdown   the generated table the dimensions doc carries
