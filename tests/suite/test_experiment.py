@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 
+import dataclasses
+
 import pytest
 
 from alienbio.suite.dist import Seed
@@ -638,7 +640,17 @@ def test_expected_turns_defaults_from_the_declared_turn_budget():
     literal default 8 turns (~40% of true cost, quiet in the low direction).
     The load derives ``expected_turns`` from the declared budget: a fixed
     ``max_turns`` wins, a swept axis uses its largest level, an explicit
-    ``expected_turns`` still overrides, and 8 remains the no-budget fallback."""
+    ``expected_turns`` still overrides, and with no budget declared at all
+    the fallback is the runner's own ``max_turns`` default (T051 box 4: it
+    was the literal 8 while a non-committing agent actually ran 50 turns —
+    a 6x under-estimate one deleted ``episode:`` line away)."""
+    import inspect
+
+    from alienbio.suite.runner import run as _run
+
+    runner_default = inspect.signature(_run).parameters["max_turns"].default
+    assert runner_default != 8
+
     base = {
         "name": "est-turns",
         "axes": {},
@@ -652,7 +664,7 @@ def test_expected_turns_defaults_from_the_declared_turn_budget():
     assert spec_from_dict({**base, "expected_turns": 6}).expected_turns == 6
     swept = {**base, "fixed_dials": {}, "axes": {"max_turns": [4, 12]}}
     assert spec_from_dict(swept).expected_turns == 12
-    assert spec_from_dict({**base, "fixed_dials": {}}).expected_turns == 8
+    assert spec_from_dict({**base, "fixed_dials": {}}).expected_turns == runner_default
 
 
 def test_experiment_form_prices_the_declared_episode_budget():
@@ -673,6 +685,98 @@ def test_experiment_form_prices_the_declared_episode_budget():
     spec = load_experiment("<t>", text=text)
     assert spec.expected_turns == 20
     assert estimate_cost(spec).turns_per_trial == 20
+
+
+def test_estimate_cost_prices_each_level_of_a_model_axis():
+    """T051 box 4 — a ``model`` axis was estimated at ``spec.model``'s price
+    (a sonnet/opus contrast read 1.75x low). Each level now owns an equal
+    share of the llm trials at its own price, and the formula says so."""
+    from alienbio.suite.llm_agent import MODEL_PRICES_USD_PER_MTOK
+
+    cheap, dear = "claude-sonnet-5", "claude-opus-5"
+    assert MODEL_PRICES_USD_PER_MTOK[dear] != MODEL_PRICES_USD_PER_MTOK[cheap]
+    base = dict(
+        axes=(("rung", ("single", "forced")),),
+        drafter="conflict",
+        agent="llm",
+        trials_per_condition=2,
+        base_seed=1,
+        expected_turns=4,
+        expected_prompt_tokens=100,
+        expected_output_tokens=10,
+    )
+    mixed = estimate_cost(ExperimentSpec(name="mixed", **{**base, "axes": base["axes"] + (("model", (cheap, dear)),)}))
+    only_cheap = estimate_cost(ExperimentSpec(name="cheap", model=cheap, **base))
+    only_dear = estimate_cost(ExperimentSpec(name="dear", model=dear, **base))
+
+    assert mixed.llm_trials == 2 * only_cheap.llm_trials
+    assert mixed.usd == pytest.approx(only_cheap.usd + only_dear.usd)
+    assert mixed.usd > 2 * only_cheap.usd
+    assert mixed.model == f"mixed({cheap}, {dear})"
+    assert cheap in mixed.formula and dear in mixed.formula
+
+
+def test_unpriced_model_axis_level_refuses_before_any_trial(tmp_path, monkeypatch):
+    """T051 box 4 — a pinned-but-unpriced ``model`` axis level passed every
+    pre-flight, ran the first paid trial, then ``price_for`` raised inside
+    ``on_trial`` before its line was written: usage lost, manifest never
+    finished. The estimate now prices every level, so the run refuses
+    before anything is drafted."""
+    from alienbio.suite import experiment as exp_mod
+    from alienbio.suite.llm_agent import MODEL_PRICES_USD_PER_MTOK, load_models_snapshot
+
+    unpriced = next((m for m in load_models_snapshot() if m not in MODEL_PRICES_USD_PER_MTOK), None)
+    if unpriced is None:
+        pytest.skip("every snapshot model is priced")
+    spec = spec_from_dict(
+        {
+            "name": "unpriced-axis",
+            "axes": {"model": ["claude-sonnet-5", unpriced]},
+            "drafter": "identify_pathway",
+            "agent": "llm",
+            "trials_per_condition": 1,
+            "base_seed": 1,
+            "fixed_dials": {"max_turns": 2},
+            "temperature": "provider-fixed",
+        }
+    )
+    calls: list[str] = []
+    real = exp_mod.DRAFTERS["identify_pathway"]
+    monkeypatch.setitem(exp_mod.DRAFTERS, "identify_pathway", lambda *a, **k: (calls.append("draft"), real(*a, **k))[1])
+
+    with pytest.raises(ValueError, match="no published price"):
+        run_experiment(spec, out_dir=tmp_path / "run")
+    assert calls == []
+    assert not (tmp_path / "run" / "records.jsonl").exists()
+
+
+def test_a_priced_trial_lands_its_line_before_the_price_lookup(tmp_path, monkeypatch):
+    """T051 box 4 — the record line is on disk before the price lookup, so a
+    pricing failure can never lose a paid trial's usage."""
+    from alienbio.suite import experiment as exp_mod
+
+    spec = _conflict_idle_spec("line-first")
+    spec = dataclasses.replace(spec, trials_per_condition=1, axes=())
+    real_run = exp_mod.MassTrialRunner.run
+
+    def run_with_usage(self, *args, **kwargs):
+        on_trial = kwargs.get("on_trial")
+        if on_trial is not None:
+            orig = on_trial
+
+            def wrapped(label, i, record):
+                orig(label, i, dataclasses.replace(record, usage={"input_tokens": 10, "output_tokens": 1}))
+
+            kwargs["on_trial"] = wrapped
+        return real_run(self, *args, **kwargs)
+
+    monkeypatch.setattr(exp_mod.MassTrialRunner, "run", run_with_usage)
+    monkeypatch.setattr(exp_mod, "price_for", lambda *a, **k: (_ for _ in ()).throw(ValueError("no published price (forced)")))
+
+    with pytest.raises(ValueError, match="no published price"):
+        run_experiment(spec, out_dir=tmp_path / "run")
+    lines = (tmp_path / "run" / "records.jsonl").read_text().splitlines()
+    assert len(lines) == 1
 
 
 def test_estimate_cost_unknown_model_without_override_raises():

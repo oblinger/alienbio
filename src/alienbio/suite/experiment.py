@@ -145,9 +145,10 @@ class ExperimentSpec:
     #: M45.5 — the cost ceiling + dry-run cost-estimate dials.
     #: ``expected_turns`` is the dry-run turn count; :func:`spec_from_dict`
     #: defaults it from a declared ``max_turns`` (fixed dial, or the largest
-    #: swept level) when the spec does not set it — the literal 8 is only
-    #: the no-budget-declared fallback. Set it explicitly for a spec whose
-    #: agent is expected to commit well before the budget.
+    #: swept level) when the spec does not set it, and to the runner's own
+    #: ``max_turns`` default when no budget is declared at all. Set it
+    #: explicitly for a spec whose agent is expected to commit well before
+    #: the budget.
     cost_ceiling_usd: Optional[float] = None
     price_usd_per_mtok: Optional[tuple[float, float]] = None
     expected_turns: int = 8
@@ -313,11 +314,16 @@ def _default_expected_turns(fixed_dials: Mapping[str, Any], axes: Sequence[tuple
     """The dry-run turn count when the spec does not set ``expected_turns``:
     the declared episode budget, not a constant. A fixed ``max_turns`` dial
     wins; a swept ``max_turns`` axis uses its largest level (the estimate
-    should read high, not low); 8 only when no budget is declared at all.
-    AUP 2026-09-09: the constant-8 default priced a 20-turn episode at ~40%
-    of its true cost — quiet in exactly the direction an operator checks
-    before spending (``cost_ceiling_usd`` still stops a runaway mid-run;
-    what broke was planning)."""
+    should read high, not low); with no budget declared at all, the runner's
+    own ``max_turns`` default — the turn count a non-committing agent will
+    actually run — not a constant. AUP 2026-09-09: the constant-8 default
+    priced a 20-turn episode at ~40% of its true cost — quiet in exactly the
+    direction an operator checks before spending (``cost_ceiling_usd`` still
+    stops a runaway mid-run; what broke was planning). T051 box 4: the
+    no-budget fallback was still the literal 8 while the runner ran 50
+    turns — a 6x under-estimate one deleted ``episode:`` line away."""
+    from .runner import run as _run
+
     fixed = fixed_dials.get("max_turns")
     if isinstance(fixed, int) and not isinstance(fixed, bool) and fixed > 0:
         return fixed
@@ -326,7 +332,7 @@ def _default_expected_turns(fixed_dials: Mapping[str, Any], axes: Sequence[tuple
             declared = [v for v in levels if isinstance(v, int) and not isinstance(v, bool) and v > 0]
             if declared:
                 return max(declared)
-    return 8
+    return int(inspect.signature(_run).parameters["max_turns"].default)
 
 
 def _validate_matched_dials(value: Any, axes: Sequence[tuple[str, tuple[Any, ...]]]) -> tuple[str, ...]:
@@ -626,20 +632,45 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
     total_input_tokens = round(input_per_trial * llm_trials)
     total_output_tokens = round(output_per_trial * llm_trials)
 
-    model = spec.model or PINNED_MODEL
-    price = price_for(model, spec.price_usd_per_mtok)
+    # T051 box 4 — a ``model`` axis is priced per level, not at
+    # ``spec.model``'s rate: the axis is orthogonal to every other axis, so
+    # each level owns an equal share of the llm trials. This is also the
+    # pre-flight price check — the manifest is built from this estimate
+    # before the first trial, so an unpriced level refuses before spend
+    # instead of raising inside ``on_trial`` after a paid call.
+    model_axis = next((levels for name, levels in spec.axes if name == "model"), None)
+    if model_axis:
+        models = [str(level) for level in model_axis]
+    else:
+        models = [spec.model or PINNED_MODEL]
+    prices = {m: price_for(m, spec.price_usd_per_mtok) for m in models}
     # M45.19 — the fixed system prefix (directive + brief) is cacheable; a
     # pilot-measured hit rate moves that share of the input from full price
     # to the cache-read rate (cost_usd prices cache reads at 10%).
     hit = spec.expected_cache_hit_rate
     cached_tokens = round(total_input_tokens * hit)
-    usd = cost_usd(total_input_tokens - cached_tokens, total_output_tokens, price, cache_read_tokens=cached_tokens)
+    share = 1.0 / len(models)
+    usd = sum(
+        cost_usd(
+            round((total_input_tokens - cached_tokens) * share),
+            round(total_output_tokens * share),
+            prices[m],
+            cache_read_tokens=round(cached_tokens * share),
+        )
+        for m in models
+    )
+    model = models[0] if len(models) == 1 else "mixed(" + ", ".join(models) + ")"
 
     cache_desc = f", cache hit {hit:.0%}" if hit else ""
+    if len(models) == 1:
+        price = prices[models[0]]
+        price_desc = f"@ ${price[0]}/${price[1]} per MTok"
+    else:
+        price_desc = "@ " + " + ".join(f"{m} ${prices[m][0]}/${prices[m][1]}" for m in models) + f" per MTok, {len(models)} equal shares"
     formula = (
         f"{llm_trials} llm_trials x ({turns} turns, memory={memory_desc}: "
         f"{input_per_trial:.0f} input + {output_per_trial:.0f} output tok/trial{cache_desc}) "
-        f"@ ${price[0]}/${price[1]} per MTok = ${usd:.4f}"
+        f"{price_desc} = ${usd:.4f}"
     )
     return CostEstimate(
         llm_trials=llm_trials,
@@ -2708,16 +2739,6 @@ def run_experiment(
         # (record.usage is None) skips the price lookup entirely, but any
         # agent that DOES expose usage is priced under the model in force
         # for this trial (falling back to spec.model / PINNED_MODEL).
-        if record.usage:
-            cost_model = cond.get("model") or spec.model or PINNED_MODEL
-            price = price_for(cost_model, spec.price_usd_per_mtok)
-            spent_state["usd"] += cost_usd(
-                record.usage.get("input_tokens", 0),
-                record.usage.get("output_tokens", 0),
-                price,
-                cache_read_tokens=record.usage.get("cache_read_tokens", 0),
-                cache_write_tokens=record.usage.get("cache_write_tokens", 0),
-            )
         if (label, i) not in existing_by_key:
             payload = record_to_json(record, label, i)
             # M45.11: the model and memory policy in force ride on EVERY line,
@@ -2735,6 +2756,19 @@ def run_experiment(
             line = _canonical_json(payload)
             with records_path.open("a") as f:
                 f.write(line + "\n")
+        # T051 box 4 — the price lookup runs AFTER the line is on disk: a
+        # paid trial's usage is never lost to a pricing failure (which
+        # ``estimate_cost`` now refuses before spend anyway).
+        if record.usage:
+            cost_model = cond.get("model") or spec.model or PINNED_MODEL
+            price = price_for(cost_model, spec.price_usd_per_mtok)
+            spent_state["usd"] += cost_usd(
+                record.usage.get("input_tokens", 0),
+                record.usage.get("output_tokens", 0),
+                price,
+                cache_read_tokens=record.usage.get("cache_read_tokens", 0),
+                cache_write_tokens=record.usage.get("cache_write_tokens", 0),
+            )
         if progress is not None:
             progress(f"{label}#{i} {record.terminal_reason} score={record.objective_score}")
 
