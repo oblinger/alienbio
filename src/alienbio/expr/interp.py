@@ -107,7 +107,10 @@ class TemplateHead(Head):
             bound[key] = evaluate(form, env.child(key))
         # Defaults evaluate per call, in the call's seed, in the definition scope
         # extended by what is bound so far (a default may use an earlier parameter).
-        scope_env = Env(self.env_def.bindings.child(bound), env.registry, env.ctx, env.path or env.ns, env.depth)
+        # T051 box 4 — a template level counts toward ``limits.depth`` (a
+        # body that IS the recursive call never went through ``Env.child``,
+        # so self-recursion ended in Python's RecursionError, not ExprError).
+        scope_env = Env(self.env_def.bindings.child(bound), env.registry, env.ctx, env.path or env.ns, env.depth + 1)
         for key, default in self.params.items():
             if key not in bound:
                 bound[key] = evaluate(default, scope_env.child(key))
@@ -188,7 +191,7 @@ def _dispatch(form: Call, env: Env) -> Any:
         return head.expand(form.args, form.kwargs, env.with_ns(env.path))
     if head.is_expander:
         produced = head.fn(form.args, form.kwargs, env.with_ns(env.path))
-        return evaluate(produced, env)
+        return evaluate(produced, Env(env.bindings, env.registry, env.ctx, env.ns, env.depth + 1))
     # a function: evaluate the arguments, then call
     args = [evaluate(a, env.child(str(i))) for i, a in enumerate(form.args)]
     kwargs = {k: evaluate(v, env.child(k)) for k, v in form.kwargs.items()}

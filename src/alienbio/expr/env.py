@@ -49,7 +49,7 @@ class Limits:
     """Caps the interpreter enforces — exceeding one is an error, never a truncation."""
 
     entities: int = 1_000_000  # elements one `each`/`range`/`list` may produce, and in total per session
-    depth: int = 200  # evaluation nesting
+    depth: int = 100  # evaluation nesting (T051 box 4: one template level is ~5.5 Python frames, so 200 sat above the interpreter's own limit and could never fire)
     attempts: int = 8  # guard retries (M47.5)
     meter: Meter = field(default_factory=Meter, compare=False, repr=False)
 
@@ -196,7 +196,13 @@ class Env:
         value.state = "evaluating"
         from .interp import evaluate
 
-        value.value = evaluate(value.form, value.env.child(name))
+        try:
+            value.value = evaluate(value.form, value.env.child(name))
+        except RecursionError:
+            # Belt to the depth cap's braces: whatever shape slips past
+            # ``limits.depth`` still surfaces as the spec's error, not a
+            # Python traceback (T051 box 4).
+            raise self.error(f"evaluation of {name!r} too deep (Python recursion limit); raise nothing above limits.depth") from None
         value.state = "done"
         return value.value
 

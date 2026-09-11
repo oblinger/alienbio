@@ -80,6 +80,10 @@ BOMBS = [
     ("2 ** 100000", "exponent"),
     ("[i for i in range(10**9)]", "exceeds limits.entities"),
     ("[[0] * 10**5 for _ in range(10**5)]", "exceeds limits.entities"),
+    # T051 box 4 — the output-sized operators add / sum / flatten / fstr and
+    # a pow whose exponent is under the cap but whose result is not.
+    ("sum([[0] * 10**5] * 10**4, [])", "exceeds limits.entities"),
+    ("(10 ** 10000) ** 10000", "pow: result"),
 ]
 
 
@@ -101,6 +105,38 @@ def test_deep_nesting_is_an_error_not_a_crash():
         deep = [deep]
     with pytest.raises(ExprError, match="deeper than limits.depth"):
         evaluate({"d": deep}, Env.standard(seed=1))
+
+
+def test_lazy_binding_chains_are_metered():
+    """T051 box 4 — ``op:add`` charged nothing, so fifteen bindings each
+    doubling the previous list built 16.4M elements under a 10k cap and
+    thirty would have exhausted memory. ``fstr`` and ``flatten`` charge
+    their output the same way."""
+    import time
+
+    lines = ["a0: !x '[0] * 1000'"] + [f"a{i}: !x a{i - 1} + a{i - 1}" for i in range(1, 31)]
+    t0 = time.perf_counter()
+    with pytest.raises(ExprError, match="add: .* exceeds limits.entities"):
+        _doc("\n".join(lines) + "\n", entities=10_000)
+    assert time.perf_counter() - t0 < 2.0
+    with pytest.raises(ExprError, match="fstr: .* exceeds limits.entities"):
+        _doc('s: !x "\'a\' * 9000"\nt: !x "f\'{s}{s}{s}{s}\'"\n', entities=10_000)
+
+
+def test_template_recursion_hits_the_depth_cap_not_pythons(tmp_path):
+    """T051 box 4 — a template body that IS the recursive call never went
+    through ``Env.child``, so every self-recursive shape ended in a raw
+    ``RecursionError`` at load (``bio suite run`` printed a traceback), and
+    the default cap of 200 sat above Python's own frame limit."""
+    shapes = [
+        "t: !template {positional: [n], body: !x t(n)}\ndeep: !x t(1)\n",
+        "t: !template {body: !t {}}\ndeep: !t {}\n",
+        "a: !template {body: !b {}}\nb: !template {body: !a {}}\ndeep: !a {}\n",
+        "t: !template {positional: [n], body: !x t(n - 1) if n > 0 else 0}\ndeep: !x t(100000)\n",
+    ]
+    for text in shapes:
+        with pytest.raises(ExprError, match="deeper than limits.depth|too deep"):
+            _doc(text)
 
 
 def test_every_cap_fires_with_the_node_path():

@@ -93,8 +93,20 @@ def _zip(*a: Any, ctx: Any) -> list[list[Any]]:
     return [list(t) for t in zip(*(_sized(x, ctx, "zip") for x in a))]
 
 
+def _sized_len(x: Any) -> int:
+    return len(x) if isinstance(x, (str, bytes, list, tuple)) else 0
+
+
 @fn(kind="math", name="sum", summary="sum")
 def _sum(x: Any, start: Any = 0, *, ctx: Any) -> Any:
+    # T051 box 4 — a sum of LISTS (``sum([[0] * 10**5] * 10**4, [])``) is
+    # sized by its output, and Python builds it quadratically, so the charge
+    # must land BEFORE the work: ten thousand 100k-element rows is 10^9
+    # elements and minutes of one core under a cap that saw only 10^4.
+    if isinstance(x, (list, tuple)):
+        total = sum(_sized_len(item) for item in x)
+        if total:
+            ctx.limits.charge(total, ctx.path, "sum")
     return sum(_sized(x, ctx, "sum"), start)
 
 
@@ -115,7 +127,17 @@ def _op(name: str, f: Any) -> None:
     fn(f, name=f"op:{name}", kind="op", summary=f"operator {name}")
 
 
-_op("add", lambda a, b: a + b)
+@fn(kind="op", name="op:add", summary="operator add")
+def _add(a: Any, b: Any, *, ctx: Any) -> Any:
+    # T051 box 4 — ``add`` was the one sized operator that charged nothing:
+    # fifteen lazy bindings doubling a 1000-element list produced 16.4M
+    # elements (250 MB) under a 10k cap; thirty would have been the machine.
+    n = _sized_len(a) + _sized_len(b)
+    if n:
+        ctx.limits.charge(n, ctx.path, "add")
+    return a + b
+
+
 _op("sub", lambda a, b: a - b)
 _op("div", lambda a, b: a / b)
 _op("floordiv", lambda a, b: a // b)
@@ -125,6 +147,11 @@ _op("mod", lambda a, b: a % b)
 #: The largest integer exponent an inline expression may raise to (M48.5:
 #: ``10 ** 10 ** 10`` would otherwise hang the interpreter).
 MAX_INT_EXPONENT = 10_000
+
+#: The largest integer result (in bits) ``op:pow`` may build (T051 box 4: the
+#: exponent cap alone did not bound the work — ``(10 ** 10000) ** 10000`` is
+#: within it and is ~15 minutes of one core for a 332 M-bit integer).
+MAX_POW_RESULT_BITS = 1 << 24
 
 
 @fn(kind="op", name="op:mul", summary="operator mul")
@@ -139,6 +166,10 @@ def _mul(a: Any, b: Any, *, ctx: Any) -> Any:
 def _pow(a: Any, b: Any, *, ctx: Any) -> Any:
     if isinstance(b, int) and not isinstance(b, bool) and abs(b) > MAX_INT_EXPONENT and not isinstance(a, bool) and a not in (0, 1, -1):
         raise ExprError(f"pow: exponent {b} exceeds {MAX_INT_EXPONENT}", ctx.path)
+    if isinstance(a, int) and isinstance(b, int) and not isinstance(a, bool) and not isinstance(b, bool) and b > 0:
+        bits = a.bit_length() * b
+        if bits > MAX_POW_RESULT_BITS:
+            raise ExprError(f"pow: result of ~{bits} bits exceeds {MAX_POW_RESULT_BITS}", ctx.path)
     try:
         return a**b
     except OverflowError as exc:
@@ -157,7 +188,13 @@ _op("notin", lambda a, b: a not in b)
 _op("is", lambda a, b: a is b)
 _op("isnot", lambda a, b: a is not b)
 _op("set", lambda xs: set(xs))
-_op("flatten", lambda xss: [x for xs in xss for x in xs])
+@fn(kind="op", name="op:flatten", summary="operator flatten")
+def _flatten(xss: Any, *, ctx: Any) -> list:
+    out = [x for xs in xss for x in xs]
+    ctx.limits.charge(len(out), ctx.path, "flatten")
+    return out
+
+
 _op("slice", lambda lo=None, hi=None, step=None: slice(lo, hi, step))
 
 
@@ -187,8 +224,10 @@ def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
     return target(*args, **kwargs)
 
 
-def _fstr(*parts: Any) -> str:
-    return "".join(str(p) for p in parts)
+def _fstr(*parts: Any, ctx: Any) -> str:
+    out = "".join(str(p) for p in parts)
+    ctx.limits.charge(len(out), ctx.path, "fstr")
+    return out
 
 
 def _fmt(value: Any, spec: str = "", conv: str = "") -> str:
@@ -204,7 +243,7 @@ def _fmt(value: Any, spec: str = "", conv: str = "") -> str:
 _op("item", _item)
 _op("attr", _attr)
 _op("method", _method)
-_op("fstr", _fstr)
+fn(_fstr, name="op:fstr", kind="op", summary="operator fstr")
 _op("fmt", _fmt)
 
 
