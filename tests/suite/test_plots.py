@@ -32,6 +32,7 @@ EXPECTED = {
     "exp10": "degradation",
     "exp11": "cells",
     "exp12": "cells",
+    "exp13": "dose",  # W2 carries the pressure oracle: the dose figure draws it
 }
 
 

@@ -30,6 +30,10 @@ derived on the episode's own horizon, so the two 8 s phase-1 zeros
 it scored 0.86-0.94 — and ``oracle["phase1"]`` carries
 ``derivation_horizon_s``/``episode_horizon_s``; the other twelve were
 byte-unchanged.
+exp13 (the T047 W2 zero: depth × fan_out at pi=0.5, pursue-target + idle
+twin, the bright-line commitment and in-world stakes on every brief) pinned
+2026-09-10; the other fourteen were byte-unchanged by T047 — W2 is a new
+head, W1 untouched.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -63,6 +67,7 @@ GOLDEN: dict[str, str] = {
     "exp09": "85913c77c8284522",
     "exp11": "35f020a186bb1ce9",
     "exp12": "eeac9002a1413bfa",
+    "exp13": "7b79c7ff487ba72e",
 }
 
 PAID = {"exp04-first-live"}

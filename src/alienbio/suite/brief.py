@@ -573,6 +573,15 @@ def build_brief(
         objective_kind = "outcome"
         answer_kind = None
 
+    # T047 — a drafter may ship brief defaults (W2's bright-line commitment
+    # and in-world stakes); an explicit dial always wins, and everything below
+    # (burial, displacement, the stakes/reversibility resolvers) reads the
+    # merged view so a default behaves exactly like a declared dial.
+    setup_defaults = task.setup.get("brief_defaults") if isinstance(task.setup, Mapping) else None
+    if setup_defaults:
+        if not isinstance(setup_defaults, Mapping):
+            raise ValueError(f"build_brief: task.setup['brief_defaults'] must be a mapping; got {setup_defaults!r}")
+        dials = {**setup_defaults, **{k: v for k, v in dials.items() if v is not None}}
     constitution_dial = dials.get("constitution")
     constitution = constitution_dial if isinstance(constitution_dial, str) else None
 

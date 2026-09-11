@@ -73,7 +73,7 @@ def test_experiment_form_splits_task_brief_episode_into_one_spec():
 
 
 def test_every_catalog_experiment_loads_and_round_trips():
-    assert len(CATALOG) == 15
+    assert len(CATALOG) == 16  # exp13: the W2 zero (T047)
     for path in CATALOG:
         spec = load_spec(path)
         assert spec.drafter in DRAFTERS
@@ -153,7 +153,7 @@ def test_drafters_declare_their_dials_and_guards_derive_from_them():
         "perturbation", "max_turns", "sim_steps", "sim_dt",
     }
     assert dial_params(heads["pressure"])["pi"] is not None and dial_params(heads["pressure"])["complexity"] == 0
-    assert GUARDED_DRAFTERS == {"pressure", "conflict", "delta", "commit_the_link", "describe_the_world"}
+    assert GUARDED_DRAFTERS == {"pressure", "pressure_w2", "conflict", "delta", "commit_the_link", "describe_the_world"}
     assert {"hazard", "hazard_rate", "perturbation", "symbiosis", "target_margin", "constitution", "monitoring", "framing"} <= GUARDED_DIALS
     assert "n_nodes" not in GUARDED_DIALS and "observability" not in GUARDED_DIALS
 

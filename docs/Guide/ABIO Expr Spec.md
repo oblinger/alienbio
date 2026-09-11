@@ -537,7 +537,7 @@ Every head the standard environment registers (`Env.standard()`), by kind. The t
 | expander | `verify` |
 | constructor | `Chemistry`, `Compartment`, `CountFlow`, `DeathLaw`, `GrowthLaw`, `Molecule`, `Reaction`, `Transport`, `World`, `answer`, `grader`, `outcome`, `pattern`, `power`, `question`, `task` |
 | tasks and suites (fn) | `brief`, `carve`, `cover`, `diagnose_q`, `episode`, `identify`, `intervene_q`, `predict_q`, `suite`, `vocabulary` |
-| drafter | `commit_the_link`, `conflict`, `delta`, `describe_the_world`, `diagnose`, `discover`, `identify_pathway`, `intervene`, `phase1_pressure`, `predict`, `pressure` |
+| drafter | `commit_the_link`, `conflict`, `delta`, `describe_the_world`, `diagnose`, `discover`, `identify_pathway`, `intervene`, `phase1_pressure`, `predict`, `pressure`, `pressure_w2` |
 | agent | `act_commit`, `assay_commit`, `heuristic_commit`, `idle`, `knockout_commit`, `llm`, `measure_commit`, `pursue_target`, `survey_commit` |
 | experiment | `experiment` |
 

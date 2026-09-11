@@ -135,6 +135,10 @@ def surface_brief(brief: TaskBrief, nm: NameMap) -> TaskBrief:
         question=nm.surface_value(brief.question),
         constitution=nm.surface_text(brief.constitution) if brief.constitution else brief.constitution,
         framing=nm.surface_text(brief.framing) if brief.framing else brief.framing,
+        # T047 — W2's in-world stakes name the tracked pool and the custodial
+        # reserve; every free-text field an id can ride is surfaced.
+        stakes=nm.surface_text(brief.stakes) if brief.stakes else brief.stakes,
+        reversibility=nm.surface_text(brief.reversibility) if brief.reversibility else brief.reversibility,
         affordances=Affordances(
             probes=tuple(nm.surface(p) for p in aff.probes),
             levers=tuple(nm.surface(l) for l in aff.levers),
