@@ -19,6 +19,12 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Protocol, Union, runtime_checkable
 
+from typing import TYPE_CHECKING, Mapping
+
+if TYPE_CHECKING:  # the substrate's one state class and one tree class
+    from alienbio.bio.compartment_tree import CompartmentTreeImpl
+    from alienbio.bio.world_state import WorldStateImpl
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Basic Types
@@ -73,7 +79,7 @@ class Molecule(Protocol):
         ...
 
     @property
-    def atoms(self) -> Dict[Atom, int]:
+    def atoms(self) -> Mapping[Any, int]:  # keyed by Atom; Mapping keys are invariant, so the key is open
         """Atom composition: {atom: count}."""
         ...
 
@@ -126,17 +132,17 @@ class Reaction(Protocol):
         ...
 
     @property
-    def reactants(self) -> Dict[Molecule, float]:
+    def reactants(self) -> Mapping[Any, float]:  # keyed by Molecule (see Molecule.atoms)
         """Reactant molecules and their stoichiometric coefficients."""
         ...
 
     @property
-    def products(self) -> Dict[Molecule, float]:
+    def products(self) -> Mapping[Any, float]:
         """Product molecules and their stoichiometric coefficients."""
         ...
 
     @property
-    def modifiers(self) -> Dict[Molecule, Any]:
+    def modifiers(self) -> Mapping[Any, Any]:
         """Catalyst/regulator molecules acting on the reaction without being
         stoichiometrically consumed, mapped to a modulation value: a bidirectional
         rate-modulation descriptor (``bio.reaction.Modulation`` — kind + params, e.g.
@@ -147,10 +153,6 @@ class Reaction(Protocol):
     @property
     def rate(self) -> Union[float, Callable]:
         """Reaction rate (constant or function of state)."""
-        ...
-
-    def get_rate(self, state: WorldState, compartment: CompartmentId) -> float:
-        """Get the effective rate for a given compartment's state."""
         ...
 
 
@@ -187,13 +189,13 @@ class Flow(Protocol):
         ...
 
     def compute_flux(
-        self, state: WorldState, tree: CompartmentTree
+        self, state: "WorldStateImpl", tree: "CompartmentTreeImpl"
     ) -> float:
         """Compute flux for this flow."""
         ...
 
     def apply(
-        self, state: WorldState, tree: CompartmentTree, dt: float
+        self, state: "WorldStateImpl", tree: "CompartmentTreeImpl", dt: float
     ) -> None:
         """Apply this flow to the state (mutates in place)."""
         ...
@@ -262,17 +264,17 @@ class Chemistry(Protocol):
         ...
 
     @property
-    def atoms(self) -> Dict[str, Atom]:
+    def atoms(self) -> Mapping[str, Atom]:
         """All atoms in this chemistry (by symbol)."""
         ...
 
     @property
-    def molecules(self) -> Dict[str, Molecule]:
+    def molecules(self) -> Mapping[str, Molecule]:
         """All molecules in this chemistry (by name)."""
         ...
 
     @property
-    def reactions(self) -> Dict[str, Reaction]:
+    def reactions(self) -> Mapping[str, Reaction]:
         """All reactions in this chemistry (by name)."""
         ...
 
@@ -296,7 +298,7 @@ class Chemistry(Protocol):
         """The induced sub-chemistry over ``nodes`` (edges to dropped nodes removed)."""
         ...
 
-    def match(self, pattern: "Chemistry") -> List[Dict[str, str]]:
+    def match(self, pattern: Any) -> List[Dict[str, str]]:
         """All subgraph embeddings of ``pattern`` into this chemistry."""
         ...
 
@@ -467,12 +469,7 @@ class Simulator(Protocol):
     """
 
     @property
-    def chemistry(self) -> Chemistry:
-        """The Chemistry being simulated."""
-        ...
-
-    @property
-    def tree(self) -> CompartmentTree:
+    def tree(self) -> "CompartmentTreeImpl":
         """The compartment topology."""
         ...
 
@@ -482,15 +479,15 @@ class Simulator(Protocol):
         ...
 
     @abstractmethod
-    def step(self, state: WorldState) -> WorldState:
+    def step(self, state: "WorldStateImpl") -> "WorldStateImpl":
         """Advance the simulation by one time step."""
         ...
 
     def run(
         self,
-        state: WorldState,
+        state: "WorldStateImpl",
         steps: int,
         sample_every: Optional[int] = None,
-    ) -> List[WorldState]:
+    ) -> List["WorldStateImpl"]:
         """Run simulation for multiple steps, optionally sampling history."""
         ...

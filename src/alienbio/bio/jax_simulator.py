@@ -112,6 +112,11 @@ class JaxWorldSimulator:
     # ── Properties ────────────────────────────────────────────────────────────
 
     @property
+    def tree(self) -> "CompartmentTreeImpl":
+        """The compartment topology (the Simulator contract)."""
+        return self._tree
+
+    @property
     def dt(self) -> float:
         return self._dt
 

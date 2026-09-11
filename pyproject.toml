@@ -64,6 +64,7 @@ pythonVersion = "3.11"
 typeCheckingMode = "standard"
 extraPaths = ["src"]
 exclude = ["src/dvc_dat"]   # vendored third-party library, not ours to type
+reportUnsupportedDunderAll = "error"   # a name in __all__ that does not exist is a broken export
 
 [dependency-groups]
 dev = [

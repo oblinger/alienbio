@@ -43,7 +43,4 @@ __all__ = [
     "State",
     "Simulator",
     # Execution
-    "Scenario",
-    "Region",
-    "Organism",
 ]
