@@ -2585,6 +2585,36 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
     }
 
 
+def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
+    """T051 box 4 — the spec fields a ``resume=True`` call changed against the
+    run's manifest, empty when the resume is legitimate. A resume keyed
+    records by ``(label, index)`` alone, so an edited ``base_seed``,
+    ``max_turns``, ``drafter_kwargs`` or model re-labelled every stale line
+    as the new spec's cell (zero re-drafts) and the rebuilt manifest then
+    asserted a spec the records were never drawn under. The two legitimate
+    edits are widening: more ``trials_per_condition``, or new levels on an
+    existing axis (per-label seeds make both additive)."""
+    if not isinstance(prior, Mapping):
+        return []
+    current = spec_to_dict(spec)
+    drift: list[str] = []
+    for key in sorted(set(prior) | set(current)):
+        if key in ("trials_per_condition", "axes"):
+            continue
+        if prior.get(key) != current.get(key):
+            drift.append(key)
+    if int(current.get("trials_per_condition", 0)) < int(prior.get("trials_per_condition", 0)):
+        drift.append("trials_per_condition")
+    old_axes = dict(prior.get("axes") or {})
+    new_axes = dict(current.get("axes") or {})
+    for name, levels in old_axes.items():
+        if name not in new_axes or any(level not in list(new_axes[name]) for level in levels):
+            drift.append(f"axes.{name}")
+    if any(name not in old_axes for name in new_axes):
+        drift.append("axes")
+    return drift
+
+
 def _trials_planned(spec: ExperimentSpec) -> int:
     total = spec.trials_per_condition
     for _name, levels in spec.axes:
@@ -2724,9 +2754,17 @@ def run_experiment(
     started_at = _utc_now_iso()
     if resume and manifest_path.exists():
         try:
-            started_at = json.loads(manifest_path.read_text()).get("started_at", started_at)
+            prior_manifest = json.loads(manifest_path.read_text())
         except (OSError, ValueError):
-            pass
+            prior_manifest = {}
+        started_at = prior_manifest.get("started_at", started_at)
+        drift = _resume_spec_drift(prior_manifest.get("spec"), spec)
+        if drift:
+            raise ValueError(
+                f"run_experiment: resume=True but the spec differs from the run's manifest on {drift} — "
+                "a resume continues the SAME experiment (only more trials_per_condition or added axis "
+                f"levels may change); start a new out_dir for a new spec ({resolved_out})"
+            )
 
     trials_planned = _trials_planned(spec)
     manifest = _build_manifest(spec, trials_planned, started_at)

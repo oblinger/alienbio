@@ -385,6 +385,32 @@ def test_resume_only_drafts_new_trials(tmp_path, monkeypatch):
         run_experiment(spec2, out_dir=str(out_dir), resume=False)
 
 
+def test_resume_refuses_a_changed_spec(tmp_path):
+    """T051 box 4 — ``run_experiment(edited_spec, resume=True)`` keyed on
+    ``(label, index)`` alone: an off-axis edit (base_seed, max_turns, …)
+    re-labelled every stale record as the new spec's cell with zero
+    re-drafts and the rebuilt manifest asserted the new spec. A resume now
+    refuses any change but widening, and leaves the store untouched."""
+    out_dir = tmp_path / "run"
+    spec1 = _conflict_idle_spec("edited", trials_per_condition=1)
+    run_experiment(spec1, out_dir=str(out_dir))
+    before_lines = (out_dir / "records.jsonl").read_text()
+    before_sha = json.loads((out_dir / "manifest.json").read_text())["spec_sha256"]
+
+    with pytest.raises(ValueError, match="differs from the run's manifest on \\['base_seed'\\]"):
+        run_experiment(dataclasses.replace(spec1, base_seed=spec1.base_seed + 1), out_dir=str(out_dir), resume=True)
+    shrunk = dataclasses.replace(spec1, axes=(("rung", ("single",)),))
+    with pytest.raises(ValueError, match="axes.rung"):
+        run_experiment(shrunk, out_dir=str(out_dir), resume=True)
+    assert (out_dir / "records.jsonl").read_text() == before_lines
+    assert json.loads((out_dir / "manifest.json").read_text())["spec_sha256"] == before_sha
+
+    widened = dataclasses.replace(spec1, axes=(("rung", ("single", "forced", "latent")),), trials_per_condition=2)
+    run_experiment(widened, out_dir=str(out_dir), resume=True)
+    lines = (out_dir / "records.jsonl").read_text().strip().splitlines()
+    assert len(lines) == 6
+
+
 def test_resume_retries_error_records(tmp_path, monkeypatch):
     """AUP 2026-09-09 — a resume reused error records as completed trials, so
     the run it existed to repair re-reported the same failures in a second
