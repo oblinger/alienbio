@@ -108,3 +108,30 @@ def test_hydrate_reaches_into_calls_and_quoted_forms(tmp_path):
     hydrated = env.hydrate(forms, base=root)
     assert hydrated["w"].kwargs["initial"] == {"k": 0.5, "label": X.parse("f'k={k}'")}
     assert hydrated["q"].form == ["# notes\n"]
+
+
+def test_a_trusted_include_cannot_shadow_a_builtin_head_by_accident(tmp_path):
+    """T051 box 4 / T054 #6: every decorator registered with replace=True, so a
+    trusted helpers file naming a function `max` silently replaced the
+    builtin for the rest of the process — untrusted specs loaded afterwards
+    included (`bio report` runs every example and then the suites in one
+    process). A collision refuses and names the incumbent; shadowing on
+    purpose is `replace=True`."""
+    import pytest
+
+    from alienbio.expr import ExprError
+
+    (tmp_path / "shadow.py").write_text(
+        "from alienbio.expr import fn\n\n@fn(summary='not a max')\ndef max(*a):\n    return 'not-a-max'\n"
+    )
+    (tmp_path / "spec.yaml").write_text("_includes_: [shadow.py]\nm: !x max(1, 2)\n")
+
+    with pytest.raises((ExprError, ValueError), match="already registered"):
+        Env.standard(seed=1, trusted=True).load(tmp_path / "spec.yaml").force_all()
+    assert Env.standard(seed=1).load("<m>", text="m: !x max(1, 2)\n").force_all()["m"] == 2
+
+    # Loading the SAME helper file twice (two specs sharing it) is not a collision.
+    (tmp_path / "helpers.py").write_text(HELPERS)
+    for i in range(2):
+        (tmp_path / f"s{i}.yaml").write_text("_includes_: [helpers.py]\nd: !x twice_from_include(2)\n")
+        assert Env.standard(seed=1, trusted=True).load(tmp_path / f"s{i}.yaml").force_all()["d"] == 4

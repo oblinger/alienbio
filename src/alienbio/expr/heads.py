@@ -29,11 +29,10 @@ def constant(value: Any) -> Any:
 
 # ---- math / conversion ------------------------------------------------------
 
+# `min` / `max` / `sum` are NOT here: their metered versions below are the
+# only registration (a second registration of a name refuses since T054 #6).
 for _name, _f in {
     "abs": abs,
-    "min": min,
-    "max": max,
-    "sum": sum,
     "round": round,
     "pow": pow,
     "sqrt": math.sqrt,

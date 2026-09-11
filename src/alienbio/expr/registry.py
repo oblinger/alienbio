@@ -88,8 +88,11 @@ class Registry:
             raise ValueError("cannot register into a registry view")
         if head.name in self._heads and not replace:
             existing = self._heads[head.name]
-            if existing.fn is not head.fn:
-                raise ValueError(f"head {head.name!r} is already registered ({existing.kind})")
+            if existing.fn is not head.fn and not _same_definition(existing.fn, head.fn):
+                raise ValueError(
+                    f"head {head.name!r} is already registered ({existing.kind}, "
+                    f"{_where(existing.fn)}); pass replace=True to shadow it on purpose"
+                )
         self._heads[head.name] = head
         return head
 
@@ -125,6 +128,22 @@ class Registry:
         return out
 
 
+def _where(f: Callable[..., Any]) -> str:
+    return f"{getattr(f, '__module__', '?')}.{getattr(f, '__qualname__', '?')}"
+
+
+def _same_definition(a: Callable[..., Any], b: Callable[..., Any]) -> bool:
+    """The same def re-executed — a module re-import, or one helper file
+    copied verbatim across catalog examples — is not a collision: same
+    module and qualified name AND the same compiled body."""
+    if _where(a) != _where(b) or getattr(a, "__module__", None) is None:
+        return False
+    ca, cb = getattr(a, "__code__", None), getattr(b, "__code__", None)
+    if ca is None or cb is None:
+        return True
+    return ca.co_code == cb.co_code and ca.co_consts == cb.co_consts and ca.co_names == cb.co_names
+
+
 #: The one registry.
 registry = Registry()
 
@@ -138,6 +157,7 @@ def _decorate(
     guarded_params: Collection[str],
     into: Registry,
     meta: dict[str, Any],
+    replace: bool = False,
 ) -> Any:
     def wrap(func: Callable[..., Any]) -> Callable[..., Any]:
         head = Head(
@@ -149,7 +169,12 @@ def _decorate(
             guarded_params=frozenset(guarded_params),
             injects=_injects(func),
         )
-        into.register(head, replace=True)
+        # T054 #6: every decorator used replace=True, so a trusted `.py`
+        # include naming a function `max` or `experiment` silently shadowed
+        # the builtin for the rest of the process — untrusted specs loaded
+        # afterwards included. A collision now refuses; shadowing is an
+        # explicit replace=True.
+        into.register(head, replace=replace)
         try:
             setattr(func, "head", head)
         except (AttributeError, TypeError):
@@ -167,6 +192,7 @@ def fn(
     guarded: bool = False,
     guarded_params: Collection[str] = (),
     into: Registry = registry,
+    replace: bool = False,
     **meta: Any,
 ) -> Any:
     """Register a function head: its arguments arrive **evaluated**. A
@@ -174,7 +200,7 @@ def fn(
     spec. ``kind`` is the flavor tag (``dist``, ``rate``, ``scoring``, ...)."""
     if kind not in FUNCTION_KINDS:
         raise ValueError(f"@fn: unknown kind {kind!r}; expected one of {sorted(FUNCTION_KINDS)}")
-    return _decorate(kind, _f, name=name, guarded=guarded, guarded_params=guarded_params, into=into, meta=meta)
+    return _decorate(kind, _f, name=name, guarded=guarded, guarded_params=guarded_params, into=into, meta=meta, replace=replace)
 
 
 def expander(
@@ -184,12 +210,13 @@ def expander(
     guarded: bool = False,
     guarded_params: Collection[str] = (),
     into: Registry = registry,
+    replace: bool = False,
     **meta: Any,
 ) -> Any:
     """Register an expander head: ``fn(args, kwargs, env)`` receives the
     argument **forms** (unevaluated) and returns a form the interpreter then
     evaluates under the call's seed."""
-    return _decorate("expander", _f, name=name, guarded=guarded, guarded_params=guarded_params, into=into, meta=meta)
+    return _decorate("expander", _f, name=name, guarded=guarded, guarded_params=guarded_params, into=into, meta=meta, replace=replace)
 
 
 def guard(
@@ -197,13 +224,14 @@ def guard(
     *,
     name: Optional[str] = None,
     into: Registry = registry,
+    replace: bool = False,
     **meta: Any,
 ) -> Any:
     """Register a guard: ``fn(value, ctx, **params)`` returns ``False`` or
     raises :class:`GuardViolation` to reject what a call produced. A call's
     ``guards: [...]`` lists guards by name (defaults) or as calls (parameters);
     ``on_fail: retry | prune | reject`` decides what a failure does (M47.5)."""
-    return _decorate("guard", _f, name=name, guarded=False, guarded_params=(), into=into, meta=meta)
+    return _decorate("guard", _f, name=name, guarded=False, guarded_params=(), into=into, meta=meta, replace=replace)
 
 
 def special(name: str, func: Callable[..., Any], *, into: Registry = registry, **meta: Any) -> Head:

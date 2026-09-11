@@ -32,11 +32,13 @@ from alienbio.expr import fn, guard, GuardViolation
 def twice(x):
     return 2 * x
 
-@guard(summary="doc helper: above a floor")
+# replace=True: tests/expr/test_guards.py registers guards of the same names
+# in the same process; a second registration refuses unless it says so (T054 #6).
+@guard(summary="doc helper: above a floor", replace=True)
 def above(value, ctx, floor: float = 0.5):
     return value > floor
 
-@guard(summary="doc helper: every reaction has products")
+@guard(summary="doc helper: every reaction has products", replace=True)
 def has_products(value, ctx):
     bad = [k for k, r in value.get("reactions", {}).items() if not r.get("products")]
     if bad:
@@ -106,10 +108,22 @@ def test_python_api_examples_run(docs_dir, monkeypatch):
     fences = _fences(API, "python")
     assert fences, "the Python API page has no ```python fences"
     namespace: dict = {"__name__": "abio_expr_api_examples"}
-    for line, code in fences:
-        if code.lstrip().startswith("# fragment"):
-            continue
-        try:
-            exec(compile(code, f"ABIO Expr Python API.md:L{line}", "exec"), namespace)
-        except Exception as exc:  # noqa: BLE001 — the line number is the point
-            raise AssertionError(f"Python API example at line {line} failed: {exc!r}") from exc
+    # The examples run as if in a fresh process: heads that catalog helper
+    # files registered under earlier tests (`alienbio_include_*` modules)
+    # are set aside for the duration, since a second registration of a
+    # name refuses (T054 #6) and the page's `chain` is not the ecosystem's.
+    snapshot = dict(registry._heads)
+    for name, head in snapshot.items():
+        if str(getattr(head.fn, "__module__", "")).startswith("alienbio_include_"):
+            del registry._heads[name]
+    try:
+        for line, code in fences:
+            if code.lstrip().startswith("# fragment"):
+                continue
+            try:
+                exec(compile(code, f"ABIO Expr Python API.md:L{line}", "exec"), namespace)
+            except Exception as exc:  # noqa: BLE001 — the line number is the point
+                raise AssertionError(f"Python API example at line {line} failed: {exc!r}") from exc
+    finally:
+        registry._heads.clear()
+        registry._heads.update(snapshot)

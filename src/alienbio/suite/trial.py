@@ -201,6 +201,11 @@ class TrialRecord:
     #: (the default), so existing fixtures and golden records are
     #: byte-unchanged.
     compaction: Optional[Mapping[str, Any]] = None
+    #: T054 #3 — ``{"constitution_displaced_at": turn}``: the first turn whose
+    #: context window lacked the constitution the agent had been seeded with
+    #: (``constitution_in_history``), whatever displaced it. ``None`` when it
+    #: never left or was never seeded, so goldens are byte-unchanged.
+    forgetting: Optional[Mapping[str, Any]] = None
 
     @cached_property
     def deliberation_depth(self) -> int:

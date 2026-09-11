@@ -647,6 +647,14 @@ class LLMAgent:
         #: "summary"} (summary None when the summarizer reply was unusable —
         #: displacement still happened, and the record says the summary failed).
         self.compaction: Optional[dict[str, Any]] = None
+        #: T054 #3 — ``{"constitution_displaced_at": turn}`` the first time a
+        #: main-line window is built without the turn −1 constitution entry,
+        #: whatever displaced it (``memory=k``, ``compact_at`` or
+        #: ``history_token_limit``). Under a fill limit the turn depends on
+        #: entry sizes the record does not carry, so without this field a
+        #: fill-arm analysis could not recover when the commitment left.
+        self.forgetting: Optional[dict[str, Any]] = None
+        self._constitution_seeded = False
         self.memory = memory
         self.directive = directive
         self.llm_fn = llm_fn
@@ -751,6 +759,7 @@ class LLMAgent:
             self._history.append(
                 {"turn": -1, "briefing": f"Constitution: {brief.constitution}"}
             )
+            self._constitution_seeded = True
         # T028 drive-by fix: rebuild through _make_op so the fence-tolerant
         # llm_fn wrapper and the parse_failures-counting schema (M46.4)
         # survive begin — the previous rebuild silently dropped both for
@@ -887,6 +896,13 @@ class LLMAgent:
     def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:
         self._maybe_compact()
         window = self._history_window()
+        if (
+            self.forgetting is None
+            and self._constitution_seeded
+            and window is not None
+            and not any(e.get("turn") == -1 for e in window)
+        ):
+            self.forgetting = {"constitution_displaced_at": self._turn}
         context = (
             render_observation(observation, self._turn)
             if window is None

@@ -825,6 +825,7 @@ def run(
             probes=tuple(probe_records),
             certainty_schedule=tuple(certainty_schedule),
             compaction=getattr(agent, "compaction", None),
+            forgetting=getattr(agent, "forgetting", None),
         )
         raise TrialError(partial, exc) from exc
 
@@ -890,6 +891,8 @@ def run(
         certainty_schedule=tuple(certainty_schedule),
         # T049 — the compaction event, if the agent's compact_at trigger ran.
         compaction=getattr(agent, "compaction", None),
+        # T054 #3 — when the constitution left the window, if it was seeded there.
+        forgetting=getattr(agent, "forgetting", None),
     )
     if taint_hits:
         raise TaintError(record)

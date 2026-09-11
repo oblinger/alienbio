@@ -486,8 +486,11 @@ def _register_entity_constructor(head_name: str, cls: type) -> None:
     fn(construct, kind="constructor", name=head_name, summary=f"construct a {cls.__name__} (by hydrate)")
 
 
+# `Reaction` and `Chemistry` get hand-written constructors below (they mint
+# and resolve molecule names); the generic hydrate head is not registered for
+# them, since a second registration of a name refuses (T054 #6).
 for _head_name, _cls in get_registered_heads().items():
-    if _head_name not in ("Entity", "Compartment"):
+    if _head_name not in ("Entity", "Compartment", "Reaction", "Chemistry"):
         _register_entity_constructor(_head_name, _cls)
 
 

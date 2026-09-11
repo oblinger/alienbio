@@ -415,7 +415,7 @@ def declared_surface_violation(spec: ExperimentSpec) -> Optional[str]:
     (conflict / pressure / delta and the controls on them) with no ``levers``
     dial, fixed or swept. ``None`` otherwise. The default for those worlds is
     *no levers until declared*, failing visibly — never every reaction id."""
-    if spec.drafter not in GUARDED_DRAFTERS:
+    if spec.drafter not in guarded_drafters():
         return None
     if "levers" in spec.fixed_dials or any(name == "levers" for name, _ in spec.axes):
         return None
@@ -1727,6 +1727,15 @@ DRAFTERS: dict[str, DrafterFn] = _Drafters({name: _adapt(head) for name, head in
 #: heads' ``guarded=True`` metadata (M47.4).
 GUARDED_DRAFTERS: frozenset[str] = frozenset(name for name, head in drafter_heads().items() if head.guarded)
 
+
+def guarded_drafters() -> frozenset[str]:
+    """The guarded drafters as registered NOW. :data:`GUARDED_DRAFTERS` is the
+    import-time snapshot; the guards read this instead, so a drafter a trusted
+    ``_includes_`` file registers later with ``guarded=True`` is refused too
+    (T054 #6 — the snapshot let it pass ``no_peeking_violation`` with a live
+    model)."""
+    return frozenset(name for name, head in drafter_heads().items() if head.guarded)
+
 #: Brief-side dials that put an alignment-bearing arm on an otherwise neutral
 #: world — constitution/prohibition text, a monitoring-belief or framing arm,
 #: stakes/reversibility, the assay allowlist. The ``brief`` head declares
@@ -1756,6 +1765,8 @@ def guarded_dials() -> frozenset[str]:
 
 
 #: The derived guarded-dial set (see :func:`guarded_dials`).
+#: Import-time snapshot of :func:`guarded_dials`, for reading; the guards call
+#: the function so late registrations count (T054 #6).
 GUARDED_DIALS: frozenset[str] = guarded_dials()
 
 #: T025 (AUP C7, 2026-08-31) — drafters whose worlds are conflict-free BY
@@ -1837,7 +1848,7 @@ def no_peeking_violation(
     if "llm" not in agent_kinds_in_play(spec):
         return None
     registration = registration_admission(spec, registry_path)
-    if spec.drafter in GUARDED_DRAFTERS and registration is None:
+    if spec.drafter in guarded_drafters() and registration is None:
         return f"drafter {spec.drafter!r} is a conflict/pressure/delta substrate"
     down = sorted(_phase1_variants_in_play(spec) & PHASE1_DOWN_VARIANTS)
     if down and registration is None:
@@ -1848,7 +1859,7 @@ def no_peeking_violation(
             f"phase-1 down-direction variant(s) {down} are registration-gated (T048): "
             "claim a `registration:` entry naming this drafter, or use a scripted agent"
         )
-    guarded = sorted(d for d in dials_in_play(spec) if d in GUARDED_DIALS)
+    guarded = sorted(d for d in dials_in_play(spec) if d in guarded_dials())
     if spec.drafter in CONFLICT_FREE_DRAFTERS:
         # T025 — the conflict-free ungate: on a world with nothing to refrain
         # from, a stated commitment is a retention stimulus, not an
@@ -2427,6 +2438,11 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
             if record.compaction is not None
             else {}
         ),
+        **(
+            {"forgetting": _json_safe(dict(record.forgetting))}
+            if record.forgetting is not None
+            else {}
+        ),
     }
 
 
@@ -2495,6 +2511,7 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         ),
         certainty_schedule=tuple(bool(x) for x in d.get("certainty_schedule") or ()),
         compaction=d.get("compaction"),
+        forgetting=d.get("forgetting"),
     )
 
 
@@ -2643,6 +2660,7 @@ def run_experiment(
     resume: bool = False,
     on_error: str = "record",
     progress: Optional[Callable[[str], None]] = None,
+    retry_taint: bool = False,
 ) -> ReliabilityMap:
     """Run (or resume) ``spec`` into ``out_dir``, persisting as it goes.
 
@@ -2709,6 +2727,7 @@ def run_experiment(
         # the old error and its fresh replacement), and announced.
         clean_lines: list[str] = []
         retried_lines: list[str] = []
+        kept_taint = 0
         with records_path.open() as f:
             for line in f:
                 line = line.strip()
@@ -2716,6 +2735,16 @@ def run_experiment(
                     continue
                 d = json.loads(line)
                 record = record_from_json(d)
+                if record.error and record.error.startswith("TaintError") and not retry_taint:
+                    # T054 #2: a taint is framework-deterministic (same brief,
+                    # same leak), so retrying it re-spends the whole tainted
+                    # set on every press and lands the same error again. It
+                    # stays in place; `retry_taint=True` opts in once the leak
+                    # is fixed.
+                    kept_taint += 1
+                    clean_lines.append(line)
+                    existing_by_key[(d["label"], d["index"])] = record
+                    continue
                 if record.error:
                     retried_lines.append(line)
                     # T051 box 4 — a retried line's real usage still counts
@@ -2747,6 +2776,11 @@ def run_experiment(
                     f"resume: retrying {len(retried_lines)} error record(s) "
                     "(originals kept in records.retried.jsonl)"
                 )
+        if kept_taint and progress is not None:
+            progress(
+                f"resume: keeping {kept_taint} TaintError record(s) in place — a taint is "
+                "deterministic; fix the leak and pass retry_taint=True to re-run them"
+            )
 
     def skip(label: str, i: int) -> Optional[TrialRecord]:
         return existing_by_key.get((label, i))
@@ -2957,12 +2991,17 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     terminal_counts: dict[str, int] = {}
     illegal_total = 0
     error_count = 0
+    error_classes: dict[str, int] = {}
     abort_counts: dict[str, int] = {}
     for record in rmap.records:
         terminal_counts[record.terminal_reason] = terminal_counts.get(record.terminal_reason, 0) + 1
         illegal_total += record.illegal_actions
         if record.error:
             error_count += 1
+            # T054 #2: the operator could not tell six taints from six
+            # rate-limit errors — the class is the first token of the message.
+            klass = record.error.split(":", 1)[0].strip() or "error"
+            error_classes[klass] = error_classes.get(klass, 0) + 1
         for step in record.deliberation_trace.steps:
             if step.kind != "abort":
                 continue
@@ -2973,6 +3012,8 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
         lines.append(f"  terminal_reason={reason!r}: {count}")
     lines.append(f"  illegal_actions (total): {illegal_total}")
     lines.append(f"  records with error: {error_count}")
+    for klass, count in sorted(error_classes.items()):
+        lines.append(f"  error={klass}: {count}")
     for tag, count in sorted(abort_counts.items()):
         lines.append(f"  aborted={tag!r}: {count}")
 

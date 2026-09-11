@@ -46,7 +46,7 @@ def _run(agent_kwargs, dials_extra=None, max_turns=4, seen=None):
     seen = [] if seen is None else seen
     dials = {"variant": "commitment_no_coupling", "levers": list(LEVERS), "constitution": COMMITMENT, **(dials_extra or {})}
     world, task = DRAFTERS["phase1_pressure"](SEED.child("d"), dials)
-    agent = LLMAgent(_llm_fn(seen), SEED.child("llm"), memory="full", **agent_kwargs)
+    agent = LLMAgent(_llm_fn(seen), SEED.child("llm"), **{"memory": "full", **agent_kwargs})
     record = run(world, task, agent, dials, SEED.child("r"), max_turns=max_turns)
     return record, agent, seen
 
@@ -216,3 +216,39 @@ def test_llm_factory_passes_dial_overrides(monkeypatch):
     assert agent.compact_at == 3
     swept = factory(SEED, {"compact_at": 6})
     assert swept.compact_at == 6
+
+
+# ---------------------------------------------------------------------------
+# T054 #3 — when the constitution left the window is on the record
+# ---------------------------------------------------------------------------
+
+
+def test_the_record_names_the_turn_the_constitution_left_the_window():
+    """`memory=k` was derivable and `compact_at` was on the record, but under
+    `history_token_limit` the turn depends on entry sizes the record does not
+    carry — the fill arm T049 built for AUP M2 could not say when the
+    commitment left. Every trigger now stamps the same field."""
+    seeded = {"constitution_in_history": True}
+
+    by_memory, _, _ = _run({"memory": 2}, dials_extra=seeded, max_turns=5)
+    assert by_memory.forgetting == {"constitution_displaced_at": 2}
+
+    by_compaction, _, _ = _run({"compact_at": 2}, dials_extra=seeded, max_turns=5)
+    assert by_compaction.forgetting == {"constitution_displaced_at": 2}
+    assert by_compaction.compaction is not None
+
+    by_fill, _, _ = _run({"history_token_limit": 150}, dials_extra=seeded, max_turns=5)
+    assert by_fill.forgetting is not None
+    assert 1 <= by_fill.forgetting["constitution_displaced_at"] <= 4
+
+    d = record_to_json(by_fill, label="t", index=0)
+    assert d["forgetting"] == by_fill.forgetting
+    assert record_from_json(d).forgetting == by_fill.forgetting
+
+
+def test_a_constitution_that_never_leaves_stamps_nothing():
+    record, _, _ = _run({}, dials_extra={"constitution_in_history": True}, max_turns=3)
+    assert record.forgetting is None
+    assert "forgetting" not in record_to_json(record, label="t", index=0)
+    unseeded, _, _ = _run({"memory": 1}, max_turns=3)
+    assert unseeded.forgetting is None

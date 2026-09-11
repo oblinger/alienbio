@@ -452,6 +452,52 @@ def test_resume_retries_error_records(tmp_path, monkeypatch):
     assert not any("retrying" in m for m in seen)
 
 
+def test_resume_keeps_taint_records_in_place_and_the_census_names_the_class(tmp_path, monkeypatch):
+    """T051 box 4 / T054 #2: a taint is framework-deterministic (same brief,
+    same leak), so a resume that retried it re-spent the whole tainted set on
+    every press and landed the same error again; and the failure census
+    printed `records with error: N` with no class, so six taints read like six
+    rate-limit errors."""
+    import alienbio.suite.experiment as experiment_mod
+    from alienbio.suite.runner import TaintError
+
+    original = experiment_mod.DRAFTERS["conflict"]
+    drafts = {"n": 0}
+
+    def counting(seed, dials, **kwargs):
+        drafts["n"] += 1
+        return original(seed, dials, **kwargs)
+
+    monkeypatch.setitem(experiment_mod.DRAFTERS, "conflict", counting)
+
+    out_dir = tmp_path / "taint_run"
+    spec = _conflict_idle_spec("taint", trials_per_condition=1)
+    run_experiment(spec, out_dir=str(out_dir))
+    # Re-stamp the "forced" arm as tainted, the way mass_trial lands a TaintError.
+    lines = [json.loads(l) for l in (out_dir / "records.jsonl").read_text().strip().splitlines()]
+    for d in lines:
+        if d["label"] == "rung=forced":
+            d["terminal_reason"] = "error"
+            d["error"] = "TaintError: taint audit failed — hidden id(s) in a prompt: ('root/x',)"
+    (out_dir / "records.jsonl").write_text("".join(json.dumps(d) + "\n" for d in lines))
+
+    drafts["n"] = 0
+    seen: list[str] = []
+    rmap = run_experiment(spec, out_dir=str(out_dir), resume=True, progress=seen.append)
+
+    assert drafts["n"] == 0, "a taint line must not be re-drafted by default"
+    assert any("keeping 1 TaintError record(s)" in m for m in seen)
+    assert not (out_dir / "records.retried.jsonl").exists()
+    report = (out_dir / "report.txt").read_text()
+    assert "error=TaintError: 1" in report
+
+    # Opting in retries it like any other error line.
+    run_experiment(spec, out_dir=str(out_dir), resume=True, retry_taint=True, progress=seen.append)
+    assert drafts["n"] == 1
+    assert any("retrying 1 error record(s)" in m for m in seen)
+    del rmap, TaintError
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 5. fixed_dials — reaches the runner, never the condition_key
 # ═══════════════════════════════════════════════════════════════════════════
@@ -507,6 +553,35 @@ def test_no_peeking_guard_rejects_llm_on_pressure(tmp_path):
         run_experiment(spec, out_dir=str(out_dir))
 
     assert not out_dir.exists()
+
+
+def test_a_drafter_registered_after_import_is_still_guarded(monkeypatch):
+    """T051 box 4 / T054 #6: GUARDED_DRAFTERS / GUARDED_DIALS were import-time
+    snapshots while DRAFTERS resolved late registrations, so a drafter a
+    trusted `_includes_` file registered with `guarded=True` (or a
+    `guarded_params` dial) passed no_peeking_violation with a live model."""
+    from alienbio.expr import fn, registry
+    from alienbio.suite.experiment import no_peeking_violation
+
+    @fn(kind="drafter", name="late_guarded_t054", guarded=True, guarded_params=("h7dial",), summary="late")
+    def late_guarded_t054(*, h7dial: int = 0, env):  # pragma: no cover — never called
+        raise AssertionError("not drafted")
+
+    try:
+        spec = ExperimentSpec(
+            name="late", axes=(), drafter="late_guarded_t054", agent="llm",
+            trials_per_condition=1, base_seed=1, temperature="provider-fixed",
+        )
+        assert no_peeking_violation(spec) is not None
+        dial_spec = ExperimentSpec(
+            name="late-dial", axes=(), drafter="identify_pathway", agent="llm",
+            trials_per_condition=1, base_seed=1, temperature="provider-fixed",
+            fixed_dials={"h7dial": 1},
+        )
+        why = no_peeking_violation(dial_spec)
+        assert why is not None and "h7dial" in why
+    finally:
+        registry._heads.pop("late_guarded_t054", None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
