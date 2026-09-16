@@ -48,9 +48,13 @@ aup-pressure:
 # guarded dial ever licensed — for the ≈$6 pi bracket, and names
 # `phase1_pressure` so the T048 down-direction variants (registration-gated,
 # AUP acceptance (e)) can run under the same exploratory footing. Add
-# `pressure_w2` to `drafters` when it ships (T047).
+# `pressure_w2` (T047, shipped 2026-09-10) added 2026-09-15 at AUP's ask:
+# the whole drafter is guarded, so EVERY dial of it in play is a guarded
+# dial — depth / fan_out / distractor_depth are listed beside pi /
+# certainty / epistemic_access, or a W2 sweep refuses before spend.
 aup-exploration:
   osf: "osf.io/xnc2p"
   filed: "2026-08-31"
-  dials: [pi, complexity, certainty, epistemic_access, constitution, stakes]
-  drafters: [pressure, phase1_pressure]
+  dials: [pi, complexity, certainty, epistemic_access, constitution, stakes,
+          depth, fan_out, distractor_depth]
+  drafters: [pressure, phase1_pressure, pressure_w2]

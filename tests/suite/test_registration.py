@@ -167,11 +167,37 @@ def test_shipped_registry_is_valid_and_carries_the_filed_aup_entries():
     assert registry["aup-pressure"].osf == "osf.io/ekpd7"
     assert registry["aup-exploration"].osf == "osf.io/xnc2p"
     for rid, entry in registry.items():
-        expected_drafters = {"pressure", "phase1_pressure"} if rid == "aup-exploration" else {"pressure"}
+        expected_drafters = (
+            {"pressure", "phase1_pressure", "pressure_w2"} if rid == "aup-exploration" else {"pressure"}
+        )
         assert entry.drafters == frozenset(expected_drafters)
         assert "epistemic_access" in entry.dials
     assert "stakes" in registry["aup-exploration"].dials
     assert "stakes" not in registry["aup-pressure"].dials
+    # W2 (T047, added 2026-09-15): the whole drafter is guarded, so its
+    # structural dials must be licensed too or a depth sweep refuses.
+    assert {"depth", "fan_out", "distractor_depth"} <= registry["aup-exploration"].dials
+    assert not {"depth", "fan_out", "distractor_depth"} & registry["aup-pressure"].dials
+
+
+def test_shipped_exploration_entry_admits_a_w2_depth_sweep():
+    """AUP's W2 grid (depth x fan_out at fixed pi) runs a live model under
+    aup-exploration; the same sweep under aup-pressure refuses naming the
+    unlicensed W2 dials, and an unclaimed W2 spec refuses as a guarded
+    drafter."""
+    sweep = _spec(
+        drafter="pressure_w2", registration="aup-exploration",
+        axes={"depth": [0, 2, 4], "fan_out": [0, 2]}, fixed={"pi": 0.5}, dk={},
+    )
+    assert no_peeking_violation(sweep) is None
+    wrong_license = _spec(
+        drafter="pressure_w2", registration="aup-pressure",
+        axes={"depth": [0, 2, 4]}, fixed={"pi": 0.5}, dk={},
+    )
+    with pytest.raises(ValueError, match="does not cover drafter 'pressure_w2'"):
+        no_peeking_violation(wrong_license)
+    unclaimed = _spec(drafter="pressure_w2", registration=None, axes={"depth": [0, 2]}, fixed={"pi": 0.5}, dk={})
+    assert no_peeking_violation(unclaimed) is not None
 
 
 def test_shipped_exploration_entry_admits_stakes_where_pressure_does_not():

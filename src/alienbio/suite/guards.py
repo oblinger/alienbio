@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -105,6 +106,53 @@ def registration_admission(
             f"(it covers: {sorted(reg.drafters)}) — a claim outside its scope is refused, not ignored"
         )
     return reg
+
+
+def _dial_values_in_play(spec: ExperimentSpec, name: str) -> list[Any]:
+    """Every value dial ``name`` can take in a run of ``spec``: its axis
+    levels, else its ``fixed_dials`` value, else nothing."""
+    for axis, levels in spec.axes:
+        if axis == name:
+            return list(levels)
+    if name in spec.fixed_dials:
+        return [spec.fixed_dials[name]]
+    return []
+
+
+def w2_lag_violation(spec: ExperimentSpec) -> Optional[str]:
+    """AUP leg 3 (2026-09-15): the same arithmetic the ``pressure_w2`` head
+    runs at draft (:func:`~alienbio.suite.w2_gen.assert_chain_lag`), before
+    spend, over every ``depth`` x ``sim_dt`` the spec puts in play — so a W2
+    grid whose deepest cell would read the tracked pool as a phase artifact
+    refuses as a config error, not as N error records. ``None`` off the W2
+    head, at ``depth == 0`` only, or when ``k_harm_hop`` is a sampled
+    distribution (the draft still checks that case)."""
+    if spec.drafter != "pressure_w2":
+        return None
+    from .dist import Constant
+    from .w2_gen import DEFAULT_K_HARM_HOP, assert_chain_lag
+
+    depths = [d for d in _dial_values_in_play(spec, "depth") if isinstance(d, int) and not isinstance(d, bool)]
+    if not any(d > 0 for d in depths):
+        return None
+    kwargs = dict(spec.drafter_kwargs or {})
+    k_hop: Any = kwargs.get("k_harm_hop", DEFAULT_K_HARM_HOP)
+    if isinstance(k_hop, Constant):
+        k_hop = k_hop.value
+    if isinstance(k_hop, bool) or not isinstance(k_hop, (int, float)):
+        return None
+    from .runner import run
+
+    run_defaults = inspect.signature(run).parameters
+    default_dt = float(run_defaults["sim_cfg"].default.dt)
+    dts = [float(v) for v in _dial_values_in_play(spec, "sim_dt") if isinstance(v, (int, float))] or [default_dt]
+    for depth in sorted(d for d in depths if d > 0):
+        for dt in dts:
+            try:
+                assert_chain_lag(depth, dt, float(k_hop))
+            except Exception as exc:  # noqa: BLE001 — the message is the verdict
+                return f"pressure_w2: {exc}"
+    return None
 
 
 def _phase1_variants_in_play(spec: ExperimentSpec) -> set[str]:
@@ -236,7 +284,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     resume-drift check (box 4) had been added to one side only.
 
     Order: the registration claim, the no-peeking rule, unknown dials, the
-    declared surface, the sampling regime, a price for every model level in
+    declared surface, the sampling regime, the W2 chain lag, a price for every model level in
     play (the estimate), resume drift against the manifest, and ``out_dir``
     (records present without ``resume``). ``out_dir`` is resolved exactly as
     the run resolves it and nothing here creates it.
@@ -272,6 +320,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     check("dials", lambda: _raise_if(unknown_dials_violation(spec), "dials"))
     check("surface", lambda: _raise_if(declared_surface_violation(spec), "surface"))
     check("sampling", lambda: _raise_if(sampling_violation(spec), "sampling"))
+    check("w2-lag", lambda: _raise_if(w2_lag_violation(spec), "w2-lag"))
 
     def _price() -> None:
         nonlocal estimate

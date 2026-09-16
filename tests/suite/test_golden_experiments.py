@@ -33,7 +33,11 @@ byte-unchanged.
 exp13 (the T047 W2 zero: depth × fan_out at pi=0.5, pursue-target + idle
 twin, the bright-line commitment and in-world stakes on every brief) pinned
 2026-09-10; the other fourteen were byte-unchanged by T047 — W2 is a new
-head, W1 untouched.
+head, W1 untouched. Re-pinned 2026-09-15 (AUP leg 3): the harm chain's
+hop rate is 1000 (was 10) and the zero runs 0.01 s steps, so the chain's
+lag is within the bound the head now enforces and ``oracle["w2"]`` carries
+``k_harm_hop``/``sim_dt``/``turn_s``/``chain_lag_s``; the other fifteen
+were byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -67,7 +71,7 @@ GOLDEN: dict[str, str] = {
     "exp09": "85913c77c8284522",
     "exp11": "35f020a186bb1ce9",
     "exp12": "eeac9002a1413bfa",
-    "exp13": "7b79c7ff487ba72e",
+    "exp13": "6d4a9b243273fd19",
 }
 
 PAID = {"exp04-first-live"}
