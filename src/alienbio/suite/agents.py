@@ -349,6 +349,9 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
             compact_at=dials.get("compact_at", spec.compact_at),
             compact_budget=dials.get("compact_budget", spec.compact_budget),
             history_token_limit=dials.get("history_token_limit", spec.history_token_limit),
+            # T059 — the per-turn output budget, sweepable the same way.
+            max_tokens=dials.get("max_tokens", spec.max_tokens),
+            output_schedule=dials.get("output_schedule", spec.output_schedule),
         )
 
     return factory

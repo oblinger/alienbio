@@ -523,6 +523,8 @@ def experiment(
     compact_at: Optional[int] = None,
     compact_budget: Optional[int] = None,
     history_token_limit: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    output_schedule: Optional[Mapping[str, int]] = None,
     token_ceiling: Optional[int] = None,
     out_dir: Optional[str] = None,
     cost_ceiling_usd: Optional[float] = None,
@@ -604,6 +606,8 @@ def experiment(
         ("compact_at", compact_at),
         ("compact_budget", compact_budget),
         ("history_token_limit", history_token_limit),
+        ("max_tokens", max_tokens),
+        ("output_schedule", dict(output_schedule) if output_schedule is not None else None),
     ):
         if value is not None:
             d[key] = value
@@ -756,8 +760,10 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
         "compact_at": d["compact_at"],
         "compact_budget": d["compact_budget"],
         "history_token_limit": d["history_token_limit"],
+        "max_tokens": d["max_tokens"],
+        "output_schedule": d["output_schedule"],
     }
-    for key in ("model", "memory", "compact_at", "compact_budget", "history_token_limit", "token_ceiling", "cost_ceiling_usd", "price_usd_per_mtok", "temperature", "top_p", "expected_cache_hit_rate"):
+    for key in ("model", "memory", "compact_at", "compact_budget", "history_token_limit", "max_tokens", "output_schedule", "token_ceiling", "cost_ceiling_usd", "price_usd_per_mtok", "temperature", "top_p", "expected_cache_hit_rate"):
         if scalars[key] is not None:
             out.append(f"{key}: {_yaml_inline(scalars[key])}")
     if spec.idle_baseline:

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Union, cast
 
 
-from .llm_agent import PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, load_models_snapshot, price_for
+from .llm_agent import PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, validate_output_budget, load_models_snapshot, price_for
 from .power import PowerDesign
 
 
@@ -50,6 +50,12 @@ class ExperimentSpec:
     compact_at: Optional[int] = None
     compact_budget: Optional[int] = None
     history_token_limit: Optional[int] = None
+    #: T059 — the LLM agent's per-turn output budget (AUP's Protocol Atlas):
+    #: a flat ``max_tokens`` or an ``output_schedule`` ``{"every", "deep",
+    #: "shallow"}``; one form per arm; a trial dial of the same name overrides,
+    #: so either can be swept. Unset, the provider fn's own cap applies.
+    max_tokens: Optional[int] = None
+    output_schedule: Optional[Mapping[str, int]] = None
     token_ceiling: Optional[int] = None
     fixed_dials: Mapping[str, Any] = field(default_factory=dict)
     out_dir: Optional[str] = None
@@ -124,6 +130,8 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "compact_at": spec.compact_at,
         "compact_budget": spec.compact_budget,
         "history_token_limit": spec.history_token_limit,
+        "max_tokens": spec.max_tokens,
+        "output_schedule": dict(spec.output_schedule) if spec.output_schedule is not None else None,
         "token_ceiling": spec.token_ceiling,
         "trials_per_condition": spec.trials_per_condition,
         "base_seed": spec.base_seed,
@@ -185,6 +193,8 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         compact_at=d.get("compact_at"),
         compact_budget=d.get("compact_budget"),
         history_token_limit=d.get("history_token_limit"),
+        max_tokens=d.get("max_tokens"),
+        output_schedule=_validate_output_schedule(d.get("max_tokens"), d.get("output_schedule")),
         token_ceiling=d.get("token_ceiling"),
         fixed_dials=dict(d.get("fixed_dials") or {}),
         out_dir=d.get("out_dir"),
@@ -332,6 +342,16 @@ def _validate_key_readout(value: Any) -> Optional[str]:
     if not isinstance(value, str) or value not in names:
         raise ValueError(f"experiment spec: key_readout must be one of {names}, got {value!r}")
     return value
+
+
+def _validate_output_schedule(max_tokens: Any, output_schedule: Any) -> Optional[dict[str, int]]:
+    """T059 — refuse a malformed output budget at load, before spend (the
+    agent re-checks at construction); returns the schedule as a plain dict."""
+    try:
+        validate_output_budget(max_tokens, output_schedule)
+    except ValueError as exc:
+        raise ValueError(f"spec: {exc}") from exc
+    return {k: int(v) for k, v in output_schedule.items()} if output_schedule is not None else None
 
 
 def _validate_cost_ceiling(value: Any) -> Optional[float]:

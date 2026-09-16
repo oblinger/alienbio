@@ -1043,6 +1043,10 @@ WORLD_INVARIANT_DIALS: tuple[str, ...] = (
     "constitution_in_history",
     "protocol",
     "probes",
+    # T059 — the LLM agent's per-turn output budget: agent-side, so two
+    # budget arms run on the same worlds.
+    "max_tokens",
+    "output_schedule",
 )
 
 #: Default danger threshold for an injected hazard (``hazard_threshold``).
@@ -1223,7 +1227,7 @@ def drafter_heads() -> dict[str, Head]:
 #: Dial names read by the agent factory / the experiment itself rather than
 #: by a drafter, the brief or the episode (see :func:`runtime_dials`).
 _FACTORY_DIALS: frozenset[str] = frozenset(
-    {"agent", "model", "memory", "compact_at", "compact_budget", "history_token_limit"}
+    {"agent", "model", "memory", "compact_at", "compact_budget", "history_token_limit", "max_tokens", "output_schedule"}
 )
 
 

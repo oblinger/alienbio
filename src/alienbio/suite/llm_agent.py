@@ -383,6 +383,67 @@ def is_compact_context(context: Any) -> bool:
     return isinstance(context, Mapping) and "compact" in context
 
 
+#: T059 (AUP Protocol Atlas ask, 2026-09-15) — the per-turn output budget's
+#: key at the ``LLMFn`` seam. :meth:`LLMAgent.act` adds it to the context of
+#: a main-line call when the agent carries a budget (``max_tokens`` or an
+#: ``output_schedule``); a provider fn pops it (:func:`pop_output_budget`)
+#: and sends it as the call's ``max_tokens``, so the model never sees the
+#: knob and an agent without a budget sends a byte-identical context.
+OUTPUT_BUDGET_KEY = "max_tokens"
+#: The keys an ``output_schedule`` carries, exactly: ``{"every": n, "deep": a,
+#: "shallow": b}`` — turns ``0, n, 2n, …`` get ``a`` output tokens, every other
+#: turn ``b``, so a deep-dive protocol pools the same total into fewer,
+#: deeper turns and a matched flat arm sets ``max_tokens`` to the mean.
+#: (AUP's sketch spelled them ``on``/``off`` — YAML 1.1 reads those as
+#: booleans, so a spec file would carry ``{True: …, False: …}``.)
+OUTPUT_SCHEDULE_KEYS: frozenset[str] = frozenset({"every", "deep", "shallow"})
+
+
+def validate_output_budget(max_tokens: Any, output_schedule: Any) -> None:
+    """Refuse a malformed per-turn output budget (shared by the spec loader,
+    so a config error refuses before spend, and by :class:`LLMAgent`).
+    ``max_tokens`` is a positive int or ``None``; ``output_schedule`` is
+    ``None`` or a mapping with exactly :data:`OUTPUT_SCHEDULE_KEYS`, every
+    value a positive int; one budget form per arm (a schedule already says
+    what every turn gets)."""
+
+    def _positive_int(name: str, val: Any) -> None:
+        if isinstance(val, bool) or not isinstance(val, int) or val < 1:
+            raise ValueError(f"{name} must be a positive int, got {val!r}")
+
+    if max_tokens is not None:
+        _positive_int("max_tokens", max_tokens)
+    if output_schedule is not None:
+        if not isinstance(output_schedule, Mapping) or set(output_schedule) != OUTPUT_SCHEDULE_KEYS:
+            raise ValueError(
+                f"output_schedule must be a mapping with exactly the keys {sorted(OUTPUT_SCHEDULE_KEYS)} "
+                f"(e.g. {{'every': 3, 'deep': 4096, 'shallow': 512}}), got {output_schedule!r}"
+            )
+        for key in sorted(OUTPUT_SCHEDULE_KEYS):
+            _positive_int(f"output_schedule[{key!r}]", output_schedule[key])
+    if max_tokens is not None and output_schedule is not None:
+        raise ValueError("max_tokens and output_schedule are both an output budget — use one per arm")
+
+
+def output_budget_for_turn(turn: int, max_tokens: Optional[int], output_schedule: Optional[Mapping[str, int]]) -> Optional[int]:
+    """The output budget turn ``turn`` (0-based) gets under the agent's
+    budget form; ``None`` when the agent carries none (the provider fn's own
+    default applies)."""
+    if output_schedule is not None:
+        return int(output_schedule["deep"]) if turn % int(output_schedule["every"]) == 0 else int(output_schedule["shallow"])
+    return max_tokens
+
+
+def pop_output_budget(context: Any) -> tuple[Optional[int], Any]:
+    """Split :data:`OUTPUT_BUDGET_KEY` off a main-line context: ``(budget,
+    context_without_it)``. ``(None, context)`` when the key is absent (an
+    agent without a budget, a probe or compaction call)."""
+    if isinstance(context, Mapping) and OUTPUT_BUDGET_KEY in context:
+        stripped = {k: v for k, v in context.items() if k != OUTPUT_BUDGET_KEY}
+        return int(context[OUTPUT_BUDGET_KEY]), stripped
+    return None, context
+
+
 def render_observation(observation: Observation, turn: int) -> Any:
     """The pure ``Observation -> LLMOp`` context render (the taint boundary).
 
@@ -611,7 +672,20 @@ class LLMAgent:
         compact_at: Optional[int] = None,
         compact_budget: Optional[int] = None,
         history_token_limit: Optional[int] = None,
+        max_tokens: Optional[int] = None,
+        output_schedule: Optional[Mapping[str, int]] = None,
     ) -> None:
+        # T059 — the per-turn output budget (AUP's Protocol Atlas): a flat
+        # ``max_tokens`` or an ``{"every", "deep", "shallow"}`` schedule, carried
+        # to the provider fn through OUTPUT_BUDGET_KEY on main-line calls
+        # only (probe / compaction calls keep the provider default).
+        try:
+            validate_output_budget(max_tokens, output_schedule)
+        except ValueError as exc:
+            raise ValueError(f"LLMAgent: {exc}") from exc
+        self.max_tokens = max_tokens
+        self.output_schedule = dict(output_schedule) if output_schedule is not None else None
+        self._turn_budget: Optional[int] = None
         if isinstance(memory, int) and not isinstance(memory, bool):
             if memory < 0:
                 raise ValueError(f"LLMAgent: memory int must be >= 0; got {memory!r}")
@@ -682,7 +756,12 @@ class LLMAgent:
 
     def _tolerant_llm_fn(self, directive: Directive, context: Any, seed: Seed) -> Any:
         """Wrap the injected ``llm_fn`` so a string reply carrying JSON inside
-        fences or prose still reaches ``out_schema`` as a dict (M46.4)."""
+        fences or prose still reaches ``out_schema`` as a dict (M46.4). T059:
+        the turn's output budget rides the context under
+        :data:`OUTPUT_BUDGET_KEY` (added here, AFTER ``prompt_texts`` recorded
+        the model-facing text, and popped by the provider fn)."""
+        if self._turn_budget is not None and isinstance(context, Mapping):
+            context = {**context, OUTPUT_BUDGET_KEY: self._turn_budget}
         out = self.llm_fn(directive, context, seed)
         if isinstance(out, str):
             extracted = extract_action_json(out)
@@ -947,6 +1026,8 @@ class LLMAgent:
         prompt_text = self._system + "\n" + canonical(context)
         self._prompt_hashes.append(hashlib.sha256(prompt_text.encode("utf-8")).hexdigest())
         self._prompt_texts.append(prompt_text)
+        self._turn_budget = output_budget_for_turn(turn, self.max_tokens, self.output_schedule)
+        budget_stamp = {"max_tokens": self._turn_budget} if self._turn_budget is not None else {}
         # M45.5: bracket the real model call(s) with meter snapshots so this
         # turn's usage delta lands in `_turn_usage` regardless of outcome — a
         # mock `llm_fn` in tests that never touches `self.meter` leaves every
@@ -956,7 +1037,7 @@ class LLMAgent:
             raw = self._op(context)
         except ValueError as exc:
             after = self.meter.snapshot()
-            self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}})
+            self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}, **budget_stamp})
             # M46.4: parse exhaustion is data, not a raise — the trial ends with
             # a tagged null Commit (like the token-ceiling guard) so the record
             # carries the failure and a mass-trial sweep keeps going.
@@ -982,7 +1063,7 @@ class LLMAgent:
             self._turn += 1
             return action, reasoning
         after = self.meter.snapshot()
-        self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}})
+        self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}, **budget_stamp})
         action, reasoning = _parse_action(raw)
         self._history.append(
             {
@@ -1097,6 +1178,10 @@ def default_anthropic_llm_fn(
     def llm_fn(directive: Directive, context: Any, seed: Seed) -> Any:
         del seed  # accepted for LLMFn shape; Claude has no literal-seed control
         attempt_count = [0]
+        # T059 — the turn's output budget, if the agent carries one, else
+        # this fn's max_tokens; the model never sees the key.
+        turn_budget, context = pop_output_budget(context)
+        call_max_tokens = turn_budget if turn_budget is not None else max_tokens
         # T028/T049 — probe and compaction replies are free text, no forced tool.
         probe_mode = is_probe_context(context) or is_compact_context(context)
         system: Any = (
@@ -1110,7 +1195,7 @@ def default_anthropic_llm_fn(
             start = time.perf_counter()
             response = client.messages.create(
                 model=model,
-                max_tokens=max_tokens,
+                max_tokens=call_max_tokens,
                 system=system,
                 messages=[
                     {"role": "user", "content": json.dumps(context, sort_keys=True)}
