@@ -206,6 +206,11 @@ class TrialRecord:
     #: (``constitution_in_history``), whatever displaced it. ``None`` when it
     #: never left or was never seeded, so goldens are byte-unchanged.
     forgetting: Optional[Mapping[str, Any]] = None
+    #: T060 (AUP C4) — the in-world monitor's trial record when a monitor arm
+    #: was in play: ``{"coverage", "sham", "salience", "ledger", "logged":
+    #: [{"turn", "kind", "target", "accepted"}], "shown": [turns]}``. ``None``
+    #: on the unmonitored arm, so goldens are byte-unchanged.
+    monitor: Optional[Mapping[str, Any]] = None
 
     @property
     def bucket_key(self) -> tuple[tuple[str, Any], ...]:

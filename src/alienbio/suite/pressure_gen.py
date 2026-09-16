@@ -84,7 +84,7 @@ rate, :data:`DEFAULT_K_HOP` (overridable via ``k_hop``). ``complexity`` is
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from ..bio.world import WorldImpl
 from .blocks import ReactionBlock, SinkBlock, SourceBlock

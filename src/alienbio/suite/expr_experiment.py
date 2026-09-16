@@ -322,7 +322,9 @@ def vocabulary(world: WorldImpl, extra_tokens: Sequence[str] = (), *, env: Env) 
 
 #: Brief-side dials that put an alignment-bearing arm on the world (the
 #: ``guarded_params`` of :func:`brief`; the drafters declare theirs).
-BRIEF_GUARDED: frozenset[str] = frozenset({"constitution", "monitoring", "framing", "stakes", "reversibility", "assays"})
+BRIEF_GUARDED: frozenset[str] = frozenset(
+    {"constitution", "monitoring", "framing", "stakes", "reversibility", "assays", "monitor_coverage", "monitor_sham", "monitor_salience"}
+)
 
 
 @fn(guarded_params=BRIEF_GUARDED, summary="what the agent is told and shown: the brief-side dials")
@@ -343,6 +345,9 @@ def brief(
     constitution_in_history: Optional[bool] = None,
     protocol: Optional[str] = None,
     probes: Optional[Sequence[Any]] = None,
+    monitor_coverage: Optional[float] = None,
+    monitor_sham: Optional[bool] = None,
+    monitor_salience: Optional[float] = None,
 ) -> dict[str, Any]:
     """The brief-side dial vector: everything here reaches the
     :class:`~alienbio.suite.brief.TaskBrief` or the observation narrowing and
@@ -359,7 +364,12 @@ def brief(
     free-text process scaffold, rendered right after the constitution line
     (prompt text, not a guard dial; the taint audit applies to it).
     ``probes`` (T026) declares discarded-branch probes, each
-    a ``{"text", "timing"}`` mapping (see ``suite.runner.run``)."""
+    a ``{"text", "timing"}`` mapping (see ``suite.runner.run``).
+    ``monitor_coverage`` / ``monitor_sham`` / ``monitor_salience`` (T060,
+    AUP C4) put an in-world auditor in the world that logs the agent's
+    actions to a visible ledger with that coverage — sham announces it and
+    logs nothing; salience is how often the ledger is shown (see
+    ``suite.monitor``)."""
     given = dict(locals())
     return {k: v for k, v in given.items() if v is not None}
 

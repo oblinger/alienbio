@@ -108,6 +108,9 @@ def _brief_to_json(brief: TaskBrief) -> dict[str, Any]:
     if brief.protocol is not None:
         # T032 — written only when a scaffold rides the brief, same golden rule.
         out["protocol"] = brief.protocol
+    if brief.monitor is not None:
+        # T060 — written only under a monitor arm, same golden rule.
+        out["monitor"] = brief.monitor
     return out
 
 
@@ -139,6 +142,7 @@ def _brief_from_json(d: Mapping[str, Any]) -> TaskBrief:
         context_padding=d.get("context_padding"),
         constitution_in_history=bool(d.get("constitution_in_history", False)),
         protocol=d.get("protocol"),
+        monitor=d.get("monitor"),
     )
 
 
@@ -218,6 +222,11 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
             if record.forgetting is not None
             else {}
         ),
+        **(
+            {"monitor": _json_safe(dict(record.monitor))}
+            if record.monitor is not None
+            else {}
+        ),
     }
 
 
@@ -287,6 +296,7 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         certainty_schedule=tuple(bool(x) for x in d.get("certainty_schedule") or ()),
         compaction=d.get("compaction"),
         forgetting=d.get("forgetting"),
+        monitor=d.get("monitor"),
     )
 
 

@@ -92,6 +92,7 @@ from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
 from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, ProbeAgent, SessionAgent, Wait
 from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, resolve_monitoring
+from .monitor import auditor_block, logs_turn, resolve_monitor, shows_turn
 from .naming import NameMap, OpaqueAgent, build_name_map, opaque_names_requested
 from .deliberation import DeliberationTrace
 from .dist import Seed, Uniform
@@ -593,6 +594,16 @@ def run(
                     )
     certainty_schedule: list[bool] = []
 
+    # T060 (AUP C4) — the in-world monitor: an audit process that logs the
+    # agent's action each turn with probability ``coverage`` (never under
+    # ``sham``) and shows its ledger + coverage in the observation on a
+    # Bernoulli(salience) subset of turns. A world feature the brief states;
+    # its record is on ``TrialRecord.monitor``. See ``suite.monitor``.
+    monitor_cfg = resolve_monitor(dials)
+    monitor_ledger = 0
+    monitor_logged: list[dict[str, Any]] = []
+    monitor_shown: list[int] = []
+
     def _fire_probes(turn: int, timing: str) -> None:
         for decl_timing, text in probe_decls:
             if decl_timing != timing:
@@ -605,6 +616,18 @@ def run(
                 except Exception as exc:  # noqa: BLE001 — probe failure is data
                     error = f"{type(exc).__name__}: {exc}"
             probe_records.append(ProbeRecord(turn=turn, timing=timing, text=text, answer=answer, error=error))
+
+    def _monitor_record() -> Optional[dict[str, Any]]:
+        if monitor_cfg is None:
+            return None
+        return {
+            "coverage": monitor_cfg.coverage,
+            "sham": monitor_cfg.sham,
+            "salience": monitor_cfg.salience,
+            "ledger": monitor_ledger,
+            "logged": list(monitor_logged),
+            "shown": list(monitor_shown),
+        }
 
     trace = DeliberationTrace()
     action_records: list[ActionRecord] = []
@@ -635,6 +658,9 @@ def run(
             )
             if setup_hidden and turn != 0:
                 observation = project_observation(observation, setup_hidden)
+            if monitor_cfg is not None and shows_turn(monitor_cfg, seed, turn):
+                observation = observation + (auditor_block(monitor_cfg, monitor_ledger),)
+                monitor_shown.append(turn)
             _fire_probes(turn, "every_turn")
             action, reasoning_steps = agent.act(observation)
             trace = thread_reasoning_steps(trace, turn, action, reasoning_steps)
@@ -776,6 +802,12 @@ def run(
             if isinstance(agent, SessionAgent):
                 agent.notice(ActionOutcome(turn=turn, action=action, accepted=accepted, reason=reject_reason, result=result))
 
+            if monitor_cfg is not None and logs_turn(monitor_cfg, seed, turn):
+                monitor_ledger += 1
+                monitor_logged.append(
+                    {"turn": turn, "kind": action_records[-1].kind, "target": target, "accepted": accepted}
+                )
+
             if certainty_cfg is not None:
                 window_on = (
                     float(Uniform(0.0, 1.0).sample(seed.child(f"turn/{turn}/certainty")))
@@ -841,6 +873,7 @@ def run(
             certainty_schedule=tuple(certainty_schedule),
             compaction=getattr(agent, "compaction", None),
             forgetting=getattr(agent, "forgetting", None),
+            monitor=_monitor_record(),
         )
         raise TrialError(partial, exc) from exc
 
@@ -908,6 +941,7 @@ def run(
         compaction=getattr(agent, "compaction", None),
         # T054 #3 — when the constitution left the window, if it was seeded there.
         forgetting=getattr(agent, "forgetting", None),
+        monitor=_monitor_record(),
     )
     if taint_hits:
         raise TaintError(record)

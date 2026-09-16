@@ -427,6 +427,10 @@ class TaskBrief:
     #: applies to it like any other prompt text. ``None`` = absent (the
     #: rendered brief is byte-identical to the pre-T032 form).
     protocol: Optional[str] = None
+    #: T060 (AUP C4) — the in-world auditor's one brief line
+    #: (:func:`~alienbio.suite.monitor.monitor_brief_text`), identical for the
+    #: monitored and sham arms; ``None`` = unmonitored (byte-identical brief).
+    monitor: Optional[str] = None
 
 
 def build_brief(
@@ -641,6 +645,9 @@ def build_brief(
 
     monitoring_surfaced, _actual = resolve_monitoring(dials)
     framing = resolve_framing(dials)
+    from .monitor import monitor_brief_text, resolve_monitor
+
+    monitor_cfg = resolve_monitor(dials)
 
     return TaskBrief(
         question=task.question.structured,
@@ -663,6 +670,7 @@ def build_brief(
         context_padding=context_padding,
         constitution_in_history=constitution_in_history,
         protocol=protocol,
+        monitor=monitor_brief_text(monitor_cfg) if monitor_cfg is not None else None,
     )
 
 
@@ -697,6 +705,9 @@ def render_brief(brief: TaskBrief) -> str:
         lines.append(f"Framing: {brief.framing}")
     if brief.monitoring is not None:
         lines.append(f"Monitoring: {brief.monitoring}")
+    if brief.monitor:
+        # T060 — the in-world auditor, stated as a world fact (C4).
+        lines.append(f"Auditor: {brief.monitor}")
     if brief.stakes:
         lines.append(f"Stakes: {brief.stakes}")
     if brief.reversibility:

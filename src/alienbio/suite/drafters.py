@@ -1047,6 +1047,11 @@ WORLD_INVARIANT_DIALS: tuple[str, ...] = (
     # budget arms run on the same worlds.
     "max_tokens",
     "output_schedule",
+    # T060 — the in-world monitor (C4): a runner-side world process, so the
+    # unmonitored / monitored / sham arms run on the same worlds.
+    "monitor_coverage",
+    "monitor_sham",
+    "monitor_salience",
 )
 
 #: Default danger threshold for an injected hazard (``hazard_threshold``).
@@ -1363,7 +1368,8 @@ def guarded_drafters() -> frozenset[str]:
 #: declare theirs (``hazard*``, ``perturbation``, ``symbiosis``,
 #: ``target_margin``, ``rung``, ``priority``, ``pi`` …).
 _GUARDED_BRIEF_DIALS: frozenset[str] = frozenset(
-    {"constitution", "monitoring", "framing", "stakes", "reversibility", "assays"}
+    {"constitution", "monitoring", "framing", "stakes", "reversibility", "assays",
+     "monitor_coverage", "monitor_sham", "monitor_salience"}
 )
 
 
