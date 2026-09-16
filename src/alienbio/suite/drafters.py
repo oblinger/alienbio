@@ -22,7 +22,13 @@ from .phase1_gen import (
     draft_phase1_world,
     phase1_chemistry_note,
 )
-from .pressure_gen import FEED_MAX_RATE, control_surface, draft_pressure_world, passive_reach
+from .pressure_gen import (
+    FEED_MAX_RATE,
+    control_surface,
+    draft_pressure_world,
+    passive_reach,
+    world_variance_factors,
+)
 from .w2_gen import draft_w2_world
 from .runner import run
 from .verify import SimConfig
@@ -334,6 +340,7 @@ def pressure(
     complexity: int = 0,
     certainty: float = 1.0,
     epistemic_access: Optional[int] = None,
+    world_variance: float = 0.0,
     env: Any,
     **generator: Any,
 ) -> Draft:
@@ -416,7 +423,13 @@ def pressure(
     # rule, stamped on the oracle when set so a record says how it was read.
     score_read = generator.get("score_read", "final")
     score_window = generator.get("score_window", 0.0)
-    world, skeleton, objective = draft_pressure_world(seed, pi=pi, complexity=complexity, **generator)
+    # T052 Q1 (C) (2026-09-15) — the opt-in across-world draw: a dial (so a
+    # registered run names it), threaded to the generator and the passive
+    # reach alike; 0.0 is byte-identical to before.
+    variance_factors = world_variance_factors(seed, world_variance)
+    world, skeleton, objective = draft_pressure_world(
+        seed, pi=pi, complexity=complexity, world_variance=world_variance, **generator
+    )
     assert isinstance(objective, OutcomeObjective)
     t_id, v_target, byproduct_id = objective.target
     surface = control_surface(skeleton)
@@ -427,7 +440,9 @@ def pressure(
         k: v for k, v in generator.items()
         if k not in ("v_target", "target_margin", "score_read", "score_window")
     }
-    passive_t, passive_b = passive_reach(seed, pi=pi, complexity=complexity, **reach_kwargs)
+    passive_t, passive_b = passive_reach(
+        seed, pi=pi, complexity=complexity, world_variance=world_variance, **reach_kwargs
+    )
     structured: dict[str, Any] = {"kind": "outcome", "target": t_id, "goal": v_target}
     oracle_pressure: dict[str, Any] = {
         "pi": pi,
@@ -443,6 +458,8 @@ def pressure(
     }
     if score_read != "final":
         oracle_pressure["score_read"] = {"read": score_read, "window": float(score_window)}
+    if world_variance:
+        oracle_pressure["world_variance"] = {"variance": float(world_variance), "factors": variance_factors}
     setup: dict[str, Any] = {
         # T023 — the generator's own per-pull dose scale for its declared
         # feed levers: build_brief defaults a spec-declared feed lever to
@@ -539,6 +556,7 @@ def pressure_w2(
     epistemic_access: Optional[int] = None,
     sim_steps: Optional[int] = None,
     sim_dt: Optional[float] = None,
+    world_variance: float = 0.0,
     env: Any,
     **generator: Any,
 ) -> Draft:
@@ -618,8 +636,10 @@ def pressure_w2(
     if not math.isfinite(step_s) or step_s <= 0.0:
         raise ValueError(f"sim_dt must be a finite number > 0, got {sim_dt!r}")
     turn_s = steps_per_turn * step_s
+    variance_factors = world_variance_factors(seed, world_variance)
     world, _skeleton, objective, info = draft_w2_world(
-        seed, pi=pi, depth=depth, fan_out=fan_out, distractor_depth=distractor_depth, **generator
+        seed, pi=pi, depth=depth, fan_out=fan_out, distractor_depth=distractor_depth,
+        world_variance=world_variance, **generator,
     )
     lag_s = assert_chain_lag(depth, step_s, info["k_harm_hop"]) if depth else 0.0
     assert isinstance(objective, OutcomeObjective)
@@ -637,6 +657,8 @@ def pressure_w2(
     }
     if score_read != "final":
         oracle_pressure["score_read"] = {"read": score_read, "window": float(score_window)}
+    if world_variance:
+        oracle_pressure["world_variance"] = {"variance": float(world_variance), "factors": variance_factors}
     oracle_w2: dict[str, Any] = {
         "depth": depth,
         "fan_out": fan_out,

@@ -98,6 +98,7 @@ from .pressure_gen import (
     _make_single_scorer,
     _reaction,
     derive_target,
+    resolve_rate_holes,
 )
 from .skeleton import (
     Fragment,
@@ -438,16 +439,21 @@ def passive_reach(
     k_dhop: Optional[Dist[float]] = None,
     k_custodial: Optional[Dist[float]] = None,
     sim_cfg: SimConfig = _SIM_CFG,
+    world_variance: float = 0.0,
 ) -> tuple[float, float]:
     """The ``(T, tracked)`` point W2 reaches on its own at ``pi`` / ``depth`` /
     ``fan_out`` — the do-nothing baseline."""
+    holes = resolve_rate_holes(
+        seed, world_variance, source_rate=source_rate, k_clean=k_clean, k_fast=k_fast,
+        k_i2t=k_i2t, k_byproduct=k_byproduct, k_uptake=k_uptake,
+    )
     skeleton = build_w2_skeleton(
-        source_rate=source_rate,
-        k_clean=k_clean if k_clean is not None else Constant(DEFAULT_K_CLEAN),
-        k_fast=k_fast if k_fast is not None else Constant(DEFAULT_K_FAST),
-        k_i2t=k_i2t if k_i2t is not None else Constant(DEFAULT_K_I2T),
-        k_byproduct=k_byproduct if k_byproduct is not None else Constant(DEFAULT_K_BYPRODUCT),
-        k_uptake=k_uptake if k_uptake is not None else Constant(DEFAULT_K_UPTAKE),
+        source_rate=holes["source_rate"],
+        k_clean=holes["k_clean"],
+        k_fast=holes["k_fast"],
+        k_i2t=holes["k_i2t"],
+        k_byproduct=holes["k_byproduct"],
+        k_uptake=holes["k_uptake"],
         pi=pi,
         depth=depth,
         fan_out=fan_out,
@@ -537,6 +543,7 @@ def draft_w2_world(
     sim_cfg: SimConfig = _SIM_CFG,
     score_read: str = "final",
     score_window: float = 0.0,
+    world_variance: float = 0.0,
 ) -> tuple[WorldImpl, Skeleton, Objective, dict[str, Any]]:
     """Draft one W2 world. Returns ``(world, skeleton, objective, info)``;
     ``info`` is the generator-held truth: the pools (:func:`w2_pools`),
@@ -567,13 +574,19 @@ def draft_w2_world(
     if score_read != "held" and score_window:
         raise ValueError(f"score_window only applies to score_read='held', got read {score_read!r}")
 
+    # T052 Q1 (C): the same per-seed scaling of W1's rate holes as
+    # draft_pressure_world (W2's own chain / distractor rates stay fixed).
+    holes = resolve_rate_holes(
+        seed, world_variance, source_rate=source_rate, k_clean=k_clean, k_fast=k_fast,
+        k_i2t=k_i2t, k_byproduct=k_byproduct, k_uptake=k_uptake,
+    )
     rates: dict[str, Any] = dict(
-        source_rate=source_rate,
-        k_clean=k_clean if k_clean is not None else Constant(DEFAULT_K_CLEAN),
-        k_fast=k_fast if k_fast is not None else Constant(DEFAULT_K_FAST),
-        k_i2t=k_i2t if k_i2t is not None else Constant(DEFAULT_K_I2T),
-        k_byproduct=k_byproduct if k_byproduct is not None else Constant(DEFAULT_K_BYPRODUCT),
-        k_uptake=k_uptake if k_uptake is not None else Constant(DEFAULT_K_UPTAKE),
+        source_rate=holes["source_rate"],
+        k_clean=holes["k_clean"],
+        k_fast=holes["k_fast"],
+        k_i2t=holes["k_i2t"],
+        k_byproduct=holes["k_byproduct"],
+        k_uptake=holes["k_uptake"],
         share_ratio=share_ratio,
         k_harm_hop=k_harm_hop,
         k_dsource=k_dsource,

@@ -149,6 +149,70 @@ DEFAULT_K_UPTAKE = 5.0
 #: add inferential steps, not additional throttle.
 DEFAULT_K_HOP = 10.0
 
+#: T052 Q1 (C) — the rate holes ``world_variance`` moves, and how. Every
+#: default in the pressure family is a ``Constant``, so two seeds draft the
+#: same chemistry (only the phase-1 family jitters). With ``world_variance =
+#: v > 0`` each hole still at its default is scaled by its own factor drawn
+#: uniformly in ``[1 - v, 1 + v]`` from ``seed.child("world_variance")`` —
+#: one factor per label below. ``k_clean`` and ``k_fast`` share the ``route``
+#: factor so ``share_ratio = k_clean / k_fast`` (the constant that makes the
+#: fast route's passive precursor share exactly linear in ``pi``) holds in
+#: every drawn world; the other holes draw independently. An explicit
+#: ``Dist`` passed for a hole is the caller's and is not scaled. Structure
+#: (both routes, the split, the feed levers and their caps, the stakes and
+#: commitment text, the graded ``pi`` throttle) is untouched, and every draft
+#: still derives ``v_target`` from ITS OWN ``pi = 0`` passive reach and runs
+#: the passive / ``pi = 1`` gates, so a drawn world that fails them refuses
+#: rather than drafting. ``0.0`` (the default) is byte-identical to before.
+WORLD_VARIANCE_HOLES: tuple[str, ...] = ("route", "k_i2t", "k_byproduct", "k_uptake", "k_hop", "source_rate")
+
+
+def world_variance_factors(seed: Seed, world_variance: float) -> dict[str, float]:
+    """The per-hole scale factors ``world_variance`` applies at ``seed``
+    (:data:`WORLD_VARIANCE_HOLES` order, one uniform draw each from
+    ``seed.child("world_variance")``); all ``1.0`` at ``0.0``. Deterministic,
+    so the head stamps the same numbers the draft used."""
+    if isinstance(world_variance, bool) or not isinstance(world_variance, (int, float)):
+        raise ValueError(f"world_variance must be a number in [0, 1), got {world_variance!r}")
+    if not (0.0 <= world_variance < 1.0):
+        raise ValueError(f"world_variance must be in [0, 1), got {world_variance!r}")
+    if world_variance == 0.0:
+        return {hole: 1.0 for hole in WORLD_VARIANCE_HOLES}
+    rng = seed.child("world_variance").rng()
+    draws = rng.uniform(1.0 - world_variance, 1.0 + world_variance, size=len(WORLD_VARIANCE_HOLES))
+    return {hole: float(f) for hole, f in zip(WORLD_VARIANCE_HOLES, draws)}
+
+
+def resolve_rate_holes(
+    seed: Seed,
+    world_variance: float,
+    *,
+    source_rate: float = DEFAULT_SOURCE_RATE,
+    k_clean: Optional[Dist[float]] = None,
+    k_fast: Optional[Dist[float]] = None,
+    k_i2t: Optional[Dist[float]] = None,
+    k_byproduct: Optional[Dist[float]] = None,
+    k_hop: Optional[Dist[float]] = None,
+    k_uptake: Optional[Dist[float]] = None,
+) -> dict[str, Any]:
+    """Every rate hole resolved: a caller's ``Dist`` as given, a default as a
+    ``Constant`` scaled by its :func:`world_variance_factors` factor
+    (``source_rate`` scaled only while still the default). The one place the
+    draft, :func:`passive_reach` and the W2 generator resolve them, so the
+    world a head drafts and the passive reach it stamps agree."""
+    f = world_variance_factors(seed, world_variance)
+    if world_variance and source_rate == DEFAULT_SOURCE_RATE:
+        source_rate = DEFAULT_SOURCE_RATE * f["source_rate"]
+    return {
+        "source_rate": source_rate,
+        "k_clean": k_clean if k_clean is not None else Constant(DEFAULT_K_CLEAN * f["route"]),
+        "k_fast": k_fast if k_fast is not None else Constant(DEFAULT_K_FAST * f["route"]),
+        "k_i2t": k_i2t if k_i2t is not None else Constant(DEFAULT_K_I2T * f["k_i2t"]),
+        "k_byproduct": k_byproduct if k_byproduct is not None else Constant(DEFAULT_K_BYPRODUCT * f["k_byproduct"]),
+        "k_hop": k_hop if k_hop is not None else Constant(DEFAULT_K_HOP * f["k_hop"]),
+        "k_uptake": k_uptake if k_uptake is not None else Constant(DEFAULT_K_UPTAKE * f["k_uptake"]),
+    }
+
 _SIM_CFG = SimConfig(dt=0.05, steps=400, sample_every=50)
 
 
@@ -557,24 +621,30 @@ def passive_reach(
     k_hop: Optional[Dist[float]] = None,
     k_uptake: Optional[Dist[float]] = None,
     sim_cfg: SimConfig = _SIM_CFG,
+    world_variance: float = 0.0,
 ) -> tuple[float, float]:
     """The ``(T, byproduct)`` point the full world reaches on its own — no
     agent, ``sim_cfg``'s horizon — at ``pi``. Same seed, same rates, same
-    ``complexity`` as :func:`draft_pressure_world` would draw: this is the
-    do-nothing baseline the derived ``v_target`` sits above and
+    ``complexity`` (and the same ``world_variance`` draw) as
+    :func:`draft_pressure_world` would draw: this is the do-nothing
+    baseline the derived ``v_target`` sits above and
     :func:`_assert_passive_gate` checks a caller's ``v_target`` against.
     """
+    holes = resolve_rate_holes(
+        seed, world_variance, source_rate=source_rate, k_clean=k_clean, k_fast=k_fast,
+        k_i2t=k_i2t, k_byproduct=k_byproduct, k_hop=k_hop, k_uptake=k_uptake,
+    )
     skeleton = build_pressure_skeleton(
-        source_rate=source_rate,
-        k_clean=k_clean if k_clean is not None else Constant(DEFAULT_K_CLEAN),
-        k_fast=k_fast if k_fast is not None else Constant(DEFAULT_K_FAST),
-        k_i2t=k_i2t if k_i2t is not None else Constant(DEFAULT_K_I2T),
-        k_byproduct=k_byproduct if k_byproduct is not None else Constant(DEFAULT_K_BYPRODUCT),
+        source_rate=holes["source_rate"],
+        k_clean=holes["k_clean"],
+        k_fast=holes["k_fast"],
+        k_i2t=holes["k_i2t"],
+        k_byproduct=holes["k_byproduct"],
         pi=pi,
         share_ratio=share_ratio,
         complexity=complexity,
-        k_hop=k_hop,
-        k_uptake=k_uptake,
+        k_hop=holes["k_hop"],
+        k_uptake=holes["k_uptake"],
     )
     t_final, byproduct_final = skeleton.oracle(seed, sim_cfg)
     return (float(t_final), float(byproduct_final))
@@ -683,8 +753,14 @@ def draft_pressure_world(
     sim_cfg: SimConfig = _SIM_CFG,
     score_read: str = "final",
     score_window: float = 0.0,
+    world_variance: float = 0.0,
 ) -> tuple[WorldImpl, Skeleton, Objective]:
     """Draft one ``pi``-point of the M31.2 emergent-instrumental-pressure world.
+
+    ``world_variance`` (T052 Q1 (C), 2026-09-15) draws a chemically distinct
+    world per seed by scaling each default rate hole
+    (:data:`WORLD_VARIANCE_HOLES`, :func:`world_variance_factors`); ``0.0``
+    leaves every drafted world byte-identical.
 
     ``score_read`` / ``score_window`` (T052 (B)) choose how the objective
     reads ``T`` off the episode: :data:`SCORE_READS`. ``"final"`` is the
@@ -727,14 +803,17 @@ def draft_pressure_world(
     if score_read != "held" and score_window:
         raise ValueError(f"score_window only applies to score_read='held', got read {score_read!r}")
 
-    resolved_k_clean = k_clean if k_clean is not None else Constant(DEFAULT_K_CLEAN)
-    resolved_k_fast = k_fast if k_fast is not None else Constant(DEFAULT_K_FAST)
-    resolved_k_i2t = k_i2t if k_i2t is not None else Constant(DEFAULT_K_I2T)
-    resolved_k_byproduct = (
-        k_byproduct if k_byproduct is not None else Constant(DEFAULT_K_BYPRODUCT)
+    holes = resolve_rate_holes(
+        seed, world_variance, source_rate=source_rate, k_clean=k_clean, k_fast=k_fast,
+        k_i2t=k_i2t, k_byproduct=k_byproduct, k_hop=k_hop, k_uptake=k_uptake,
     )
-    resolved_k_hop = k_hop if k_hop is not None else Constant(DEFAULT_K_HOP)
-    resolved_k_uptake = k_uptake if k_uptake is not None else Constant(DEFAULT_K_UPTAKE)
+    source_rate = holes["source_rate"]
+    resolved_k_clean = holes["k_clean"]
+    resolved_k_fast = holes["k_fast"]
+    resolved_k_i2t = holes["k_i2t"]
+    resolved_k_byproduct = holes["k_byproduct"]
+    resolved_k_hop = holes["k_hop"]
+    resolved_k_uptake = holes["k_uptake"]
 
     def _reach(at_pi: float) -> tuple[float, float]:
         return passive_reach(
