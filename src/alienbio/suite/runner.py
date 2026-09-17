@@ -99,7 +99,7 @@ from .dist import Seed, Uniform
 from .grade import grade_answer, grade_outcome
 from .info_seeking import ActionRecord
 from .observation import narrow_observation, project_observation
-from .trial import ProbeRecord, TrialRecord, condition_key, final_state_dict, thread_reasoning_steps
+from .trial import ProbeRecord, TrialRecord, condition_key, final_state_dict, readout_values, thread_reasoning_steps
 from .types import AnswerObjective, OutcomeObjective, TaskInstance, Timeline
 from .verify import SimConfig, simulate
 
@@ -592,7 +592,37 @@ def run(
                         f"task.setup['certainty'][{state_key!r}] names {rid!r}, "
                         "which is not a reaction in this world"
                     )
+        windows_cfg = certainty_cfg.get("windows", 1)
+        if isinstance(windows_cfg, bool) or not isinstance(windows_cfg, int) or windows_cfg < 1:
+            raise ValueError(f"task.setup['certainty']['windows'] must be an int >= 1, got {windows_cfg!r}")
+        if sim_cfg.steps % windows_cfg:
+            # T062 (i) — refused before the first turn, not as an error record.
+            raise ValueError(
+                f"certainty_windows={windows_cfg} must divide sim_steps={sim_cfg.steps} "
+                "(each window integrates sim_steps / certainty_windows steps)"
+            )
     certainty_schedule: list[bool] = []
+
+    # T062 — the per-turn readout series: the drafter's declared readouts
+    # (``task.setup["readouts"]``) read at every turn boundary, so an
+    # integrated (mean / sum) read exists beside ``final_state``'s instant.
+    readout_ids: tuple[str, ...] = ()
+    if isinstance(task.setup, Mapping) and task.setup.get("readouts") is not None:
+        readout_ids = tuple(str(r) for r in task.setup["readouts"])
+    readout_series: dict[str, list[float]] = {rid: [] for rid in readout_ids}
+
+    def _record_readouts(current: WorldStateImpl) -> None:
+        if not readout_ids:
+            return
+        for rid, value in readout_values(current, readout_ids).items():
+            readout_series[rid].append(value)
+
+    def _readout_record() -> Optional[dict[str, tuple[float, ...]]]:
+        if not readout_ids:
+            return None
+        return {rid: tuple(values) for rid, values in readout_series.items()}
+
+    _record_readouts(state)
 
     # T060 (AUP C4) — the in-world monitor: an audit process that logs the
     # agent's action each turn with probability ``coverage`` (never under
@@ -808,26 +838,57 @@ def run(
                     {"turn": turn, "kind": action_records[-1].kind, "target": target, "accepted": accepted}
                 )
 
-            if certainty_cfg is not None:
-                window_on = (
-                    float(Uniform(0.0, 1.0).sample(seed.child(f"turn/{turn}/certainty")))
-                    < float(certainty_cfg["p"])
-                )
-                certainty_schedule.append(window_on)
-                burst_chemistry = chemistry
-                for rid, rate in certainty_cfg["on" if window_on else "off"].items():
-                    burst_chemistry = _chemistry_with_rate(burst_chemistry, rid, float(rate))
-                turn_world = _world_from_state(
-                    compartments, burst_chemistry, state, world.flows, world.population_laws
-                )
+            windows = int(certainty_cfg.get("windows", 1)) if certainty_cfg is not None else 1
+            if windows == 1:
+                if certainty_cfg is not None:
+                    window_on = (
+                        float(Uniform(0.0, 1.0).sample(seed.child(f"turn/{turn}/certainty")))
+                        < float(certainty_cfg["p"])
+                    )
+                    certainty_schedule.append(window_on)
+                    burst_chemistry = chemistry
+                    for rid, rate in certainty_cfg["on" if window_on else "off"].items():
+                        burst_chemistry = _chemistry_with_rate(burst_chemistry, rid, float(rate))
+                    turn_world = _world_from_state(
+                        compartments, burst_chemistry, state, world.flows, world.population_laws
+                    )
 
-            timeline = simulate(turn_world, sim_cfg, seed.child(f"turn/{turn}/sim"))
-            start = 0 if turn == 0 else 1  # skip the duplicate turn-boundary snapshot
-            for t, s in zip(timeline.times[start:], timeline.states[start:]):
-                turn_times.append(elapsed + t)
-                turn_states.append(cast(WorldStateImpl, s))
-            elapsed += timeline.times[-1]
-            state = cast(WorldStateImpl, timeline.states[-1])
+                timeline = simulate(turn_world, sim_cfg, seed.child(f"turn/{turn}/sim"))
+                start = 0 if turn == 0 else 1  # skip the duplicate turn-boundary snapshot
+                for t, s in zip(timeline.times[start:], timeline.states[start:]):
+                    turn_times.append(elapsed + t)
+                    turn_states.append(cast(WorldStateImpl, s))
+                elapsed += timeline.times[-1]
+                state = cast(WorldStateImpl, timeline.states[-1])
+            else:
+                # T062 (i) — ``certainty_windows = n``: the turn is integrated
+                # in n equal slices, each under its own Bernoulli(p) draw
+                # (``turn/<t>/certainty/<w>``), so the realized harm averages
+                # over n windows per turn instead of one. The one-window path
+                # above is untouched (its seed paths included), so n = 1 is
+                # byte-identical.
+                assert certainty_cfg is not None
+                slice_cfg = dataclasses.replace(sim_cfg, steps=sim_cfg.steps // windows)
+                for w in range(windows):
+                    window_on = (
+                        float(Uniform(0.0, 1.0).sample(seed.child(f"turn/{turn}/certainty/{w}")))
+                        < float(certainty_cfg["p"])
+                    )
+                    certainty_schedule.append(window_on)
+                    burst_chemistry = chemistry
+                    for rid, rate in certainty_cfg["on" if window_on else "off"].items():
+                        burst_chemistry = _chemistry_with_rate(burst_chemistry, rid, float(rate))
+                    slice_world = _world_from_state(
+                        compartments, burst_chemistry, state, world.flows, world.population_laws
+                    )
+                    timeline = simulate(slice_world, slice_cfg, seed.child(f"turn/{turn}/sim/{w}"))
+                    start = 0 if (turn == 0 and w == 0) else 1
+                    for t, s in zip(timeline.times[start:], timeline.states[start:]):
+                        turn_times.append(elapsed + t)
+                        turn_states.append(cast(WorldStateImpl, s))
+                    elapsed += timeline.times[-1]
+                    state = cast(WorldStateImpl, timeline.states[-1])
+            _record_readouts(state)
 
             if isinstance(action, Commit):
                 reason = "committed"
@@ -874,6 +935,7 @@ def run(
             compaction=getattr(agent, "compaction", None),
             forgetting=getattr(agent, "forgetting", None),
             monitor=_monitor_record(),
+            readout_series=_readout_record(),
         )
         raise TrialError(partial, exc) from exc
 
@@ -942,6 +1004,7 @@ def run(
         # T054 #3 — when the constitution left the window, if it was seeded there.
         forgetting=getattr(agent, "forgetting", None),
         monitor=_monitor_record(),
+        readout_series=_readout_record(),
     )
     if taint_hits:
         raise TaintError(record)

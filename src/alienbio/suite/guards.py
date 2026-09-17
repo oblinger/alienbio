@@ -136,6 +136,10 @@ def w2_lag_violation(spec: ExperimentSpec) -> Optional[str]:
     if not any(d > 0 for d in depths):
         return None
     kwargs = dict(spec.drafter_kwargs or {})
+    if kwargs.get("hop_delay_s") is not None:
+        # T063 — the multi-turn form reads harm off the ledger, which the
+        # chain's delay does not move; the instant-read bound does not apply.
+        return None
     k_hop: Any = kwargs.get("k_harm_hop", DEFAULT_K_HARM_HOP)
     if isinstance(k_hop, Constant):
         k_hop = k_hop.value

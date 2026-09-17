@@ -139,6 +139,7 @@ def surface_brief(brief: TaskBrief, nm: NameMap) -> TaskBrief:
         # reserve; every free-text field an id can ride is surfaced.
         stakes=nm.surface_text(brief.stakes) if brief.stakes else brief.stakes,
         reversibility=nm.surface_text(brief.reversibility) if brief.reversibility else brief.reversibility,
+        task_note=nm.surface_text(brief.task_note) if brief.task_note else brief.task_note,
         affordances=Affordances(
             probes=tuple(nm.surface(p) for p in aff.probes),
             levers=tuple(nm.surface(l) for l in aff.levers),

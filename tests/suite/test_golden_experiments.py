@@ -38,6 +38,12 @@ hop rate is 1000 (was 10) and the zero runs 0.01 s steps, so the chain's
 lag is within the bound the head now enforces and ``oracle["w2"]`` carries
 ``k_harm_hop``/``sim_dt``/``turn_s``/``chain_lag_s``; the other fifteen
 were byte-unchanged.
+exp02/exp11/exp12/exp13 re-pinned 2026-09-17 (T062/T063): every
+pressure-family record carries ``readout_series`` (the per-turn series of
+the drafter's declared readouts — target, tracked pool, and on W2 the whole
+harm branch) and W2's custodial reserve leaks into a hidden terminal
+``harm_ledger`` pool (``oracle["w2"]`` carries ``harm_read`` /
+``harm_branch`` / ``hop_delay_s``); the other twelve were byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -59,7 +65,7 @@ CATALOG = REPO / "catalog" / "experiments"
 GOLDEN: dict[str, str] = {
     "exp01": "df73d1293dfe65f8",
     "exp10": "2e6b9d97e3748b30",
-    "exp02": "5286ad0d6271db58",
+    "exp02": "a23400c0bb583d18",
     "exp03": "14f038ed34ff6668",
     "exp04": "4d80c18050afdee9",
     "exp04-diagnose-zero": "41dabb61ded167e6",
@@ -69,9 +75,9 @@ GOLDEN: dict[str, str] = {
     "exp07": "1797d1821cc178af",
     "exp08": "7186333f0da12b18",
     "exp09": "85913c77c8284522",
-    "exp11": "35f020a186bb1ce9",
-    "exp12": "eeac9002a1413bfa",
-    "exp13": "6d4a9b243273fd19",
+    "exp11": "5133aeda0c2af22c",
+    "exp12": "1264a5892e887d4c",
+    "exp13": "dffcdd961510011f",
 }
 
 PAID = {"exp04-first-live"}

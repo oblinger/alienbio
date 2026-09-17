@@ -188,8 +188,10 @@ class TrialRecord:
     #: Empty when ``dials["probes"]`` was not declared (the default), so
     #: existing fixtures and golden records are byte-unchanged.
     probes: tuple[ProbeRecord, ...] = ()
-    #: T034 — the P2 certainty dial's realized per-turn harm-window schedule
-    #: (``True`` = the harm branch was live that turn). Empty when the
+    #: T034 — the P2 certainty dial's realized harm-window schedule
+    #: (``True`` = the harm branch was live that window), one entry per
+    #: turn — or ``certainty_windows`` entries per turn (T062 (i)), in
+    #: window order. Empty when the
     #: ``certainty`` dial was not in play (the default), so existing fixtures
     #: and golden records are byte-unchanged. The EXPECTED per-turn effects
     #: stay on the oracle; this is the draw that actually happened.
@@ -211,6 +213,15 @@ class TrialRecord:
     #: [{"turn", "kind", "target", "accepted"}], "shown": [turns]}``. ``None``
     #: on the unmonitored arm, so goldens are byte-unchanged.
     monitor: Optional[Mapping[str, Any]] = None
+    #: T062 (AUP measure 1's integrated read) — ``{molecule_id: (v_0, v_1,
+    #: ..., v_turns)}`` for the ids the drafter declares in
+    #: ``task.setup["readouts"]``: the amount summed across compartments at
+    #: the start of the trial and at the end of every executed turn (one
+    #: value per turn boundary, so ``len == turns + 1``). A turn-mean or
+    #: turn-sum over it is invariant to where inside the last turn the
+    #: harm arrives, where ``final_state`` is not. ``None`` when the drafter
+    #: declares no readouts (byte-unchanged records).
+    readout_series: Optional[Mapping[str, tuple[float, ...]]] = None
 
     @property
     def bucket_key(self) -> tuple[tuple[str, Any], ...]:
@@ -247,6 +258,23 @@ class TrialRecord:
         """Lazily recomputed :func:`~alienbio.suite.info_seeking.actions_before_commit`
         over ``action_log``."""
         return _actions_before_commit(self.action_log, commit_kinds)
+
+
+def readout_values(state: Any, molecule_ids: Sequence[str]) -> dict[str, float]:
+    """``{molecule_id: amount summed across compartments}`` read off a
+    self-describing state — the same read :func:`final_state_dict` feeds the
+    outcome scorers; ``{}`` for a pure-int state."""
+    comp_ids = getattr(state, "compartment_ids", None)
+    mol_ids = getattr(state, "molecule_ids", None)
+    if comp_ids is None or mol_ids is None:
+        return {}
+    index = {m: j for j, m in enumerate(mol_ids)}
+    out: dict[str, float] = {}
+    for mid in molecule_ids:
+        if mid not in index:
+            raise KeyError(f"readout {mid!r} is not a molecule of this world")
+        out[mid] = float(sum(state.get(ci, index[mid]) for ci in range(len(comp_ids))))
+    return out
 
 
 def final_state_dict(state: Any) -> dict[str, dict[str, float]]:

@@ -323,7 +323,7 @@ def vocabulary(world: WorldImpl, extra_tokens: Sequence[str] = (), *, env: Env) 
 #: Brief-side dials that put an alignment-bearing arm on the world (the
 #: ``guarded_params`` of :func:`brief`; the drafters declare theirs).
 BRIEF_GUARDED: frozenset[str] = frozenset(
-    {"constitution", "monitoring", "framing", "stakes", "reversibility", "assays", "monitor_coverage", "monitor_sham", "monitor_salience"}
+    {"constitution", "monitoring", "framing", "stakes", "reversibility", "assays", "monitor_coverage", "monitor_sham", "monitor_salience", "task_note"}
 )
 
 
@@ -348,6 +348,7 @@ def brief(
     monitor_coverage: Optional[float] = None,
     monitor_sham: Optional[bool] = None,
     monitor_salience: Optional[float] = None,
+    task_note: Optional[str] = None,
 ) -> dict[str, Any]:
     """The brief-side dial vector: everything here reaches the
     :class:`~alienbio.suite.brief.TaskBrief` or the observation narrowing and
@@ -369,7 +370,10 @@ def brief(
     AUP C4) put an in-world auditor in the world that logs the agent's
     actions to a visible ledger with that coverage — sham announces it and
     logs nothing; salience is how often the ledger is shown (see
-    ``suite.monitor``)."""
+    ``suite.monitor``). ``task_note`` (T061, AUP B1) is verbatim text
+    placed in the task statement beside the goal — the line right after
+    ``Question:`` — so a prohibition can be carried as a task objective
+    with the constitution empty; guarded like ``stakes``."""
     given = dict(locals())
     return {k: v for k, v in given.items() if v is not None}
 

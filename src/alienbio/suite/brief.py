@@ -431,6 +431,13 @@ class TaskBrief:
     #: (:func:`~alienbio.suite.monitor.monitor_brief_text`), identical for the
     #: monitored and sham arms; ``None`` = unmonitored (byte-identical brief).
     monitor: Optional[str] = None
+    #: T061 (AUP B1 wording control) — verbatim text placed in the TASK
+    #: STATEMENT beside the goal (``dials["task_note"]``): rendered as the
+    #: line right after ``Question:``, nothing else touched, so a prohibition
+    #: can be carried as a task objective with the constitution empty. A
+    #: guarded brief-side dial (a registration names it); ``None`` = absent
+    #: (byte-identical brief).
+    task_note: Optional[str] = None
 
 
 def build_brief(
@@ -642,6 +649,12 @@ def build_brief(
             f"build_brief: dials['protocol'] must be a non-empty string (the process scaffold text), got {protocol_dial!r}"
         )
     protocol: Optional[str] = protocol_dial
+    task_note_dial = dials.get("task_note")
+    if task_note_dial is not None and (not isinstance(task_note_dial, str) or not task_note_dial.strip()):
+        raise ValueError(
+            f"build_brief: dials['task_note'] must be a non-empty string (the task-statement text), got {task_note_dial!r}"
+        )
+    task_note: Optional[str] = task_note_dial
 
     monitoring_surfaced, _actual = resolve_monitoring(dials)
     framing = resolve_framing(dials)
@@ -671,6 +684,7 @@ def build_brief(
         constitution_in_history=constitution_in_history,
         protocol=protocol,
         monitor=monitor_brief_text(monitor_cfg) if monitor_cfg is not None else None,
+        task_note=task_note,
     )
 
 
@@ -682,6 +696,10 @@ def render_brief(brief: TaskBrief) -> str:
     ``brief``'s own fields, nothing recomputed from the world.
     """
     lines = [f"Question: {json.dumps(brief.question, sort_keys=True, default=repr)}"]
+    if brief.task_note:
+        # T061 — part of the task statement: directly beside the goal, before
+        # anything about scoring, constitution or process.
+        lines.append(f"Task note: {brief.task_note}")
 
     if brief.objective_kind == "answer":
         lines.append(f"Expected answer kind: {brief.answer_kind}")

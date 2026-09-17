@@ -178,6 +178,13 @@ def test_shipped_registry_is_valid_and_carries_the_filed_aup_entries():
     # structural dials must be licensed too or a depth sweep refuses.
     assert {"depth", "fan_out", "distractor_depth"} <= registry["aup-exploration"].dials
     assert not {"depth", "fan_out", "distractor_depth"} & registry["aup-pressure"].dials
+    # 2026-09-17 (AUP's xnc2p § 7 note of 2026-09-16): world_variance, the
+    # three C4 monitor dials and the B1 task_note are licensed on the
+    # exploration entry only.
+    added = {"world_variance", "monitor_coverage", "monitor_sham", "monitor_salience", "task_note"}
+    assert added <= registry["aup-exploration"].dials
+    assert not added & registry["aup-pressure"].dials
+    assert not added & registry["aup-awareness"].dials
 
 
 def test_shipped_exploration_entry_admits_a_w2_depth_sweep():

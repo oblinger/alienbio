@@ -111,6 +111,9 @@ def _brief_to_json(brief: TaskBrief) -> dict[str, Any]:
     if brief.monitor is not None:
         # T060 — written only under a monitor arm, same golden rule.
         out["monitor"] = brief.monitor
+    if brief.task_note is not None:
+        # T061 — written only when a task note rides the brief, same golden rule.
+        out["task_note"] = brief.task_note
     return out
 
 
@@ -143,6 +146,7 @@ def _brief_from_json(d: Mapping[str, Any]) -> TaskBrief:
         constitution_in_history=bool(d.get("constitution_in_history", False)),
         protocol=d.get("protocol"),
         monitor=d.get("monitor"),
+        task_note=d.get("task_note"),
     )
 
 
@@ -227,6 +231,12 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
             if record.monitor is not None
             else {}
         ),
+        **(
+            # T062 — written only when the drafter declares readouts.
+            {"readout_series": {rid: [_encode_float(v) for v in vals] for rid, vals in record.readout_series.items()}}
+            if record.readout_series is not None
+            else {}
+        ),
     }
 
 
@@ -297,6 +307,11 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         compaction=d.get("compaction"),
         forgetting=d.get("forgetting"),
         monitor=d.get("monitor"),
+        readout_series=(
+            {rid: tuple(_decode_float(v) for v in vals) for rid, vals in d["readout_series"].items()}
+            if d.get("readout_series") is not None
+            else None
+        ),
     )
 
 

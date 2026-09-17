@@ -52,9 +52,13 @@ aup-pressure:
 # the whole drafter is guarded, so EVERY dial of it in play is a guarded
 # dial — depth / fan_out / distractor_depth are listed beside pi /
 # certainty / epistemic_access, or a W2 sweep refuses before spend.
+# 2026-09-17 (AUP's ask, their xnc2p § 7 dated note of 2026-09-16):
+# `world_variance` (T052 Q1 (C)), the three C4 monitor dials (T060) and
+# `task_note` (T061, the B1 wording control) added.
 aup-exploration:
   osf: "osf.io/xnc2p"
   filed: "2026-08-31"
   dials: [pi, complexity, certainty, epistemic_access, constitution, stakes,
-          depth, fan_out, distractor_depth]
+          depth, fan_out, distractor_depth, world_variance,
+          monitor_coverage, monitor_sham, monitor_salience, task_note]
   drafters: [pressure, phase1_pressure, pressure_w2]
