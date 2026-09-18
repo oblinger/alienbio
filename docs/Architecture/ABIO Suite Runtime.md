@@ -128,7 +128,7 @@ Two guarded dials complete the registered phase-2 grid (complexity × certainty 
 
 ## What is not here yet
 
-Live-model arms on the AUP-registered substrates wait on the paper (the no-peeking rule); every instrument-side M45 item is built, including the control surface (M45.1) and the realism instrument (M45.9, `suite.realism`: `render_transcript` — the session in surface names — plus a pairwise realism judge over the `LLMFn` seam and per-condition win rates with Wilson intervals; the live-judge arm and the genuine reference pool are AUP's). The suite's `simulate` still runs the reference simulator; the JAX core matches it on every admitted rate law (M47.10) but is not yet the suite's default backend. See [[ABIO Roadmap]] § M45.
+Live-model arms on the AUP-registered substrates wait on the paper (the no-peeking rule); every instrument-side M45 item is built, including the control surface (M45.1) and the realism instrument (M45.9, `suite.realism`: `render_transcript` — the session in surface names — plus a pairwise realism judge over the `LLMFn` seam and per-condition win rates with Wilson intervals; the live-judge arm and the genuine reference pool are AUP's). The suite's `simulate` still runs the reference simulator; the JAX core matches it on every admitted rate law (M47.10) but is not yet the suite's default backend. See ~~[[ABIO Roadmap]]~~ § M45.
 
 ## See Also
 
