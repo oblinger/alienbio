@@ -120,8 +120,8 @@ nav:
     - Overview: Modules/index.md
     - Bio: Modules/ABIO bio.md
     - Infra: Modules/ABIO infra Module.md
-    - Protocols: Modules/ABIO protocols.md
-    - Expr: Modules/ABIO expr.md
+    - Protocols: Modules/ABIO protocols Module.md
+    - Expr: Modules/ABIO expr Module.md
     - Suite: Modules/ABIO suite.md
     - Spec Language: Modules/ABIO spec_lang.md
     - CLI: Modules/ABIO cli.md
