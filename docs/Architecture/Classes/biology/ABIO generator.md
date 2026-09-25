@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [biology ABIO generator](hook://p/biology%20ABIO%20generator) 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO generator](ha://p/ABIO%20generator) 
  [[ABIO Architecture Docs]] → [[ABIO biology]]
 
 # Generator
@@ -50,4 +50,4 @@ Generates multiple instances efficiently.
 - [[ABIO biology]]
 - [[ABIO MoleculeGenerator]]
 - [[ABIO ReactionGenerator]]
-- [[SystemGenerator]]
+- ~~[[SystemGenerator]]~~
