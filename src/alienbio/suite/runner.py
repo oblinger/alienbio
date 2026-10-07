@@ -93,7 +93,7 @@ from ..bio.world_state import WorldStateImpl
 from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, ProbeAgent, SessionAgent, Wait
 from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, resolve_monitoring
 from .monitor import auditor_block, logs_turn, resolve_monitor, shows_turn
-from .naming import NameMap, OpaqueAgent, build_name_map, opaque_names_requested
+from .naming import NameMap, OpaqueAgent, build_name_map, opaque_names_requested, token_pattern
 from .deliberation import DeliberationTrace
 from .dist import Seed, Uniform
 from .grade import grade_answer, grade_outcome
@@ -1103,7 +1103,7 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
         secrets -= {
             token
             for token in secrets
-            if re.search(r"(?<![A-Za-z0-9_/.-])" + re.escape(token) + r"(?![A-Za-z0-9_/.-])", exempt_text)
+            if token_pattern(token).search(exempt_text)
         }
     secrets.discard("")
     if name_map is not None:
@@ -1115,6 +1115,6 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
     hits: set[str] = set()
     for text in prompts:
         for token in secrets:
-            if re.search(r"(?<![A-Za-z0-9_/.-])" + re.escape(token) + r"(?![A-Za-z0-9_/.-])", text):
+            if token_pattern(token).search(text):
                 hits.add(token)
     return tuple(sorted(hits))

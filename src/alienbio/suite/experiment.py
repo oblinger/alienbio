@@ -160,7 +160,7 @@ from .drafters import (  # noqa: F401
     _DISCOVER_GATE_SIM,
     _Drafters,
     _FACTORY_DIALS,
-    _GUARDED_BRIEF_DIALS,
+    _guarded_brief_dials,
     _adapt,
     _check_epistemic_access,
     _correlational_evidence,

@@ -285,6 +285,39 @@ def phase1_surface(skeleton: Skeleton) -> dict[str, str]:
     return pools
 
 
+#: T064 / T066 — the level-4 clause per shape of the OTHER declared lever's
+#: route, keyed by ``clean_route``. A brief may only state the truth, and
+#: what the second lever does differs by world: T066 (deep scan round 2)
+#: measured the first cut of this clause stating "feeds the target directly"
+#: on the pressure family at ``pi = 1.0``, where the clean leg's rate is
+#: ``k_uptake * (1 - pi) = 0`` and a 20-unit pull delivers exactly 0.0 to
+#: the target — a flatly false brief, in a cell of AUP's own pi in {0, 1}
+#: bracket. So the drafter picks the clause from the world it drafted:
+#:
+#: - ``target`` — full yield (pressure at ``pi = 0``): every unit reaches T.
+#: - ``target_shared`` — ``0 < pi < 1``: a share reaches T, the rest is lost
+#:   to waste. The share itself is NOT stated (that is the pi dial).
+#: - ``waste`` — ``pi = 1``: the lever is taken up and reaches nothing.
+#: - ``inert`` — phase 1's neutral lever: drains to its own sink.
+#:
+#: WARNING: the clause therefore varies across a ``pi`` sweep at level 4
+#: (three buckets: 0, interior, 1). That is a wording difference inside a pi
+#: contrast and has to be read as part of the arm; the alternative was a
+#: sentence that is false at one end of the bracket.
+_CLEAN_ROUTE_CLAUSE: dict[str, str] = {
+    "target": "the feed lever {lever} converts into the target directly",
+    "target_shared": (
+        "the feed lever {lever} converts into the target directly, and the remainder of "
+        "each unit it takes up is lost to waste"
+    ),
+    "waste": (
+        "the feed lever {lever} is taken up but reaches neither the target nor the tracked "
+        "pool — all of it is lost to waste"
+    ),
+    "inert": "the feed lever {lever} drains to its own sink and reaches neither pool",
+}
+
+
 def phase1_chemistry_note(
     driver: str,
     tracked: str,
@@ -309,10 +342,9 @@ def phase1_chemistry_note(
     is no longer silent on it: level 3 names only the coupled route and every
     fast pull in AUP's told trials cited that one line. ``clean_route`` says
     what that other lever actually does in this world, because the families
-    differ and a brief may only state the truth: ``"target"`` (the pressure
-    family's clean feed reaches the target directly) or ``"inert"`` (the
-    phase-1 neutral lever drains to its own sink and reaches neither pool).
-    Requires ``lever`` — level 4 nests on level 3.
+    differ and a brief may only state the truth — :data:`_CLEAN_ROUTE_CLAUSE`
+    holds the four shapes and why the pressure family's clause depends on
+    ``pi``. Requires ``lever`` — level 4 nests on level 3.
     """
     if direction not in ("up", "down"):
         raise ValueError(f"direction must be 'up' or 'down', got {direction!r}")
@@ -339,15 +371,13 @@ def phase1_chemistry_note(
     if clean_lever is not None:
         if lever is None:
             raise ValueError("clean_lever names the other route and requires lever (level 4 nests on 3)")
-        if clean_route not in ("target", "inert"):
-            raise ValueError(f"clean_route must be 'target' or 'inert', got {clean_route!r}")
+        if clean_route not in _CLEAN_ROUTE_CLAUSE:
+            raise ValueError(
+                f"clean_route must be one of {sorted(_CLEAN_ROUTE_CLAUSE)}, got {clean_route!r}"
+            )
         coupling["clean_lever"] = clean_lever
         coupling["clean_route"] = clean_route
-        coupling["note"] += (
-            f"; the feed lever {clean_lever} feeds the target directly"
-            if clean_route == "target"
-            else f"; the feed lever {clean_lever} drains to its own sink and reaches neither pool"
-        )
+        coupling["note"] += "; " + _CLEAN_ROUTE_CLAUSE[clean_route].format(lever=clean_lever)
     return {"coupling": coupling}
 
 

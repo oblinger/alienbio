@@ -77,8 +77,30 @@ class NameMap:
         return _map_value(value, self.structural_text)
 
 
-_BOUNDARY_L = r"(?<![A-Za-z0-9_/.-])"
-_BOUNDARY_R = r"(?![A-Za-z0-9_/.-])"
+#: Whole-token boundaries for an id in free text. The character class
+#: excludes ``.`` so that a token is not matched inside a DOTTED id
+#: (``m01`` must not match in ``m01.rate``) — but a bare ``(?!…\.…)`` also
+#: refuses a `.` that is sentence punctuation, which is where T066 (deep
+#: scan round 2) found a leak: ``surface_text("Never drain root/harm_in.")``
+#: returned the structural id unchanged, and the taint audit, which spells
+#: the same boundary, then read the prompt as clean. A structural id reached
+#: a live model on an opaque-named world with ``taint_hits == ()``.
+#:
+#: So the dot is excluded only when it CONTINUES the id — ``.`` followed by
+#: another id character. A trailing period, comma or end of string is a
+#: boundary, and ``task_note`` / ``stakes`` / ``constitution`` / ``protocol``
+#: text that ends a sentence on an id is surfaced and audited like any other.
+_BOUNDARY_L = r"(?<![A-Za-z0-9_/-])(?<![A-Za-z0-9_/-]\.)"
+_BOUNDARY_R = r"(?![A-Za-z0-9_/-])(?!\.[A-Za-z0-9_/-])"
+
+
+def token_pattern(token: str) -> "re.Pattern[str]":
+    """``token`` as a whole id in free text, with :data:`_BOUNDARY_L` /
+    :data:`_BOUNDARY_R`. The one spelling of the boundary — the runner's
+    taint audit scans with this, so the audit and the surfacing can never
+    disagree about what counts as a whole id (T066: they did, and the
+    disagreement was a silent leak)."""
+    return re.compile(_BOUNDARY_L + re.escape(token) + _BOUNDARY_R)
 
 
 def _id_pattern(mapping: Mapping[str, str]) -> "re.Pattern[str]":

@@ -22,6 +22,8 @@ from .drafters import (
     CONFLICT_FREE_ADMITTED_DIALS,
     CONFLICT_FREE_DRAFTERS,
     DRAFTERS,
+    EPISODE_DIALS,
+    dial_params,
     guarded_dials,
     guarded_drafters,
     unknown_spec_dials,
@@ -70,11 +72,43 @@ def unknown_dials_violation(spec: ExperimentSpec) -> Optional[str]:
     return f"{spec.drafter}: unknown dial(s) {unknown}"
 
 
+def _head_dials(spec: ExperimentSpec) -> frozenset[str]:
+    """The dial names the spec's drafter head declares as keywords."""
+    if spec.drafter not in _registry:
+        return frozenset()
+    return frozenset(dial_params(_registry.get(spec.drafter)))
+
+
+def _drafter_kwarg_dials(spec: ExperimentSpec) -> dict[str, Any]:
+    """The entries of ``drafter_kwargs`` that are DIALS of this drafter — the
+    head's own declared keywords, as opposed to the generator settings that
+    reach it through ``**generator`` (``feed_max_rate``, ``target_margin``,
+    ``certainty_windows``, ``hop_delay_s``, ``sim_cfg`` …).
+
+    T066 (deep scan round 2) found this split unguarded in both directions.
+    ``_adapt`` splats ``drafter_kwargs`` straight into the head, so a dial
+    placed there is fully APPLIED, while every guard read only ``spec.axes``
+    and ``spec.fixed_dials`` — so ``drafter_kwargs: {epistemic_access: 2}``
+    drew the guarded brief on a live model with no registration at all, and
+    ``{world_variance: 0.4}`` scaled the whole rate set without the filing's
+    dial scope ever being checked. Two investigators found it independently,
+    one through the registration gate and one through the W2 lag bound.
+    ``variant`` was already read from here by hand (T048); this generalizes
+    that patch to every declared dial, which is also the spelling the
+    phase-1 catalog specs use.
+    """
+    kwargs = dict(spec.drafter_kwargs or {})
+    return {name: value for name, value in kwargs.items() if name in _head_dials(spec)}
+
+
 def dials_in_play(spec: ExperimentSpec) -> frozenset[str]:
     """Every dial name a run of ``spec`` sets: each axis, plus each
-    ``fixed_dials`` entry whose value is truthy."""
+    ``fixed_dials`` entry whose value is truthy, plus every declared dial
+    the spec passes through ``drafter_kwargs`` (:func:`_drafter_kwarg_dials`
+    — applied by the drafter exactly as a fixed dial is)."""
     names = {name for name, _levels in spec.axes}
     names.update(name for name, value in spec.fixed_dials.items() if value)
+    names.update(name for name, value in _drafter_kwarg_dials(spec).items() if value)
     return frozenset(names)
 
 
@@ -110,13 +144,44 @@ def registration_admission(
 
 def _dial_values_in_play(spec: ExperimentSpec, name: str) -> list[Any]:
     """Every value dial ``name`` can take in a run of ``spec``: its axis
-    levels, else its ``fixed_dials`` value, else nothing."""
+    levels, else its ``fixed_dials`` value, else its ``drafter_kwargs``
+    value (which the drafter applies the same way), else nothing."""
     for axis, levels in spec.axes:
         if axis == name:
             return list(levels)
     if name in spec.fixed_dials:
         return [spec.fixed_dials[name]]
+    kwarg_dials = _drafter_kwarg_dials(spec)
+    if name in kwarg_dials:
+        return [kwarg_dials[name]]
     return []
+
+
+def misplaced_episode_dials_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why ``spec`` puts an EPISODE dial where only the drafter will see it.
+
+    ``max_turns`` / ``sim_steps`` / ``sim_dt`` are read by BOTH the drafter
+    (to size a derivation against the horizon the runner will run) and the
+    runner (which actually runs it) — but the runner reads the dial vector
+    and never ``drafter_kwargs``. So one in ``drafter_kwargs`` is applied to
+    the draft and silently ignored by the episode, and the two then disagree
+    about the clock. T066 measured the consequence: ``drafter_kwargs:
+    {depth: 2, sim_dt: 0.005}`` cleared ``pressure_w2``'s chain-lag bound
+    and stamped ``sim_dt=0.005`` on the oracle while the episode ran at the
+    0.1 s default — a 10x violation of the bound, the provoked tracked read
+    drifting +16.9 % with depth, every guard green and the record's own
+    provenance false. Declared in ``episode(...)`` / ``fixed_dials`` it
+    reaches both, which is what every catalog spec does.
+    """
+    misplaced = sorted(set(dict(spec.drafter_kwargs or {})) & EPISODE_DIALS)
+    if not misplaced:
+        return None
+    return (
+        f"{spec.drafter}: {', '.join(misplaced)} in drafter_kwargs reaches the drafter but NOT "
+        "the runner, which reads the dial vector — the draft and the episode would disagree "
+        f"about the clock. Declare {'it' if len(misplaced) == 1 else 'them'} in episode(...) / "
+        "fixed_dials / an axis instead."
+    )
 
 
 def w2_lag_violation(spec: ExperimentSpec) -> Optional[str]:
@@ -322,6 +387,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     check("registration", lambda: registration_admission(spec))
     check("no-peeking", lambda: _raise_if(no_peeking_violation(spec), "no-peeking"))
     check("dials", lambda: _raise_if(unknown_dials_violation(spec), "dials"))
+    check("episode-dials", lambda: _raise_if(misplaced_episode_dials_violation(spec), "episode-dials"))
     check("surface", lambda: _raise_if(declared_surface_violation(spec), "surface"))
     check("sampling", lambda: _raise_if(sampling_violation(spec), "sampling"))
     check("w2-lag", lambda: _raise_if(w2_lag_violation(spec), "w2-lag"))
