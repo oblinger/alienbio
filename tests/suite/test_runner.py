@@ -922,7 +922,10 @@ def test_a_mid_trial_exception_carries_the_partial_record():
     assert str(info.value) == "RuntimeError: provider 500"
     assert isinstance(info.value.__cause__, RuntimeError)
     assert partial.terminal_reason == "error"
-    assert partial.turns == 3
+    # T066 — COMPLETED turns (0 and 1); the third was attempted and died in
+    # `agent.act`, so no turn bottom was reached for it and the per-turn
+    # arrays carry two entries. `turns` is what those arrays are indexed by.
+    assert partial.turns == 2
     assert len(partial.action_log) == 2 and all(a.accepted for a in partial.action_log)
     assert partial.brief is not None
     assert partial.usage == {"calls": 3, "input_tokens": 300, "output_tokens": 0}
@@ -958,4 +961,6 @@ def test_mass_trial_lands_the_partial_record_under_the_original_error_name():
     (record,) = rmap.records
     assert record.error == "RuntimeError: provider 500"
     assert record.terminal_reason == "error"
-    assert record.turns == 2 and len(record.action_log) == 1 and record.brief is not None
+    # T066 — one COMPLETED turn (the second died in `agent.act`), matching
+    # the single action the log carries.
+    assert record.turns == 1 and len(record.action_log) == 1 and record.brief is not None

@@ -415,6 +415,49 @@ def certainty_windows_violation(spec: ExperimentSpec) -> Optional[str]:
     return None
 
 
+def score_window_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why this run's ``score_window`` cannot be met inside its episode —
+    ``None`` when it can.
+
+    ``score_read="held"`` grades the highest level the target HOLDS for
+    ``score_window`` simulated seconds, and degrades to the trajectory
+    minimum when no window that long exists. Every episode starts with the
+    target at 0, so an unreachable window scores every arm identically:
+    T066 measured an agent that drove the target past ``v_target`` and an
+    idle one both scoring 0.0847, with nothing on the record saying the
+    window was unmeetable — the grid read as uniform total failure. The two
+    inputs are on opposite sides (``score_window`` is a generator setting,
+    the horizon is the episode's dials), so this is the only place that sees
+    both; ``phase1_pressure`` already warns on the same kind of mismatch for
+    its ``v_target`` derivation.
+    """
+    kwargs = dict(spec.drafter_kwargs or {})
+    window = kwargs.get("score_window")
+    if window is None or not isinstance(window, (int, float)) or isinstance(window, bool):
+        return None
+    if window <= 0:
+        return None
+    from .runner import run as _run
+
+    params = inspect.signature(_run).parameters
+    default_sim = params["sim_cfg"].default
+    for dials in _condition_dial_vectors(spec):
+        turns = dials.get("max_turns", params["max_turns"].default)
+        steps = dials.get("sim_steps", default_sim.steps)
+        dt = dials.get("sim_dt", default_sim.dt)
+        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in (turns, steps, dt)):
+            continue
+        horizon = float(turns) * float(steps) * float(dt)
+        if float(window) > horizon:
+            return (
+                f"{spec.name}: score_window={window:g} s exceeds the episode's own "
+                f"{horizon:g} s ({turns} turns x {steps} steps x {dt:g} s) — no window that "
+                "long exists, so score_read='held' would degrade to the trajectory minimum "
+                "and every arm would score alike"
+            )
+    return None
+
+
 def brief_dials_violation(spec: ExperimentSpec) -> Optional[str]:
     """Why this run's BRIEF-side dials refuse — ``None`` when every condition
     resolves.
@@ -555,7 +598,8 @@ class Preflight:
 
 PREFLIGHT_CHECKS: tuple[str, ...] = (
     "registration", "no-peeking", "dials", "episode-dials", "surface", "sampling", "w2-lag",
-    "brief-dials", "certainty-windows", "inert-arm", "agent", "price", "draft", "resume", "out_dir",
+    "brief-dials", "certainty-windows", "score-window", "inert-arm", "agent", "price", "draft",
+    "resume", "out_dir",
 )
 
 
@@ -615,6 +659,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     check("w2-lag", lambda: _raise_if(w2_lag_violation(spec), "w2-lag"))
     check("brief-dials", lambda: _raise_if(brief_dials_violation(spec), "brief-dials"))
     check("certainty-windows", lambda: _raise_if(certainty_windows_violation(spec), "certainty-windows"))
+    check("score-window", lambda: _raise_if(score_window_violation(spec), "score-window"))
     check("inert-arm", lambda: _raise_if(inert_arm_violation(spec), "inert-arm"))
     check("agent", lambda: _raise_if(agent_construction_violation(spec), "agent"))
 

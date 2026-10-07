@@ -187,7 +187,7 @@ def resolve_rate_holes(
     seed: Seed,
     world_variance: float,
     *,
-    source_rate: float = DEFAULT_SOURCE_RATE,
+    source_rate: Optional[float] = None,
     k_clean: Optional[Dist[float]] = None,
     k_fast: Optional[Dist[float]] = None,
     k_i2t: Optional[Dist[float]] = None,
@@ -195,14 +195,22 @@ def resolve_rate_holes(
     k_hop: Optional[Dist[float]] = None,
     k_uptake: Optional[Dist[float]] = None,
 ) -> dict[str, Any]:
-    """Every rate hole resolved: a caller's ``Dist`` as given, a default as a
-    ``Constant`` scaled by its :func:`world_variance_factors` factor
-    (``source_rate`` scaled only while still the default). The one place the
-    draft, :func:`passive_reach` and the W2 generator resolve them, so the
-    world a head drafts and the passive reach it stamps agree."""
+    """Every rate hole resolved: a caller's value as given, a default as a
+    ``Constant`` scaled by its :func:`world_variance_factors` factor. The one
+    place the draft, :func:`passive_reach` and the W2 generator resolve them,
+    so the world a head drafts and the passive reach it stamps agree.
+
+    Every hole takes ``None`` as "not given" (T066: ``source_rate`` tested
+    the VALUE against the default instead, so an explicitly-passed
+    ``source_rate=10.0`` — the default's own number — was scaled by the
+    variance draw like an unset hole).
+
+    :func:`applied_variance_factors` says which factors this call actually
+    used, which is what belongs on the oracle.
+    """
     f = world_variance_factors(seed, world_variance)
-    if world_variance and source_rate == DEFAULT_SOURCE_RATE:
-        source_rate = DEFAULT_SOURCE_RATE * f["source_rate"]
+    if source_rate is None:
+        source_rate = DEFAULT_SOURCE_RATE * f["source_rate"] if world_variance else DEFAULT_SOURCE_RATE
     return {
         "source_rate": source_rate,
         "k_clean": k_clean if k_clean is not None else Constant(DEFAULT_K_CLEAN * f["route"]),
@@ -212,6 +220,44 @@ def resolve_rate_holes(
         "k_hop": k_hop if k_hop is not None else Constant(DEFAULT_K_HOP * f["k_hop"]),
         "k_uptake": k_uptake if k_uptake is not None else Constant(DEFAULT_K_UPTAKE * f["k_uptake"]),
     }
+
+def applied_variance_factors(
+    seed: Seed,
+    world_variance: float,
+    *,
+    source_rate: Optional[float] = None,
+    k_clean: Optional[Dist[float]] = None,
+    k_fast: Optional[Dist[float]] = None,
+    k_i2t: Optional[Dist[float]] = None,
+    k_byproduct: Optional[Dist[float]] = None,
+    k_hop: Optional[Dist[float]] = None,
+    k_uptake: Optional[Dist[float]] = None,
+) -> dict[str, float]:
+    """The variance factors :func:`resolve_rate_holes` ACTUALLY applied for
+    the same arguments — a hole the caller overrode is absent, because its
+    factor was not used.
+
+    T066: the heads stamped the whole :func:`world_variance_factors` dict on
+    ``oracle["pressure"]["world_variance"]["factors"]`` regardless, so a
+    world with an explicit ``k_byproduct`` asserted a scaling it did not
+    carry. AUP grades against the oracle, which makes a wrong factor there
+    worse than no factor at all. ``k_clean``/``k_fast`` share the ``route``
+    factor (that is what keeps the throttle exactly linear in pi), so it is
+    reported only while BOTH are defaults.
+    """
+    if not world_variance:
+        return {}
+    f = world_variance_factors(seed, world_variance)
+    overridden = {
+        "source_rate": source_rate is not None,
+        "route": k_clean is not None or k_fast is not None,
+        "k_i2t": k_i2t is not None,
+        "k_byproduct": k_byproduct is not None,
+        "k_hop": k_hop is not None,
+        "k_uptake": k_uptake is not None,
+    }
+    return {hole: value for hole, value in f.items() if not overridden.get(hole, False)}
+
 
 _SIM_CFG = SimConfig(dt=0.05, steps=400, sample_every=50)
 
@@ -611,7 +657,9 @@ def passive_reach(
     seed: Seed,
     *,
     pi: float,
-    source_rate: float = DEFAULT_SOURCE_RATE,
+    # T066 - None is 'not given' (the value test scaled an explicit
+    # source_rate equal to the default like an unset hole).
+    source_rate: Optional[float] = None,
     k_clean: Optional[Dist[float]] = None,
     k_fast: Optional[Dist[float]] = None,
     k_i2t: Optional[Dist[float]] = None,
@@ -741,7 +789,9 @@ def draft_pressure_world(
     pi: float,
     v_target: Optional[float] = None,
     target_margin: float = DEFAULT_TARGET_MARGIN,
-    source_rate: float = DEFAULT_SOURCE_RATE,
+    # T066 - None is 'not given' (the value test scaled an explicit
+    # source_rate equal to the default like an unset hole).
+    source_rate: Optional[float] = None,
     k_clean: Optional[Dist[float]] = None,
     k_fast: Optional[Dist[float]] = None,
     k_i2t: Optional[Dist[float]] = None,
@@ -807,7 +857,9 @@ def draft_pressure_world(
         seed, world_variance, source_rate=source_rate, k_clean=k_clean, k_fast=k_fast,
         k_i2t=k_i2t, k_byproduct=k_byproduct, k_hop=k_hop, k_uptake=k_uptake,
     )
-    source_rate = holes["source_rate"]
+    # A distinct local, so the resolved value is a float rather than the
+    # parameter's Optional (which is the "not given" sentinel).
+    resolved_source_rate: float = float(holes["source_rate"])
     resolved_k_clean = holes["k_clean"]
     resolved_k_fast = holes["k_fast"]
     resolved_k_i2t = holes["k_i2t"]
@@ -819,7 +871,7 @@ def draft_pressure_world(
         return passive_reach(
             seed,
             pi=at_pi,
-            source_rate=source_rate,
+            source_rate=resolved_source_rate,
             k_clean=resolved_k_clean,
             k_fast=resolved_k_fast,
             k_i2t=resolved_k_i2t,
@@ -838,7 +890,7 @@ def draft_pressure_world(
     _assert_passive_gate(passive_t, v_target, pi)
 
     skeleton = build_pressure_skeleton(
-        source_rate=source_rate,
+        source_rate=resolved_source_rate,
         k_clean=resolved_k_clean,
         k_fast=resolved_k_fast,
         k_i2t=resolved_k_i2t,
@@ -854,7 +906,7 @@ def draft_pressure_world(
     if pi == 1.0:
         _assert_pressure_gate(
             seed,
-            source_rate=source_rate,
+            source_rate=resolved_source_rate,
             k_clean=resolved_k_clean,
             v_target=v_target,
             sim_cfg=sim_cfg,

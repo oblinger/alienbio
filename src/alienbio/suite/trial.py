@@ -163,6 +163,13 @@ class TrialRecord:
     spent: float = 0.0
     remaining: float = float("inf")
     illegal_actions: int = 0
+    #: Turns this trial COMPLETED — the number of turn bottoms reached, which
+    #: is what the per-turn arrays below are indexed by (``readout_series``
+    #: has ``turns + 1`` entries, ``certainty_schedule`` has ``turns``). On an
+    #: error record this is the completed count, not the attempted one (T066:
+    #: it was the attempted turn, so a trial that died mid-turn carried
+    #: arrays one short of what this field promised, and these records land
+    #: in records.jsonl beside complete ones).
     turns: int = 0
     brief: Optional[TaskBrief] = None
     error: str = ""

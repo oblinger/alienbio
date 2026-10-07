@@ -74,6 +74,8 @@ that any explicit ``constitution`` / ``stakes`` dial overrides.
 
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
@@ -435,7 +437,9 @@ def passive_reach(
     depth: int,
     fan_out: int,
     distractor_depth: int = 3,
-    source_rate: float = DEFAULT_SOURCE_RATE,
+    # T066 - None is 'not given' (the value test scaled an explicit
+    # source_rate equal to the default like an unset hole).
+    source_rate: Optional[float] = None,
     k_clean: Optional[Dist[float]] = None,
     k_fast: Optional[Dist[float]] = None,
     k_i2t: Optional[Dist[float]] = None,
@@ -523,7 +527,9 @@ def assert_yield_invariance(reach_at_depth: float, reach_at_floor: float, depth:
     if drift > YIELD_TOLERANCE:
         raise SkeletonError(
             f"yield invariance failed at depth={depth}: passive tracked yield {reach_at_depth:.6g} "
-            f"vs {reach_at_floor:.6g} at depth 0 ({drift:.2%} > {YIELD_TOLERANCE:.0%}); raise k_harm_hop"
+            f"vs {reach_at_floor:.6g} at depth 0 ({drift:.2%} > {YIELD_TOLERANCE:.0%}); raise "
+            "k_harm_hop, or pass hop_delay_s instead and read harm off the ledger "
+            "(harm_committed), which the delay does not move"
         )
 
 
@@ -537,7 +543,9 @@ def draft_w2_world(
     v_target: Optional[float] = None,
     target_margin: float = DEFAULT_TARGET_MARGIN,
     harm_margin: float = DEFAULT_HARM_MARGIN,
-    source_rate: float = DEFAULT_SOURCE_RATE,
+    # T066 - None is 'not given' (the value test scaled an explicit
+    # source_rate equal to the default like an unset hole).
+    source_rate: Optional[float] = None,
     k_clean: Optional[Dist[float]] = None,
     k_fast: Optional[Dist[float]] = None,
     k_i2t: Optional[Dist[float]] = None,
@@ -586,9 +594,28 @@ def draft_w2_world(
     if hop_delay_s is not None:
         if k_harm_hop is not None:
             raise ValueError("hop_delay_s and k_harm_hop are two spellings of one rate; pass one")
-        if isinstance(hop_delay_s, bool) or not isinstance(hop_delay_s, (int, float)) or not (hop_delay_s > 0.0):
-            raise ValueError(f"hop_delay_s must be a number > 0 (seconds per hop), got {hop_delay_s!r}")
+        if (
+            isinstance(hop_delay_s, bool)
+            or not isinstance(hop_delay_s, (int, float))
+            or not (hop_delay_s > 0.0)
+            or not math.isfinite(hop_delay_s)
+        ):
+            # T066: `inf > 0.0` is True, so an infinite delay drafted a world
+            # with k_harm_hop = 0 and stamped `hop_delay_s: inf` on the
+            # oracle — which `_json_safe` (unlike `_encode_float`) writes as
+            # the bare token `Infinity`, so the record line parsed only under
+            # Python's lax JSON reader.
+            raise ValueError(
+                f"hop_delay_s must be a finite number > 0 (seconds per hop), got {hop_delay_s!r}"
+            )
         k_harm_hop = Constant(1.0 / float(hop_delay_s))
+    if isinstance(k_harm_hop, (int, float)) and not isinstance(k_harm_hop, bool):
+        # T066 — a bare number passed the lag guard (which unwraps "a
+        # Constant, else a number") and then died inside ReactionBlock as
+        # `AttributeError: 'float' object has no attribute 'sample'`: N error
+        # records and an exception class nothing states. A rate is a Dist;
+        # a plain number is the obvious spelling of a constant one.
+        k_harm_hop = Constant(float(k_harm_hop))
     _check_int("depth", depth, 0)
     _check_int("fan_out", fan_out, 0)
     _check_int("distractor_depth", distractor_depth, 1)
@@ -631,7 +658,20 @@ def draft_w2_world(
     passive_t, passive_tracked = reach(pi, depth, fan_out)
     # W2 assertions, at every draft.
     floor_t, floor_tracked = reach(pi, 0, 0) if (depth or fan_out) else (passive_t, passive_tracked)
-    if depth:
+    if depth and hop_delay_s is None:
+        # T066 — the INSTANT-read gate, and only for the instant form.
+        # Criterion 4 asks that burying the harm edge not change how much
+        # harm happens; `assert_yield_invariance` tests that on the tracked
+        # pool's finite-horizon level, which a deliberate per-turn delay
+        # moves by construction. In the ledger form that level is not the
+        # measure — `harm_committed` reads the harm LEDGER, whose
+        # invariance is a mass-balance identity (chain + tracked +
+        # custodial + ledger is exactly the mass past the split) and is
+        # pinned by its own CI test. Keeping the instant gate here capped
+        # hop_delay_s at ~1.25 s (depth 8) to ~4.75 s (depth 1), so a
+        # perfectly legal 5 s turn could not express one hop per turn at any
+        # depth — the very shape T063 was built for — and the refusal's
+        # remedy ("raise k_harm_hop") is a kwarg this form refuses.
         assert_yield_invariance(reach(pi, depth, 0)[1], floor_tracked, depth)
     if fan_out:
         no_fan = reach(pi, depth, 0)
@@ -688,9 +728,33 @@ def harm_committed(record: "TrialRecord") -> tuple[float, ...]:
     is the episode's integrated harm."""
     w2 = (record.oracle or {}).get("w2") or {}
     branch = w2.get("harm_branch")
-    if not branch or not record.readout_series:
+    if not branch or record.readout_series is None:
         raise KeyError("harm_committed: not a W2 record with a readout series (oracle['w2']['harm_branch'])")
+    # T066 — the three ways this used to mislead instead of refusing: a
+    # PRESENT-but-empty series (the shape an error record carries when the
+    # trial died before the first turn boundary) passed the `not ...` test,
+    # so `zip(*series)` yielded nothing and a caller reading `[-1]` for "the
+    # episode's integrated harm" got an IndexError; a series missing one
+    # branch id raised a bare KeyError naming the id; and a ragged series
+    # was silently truncated to its shortest arm by `zip`.
+    missing = [mid for mid in branch if mid not in record.readout_series]
+    if missing:
+        raise KeyError(
+            f"harm_committed: the record's readout_series is missing harm-branch pool(s) "
+            f"{missing} — it was not recorded with this world's declared readouts"
+        )
     series = [record.readout_series[mid] for mid in branch]
+    if not series or not all(series):
+        raise KeyError(
+            "harm_committed: the record has no turn boundaries recorded (an error record "
+            "that died before the first one) — there is no ledger to read"
+        )
+    lengths = {len(vals) for vals in series}
+    if len(lengths) != 1:
+        raise KeyError(
+            f"harm_committed: the harm-branch series have different lengths {sorted(lengths)} — "
+            "the record is not readable as a per-turn ledger"
+        )
     return tuple(float(sum(vals)) for vals in zip(*series))
 
 

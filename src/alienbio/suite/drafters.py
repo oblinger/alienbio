@@ -27,6 +27,7 @@ from .pressure_gen import (
     control_surface,
     draft_pressure_world,
     passive_reach,
+    applied_variance_factors,
     world_variance_factors,
 )
 from .w2_gen import draft_w2_world
@@ -123,7 +124,7 @@ EPISTEMIC_DISCLOSURE: tuple[tuple[str, ...], ...] = (
 )
 
 
-def _certainty_windows(generator: dict[str, Any]) -> int:
+def _certainty_windows(generator: dict[str, Any], certainty: float) -> int:
     """T062 (i) — ``certainty_windows`` off ``drafter_kwargs``: how many
     independent Bernoulli(p) harm windows each turn is cut into (the runner
     integrates the turn in that many equal slices, each with its own
@@ -136,7 +137,25 @@ def _certainty_windows(generator: dict[str, Any]) -> int:
     n = generator.pop("certainty_windows", 1)
     if isinstance(n, bool) or not isinstance(n, int) or n < 1:
         raise ValueError(f"certainty_windows must be an int >= 1, got {n!r}")
+    if n != 1 and certainty >= 1.0:
+        # T066 — it was validated, popped, and then written nowhere, because
+        # the whole certainty block is `if certainty < 1.0`. A key nobody
+        # reads is refused, never dropped (T054's rule, from AUP's
+        # feed_max_rate-on-the-wrong-side incident).
+        raise ValueError(
+            f"certainty_windows={n} needs certainty < 1 — it cuts the turn into n harm "
+            "windows, and at certainty 1 there is no window to draw (the deterministic "
+            "reference path runs the turn whole)"
+        )
     return n
+
+
+#: The generator keywords that are variance-scaled rate holes — the ones
+#: :func:`~alienbio.suite.pressure_gen.applied_variance_factors` needs to know
+#: about to report only the factors a draft really used.
+_VARIANCE_HOLE_KWARGS: frozenset[str] = frozenset(
+    {"source_rate", "k_clean", "k_fast", "k_i2t", "k_byproduct", "k_hop", "k_uptake"}
+)
 
 
 def _clean_route_for_pi(pi: float) -> str:
@@ -478,7 +497,7 @@ def pressure(
     ):
         raise ValueError(f"feed_max_rate must be a finite number > 0, got {feed_max_rate!r}")
     feed_max_rate = float(feed_max_rate)
-    certainty_windows = _certainty_windows(generator)
+    certainty_windows = _certainty_windows(generator, certainty)
     # T052 (B) (AUP 2026-09-10) — the objective's reading rule rides
     # drafter_kwargs like feed_max_rate/target_margin: which of
     # SCORE_READS the scorer applies to the episode timeline. Default
@@ -489,7 +508,13 @@ def pressure(
     # T052 Q1 (C) (2026-09-15) — the opt-in across-world draw: a dial (so a
     # registered run names it), threaded to the generator and the passive
     # reach alike; 0.0 is byte-identical to before.
-    variance_factors = world_variance_factors(seed, world_variance)
+    # T066 — the factors ACTUALLY applied: a hole the spec overrode with an
+    # explicit Dist is correctly left unscaled, and the oracle must not claim
+    # otherwise (AUP grades against the oracle, so a wrong factor there is
+    # worse than no factor).
+    variance_factors = applied_variance_factors(seed, world_variance, **{
+        k: v for k, v in generator.items() if k in _VARIANCE_HOLE_KWARGS
+    })
     world, skeleton, objective = draft_pressure_world(
         seed, pi=pi, complexity=complexity, world_variance=world_variance, **generator
     )
@@ -717,7 +742,7 @@ def pressure_w2(
     ):
         raise ValueError(f"feed_max_rate must be a finite number > 0, got {feed_max_rate!r}")
     feed_max_rate = float(feed_max_rate)
-    certainty_windows = _certainty_windows(generator)
+    certainty_windows = _certainty_windows(generator, certainty)
     score_read = generator.get("score_read", "final")
     score_window = generator.get("score_window", 0.0)
     from .runner import _resolve_int_dial
@@ -730,7 +755,9 @@ def pressure_w2(
     if not math.isfinite(step_s) or step_s <= 0.0:
         raise ValueError(f"sim_dt must be a finite number > 0, got {sim_dt!r}")
     turn_s = steps_per_turn * step_s
-    variance_factors = world_variance_factors(seed, world_variance)
+    variance_factors = applied_variance_factors(seed, world_variance, **{
+        k: v for k, v in generator.items() if k in _VARIANCE_HOLE_KWARGS
+    })
     world, _skeleton, objective, info = draft_w2_world(
         seed, pi=pi, depth=depth, fan_out=fan_out, distractor_depth=distractor_depth,
         world_variance=world_variance, **generator,

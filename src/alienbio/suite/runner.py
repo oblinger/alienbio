@@ -668,6 +668,11 @@ def run(
     reason = "max_turns"
     illegal = 0
     turns_executed = 0
+    #: T066 — turns whose BOTTOM was reached, so the per-turn records
+    #: (``readout_series``, ``certainty_schedule``) are complete for them.
+    #: ``turns_executed`` counts the turn being attempted, which is what a
+    #: finished trial wants; a trial that dies mid-turn wants this one.
+    turns_completed = 0
 
     try:
         for turn in range(max_turns):
@@ -883,12 +888,33 @@ def run(
                     )
                     timeline = simulate(slice_world, slice_cfg, seed.child(f"turn/{turn}/sim/{w}"))
                     start = 0 if (turn == 0 and w == 0) else 1
-                    for t, s in zip(timeline.times[start:], timeline.states[start:]):
+                    # T066 — the slice's own closing snapshot is not a sample
+                    # of the TURN unless it falls on the turn's sampling grid.
+                    # ``simulate`` emits every ``sample_every`` step plus the
+                    # final state, so keeping each slice's final state added
+                    # n-1 extra samples per turn and the recorded timeline's
+                    # grid moved with ``certainty_windows``. The dial is
+                    # documented to change only how many Bernoulli draws
+                    # realize the harm, but ``score_read="held"`` integrates
+                    # over the timeline samples, so an n-sweep confounded the
+                    # variance reduction with the reading rule (measured:
+                    # held 0.26111 at n=1 vs 0.26145 at n=4 with the draws
+                    # pinned equal, so the world itself was identical).
+                    # The physics is untouched: ``state`` and ``elapsed``
+                    # still come from the slice's true end.
+                    stop = len(timeline.times)
+                    if (
+                        w < windows - 1
+                        and ((w + 1) * slice_cfg.steps) % sim_cfg.sample_every
+                    ):
+                        stop -= 1
+                    for t, s in zip(timeline.times[start:stop], timeline.states[start:stop]):
                         turn_times.append(elapsed + t)
                         turn_states.append(cast(WorldStateImpl, s))
                     elapsed += timeline.times[-1]
                     state = cast(WorldStateImpl, timeline.states[-1])
             _record_readouts(state)
+            turns_completed = turn + 1
 
             if isinstance(action, Commit):
                 reason = "committed"
@@ -924,7 +950,17 @@ def run(
             spent=spent,
             remaining=budget.total - spent,
             illegal_actions=illegal,
-            turns=turns_executed,
+            # T066 — the COMPLETED turns, not the attempted one.
+            # ``turns_executed`` is set at the top of the turn body while the
+            # per-turn records (``readout_series``, ``certainty_schedule``)
+            # are appended at the bottom, so a trial that died mid-turn
+            # carried `len(series) == turns` where TrialRecord documents
+            # `turns + 1`, and one schedule entry short. These records land in
+            # records.jsonl beside complete ones under
+            # MassTrialRunner(on_error="record"), so any read that indexes
+            # series[turn + 1] or zips the series against turn indices was
+            # silently off by one on exactly the error trials.
+            turns=turns_completed,
             brief=brief,
             usage=getattr(agent, "usage", None),
             wall_time_s=time.perf_counter() - start_time,
