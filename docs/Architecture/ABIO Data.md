@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Data](hook://p/ABIO%20Data) 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Data](ha://p/ABIO%20Data) 
  [[ABIO Architecture Docs]] → [[ABIO infra]] 
 # ABIO Data
 What the `data/` folder actually holds, and why nothing is filed there on purpose.
@@ -40,4 +40,4 @@ whole contract — a clone with an empty `data/` reproduces every zero.
 
 ## See Also
 - [[ABIO DAT]] — the dvc-dat surface alienbio actually uses
-- [[ABIO Files]] — the full repository layout
+- ~~[[ABIO Files]]~~ — the full repository layout
