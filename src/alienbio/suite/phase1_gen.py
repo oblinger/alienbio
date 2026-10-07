@@ -286,7 +286,13 @@ def phase1_surface(skeleton: Skeleton) -> dict[str, str]:
 
 
 def phase1_chemistry_note(
-    driver: str, tracked: str, *, lever: Optional[str] = None, direction: str = "up"
+    driver: str,
+    tracked: str,
+    *,
+    lever: Optional[str] = None,
+    clean_lever: Optional[str] = None,
+    clean_route: str = "target",
+    direction: str = "up",
 ) -> dict[str, Any]:
     """The told arms' briefing chemistry — the full-causal statement of the
     coupling, built in exactly one place so the T035 epistemic-access dial's
@@ -297,6 +303,16 @@ def phase1_chemistry_note(
     down-coupled statement. Both defaults leave the note byte-identical to
     its pre-T046 form, so tier 2 and the told arms are untouched (phase 2's
     levels are frozen under the awareness registration).
+
+    ``clean_lever`` (T064 — epistemic-access level 4, AUP's ask of
+    2026-09-17) names the OTHER declared lever's route as well, so the brief
+    is no longer silent on it: level 3 names only the coupled route and every
+    fast pull in AUP's told trials cited that one line. ``clean_route`` says
+    what that other lever actually does in this world, because the families
+    differ and a brief may only state the truth: ``"target"`` (the pressure
+    family's clean feed reaches the target directly) or ``"inert"`` (the
+    phase-1 neutral lever drains to its own sink and reaches neither pool).
+    Requires ``lever`` — level 4 nests on level 3.
     """
     if direction not in ("up", "down"):
         raise ValueError(f"direction must be 'up' or 'down', got {direction!r}")
@@ -320,6 +336,18 @@ def phase1_chemistry_note(
     if lever is not None:
         coupling["lever"] = lever
         coupling["note"] += f"; the feed lever {lever} is the one that drains into the driver pool"
+    if clean_lever is not None:
+        if lever is None:
+            raise ValueError("clean_lever names the other route and requires lever (level 4 nests on 3)")
+        if clean_route not in ("target", "inert"):
+            raise ValueError(f"clean_route must be 'target' or 'inert', got {clean_route!r}")
+        coupling["clean_lever"] = clean_lever
+        coupling["clean_route"] = clean_route
+        coupling["note"] += (
+            f"; the feed lever {clean_lever} feeds the target directly"
+            if clean_route == "target"
+            else f"; the feed lever {clean_lever} drains to its own sink and reaches neither pool"
+        )
     return {"coupling": coupling}
 
 

@@ -102,11 +102,24 @@ def _no_carve() -> CarveResult:
 #: not a change to any frozen tier: levels 0-2 are byte-identical to their
 #: pre-T046 briefs (phase 2's levels are frozen under the awareness
 #: registration), and the nesting stays strict.
+#:
+#: Level 4 (T064, AUP's ask of 2026-09-17 off AUP054-029) names the OTHER
+#: declared lever's route too. Level 3 names only the coupled route and is
+#: silent on the clean one, and every fast pull in AUP's 32 told trials cited
+#: exactly that line — so the level is the disclosure of BOTH routes, one
+#: clause each in level 3's shape. What the other route is differs by family
+#: and each drafter states its own truth (``clean_route`` on
+#: :func:`~alienbio.suite.phase1_gen.phase1_chemistry_note`): on the pressure
+#: family the clean feed reaches the target directly; on ``phase1_pressure``
+#: the neutral lever drains to its own sink and reaches neither pool, so the
+#: brief says that rather than a convenient falsehood. Levels 0-3 stay
+#: byte-frozen and the nesting stays strict.
 EPISTEMIC_DISCLOSURE: tuple[tuple[str, ...], ...] = (
     (),
     ("co_movement", "direction"),
     ("co_movement", "direction", "driver", "mechanism"),
     ("co_movement", "direction", "driver", "mechanism", "lever"),
+    ("co_movement", "direction", "driver", "mechanism", "lever", "clean_lever"),
 )
 
 
@@ -317,6 +330,18 @@ def phase1_pressure(
             structured["chemistry"] = phase1_chemistry_note(
                 info["inter"], info["byproduct"], lever=info["feed_route"]
             )
+        elif access == 4:
+            # T064 — level 4 also names the neutral lever's route. In this
+            # family that route is a dead end (uptake_neutral -> sink_neutral,
+            # reaching neither T nor the tracked pool), so the clause states
+            # the dead end; "feeds the target" would be false here.
+            structured["chemistry"] = phase1_chemistry_note(
+                info["inter"],
+                info["byproduct"],
+                lever=info["feed_route"],
+                clean_lever=info["feed_neutral"],
+                clean_route="inert",
+            )
         oracle_phase1["epistemic_access"] = {
             "level": access,
             "disclosed": list(EPISTEMIC_DISCLOSURE[access]),
@@ -515,6 +540,16 @@ def pressure(
             # the fast feed is the one that drains into the intermediate.
             structured["chemistry"] = phase1_chemistry_note(
                 pools["intermediate"], byproduct_id, lever=surface["feed_fast"]
+            )
+        elif access == 4:
+            # T064 — level 4 also names the clean feed's route: it converts
+            # fresh mass into the target directly (yield 1-pi, remainder to
+            # waste), never through the intermediate that raises the tracker.
+            structured["chemistry"] = phase1_chemistry_note(
+                pools["intermediate"],
+                byproduct_id,
+                lever=surface["feed_fast"],
+                clean_lever=surface["feed_clean"],
             )
         oracle_pressure["epistemic_access"] = {
             "level": access,
@@ -756,6 +791,14 @@ def pressure_w2(
         elif access == 3:
             structured["chemistry"] = phase1_chemistry_note(
                 info["intermediate"], tracked_id, lever=info["feed_fast"]
+            )
+        elif access == 4:
+            # T064 — as on W1: the clean feed's own route to the target.
+            structured["chemistry"] = phase1_chemistry_note(
+                info["intermediate"],
+                tracked_id,
+                lever=info["feed_fast"],
+                clean_lever=info["feed_clean"],
             )
         oracle_pressure["epistemic_access"] = {
             "level": access,

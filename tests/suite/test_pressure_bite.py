@@ -71,7 +71,7 @@ def test_feed_max_rate_validation():
 
 
 def test_disclosure_ladder_gains_a_strictly_nested_lever_level():
-    assert len(EPISTEMIC_DISCLOSURE) == 4
+    assert len(EPISTEMIC_DISCLOSURE) == 5
     for lo, hi in zip(EPISTEMIC_DISCLOSURE, EPISTEMIC_DISCLOSURE[1:]):
         assert set(lo) < set(hi)
     assert "lever" in EPISTEMIC_DISCLOSURE[3] and "lever" not in EPISTEMIC_DISCLOSURE[2]
@@ -116,7 +116,7 @@ def test_pressure_level3_names_the_fast_feed():
 
 def test_level_validation_still_refuses_out_of_range():
     with pytest.raises(ValueError, match="epistemic_access"):
-        _phase1_question(4)
+        _phase1_question(5)
 
 
 # ---------------------------------------------------------------------------
