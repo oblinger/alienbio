@@ -33,6 +33,11 @@ dev = [
     "mkdocs-awesome-pages-plugin>=2.9",
     "mkdocs-roamlinks-plugin>=0.3",
     "mkdocs-jupyter>=0.25",
+    # dvc_dat's dat_tools imports pandas at module scope, and tests/unit's
+    # dat/io suites exercise it through the src/dvc_dat symlink. Declared
+    # here (2026-10-07) after the dvc-dat repo moved into ~/ob/grove and the
+    # live copy grew the import: without it 55 unit tests fail to collect.
+    "pandas>=2.0",
 ]
 # M24 JAX simulator (vectorized/GPU-ready). Optional: without it the JAX/M24
 # tests skip. Install with `uv sync --extra jax`.

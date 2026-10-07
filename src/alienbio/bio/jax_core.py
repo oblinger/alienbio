@@ -150,6 +150,17 @@ def build_modulation_tensors(
     return jnp.array(mol, dtype=jnp.int32), jnp.array(kind, dtype=jnp.int32), jnp.array(params, dtype=dtype)
 
 
+def _where(cond: Any, x: Any, y: Any) -> Array:
+    """``jnp.where``'s three-argument form, typed as the array it returns.
+
+    The published stub covers the one-argument ``where(cond)`` too, which
+    returns a tuple of index arrays, so every call reads as
+    ``Array | tuple[Array, ...]`` and arithmetic on the result is a pyright
+    error (2026-10-07, after a jax upgrade). Narrowing here keeps the
+    modulation math readable instead of casting at seven call sites."""
+    return cast(Array, jnp.where(cond, x, y))
+
+
 def modulation_factors(S: Array, mod_mol: Array, mod_kind: Array, mod_params: Array) -> Array:
     """The dimensionless modulation factor per ``[Rn, C]`` — the product over
     a reaction's modulator slots of ``WorldSimulatorImpl._modulation_factor``'s
@@ -162,16 +173,16 @@ def modulation_factors(S: Array, mod_mol: Array, mod_kind: Array, mod_params: Ar
     p2 = mod_params[:, None, :, 2]
     one = jnp.ones_like(m)
     activator = 1.0 + p0 * m
-    inhibitor = 1.0 / (1.0 + m / jnp.where(kind == 2, p0, 1.0))
+    inhibitor = 1.0 / (1.0 + m / _where(kind == 2, p0, 1.0))
     denom_mm = p0 + m
-    michaelis = jnp.where(denom_mm > 0.0, p1 * m / jnp.where(denom_mm > 0.0, denom_mm, 1.0), 0.0)
+    michaelis = _where(denom_mm > 0.0, p1 * m / _where(denom_mm > 0.0, denom_mm, 1.0), 0.0)
     m_n = m ** p2
     denom_h = p0**p2 + m_n
-    hill = jnp.where(denom_h > 0.0, p1 * m_n / jnp.where(denom_h > 0.0, denom_h, 1.0), 0.0)
-    factor = jnp.where(kind == 1, activator, one)
-    factor = jnp.where(kind == 2, inhibitor, factor)
-    factor = jnp.where(kind == 3, michaelis, factor)
-    factor = jnp.where(kind == 4, hill, factor)
+    hill = _where(denom_h > 0.0, p1 * m_n / _where(denom_h > 0.0, denom_h, 1.0), 0.0)
+    factor = _where(kind == 1, activator, one)
+    factor = _where(kind == 2, inhibitor, factor)
+    factor = _where(kind == 3, michaelis, factor)
+    factor = _where(kind == 4, hill, factor)
     return jnp.prod(factor, axis=2)  # [Rn, C]
 
 

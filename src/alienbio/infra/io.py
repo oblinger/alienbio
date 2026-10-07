@@ -11,6 +11,26 @@ if TYPE_CHECKING:
     from .entity import Entity
 
 
+def _dat_root() -> str:
+    """The dat world's root folder — what the ``D:`` prefix resolves against.
+
+    dvc-dat 3.0 (the repo moved into ``~/ob/grove/dvc-dat``) replaced the
+    single ``DatManager.sync_folder`` with a list of search folders and
+    published no accessor for them, so the first search folder is read off
+    the manager directly. Fails visibly rather than guessing a path: a
+    manager shaped some other way is a configuration error here, not
+    something to paper over with a default.
+    """
+    folders = getattr(Dat.manager, "_dat_folders", None)
+    if not folders:
+        raise RuntimeError(
+            "alienbio.infra.io: Dat.manager exposes no dat folders "
+            f"({type(Dat.manager).__name__}); the D: prefix has no root to "
+            "resolve against"
+        )
+    return str(folders[0]).rstrip("/")
+
+
 class _RootEntity:
     """Virtual entity representing the data root.
 
@@ -30,7 +50,7 @@ class _RootEntity:
 
     @property
     def full_name(self) -> str:
-        return Dat.manager.sync_folder.rstrip("/")
+        return _dat_root()
 
     @property
     def parent(self) -> None:
@@ -72,7 +92,7 @@ class IO:
 
     The 'D:' prefix is always bound to the data root as an escape hatch.
 
-    Note: For data path, use Dat.manager.sync_folder (single source of truth).
+    Note: for the data path use :func:`_dat_root` (single source of truth).
     """
 
     def __init__(self) -> None:

@@ -1,4 +1,19 @@
-"""Tests for dvc_dat integration via alienbio operators."""
+"""Tests for dvc_dat integration via alienbio operators.
+
+Scope note (2026-10-07): the dvc-dat repo moved into ``~/ob/grove/dvc-dat``
+and went to 3.0, which retired the module-level ``do()`` function, the
+``Dat.spec`` attribute and the runnable-spec surface this file used to pin
+(five classes: ``TestDoResolves``, ``TestYamlStringSpec``,
+``TestCallableFunctions``, ``TestDatWithProperSpec``, and the two
+string-spec/attribute cases). None of it is reachable from ``alienbio``:
+``src/`` imports ``Dat`` as a duck-typed anchor type and nothing else, and
+dvc-dat owns its own ``tests/test_dat.py`` / ``test_do.py`` for its API. So
+those cases were removed rather than ported — a second copy of a
+dependency's API tests, pinned to a dead major version, is the duplication
+the single-source rule forbids. What stays is the part alienbio does rely
+on: the ``Dat.create`` / ``Dat.load`` round-trip and the entity
+serialization layer over it.
+"""
 
 import tempfile
 from pathlib import Path
@@ -6,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from alienbio import Dat
-from dvc_dat import do, Dat as DvcDat
+from dvc_dat import Dat as DvcDat
 
 
 def save(obj, path):
@@ -21,56 +36,13 @@ def load(path):
 
 
 def create(spec, path):
-    """Helper to create Dat from spec (replaces old context.create).
-
-    Uses do.load() to get spec without executing dat.do function.
-    """
-    if isinstance(spec, str):
-        spec = do.load(spec)
+    """Helper to create Dat from a dict spec (replaces old context.create)."""
     return Dat.create(path=str(path), spec=spec)
-
-
-class TestDoResolves:
-    """Tests for do() name resolution via dvc_dat."""
-
-    def test_do_resolves_fixture(self):
-        """do() resolves fixtures.simple to fixture data."""
-        result = do("fixtures.simple")
-        assert result["name"] == "simple_fixture"
-        assert result["value"] == 42
-
-    def test_do_resolves_molecules_fixture(self):
-        """do() resolves fixtures.molecules to molecule data."""
-        result = do("fixtures.molecules")
-        assert result["name"] == "test_molecules"
-        assert len(result["molecules"]) == 3
-
-    def test_do_resolves_kegg1_fixture(self):
-        """do() resolves fixtures.kegg1 to biochemistry model stub."""
-        result = do("fixtures.kegg1")
-        assert result["name"] == "kegg1"
-        assert result["type"] == "biochemistry_model"
-
-    def test_do_returns_dict(self):
-        """do() returns a dict from YAML spec files."""
-        result = do("fixtures.simple")
-        assert isinstance(result, dict)
-
-    def test_do_missing_raises_keyerror(self):
-        """do() raises KeyError for missing names."""
-        with pytest.raises(KeyError):
-            do("nonexistent.thing")
 
 
 class TestCreate:
     """Tests for create() instantiation via dvc_dat."""
 
-    def test_create_from_string_returns_dat(self):
-        """create() from string spec returns a Dat."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            result = create("fixtures.simple", path=f"{tmpdir}/create_str")
-            assert isinstance(result, Dat)
-            assert result.get_spec()["name"] == "simple_fixture"
 
     def test_create_from_dict_returns_dat(self):
         """create() from dict spec returns a Dat."""
@@ -136,13 +108,14 @@ class TestSaveLoadRoundtrip:
 class TestDatOperations:
     """Tests for Dat-specific operations."""
 
-    def test_dat_has_spec(self):
-        """Dat objects have a _spec attribute."""
+    def test_dat_exposes_its_spec(self):
+        """A loaded dat still hands back the spec it was created from — the
+        one dvc-dat surface alienbio's io/entity layer reads (3.0 replaced
+        the ``spec`` attribute with a ``get_spec()`` accessor)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             save({"key": "value"}, f"{tmpdir}/test/spec_test")
             loaded = load(f"{tmpdir}/test/spec_test")
 
-            assert hasattr(loaded, "spec")
             assert loaded.get_spec()["key"] == "value"
 
     def test_dat_has_path(self):
@@ -153,95 +126,6 @@ class TestDatOperations:
 
             assert hasattr(loaded, "_path")
             assert "path_test" in str(loaded._path)
-
-
-class TestYamlStringSpec:
-    """Tests for YAML string specs (yaml prefix pattern)."""
-
-    def test_do_loads_yaml_string_spec(self):
-        """do() parses YAML string specs prefixed with 'yaml'."""
-        result = do("fixtures.experiment_template")
-        assert isinstance(result, dict)
-        assert result["name"] == "experiment_from_yaml"
-        assert result["dat"]["kind"] == "Dat"
-        assert result["parameters"]["learning_rate"] == 0.01
-
-    def test_create_from_yaml_string_spec(self):
-        """create() works with YAML string spec names."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            dat = create("fixtures.experiment_template", path=f"{tmpdir}/yaml_exp")
-            assert isinstance(dat, Dat)
-            assert dat.get_spec()["name"] == "experiment_from_yaml"
-            assert dat.get_spec()["parameters"]["epochs"] == 100
-
-
-class TestCallableFunctions:
-    """Tests for loading and calling Python functions via do-system."""
-
-    def test_do_load_returns_function(self):
-        """do.load() returns a function without calling it."""
-        fn = do.load("fixtures.process_data")
-        assert callable(fn)
-
-    def test_do_calls_function_with_args(self):
-        """do() calls a function when passed arguments."""
-        result = do("fixtures.process_data", items=["a", "b", "c"])
-        assert result["count"] == 3
-        assert result["first"] == "a"
-        assert result["last"] == "c"
-
-    def test_do_calls_function_with_empty_list(self):
-        """do() calls function with empty list."""
-        result = do("fixtures.process_data", items=[])
-        assert result["count"] == 0
-        assert result["first"] is None
-
-    def test_do_load_compute_metric_function(self):
-        """do.load() can load compute_metric function."""
-        fn = do.load("fixtures.compute_metric")
-        assert callable(fn)
-        # Call without dat parameter
-        result = fn(multiplier=2)
-        assert result == 84  # 42 * 2
-
-    def test_do_calls_function_with_default_args(self):
-        """do() calls a function that has default args."""
-        # compute_metric with no args returns 42 (default multiplier=1)
-        result = do("fixtures.compute_metric")
-        assert result == 42
-
-
-class TestDatWithProperSpec:
-    """Tests for DATs with proper dat: section specs."""
-
-    def test_create_from_spec_with_dat_section(self):
-        """create() with spec that has dat: section works correctly."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            dat = create("fixtures.simple_dat", path=f"{tmpdir}/simple_dat_test")
-            assert isinstance(dat, Dat)
-            assert dat.get_spec()["name"] == "simple_dat"
-            assert dat.get_spec()["value"] == 100
-            assert dat.get_spec()["dat"]["kind"] == "Dat"
-
-    def test_create_runnable_experiment(self):
-        """create() with runnable spec (dat.do defined) works."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            dat = create("fixtures.runnable_experiment", path=f"{tmpdir}/run_exp")
-            assert isinstance(dat, Dat)
-            assert dat.get_spec()["dat"]["do"] == "fixtures.run_compute_metric"
-            assert dat.get_spec()["value"] == 7
-
-    def test_dat_run_executes_do_function(self):
-        """dat.run() executes the function specified in dat.do."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            dat = create("fixtures.runnable_experiment", path=f"{tmpdir}/run_test")
-
-            # Run the DAT - this should call fixtures.compute_metric with dat
-            success, results = dat.run()
-
-            assert success is True
-            # compute_metric returns value * multiplier (7 * 1 = 7)
-            assert results.get("return") == 7
 
 
 class TestDataFolderOperations:

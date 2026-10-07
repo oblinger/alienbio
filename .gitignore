@@ -73,3 +73,7 @@ src/alienbio/catalog/jobs/hardcoded_test/report.csv
 # experiment run outputs (bio suite run)
 runs/
 reports/
+
+# dvc-dat 3.0's artifact store, written at the repo root by any test that
+# touches a Dat (the manager defaults art_folder to `art/` beside `data/`)
+art/
