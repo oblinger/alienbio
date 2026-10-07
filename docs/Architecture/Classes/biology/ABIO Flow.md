@@ -1,211 +1,77 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Flow](hook://p/ABIO%20Flow) 
- [[ABIO Architecture Docs]] → [[ABIO biology]]
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Flow](ha://p/ABIO%20Flow) 
+ [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
-# Flow
+Transport between compartments: `TransportFlux`, applied in one rationed pass.
 
-Transport between compartments via membrane or general flows.
+Rewritten 2026-10-07 (T068). This page described a `MembraneFlow` /
+`GeneralFlow` hierarchy anchored to parent-child membranes, with a dozen
+`MembraneFlow` examples. `MembraneFlow` was deleted in T056 — its `apply`
+was a bare `pass` — and the tree relationship went with it.
 
 ## Overview
-Flows move molecules (or instances) between compartments. They complement Reactions, which transform molecules within a compartment. The Flow hierarchy includes MembraneFlow (well-defined stoichiometry) and GeneralFlow (arbitrary edits, placeholder).
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `origin` | CompartmentId | Origin compartment (where flow is anchored) |
-| `name` | str | Human-readable name |
-| `is_membrane_flow` | bool | True if origin ↔ parent |
-| `is_general_flow` | bool | True if arbitrary edits |
+Flows move molecules between compartments; reactions transform molecules
+within one. The live hierarchy is three classes in `bio/flow.py`:
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `compute_flux(state, tree)` | float | Compute flux |
-| `apply(state, tree, dt)` | None | Apply flow to state |
-| `attributes()` | Dict | Semantic content for serialization |
+- **`Flow`** — the abstract base: a flow states what it wants and is then
+  applied to a state.
+- **`TransportFlux`** — the one real flow (F016/S3). It moves conserved
+  **amount** (not concentration) between **any two** compartments, with no
+  tree relationship required, which is what lets a `SpatialLatticeBlock`
+  wire an arbitrary neighbour graph. Amount-conserving regardless of the
+  two compartments' volumes or multiplicities.
+- **`GeneralFlow`** — a placeholder for an arbitrary state edit. It cannot
+  state a demand, so it is applied sequentially after the fluxes.
 
-## Discussion
+## The rate law
 
-### Class Hierarchy
-```
-Flow (abstract base)
-├── MembraneFlow - transport across parent-child membrane with stoichiometry
-└── GeneralFlow - arbitrary state modifications (placeholder)
-```
+One `driver_molecule`'s concentration drives the event rate (Q1 = C):
 
-| Operation | Scope | Example |
-|-----------|-------|---------|
-| **Reaction** | Within compartment | A + B → C |
-| **MembraneFlow** | Across membrane | 2 Na⁺ + glucose cotransport |
-| **GeneralFlow** | Arbitrary | Lateral flows, instance transfers, etc. |
+- `rate_law="gradient"` (the default) — Fickian:
+  `rate_constant * ([X]_origin − [X]_dest)`, which drives the driver
+  species toward equal concentration across the two pools. This is the
+  mechanism a diffusive lattice relaxes through.
+- `rate_law="first_order"` — `rate_constant * [X]_origin`: a pump-flavoured
+  unidirectional law with no dependence on the destination.
 
-### MembraneFlow
-Transport across parent-child membrane with stoichiometry. Like reactions, membrane flows can move multiple molecules together per event.
+**Either law's raw rate is floored at 0**: one flux is strictly
+`origin -> dest`. A reversed local gradient contributes nothing from THAT
+flux — wire a second, reversed `TransportFlux` for true bidirectional
+equilibration (a lattice wires each neighbour pair both ways). The floor is
+also what keeps a settled pair from flip-flopping sign on numerical
+overshoot.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `stoichiometry` | Dict[str, float] | Molecules and counts per event |
-| `rate_constant` | float | Base rate of events per unit time |
+`stoichiometry` (`{molecule_id: count}`) moves several species per event, so
+active co-transport needs no new law — just an extra entry, possibly with a
+negative count for a counter-direction energy carrier. Every species is
+rationed against the SAME shared event count, so a co-transported group
+moves in lockstep, and each species' losing compartment is clamped so its
+amount never goes negative.
 
-Direction convention:
-- **Positive** stoichiometry = molecules move **INTO** origin (from parent)
-- **Negative** stoichiometry = molecules move **OUT OF** origin (into parent)
+## One rationed pass (T053)
 
-### GeneralFlow (Placeholder)
-Catch-all for flows that don't fit the MembraneFlow pattern. This includes:
-- Lateral flows between siblings
-- Instance transfers (RBCs moving between compartments)
-- Any other arbitrary edits to the system
+`apply_flows(flows, new_state, frozen, tree, dt)` applies every flow
+together, the way the reaction and population passes apply theirs: each
+flux states its desired event count off the **frozen** start-of-step state,
+the draws on each losing `(compartment, molecule)` are summed across
+fluxes, every flux is scaled by the tightest `min(1, available / demand)`
+over the pools it draws, and the scaled events are applied at once.
 
-**NOTE:** This is currently a placeholder. Full implementation will require a more general interpreter to handle arbitrary state modifications specified via Expr.
+So the split no longer depends on list order — two fluxes over-drawing one
+pool used to give `a=0.04 b=0.80 c=0.16` or `b=0.16 c=0.80` depending on
+which came first — and no pool goes negative. With no pool over-drawn every
+ratio is exactly 1.0, so a non-competing world is bit-identical to the old
+sequential pass except that a flux now reads the frozen state rather than
+its predecessors' writes: the same operator-splitting rule the other two
+passes already follow.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `description` | str | Description of what this flow does |
-| `apply_fn` | Callable | Function that modifies state (not serializable) |
-
-### MembraneFlow Examples
-
-**Simple Diffusion:**
-```python
-from alienbio import MembraneFlow
-
-glucose_diffusion = MembraneFlow(
-    origin=cell_id,
-    stoichiometry={"glucose": 1},
-    rate_constant=0.1,
-    name="glucose_diffusion",
-)
-```
-
-**Cotransporter (Multiple Molecules):**
-```python
-# Sodium-glucose cotransporter (SGLT1)
-sglt1 = MembraneFlow(
-    origin=cell_id,
-    stoichiometry={"sodium": 2, "glucose": 1},
-    rate_constant=10.0,
-    name="sglt1",
-)
-```
-
-**Pump (Opposite Directions):**
-```python
-# Sodium-potassium pump (Na+/K+-ATPase)
-na_k_pump = MembraneFlow(
-    origin=cell_id,
-    stoichiometry={
-        "sodium": -3,     # out of cell
-        "potassium": 2,   # into cell
-        "atp": -1,        # consumed inside
-        "adp": 1,         # produced inside
-    },
-    rate_constant=5.0,
-    name="na_k_atpase",
-)
-```
-
-### GeneralFlow Example (Placeholder)
-```python
-from alienbio import GeneralFlow
-
-# Arbitrary edit - needs more general interpreter for full support
-def custom_transfer(state, tree, dt):
-    # Custom logic here
-    pass
-
-flow = GeneralFlow(
-    origin=cell_id,
-    apply_fn=custom_transfer,
-    name="custom_flow",
-    description="Custom transfer logic",
-)
-```
-
-### Volume and Concentration Changes
-Membrane flows compute molecule counts, then convert to concentration changes using volumes.
-
-Volume asymmetry causes different ΔC on each side:
-```
-PARENT (volume = 1000)      CHILD (volume = 1)
-ΔC = -100/1000 = -0.1       ΔC = +100/1 = +100
-```
-
-### Membrane Model
-```
-         PARENT
-           │
-    ┌──────┴──────┐
-    │   membrane  │  ← MembraneFlow anchored to child (origin)
-    └──────┬──────┘
-           │
-         CHILD (origin)
-```
-
-Each child compartment "owns" its membrane.
-
-### Serialization
-```yaml
-# MembraneFlow
-type: membrane
-name: sglt1
-origin: 1
-stoichiometry:
-  sodium: 2
-  glucose: 1
-rate_constant: 10.0
-
-# GeneralFlow (limited - apply_fn not serializable)
-type: general
-name: custom_flow
-origin: 1
-description: Custom transfer logic
-```
-
-Note: Custom rate/apply functions cannot be serialized. Full GeneralFlow support will need Expr-based specifications.
-
-## Protocol
-```python
-from typing import Protocol, Dict, Any, runtime_checkable
-
-@runtime_checkable
-class Flow(Protocol):
-    """Protocol for transport between compartments."""
-
-    @property
-    def origin(self) -> int:
-        """The origin compartment (where this flow is anchored)."""
-        ...
-
-    @property
-    def name(self) -> str:
-        """Human-readable name."""
-        ...
-
-    @property
-    def is_membrane_flow(self) -> bool:
-        """True if this is a membrane flow (origin ↔ parent)."""
-        ...
-
-    @property
-    def is_general_flow(self) -> bool:
-        """True if this is a general flow (arbitrary edits)."""
-        ...
-
-    def compute_flux(self, state: WorldState, tree: CompartmentTree) -> float:
-        """Compute flux for this flow."""
-        ...
-
-    def apply(self, state: WorldState, tree: CompartmentTree, dt: float) -> None:
-        """Apply this flow to the state (mutates in place)."""
-        ...
-
-    def attributes(self) -> Dict[str, Any]:
-        """Semantic content for serialization."""
-        ...
-```
+Both steppers call it, and no golden world carries a flow, so the change
+moved only the example worlds (measured before it landed).
 
 ## See Also
-- [[ABIO Compartment]] - Membrane flows defined per compartment
-- [[ABIO Reaction]] - Transformations within compartments
-- [[ABIO CompartmentTree]] - Topology for simulation
-- [[ABIO WorldState]] - Concentration and multiplicity storage
-- [[ABIO WorldSimulator]] - Applies flows during simulation
-- [[ABIO Interpreter]] - Will be needed for GeneralFlow Expr support
+
+- [[ABIO Compartment]] — the compartments a flux connects
+- [[ABIO CompartmentTree]] — the topology (no longer what a flux needs)
+- [[ABIO WorldSimulator]] — the stepper that runs the three passes
+- [[ABIO Suite Runtime]] — `TransportBlock` / `SpatialLatticeBlock`, how a
+  skeleton declares flows

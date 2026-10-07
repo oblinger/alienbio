@@ -1,5 +1,5 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Molecule](hook://p/ABIO%20Molecule) 
- [[ABIO Architecture Docs]] → [[ABIO biology]]
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Molecule](ha://p/ABIO%20Molecule) 
+ [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # Molecule
 
@@ -117,5 +117,5 @@ class Molecule(Protocol):
 - [[ABIO Atom]] - Chemical elements
 - [[ABIO Reaction]] - Transforms molecules
 - [[ABIO Chemistry]] - Container for molecules
-- [[ABIO MoleculeGenerator]] - Factory for molecules
+- [[ABIO Suite Runtime]] - how molecules are drafted now (skeletons and drafter heads)
 - [[ABIO biology]] - Parent subsystem

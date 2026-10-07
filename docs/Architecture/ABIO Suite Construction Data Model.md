@@ -1,7 +1,7 @@
 ---
 description: "Shared data model for the Suite Construction neutral primitives — the domain-neutral contracts (types + adapters over existing ABIO classes) that carve, cover, verify, grade, render, and sample close over. This is the boundary that keeps the primitives implementation-clean."
 ---
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Suite Construction Data Model](hook://p/ABIO%20Suite%20Construction%20Data%20Model) 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Suite Construction Data Model](ha://p/ABIO%20Suite%20Construction%20Data%20Model) 
  [[ABIO Architecture Docs]] · [[ABIO Suite Construction]] 
 
 # Suite Construction Data Model
@@ -89,12 +89,12 @@ Suite:     worlds: list[World]; tasks: list[TaskInstance]
 |---|---|
 | `Species` | [[ABIO Molecule]] (as a node) |
 | `Reaction` | [[ABIO Reaction]] |
-| `RateSpec` | [[ABIO Expr Class]] + the rate-compiler |
+| `RateSpec` | the M1 `Expr` trees + the rate-compiler (retired; the shipped form is [[ABIO Expr Spec\|Expr]]) |
 | `ReactionNetwork` | [[ABIO Chemistry]] |
 | `Compartment` / `Topology` | [[ABIO Compartment]] / [[ABIO CompartmentTree]] |
 | `StateVector` / `Trace` | [[ABIO WorldState]] (+ time axis) |
 | `World` | Chemistry + CompartmentTree + WorldState |
-| `Motif` / `Skeleton` | [[ABIO Pathway]] (extended with role slots / bindings) |
+| `Motif` / `Skeleton` | the M1 `Pathway` (retired), extended with role slots / bindings |
 | verification integrator | [[ABIO WorldSimulator]] |
 | `Dist` | ABIO `Expr` distributions |
 

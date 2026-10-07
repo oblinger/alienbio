@@ -200,5 +200,4 @@ class Reaction(Protocol):
 - [[ABIO Chemistry]] - Container for reactions
 - [[ABIO WorldState]] - Molecule concentrations per compartment
 - [[ABIO WorldSimulator]] - Applies reactions to advance state
-- [[ABIO ReactionGenerator]] - Factory for reactions
-- [[ABIO Pathway]] - Connected reaction sequences
+- [[ABIO Suite Runtime]] - how reactions are drafted now (skeletons and drafter heads)

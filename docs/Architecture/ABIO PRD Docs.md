@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO PRD Docs](hook://p/ABIO%20PRD%20Docs) 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO PRD Docs](ha://p/ABIO%20PRD%20Docs) 
 # Scenario Generator PRD
 **Subsystem**: [[ABIO biology]] > Generators
 Product Requirements Document for synthetic alien biology scenario generation.
@@ -7,7 +7,7 @@ Product Requirements Document for synthetic alien biology scenario generation.
 
 ## 1. Overview
 
-The Scenario Generator produces complete alien biology scenarios for AI safety experiments. Unlike low-level generators ([[ABIO MoleculeGenerator]], [[ABIO ReactionGenerator]], [[ABIO ContainerGenerator]]) that produce individual components, the Scenario Generator creates coherent ecosystems with specified structural properties.
+The Scenario Generator produces complete alien biology scenarios for AI safety experiments. Unlike the M1 low-level generators (`MoleculeGenerator`, `ReactionGenerator`, `ContainerGenerator`, all retired) that produce individual components, the Scenario Generator creates coherent ecosystems with specified structural properties.
 
 **Key Terminology**:
 
@@ -932,9 +932,9 @@ scenario = gen.generate("mutualism_hidden_dependency.yaml", seed=42)
 
 ## 10. See Also
 
-- [[Generator]] — Base generator protocol
-- [[ABIO MoleculeGenerator]], [[ABIO ReactionGenerator]], [[ABIO ContainerGenerator]] — Component generators
+- ~~[[Generator]]~~ — Base generator protocol
+- `MoleculeGenerator`, `ReactionGenerator`, `ContainerGenerator` — the M1 component generators (retired 2026-10-07)
 - [[AUP Notes#Generator Requirements Wish List]] — Original requirements
-- [[ASP B10 - World Specification Example]] — Hand-authored example
-- [[ABIO Expr Class]] — Expression language for distributions
-- [[Visibility Model]] — Visibility specification details
+- ~~[[ASP B10 - World Specification Example]]~~ — Hand-authored example
+- [[ABIO Expr Spec]] — the expression language distributions are written in
+- ~~[[Visibility Model]]~~ — Visibility specification details

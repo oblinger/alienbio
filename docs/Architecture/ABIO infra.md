@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO infra](hook://p/ABIO%20infra) 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO infra](ha://p/ABIO%20infra) 
  [[ABIO Architecture Docs]] 
 
 # ABIO infra
@@ -6,15 +6,22 @@ Infrastructure: entity base classes, serialization, data management, and configu
 
 ## Entities
 Core data classes and identity patterns that all biology objects inherit from.
-- **[[Entity]]** - Base protocol for all biology objects.
-- **[[ABIO Expr Class]]** - Functional expression trees for computations and rate equations.
-- **[[ABIO Interpreter]]** - Evaluates Expr trees, handles language dispatch and template expansion.
+- **[[ABIO entity|Entity]]** - Base class every biology object carries, with the tree and its dat anchor.
 - **[[ABIO IO]]** - Entity I/O: prefix bindings, formatting, parsing, persistence.
+
+The `Expr Class` and `Interpreter` pages that stood here were retired
+2026-10-07 (T068): both described an M1 design in which expression trees
+were evaluated by an `Interpreter` object with a do-manager and a `lua:`
+escape hatch. The language that shipped is `alienbio.expr` — forms
+(`Name` / `Call` / `Quoted` / `Include` / `PyRef`), an environment and
+`evaluate(form, env)`, with three spellings — and it is documented as
+built in [[ABIO Expr Spec]] and [[ABIO Expr Python API]].
+
 ## Data Management
 - **[[ABIO Data]]** - Organization of the `data/` folder and intent-based categories.
-- **[[ABIO DAT]]** - dvc_dat integration, name resolution, and `_spec_.yaml` format.
+- **[[ABIO DAT]]** - the dvc-dat 3.0 surface the package actually uses (`Dat` as a duck-typed anchor, `MockDat` everywhere synthetic).
 - **the M1 `Bio` facade (deleted in M47.7)** - Higher-level fetch/store/run for biology objects.
-- **[[ABIO Expr Spec]]** — YAML syntax extensions (`!ev`, `!_`, `!ref`, `!include`, typed keys).
+- **[[ABIO Expr Spec]]** — the Expr language by example: the three spellings, the head catalog, the special forms.
 - **[[ABIO Expr Python API]]** - `@biotype` for hydration, `@scoring`/`@action`/`@measurement`/`@rate` for functions.
 
 ## Installed Packages
@@ -24,7 +31,6 @@ Core data classes and identity patterns that all biology objects inherit from.
 - **[pyyaml](https://pyyaml.org/)** - YAML serialization for entities.
 - **[pytest](https://docs.pytest.org/)** - Unit and integration testing.
 - **[hypothesis](https://hypothesis.readthedocs.io/)** - Property-based testing.
-- **[pyo3](https://pyo3.rs/)** - Rust-Python bindings for high-performance simulator.
 - **[ruff](https://docs.astral.sh/ruff/)** - Fast linting and formatting.
 - **[pyright](https://microsoft.github.io/pyright/)** - Static type checking.
 

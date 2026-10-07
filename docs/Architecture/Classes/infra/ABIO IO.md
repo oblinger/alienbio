@@ -6,7 +6,7 @@
 Entity I/O: prefix bindings, formatting, lookup, and persistence.
 
 ## Overview
-IO handles all external representation concerns for entities: prefix bindings for short names, formatting to strings, lookup by reference, and persistence via DAT. It is accessed through Context and provides the implementation for top-level `load`, `save`, `lookup`, and `create_root` functions.
+IO handles all external representation concerns for entities: prefix bindings for short names, formatting to strings, lookup by reference, and persistence through dvc-dat. Its own methods (`lookup`, `load`, `save`, `bind_prefix`) are the interface — the M1 `Context` object that used to own an IO, and the top-level `load` / `save` / `lookup` / `create_root` functions it exposed, were deleted with the M1 runtime (M47.7 / T056; noted 2026-10-07, T068).
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -246,6 +246,5 @@ class IO(Protocol):
 ```
 
 ## See Also
-- [[Context]] - Parent container for IO
 - [[Entity]] - Base class, tree invariants, serialization
 - [[ABIO DAT]] - Underlying DAT persistence

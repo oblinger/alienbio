@@ -6,7 +6,7 @@
 Base class for all biology objects with tree structure and DAT anchoring.
 
 ## Overview
-Entity is the root of the type hierarchy for all biology objects. It provides tree structure with parent/child relationships, DAT anchoring for filesystem persistence, type registry for subclass serialization, and context-aware string representation.
+Entity is the root of the type hierarchy for all biology objects. It provides tree structure with parent/child relationships, DAT anchoring for filesystem persistence, type registry for subclass serialization, and an IO-aware string representation (the M1 `Context` that supplied it was deleted in M47.7 / T056).
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -214,4 +214,4 @@ class Entity(Protocol):
 ## See Also
 - [[ABIO IO]] - Prefix bindings, formatting, lookup, persistence
 - [[ABIO DAT]] - DAT storage integration
-- [[Context]] - Runtime context for entity display
+- [[ABIO IO]] - the prefix bindings an entity's `to_str` resolves against
