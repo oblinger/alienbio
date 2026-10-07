@@ -1,8 +1,0 @@
-sync_folder: data
-mount_commands:
-  - at: catalog
-    folder: catalog
-  - at: fixtures
-    module: tests.fixtures
-  - at: alienbio
-    module: alienbio
