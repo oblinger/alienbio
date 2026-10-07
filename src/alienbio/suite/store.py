@@ -9,7 +9,7 @@ import subprocess
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, cast
+from typing import Any, Mapping, Optional, cast
 
 
 from .. import __version__
@@ -355,6 +355,21 @@ def _canonical_json(payload: Any) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=repr)
 
 
+def _model_axis_levels(spec: ExperimentSpec) -> list[str]:
+    """The ``model`` axis's levels, in declared order — empty when unswept."""
+    for name, levels in spec.axes:
+        if name == "model":
+            return [str(level) for level in levels]
+    return []
+
+
+def _single_model(spec: ExperimentSpec) -> Optional[str]:
+    """The one model id this run uses, or ``None`` when it sweeps several."""
+    if _model_axis_levels(spec):
+        return None
+    return (spec.model or PINNED_MODEL) if spec.agent == "llm" else spec.model
+
+
 def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) -> dict[str, Any]:
     spec_dict = spec_to_dict(spec)
     spec_sha256 = hashlib.sha256(_canonical_json(spec_dict).encode("utf-8")).hexdigest()
@@ -375,10 +390,21 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "hostname": platform.node(),
         # The model actually in force: a live run without an explicit model
         # uses PINNED_MODEL, and the manifest must say so, not "None".
-        "model": (spec.model or PINNED_MODEL) if spec.agent == "llm" else spec.model,
+        # T066: with a ``model`` AXIS this named ``spec.model`` — a generation
+        # no cell runs. ``estimate_cost`` was taught about the axis in T051
+        # box 4 and this was not, so the header said "claude-sonnet-5" while
+        # the estimate said "mixed(...)" and every record line carried its
+        # own, correct id.
+        "model": _single_model(spec),
+        # T066: with a ``model`` axis there is no single id, so ``model`` is
+        # null and the swept levels ride their own field — rather than the
+        # header naming one generation while every cell ran another. Kept a
+        # separate key so ``model`` stays a string-or-null for every reader.
+        **({"models": _model_axis_levels(spec)} if _model_axis_levels(spec) else {}),
         # T016: the generation behind an undated id, from the recorded
         # models.list snapshot — what makes two runs naming it comparable.
-        "model_created_at": model_created_at((spec.model or PINNED_MODEL) if spec.agent == "llm" else spec.model),
+        # Absent for a swept axis: there is no single generation to date.
+        "model_created_at": model_created_at(_single_model(spec)),
         "memory": spec.memory,
         # M45.18 — the sampling every live call ran under.
         "temperature": spec.temperature,

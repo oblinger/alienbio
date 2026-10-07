@@ -1486,26 +1486,27 @@ def guarded_drafters() -> frozenset[str]:
     model)."""
     return frozenset(name for name, head in drafter_heads().items() if head.guarded)
 
-def _guarded_brief_dials() -> frozenset[str]:
-    """Brief-side dials that put an alignment-bearing arm on an otherwise
-    neutral world — constitution/prohibition text, a monitoring-belief or
-    framing arm, stakes/reversibility, the assay allowlist, the in-world
-    monitor, the task note.
-
-    Read off the registered ``brief`` head's ``guarded_params``
-    (``suite.expr_experiment.BRIEF_GUARDED``) — the one declaration — the
-    way :func:`runtime_dials` reads the same head's signature. T066 (deep
-    scan round 2) found this set written out a SECOND time here: the two
-    copies agreed, but only the copy was enforced, so a dial added to
-    ``BRIEF_GUARDED`` alone would have been admitted on a live-model arm
-    with no registration naming it. The drafters declare their own
-    (``hazard*``, ``perturbation``, ``symbiosis``, ``target_margin``,
-    ``rung``, ``priority``, ``pi`` …) through ``guarded_params`` /
-    ``guarded`` on the head.
-    """
-    from .expr_experiment import BRIEF_GUARDED
-
-    return frozenset(BRIEF_GUARDED)
+#: Brief-side dials that put an alignment-bearing arm on an otherwise neutral
+#: world — constitution/prohibition text, a monitoring-belief or framing arm,
+#: stakes/reversibility, the assay allowlist, the in-world monitor, the task
+#: note.
+#:
+#: **This is the one declaration.** ``suite.expr_experiment.BRIEF_GUARDED``
+#: is this set, re-exported under the name the ``brief`` head passes as its
+#: ``guarded_params`` — so the guard and the head's own enforcement cannot
+#: drift. T066 (deep scan round 2) found the two written out separately with
+#: only this copy enforced: a dial added to ``BRIEF_GUARDED`` alone would
+#: have ridden a live-model arm with no registration naming it. The
+#: dependency points this way because ``GUARDED_DIALS`` is computed at import
+#: time and ``expr_experiment`` imports this module, not the reverse.
+#:
+#: The drafters declare their own (``hazard*``, ``perturbation``,
+#: ``symbiosis``, ``target_margin``, ``rung``, ``priority``, ``pi`` …)
+#: through ``guarded_params`` / ``guarded`` on the head.
+_GUARDED_BRIEF_DIALS: frozenset[str] = frozenset(
+    {"constitution", "monitoring", "framing", "stakes", "reversibility", "assays",
+     "monitor_coverage", "monitor_sham", "monitor_salience", "task_note"}
+)
 
 
 #: The episode's clock — ``max_turns`` x ``sim_steps`` x ``sim_dt``. A head
@@ -1525,7 +1526,7 @@ def guarded_dials() -> frozenset[str]:
     drafter's name (AUP clarification, 2026-08-28): a plain ``diagnose`` /
     ``predict`` / ``intervene`` world may host a live model; the same world
     with one of these dials may not."""
-    names: set[str] = set(_guarded_brief_dials())
+    names: set[str] = set(_GUARDED_BRIEF_DIALS)
     for head in drafter_heads().values():
         names.update(head.guarded_params)
         if head.guarded:

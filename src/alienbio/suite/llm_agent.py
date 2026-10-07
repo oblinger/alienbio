@@ -399,6 +399,65 @@ OUTPUT_BUDGET_KEY = "max_tokens"
 OUTPUT_SCHEDULE_KEYS: frozenset[str] = frozenset({"every", "deep", "shallow"})
 
 
+def validate_agent_config(
+    *,
+    memory: Any,
+    compact_at: Any = None,
+    compact_budget: Any = None,
+    history_token_limit: Any = None,
+    max_tokens: Any = None,
+    output_schedule: Any = None,
+) -> None:
+    """Every per-arm agent setting :class:`LLMAgent` refuses, as one callable.
+
+    ``LLMAgent.__init__`` calls this, and so does ``guards.preflight``
+    (T066): every one of these refusals used to be reachable only from
+    inside the trial, so a malformed arm — ``max_tokens: 0`` as an axis
+    level, a ``max_tokens`` beside an ``output_schedule``, ``compact_at``
+    beside ``history_token_limit``, a forgetting trigger with
+    ``memory='none'`` — printed a clean ``--dry`` and then produced N
+    identical error records. Pure validation: it reads no credentials and
+    builds nothing, so the pre-flight can call it for a live arm on a
+    machine with no API key.
+    """
+    try:
+        validate_output_budget(max_tokens, output_schedule)
+    except ValueError as exc:
+        raise ValueError(f"LLMAgent: {exc}") from exc
+    if isinstance(memory, int) and not isinstance(memory, bool):
+        if memory < 0:
+            raise ValueError(f"LLMAgent: memory int must be >= 0; got {memory!r}")
+    elif not (isinstance(memory, str) and memory in _MEMORY_STRINGS):
+        raise ValueError(
+            f"LLMAgent: invalid memory {memory!r}; expected 'none', 'full', "
+            "or a non-negative int"
+        )
+    # T049 — the realistic-forgetting triggers (AUP M2, Dan-endorsed):
+    # compaction displacement (a model-written summary replaces turns
+    # 0..k-1 at turn k) and fill-driven truncation (newest-first window by
+    # estimated token volume). One forgetting trigger per arm, like T029's
+    # one-burial-form rule.
+    for name, val in (
+        ("compact_at", compact_at),
+        ("compact_budget", compact_budget),
+        ("history_token_limit", history_token_limit),
+    ):
+        if val is not None and (isinstance(val, bool) or not isinstance(val, int) or val < 1):
+            raise ValueError(f"LLMAgent: {name} must be a positive int, got {val!r}")
+    if compact_budget is not None and compact_at is None:
+        raise ValueError("LLMAgent: compact_budget requires compact_at")
+    if compact_at is not None and history_token_limit is not None:
+        raise ValueError(
+            "LLMAgent: compact_at and history_token_limit are both forgetting "
+            "triggers — use one per arm"
+        )
+    if (compact_at is not None or history_token_limit is not None) and memory == "none":
+        raise ValueError(
+            "LLMAgent: a forgetting trigger requires turn memory (memory != 'none') "
+            "— with no history there is nothing to forget"
+        )
+
+
 def validate_output_budget(max_tokens: Any, output_schedule: Any) -> None:
     """Refuse a malformed per-turn output budget (shared by the spec loader,
     so a config error refuses before spend, and by :class:`LLMAgent`).
@@ -679,41 +738,17 @@ class LLMAgent:
         # ``max_tokens`` or an ``{"every", "deep", "shallow"}`` schedule, carried
         # to the provider fn through OUTPUT_BUDGET_KEY on main-line calls
         # only (probe / compaction calls keep the provider default).
-        try:
-            validate_output_budget(max_tokens, output_schedule)
-        except ValueError as exc:
-            raise ValueError(f"LLMAgent: {exc}") from exc
+        validate_agent_config(
+            memory=memory,
+            compact_at=compact_at,
+            compact_budget=compact_budget,
+            history_token_limit=history_token_limit,
+            max_tokens=max_tokens,
+            output_schedule=output_schedule,
+        )
         self.max_tokens = max_tokens
         self.output_schedule = dict(output_schedule) if output_schedule is not None else None
         self._turn_budget: Optional[int] = None
-        if isinstance(memory, int) and not isinstance(memory, bool):
-            if memory < 0:
-                raise ValueError(f"LLMAgent: memory int must be >= 0; got {memory!r}")
-        elif not (isinstance(memory, str) and memory in _MEMORY_STRINGS):
-            raise ValueError(
-                f"LLMAgent: invalid memory {memory!r}; expected 'none', 'full', "
-                "or a non-negative int"
-            )
-        # T049 — the realistic-forgetting triggers (AUP M2, Dan-endorsed):
-        # compaction displacement (a model-written summary replaces turns
-        # 0..k-1 at turn k) and fill-driven truncation (newest-first window
-        # by estimated token volume). One forgetting trigger per arm, like
-        # T029's one-burial-form rule.
-        for name, val in (("compact_at", compact_at), ("compact_budget", compact_budget), ("history_token_limit", history_token_limit)):
-            if val is not None and (isinstance(val, bool) or not isinstance(val, int) or val < 1):
-                raise ValueError(f"LLMAgent: {name} must be a positive int, got {val!r}")
-        if compact_budget is not None and compact_at is None:
-            raise ValueError("LLMAgent: compact_budget requires compact_at")
-        if compact_at is not None and history_token_limit is not None:
-            raise ValueError(
-                "LLMAgent: compact_at and history_token_limit are both forgetting "
-                "triggers — use one per arm"
-            )
-        if (compact_at is not None or history_token_limit is not None) and memory == "none":
-            raise ValueError(
-                "LLMAgent: a forgetting trigger requires turn memory (memory != 'none') "
-                "— with no history there is nothing to forget"
-            )
         self.compact_at = compact_at
         self.compact_budget = compact_budget
         self.history_token_limit = history_token_limit
@@ -972,7 +1007,70 @@ class LLMAgent:
             "summary": summary,
         }
 
+    def _ceiling_abort(
+        self, observation: Observation, *, estimate: int = 0
+    ) -> Optional[tuple[Action, tuple[ReasoningStep, ...]]]:
+        """The runaway-cost guard: the abort turn when this trial's spend is
+        over ``token_ceiling``, else ``None``.
+
+        ``estimate`` is this turn's prompt estimate when there is one. Called
+        TWICE per turn (T066): once with no estimate before anything can
+        spend — so the compaction call, which is a real metered model call on
+        the whole history, is not paid for on a turn the trial has already
+        overrun — and once with the estimate, which is the original
+        would-be-exceeded test."""
+        if self.token_ceiling is None:
+            return None
+        meter_tokens = self.meter.input_tokens + self.meter.output_tokens - self._probe_tokens
+        spent_so_far = max(self._tokens_spent + estimate, meter_tokens)
+        if spent_so_far <= self.token_ceiling:
+            return None
+        content = (
+            f"token ceiling ({self.token_ceiling}) would be exceeded "
+            f"at turn {self._turn} (spent~{self._tokens_spent}, "
+            f"+~{estimate}); aborting trial as a runaway-cost guard"
+        )
+        reasoning = (ReasoningStep(kind="abort", content=content),)
+        action: Action = Commit(
+            answer=Answer(value=None, kind="json"),
+            params={"aborted": "token_ceiling"},
+        )
+        self._history.append(
+            {
+                "turn": self._turn,
+                "observation": [dict(c) for c in observation],
+                "action": {"type": "commit", "aborted": "token_ceiling"},
+                "reasoning": None,
+                "outcome": None,
+            }
+        )
+        self._turn += 1
+        return action, reasoning
+
     def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:
+        # T066 — the ceiling first. `_maybe_compact` makes a real, metered
+        # model call whose context is the whole history about to be
+        # displaced, and it used to run as this method's FIRST statement,
+        # ~25 lines before the runaway-cost guard: a trial already over its
+        # token_ceiling at turn `compact_at` paid for the summarizer and
+        # only then aborted. Same shape as box 4's "the cost ceiling
+        # overshoots by up to concurrency". The ceiling test needs no
+        # context, so it is hoisted whole; the compaction then happens only
+        # on a turn the trial is allowed to spend on.
+        # The estimate of this turn as it stands BEFORE compaction. Displacing
+        # history can only make the turn's own prompt smaller, so this reads
+        # high — the conservative direction for a cost guard, and the only way
+        # to test the ceiling before the summarizer call without circularity
+        # (the post-compaction estimate depends on the call being made).
+        pre_window = self._history_window()
+        pre_context = (
+            render_observation(observation, self._turn)
+            if pre_window is None
+            else render_context(observation, self._turn, pre_window)
+        )
+        abort = self._ceiling_abort(observation, estimate=_estimate_tokens(self._system, pre_context))
+        if abort is not None:
+            return abort
         self._maybe_compact()
         window = self._history_window()
         if (
@@ -997,30 +1095,9 @@ class LLMAgent:
         # discarded — it must not shift WHEN the main line hits the ceiling,
         # or probes-on vs probes-off transcripts would diverge; so the
         # main-line comparison subtracts it.
-        meter_tokens = self.meter.input_tokens + self.meter.output_tokens - self._probe_tokens
-        spent_so_far = max(self._tokens_spent + estimate, meter_tokens)
-        if self.token_ceiling is not None and spent_so_far > self.token_ceiling:
-            content = (
-                f"token ceiling ({self.token_ceiling}) would be exceeded "
-                f"at turn {self._turn} (spent~{self._tokens_spent}, "
-                f"+~{estimate}); aborting trial as a runaway-cost guard"
-            )
-            reasoning = (ReasoningStep(kind="abort", content=content),)
-            action: Action = Commit(
-                answer=Answer(value=None, kind="json"),
-                params={"aborted": "token_ceiling"},
-            )
-            self._history.append(
-                {
-                    "turn": turn,
-                    "observation": [dict(c) for c in observation],
-                    "action": {"type": "commit", "aborted": "token_ceiling"},
-                    "reasoning": None,
-                    "outcome": None,
-                }
-            )
-            self._turn += 1
-            return action, reasoning
+        abort = self._ceiling_abort(observation, estimate=estimate)
+        if abort is not None:
+            return abort
 
         self._tokens_spent += estimate
         prompt_text = self._system + "\n" + canonical(context)

@@ -62,8 +62,8 @@ from .carve import CarveFail, carve as _carve
 from .cover import Cover, cover as _cover
 from .dist import Constant, Dist, Seed
 from .agents import AGENTS
-from .drafters import dial_params, drafter_heads
-from .spec import ExperimentSpec, _require_pinned_model, spec_from_dict, spec_to_dict
+from .drafters import _GUARDED_BRIEF_DIALS, dial_params, drafter_heads
+from .spec import ExperimentSpec, _default_expected_turns, _require_pinned_model, spec_from_dict, spec_to_dict
 from .mass_trial import AgentFactory
 from .pipeline import build_suite
 from .power import PowerDesign
@@ -322,9 +322,14 @@ def vocabulary(world: WorldImpl, extra_tokens: Sequence[str] = (), *, env: Env) 
 
 #: Brief-side dials that put an alignment-bearing arm on the world (the
 #: ``guarded_params`` of :func:`brief`; the drafters declare theirs).
-BRIEF_GUARDED: frozenset[str] = frozenset(
-    {"constitution", "monitoring", "framing", "stakes", "reversibility", "assays", "monitor_coverage", "monitor_sham", "monitor_salience", "task_note"}
-)
+#: The ``guarded_params`` of :func:`brief` — the brief-side dials a live
+#: model reaches only through a registration naming them. T066: this was a
+#: second hand-written copy of ``drafters._GUARDED_BRIEF_DIALS``, and only
+#: THAT one was enforced by ``guarded_dials()``, so a dial added here alone
+#: would have been admitted unlicensed. It is now the same object: the
+#: declaration lives beside the guard that reads it, and the head that
+#: enforces it takes it from there. The drafters declare their own.
+BRIEF_GUARDED: frozenset[str] = _GUARDED_BRIEF_DIALS
 
 
 @fn(guarded_params=BRIEF_GUARDED, summary="what the agent is told and shown: the brief-side dials")
@@ -767,7 +772,17 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
         "temperature": d["temperature"],
         "top_p": d["top_p"],
         "expected_cache_hit_rate": d["expected_cache_hit_rate"] or None,
-        "expected_turns": d["expected_turns"] if d["expected_turns"] != 8 else None,
+        # T066: the sentinel was the literal 8 — the PRE-derivation default.
+        # Since `expected_turns` is derived from the declared episode budget,
+        # 8 is no longer "unset": an explicit `expected_turns: 8` beside
+        # `episode(max_turns=20)` was dropped on render and came back 20. The
+        # value is emitted whenever it differs from what the derivation would
+        # produce for this spec, which is exactly "the author said so".
+        "expected_turns": (
+            d["expected_turns"]
+            if d["expected_turns"] != _default_expected_turns(spec.fixed_dials, spec.axes)
+            else None
+        ),
         "expected_prompt_tokens": d["expected_prompt_tokens"] if d["expected_prompt_tokens"] != 1500 else None,
         "expected_output_tokens": d["expected_output_tokens"] if d["expected_output_tokens"] != 300 else None,
         "concurrency": d["concurrency"] if d["concurrency"] != 1 else None,
@@ -776,8 +791,14 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
         "history_token_limit": d["history_token_limit"],
         "max_tokens": d["max_tokens"],
         "output_schedule": d["output_schedule"],
+        # T066: `registration` was absent from this list and emitted nowhere
+        # else, so every licensed spec round-tripped back to None. The guard
+        # that reads it is the one that admits a live model to a guarded
+        # dial, which makes it the single field whose loss changes admission
+        # — and no catalog spec declares one, so nothing caught it.
+        "registration": d["registration"],
     }
-    for key in ("model", "memory", "compact_at", "compact_budget", "history_token_limit", "max_tokens", "output_schedule", "token_ceiling", "cost_ceiling_usd", "price_usd_per_mtok", "temperature", "top_p", "expected_cache_hit_rate"):
+    for key in ("model", "memory", "compact_at", "compact_budget", "history_token_limit", "max_tokens", "output_schedule", "token_ceiling", "cost_ceiling_usd", "price_usd_per_mtok", "temperature", "top_p", "expected_cache_hit_rate", "registration"):
         if scalars[key] is not None:
             out.append(f"{key}: {_yaml_inline(scalars[key])}")
     if spec.idle_baseline:

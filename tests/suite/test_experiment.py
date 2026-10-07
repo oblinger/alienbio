@@ -182,7 +182,12 @@ def test_agent_axis_runs_control_arms_in_one_grid(tmp_path, monkeypatch):
     assert all(d["model"] is None for d in lines)
     # Matched arms: both agent levels drafted their worlds from identical seeds.
     assert draft_seeds["idle"] == draft_seeds["measure-commit"]
-    assert len(draft_seeds["idle"]) == 2
+    # T066 — three drafts per arm, not two: pre-flight drafts one world per
+    # condition so a draft-time refusal is a refusal rather than N error
+    # records, and it does so at the SAME seed as that condition's first
+    # trial (the first two entries are equal).
+    assert len(draft_seeds["idle"]) == 3
+    assert draft_seeds["idle"][0] == draft_seeds["idle"][1]
 
 
 def test_agent_axis_with_llm_is_refused_on_a_non_neutral_drafter(tmp_path):
@@ -371,12 +376,17 @@ def test_resume_only_drafts_new_trials(tmp_path, monkeypatch):
     out_dir = tmp_path / "resume_run"
     spec1 = _conflict_idle_spec("resume", trials_per_condition=1)
     run_experiment(spec1, out_dir=str(out_dir))
-    assert len(calls) == 2  # 2 conditions x 1 trial
+    # 2 conditions x 1 trial, plus T066's one pre-flight draft per condition
+    # (at the first trial's own seed) so a draft-time refusal lands before
+    # spend instead of as N error records.
+    assert len(calls) == 4
 
     calls.clear()
     spec2 = _conflict_idle_spec("resume", trials_per_condition=2)
     run_experiment(spec2, out_dir=str(out_dir), resume=True)
-    assert len(calls) == 2  # only the NEW (index=1) trial per condition
+    # only the NEW (index=1) trial per condition is run — the other two are
+    # the pre-flight drafts, which a resume repeats and which cost nothing.
+    assert len(calls) == 4
 
     lines = (out_dir / "records.jsonl").read_text().strip().splitlines()
     assert len(lines) == 4
@@ -485,15 +495,20 @@ def test_resume_keeps_taint_records_in_place_and_the_census_names_the_class(tmp_
     seen: list[str] = []
     rmap = run_experiment(spec, out_dir=str(out_dir), resume=True, progress=seen.append)
 
-    assert drafts["n"] == 0, "a taint line must not be re-drafted by default"
+    # T066 — pre-flight drafts one world per condition (2 here), and that is
+    # all: no TRIAL was re-drafted, which is what "a taint line is not
+    # retried by default" means.
+    assert drafts["n"] == 2, "a taint line must not be re-drafted by default"
     assert any("keeping 1 TaintError record(s)" in m for m in seen)
     assert not (out_dir / "records.retried.jsonl").exists()
     report = (out_dir / "report.txt").read_text()
     assert "error=TaintError: 1" in report
 
     # Opting in retries it like any other error line.
+    drafts["n"] = 0
     run_experiment(spec, out_dir=str(out_dir), resume=True, retry_taint=True, progress=seen.append)
-    assert drafts["n"] == 1
+    # the one retried trial, plus the two pre-flight drafts (T066)
+    assert drafts["n"] == 3
     assert any("retrying 1 error record(s)" in m for m in seen)
     del rmap, TaintError
 
@@ -857,7 +872,16 @@ def test_a_priced_trial_lands_its_line_before_the_price_lookup(tmp_path, monkeyp
     from alienbio.suite import experiment as exp_mod
 
     spec = _conflict_idle_spec("line-first")
-    spec = dataclasses.replace(spec, trials_per_condition=1, axes=())
+    # The axes carried this drafter's required ``rung``; stripping them left
+    # a spec no condition can draft, which T066's pre-flight draft check now
+    # refuses outright (it used to run and record an error trial). Fix the
+    # dial instead, so the test exercises what it is about.
+    spec = dataclasses.replace(
+        spec,
+        trials_per_condition=1,
+        axes=(),
+        fixed_dials={**spec.fixed_dials, "rung": "single"},
+    )
     real_run = exp_mod.MassTrialRunner.run
 
     def run_with_usage(self, *args, **kwargs):

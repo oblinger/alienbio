@@ -312,7 +312,12 @@ def _aggregate(
 ) -> ReliabilityMap:
     """Pure reducer: ``list[TrialRecord]`` -> :class:`ReliabilityMap`.
 
-    Bins on ``TrialRecord.condition_key`` directly (no adapter) through the
+    Bins on ``TrialRecord.bucket_key`` (T066: it bound on the RAW
+    ``condition_key``, which a mapping-valued axis level makes unhashable —
+    the tenth site of the 2026-08-31 bug, unreachable until T059 made
+    ``output_schedule`` a sweepable dial, and reachable AFTER the grid has
+    been paid for: every trial runs, then ``run_experiment`` raises
+    ``TypeError`` and writes no manifest) through the
     shipped :func:`~alienbio.suite.reliability_grid.aggregate_cells`, adds a
     per-cell confidence interval, and — for every swept axis pair with
     exactly 2 levels apiece — a 2x2 interaction contrast plus a diagonal
@@ -321,9 +326,9 @@ def _aggregate(
     """
     raw_by_key: dict[ConditionKey, list[float]] = {}
     for record in records:
-        raw_by_key.setdefault(record.condition_key, []).append(record.objective_score)
+        raw_by_key.setdefault(record.bucket_key, []).append(record.objective_score)
 
-    observations = [(record.condition_key, record.objective_score) for record in records]
+    observations = [(record.bucket_key, record.objective_score) for record in records]
     stats = aggregate_cells(observations)
 
     cells: dict[ConditionKey, CellSummary] = {}

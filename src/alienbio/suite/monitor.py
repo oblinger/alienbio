@@ -119,6 +119,14 @@ def shows_turn(cfg: MonitorConfig, seed: Seed, turn: int) -> bool:
     return float(Uniform(0.0, 1.0).sample(seed.child(f"turn/{turn}/monitor-shown"))) < cfg.salience
 
 
+def monitor_probe_ids(dials: Mapping[str, Any]) -> tuple[str, ...]:
+    """The auditor keys a monitored arm's brief must allowlist as probes —
+    empty off a monitor arm (T066; see the note in ``brief.build_brief``).
+    Raises nothing a malformed arm would not already raise at
+    :func:`resolve_monitor`."""
+    return AUDITOR_KEYS if resolve_monitor(dials) is not None else ()
+
+
 def auditor_block(cfg: MonitorConfig, ledger: int) -> dict[str, float]:
     """The auditor's observation entry: announced coverage + ledger count."""
     return {AUDITOR_COVERAGE_KEY: cfg.coverage, AUDITOR_LEDGER_KEY: float(ledger)}

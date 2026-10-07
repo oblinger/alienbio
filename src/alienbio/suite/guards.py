@@ -29,7 +29,14 @@ from .drafters import (
     unknown_spec_dials,
     _unknown_dials_message,
 )
-from .spec import CostEstimate, ExperimentSpec, agent_kinds_in_play, estimate_cost, spec_to_dict
+from .spec import (
+    CostEstimate,
+    ExperimentSpec,
+    _default_expected_turns,
+    agent_kinds_in_play,
+    estimate_cost,
+    spec_to_dict,
+)
 
 
 def declared_surface_violation(spec: ExperimentSpec) -> Optional[str]:
@@ -224,6 +231,213 @@ def w2_lag_violation(spec: ExperimentSpec) -> Optional[str]:
     return None
 
 
+def _condition_units(spec: ExperimentSpec) -> list[tuple[dict[str, Any], Any]]:
+    """One ``(dials, trial_seed)`` pair per grid condition — exactly what the
+    run hands the drafter and the agent factory for that condition's FIRST
+    trial: the merged dial vector ``{**fixed_dials, **dials}`` and the seed
+    ``base_seed.child(f"{label}/0")``.
+
+    The seed matters. The generators' gates are seed-dependent (a world's
+    certainty floor moves with its drawn rates, and ``world_variance`` moves
+    it per draw), so checking a condition at some other seed can refuse a
+    run that would have been fine and pass one that would not. This derives
+    the same seed ``MassTrialRunner`` will use, so a refusal here is a
+    refusal the run would have hit on its first trial of that condition.
+    """
+    from .dist import Seed
+    from .drafters import WORLD_INVARIANT_DIALS
+    from .mass_trial import _condition_label, condition_grid
+
+    axes = tuple((name, tuple(levels)) for name, levels in spec.axes)
+    keys = condition_grid(axes) if axes else [()]
+    base = Seed(spec.base_seed)
+    # Exactly what ``run_experiment`` passes the runner: the world-invariant
+    # dials (so an agent / model / budget axis keeps the matched world seed,
+    # M46.8) plus the spec's own ``matched_dials``.
+    matched = set(WORLD_INVARIANT_DIALS) | set(spec.matched_dials or ())
+    units: list[tuple[dict[str, Any], Any]] = []
+    for key in keys:
+        label = _condition_label(key)
+        seed_label = (
+            _condition_label(tuple((n, v) for n, v in key if n not in matched)) if matched else label
+        )
+        units.append(({**spec.fixed_dials, **dict(key)}, base.child(f"{seed_label}/0")))
+    return units
+
+
+def _condition_dial_vectors(spec: ExperimentSpec) -> list[dict[str, Any]]:
+    """Just the dial vectors of :func:`_condition_units`."""
+    return [dials for dials, _seed in _condition_units(spec)]
+
+
+def agent_construction_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why building this run's AGENT refuses — ``None`` when every condition
+    builds.
+
+    Every per-arm agent validation used to run inside the trial: an unknown
+    ``agent`` kind, ``max_tokens: 0`` as an axis level, ``max_tokens`` beside
+    an ``output_schedule`` (T059's "one form per arm", enforced on the spec's
+    own scalars but not across a scalar and an axis), ``history_token_limit``
+    beside ``compact_at``. ``--dry`` printed every check ok and the run then
+    produced N identical error records, which is the shape T051 box 4 and
+    T057 proposal 3 exist to end. T066 found six instances at once, so the
+    check is the constructor itself rather than six restatements of it:
+    building an agent makes no model call, so this is free.
+    """
+    from .agents import AGENTS, _agent_factory_for
+    from .llm_agent import validate_agent_config
+
+    for dials, trial_seed in _condition_units(spec):
+        cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
+        kind = str(dials.get("agent", spec.agent))
+        if kind not in AGENTS:
+            return f"{spec.name}: condition {cond} — unknown agent kind {kind!r}; expected one of {sorted(AGENTS)}"
+        if kind == "llm":
+            # NOT by constructing one: a live agent reaches for the API key and
+            # a provider fn, and a pre-flight that needs credentials would
+            # refuse every --dry on a machine without them (and would shadow
+            # the price check, which is the refusal an operator wants to see).
+            # The per-arm CONFIG is what can be wrong here, so the shared
+            # validator is called directly.
+            try:
+                validate_agent_config(
+                    memory=dials.get("memory", spec.memory),
+                    compact_at=dials.get("compact_at", spec.compact_at),
+                    compact_budget=dials.get("compact_budget", spec.compact_budget),
+                    history_token_limit=dials.get("history_token_limit", spec.history_token_limit),
+                    max_tokens=dials.get("max_tokens", spec.max_tokens),
+                    output_schedule=dials.get("output_schedule", spec.output_schedule),
+                )
+            except Exception as exc:  # noqa: BLE001 — the message is the verdict
+                return f"{spec.name}: condition {cond} — {exc}"
+            continue
+        try:
+            _agent_factory_for(spec)(trial_seed.child("agent"), dials)
+        except Exception as exc:  # noqa: BLE001
+            return f"{spec.name}: condition {cond} builds no agent — {exc}"
+    return None
+
+
+def draft_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why DRAFTING this run's worlds refuses — ``None`` when every condition
+    drafts.
+
+    The generators refuse a great deal at draft time, and every one of those
+    refusals used to arrive as N error records after a clean ``--dry``:
+    ``certainty`` below the world's own floor (which ``world_variance`` moves
+    per seed, so one fixed level is legal on some seeds and not others),
+    ``certainty_windows`` not dividing ``sim_steps``, a W2 depth whose chain
+    lag exceeds the bound, a declared readout that names no molecule. One
+    draft per condition at the base seed catches the config-shaped ones
+    before spend; a per-seed refusal still surfaces on the run, since
+    drafting every seed is the run.
+    """
+    from .dist import Seed
+
+    try:
+        # `DRAFTERS.__missing__` resolves a head an experiment file's
+        # `_includes_` registered after import (the catalog examples), so the
+        # lookup is the membership test — `in` is False for those.
+        drafter = DRAFTERS[spec.drafter]
+    except KeyError:
+        return f"{spec.name}: unknown drafter {spec.drafter!r}; expected one of {sorted(DRAFTERS)}"
+    kwargs = dict(spec.drafter_kwargs or {})
+    for dials, trial_seed in _condition_units(spec):
+        try:
+            drafter(trial_seed.child("draft"), dials, **kwargs)
+        except (ValueError, TypeError, KeyError) as exc:
+            # A CONFIG error only. `ValueError` (and `SkeletonError`, which
+            # derives from it) is how every generator refuses a dial vector
+            # it cannot draft; `TypeError` is a missing required dial;
+            # `KeyError` is a declared readout that names no molecule. Any
+            # other exception — a provider or IO failure raised through a
+            # drafter — is left to the run, where it becomes an error record
+            # a resume retries rather than a refusal that kills the grid.
+            cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
+            return f"{spec.drafter}: condition {cond} drafts no world — {exc}"
+        except Exception:  # noqa: BLE001 — transient, not a config verdict
+            return None
+    return None
+
+
+def inert_arm_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why an arm of this run would measure nothing — ``None`` when none
+    would.
+
+    ``compact_at: k`` on an episode of ``k`` turns or fewer never fires:
+    ``_maybe_compact``'s ``self._turn != self.compact_at`` gate is simply
+    never true, the record carries ``compaction: None``, and the arm is
+    byte-indistinguishable from its own control with no refusal and no
+    marker (T066). A forgetting arm that quietly measures nothing is worse
+    than one that refuses, because the contrast still gets reported.
+    """
+    turns = _default_expected_turns(spec.fixed_dials, spec.axes)
+    for dials in _condition_dial_vectors(spec):
+        at = dials.get("compact_at", spec.compact_at)
+        if isinstance(at, int) and not isinstance(at, bool) and at >= turns:
+            return (
+                f"{spec.name}: compact_at={at} never fires in an episode of {turns} turn(s) "
+                f"(turns are 0-based, so the last is {turns - 1}) — the arm would record "
+                "compaction: null and read as its own control"
+            )
+    return None
+
+
+def certainty_windows_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why ``certainty_windows`` cannot divide this run's turn — ``None`` when
+    it can.
+
+    T062's rule is that ``n`` divides ``sim_steps`` (each window integrates
+    ``sim_steps / n`` steps). It lived only inside ``run``, checked per
+    trial, so ``--dry`` printed every check ok and the run turned every
+    condition into an identical error record. The two inputs live on
+    opposite sides — ``certainty_windows`` is a generator setting, ``sim_steps``
+    an episode dial — so neither the draft nor the agent sees both, and this
+    is the only place that does.
+    """
+    windows = dict(spec.drafter_kwargs or {}).get("certainty_windows")
+    if windows is None:
+        return None
+    if isinstance(windows, bool) or not isinstance(windows, int) or windows < 1:
+        return f"{spec.name}: certainty_windows must be an int >= 1, got {windows!r}"
+    from .runner import run as _run
+
+    default_steps = int(inspect.signature(_run).parameters["sim_cfg"].default.steps)
+    for dials in _condition_dial_vectors(spec):
+        steps = dials.get("sim_steps", default_steps)
+        if isinstance(steps, bool) or not isinstance(steps, int) or steps < 1:
+            continue  # the runner's own dial validation owns that verdict
+        if steps % windows:
+            return (
+                f"{spec.name}: certainty_windows={windows} must divide sim_steps={steps} "
+                "(each window integrates sim_steps / certainty_windows steps)"
+            )
+    return None
+
+
+def brief_dials_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why this run's BRIEF-side dials refuse — ``None`` when every condition
+    resolves.
+
+    The dial-only brief validators, run per condition before spend. T066
+    found the monitor arm's own validation (``monitor_coverage`` out of
+    range, a ``monitor_sham`` with no coverage, the in-world monitor combined
+    with the M32.5 told ``monitoring`` dial) reachable only from inside the
+    trial, so a malformed arm printed a clean ``--dry`` and then produced N
+    identical error records. Anything that needs the drafted world as well
+    belongs in :func:`draft_violation`.
+    """
+    from .monitor import resolve_monitor
+
+    for dials in _condition_dial_vectors(spec):
+        try:
+            resolve_monitor(dials)
+        except Exception as exc:  # noqa: BLE001 — the message is the verdict
+            cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
+            return f"{spec.name}: condition {cond} — {exc}"
+    return None
+
+
 def _phase1_variants_in_play(spec: ExperimentSpec) -> set[str]:
     """Every ``variant`` value the spec can draft with — fixed dial,
     drafter kwarg, or ``variant`` axis level (T048's gate reads it)."""
@@ -340,7 +554,8 @@ class Preflight:
 
 
 PREFLIGHT_CHECKS: tuple[str, ...] = (
-    "registration", "no-peeking", "dials", "surface", "sampling", "price", "resume", "out_dir",
+    "registration", "no-peeking", "dials", "episode-dials", "surface", "sampling", "w2-lag",
+    "brief-dials", "certainty-windows", "inert-arm", "agent", "price", "draft", "resume", "out_dir",
 )
 
 
@@ -366,8 +581,15 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     refusal: Optional[BaseException] = None
     estimate: Optional[CostEstimate] = None
 
-    def check(name: str, run_it: Callable[[], Any]) -> None:
+    def check(name: str, run_it: Callable[[], Any], *, only_if_clean: bool = False) -> None:
+        """One verdict. ``only_if_clean`` marks a check that does real work
+        (drafting every condition's world): an already-refused spec is not
+        going to run, so there is nothing to learn from drafting it, and a
+        cheaper verdict should not be shadowed by a slower one."""
         nonlocal refusal
+        if only_if_clean and refusal is not None:
+            checks.append((name, None))
+            return
         try:
             run_it()
         except Exception as exc:  # noqa: BLE001 — every guard refuses by raising
@@ -391,12 +613,20 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     check("surface", lambda: _raise_if(declared_surface_violation(spec), "surface"))
     check("sampling", lambda: _raise_if(sampling_violation(spec), "sampling"))
     check("w2-lag", lambda: _raise_if(w2_lag_violation(spec), "w2-lag"))
+    check("brief-dials", lambda: _raise_if(brief_dials_violation(spec), "brief-dials"))
+    check("certainty-windows", lambda: _raise_if(certainty_windows_violation(spec), "certainty-windows"))
+    check("inert-arm", lambda: _raise_if(inert_arm_violation(spec), "inert-arm"))
+    check("agent", lambda: _raise_if(agent_construction_violation(spec), "agent"))
 
     def _price() -> None:
         nonlocal estimate
         estimate = estimate_cost(spec)
 
     check("price", _price)
+    # After the price check, so an unpriced model level still refuses first:
+    # drafting is free of spend but does real work, and pricing is the
+    # cheaper verdict.
+    check("draft", lambda: _raise_if(draft_violation(spec), "draft"), only_if_clean=True)
 
     def _resume() -> None:
         if not (resume and manifest_path.exists()):

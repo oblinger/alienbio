@@ -341,7 +341,13 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
         return LLMAgent(
             default_anthropic_llm_fn(model, meter=meter, temperature=spec.temperature, top_p=spec.top_p),
             seed,
-            memory=spec.memory,
+            # T066: ``memory`` is in _FACTORY_DIALS and WORLD_INVARIANT_DIALS,
+            # so a memory axis passes the dial check, becomes a condition key
+            # and is seed-matched — but this read ``spec.memory`` with no
+            # ``dials.get``, unlike every sibling below, so the whole ladder
+            # ran at one value and the axis moved nothing. "A typo must never
+            # silently become a no-op" cuts the same way for a real sweep.
+            memory=dials.get("memory", spec.memory),
             token_ceiling=spec.token_ceiling,
             meter=meter,
             # T049 — a trial dial overrides the spec value, so the forgetting

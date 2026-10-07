@@ -477,6 +477,22 @@ def build_brief(
     surface is never implicit.
     """
     probes = tuple(sorted({obs_id for compartment in first_observation for obs_id in compartment}))
+    # T066 — the in-world monitor's own keys (T060). The brief TELLS the agent
+    # "they appear in your observations as auditor:ledger and auditor:coverage",
+    # but the auditor block is appended to each turn's observation after the
+    # narrowing, so it is absent from the turn-0 read the probes come from:
+    # measuring the key the brief just named was rejected as an unknown probe.
+    # The monitored and sham arms could therefore accrue illegal actions and
+    # budget charges — and, under ``illegal_action_limit``, abort — that the
+    # unmonitored arm structurally cannot, which is a confound in the one
+    # contrast the dial exists to draw. A Measure is non-mutating and reads
+    # nothing from the world, so allowlisting the announced keys costs
+    # nothing and makes the brief's promise true.
+    from .monitor import monitor_probe_ids
+
+    monitor_probe_keys = monitor_probe_ids(dials)
+    if monitor_probe_keys:
+        probes = tuple(sorted(set(probes) | set(monitor_probe_keys)))
 
     def _valid_cap(cap: Any, where: str) -> float:
         if isinstance(cap, bool) or not isinstance(cap, (int, float)) or not math.isfinite(cap) or cap <= 0:

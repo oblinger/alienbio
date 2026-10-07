@@ -233,6 +233,44 @@ def _validate_registration_id(value: Any) -> Optional[str]:
     return value
 
 
+def _expected_output_tokens(spec: "ExperimentSpec") -> int:
+    """The per-turn output tokens to price: the DECLARED per-turn budget when
+    the spec sets one, else ``expected_output_tokens``.
+
+    T066, found twice over: ``estimate_cost`` priced output at the 300-token
+    default however large a budget the spec declared, while T059's
+    ``max_tokens`` / ``output_schedule`` are the caps the provider fn
+    actually sends. Output is the expensive side of the pinned model ($2 in
+    / $10 out), so an 8192-token arm was ~27x under-priced per turn —
+    quiet in exactly the direction an operator checks before spending, which
+    is the defect the ``expected_turns`` derivation two fields away exists
+    to prevent. The budget is a CAP rather than a prediction, so this reads
+    high by construction; an explicit ``expected_output_tokens`` above the
+    cap still wins, since a caller who measured their arm knows better."""
+    declared: list[int] = [int(spec.expected_output_tokens)]
+    if isinstance(spec.max_tokens, int) and not isinstance(spec.max_tokens, bool):
+        declared.append(int(spec.max_tokens))
+    schedule = spec.output_schedule
+    if isinstance(schedule, Mapping):
+        declared.extend(
+            int(v)
+            for k, v in schedule.items()
+            if k in ("deep", "shallow") and isinstance(v, int) and not isinstance(v, bool)
+        )
+    for name, levels in spec.axes:
+        if name == "max_tokens":
+            declared.extend(int(v) for v in levels if isinstance(v, int) and not isinstance(v, bool))
+        elif name == "output_schedule":
+            for level in levels:
+                if isinstance(level, Mapping):
+                    declared.extend(
+                        int(v)
+                        for k, v in level.items()
+                        if k in ("deep", "shallow") and isinstance(v, int) and not isinstance(v, bool)
+                    )
+    return max(declared)
+
+
 def _default_expected_turns(fixed_dials: Mapping[str, Any], axes: Sequence[tuple[str, tuple[Any, ...]]]) -> int:
     """The dry-run turn count when the spec does not set ``expected_turns``:
     the declared episode budget, not a constant. A fixed ``max_turns`` dial
@@ -247,14 +285,25 @@ def _default_expected_turns(fixed_dials: Mapping[str, Any], axes: Sequence[tuple
     turns — a 6x under-estimate one deleted ``episode:`` line away."""
     from .runner import run as _run
 
+    declared: list[int] = []
     fixed = fixed_dials.get("max_turns")
     if isinstance(fixed, int) and not isinstance(fixed, bool) and fixed > 0:
-        return fixed
+        declared.append(fixed)
     for name, levels in axes:
         if name == "max_turns":
-            declared = [v for v in levels if isinstance(v, int) and not isinstance(v, bool) and v > 0]
-            if declared:
-                return max(declared)
+            declared.extend(
+                v for v in levels if isinstance(v, int) and not isinstance(v, bool) and v > 0
+            )
+    if declared:
+        # T066: "read high" has to mean the HIGHEST of everything declared,
+        # not the first place one is found. The runtime merges
+        # ``{**fixed_dials, **dials}``, so an axis level WINS over a fixed
+        # dial of the same name — while this returned the fixed value and
+        # never looked at the axis. A spec with ``fixed_dials: {max_turns:
+        # 4}`` and ``axes: {max_turns: [4, 40]}`` priced every cell at 4
+        # turns and ran the deepest at 40: the 2026-09-09 under-price, back
+        # in a shape the fix did not cover.
+        return max(declared)
     return int(inspect.signature(_run).parameters["max_turns"].default)
 
 
@@ -529,7 +578,7 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
         )
 
     prompt_tokens = spec.expected_prompt_tokens
-    output_tokens = spec.expected_output_tokens
+    output_tokens = _expected_output_tokens(spec)
     memory = spec.memory
     if memory == "full":
         input_per_trial = sum(prompt_tokens * (1 + t / 2) for t in range(turns))

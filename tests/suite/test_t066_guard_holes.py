@@ -18,7 +18,16 @@ import pytest
 
 from alienbio.suite.dist import Seed
 from alienbio.suite.experiment import DRAFTERS, no_peeking_violation, spec_from_dict
-from alienbio.suite.guards import dials_in_play, misplaced_episode_dials_violation, preflight, w2_lag_violation
+from alienbio.suite.guards import (
+    agent_construction_violation,
+    brief_dials_violation,
+    dials_in_play,
+    draft_violation,
+    inert_arm_violation,
+    misplaced_episode_dials_violation,
+    preflight,
+    w2_lag_violation,
+)
 from alienbio.suite.naming import NameMap, token_pattern
 
 PHASE1_LEVERS = ["root/uptake_route_in", "root/uptake_neutral_in"]
@@ -169,3 +178,131 @@ def test_a_task_note_ending_on_an_id_does_not_leak_to_the_model():
     assert seen, "the mock agent was never called"
     assert not any(target in text for text in seen), "the structural id reached the prompt"
     assert record.taint_hits == ()
+
+
+# ---------------------------------------------------------------------------
+# refuse before spend, not N error records (T066 found six at once)
+# ---------------------------------------------------------------------------
+
+
+def _llm_spec(**over):
+    d = {
+        "name": "t066-pre",
+        "axes": {"pi": [0.5]},
+        "drafter": "pressure",
+        "agent": "llm",
+        "trials_per_condition": 1,
+        "base_seed": 1,
+        "fixed_dials": {"levers": []},
+        "temperature": "provider-fixed",
+        "registration": None,
+    }
+    d.update(over)
+    d = {k: v for k, v in d.items() if v is not None}
+    return spec_from_dict(d)
+
+
+def test_a_colliding_output_budget_refuses_at_preflight():
+    """T059's "one form per arm" was enforced on the spec's own scalars but
+    not across a scalar and an axis, so `max_tokens` + an `output_schedule`
+    axis raised in the AGENT, once per trial, with --dry all-ok."""
+    spec = _llm_spec(
+        axes={"output_schedule": [{"every": 1, "deep": 1024, "shallow": 1024}]},
+        max_tokens=4096,
+    )
+    problem = agent_construction_violation(spec)
+    assert problem is not None and "output budget" in problem
+
+
+def test_a_malformed_monitor_arm_refuses_at_preflight():
+    spec = _llm_spec(fixed_dials={"levers": [], "monitor_sham": True})
+    problem = brief_dials_violation(spec)
+    assert problem is not None and "monitor_coverage" in problem
+    spec = _llm_spec(fixed_dials={"levers": [], "monitor_coverage": 1.5})
+    assert brief_dials_violation(spec) is not None
+
+
+def test_an_unknown_agent_kind_refuses_at_preflight():
+    spec = _llm_spec(agent="null")
+    problem = agent_construction_violation(spec)
+    assert problem is not None and "unknown agent kind" in problem
+
+
+def test_the_live_agent_check_needs_no_api_key(monkeypatch):
+    """The check validates the per-arm CONFIG rather than building a live
+    agent — a pre-flight that reached for credentials would refuse every
+    --dry on a machine without them, and would shadow the price check."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert agent_construction_violation(_llm_spec()) is None
+
+
+def test_a_forgetting_arm_that_can_never_fire_refuses():
+    spec = _llm_spec(fixed_dials={"levers": [], "max_turns": 4}, compact_at=12)
+    problem = inert_arm_violation(spec)
+    assert problem is not None and "never fires" in problem
+    assert inert_arm_violation(_llm_spec(fixed_dials={"levers": [], "max_turns": 12}, compact_at=4)) is None
+
+
+def test_certainty_windows_that_cannot_divide_the_episode_refuses_before_spend():
+    """The rule lived only inside `run`, per trial: --dry printed every check
+    ok and the run turned every condition into an error record."""
+    spec = spec_from_dict(
+        {
+            "name": "t066-windows",
+            "axes": {"pi": [0.5]},
+            "drafter": "pressure",
+            "agent": "idle",
+            "trials_per_condition": 1,
+            "base_seed": 1,
+            "fixed_dials": {"levers": [], "certainty": 0.5, "sim_steps": 100, "sim_dt": 0.01},
+            "drafter_kwargs": {"certainty_windows": 7},
+        }
+    )
+    result = preflight(spec)
+    assert not result.ok
+    assert "certainty_windows" in str(result.refusal)
+
+
+def test_a_certainty_level_below_a_drawn_worlds_floor_refuses_before_spend():
+    """`world_variance` moves the per-world floor, so one fixed `certainty`
+    level is legal on some draws and not others — a mid-run ValueError and N
+    heterogeneous error records. The draft check runs each condition at the
+    seed the run will use, so the verdict is the run's own."""
+    spec = spec_from_dict(
+        {
+            "name": "t066-floor",
+            "axes": {"pi": [0.5]},
+            "drafter": "pressure",
+            "agent": "idle",
+            "trials_per_condition": 1,
+            "base_seed": 3,
+            "fixed_dials": {"levers": [], "certainty": 0.25, "world_variance": 0.4},
+        }
+    )
+    problem = draft_violation(spec)
+    assert problem is not None and "floor" in problem
+
+
+def test_a_transient_failure_in_a_draft_is_not_a_refusal(monkeypatch):
+    """A config error is a refusal; a provider or IO failure raised through a
+    drafter is data the run records and a resume retries. Refusing the whole
+    grid on one would be worse than the bug."""
+    from alienbio.suite import drafters as drafters_mod
+
+    spec = spec_from_dict(
+        {
+            "name": "t066-transient",
+            "axes": {"pi": [0.5]},
+            "drafter": "pressure",
+            "agent": "idle",
+            "trials_per_condition": 1,
+            "base_seed": 1,
+            "fixed_dials": {"levers": []},
+        }
+    )
+
+    def flaky(seed, dials, **kwargs):
+        raise RuntimeError("credit balance is too low")
+
+    monkeypatch.setitem(drafters_mod.DRAFTERS, "pressure", flaky)
+    assert draft_violation(spec) is None
