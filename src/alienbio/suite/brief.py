@@ -535,6 +535,10 @@ def build_brief(
         levers = tuple(sorted(chemistry.reactions)) + probes
 
     guarded = isinstance(task.setup, Mapping) and bool(task.setup.get("require_levers"))
+    setup_hidden_raw = task.setup.get("hidden_ids") if isinstance(task.setup, Mapping) else None
+    setup_hidden_ids: frozenset[str] = (
+        frozenset(str(h) for h in setup_hidden_raw) if setup_hidden_raw is not None else frozenset()
+    )
 
     # T023 — the per-lever Intervene cap: an explicit spec cap wins, then the
     # drafter's declared scale (``setup["lever_caps"]``), then — on a guarded
@@ -590,6 +594,26 @@ def build_brief(
                 f"build_brief: declared lever(s) {written} are this task's readout molecule — an Intervene on "
                 "the readout writes the answer into the measurement; declare a different control surface "
                 "(T023 / AUP finding 2026-08-31)"
+            )
+
+    # T066 Q1, AUP ruling (A) 2026-10-07 — a declared lever may never name a
+    # pool the drafter made structurally hidden (``setup["hidden_ids"]``, T025).
+    # The runner projects those ids out of EVERY observation, so the agent can
+    # neither read the pool nor learn it exists: it can never be an affordance,
+    # and an ``Intervene`` on a molecule SETS its concentration — so a lax spec
+    # would let the episode write the ground truth it is being measured against
+    # (W2's ``harm_ledger`` is the committed-harm read the paper rests on,
+    # phase 1's hidden pool is the no-observation control's tracked quantity).
+    # Unconditional: the contradiction is structural, so it holds on the
+    # unguarded ``phase1_pressure`` head too, not only on registered substrates.
+    if setup_hidden_ids:
+        hidden_levers = sorted(setup_hidden_ids.intersection(levers))
+        if hidden_levers:
+            raise ValueError(
+                f"build_brief: declared lever(s) {hidden_levers} name a structurally hidden pool "
+                "(task.setup['hidden_ids']) — the agent cannot observe it, and an Intervene would write "
+                "the measurement's own ground truth; declare a different control surface "
+                "(T066 Q1 / AUP ruling 2026-10-07)"
             )
 
     objective = task.objective

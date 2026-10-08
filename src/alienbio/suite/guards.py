@@ -331,6 +331,9 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     draft per condition at the base seed catches the config-shaped ones
     before spend; a per-seed refusal still surfaces on the run, since
     drafting every seed is the run.
+
+    The drafted task is also read for one brief-side refusal whose inputs it
+    already carries: a declared lever on a structurally hidden pool (T066 Q1).
     """
     from .dist import Seed
 
@@ -344,7 +347,28 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     kwargs = dict(spec.drafter_kwargs or {})
     for dials, trial_seed in _condition_units(spec):
         try:
-            drafter(trial_seed.child("draft"), dials, **kwargs)
+            _world, task = drafter(trial_seed.child("draft"), dials, **kwargs)
+            # T066 Q1 (AUP ruling (A), 2026-10-07) — ``build_brief`` refuses a
+            # lever that names a structurally hidden pool, and that refusal
+            # lands inside the trial: the same shape AUP paid N error records
+            # for. The drafted task is already in hand here, so the verdict is
+            # free.
+            hidden_raw = task.setup.get("hidden_ids") if isinstance(task.setup, Mapping) else None
+            declared = dials.get("levers")
+            if hidden_raw and declared is not None:
+                hidden = {str(h) for h in hidden_raw}
+                named = {
+                    (entry.get("id") if isinstance(entry, Mapping) else entry)
+                    for entry in declared
+                }
+                offenders = sorted(hidden.intersection(n for n in named if isinstance(n, str)))
+                if offenders:
+                    cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
+                    return (
+                        f"{spec.drafter}: condition {cond} declares lever(s) {offenders} on a structurally "
+                        "hidden pool — the agent cannot observe it and an Intervene would write the "
+                        "measurement's own ground truth (T066 Q1)"
+                    )
         except (ValueError, TypeError, KeyError) as exc:
             # A CONFIG error only. `ValueError` (and `SkeletonError`, which
             # derives from it) is how every generator refuses a dial vector
