@@ -1,7 +1,8 @@
 [[ABIO Architecture Docs]] 
 # Commands
+The reference for the `bio` CLI's two commands, `suite` and `config`, with their subcommands and flags.
 
-The `bio` CLI has two commands. The M1 command set (`build`, `run`, `report`, `fetch`, `store`, `hydrate`, `dehydrate`, `cd`, `agent`, `experiment`, `sim`, `scenario`, `lookup`) went with the M1 scenario runtime in M47.7 — an experiment is now one declared file run through the suite harness ([[ABIO Suite Runtime]]).
+The M1 command set (`build`, `run`, `report`, `fetch`, `store`, `hydrate`, `dehydrate`, `cd`, `agent`, `experiment`, `sim`, `scenario`, `lookup`) went with the M1 scenario runtime in M47.7 — an experiment is now one declared file run through the suite harness ([[ABIO Suite Runtime]]).
 
 | Command | CLI | Description |
 |---|---|---|

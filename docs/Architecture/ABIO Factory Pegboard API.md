@@ -1,5 +1,5 @@
 # Factory Pegboard API
-
+The API spec for how Bio holds active component instances as a pegboard: `bio.create()` builds them and plain Python assignment sets them.
 **Status**: IMPLEMENTED
 
 Bio serves as the pegboard for active component instances. The factory creates instances; Python assignment sets them.
