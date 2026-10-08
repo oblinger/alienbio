@@ -13,8 +13,8 @@ This tree is **mirrored between the code repository (`docs/`) and the vault (`AB
 
 | Folder | Contents | Sync |
 |--------|----------|------|
-| **[[ABIO Architecture Docs\|Architecture/]]** | System design — subsystem overviews, PRDs, spec language, per-class and per-command reference. | bidirectional |
-| **[[ABIO Alienbio User Guide\|Guide/]]** | How to use the system — core specs, generators, execution, the agent interface. | bidirectional |
+| [[ABIO Architecture Docs\|Architecture/]] | System design — subsystem overviews, PRDs, spec language, per-class and per-command reference. | bidirectional |
+| [[ABIO Alienbio User Guide\|Guide/]] | How to use the system — core specs, generators, execution, the agent interface. | bidirectional |
 | **Modules/** | Auto-generated Python API reference (from docstrings). | one-way (code → vault) |
 | **diagrams/** | Diagram assets (svg/dot). | one-way (code → vault) |
 

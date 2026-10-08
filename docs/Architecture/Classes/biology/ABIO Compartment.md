@@ -1,5 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Compartment](hook://p/ABIO%20Compartment) 
- [[ABIO Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # Compartment
 

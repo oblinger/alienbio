@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO biology](ha://p/ABIO%20biology) 
  [[ABIO Architecture Docs]] 
 
 # ABIO biology

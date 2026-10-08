@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO WorldState](ha://p/ABIO%20WorldState) 
  [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # WorldState
@@ -128,7 +127,9 @@ class WorldState(Protocol):
         """Get concentration of molecule in compartment."""
         ...
 
-    def set(self, compartment: int, molecule: int, value: float) -> None:
+    def set(
+        self, compartment: int, molecule: int, value: float
+    ) -> None:
         """Set concentration of molecule in compartment."""
         ...
 

@@ -1,5 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Atom](hook://p/ABIO%20Atom) 
- [[ABIO Architecture Docs]] → [[ABIO biology]]
+ [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # Atom
 
@@ -66,7 +65,8 @@ hydrogen = get_atom("H")
 
 # Access the full set
 print(COMMON_ATOMS.keys())
-# {'H', 'C', 'N', 'O', 'P', 'S', 'Na', 'K', 'Ca', 'Mg', 'Cl', 'Fe', 'Zn', 'Cu'}
+# {'H', 'C', 'N', 'O', 'P', 'S', 'Na', 'K',
+#  'Ca', 'Mg', 'Cl', 'Fe', 'Zn', 'Cu'}
 ```
 
 ## Protocol

@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Protocols](ha://p/ABIO%20Protocols) 
 [[ABIO Architecture Docs]] 
 
 # Protocols

@@ -1,5 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO entity](hook://p/ABIO%20entity) 
- [[ABIO Architecture Docs]] → [[ABIO infra]]
+ [[ABIO Architecture Docs]] → [[ABIO infra]] 
 
 # Entity
 
@@ -140,7 +139,10 @@ Semantic content of this entity. Override in subclasses.
 class MoleculeImpl(Entity, head="Molecule"):
     def attributes(self) -> Dict[str, Any]:
         result = super().attributes()
-        result["atoms"] = {atom.symbol: count for atom, count in self._atoms.items()}
+        result["atoms"] = {
+            atom.symbol: count
+            for atom, count in self._atoms.items()
+        }
         result["bdepth"] = self._bdepth
         return result
 ```

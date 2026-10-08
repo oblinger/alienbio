@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Chemistry](ha://p/ABIO%20Chemistry) 
  [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 # Chemistry
@@ -79,7 +78,9 @@ Xn = AtomImpl("Xn", "Xenonium", 150.5)
 Zy = AtomImpl("Zy", "Zylonite", 89.3)
 
 # Create alien molecules
-alien_compound = MoleculeImpl("xzcompound", dat=dat, atoms={Xn: 2, Zy: 1})
+alien_compound = MoleculeImpl(
+    "xzcompound", dat=dat, atoms={Xn: 2, Zy: 1}
+)
 
 # Build alien chemistry
 alien_chem = ChemistryImpl(
@@ -112,7 +113,10 @@ atoms:
 molecules:
   glucose: {atoms: {C: 6, H: 12, O: 6}}
 reactions:
-  glycolysis_step: {reactants: {glucose: 1}, products: {pyruvate: 2}, rate: 0.1}
+  glycolysis_step:
+    reactants: {glucose: 1}
+    products: {pyruvate: 2}
+    rate: 0.1
 ```
 
 ### Relationship to Compartment

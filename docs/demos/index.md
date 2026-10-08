@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [demos index](hook://p/demos%20index) 
 # Demo Gallery
 
 Interactive demonstrations of AlienBio's core capabilities. Each demo is available in three formats:
@@ -19,7 +18,7 @@ A 3-molecule homeostatic system (zynol↔brevix↔corthan) converging to equilib
 ![Convergence](output/01_quick_start/convergence.png){ width="45%" }
 
 [:material-notebook: Notebook](notebooks/01_quick_start.html) ·
-[:material-language-python: Script](scripts/demo_01_quick_start.py)
+[:material-language-python: Script](scripts/demo_01_quick_start.py) 
 
 ---
 
@@ -31,7 +30,7 @@ Spike recovery and reaction-removal drift experiments.
 ![Drift](output/03_perturbation/drift.png){ width="45%" }
 
 [:material-notebook: Notebook](notebooks/03_perturbation.html) ·
-[:material-language-python: Script](scripts/demo_03_perturbation.py)
+[:material-language-python: Script](scripts/demo_03_perturbation.py) 
 
 ---
 
@@ -43,7 +42,7 @@ Apply a perturbation, observe the diseased system, and detect symptoms.
 ![Symptoms](output/04_disease/symptoms.png){ width="45%" }
 
 [:material-notebook: Notebook](notebooks/04_disease.html) ·
-[:material-language-python: Script](scripts/demo_04_disease.py)
+[:material-language-python: Script](scripts/demo_04_disease.py) 
 
 ---
 
@@ -54,7 +53,7 @@ Generate a 3-organ organism and visualize molecule transport across compartments
 ![Heatmap](output/05_organism/heatmap_mol0.png){ width="60%" }
 
 [:material-notebook: Notebook](notebooks/05_organism.html) ·
-[:material-language-python: Script](scripts/demo_05_organism.py)
+[:material-language-python: Script](scripts/demo_05_organism.py) 
 
 ---
 
@@ -66,7 +65,7 @@ Population dynamics and concentration envelopes.
 ![Envelope](output/06_features/envelope.png){ width="45%" }
 
 [:material-notebook: Notebook](notebooks/06_features.html) ·
-[:material-language-python: Script](scripts/demo_06_features.py)
+[:material-language-python: Script](scripts/demo_06_features.py) 
 
 ---
 
@@ -75,7 +74,7 @@ Population dynamics and concentration envelopes.
 Replace real molecule/reaction names with opaque alien terminology at 3 detail levels.
 
 [:material-notebook: Notebook](notebooks/07_skinning.html) ·
-[:material-language-python: Script](scripts/demo_07_skinning.py)
+[:material-language-python: Script](scripts/demo_07_skinning.py) 
 
 ---
 
@@ -87,7 +86,7 @@ Oracle, random, and zero agents evaluated across difficulty levels.
 ![Comparison](output/08_evaluation/comparison.png){ width="45%" }
 
 [:material-notebook: Notebook](notebooks/08_evaluation.html) ·
-[:material-language-python: Script](scripts/demo_08_evaluation.py)
+[:material-language-python: Script](scripts/demo_08_evaluation.py) 
 
 ---
 
@@ -96,7 +95,7 @@ Oracle, random, and zero agents evaluated across difficulty levels.
 Compare Python vs JAX simulator performance on a larger organism (10 organs, 10 molecules).
 
 [:material-notebook: Notebook](notebooks/09_jax_scale.html) ·
-[:material-language-python: Script](scripts/demo_09_jax_scale.py)
+[:material-language-python: Script](scripts/demo_09_jax_scale.py) 
 
 *Requires JAX — skipped automatically if not installed.*
 
@@ -111,7 +110,7 @@ End-to-end: healthy equilibrium → disease → symptoms → diagnosis.
 ![Four Panel](output/combo_disease_investigation/four_panel.png){ width="80%" }
 
 [:material-notebook: Notebook](notebooks/combo_disease_investigation.html) ·
-[:material-language-python: Script](scripts/combo_disease_investigation.py)
+[:material-language-python: Script](scripts/combo_disease_investigation.py) 
 
 ---
 
@@ -123,7 +122,7 @@ Agents evaluated on skinned (opaque) diagnosis tasks at multiple difficulty leve
 ![Leaderboard](output/combo_alien_exam/leaderboard.png){ width="45%" }
 
 [:material-notebook: Notebook](notebooks/combo_alien_exam.html) ·
-[:material-language-python: Script](scripts/combo_alien_exam.py)
+[:material-language-python: Script](scripts/combo_alien_exam.py) 
 
 ---
 
@@ -135,4 +134,4 @@ Multi-compartment organism heatmap and concentration envelope violations.
 ![Envelope](output/combo_ecosystem/envelope.png){ width="45%" }
 
 [:material-notebook: Notebook](notebooks/combo_ecosystem.html) ·
-[:material-language-python: Script](scripts/combo_ecosystem.py)
+[:material-language-python: Script](scripts/combo_ecosystem.py) 

@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [Architecture ABIO Files](ha://p/Architecture%20ABIO%20Files) 
  [[ABIO Architecture Docs]] 
 
 # ABIO Files

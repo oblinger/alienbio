@@ -1,8 +1,25 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Notes](ha://p/ABIO%20Notes) 
 # ABIO MISCELLANEOUS NOTES
 
 > Design notes from the M1 era (2026-01 to 2026-02), kept as history. The `bio build|run` verbs, `BioSystem`, `AgentSession` and the scenario runtime they discuss were deleted in M47.7 and T056; the shipped design is [[ABIO Architecture]].
 
+| Table of Contents |  |
+|---|---|
+| **[[#2026-01-31 DAT Refactor Idea]]** |  |
+| **[[#2026-01-14 M1.14 Agent Interface Implementation Questions]]** |  |
+| **[[#2026-01-14 Experiments Open Questions]]** |  |
+| **[[#2026-01-14 ABIO Experiments roadmap]]** |  |
+| **[[#Hello World Progression]]** |  |
+| **[[#Measurement Dimensions]]** |  |
+| **[[#Architecture-First Organization]]** |  |
+| **[[#2026-01-09 DAT Refactor Idea]]** |  |
+| **[[#2026-01-14 ABIO Experiments roadmap]]** |  |
+| **[[#Hello World Progression]]** |  |
+| **[[#Measurement Dimensions]]** |  |
+| **[[#Architecture-First Organization]]** |  |
+| **[[#Folder Structure]]** |  |
+| **[[#Justfile Commands]]** |  |
+| **[[#CI/CD]]** |  |
+| **[[#2026-01-10 M2 Test Coverage Audit]]** |  |
 
 ## 2026-01-31 DAT Refactor Idea
 
@@ -624,5 +641,3 @@ Created `tests/unit/test_bio_m2.py` with 26 tests covering M2 features. Results:
 - **Bio.store()** — 5 tests (all skipped)
 - **Bio.build() edge cases** — 3 tests (2 passing, 1 skipped)
 - **Integration** — 2 tests (all skipped)
-
-

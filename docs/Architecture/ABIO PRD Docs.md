@@ -1,9 +1,43 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO PRD Docs](ha://p/ABIO%20PRD%20Docs) 
 # Scenario Generator PRD
 **Subsystem**: [[ABIO biology]] > Generators
 Product Requirements Document for synthetic alien biology scenario generation.
 
 ---
+
+| Table of Contents |  |
+|---|---|
+| **[[#1. Overview]]** |  |
+| **[[#2. Design Approach: Template Composition + Background]]** |  |
+|    [[#Phase 1: Goal-Directed via Templates]] |  |
+|    [[#Phase 2: Background Fill]] |  |
+| **[[#3. Template System]]** |  |
+|    [[#3.1 Template Anatomy]] |  |
+|    [[#3.2 Template Composition]] |  |
+|    [[#3.3 Interaction Templates]] |  |
+|    [[#3.4 Template Library Structure]] |  |
+| **[[#4. Scenario Generator Spec Schema]]** |  |
+|    [[#4.1 Top-Level Structure]] |  |
+|    [[#4.2 Species Specification]] |  |
+|    [[#4.3 Interaction Specification]] |  |
+|    [[#4.4 Pathway Specification]] |  |
+|    [[#4.5 Parameter Specification]] |  |
+|    [[#4.6 Background Specification]] |  |
+|    [[#4.7 Visibility Specification]] |  |
+| **[[#5. Generation Pipeline]]** |  |
+|    [[#5.1 Stage Details]] |  |
+| **[[#6. Reproducibility Requirements]]** |  |
+|    [[#6.1 Seed-Based Generation]] |  |
+|    [[#6.2 Deterministic Output]] |  |
+|    [[#6.3 Ground Truth Export]] |  |
+| **[[#7. Validation and Metrics]]** |  |
+|    [[#7.1 Structural Validation]] |  |
+|    [[#7.2 Difficulty Metrics]] |  |
+|    [[#7.3 Composability Validation]] |  |
+| **[[#8. API]]** |  |
+|    [[#8.1 Python API]] |  |
+|    [[#8.2 CLI]] |  |
+| **[[#9. Example Complete Specification]]** |  |
+| **[[#10. See Also]]** |  |
 
 ## 1. Overview
 

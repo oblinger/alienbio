@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Factory Pegboard API](hook://p/ABIO%20Factory%20Pegboard%20API) 
 # Factory Pegboard API
 
 **Status**: IMPLEMENTED
@@ -169,7 +168,8 @@ Simulator: fast    # Use FastSimulatorImpl by default
 ```python
 # With the config above:
 sim = bio.create(Simulator)  # Creates FastSimulatorImpl
-sim = bio.create(Simulator, name="reference")  # Explicitly uses ReferenceSimulatorImpl
+# Explicitly uses ReferenceSimulatorImpl
+sim = bio.create(Simulator, name="reference")
 ```
 
 ---

@@ -1,6 +1,5 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Testing](hook://p/ABIO%20Testing) 
-# Testing
-**Topic**: [[ABIO Topics]]
+# Testing Guide
+**Topic**: [[ABIO Topics]] 
 Testing tiers (smoke, commit, release) and test organization.
 
 ## Overview
@@ -74,7 +73,10 @@ def check_context_uses_contextvar():
     from alienbio.context import _context
     import contextvars
     if not isinstance(_context, contextvars.ContextVar):
-        print("⚠️  REMINDER: Context must use ContextVar, not plain global")
+        print(
+            "⚠️  REMINDER: Context must use ContextVar,"
+            " not plain global"
+        )
         return False
     return True
 ```

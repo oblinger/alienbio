@@ -1,5 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Naming Conventions](hook://p/ABIO%20Naming%20Conventions) 
-[[ABIO Architecture Docs]]
+[[ABIO Architecture Docs]] 
 
 # Naming Conventions
 
@@ -129,7 +128,8 @@ class FastSimulatorImpl(SimulatorBase):
 Then create instances via Bio:
 
 ```python
-bio.create(Simulator)                    # default: ReferenceSimulatorImpl
+# default: ReferenceSimulatorImpl
+bio.create(Simulator)
 bio.create(Simulator, name="fast")       # FastSimulatorImpl
 ```
 

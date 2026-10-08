@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO bio](hook://p/ABIO%20bio) 
 # Bio Module
 
 Core biology simulation classes.

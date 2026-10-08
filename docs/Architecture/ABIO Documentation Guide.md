@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Documentation Guide](hook://p/ABIO%20Documentation%20Guide) 
  [[ABIO docs]] 
 
 # Documentation Guide
@@ -6,6 +5,32 @@
 How the alienbio documentation is organized and our conventions for writing it.
 
 ---
+
+| Table of Contents |  |
+|---|---|
+| **[[#Three Documentation Layers]]** |  |
+| **[[#User Guide]]** |  |
+| **[[#Architecture Docs]]** |  |
+| **[[#API Docs]]** |  |
+| **[[#How They Connect]]** |  |
+|    [[#User Guide → Architecture]] |  |
+|    [[#Architecture → API]] |  |
+|    [[#Cross-References]] |  |
+| **[[#Documentation Conventions]]** |  |
+|    [[#Breadcrumbs]] |  |
+|    [[#Pipeline Diagrams]] |  |
+|    [[#Command Titles]] |  |
+|    [[#Typed Synopsis]] |  |
+|    [[#Links]] |  |
+|    [[#Tables]] |  |
+|    [[#Section Dividers]] |  |
+|    [[#Document Structure]] |  |
+|    [[#Code Examples]] |  |
+|    [[#Emphasis]] |  |
+| **[[#Project Docs (Not Released)]]** |  |
+|    [[#Chronological Ordering]] |  |
+|    [[#Date Headers]] |  |
+| **[[#See Also]]** |  |
 
 ## Three Documentation Layers
 

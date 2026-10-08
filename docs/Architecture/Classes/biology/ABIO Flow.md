@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Flow](ha://p/ABIO%20Flow) 
  [[ABIO Architecture Docs]] → [[ABIO biology]] 
 
 Transport between compartments: `TransportFlux`, applied in one rationed pass.

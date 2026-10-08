@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Commands](hook://p/ABIO%20Commands) 
 [[ABIO Architecture Docs]] 
 # Commands
 

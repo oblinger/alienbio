@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO infra](ha://p/ABIO%20infra) 
  [[ABIO Architecture Docs]] 
 
 # ABIO infra
@@ -40,4 +39,4 @@ System configuration and settings management.
 *(Protocols to be added)*
 
 ## Testing
-- **[[ABIO Testing]]** - Testing paradigm for Python and Rust code.
+- **[[ABIO Testing Guide|Testing]]** - Testing paradigm for Python and Rust code.

@@ -1,5 +1,4 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO IO](hook://p/ABIO%20IO) 
- [[ABIO Architecture Docs]] → [[ABIO infra]]
+ [[ABIO Architecture Docs]] → [[ABIO infra]] 
 
 # IO
 
@@ -219,7 +218,10 @@ class IO(Protocol):
         ...
 
     def ref(
-        self, entity: "Entity", prefer_short: bool = True, absolute: bool = False
+        self,
+        entity: "Entity",
+        prefer_short: bool = True,
+        absolute: bool = False,
     ) -> str:
         """Get reference string for entity."""
         ...
@@ -246,5 +248,5 @@ class IO(Protocol):
 ```
 
 ## See Also
-- [[Entity]] - Base class, tree invariants, serialization
+- ~~[[Entity]]~~ - Base class, tree invariants, serialization
 - [[ABIO DAT]] - Underlying DAT persistence

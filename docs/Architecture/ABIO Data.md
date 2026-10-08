@@ -1,4 +1,3 @@
-:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Data](ha://p/ABIO%20Data) 
  [[ABIO Architecture Docs]] → [[ABIO infra]] 
 # ABIO Data
 What the `data/` folder actually holds, and why nothing is filed there on purpose.
