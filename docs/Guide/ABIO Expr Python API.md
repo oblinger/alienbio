@@ -65,7 +65,9 @@ def chain(args, kwargs, env):
     return {
         "molecules": {m: {} for m in mids},
         "reactions": {
-            f"{env.ns}.hop{i}": {"reactants": [a], "products": [b], "rate": rate}
+            f"{env.ns}.hop{i}": {
+                "reactants": [a], "products": [b], "rate": rate
+            }
             for i, (a, b) in enumerate(zip(nodes, nodes[1:]), 1)
         },
     }
@@ -88,12 +90,15 @@ from alienbio.expr import guard, GuardViolation
 @guard(summary="the produced pathway is short enough")
 def max_pathway_length(value, ctx, max_length: int = 5):
     if len(value["molecules"]) + 2 > max_length:
-        raise GuardViolation(f"pathway too long: max_length={max_length}")
+        raise GuardViolation(
+            f"pathway too long: max_length={max_length}"
+        )
     return True
 ```
 
 ```yaml
-route: !chain {args: [A, B], length: 4, guards: [!x max_pathway_length(max_length=8)], on_fail: retry}
+route: !chain {args: [A, B], length: 4, on_fail: retry,
+               guards: [!x max_pathway_length(max_length=8)]}
 ```
 
 A guard receives the *evaluated* result of the call it is attached to, plus `ctx`, plus its own parameters from the spec. Return `True` to pass; return `False` or raise `GuardViolation(message, offenders=[...])` to fail — `offenders` names the keys (dotted for depth) that `on_fail: prune` may drop. `on_fail` on the call decides what a failure does ([[ABIO Expr Spec#Guards]]).
@@ -107,14 +112,19 @@ Every registered `Entity` head is a constructor head under its head name — `!M
 ```python
 from alienbio.expr import Env, registry
 
-Env.standard()                                   # registers the suite heads
+# registers the suite heads
+Env.standard()
 head = registry.get("hill")
 assert head.kind == "rate"
 assert registry.get("chain").is_expander
-view = registry.view({"math", "rate"})           # a narrowed registry for rate laws
+# a narrowed registry for rate laws
+view = registry.view({"math", "rate"})
 assert "hill" in view and "source" not in view
-rows = registry.describe()                       # name, kind, signature, summary
-assert any(r["name"] == "diagnose" and r["kind"] == "drafter" for r in rows)
+# name, kind, signature, summary
+rows = registry.describe()
+assert any(
+    r["name"] == "diagnose" and r["kind"] == "drafter" for r in rows
+)
 ```
 
 One table, populated at import time by the decorators above and by `!include x.py` under a trusted load. A **view** is a registry restricted to some kinds (special forms always show); the rate compiler evaluates against the rate view so a rate law cannot call a world-building head. Specs cannot list, inspect or modify the registry.
@@ -124,13 +134,15 @@ One table, populated at import time by the decorators above and by `!include x.p
 ```python
 from alienbio.expr import X, Env, evaluate, ExprError
 
-env = Env.standard(seed=7)                       # default registry, root seed 7
+# default registry, root seed 7
+env = Env.standard(seed=7)
 
 form = X.chain("A", "B", length=3)               # a Call form
 frag = evaluate({"route": form}, env)["route"]
 assert set(frag["molecules"]) == {"route.x1", "route.x2"}
 
-same = X.parse('chain("A", "B", length=3)')      # inline text → the same form
+# inline text → the same form
+same = X.parse('chain("A", "B", length=3)')
 assert same == form
 
 text = X.dump(form, style="structural")
@@ -140,16 +152,23 @@ assert back == form
 
 scope = Env.standard(seed=11, trusted=True).load(
     "spec.yaml",
-    text="n: 3\nmols: !x '[f\"M{i}\" for i in range(n)]'\nk: !x lognormal(0, 1)\n",
+    text=(
+        "n: 3\n"
+        "mols: !x '[f\"M{i}\" for i in range(n)]'\n"
+        "k: !x lognormal(0, 1)\n"
+    ),
 )
-assert evaluate(X.name("mols"), scope) == ["M0", "M1", "M2"]  # a file is a scope
-values = scope.force_all()                       # every top-level binding, evaluated
+# a file is a scope
+assert evaluate(X.name("mols"), scope) == ["M0", "M1", "M2"]
+# every top-level binding, evaluated
+values = scope.force_all()
 assert values["mols"] == ["M0", "M1", "M2"]
 
 try:
     evaluate(X.chian("A", "B"), env)
 except ExprError as exc:
-    assert isinstance(exc, ValueError) and "unknown head 'chian'" in str(exc)
+    assert isinstance(exc, ValueError)
+    assert "unknown head 'chian'" in str(exc)
 ```
 
 | API | Meaning |
@@ -188,18 +207,30 @@ A `Quoted` form evaluates to a `QuotedForm` object that *is* a `Dist` (`sample(s
 ## Drafters, worlds and experiments from Python
 
 ```python
-from alienbio.suite.experiment import DRAFTERS, dial_params, load_spec, spec_from_dict
+from alienbio.suite.experiment import (
+    DRAFTERS, dial_params, load_spec, spec_from_dict
+)
 from alienbio.suite.expr_experiment import load_experiment, spec_to_text
 from alienbio.suite.dist import Seed
 
-draft = evaluate(X.identify_pathway(pathway_length=3), Env.standard(seed=3))
-world, task = draft                                   # a Draft is (world, task)
+draft = evaluate(
+    X.identify_pathway(pathway_length=3), Env.standard(seed=3)
+)
+# a Draft is (world, task)
+world, task = draft
 assert draft.world is world and task.objective is not None
 
-same_world, _ = DRAFTERS["identify_pathway"](Seed(3), {"pathway_length": 3})   # the runner's shape
-assert sorted(same_world.chemistry.reactions) == sorted(world.chemistry.reactions)
+# the runner's shape
+same_world, _ = DRAFTERS["identify_pathway"](
+    Seed(3), {"pathway_length": 3}
+)
+assert sorted(same_world.chemistry.reactions) == sorted(
+    world.chemistry.reactions
+)
 
-assert set(dial_params(registry.get("diagnose"))) >= {"n_nodes", "hazard", "perturbation"}
+assert set(dial_params(registry.get("diagnose"))) >= {
+    "n_nodes", "hazard", "perturbation"
+}
 
 spec = load_experiment("<doc>", text="""
 !experiment
@@ -211,9 +242,11 @@ axes: {pathway_length: [3, 4]}
 trials_per_condition: 1
 base_seed: 1
 """)
-assert spec.drafter == "identify_pathway" and spec.axes == (("pathway_length", (3, 4)),)
+assert spec.drafter == "identify_pathway"
+assert spec.axes == (("pathway_length", (3, 4)),)
 assert spec.fixed_dials == {"max_turns": 4, "sim_steps": 5}
-assert load_experiment("<again>", text=spec_to_text(spec)) == spec   # the inverse
+# the inverse
+assert load_experiment("<again>", text=spec_to_text(spec)) == spec
 ```
 
 A drafter head evaluates to a `Draft` — the world and the task instance — under the node's seed; `DRAFTERS[name]` is the same head in the runner's `(seed, dials) -> (world, task)` shape, passing only the dials the head declares. `load_spec(path)` / `load_experiment(path, text=)` read an experiment file into an `ExperimentSpec` (`run_experiment(spec)` runs it; `bio suite run` is the CLI); `spec_to_text` renders one back.

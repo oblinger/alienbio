@@ -563,16 +563,20 @@ alienbio/
 
   src/
     architecture/
-      entities.py      # BioMolecule, BioReaction, BioSystem, BioOrganism protocols
-      generators.py    # MoleculeGenerator, ReactionGenerator, SystemGenerator protocols
+      # BioMolecule, BioReaction, BioSystem, BioOrganism protocols
+      entities.py
+      # MoleculeGenerator, ReactionGenerator, SystemGenerator protocols
+      generators.py
       simulation.py    # State, Simulator, Timeline, World protocols
       interface.py     # Measurement, Action, Task protocols
       experiment.py    # Experiment, Test, Harness protocols
 
     impl/
       entities/        # BioMolecule, BioReaction, etc. implementations
-      generators/      # MoleculeGenerator, ReactionGenerator, etc. implementations
-      simulation/      # PythonSimulator, RustSimulator, etc. implementations
+      # MoleculeGenerator, ReactionGenerator, etc. implementations
+      generators/
+      # PythonSimulator, RustSimulator, etc. implementations
+      simulation/
       interface/       # Measurement, Action, Task implementations
       experiment/      # Experiment, Test, Harness implementations
 

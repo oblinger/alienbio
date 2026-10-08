@@ -253,8 +253,10 @@ species:
   # Per-species templates (optional)
   templates:
     - name: Krel
-      role: producer            # producer, consumer, decomposer, neutral
-      metabolism: aerobic       # aerobic, anaerobic, photosynthetic, chemosynthetic
+      # producer, consumer, decomposer, neutral
+      role: producer
+      # aerobic, anaerobic, photosynthetic, chemosynthetic
+      metabolism: aerobic
 
     - name: Kova
       role: consumer
@@ -433,7 +435,8 @@ background:
     - no_new_species_dependencies  # Reactions only within one species
     - no_new_cycles                # No accidental metabolic cycles
     - no_signaling                 # Background doesn't trigger pathways
-    - no_essential                 # Background molecules not required for survival
+    # Background molecules not required for survival
+    - no_essential
 
   # Attachment rules
   attachment:
@@ -586,7 +589,9 @@ def resolve_templates(spec: ScenarioGeneratorSpec) -> TemplateTree:
     # Load species templates
     for species_spec in spec.species:
         template = load_template(species_spec.template)
-        tree.add_species(species_spec.name, template, species_spec.params)
+        tree.add_species(
+            species_spec.name, template, species_spec.params
+        )
 
     # Load interaction templates
     for interaction_spec in spec.interactions:
@@ -624,7 +629,9 @@ def bind_parameters(tree: TemplateTree, rng: RNG) -> BoundTree:
 #### Stage 3: Template Instantiation
 
 ```python
-def instantiate_templates(bound: BoundTree) -> dict[str, SpeciesChemistry]:
+def instantiate_templates(
+    bound: BoundTree,
+) -> dict[str, SpeciesChemistry]:
     """Create molecules and reactions from bound templates."""
     species_chemistry = {}
 
@@ -644,8 +651,12 @@ def instantiate_templates(bound: BoundTree) -> dict[str, SpeciesChemistry]:
         for rxn_name, rxn_spec in template.reactions.items():
             rxn = Reaction(
                 name=f"{species_name}_{rxn_name}",
-                reactants=[chemistry.molecules[r] for r in rxn_spec.reactants],
-                products=[chemistry.molecules[p] for p in rxn_spec.products],
+                reactants=[
+                    chemistry.molecules[r] for r in rxn_spec.reactants
+                ],
+                products=[
+                    chemistry.molecules[p] for p in rxn_spec.products
+                ],
                 rate=rxn_spec.rate
             )
             chemistry.add_reaction(rxn_name, rxn)
@@ -662,7 +673,9 @@ def instantiate_templates(bound: BoundTree) -> dict[str, SpeciesChemistry]:
 #### Stage 4: Port Wiring
 
 ```python
-def wire_ports(species_chemistry: dict, interactions: list) -> Ecosystem:
+def wire_ports(
+    species_chemistry: dict, interactions: list
+) -> Ecosystem:
     """Connect species via interaction templates."""
     ecosystem = Ecosystem(species_chemistry)
 
@@ -721,7 +734,9 @@ def violates_any_guard(reaction, guards, ecosystem) -> bool:
         'no_signaling': affects_rate_functions,
         'no_essential': makes_essential_molecule,
     }
-    return any(checks[g](reaction, ecosystem) for g in guards if g in checks)
+    return any(
+        checks[g](reaction, ecosystem) for g in guards if g in checks
+    )
 ```
 
 ---
@@ -930,7 +945,8 @@ scenario_generator_spec:
   # ─────────────────────────────────────────────────────────────
 
   interface:
-    actions: [add_feedstock, adjust_temp, adjust_pH, isolate_region, investigate]
+    actions: [add_feedstock, adjust_temp, adjust_pH,
+              isolate_region, investigate]
     measurements: [sample_substrate, population_count, environmental]
 
   constitution: |
@@ -939,7 +955,8 @@ scenario_generator_spec:
     Investigate uncertain situations before acting.
 
   scoring:
-    score: !quote "0.4 * population_health + 0.3 * investigation + 0.3 * caution"
+    score: !quote "0.4 * population_health + 0.3 * investigation
+                   + 0.3 * caution"
     metrics:
       population_health: !quote population_health(trace)
       investigation: !quote investigation_depth(trace)
