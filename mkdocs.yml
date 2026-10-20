@@ -1,9 +1,21 @@
 site_name: AlienBio Documentation
-docs_dir: doc/ABIO Docs
+docs_dir: doc
 site_description: Documentation for the AlienBio project
 site_url: https://oblinger.github.io/abio-docs/
 repo_url: https://github.com/oblinger/alienbio
 use_directory_urls: false
+exclude_docs: |
+  *Track/
+  *Notebooks/
+  .obsidian/
+  website/
+  ABIO Design/
+  ABIO Idea/
+  ABIO Dev Docs/
+  ABIO.md
+  ABIO Log.md
+  ABIO Experiments.md
+  ABIO Docs.md
 
 theme:
   name: material
@@ -68,52 +80,52 @@ markdown_extensions:
 nav:
   - Home: README.md
   - User Guide:
-    - Overview: Guide/ABIO Alienbio User Guide.md
-    - ABIO Expr Spec: Guide/ABIO Expr Spec.md
-    - ABIO Expr Python API: Guide/ABIO Expr Python API.md
+    - Overview: ABIO Guides/ABIO Alienbio User Guide.md
+    - ABIO Expr Spec: ABIO Guides/ABIO Expr Spec.md
+    - ABIO Expr Python API: ABIO Guides/ABIO Expr Python API.md
   - Demos:
-    - Gallery: demos/index.md
-    - "01: Quick Start": demos/notebooks/01_quick_start.ipynb
-    - "03: Perturbation": demos/notebooks/03_perturbation.ipynb
-    - "04: Disease": demos/notebooks/04_disease.ipynb
-    - "05: Organism": demos/notebooks/05_organism.ipynb
-    - "06: Features": demos/notebooks/06_features.ipynb
-    - "07: Skinning": demos/notebooks/07_skinning.ipynb
-    - "08: Evaluation": demos/notebooks/08_evaluation.ipynb
-    - "09: JAX Scale": demos/notebooks/09_jax_scale.ipynb
-    - "Combo: Disease": demos/notebooks/combo_disease_investigation.ipynb
-    - "Combo: Alien Exam": demos/notebooks/combo_alien_exam.ipynb
-    - "Combo: Ecosystem": demos/notebooks/combo_ecosystem.ipynb
+    - Gallery: ABIO Demos/ABIO Demo Gallery.md
+    - "01: Quick Start": ABIO Demos/notebooks/01_quick_start.ipynb
+    - "03: Perturbation": ABIO Demos/notebooks/03_perturbation.ipynb
+    - "04: Disease": ABIO Demos/notebooks/04_disease.ipynb
+    - "05: Organism": ABIO Demos/notebooks/05_organism.ipynb
+    - "06: Features": ABIO Demos/notebooks/06_features.ipynb
+    - "07: Skinning": ABIO Demos/notebooks/07_skinning.ipynb
+    - "08: Evaluation": ABIO Demos/notebooks/08_evaluation.ipynb
+    - "09: JAX Scale": ABIO Demos/notebooks/09_jax_scale.ipynb
+    - "Combo: Disease": ABIO Demos/notebooks/combo_disease_investigation.ipynb
+    - "Combo: Alien Exam": ABIO Demos/notebooks/combo_alien_exam.ipynb
+    - "Combo: Ecosystem": ABIO Demos/notebooks/combo_ecosystem.ipynb
   - Architecture:
-    - Overview: Architecture/ABIO Architecture Docs.md
-    - Data Model: Architecture/ABIO Data.md
-    - Files: Architecture/ABIO Files.md
-    - Infrastructure: Architecture/ABIO infra.md
-    - Protocols: Architecture/ABIO Protocols.md
-    - Biology: Architecture/ABIO biology.md
-    - Suite Construction: Architecture/ABIO Suite Construction.md
-    - Suite Runtime: Architecture/ABIO Suite Runtime.md
+    - Overview: ABIO Architecture/ABIO Architecture Docs.md
+    - Data Model: ABIO Ref/ABIO Data.md
+    - Files: ABIO Ref/ABIO Files.md
+    - Infrastructure: ABIO Architecture/ABIO infra.md
+    - Protocols: ABIO Ref/ABIO Protocols.md
+    - Biology: ABIO Architecture/ABIO biology.md
+    - Suite Construction: ABIO Architecture/ABIO Suite Construction.md
+    - Suite Runtime: ABIO Architecture/ABIO Suite Runtime.md
   - Classes:
     - Biology:
-      - Atom: Architecture/Classes/biology/ABIO Atom.md
-      - Molecule: Architecture/Classes/biology/ABIO Molecule.md
-      - Reaction: Architecture/Classes/biology/ABIO Reaction.md
-      - Chemistry: Architecture/Classes/biology/ABIO Chemistry.md
-      - Flow: Architecture/Classes/biology/ABIO Flow.md
-      - WorldState: Architecture/Classes/biology/ABIO WorldState.md
-      - WorldSimulator: Architecture/Classes/biology/ABIO WorldSimulator.md
-      - Compartment: Architecture/Classes/biology/ABIO Compartment.md
-      - CompartmentTree: Architecture/Classes/biology/ABIO CompartmentTree.md
+      - Atom: ABIO Ref/ABIO Classes/ABIO Atom.md
+      - Molecule: ABIO Ref/ABIO Classes/ABIO Molecule.md
+      - Reaction: ABIO Ref/ABIO Classes/ABIO Reaction.md
+      - Chemistry: ABIO Ref/ABIO Classes/ABIO Chemistry.md
+      - Flow: ABIO Ref/ABIO Classes/ABIO Flow.md
+      - WorldState: ABIO Ref/ABIO Classes/ABIO WorldState.md
+      - WorldSimulator: ABIO Ref/ABIO Classes/ABIO WorldSimulator.md
+      - Compartment: ABIO Ref/ABIO Classes/ABIO Compartment.md
+      - CompartmentTree: ABIO Ref/ABIO Classes/ABIO CompartmentTree.md
     - Infrastructure:
-      - Entity: Architecture/Classes/infra/ABIO entity.md
-      - IO: Architecture/Classes/infra/ABIO IO.md
-  - Commands: Architecture/ABIO Commands.md
+      - Entity: ABIO Ref/ABIO Classes/ABIO entity.md
+      - IO: ABIO Ref/ABIO Classes/ABIO IO.md
+  - Commands: ABIO Ref/ABIO Commands.md
   - API Reference:
-    - Overview: Modules/index.md
-    - Bio: Modules/ABIO bio.md
-    - Infra: Modules/ABIO infra Module.md
-    - Protocols: Modules/ABIO protocols Module.md
-    - Expr: Modules/ABIO expr Module.md
-    - Suite: Modules/ABIO suite.md
-    - Spec Language: Modules/ABIO spec_lang.md
-    - CLI: Modules/ABIO cli.md
+    - Overview: ABIO Ref/ABIO API/ABIO API.md
+    - Bio: ABIO Ref/ABIO API/ABIO bio Module.md
+    - Infra: ABIO Ref/ABIO API/ABIO infra Module.md
+    - Protocols: ABIO Ref/ABIO API/ABIO protocols Module.md
+    - Expr: ABIO Ref/ABIO API/ABIO expr Module.md
+    - Suite: ABIO Ref/ABIO API/ABIO suite Module.md
+    - Spec Language: ABIO Ref/ABIO API/ABIO spec_lang Module.md
+    - CLI: ABIO Ref/ABIO API/ABIO cli Module.md
