@@ -4,7 +4,7 @@ description: "the auto-generated API reference for the alienbio Python package, 
 
 | -[[ABIO API]]- | : the auto-generated API reference for the alienbio Python package, one page per module<br>→ [[ABIO]] → [[ABIO Ref]] → [ABIO API](ha://p/ABIO%20API)                                                                          |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Modules        | [[ABIO bio Module\|bio]],  [[ABIO infra Module\|infra]],  [[ABIO protocols Module\|protocols]],  [[ABIO expr Module\|expr]],  [[ABIO suite Module\|suite]],  [[ABIO spec_lang Module\|spec_lang]],  [[ABIO cli Module\|cli]], |
+| Modules        | [bio](ABIO%20bio%20Module.md),  [infra](ABIO%20infra%20Module.md),  [protocols](ABIO%20protocols%20Module.md),  [expr](ABIO%20expr%20Module.md),  [suite](ABIO%20suite%20Module.md),  [spec_lang](ABIO%20spec_lang%20Module.md),  [cli](ABIO%20cli%20Module.md), |
 | .              |                                                                                                                                                                                                                               |
 
 # ABIO API — API Reference

@@ -4,7 +4,7 @@ description: "the demonstration suite: eight sequential tutorial demos and three
 
 | -[[ABIO Demos]]- | : the demonstration suite: eight sequential tutorial demos and three combination experiments<br>→ [[ABIO]] → [ABIO Demos](ha://p/ABIO%20Demos) |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Demos            | [[ABIO Demo Gallery\|Gallery]],                                                                                                                |
+| Demos            | [Gallery](ABIO%20Demo%20Gallery.md),                                                                                                                |
 | ...              |                                                                                                                                                |
 
 # ABIO Demos

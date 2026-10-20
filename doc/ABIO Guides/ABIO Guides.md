@@ -4,9 +4,9 @@ description: "how to use alienbio: the user guide, the Expr language and its Pyt
 
 | -[[ABIO Guides]]- | : how to use alienbio: the user guide, the Expr language and its Python API, and the testing tiers<br>→ [[ABIO]] → [ABIO Guides](ha://p/ABIO%20Guides) |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Start             | [[ABIO Alienbio User Guide\|User Guide]],                                                                                                              |
-| Expr              | [[ABIO Expr Spec\|Spec]],  [[ABIO Expr Python API\|Python API]],                                                                                       |
-| Dev               | [[ABIO Testing Guide\|Testing]],                                                                                                                       |
+| Start             | [User Guide](ABIO%20Alienbio%20User%20Guide.md),                                                                                                              |
+| Expr              | [Spec](ABIO%20Expr%20Spec.md),  [Python API](ABIO%20Expr%20Python%20API.md),                                                                                       |
+| Dev               | [Testing](ABIO%20Testing%20Guide.md),                                                                                                                       |
 | ...               |                                                                                                                                                        |
 
 # ABIO Guides

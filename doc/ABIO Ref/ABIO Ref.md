@@ -4,11 +4,11 @@ description: "lookup pages for alienbio: class, module and command indexes, the 
 
 | -[[ABIO Ref]]- | : lookup pages for alienbio: class, module and command indexes, the file map, data, naming and vocabulary, and the generated API<br>→ [[ABIO]] → [ABIO Ref](ha://p/ABIO%20Ref) |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Indexes        | [[ABIO Protocols\|Protocols]],  [[ABIO Modules\|Modules]],  [[ABIO Commands\|Commands]],  [[ABIO Files\|Files]],                                                               |
-| Classes        | [[ABIO Classes\|Classes]],  [[Modules/ABIO API\|API]],                                                                                                                         |
-| Conventions    | [[ABIO Naming Conventions\|Naming]],  [[ABIO Alien Vocabulary\|Vocabulary]],  [[ABIO Documentation\|Documentation]],                                                           |
-| Data           | [[ABIO Data\|Data]],  [[ABIO DAT\|DAT]],  [[ABIO Factory Pegboard API\|Factory Pegboard]],                                                                                     |
-| History        | [[ABIO Notes\|Notes]],                                                                                                                                                         |
+| Indexes        | [Protocols](ABIO%20Protocols.md),  [Modules](ABIO%20Modules.md),  [Commands](ABIO%20Commands.md),  [Files](ABIO%20Files.md),                                                               |
+| Classes        | [Classes](ABIO%20Classes/ABIO%20Classes.md),  [API](ha://Modules/ABIO%20API),                                                                                                                         |
+| Conventions    | [Naming](ABIO%20Naming%20Conventions.md),  [Vocabulary](ABIO%20Alien%20Vocabulary.md),  [Documentation](ABIO%20Documentation.md),                                                           |
+| Data           | [Data](ABIO%20Data.md),  [DAT](ABIO%20DAT.md),  [Factory Pegboard](ABIO%20Factory%20Pegboard%20API.md),                                                                                     |
+| History        | [Notes](ABIO%20Notes.md),                                                                                                                                                         |
 | ...            | [[_template]],  [[ABIO API]],                                                                                                                                                  |
 
 # ABIO Ref

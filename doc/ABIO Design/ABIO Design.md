@@ -4,10 +4,10 @@ description: "the design home for the Alien Biology Framework"
 
 | -[[ABIO Design]]- | : the design home for the Alien Biology Framework<br>→ [[ABIO]] → [ABIO Design](ha://p/ABIO%20Design)                                                                                             |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Related           | [[ABIO Docs]],  [[ABIO Idea]],  [[ABIO Roadmap]],  [[ABIO Backlog]],  [[AUP]],                                                                                                                    |
-| Plan              | [[ABIO PRD\|PRD]],  [[ABIO Completed Roadmap\|Completed Roadmap]],  [[ABIO Capability Dimensions\|Capability Dimensions]],  [[ABIO Experiment Catalog\|Experiment Catalog]],                      |
-| Architecture      | [[ABIO Architecture\|Architecture]],  [[ABIO Skeleton Arch\|Skeleton]],  [[ABIO Expr\|Expr]],  [[ABIO Semantic Layer\|Semantic Layer]],  [[ABIO Unified Protocol Model\|Unified Protocol Model]], |
-| Proposals         | [[ABIO Phase-2 Design Brief\|Phase-2 Brief]],  [[ABIO Refactor Proposals\|Refactor]],  [[ABIO Hardening Proposal\|Hardening]],  [[ABIO Suite Protocol Assessment\|Suite Protocol Assessment]],    |
+| Related           | [ABIO Docs](../ABIO%20Docs.md),  [ABIO Idea](../ABIO%20Idea/ABIO%20Idea.md),  [ABIO Roadmap](ABIO%20Roadmap.md),  [ABIO Backlog](../ABIO%20Track/ABIO%20Backlog.md),  [AUP](ha://AUP),                                                                                                                    |
+| Plan              | [PRD](ABIO%20PRD.md),  [Completed Roadmap](ABIO%20Completed%20Roadmap.md),  [Capability Dimensions](ABIO%20Capability%20Dimensions.md),  [Experiment Catalog](ABIO%20Experiment%20Catalog.md),                      |
+| Architecture      | [Architecture](../ABIO%20Architecture/ABIO%20Architecture.md),  [Skeleton](ABIO%20Skeleton%20Arch/ABIO%20Skeleton%20Arch.md),  [Expr](ABIO%20Expr/ABIO%20Expr.md),  [Semantic Layer](ABIO%20Semantic%20Layer.md),  [Unified Protocol Model](ABIO%20Unified%20Protocol%20Model.md), |
+| Proposals         | [Phase-2 Brief](ABIO%20Phase-2%20Design%20Brief.md),  [Refactor](ABIO%20Refactor%20Proposals.md),  [Hardening](ABIO%20Hardening%20Proposal.md),  [Suite Protocol Assessment](ABIO%20Suite%20Protocol%20Assessment.md),    |
 | ...               |                                                                                                                                                                                                   |
 
 # ABIO Design

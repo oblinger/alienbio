@@ -4,7 +4,7 @@ description: "module docs for src/alienbio/suite/: the live agent turn loop, the
 
 | -[[ABIO suite]]- | : module docs for src/alienbio/suite/: the live agent turn loop, the brief, and the opaque-name boundary<br>→ [[ABIO]] → [[ABIO Dev Docs]] → [ABIO suite](ha://p/ABIO%20suite) |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Runtime          | [[ABIO Runner\|Runner]],  [[ABIO TaskBrief\|TaskBrief]],  [[ABIO NameMap\|NameMap]],                                                                                           |
+| Runtime          | [Runner](ABIO%20Runner.md),  [TaskBrief](ABIO%20TaskBrief.md),  [NameMap](ABIO%20NameMap.md),                                                                                           |
 | ...              |                                                                                                                                                                                |
 
 # ABIO suite

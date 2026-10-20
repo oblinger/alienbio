@@ -4,9 +4,9 @@ description: "module docs for src/alienbio/bio/: the chemistry substrate, its ra
 
 | -[[ABIO bio]]- | : module docs for src/alienbio/bio/: the chemistry substrate, its rate grammar and the two simulators that must agree<br>→ [[ABIO]] → [[ABIO Dev Docs]] → [ABIO bio](ha://p/ABIO%20bio) |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chemistry      | [[ABIO ChemistryImpl\|ChemistryImpl]],  [[ABIO ReactionImpl\|ReactionImpl]],  [[ABIO RateExpr\|RateExpr]],                                                                              |
-| World          | [[ABIO WorldImpl\|WorldImpl]],  [[ABIO WorldStateImpl\|WorldStateImpl]],  [[ABIO TransportFlux\|TransportFlux]],  [[ABIO PopulationLaw\|PopulationLaw]],                                |
-| Simulators     | [[ABIO WorldSimulatorImpl\|WorldSimulatorImpl]],  [[ABIO JaxWorldSimulator\|JaxWorldSimulator]],                                                                                        |
+| Chemistry      | [ChemistryImpl](ABIO%20ChemistryImpl.md),  [ReactionImpl](ABIO%20ReactionImpl.md),  [RateExpr](ABIO%20RateExpr.md),                                                                              |
+| World          | [WorldImpl](ABIO%20WorldImpl.md),  [WorldStateImpl](ABIO%20WorldStateImpl.md),  [TransportFlux](ABIO%20TransportFlux.md),  [PopulationLaw](ABIO%20PopulationLaw.md),                                |
+| Simulators     | [WorldSimulatorImpl](ABIO%20WorldSimulatorImpl.md),  [JaxWorldSimulator](ABIO%20JaxWorldSimulator.md),                                                                                        |
 | ...            |                                                                                                                                                                                         |
 
 # ABIO bio

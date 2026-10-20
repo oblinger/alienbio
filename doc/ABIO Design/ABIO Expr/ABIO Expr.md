@@ -4,7 +4,7 @@ description: "the generative expression language — G4 design note"
 
 | -[[ABIO Expr]]-                                                                             | : the generative expression language — G4 design note<br>→ [[ABIO]] → [[ABIO Design]] → [ABIO Expr](ha://p/ABIO%20Expr)     |
 | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Related                                                                                     | [[ABIO Unified Protocol Model]],  [[ABIO Expr Spec\|Spec]],  [[ABIO Expr Python API\|Python API]],  [[ABIO Skeleton Arch]], |
+| Related                                                                                     | [ABIO Unified Protocol Model](../ABIO%20Unified%20Protocol%20Model.md),  [Spec](../../ABIO%20Guides/ABIO%20Expr%20Spec.md),  [Python API](../../ABIO%20Guides/ABIO%20Expr%20Python%20API.md),  [ABIO Skeleton Arch](../ABIO%20Skeleton%20Arch/ABIO%20Skeleton%20Arch.md), |
 | [[ABIO Expr Templates\| every head, layer 0–6, with a worked example each                   |                                                                                                                             |
 | [[ABIO Expr Python Escapes\| where `!py` and `!x` reach into Python, and the trust boundary |                                                                                                                             |
 | ...                                                                                         | [[ABIO Expr Python Escapes\|Python Escapes]],  [[ABIO Expr Templates\|Templates]],                                          |
