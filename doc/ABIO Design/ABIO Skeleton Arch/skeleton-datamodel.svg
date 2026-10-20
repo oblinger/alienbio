@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 620" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+  <rect x="0" y="0" width="1120" height="620" rx="14" fill="#fbfbfd" stroke="#d9d9e3"/>
+  <text x="40" y="46" font-size="21" font-weight="700" fill="#1d1d22">Skeleton composition — data model</text>
+  <text x="40" y="70" font-size="13.5" fill="#6b6b78">a Skeleton owns instances + wires; each instance is a parameterized use of a library Block that emits a chemistry fragment</text>
+
+  <!-- Skeleton -->
+  <rect x="40" y="100" width="300" height="200" rx="12" fill="#eef4ff" stroke="#8bb4f0" stroke-width="2"/>
+  <text x="60" y="128" font-size="16" font-weight="700" fill="#1d3f7a">Skeleton</text>
+  <text x="60" y="148" font-size="11.5" fill="#5a6a86">the composed world-spec (new; owns the name)</text>
+  <g font-size="12.5" fill="#22222a">
+    <text x="60" y="176">instances: tuple[BlockInstance]</text>
+    <text x="60" y="198">wires: tuple[Wire]</text>
+    <text x="60" y="220">control_surface: tuple[LeverRef]</text>
+    <text x="60" y="242">crux: InstanceHandle</text>
+    <text x="60" y="270" font-size="11" fill="#8a8a96">materialize · validate · oracle · indirection_depth</text>
+  </g>
+
+  <!-- BlockInstance -->
+  <rect x="410" y="100" width="300" height="150" rx="12" fill="#ffffff" stroke="#c7c7d2"/>
+  <text x="430" y="128" font-size="16" font-weight="700" fill="#1d1d22">BlockInstance</text>
+  <text x="430" y="147" font-size="11.5" fill="#8a8a96">a placed, parameterized use of a Block</text>
+  <g font-size="12.5" fill="#22222a">
+    <text x="430" y="174">name: str  (namespace prefix)</text>
+    <text x="430" y="196">block: Block</text>
+    <text x="430" y="218">params: Tags</text>
+  </g>
+
+  <!-- Block -->
+  <rect x="780" y="100" width="300" height="200" rx="12" fill="#ffffff" stroke="#c7c7d2"/>
+  <text x="800" y="128" font-size="16" font-weight="700" fill="#1d1d22">Block</text>
+  <text x="800" y="147" font-size="11.5" fill="#8a8a96">a typed library template</text>
+  <g font-size="12.5" fill="#22222a">
+    <text x="800" y="174">role: Role  (supply/crux/…)</text>
+    <text x="800" y="196">ports: tuple[Port]</text>
+    <text x="800" y="218">param_schema: ParamSchema</text>
+    <text x="800" y="246" font-size="11.5" fill="#4a4a56">build(params, seed) → Fragment</text>
+    <text x="800" y="270" font-size="11" fill="#8a8a96">Fragment = molecules + reactions</text>
+    <text x="800" y="286" font-size="11" fill="#8a8a96">(+ compartment, initial conc.)</text>
+  </g>
+
+  <!-- Port -->
+  <rect x="410" y="330" width="300" height="150" rx="12" fill="#ffffff" stroke="#c7c7d2"/>
+  <text x="430" y="358" font-size="16" font-weight="700" fill="#1d1d22">Port</text>
+  <text x="430" y="377" font-size="11.5" fill="#8a8a96">a typed connection point</text>
+  <g font-size="12.5" fill="#22222a">
+    <text x="430" y="404">name: str</text>
+    <text x="430" y="426">kind: SPECIES | CONTROL</text>
+    <text x="430" y="448">direction: IN | OUT</text>
+  </g>
+
+  <!-- Wire -->
+  <rect x="40" y="330" width="300" height="150" rx="12" fill="#ffffff" stroke="#c7c7d2"/>
+  <text x="60" y="358" font-size="16" font-weight="700" fill="#1d1d22">Wire</text>
+  <text x="60" y="377" font-size="11.5" fill="#8a8a96">a type-checked port→port link</text>
+  <g font-size="12.5" fill="#22222a">
+    <text x="60" y="404">src: (InstanceHandle, port)</text>
+    <text x="60" y="426">dst: (InstanceHandle, port)</text>
+    <text x="60" y="452" font-size="11" fill="#8a8a96">species→species unifies pools;</text>
+    <text x="60" y="468" font-size="11" fill="#8a8a96">control→control attaches modulator</text>
+  </g>
+
+  <!-- relations -->
+  <g stroke="#8a8a96" stroke-width="1.6" fill="none">
+    <path d="M340 150 h70" marker-end="url(#b)"/>
+    <path d="M710 168 h70" marker-end="url(#b)"/>
+    <path d="M340 220 C 375 220, 190 300, 190 330" marker-end="url(#b)"/>
+    <path d="M480 250 v80" marker-end="url(#b)"/>
+    <path d="M780 210 C 740 210, 620 330, 620 330" marker-end="url(#b)"/>
+  </g>
+  <text x="352" y="142" font-size="10.5" fill="#8a8a96">1..*</text>
+  <text x="722" y="160" font-size="10.5" fill="#8a8a96">is-a</text>
+  <text x="150" y="322" font-size="10.5" fill="#8a8a96">1..*</text>
+  <text x="486" y="300" font-size="10.5" fill="#8a8a96">exposes</text>
+
+  <text x="40" y="540" font-size="13" font-weight="700" fill="#1d1d22">Port legend</text>
+  <circle cx="60" cy="566" r="7" fill="#7a7a86"/><text x="76" y="571" font-size="12.5" fill="#22222a">species port — carries mass; wiring unifies the two molecule pools into one object</text>
+  <path d="M53 588 l7 -7 l7 7 l-7 7 z" fill="#e0a63a"/><text x="76" y="595" font-size="12.5" fill="#22222a">control port — no mass; a modulating species that gates a reaction (mass-action; see S2)</text>
+
+  <defs><marker id="b" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#8a8a96"/></marker></defs>
+</svg>

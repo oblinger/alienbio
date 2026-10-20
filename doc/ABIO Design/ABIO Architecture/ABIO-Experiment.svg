@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 700" width="3000" height="1400" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1c1c"/></marker>
+    <style>
+      .inst{fill:#bac8ff;stroke:#364fc7;stroke-width:2}
+      .store{fill:#fff9db;stroke:#e67700;stroke-width:2}
+      .legacy{fill:#f8f9fa;stroke:#868e96;stroke-width:2;stroke-dasharray:8 5}
+      .t{font-size:20px;font-weight:700;fill:#1c1c1c}
+      .b{font-size:15px;fill:#1c1c1c}
+      .m{font-size:13px;fill:#495057;font-style:italic}
+      .l{font-size:13px;fill:#1971c2;font-style:italic}
+      .a{stroke:#1c1c1c;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+    </style>
+  </defs>
+  <rect width="1500" height="700" fill="#ffffff"/>
+
+  <text class="m" x="40" y="44">load</text>
+  <text class="m" x="720" y="44">validate and refuse — all before spend</text>
+  <text class="m" x="40" y="334">run</text>
+  <text class="m" x="40" y="494">read back</text>
+
+  <!-- row 1 -->
+  <rect id="box-yaml" class="store" x="40" y="70" width="250" height="90" rx="6"/>
+  <text class="t" x="56" y="98">catalog/experiments/</text>
+  <text class="b" x="56" y="124">*.yaml — one !experiment call</text>
+  <text class="m" x="56" y="146">trusted only under catalog/</text>
+
+  <path id="edge-yaml-load" class="a" d="M 290 115 L 340 115"/>
+  <text class="l" x="315" y="104" text-anchor="middle">load</text>
+
+  <rect id="box-load" class="inst" x="340" y="70" width="330" height="110" rx="6"/>
+  <text class="t" x="356" y="98">expr_experiment.py</text>
+  <text class="b" x="356" y="124">task: / brief: / episode: as quoted calls</text>
+  <text class="b" x="356" y="148">free names become axes; literals, fixed dials</text>
+  <text class="m" x="356" y="170">spec_to_text is the declared inverse</text>
+
+  <path id="edge-load-spec" class="a" d="M 670 115 L 720 115"/>
+  <text class="l" x="695" y="104" text-anchor="middle">spec</text>
+
+  <rect id="box-spec" class="inst" x="720" y="70" width="300" height="110" rx="6"/>
+  <text class="t" x="736" y="98">ExperimentSpec</text>
+  <text class="b" x="736" y="124">frozen, 30 fields · validated on load</text>
+  <text class="b" x="736" y="148">design power · matched dials · sampling</text>
+  <text class="m" x="736" y="170">expected_turns from the declared budget</text>
+
+  <path id="edge-spec-guards" class="a" d="M 1020 115 L 1070 115"/>
+  <text class="l" x="1045" y="104" text-anchor="middle">run</text>
+
+  <rect id="box-guards" class="inst" x="1070" y="70" width="390" height="220" rx="6"/>
+  <text class="t" x="1086" y="98">run_experiment pre-flight, in order</text>
+  <text class="b" x="1086" y="124">1  registration_admission</text>
+  <text class="b" x="1086" y="148">2  no_peeking_violation</text>
+  <text class="b" x="1086" y="172">3  unknown_dials_violation</text>
+  <text class="b" x="1086" y="196">4  declared_surface_violation</text>
+  <text class="b" x="1086" y="220">5  sampling_violation</text>
+  <text class="b" x="1086" y="244">6  out_dir · FileExistsError unless resume</text>
+  <text class="m" x="1086" y="270">the same verdicts print on bio suite run --dry</text>
+
+  <rect id="box-registry" class="inst" x="720" y="230" width="300" height="80" rx="6"/>
+  <text class="t" x="736" y="258">registration.py</text>
+  <text class="b" x="736" y="282">catalog/registrations.yaml, the filed licences</text>
+  <text class="m" x="736" y="302">osf · filed · dials · drafters — pinned by a test</text>
+
+  <path id="edge-registry-guards" class="a" d="M 1020 265 L 1070 265"/>
+  <text class="l" x="1045" y="254" text-anchor="middle">licence</text>
+
+  <!-- row 2 -->
+  <path id="edge-guards-grid" class="a" d="M 1265 290 L 1265 360"/>
+  <text class="l" x="1275" y="330">plan the grid</text>
+
+  <rect id="box-grid" class="inst" x="1070" y="360" width="390" height="110" rx="6"/>
+  <text class="t" x="1086" y="388">the grid</text>
+  <text class="b" x="1086" y="414">condition_grid(spec.axes) · idle_baseline axis</text>
+  <text class="b" x="1086" y="438">seed = base.child(label/i), matched dials dropped</text>
+  <text class="m" x="1086" y="460">WORLD_INVARIANT_DIALS never re-roll a world</text>
+
+  <path id="edge-grid-runner" class="a" d="M 1070 415 L 1020 415"/>
+  <text class="l" x="1045" y="404" text-anchor="middle">units</text>
+
+  <rect id="box-runner" class="inst" x="720" y="360" width="300" height="110" rx="6"/>
+  <text class="t" x="736" y="388">MassTrialRunner</text>
+  <text class="b" x="736" y="414">drafter closure → DRAFTERS[…]</text>
+  <text class="b" x="736" y="438">agent factory · stop() = cost ceiling</text>
+  <text class="m" x="736" y="460">the loop itself is ABIO-Runtime</text>
+
+  <path id="edge-runner-records" class="a" d="M 720 415 L 670 415"/>
+  <text class="l" x="695" y="404" text-anchor="middle">on_trial</text>
+
+  <rect id="box-records" class="store" x="340" y="360" width="330" height="110" rx="6"/>
+  <text class="t" x="356" y="388">runs/&lt;name&gt;/</text>
+  <text class="b" x="356" y="414">records.jsonl — one canonical line each</text>
+  <text class="b" x="356" y="438">manifest.json — spec hash · git · cost</text>
+  <text class="m" x="356" y="460">records.retried.jsonl on a resume</text>
+
+  <rect id="box-conditions" class="legacy" x="40" y="360" width="250" height="110" rx="6"/>
+  <text class="t" x="56" y="388">conditions.py</text>
+  <text class="b" x="56" y="414">the older orthogonal dial</text>
+  <text class="b" x="56" y="438">sampler (DialAxis, sample)</text>
+  <text class="m" x="56" y="460">not on the run path</text>
+
+  <!-- row 3 -->
+  <path id="edge-records-aggregate" class="a" d="M 505 470 L 505 520"/>
+  <text class="l" x="515" y="500">reload</text>
+
+  <rect id="box-aggregate" class="inst" x="340" y="520" width="330" height="90" rx="6"/>
+  <text class="t" x="356" y="548">aggregate</text>
+  <text class="b" x="356" y="574">ReliabilityMap from the two files alone</text>
+  <text class="m" x="356" y="596">no re-draft, no re-run</text>
+
+  <path id="edge-aggregate-report" class="a" d="M 670 565 L 720 565"/>
+  <text class="l" x="695" y="554" text-anchor="middle">map</text>
+
+  <rect id="box-report" class="inst" x="720" y="520" width="300" height="90" rx="6"/>
+  <text class="t" x="736" y="548">render_report · plots</text>
+  <text class="b" x="736" y="574">fixed section order (ABIO-Analysis)</text>
+  <text class="m" x="736" y="596">key_figure: key_readout, else first drawable</text>
+
+  <path id="edge-report-outputs" class="a" d="M 1020 565 L 1070 565"/>
+  <text class="l" x="1045" y="554" text-anchor="middle">write</text>
+
+  <rect id="box-outputs" class="store" x="1070" y="520" width="390" height="90" rx="6"/>
+  <text class="t" x="1086" y="548">report.txt · map.json / map.csv</text>
+  <text class="b" x="1086" y="574">key.png + key.json — the one figure per run</text>
+  <text class="m" x="1086" y="596">what bio report embeds and the paper reads</text>
+
+  <!-- key -->
+  <text class="m" x="40" y="648">KEY</text>
+  <rect class="inst" x="40" y="660" width="26" height="18"/>
+  <text class="b" x="74" y="674">instrument — suite/</text>
+  <rect class="store" x="260" y="660" width="26" height="18"/>
+  <text class="b" x="294" y="674">files on disk</text>
+  <rect class="legacy" x="440" y="660" width="26" height="18"/>
+  <text class="b" x="474" y="674">older route, not on the run path</text>
+  <path class="a" d="M 760 669 L 810 669"/>
+  <text class="b" x="820" y="674">call or write, in the direction drawn</text>
+</svg>

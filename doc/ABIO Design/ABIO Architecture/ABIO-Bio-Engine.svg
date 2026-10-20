@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 740" width="3000" height="1480" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1c1c"/></marker>
+    <style>
+      .sub{fill:#ebfbee;stroke:#2b8a3e;stroke-width:2}
+      .infra{fill:#f1f3f5;stroke:#495057;stroke-width:2}
+      .store{fill:#fff9db;stroke:#e67700;stroke-width:2}
+      .legacy{fill:#f8f9fa;stroke:#868e96;stroke-width:2;stroke-dasharray:8 5}
+      .t{font-size:20px;font-weight:700;fill:#1c1c1c}
+      .b{font-size:15px;fill:#1c1c1c}
+      .m{font-size:13px;fill:#495057;font-style:italic}
+      .l{font-size:13px;fill:#1971c2;font-style:italic}
+      .a{stroke:#1c1c1c;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+      .bus{stroke:#1c1c1c;stroke-width:2;fill:none}
+    </style>
+  </defs>
+  <rect width="1500" height="740" fill="#ffffff"/>
+
+  <text class="m" x="40" y="44">the entities</text>
+  <text class="m" x="450" y="44">declared, then resolved</text>
+  <text class="m" x="950" y="44">stepped — two simulators, one rate grammar</text>
+
+  <!-- entities -->
+  <rect id="box-chem" class="sub" x="40" y="70" width="350" height="130" rx="6"/>
+  <text class="t" x="56" y="98">chemistry.py</text>
+  <text class="b" x="56" y="124">ChemistryImpl · MoleculeImpl · ReactionImpl</text>
+  <text class="b" x="56" y="148">rate laws as rate_expr trees, by species name</text>
+  <text class="m" x="56" y="174">graph queries via infra.graph_ops · atom.py</text>
+
+  <path id="edge-infra-chem" class="a" d="M 215 250 L 215 200"/>
+  <text class="l" x="225" y="230">Entity base</text>
+
+  <rect id="box-infra" class="infra" x="40" y="250" width="350" height="90" rx="6"/>
+  <text class="t" x="56" y="278">infra</text>
+  <text class="b" x="56" y="302">Entity · MockDat · mk pegboard (mk.M / R / C)</text>
+  <text class="m" x="56" y="326">bio.io: the declared IO slot, attached only by tests</text>
+
+  <rect id="box-m1" class="legacy" x="40" y="390" width="350" height="230" rx="6"/>
+  <text class="t" x="56" y="418">M1-era layer</text>
+  <text class="b" x="56" y="444">simulator.py (ReferenceSimulatorImpl) · biosystem</text>
+  <text class="b" x="56" y="468">agent_interface · actions · measurements · task</text>
+  <text class="b" x="56" y="492">diagnosis · disease · difficulty · skinning</text>
+  <text class="b" x="56" y="516">organ_generator · perturbation · quiescence</text>
+  <text class="m" x="56" y="546">not on the suite path; ReferenceSimulatorImpl has</text>
+  <text class="m" x="56" y="570">no mass-action term and no rounding snap —</text>
+  <text class="m" x="56" y="594">different physics from the world simulator</text>
+
+  <!-- declared -> resolved -->
+  <path id="edge-chem-world" class="a" d="M 390 135 L 450 135"/>
+  <text class="l" x="420" y="124" text-anchor="middle">chemistry</text>
+
+  <rect id="box-world" class="sub" x="450" y="70" width="440" height="160" rx="6"/>
+  <text class="t" x="466" y="98">world.py — WorldImpl, the resolution point</text>
+  <text class="b" x="466" y="124">in: Compartment · Transport (string ids)</text>
+  <text class="b" x="466" y="148">GrowthLaw · DeathLaw · CountFlowSpec, as blocks emit them</text>
+  <text class="b" x="466" y="172">build_tree → int-indexed compartments; molecule axis fixed</text>
+  <text class="m" x="466" y="198">the runner rebuilds a fresh WorldImpl every turn</text>
+
+  <path id="edge-world-resolved" class="a" d="M 670 230 L 670 270"/>
+  <text class="l" x="680" y="256">resolves ids</text>
+
+  <rect id="box-resolved" class="sub" x="450" y="270" width="440" height="120" rx="6"/>
+  <text class="t" x="466" y="298">resolved runtime objects</text>
+  <text class="b" x="466" y="324">WorldStateImpl [comp × mol] · CompartmentTreeImpl</text>
+  <text class="b" x="466" y="348">TransportFlux · GeneralFlow · CountFlow</text>
+  <text class="b" x="466" y="372">PerCapitaGrowth · PerCapitaDeath</text>
+
+  <rect id="box-checks" class="sub" x="450" y="520" width="440" height="110" rx="6"/>
+  <text class="t" x="466" y="548">checks</text>
+  <text class="b" x="466" y="574">conservation.py atom balance — skeleton.py calls it</text>
+  <text class="b" x="466" y="598">energy.py ΔG (opt-in) · suite/boundedness.py</text>
+  <text class="m" x="466" y="622">total_quantity / total_free_energy canaries over a run</text>
+
+  <!-- stepped -->
+  <path id="edge-world-ref" class="a" d="M 890 135 L 950 135"/>
+  <text class="l" x="920" y="124" text-anchor="middle">world</text>
+
+  <rect id="box-ref" class="sub" x="950" y="70" width="440" height="130" rx="6"/>
+  <text class="t" x="966" y="98">world_simulator.py — the reference stepper</text>
+  <text class="b" x="966" y="124">from_chemistry: map_species name→id · Modulation</text>
+  <text class="b" x="966" y="148">freeze state → eval_rate → ration shared reactants →</text>
+  <text class="b" x="966" y="172">apply extents at once → flows in list order → populations</text>
+  <text class="m" x="966" y="192">entered via suite/verify.simulate · ROUNDING_FLOOR · RATE_CAP</text>
+
+  <path id="edge-rate-ref" class="a" d="M 1170 230 L 1170 200"/>
+  <text class="l" x="1180" y="220">eval_rate</text>
+
+  <rect id="box-rate" class="sub" x="950" y="230" width="440" height="70" rx="6"/>
+  <text class="t" x="966" y="258">rate_expr.py</text>
+  <text class="b" x="966" y="284">one tree · eval_rate (Python) · lower_jax (JAX) · map_species</text>
+
+  <path id="edge-rate-jax" class="a" d="M 1170 300 L 1170 330"/>
+  <text class="l" x="1180" y="320">lower_jax</text>
+
+  <rect id="box-jax" class="sub" x="950" y="330" width="440" height="120" rx="6"/>
+  <text class="t" x="966" y="358">jax_simulator.py + jax_core.py</text>
+  <text class="b" x="966" y="384">padded [R × M] stoichiometry tensors · fori_loop</text>
+  <text class="b" x="966" y="408">run_fast / run_batch stay on device</text>
+  <text class="m" x="966" y="434">must match the reference to 1e-9 — a CI parity test</text>
+
+  <path id="edge-resolved-jax" class="a" d="M 890 370 L 950 370"/>
+  <text class="l" x="920" y="392" text-anchor="middle">tensors</text>
+
+  <!-- timeline bus -->
+  <path class="bus" d="M 1390 135 L 1420 135 L 1420 595"/>
+  <path class="bus" d="M 1390 390 L 1420 390"/>
+  <path id="edge-sims-timeline" class="a" d="M 1420 595 L 1390 595"/>
+  <text class="l" x="1428" y="500">run()</text>
+
+  <rect id="box-timeline" class="store" x="950" y="560" width="440" height="70" rx="6"/>
+  <text class="t" x="966" y="588">Timeline</text>
+  <text class="b" x="966" y="614">a list of WorldStateImpl, one per step — what the runner reads</text>
+
+  <path id="edge-timeline-checks" class="a" d="M 950 595 L 890 595"/>
+  <text class="l" x="920" y="584" text-anchor="middle">canaries</text>
+
+  <!-- key -->
+  <text class="m" x="40" y="678">KEY</text>
+  <rect class="sub" x="40" y="690" width="26" height="18"/>
+  <text class="b" x="74" y="704">substrate — bio/</text>
+  <rect class="infra" x="240" y="690" width="26" height="18"/>
+  <text class="b" x="274" y="704">infra — cross-cutting</text>
+  <rect class="store" x="460" y="690" width="26" height="18"/>
+  <text class="b" x="494" y="704">data handed to the instrument</text>
+  <rect class="legacy" x="740" y="690" width="26" height="18"/>
+  <text class="b" x="774" y="704">exported but not on the suite path</text>
+  <path class="a" d="M 1060 699 L 1110 699"/>
+  <text class="b" x="1120" y="704">call or write, in the direction drawn</text>
+</svg>

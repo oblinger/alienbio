@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 680" width="3000" height="1360" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1c1c"/></marker>
+    <style>
+      .inst{fill:#bac8ff;stroke:#364fc7;stroke-width:2}
+      .store{fill:#fff9db;stroke:#e67700;stroke-width:2}
+      .legacy{fill:#f8f9fa;stroke:#868e96;stroke-width:2;stroke-dasharray:8 5}
+      .t{font-size:20px;font-weight:700;fill:#1c1c1c}
+      .b{font-size:15px;fill:#1c1c1c}
+      .m{font-size:13px;fill:#495057;font-style:italic}
+      .l{font-size:13px;fill:#1971c2;font-style:italic}
+      .a{stroke:#1c1c1c;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+    </style>
+  </defs>
+  <rect width="1500" height="680" fill="#ffffff"/>
+
+  <text class="m" x="40" y="44">on disk</text>
+  <text class="m" x="370" y="44">rebuilt, never re-run</text>
+  <text class="m" x="700" y="44">one reader per experiment family, in report order</text>
+  <text class="m" x="1210" y="44">what the paper reads</text>
+
+  <rect id="box-records" class="store" x="40" y="70" width="280" height="100" rx="6"/>
+  <text class="t" x="56" y="98">runs/&lt;name&gt;/</text>
+  <text class="b" x="56" y="124">records.jsonl · manifest.json</text>
+  <text class="m" x="56" y="148">every field a reader needs is already here</text>
+
+  <path id="edge-records-aggregate" class="a" d="M 320 120 L 370 120"/>
+  <text class="l" x="345" y="109" text-anchor="middle">reload</text>
+
+  <rect id="box-aggregate" class="inst" x="370" y="70" width="280" height="100" rx="6"/>
+  <text class="t" x="386" y="98">aggregate</text>
+  <text class="b" x="386" y="124">ReliabilityMap: cells · contrasts</text>
+  <text class="b" x="386" y="148">two-way interactions · provenance</text>
+
+  <path id="edge-stats-aggregate" class="a" d="M 510 210 L 510 170"/>
+  <text class="l" x="520" y="196">stats</text>
+
+  <rect id="box-stats" class="inst" x="370" y="210" width="280" height="90" rx="6"/>
+  <text class="t" x="386" y="238">effect_size · stats_summary</text>
+  <text class="b" x="386" y="264">reliability_grid · power</text>
+  <text class="m" x="386" y="288">Cohen's d · Welch t · normal CIs · required n</text>
+
+  <path id="edge-aggregate-families" class="a" d="M 650 120 L 700 120"/>
+  <text class="l" x="675" y="109" text-anchor="middle">records</text>
+
+  <rect id="box-families" class="inst" x="700" y="70" width="460" height="300" rx="6"/>
+  <text class="t" x="716" y="98">the readers</text>
+  <text class="b" x="716" y="124">hazard — surfacing · considerations · blind spots</text>
+  <text class="b" x="716" y="148">tradeoff — dominance · Pareto · precedence ladder</text>
+  <text class="b" x="716" y="172">caution — info-seeking · destructive acts · factorial</text>
+  <text class="b" x="716" y="196">faking — monitored vs unmonitored divergence</text>
+  <text class="b" x="716" y="220">degradation — budget ladder · cliff read</text>
+  <text class="b" x="716" y="244">delta — paired prior-vs-world gap</text>
+  <text class="b" x="716" y="268">dose — pressure ladder · dose_profile</text>
+  <text class="b" x="716" y="292">census — engagement · side-product distribution</text>
+  <text class="m" x="716" y="318">each reads record.oracle[family] · final_state · action_log</text>
+  <text class="m" x="716" y="342">· answer · terminal_reason — and re-derives nothing</text>
+
+  <path id="edge-primitives-families" class="a" d="M 930 420 L 930 370"/>
+  <text class="l" x="940" y="402">primitives</text>
+
+  <rect id="box-primitives" class="inst" x="700" y="420" width="460" height="100" rx="6"/>
+  <text class="t" x="716" y="448">score_* primitives</text>
+  <text class="b" x="716" y="474">score_conflict · score_surfacing</text>
+  <text class="b" x="716" y="498">score_blindspot · score_divergence</text>
+  <text class="m" x="716" y="514">score_calibration · score_failuremode have no importer in src/</text>
+
+  <rect id="box-realism" class="legacy" x="700" y="540" width="460" height="70" rx="6"/>
+  <text class="t" x="716" y="568">realism.py</text>
+  <text class="b" x="716" y="594">LLM-judged win rates over the LLMFn seam — never called by the report</text>
+
+  <path id="edge-families-report" class="a" d="M 1160 140 L 1210 140"/>
+  <text class="l" x="1185" y="129" text-anchor="middle">rows</text>
+
+  <rect id="box-report" class="inst" x="1210" y="70" width="250" height="140" rx="6"/>
+  <text class="t" x="1226" y="98">render_report</text>
+  <text class="b" x="1226" y="124">sections in one fixed order</text>
+  <text class="b" x="1226" y="148">a section appears only when</text>
+  <text class="b" x="1226" y="172">a record carries its oracle</text>
+  <text class="m" x="1226" y="196">lives in experiment.py</text>
+
+  <path id="edge-report-txt" class="a" d="M 1335 210 L 1335 250"/>
+  <text class="l" x="1345" y="236">write</text>
+
+  <rect id="box-txt" class="store" x="1210" y="250" width="250" height="60" rx="6"/>
+  <text class="t" x="1226" y="278">report.txt</text>
+  <text class="m" x="1226" y="300">plus map.json / map.csv</text>
+
+  <path id="edge-families-plots" class="a" d="M 1160 350 L 1210 350"/>
+  <text class="l" x="1185" y="339" text-anchor="middle">records</text>
+
+  <rect id="box-plots" class="inst" x="1210" y="340" width="250" height="110" rx="6"/>
+  <text class="t" x="1226" y="368">plots.py</text>
+  <text class="b" x="1226" y="394">PLOTTERS mirrors the report</text>
+  <text class="b" x="1226" y="418">key_figure: spec.key_readout,</text>
+  <text class="m" x="1226" y="442">else the first readout drawable</text>
+
+  <path id="edge-plots-png" class="a" d="M 1335 450 L 1335 490"/>
+  <text class="l" x="1345" y="476">write</text>
+
+  <rect id="box-png" class="store" x="1210" y="490" width="250" height="60" rx="6"/>
+  <text class="t" x="1226" y="518">key.png + key.json</text>
+  <text class="m" x="1226" y="540">the one figure bio report embeds</text>
+
+  <!-- key -->
+  <text class="m" x="40" y="628">KEY</text>
+  <rect class="inst" x="40" y="640" width="26" height="18"/>
+  <text class="b" x="74" y="654">instrument — suite/</text>
+  <rect class="store" x="260" y="640" width="26" height="18"/>
+  <text class="b" x="294" y="654">files on disk</text>
+  <rect class="legacy" x="440" y="640" width="26" height="18"/>
+  <text class="b" x="474" y="654">exported, not on the report path</text>
+  <path class="a" d="M 760 649 L 810 649"/>
+  <text class="b" x="820" y="654">call or write, in the direction drawn</text>
+</svg>

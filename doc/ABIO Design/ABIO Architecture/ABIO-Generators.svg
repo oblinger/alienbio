@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 720" width="3000" height="1440" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1c1c"/></marker>
+    <style>
+      .inst{fill:#bac8ff;stroke:#364fc7;stroke-width:2}
+      .sub{fill:#ebfbee;stroke:#2b8a3e;stroke-width:2}
+      .store{fill:#fff9db;stroke:#e67700;stroke-width:2}
+      .legacy{fill:#f8f9fa;stroke:#868e96;stroke-width:2;stroke-dasharray:8 5}
+      .t{font-size:20px;font-weight:700;fill:#1c1c1c}
+      .b{font-size:15px;fill:#1c1c1c}
+      .m{font-size:13px;fill:#495057;font-style:italic}
+      .l{font-size:13px;fill:#1971c2;font-style:italic}
+      .a{stroke:#1c1c1c;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+      .bus{stroke:#1c1c1c;stroke-width:2;fill:none}
+    </style>
+  </defs>
+  <rect width="1500" height="720" fill="#ffffff"/>
+
+  <text class="m" x="40" y="34">the grammar</text>
+  <text class="m" x="430" y="34">the drafters — one module per experiment family</text>
+  <text class="m" x="1030" y="34">what the head declares</text>
+
+  <!-- grammar column -->
+  <rect id="box-blocks" class="inst" x="40" y="60" width="330" height="150" rx="6"/>
+  <text class="t" x="56" y="90">blocks.py</text>
+  <text class="b" x="56" y="116">Source · Sink · Reaction · ConflictCrux</text>
+  <text class="b" x="56" y="140">Signaling · Transport · Population</text>
+  <text class="m" x="56" y="166">the block catalog every drafter composes</text>
+  <text class="m" x="56" y="190">ConflictCrux.ground_truth · sweep_conflict_frontier</text>
+
+  <path id="edge-blocks-skeleton" class="a" d="M 205 210 L 205 250"/>
+  <text class="l" x="215" y="236">compose</text>
+
+  <rect id="box-skeleton" class="inst" x="40" y="250" width="330" height="150" rx="6"/>
+  <text class="t" x="56" y="280">skeleton.py</text>
+  <text class="b" x="56" y="306">SkeletonBlock tree · Port · PoolBinding</text>
+  <text class="b" x="56" y="330">materialize(seed) samples every Dist hole</text>
+  <text class="m" x="56" y="356">Provenance on each block — oracles read</text>
+  <text class="m" x="56" y="380">truth off the tree, never off id strings</text>
+
+  <path id="edge-skeleton-bio" class="a" d="M 205 400 L 205 460"/>
+  <text class="l" x="215" y="436">materialize → world</text>
+
+  <rect id="box-bio" class="sub" x="40" y="460" width="330" height="130" rx="6"/>
+  <text class="t" x="56" y="490">bio engine</text>
+  <text class="b" x="56" y="516">WorldImpl · ChemistryImpl · Compartment</text>
+  <text class="b" x="56" y="540">verify.simulate — the draft-time gates run here</text>
+  <text class="m" x="56" y="566">substrate — see ABIO-Bio-Engine</text>
+
+  <!-- drafters column -->
+  <rect id="box-pressure" class="inst" x="430" y="60" width="520" height="90" rx="6"/>
+  <text class="t" x="446" y="88">pressure_gen.py</text>
+  <text class="b" x="446" y="112">pi throttles the clean route · feed levers capped at FEED_MAX_RATE</text>
+  <text class="m" x="446" y="136">passive_reach → derive_target · passive gate · pressure gate · control_surface</text>
+
+  <rect id="box-phase1" class="inst" x="430" y="170" width="520" height="90" rx="6"/>
+  <text class="t" x="446" y="198">phase1_gen.py</text>
+  <text class="b" x="446" y="222">conflict-free family, seven variants: told · withheld · unobservable · down</text>
+  <text class="m" x="446" y="246">phase1_chemistry_note (the told prose) · phase1_surface · lever_effects</text>
+
+  <rect id="box-conflict" class="inst" x="430" y="280" width="520" height="90" rx="6"/>
+  <text class="t" x="446" y="308">conflict_gen.py</text>
+  <text class="b" x="446" y="332">four-rung ladder — RUNGS, each rung forced by construction</text>
+  <text class="m" x="446" y="356">closed_form_frontier (analytic) beside _assert_forced_gate (simulated)</text>
+
+  <rect id="box-delta" class="inst" x="430" y="390" width="520" height="90" rx="6"/>
+  <text class="t" x="446" y="418">delta_gen.py</text>
+  <text class="b" x="446" y="442">matched pair W_match / W_mismatch — the hidden regularity inverted</text>
+  <text class="m" x="446" y="466">_DeltaCruxBlock · true driver on objective.key · _assert_delta_gate</text>
+
+  <rect id="box-arch" class="inst" x="430" y="500" width="520" height="90" rx="6"/>
+  <text class="t" x="446" y="528">arch_diagnose · arch_predict · arch_intervene</text>
+  <text class="b" x="446" y="552">the task archetypes over any drafted world</text>
+  <text class="m" x="446" y="576">hazard.py — hazard_oracle + considerations, injected after the draft</text>
+
+  <!-- left bus: drafters build on the grammar -->
+  <path class="bus" d="M 430 105 L 400 105 L 400 545 L 430 545"/>
+  <path class="bus" d="M 430 215 L 400 215"/>
+  <path class="bus" d="M 430 325 L 400 325"/>
+  <path class="bus" d="M 430 435 L 400 435"/>
+  <path id="edge-drafters-skeleton" class="a" d="M 400 325 L 370 325"/>
+  <path id="edge-drafters-bio" class="a" d="M 400 525 L 370 525"/>
+  <text class="l" x="398" y="52" text-anchor="end">build_*_skeleton</text>
+
+  <!-- right bus: the head calls, the drafter returns -->
+  <path class="bus" d="M 950 105 L 990 105 L 990 545 L 950 545"/>
+  <path class="bus" d="M 950 215 L 990 215"/>
+  <path class="bus" d="M 950 325 L 990 325"/>
+  <path class="bus" d="M 950 435 L 990 435"/>
+  <path id="edge-head-drafters" class="a" d="M 1030 330 L 990 330"/>
+  <path id="edge-drafters-head" class="a" d="M 990 450 L 1030 450"/>
+  <text class="l" x="1030" y="292">calls draft_*_world(seed, dials, **generator)</text>
+  <text class="l" x="1030" y="492">returns world · skeleton · objective · info</text>
+
+  <!-- head -->
+  <rect id="box-head" class="inst" x="1030" y="300" width="430" height="170" rx="6"/>
+  <text class="t" x="1046" y="330">experiment.py — the drafter heads</text>
+  <text class="b" x="1046" y="356">DRAFTERS[name](seed, dials, **generator)</text>
+  <text class="b" x="1046" y="380">GUARDED_DRAFTERS · CONFLICT_FREE_DRAFTERS</text>
+  <text class="m" x="1046" y="406">reads structural ids off resolved ports</text>
+  <text class="m" x="1046" y="430">registered into Expr's registry by expr_heads.py</text>
+  <text class="m" x="1046" y="454">— the plugin edge the entry figure leaves undrawn</text>
+
+  <path id="edge-head-setup" class="a" d="M 1420 300 L 1420 260"/>
+  <text class="l" x="1410" y="286" text-anchor="end">writes</text>
+
+  <rect id="box-setup" class="store" x="1030" y="60" width="430" height="200" rx="6"/>
+  <text class="t" x="1046" y="90">TaskInstance.setup</text>
+  <text class="b" x="1046" y="116">oracle · pressure | phase1 | conflict | delta |</text>
+  <text class="b" x="1046" y="140">hazard + considerations | discover</text>
+  <text class="b" x="1046" y="164">lever_caps · probe_vocab · hidden_ids · require_levers</text>
+  <text class="m" x="1046" y="190">generator-held truth lives only here; the runner</text>
+  <text class="m" x="1046" y="214">copies it to TrialRecord.oracle after the episode,</text>
+  <text class="m" x="1046" y="238">and every scorer grades against that copy</text>
+
+  <rect id="box-legacy" class="legacy" x="1030" y="510" width="430" height="80" rx="6"/>
+  <text class="b" x="1046" y="538">M27 route — carve · augment · cover · vocab · archetypes</text>
+  <text class="m" x="1046" y="562">only pipeline.build_suite walks it; the drafters never do</text>
+  <text class="m" x="1046" y="582">(experiment.py stubs carving with _no_carve)</text>
+
+  <!-- key -->
+  <text class="m" x="40" y="640">KEY</text>
+  <rect class="inst" x="40" y="652" width="26" height="18"/>
+  <text class="b" x="74" y="666">instrument — suite/</text>
+  <rect class="sub" x="260" y="652" width="26" height="18"/>
+  <text class="b" x="294" y="666">substrate — bio/</text>
+  <rect class="store" x="450" y="652" width="26" height="18"/>
+  <text class="b" x="484" y="666">data the head writes for the runtime</text>
+  <rect class="legacy" x="790" y="652" width="26" height="18"/>
+  <text class="b" x="824" y="666">older route, not on the drafter path</text>
+  <path class="a" d="M 1120 661 L 1170 661"/>
+  <text class="b" x="1180" y="666">call or write, in the direction drawn</text>
+</svg>

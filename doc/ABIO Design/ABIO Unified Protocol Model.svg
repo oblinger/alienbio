@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1230" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <marker id="arrv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5a3f8a"/>
+    </marker>
+    <style>
+      .band { stroke:none; }
+      .lbl-band { font-size:17px; font-weight:700; }
+      .lbl-sub { font-size:11px; font-weight:400; fill:#666; }
+      .box { rx:8; stroke-width:1.5; }
+      .bio { fill:#dfeee4; stroke:#2f6b4f; }
+      .eval { fill:#d9eeee; stroke:#2f6b6b; }
+      .val { fill:#e3e9f4; stroke:#34518a; }
+      .spec { fill:#e9e3f4; stroke:#5a3f8a; }
+      .eng { fill:#f4ecd8; stroke:#8a6d34; }
+      .emph { stroke-width:2.6; }
+      .title { font-size:14.5px; font-weight:600; text-anchor:middle; }
+      .sub { font-size:10px; font-weight:400; fill:#555; text-anchor:middle; }
+      .chip { rx:10; fill:#eef6f0; stroke:#6a9a80; stroke-width:1; }
+      .chipt { font-size:10px; text-anchor:middle; fill:#333; }
+      .cap { font-size:9.5px; fill:#888; font-style:italic; }
+      .flow { stroke:#555; stroke-width:1.4; fill:none; }
+      .flowv { stroke:#5a3f8a; stroke-width:1.5; fill:none; stroke-dasharray:5 3; }
+      .elab { font-size:10.5px; fill:#5a3f8a; font-weight:600; }
+      .lg { font-size:11.5px; fill:#333; }
+      .lgb { font-size:12px; fill:#222; font-weight:700; }
+    </style>
+  </defs>
+
+  <!-- ===== LEGEND ===== -->
+  <rect class="box" x="1398" y="24" width="286" height="330" fill="#fbfaf5" stroke="#bbb" stroke-width="1.2"/>
+  <text x="1414" y="48" class="lgb">Two kinds of thing + one convention</text>
+  <line x1="1414" y1="58" x2="1670" y2="58" stroke="#ddd"/>
+  <text x="1414" y="82" class="lg"><tspan font-weight="700">① ② Typed object</tspan> — a class ONLY</text>
+  <text x="1414" y="99" class="lg">where there's behavior (protocol)</text>
+  <text x="1414" y="116" class="lg">or specialized meaning (value type).</text>
+  <text x="1414" y="146" class="lg"><tspan font-weight="700">④ Spec-expression</tspan> — NOT a class;</text>
+  <text x="1414" y="163" class="lg">a declarative Expr the Interpreter</text>
+  <text x="1414" y="180" class="lg">evaluates → its concrete object,</text>
+  <text x="1414" y="197" class="lg">or errors. (documentation + DSL)</text>
+  <line x1="1414" y1="212" x2="1670" y2="212" stroke="#ddd"/>
+  <text x="1414" y="234" class="lg" font-style="italic">Convention (documented, not enforced):</text>
+  <text x="1414" y="255" class="lg">factories mint kind-labeled instances</text>
+  <text x="1414" y="276" class="lg">Flow→membrane/general</text>
+  <text x="1414" y="293" class="lg">Compartment→organism/organ/cell/…</text>
+  <text x="1414" y="310" class="lg">Dist→constant/uniform/… · Op→scripted/LLM</text>
+  <text x="1414" y="327" class="lg">Objective→answer/outcome</text>
+  <text x="1414" y="346" class="lg">readable ids by convention (M…, R…)</text>
+
+  <!-- ===== REGION 1: biological substrate ===== -->
+  <rect class="band" x="20" y="20" width="1360" height="360" fill="#eef7f1"/>
+  <text x="40" y="50" class="lbl-band" fill="#1e4635">① Biological substrate — behavioral protocols</text>
+
+  <!-- Chemistry container holds Atom + Molecule + Reaction -->
+  <rect class="box bio" x="55" y="78" width="445" height="122" fill="#d3e8dc" stroke-dasharray="6 4"/>
+  <text x="277" y="100" class="title">Chemistry</text><text x="277" y="116" class="sub">reaction network + graph queries · holds atoms / molecules / reactions</text>
+  <rect class="box bio" x="72" y="126" width="112" height="58"/>
+  <text x="128" y="152" class="title">Atom</text><text x="128" y="167" class="sub">element (fixed set)</text>
+  <rect class="box bio" x="196" y="126" width="138" height="58"/>
+  <text x="265" y="152" class="title">Molecule</text><text x="265" y="167" class="sub">species / node</text>
+  <rect class="box bio" x="346" y="126" width="138" height="58"/>
+  <text x="415" y="152" class="title">Reaction</text><text x="415" y="167" class="sub">transformation</text>
+
+  <!-- World + Simulator on the same top line as Chemistry -->
+  <rect class="box bio emph" x="545" y="92" width="215" height="66"/>
+  <text x="652" y="120" class="title">World</text><text x="652" y="138" class="sub">Chemistry + compartments + WorldState</text>
+  <rect class="box bio" x="790" y="92" width="215" height="66"/>
+  <text x="897" y="120" class="title">Simulator</text><text x="897" y="138" class="sub">advances World → Timeline · pluggable</text>
+
+  <!-- bottom line: Compartment, Flow, WorldState, Timeline -->
+  <rect class="box bio" x="55" y="255" width="165" height="58"/>
+  <text x="137" y="281" class="title">Compartment</text><text x="137" y="299" class="sub">container node</text>
+  <rect class="chip" x="52" y="320" width="74" height="20"/><text x="89" y="334" class="chipt">organism</text>
+  <rect class="chip" x="130" y="320" width="52" height="20"/><text x="156" y="334" class="chipt">organ</text>
+  <rect class="chip" x="186" y="320" width="42" height="20"/><text x="207" y="334" class="chipt">cell</text>
+  <rect class="chip" x="52" y="344" width="78" height="20"/><text x="91" y="358" class="chipt">organelle</text>
+  <text x="152" y="358" class="cap">factory flavors</text>
+
+  <rect class="box bio" x="255" y="255" width="150" height="58"/>
+  <text x="330" y="281" class="title">Flow</text><text x="330" y="299" class="sub">transport / edit</text>
+  <rect class="chip" x="250" y="320" width="74" height="20"/><text x="287" y="334" class="chipt">membrane</text>
+  <rect class="chip" x="328" y="320" width="58" height="20"/><text x="357" y="334" class="chipt">general</text>
+
+  <rect class="box bio" x="445" y="255" width="185" height="58"/>
+  <text x="537" y="281" class="title">WorldState</text><text x="537" y="299" class="sub">concentrations [comp × mol]</text>
+
+  <rect class="box bio" x="670" y="255" width="160" height="58"/>
+  <text x="750" y="281" class="title">Timeline</text><text x="750" y="299" class="sub">state sequence</text>
+
+  <path class="flow" d="M888,158 C872,214 800,224 760,253" marker-end="url(#arr)"/>
+
+  <!-- ===== REGION 2: suite-construction engines ===== -->
+  <rect class="band" x="20" y="398" width="1360" height="90" fill="#f8f3e6"/>
+  <text x="40" y="426" class="lbl-band" fill="#5f4a1f">Suite-construction engines</text>
+  <rect class="box eng" x="40" y="432" width="185" height="46"/><text x="132" y="460" class="title">cover</text>
+  <rect class="box eng" x="245" y="432" width="185" height="46"/><text x="337" y="460" class="title">carve / splice</text>
+  <rect class="box eng" x="450" y="432" width="185" height="46"/><text x="542" y="460" class="title">augment</text>
+  <rect class="box eng" x="655" y="432" width="200" height="46"/><text x="755" y="460" class="title">verify / simulate</text>
+  <rect class="box eng" x="875" y="432" width="185" height="46"/><text x="967" y="460" class="title">grade</text>
+  <rect class="box eng" x="1080" y="432" width="185" height="46"/><text x="1172" y="460" class="title">render</text>
+  <path class="flow" d="M700,432 V382" marker-end="url(#arr)"/>
+
+  <!-- ===== REGION 3: generation mechanism ===== -->
+  <rect class="band" x="20" y="500" width="430" height="700" fill="#f0ebf8"/>
+  <text x="40" y="530" class="lbl-band" fill="#3d2a63">④ Generative spec-expressions</text>
+  <text x="40" y="550" class="lbl-sub">spec DSL / Expr — no classes; the Interpreter evaluates each →</text>
+
+  <rect class="box spec" x="55" y="575" width="260" height="54"/>
+  <text x="185" y="598" class="title">Motif</text><text x="185" y="614" class="sub">→ Skeleton</text>
+  <rect class="box spec" x="55" y="655" width="260" height="54"/>
+  <text x="185" y="678" class="title">WorldEnvelope</text><text x="185" y="694" class="sub">→ World (Group 1)</text>
+  <rect class="box spec" x="55" y="735" width="260" height="54"/>
+  <text x="185" y="758" class="title">ObjectiveRecipe</text><text x="185" y="774" class="sub">→ Objective (+ Question)</text>
+  <rect class="box spec" x="55" y="815" width="260" height="54"/>
+  <text x="185" y="838" class="title">TaskArchetype</text><text x="185" y="854" class="sub">→ TaskInstance</text>
+  <rect class="box spec" x="55" y="895" width="260" height="54"/>
+  <text x="185" y="918" class="title">SuiteSpec</text><text x="185" y="934" class="sub">→ Suite</text>
+
+  <rect class="band" x="520" y="500" width="600" height="300" fill="#e6f2f2"/>
+  <text x="540" y="528" class="lbl-band" fill="#1e4545">② Evaluation / runtime — behavioral</text>
+  <rect class="box eval" x="540" y="558" width="165" height="50"/>
+  <text x="622" y="580" class="title">Dist</text><text x="622" y="596" class="sub">samples</text>
+  <rect class="chip" x="536" y="616" width="60" height="19"/><text x="566" y="629" class="chipt">constant</text>
+  <rect class="chip" x="600" y="616" width="54" height="19"/><text x="627" y="629" class="chipt">uniform</text>
+  <rect class="chip" x="658" y="616" width="52" height="19"/><text x="684" y="629" class="chipt">normal</text>
+  <rect class="chip" x="536" y="639" width="66" height="19"/><text x="569" y="652" class="chipt">lognormal</text>
+  <rect class="chip" x="606" y="639" width="48" height="19"/><text x="630" y="652" class="chipt">choice</text>
+  <rect class="box eval" x="725" y="558" width="165" height="50"/>
+  <text x="807" y="580" class="title">Op</text><text x="807" y="596" class="sub">runs an operation</text>
+  <rect class="chip" x="725" y="616" width="58" height="19"/><text x="754" y="629" class="chipt">scripted</text>
+  <rect class="chip" x="787" y="616" width="42" height="19"/><text x="808" y="629" class="chipt">LLM</text>
+  <rect class="box eval" x="910" y="558" width="165" height="50"/>
+  <text x="992" y="580" class="title">Vocabulary</text><text x="992" y="596" class="sub">token ↔ phrase</text>
+  <rect class="box eval" x="540" y="700" width="165" height="50"/>
+  <text x="622" y="722" class="title">Renderable</text><text x="622" y="738" class="sub">renders itself</text>
+  <rect class="box eval" x="725" y="700" width="165" height="50"/>
+  <text x="807" y="722" class="title">Objective</text><text x="807" y="738" class="sub">grades / scores</text>
+  <rect class="chip" x="725" y="756" width="58" height="19"/><text x="754" y="769" class="chipt">answer</text>
+  <rect class="chip" x="787" y="756" width="62" height="19"/><text x="818" y="769" class="chipt">outcome</text>
+
+  <rect class="band" x="520" y="820" width="600" height="380" fill="#e9eef7"/>
+  <text x="540" y="848" class="lbl-band" fill="#23386a">③ Specialized value types</text>
+  <rect class="box val" x="540" y="876" width="165" height="48"/><text x="622" y="905" class="title">Question</text>
+  <rect class="box val" x="725" y="876" width="165" height="48"/><text x="807" y="905" class="title">Answer</text>
+  <rect class="box val" x="910" y="876" width="165" height="48"/><text x="992" y="905" class="title">GraderSpec</text>
+  <rect class="box val" x="540" y="948" width="165" height="48"/><text x="622" y="977" class="title">FeatureSet</text>
+  <rect class="box val" x="725" y="948" width="165" height="48"/><text x="807" y="977" class="title">Skeleton</text>
+  <rect class="box val" x="910" y="948" width="165" height="48"/><text x="992" y="977" class="title">TaskInstance</text>
+  <rect class="box val" x="540" y="1020" width="165" height="48"/><text x="622" y="1049" class="title">Suite</text>
+
+  <!-- ===== evaluate arrows (spec → concrete counterpart) ===== -->
+  <text x="335" y="492" class="elab">evaluate (Interpreter) →</text>
+  <path class="flowv" d="M315,602 C430,602 640,940 723,968" marker-end="url(#arrv)"/>
+  <path class="flowv" d="M315,768 C450,835 640,800 725,748" marker-end="url(#arrv)"/>
+  <path class="flowv" d="M315,842 C560,842 780,968 908,970" marker-end="url(#arrv)"/>
+  <path class="flowv" d="M315,922 C400,922 470,1044 538,1044" marker-end="url(#arrv)"/>
+  <path class="flowv" d="M55,682 H34 V214 H600 V160" marker-end="url(#arrv)"/>
+</svg>

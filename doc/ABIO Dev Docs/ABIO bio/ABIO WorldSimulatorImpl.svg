@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="background" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Row 1: classes -->
+  <g id="chemistry-node">
+    <rect id="chemistry-box" x="20" y="40" width="170" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="chemistry-name" x="105" y="80" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">ChemistryImpl</text>
+    <text id="chemistry-kind" x="105" y="104" font-size="14" text-anchor="middle" fill="#1e1e1e">(class)</text>
+  </g>
+  <g id="simulator-node">
+    <rect id="simulator-box" x="330" y="40" width="280" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="simulator-name" x="470" y="74" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">WorldSimulatorImpl</text>
+    <text id="simulator-kind" x="470" y="96" font-size="14" text-anchor="middle" fill="#1e1e1e">(class)</text>
+    <text id="simulator-run" x="470" y="116" font-size="14" text-anchor="middle" fill="#1e1e1e">run = step × steps, sampled</text>
+  </g>
+  <g id="spec-node">
+    <rect id="spec-box" x="690" y="40" width="190" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="spec-name" x="785" y="74" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">ReactionSpec</text>
+    <text id="spec-kind" x="785" y="96" font-size="14" text-anchor="middle" fill="#1e1e1e">(class)</text>
+    <text id="spec-sub" x="785" y="116" font-size="14" text-anchor="middle" fill="#1e1e1e">one per reaction</text>
+  </g>
+  <g id="jax-node">
+    <rect id="jax-box" x="970" y="40" width="210" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 4"/>
+    <text id="jax-name" x="1075" y="74" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">JaxWorldSimulator</text>
+    <text id="jax-kind" x="1075" y="96" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · parity partner</text>
+    <text id="jax-sub" x="1075" y="116" font-size="14" text-anchor="middle" fill="#1e1e1e">same passes, ≤ 1e-8</text>
+  </g>
+
+  <!-- Row 1 edges -->
+  <line id="edge-from-chemistry" x1="190" y1="85" x2="330" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-from-chemistry" x="260" y="76" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">from_chemistry</text>
+  <line id="edge-holds" x1="610" y1="85" x2="690" y2="85" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-holds" x="650" y="76" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">holds</text>
+  <line id="edge-same-specs" x1="970" y1="85" x2="880" y2="85" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-same-specs" x="925" y="76" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">same specs</text>
+
+  <!-- step entry -->
+  <line id="edge-step" x1="380" y1="130" x2="150" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-step" x="250" y="182" font-size="14" font-style="italic" text-anchor="end" fill="#1864ab">step(state)</text>
+
+  <!-- Row 2: the passes of one step -->
+  <g id="flush-node">
+    <rect id="flush-box" x="30" y="250" width="210" height="90" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="flush-name" x="135" y="288" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">_flush_subnormals</text>
+    <text id="flush-kind" x="135" y="312" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · subnormal → 0</text>
+  </g>
+  <g id="reactions-node">
+    <rect id="reactions-box" x="320" y="250" width="240" height="90" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="reactions-name" x="440" y="288" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">_apply_reactions</text>
+    <text id="reactions-kind" x="440" y="312" font-size="14" text-anchor="middle" fill="#1e1e1e">(method) · pass 1</text>
+  </g>
+  <g id="flows-node">
+    <rect id="flows-box" x="640" y="250" width="180" height="90" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="flows-name" x="730" y="288" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">apply_flows</text>
+    <text id="flows-kind" x="730" y="312" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · pass 2</text>
+  </g>
+  <g id="population-node">
+    <rect id="population-box" x="900" y="250" width="270" height="90" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="population-name" x="1035" y="288" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">apply_population_laws</text>
+    <text id="population-kind" x="1035" y="312" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · pass 3</text>
+  </g>
+  <line id="edge-flush-reactions" x1="240" y1="295" x2="320" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="edge-reactions-flows" x1="560" y1="295" x2="640" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="edge-flows-population" x1="820" y1="295" x2="900" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- return of new_state -->
+  <path id="edge-return" d="M 1035 250 L 1035 190 L 560 190 L 560 130" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-return" x="800" y="181" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">returns new_state</text>
+
+  <!-- Row 3: helpers and the frozen state -->
+  <g id="eval-node">
+    <rect id="eval-box" x="20" y="420" width="200" height="80" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="eval-name" x="120" y="455" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">eval_rate</text>
+    <text id="eval-kind" x="120" y="478" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · ROUNDING_FLOOR</text>
+  </g>
+  <g id="extent-node">
+    <rect id="extent-box" x="320" y="420" width="240" height="80" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="extent-name" x="440" y="455" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">_desired_extent</text>
+    <text id="extent-kind" x="440" y="478" font-size="14" text-anchor="middle" fill="#1e1e1e">(method) · ≤ RATE_CAP, NaN → 0</text>
+  </g>
+  <g id="state-node">
+    <rect id="state-box" x="620" y="420" width="550" height="80" rx="10" fill="#ffe8cc" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="state-name" x="895" y="455" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">WorldStateImpl</text>
+    <text id="state-kind" x="895" y="478" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · the frozen start-of-step state; writes go to its copy</text>
+  </g>
+  <line id="edge-per-reaction" x1="440" y1="340" x2="440" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-per-reaction" x="450" y="385" font-size="14" font-style="italic" text-anchor="start" fill="#1864ab">per reaction</text>
+  <line id="edge-rate-law" x1="320" y1="460" x2="220" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-rate-law" x="270" y="451" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">rate_law</text>
+  <line id="edge-reads-extent" x1="620" y1="460" x2="560" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-reads-extent" x="590" y="451" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">reads</text>
+  <line id="edge-reads-flows" x1="730" y1="420" x2="730" y2="340" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-reads-flows" x="740" y="385" font-size="14" font-style="italic" text-anchor="start" fill="#1864ab">reads</text>
+  <line id="edge-reads-population" x1="1035" y1="420" x2="1035" y2="340" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-reads-population" x="1045" y="385" font-size="14" font-style="italic" text-anchor="start" fill="#1864ab">reads</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="legend-solid" x1="30" y1="630" x2="110" y2="630" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="legend-solid-text" x="122" y="635" font-size="14" fill="#1e1e1e">call / pass order in one step</text>
+    <line id="legend-dotted" x1="340" y1="630" x2="410" y2="630" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+    <text id="legend-dotted-text" x="422" y="635" font-size="14" fill="#1e1e1e">reads · holds · returns</text>
+    <rect id="legend-class" x="640" y="620" width="22" height="20" rx="4" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="legend-class-text" x="670" y="635" font-size="14" fill="#1e1e1e">class</text>
+    <rect id="legend-pass" x="730" y="620" width="22" height="20" rx="4" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="legend-pass-text" x="760" y="635" font-size="14" fill="#1e1e1e">pass</text>
+    <rect id="legend-helper" x="815" y="620" width="22" height="20" rx="4" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="legend-helper-text" x="845" y="635" font-size="14" fill="#1e1e1e">helper</text>
+    <rect id="legend-state" x="910" y="620" width="22" height="20" rx="4" fill="#ffe8cc" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="legend-state-text" x="940" y="635" font-size="14" fill="#1e1e1e">state</text>
+    <rect id="legend-dashed-box" x="1000" y="620" width="22" height="20" rx="4" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text id="legend-dashed-text" x="1030" y="635" font-size="14" fill="#1e1e1e">other module</text>
+  </g>
+</svg>

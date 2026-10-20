@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 720" width="3000" height="1440" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1c1c"/></marker>
+    <style>
+      .inst{fill:#bac8ff;stroke:#364fc7;stroke-width:2}
+      .guard{fill:#fff3f3;stroke:#c92a2a;stroke-width:2}
+      .store{fill:#fff9db;stroke:#e67700;stroke-width:2}
+      .t{font-size:20px;font-weight:700;fill:#1c1c1c}
+      .b{font-size:15px;fill:#1c1c1c}
+      .m{font-size:13px;fill:#495057;font-style:italic}
+      .l{font-size:13px;fill:#1971c2;font-style:italic}
+      .a{stroke:#1c1c1c;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+    </style>
+  </defs>
+  <rect width="1500" height="720" fill="#ffffff"/>
+
+  <text class="m" x="40" y="44">text</text>
+  <text class="m" x="320" y="44">forms, before anything evaluates</text>
+  <text class="m" x="1050" y="44">the gates</text>
+  <text class="m" x="320" y="354">evaluation</text>
+
+  <rect id="box-yaml" class="store" x="40" y="70" width="230" height="120" rx="6"/>
+  <text class="t" x="56" y="98">YAML text</text>
+  <text class="b" x="56" y="124">!experiment · !template</text>
+  <text class="b" x="56" y="148">!x · !q · !include · !py</text>
+  <text class="m" x="56" y="172">untagged _type: is the same call</text>
+
+  <path id="edge-yaml-loader" class="a" d="M 270 130 L 320 130"/>
+  <text class="l" x="295" y="119" text-anchor="middle">text</text>
+
+  <rect id="box-loader" class="inst" x="320" y="70" width="300" height="120" rx="6"/>
+  <text class="t" x="336" y="98">yaml_tags.py — ExprLoader</text>
+  <text class="b" x="336" y="124">a SafeLoader: no !!python/object</text>
+  <text class="b" x="336" y="148">!x → parse · !q → Quoted · !ref → Name</text>
+  <text class="m" x="336" y="172">any other !head → Call(head, args, kwargs)</text>
+
+  <path id="edge-parse-loader" class="a" d="M 470 230 L 470 190"/>
+  <text class="l" x="480" y="216">validate first</text>
+
+  <rect id="box-parse" class="guard" x="320" y="230" width="300" height="100" rx="6"/>
+  <text class="t" x="336" y="258">parse.py + safe_eval.py</text>
+  <text class="b" x="336" y="284">AST allowlist over every !x string</text>
+  <text class="m" x="336" y="306">no dunders · no getattr / eval / exec / open</text>
+  <text class="m" x="336" y="324">no unpacking · lambda refused</text>
+
+  <path id="edge-loader-env" class="a" d="M 620 130 L 670 130"/>
+  <text class="l" x="645" y="119" text-anchor="middle">forms</text>
+
+  <rect id="box-env" class="inst" x="670" y="70" width="330" height="120" rx="6"/>
+  <text class="t" x="686" y="98">env.py — Env.load hydrates</text>
+  <text class="b" x="686" y="124">_includes_ first, then every Include / PyRef</text>
+  <text class="b" x="686" y="148">is replaced — none reaches the interpreter</text>
+  <text class="m" x="686" y="172">Lazy top-level bindings, cycle-checked</text>
+
+  <path id="edge-env-include" class="a" d="M 1000 130 L 1050 130"/>
+  <text class="l" x="1025" y="119" text-anchor="middle">resolve</text>
+
+  <rect id="box-include" class="guard" x="1050" y="70" width="410" height="120" rx="6"/>
+  <text class="t" x="1066" y="98">include.py — trust gates</text>
+  <text class="b" x="1066" y="124">untrusted: .py includes and !py refused outright</text>
+  <text class="b" x="1066" y="148">other includes: relative, no .., inside the file's own dir</text>
+  <text class="m" x="1066" y="172">trusted (under catalog/): unconstrained</text>
+
+  <rect id="box-limits" class="guard" x="1050" y="230" width="410" height="100" rx="6"/>
+  <text class="t" x="1066" y="258">Limits — runaway cost</text>
+  <text class="b" x="1066" y="284">entities 1 000 000 (cumulative Meter) · depth 200</text>
+  <text class="b" x="1066" y="308">attempts 8 · pow ≤ 10 000 · mul charges len × n</text>
+
+  <path id="edge-limits-interp" class="a" d="M 1050 300 L 1000 300 L 1000 380"/>
+  <text class="l" x="1010" y="360">charged in each / sized builtins</text>
+
+  <path id="edge-env-interp" class="a" d="M 835 190 L 835 380"/>
+  <text class="l" x="845" y="290">force a Lazy → evaluate</text>
+
+  <!-- evaluation -->
+  <rect id="box-heads" class="inst" x="40" y="380" width="230" height="170" rx="6"/>
+  <text class="t" x="56" y="408">heads.py · builtins</text>
+  <text class="b" x="56" y="434">dists: normal · uniform ·</text>
+  <text class="b" x="56" y="458">lognormal · poisson · choice</text>
+  <text class="b" x="56" y="482">math · op:* · fstr · fmt</text>
+  <text class="m" x="56" y="508">metered: range · list · zip</text>
+  <text class="m" x="56" y="532">sorted · sum · mul · pow</text>
+
+  <path id="edge-heads-interp" class="a" d="M 270 440 L 320 440"/>
+  <text class="l" x="295" y="429" text-anchor="middle">builtins</text>
+
+  <rect id="box-interp" class="inst" x="320" y="380" width="680" height="170" rx="6"/>
+  <text class="t" x="336" y="408">interp.py — evaluate</text>
+  <text class="b" x="336" y="434">head lookup: a local binding shadows the registry</text>
+  <text class="b" x="336" y="458">special → raw forms · expander / template → a form, re-evaluated</text>
+  <text class="b" x="336" y="482">function kinds → args left to right, each under env.child(key)</text>
+  <text class="b" x="336" y="506">guards: / on_fail: retry | prune | reject over the produced value</text>
+  <text class="m" x="336" y="532">templates namespace through Env.pool: __passed__ · __instance__</text>
+
+  <path id="edge-interp-registry" class="a" d="M 1000 440 L 1050 440"/>
+  <text class="l" x="1025" y="429" text-anchor="middle">head</text>
+
+  <rect id="box-registry" class="inst" x="1050" y="380" width="410" height="110" rx="6"/>
+  <text class="t" x="1066" y="408">registry.py — the only door into Python</text>
+  <text class="b" x="1066" y="434">Head(kind, injects, guarded)</text>
+  <text class="b" x="1066" y="458">@fn @expander @guard @special</text>
+  <text class="m" x="1066" y="482">ctx / env injected only if named · register(replace=True)</text>
+
+  <path id="edge-plugins-registry" class="a" d="M 1255 530 L 1255 490"/>
+  <text class="l" x="1265" y="516">at Env.standard</text>
+
+  <rect id="box-plugins" class="inst" x="1050" y="530" width="410" height="90" rx="6"/>
+  <text class="t" x="1066" y="558">the suite's heads</text>
+  <text class="b" x="1066" y="584">expr_heads.py blocks · worlds · constructors</text>
+  <text class="m" x="1066" y="606">expr_experiment.py heads · the drafters (experiment.py)</text>
+
+  <path id="edge-interp-values" class="a" d="M 660 550 L 660 590"/>
+  <text class="l" x="670" y="576">values</text>
+
+  <rect id="box-out" class="store" x="320" y="590" width="680" height="60" rx="6"/>
+  <text class="t" x="336" y="618">what comes out</text>
+  <text class="b" x="336" y="642">an ExperimentSpec via load_spec · a materialized world · any head's value</text>
+
+  <!-- key -->
+  <text class="m" x="40" y="678">KEY</text>
+  <rect class="inst" x="40" y="690" width="26" height="18"/>
+  <text class="b" x="74" y="704">the language — expr/</text>
+  <rect class="guard" x="260" y="690" width="26" height="18"/>
+  <text class="b" x="294" y="704">a gate an untrusted spec cannot pass</text>
+  <rect class="store" x="580" y="690" width="26" height="18"/>
+  <text class="b" x="614" y="704">text in, values out</text>
+  <path class="a" d="M 800 699 L 850 699"/>
+  <text class="b" x="860" y="704">call or write, in the direction drawn</text>
+</svg>

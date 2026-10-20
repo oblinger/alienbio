@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="1620" viewBox="0 0 1300 810" preserveAspectRatio="xMidYMid meet" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+
+  <rect id="bg" x="0" y="0" width="1300" height="810" fill="#ffffff"/>
+
+  <!-- row 0: inputs and callers -->
+  <g id="box-catalog">
+    <rect x="40" y="40" width="240" height="100" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="52" y="60" font-size="13" fill="#555555">STORAGE</text>
+    <text x="160" y="84" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">catalog/</text>
+    <text x="160" y="106" font-size="14" text-anchor="middle" fill="#1e1e1e">experiments/*.yaml · examples/</text>
+    <text x="160" y="124" font-size="14" text-anchor="middle" fill="#1e1e1e">registrations.yaml (AUP filings)</text>
+  </g>
+  <g id="box-cli">
+    <rect x="660" y="40" width="240" height="100" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="672" y="60" font-size="13" fill="#555555">BOUNDARY · operator</text>
+    <text x="780" y="84" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">bio CLI</text>
+    <text x="780" y="106" font-size="14" text-anchor="middle" fill="#1e1e1e">suite run · resume · aggregate</text>
+    <text x="780" y="124" font-size="14" text-anchor="middle" fill="#1e1e1e">report · test-matrix · config</text>
+  </g>
+  <g id="box-aup">
+    <rect x="1020" y="40" width="240" height="100" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="1032" y="60" font-size="13" fill="#555555">BOUNDARY · caller</text>
+    <text x="1140" y="84" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">AUP experiments</text>
+    <text x="1140" y="106" font-size="14" text-anchor="middle" fill="#1e1e1e">the paper's specs and scripts</text>
+    <text x="1140" y="124" font-size="14" text-anchor="middle" fill="#1e1e1e">(consumer of the instrument)</text>
+  </g>
+
+  <!-- row 1: the language and the experiment layer -->
+  <g id="box-expr">
+    <rect x="40" y="200" width="240" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="52" y="220" font-size="13" fill="#555555">INSTRUMENT</text>
+    <text x="160" y="244" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">Expr language</text>
+    <text x="160" y="266" font-size="14" text-anchor="middle" fill="#1e1e1e">loader · heads · templates</text>
+    <text x="160" y="284" font-size="14" text-anchor="middle" fill="#1e1e1e">untrusted-spec sandbox</text>
+  </g>
+  <g id="box-experiment">
+    <rect x="360" y="200" width="580" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="372" y="220" font-size="13" fill="#555555">INSTRUMENT</text>
+    <text x="650" y="244" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">suite: experiment</text>
+    <text x="650" y="266" font-size="14" text-anchor="middle" fill="#1e1e1e">spec → condition grid → trials → records.jsonl + manifest.json</text>
+    <text x="650" y="284" font-size="14" text-anchor="middle" fill="#1e1e1e">guards before spend: no-peeking · registration · unknown dials · cost ceiling</text>
+  </g>
+
+  <!-- row 2: the three suite halves and the run folder -->
+  <g id="box-generators">
+    <rect x="40" y="380" width="240" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="52" y="400" font-size="13" fill="#555555">INSTRUMENT</text>
+    <text x="160" y="424" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">suite: generators</text>
+    <text x="160" y="446" font-size="14" text-anchor="middle" fill="#1e1e1e">drafters: pressure · phase1 ·</text>
+    <text x="160" y="464" font-size="14" text-anchor="middle" fill="#1e1e1e">conflict · delta … + oracles</text>
+  </g>
+  <g id="box-runtime">
+    <rect x="360" y="380" width="240" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="372" y="400" font-size="13" fill="#555555">INSTRUMENT</text>
+    <text x="480" y="424" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">suite: runtime</text>
+    <text x="480" y="446" font-size="14" text-anchor="middle" fill="#1e1e1e">runner loop · brief · agents</text>
+    <text x="480" y="464" font-size="14" text-anchor="middle" fill="#1e1e1e">opaque names · taint audit</text>
+  </g>
+  <g id="box-analysis">
+    <rect x="680" y="380" width="240" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="692" y="400" font-size="13" fill="#555555">INSTRUMENT</text>
+    <text x="800" y="424" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">suite: analysis</text>
+    <text x="800" y="446" font-size="14" text-anchor="middle" fill="#1e1e1e">scorers · report sections</text>
+    <text x="800" y="464" font-size="14" text-anchor="middle" fill="#1e1e1e">plots · realism judge</text>
+  </g>
+  <g id="box-runs">
+    <rect x="1020" y="380" width="240" height="100" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="1032" y="400" font-size="13" fill="#555555">STORAGE</text>
+    <text x="1140" y="424" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">runs/&lt;name&gt;/</text>
+    <text x="1140" y="446" font-size="14" text-anchor="middle" fill="#1e1e1e">records.jsonl · manifest.json</text>
+    <text x="1140" y="464" font-size="14" text-anchor="middle" fill="#1e1e1e">report.txt · key.png</text>
+  </g>
+
+  <!-- row 3: the substrate and the one external service -->
+  <g id="box-bio">
+    <rect x="40" y="580" width="560" height="100" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="52" y="600" font-size="13" fill="#555555">SUBSTRATE</text>
+    <text x="320" y="624" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">bio engine</text>
+    <text x="320" y="646" font-size="14" text-anchor="middle" fill="#1e1e1e">chemistry · reference + JAX simulators (agree to 1e-9)</text>
+    <text x="320" y="664" font-size="14" text-anchor="middle" fill="#1e1e1e">flows · populations · energy · rate expressions</text>
+  </g>
+  <g id="box-infra">
+    <rect x="660" y="580" width="240" height="100" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="672" y="600" font-size="13" fill="#555555">SUBSTRATE</text>
+    <text x="780" y="624" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">infra · protocols · viz</text>
+    <text x="780" y="646" font-size="14" text-anchor="middle" fill="#1e1e1e">Entity · mk pegboard</text>
+    <text x="780" y="664" font-size="14" text-anchor="middle" fill="#1e1e1e">Protocols · plot helpers</text>
+  </g>
+  <g id="box-anthropic">
+    <rect x="1020" y="580" width="240" height="100" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="1032" y="600" font-size="13" fill="#555555">BOUNDARY · external</text>
+    <text x="1140" y="624" font-size="22" font-weight="600" text-anchor="middle" fill="#1e1e1e">Anthropic API</text>
+    <text x="1140" y="646" font-size="14" text-anchor="middle" fill="#1e1e1e">LLMAgent calls, metered</text>
+    <text x="1140" y="664" font-size="14" text-anchor="middle" fill="#1e1e1e">pinned model ids</text>
+  </g>
+
+  <!-- edges: who calls whom -->
+  <g id="edges" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)">
+    <path id="edge-catalog-expr" d="M160,140 V200"/>
+    <path id="edge-expr-experiment" d="M280,250 H360"/>
+    <path id="edge-cli-experiment" d="M780,140 V200"/>
+    <path id="edge-aup-cli" d="M1020,90 H900"/>
+    <path id="edge-aup-experiment" d="M1140,140 V230 H940"/>
+    <path id="edge-experiment-runs" d="M940,280 H1130 V380"/>
+    <path id="edge-experiment-generators" d="M400,300 V340 H170 V380"/>
+    <path id="edge-experiment-runtime" d="M490,300 V380"/>
+    <path id="edge-experiment-analysis" d="M810,300 V380"/>
+    <path id="edge-generators-bio" d="M160,480 V580"/>
+    <path id="edge-runtime-bio" d="M480,480 V580"/>
+    <path id="edge-runtime-anthropic" d="M590,480 V540 H1140 V580"/>
+    <path id="edge-analysis-runs" d="M920,430 H1020"/>
+    <path id="edge-bio-infra" d="M600,630 H660"/>
+  </g>
+
+  <!-- edge labels -->
+  <g id="edge-labels" font-size="13" font-style="italic" fill="#1971c2">
+    <text id="label-catalog-expr" x="170" y="174">YAML specs</text>
+    <text id="label-expr-experiment" x="320" y="238" text-anchor="middle">load_spec</text>
+    <text id="label-cli-experiment" x="790" y="174">run · resume · aggregate · report</text>
+    <text id="label-aup-cli" x="960" y="78" text-anchor="middle">bio suite run</text>
+    <text id="label-aup-experiment" x="1040" y="222" text-anchor="middle">Python API · DRAFTERS</text>
+    <text id="label-experiment-runs" x="1035" y="298" text-anchor="middle">records · manifest</text>
+    <text id="label-experiment-generators" x="285" y="333" text-anchor="middle">DRAFTERS[…](seed, dials)</text>
+    <text id="label-experiment-runtime" x="500" y="345">MassTrialRunner</text>
+    <text id="label-experiment-analysis" x="820" y="345">aggregate → report</text>
+    <text id="label-generators-bio" x="170" y="535">materialize world</text>
+    <text id="label-runtime-bio" x="470" y="535" text-anchor="end">simulate each turn</text>
+    <text id="label-runtime-anthropic" x="870" y="533" text-anchor="middle">LLM calls (metered, taint-checked)</text>
+    <text id="label-analysis-runs" x="970" y="420" text-anchor="middle">report</text>
+    <text id="label-bio-infra" x="630" y="618" text-anchor="middle">uses</text>
+  </g>
+
+  <!-- key -->
+  <g id="legend">
+    <rect id="legend-box" x="40" y="720" width="1220" height="60" rx="6" fill="#ffffff" stroke="#1e1e1e" stroke-width="1"/>
+    <text x="56" y="756" font-size="14" font-weight="600" fill="#1e1e1e">KEY</text>
+    <rect x="110" y="740" width="22" height="22" fill="#fff3f3" stroke="#1e1e1e" stroke-width="1"/>
+    <text x="140" y="756" font-size="14" fill="#1e1e1e">I/O boundary (operator, caller, external service)</text>
+    <rect x="470" y="740" width="22" height="22" fill="#bac8ff" stroke="#1e1e1e" stroke-width="1"/>
+    <text x="500" y="756" font-size="14" fill="#1e1e1e">the instrument (suite/ + Expr)</text>
+    <rect x="730" y="740" width="22" height="22" fill="#ebfbee" stroke="#1e1e1e" stroke-width="1"/>
+    <text x="760" y="756" font-size="14" fill="#1e1e1e">substrate (bio/ + infra/)</text>
+    <rect x="950" y="740" width="22" height="22" fill="#fff9db" stroke="#1e1e1e" stroke-width="1"/>
+    <text x="980" y="756" font-size="14" fill="#1e1e1e">files on disk</text>
+    <line x1="1110" y1="751" x2="1160" y2="751" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text x="1170" y="756" font-size="14" fill="#1e1e1e">calls / writes</text>
+  </g>
+</svg>

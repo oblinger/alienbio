@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+  <rect x="0" y="0" width="1000" height="620" rx="14" fill="#fbfbfd" stroke="#d9d9e3"/>
+  <text x="40" y="44" font-size="21" font-weight="700" fill="#1d1d22">The block library</text>
+  <text x="40" y="67" font-size="13" fill="#6b6b78">● species port (mass) · ◆ control port (modulation) · ✦ crux · dashed port = optional (enables the mediated / hard variant)</text>
+
+  <!-- reusable chip via explicit draws -->
+  <!-- row helper: chips 430 wide, 74 tall -->
+  <!-- COL1 x=40 ; COL2 x=520 -->
+
+  <!-- 1 Source -->
+  <rect x="40" y="90" width="430" height="74" rx="10" fill="#eef4ff" stroke="#a9c5f5"/>
+  <text x="60" y="118" font-size="14.5" font-weight="700" fill="#1d3f7a">Source / Feedstock</text>
+  <text x="60" y="138" font-size="11" fill="#5a6a86">SUPPLY — injects a precursor pool</text>
+  <text x="60" y="155" font-size="10.5" fill="#8a8a96">const, or mediated when C:rate is wired</text>
+  <circle cx="470" cy="115" r="6" fill="#3a86ff"/><text x="410" y="119" font-size="10.5" fill="#22222a" text-anchor="end">supply ▸</text>
+  <path d="M33 143 l6 -6 l6 6 l-6 6 z" fill="#e0a63a" opacity="0.6"/><text x="52" y="152" font-size="9.5" fill="#8a8a96" opacity="0.9">rate</text>
+
+  <!-- 2 Conflict-Crux -->
+  <rect x="520" y="90" width="430" height="74" rx="10" fill="#ffeef0" stroke="#f2a9b4" stroke-width="2"/>
+  <text x="540" y="118" font-size="14.5" font-weight="700" fill="#b03048">Conflict-Crux ✦</text>
+  <text x="540" y="138" font-size="11" fill="#8a5563">CRUX — one precursor feeds two rival routes</text>
+  <text x="540" y="155" font-size="10.5" fill="#a06673">raising prodA starves prodB (the real tension)</text>
+  <circle cx="520" cy="127" r="6" fill="#3a86ff"/><text x="536" y="131" font-size="10.5" fill="#22222a">◂ precursor</text>
+  <circle cx="950" cy="112" r="6" fill="#3a86ff"/><text x="890" y="116" font-size="10.5" fill="#22222a" text-anchor="end">prodA ▸</text>
+  <circle cx="950" cy="142" r="6" fill="#3a86ff"/><text x="890" y="146" font-size="10.5" fill="#22222a" text-anchor="end">prodB ▸</text>
+
+  <!-- 3 Signaling -->
+  <rect x="40" y="188" width="430" height="74" rx="10" fill="#fff6e6" stroke="#f0cf8f"/>
+  <text x="60" y="216" font-size="14.5" font-weight="700" fill="#8a6d1f">Signaling / Transducer</text>
+  <text x="60" y="236" font-size="11" fill="#8a7433">SIGNALING — senses a level, emits a control</text>
+  <text x="60" y="253" font-size="10.5" fill="#8a8a96">the core indirection block; makes flow mediated</text>
+  <circle cx="40" cy="225" r="6" fill="#3a86ff"/><text x="56" y="229" font-size="10.5" fill="#22222a">◂ sensed</text>
+  <path d="M464 219 l6 -6 l6 6 l-6 6 z" fill="#e0a63a"/><text x="410" y="228" font-size="10.5" fill="#22222a" text-anchor="end">signal ▸</text>
+
+  <!-- 4 Homeostasis -->
+  <rect x="520" y="188" width="430" height="74" rx="10" fill="#ecf8ee" stroke="#a6ddb0"/>
+  <text x="540" y="216" font-size="14.5" font-weight="700" fill="#2f6b3d">Homeostasis</text>
+  <text x="540" y="236" font-size="11" fill="#3f7a4d">HOMEOSTASIS — holds a species near a setpoint</text>
+  <text x="540" y="253" font-size="10.5" fill="#8a8a96">resists naive manipulation; deep indirection</text>
+  <circle cx="520" cy="225" r="6" fill="#3a86ff"/><text x="536" y="229" font-size="10.5" fill="#22222a">◂▸ regulated</text>
+  <path d="M513 243 l6 -6 l6 6 l-6 6 z" fill="#e0a63a" opacity="0.6"/><text x="532" y="252" font-size="9.5" fill="#8a8a96">setpoint</text>
+
+  <!-- 5 Transport -->
+  <rect x="40" y="286" width="430" height="74" rx="10" fill="#f3eefe" stroke="#c9b3f2"/>
+  <text x="60" y="314" font-size="14.5" font-weight="700" fill="#5b3a9e">Transport / Compartment-Flow</text>
+  <text x="60" y="334" font-size="11" fill="#6a4aa8">TRANSPORT — flux across a membrane (S3: needs</text>
+  <text x="60" y="351" font-size="10.5" fill="#8a8a96">engine term; else Source/Sink pair for now)</text>
+  <circle cx="40" cy="323" r="6" fill="#3a86ff"/><text x="56" y="327" font-size="10.5" fill="#22222a">◂ sp@c1</text>
+  <circle cx="470" cy="313" r="6" fill="#3a86ff"/><text x="410" y="317" font-size="10.5" fill="#22222a" text-anchor="end">sp@c2 ▸</text>
+  <path d="M464 341 l6 -6 l6 6 l-6 6 z" fill="#e0a63a" opacity="0.6"/><text x="410" y="350" font-size="9.5" fill="#8a8a96" text-anchor="end">gate</text>
+
+  <!-- 6 Environmental Pressure -->
+  <rect x="520" y="286" width="430" height="74" rx="10" fill="#f3eefe" stroke="#c9b3f2"/>
+  <text x="540" y="314" font-size="14.5" font-weight="700" fill="#5b3a9e">Environmental-Pressure</text>
+  <text x="540" y="334" font-size="11" fill="#6a4aa8">PRESSURE — exogenous drain / insult / drift</text>
+  <text x="540" y="351" font-size="10.5" fill="#8a8a96">makes homeostasis + crux matter; may be stochastic</text>
+  <circle cx="520" cy="325" r="6" fill="#3a86ff"/><text x="536" y="329" font-size="10.5" fill="#22222a">◂ stressed</text>
+
+  <!-- 7 Conversion -->
+  <rect x="40" y="384" width="430" height="74" rx="10" fill="#eef4ff" stroke="#a9c5f5"/>
+  <text x="60" y="412" font-size="14.5" font-weight="700" fill="#1d3f7a">Conversion / Pathway</text>
+  <text x="60" y="432" font-size="11" fill="#5a6a86">CONVERSION — a route in → out (the useful work)</text>
+  <text x="60" y="449" font-size="10.5" fill="#8a8a96">chain length adds indirection lever→crux</text>
+  <circle cx="40" cy="421" r="6" fill="#3a86ff"/><text x="56" y="425" font-size="10.5" fill="#22222a">◂ in</text>
+  <circle cx="470" cy="421" r="6" fill="#3a86ff"/><text x="410" y="425" font-size="10.5" fill="#22222a" text-anchor="end">out ▸</text>
+
+  <!-- 8 Sink -->
+  <rect x="520" y="384" width="430" height="74" rx="10" fill="#eef4ff" stroke="#a9c5f5"/>
+  <text x="540" y="412" font-size="14.5" font-weight="700" fill="#1d3f7a">Sink / Drain</text>
+  <text x="540" y="432" font-size="11" fill="#5a6a86">SINK — degradation / efflux of a species</text>
+  <text x="540" y="449" font-size="10.5" fill="#8a8a96">mediated variant = regulated removal</text>
+  <circle cx="520" cy="421" r="6" fill="#3a86ff"/><text x="536" y="425" font-size="10.5" fill="#22222a">◂ target</text>
+  <path d="M513 439 l6 -6 l6 6 l-6 6 z" fill="#e0a63a" opacity="0.6"/><text x="532" y="448" font-size="9.5" fill="#8a8a96">rate</text>
+
+  <!-- 9 Buffer -->
+  <rect x="40" y="482" width="430" height="74" rx="10" fill="#eef4ff" stroke="#a9c5f5"/>
+  <text x="60" y="510" font-size="14.5" font-weight="700" fill="#1d3f7a">Buffer / Reservoir</text>
+  <text x="60" y="530" font-size="11" fill="#5a6a86">BUFFER — a large pool that damps dynamics</text>
+  <text x="60" y="547" font-size="10.5" fill="#8a8a96">pure latency/indirection (may fold into Homeostasis)</text>
+  <circle cx="40" cy="519" r="6" fill="#3a86ff"/><text x="56" y="523" font-size="10.5" fill="#22222a">◂▸ pool</text>
+
+  <!-- 10 Readout -->
+  <rect x="520" y="482" width="430" height="74" rx="10" fill="#f4f4f8" stroke="#cfcfda"/>
+  <text x="540" y="510" font-size="14.5" font-weight="700" fill="#4a4a56">Readout / Sensor</text>
+  <text x="540" y="530" font-size="11" fill="#5a5a66">READOUT — marks a species observable (boundary)</text>
+  <text x="540" y="547" font-size="10.5" fill="#8a8a96">not mass; ties to the observability dial (M28.2/3)</text>
+  <circle cx="520" cy="519" r="6" fill="#9a9aa6"/><text x="536" y="523" font-size="10.5" fill="#22222a">◦ observes</text>
+
+  <text x="40" y="590" font-size="12" fill="#6b6b78">Minimal set for EXP-2 / EXP-7 (forced tradeoff): <tspan font-weight="700">Source + Conflict-Crux + Environmental-Pressure + Signaling + Homeostasis</tspan> — all engine-ready today.</text>
+</svg>

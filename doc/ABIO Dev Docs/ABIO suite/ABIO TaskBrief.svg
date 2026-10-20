@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="background" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Left column: inputs -->
+  <g id="task-node">
+    <rect id="task-box" x="20" y="30" width="220" height="80" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="task-name" x="130" y="60" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">TaskInstance</text>
+    <text id="task-kind" x="130" y="82" font-size="14" text-anchor="middle" fill="#1e1e1e">(dataclass) · the task</text>
+    <text id="task-sub" x="130" y="102" font-size="14" text-anchor="middle" fill="#1e1e1e">question · objective</text>
+  </g>
+  <g id="setup-node">
+    <rect id="setup-box" x="20" y="130" width="220" height="110" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="setup-name" x="130" y="160" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">task.setup</text>
+    <text id="setup-kind" x="130" y="182" font-size="14" text-anchor="middle" fill="#1e1e1e">(dict) · from the drafter</text>
+    <text id="setup-l1" x="130" y="204" font-size="14" text-anchor="middle" fill="#1e1e1e">require_levers · lever_caps</text>
+    <text id="setup-l2" x="130" y="226" font-size="14" text-anchor="middle" fill="#1e1e1e">hidden_ids · brief_defaults</text>
+  </g>
+  <g id="dials-node">
+    <rect id="dials-box" x="20" y="260" width="220" height="90" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="dials-name" x="130" y="290" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">dials</text>
+    <text id="dials-kind" x="130" y="312" font-size="14" text-anchor="middle" fill="#1e1e1e">(Mapping) · one condition</text>
+    <text id="dials-sub" x="130" y="334" font-size="14" text-anchor="middle" fill="#1e1e1e">the brief(...) head's values</text>
+  </g>
+  <g id="runner-node">
+    <rect id="runner-box" x="20" y="370" width="220" height="110" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="runner-name" x="130" y="400" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">runner.run</text>
+    <text id="runner-kind" x="130" y="422" font-size="14" text-anchor="middle" fill="#1e1e1e">(function) · the caller</text>
+    <text id="runner-l1" x="130" y="444" font-size="14" text-anchor="middle" fill="#1e1e1e">turn-0 view · budget</text>
+    <text id="runner-l2" x="130" y="466" font-size="14" text-anchor="middle" fill="#1e1e1e">max_turns · sim_cfg · seed</text>
+  </g>
+  <g id="probes-node">
+    <rect id="probes-box" x="20" y="520" width="220" height="90" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 4"/>
+    <text id="probes-name" x="130" y="550" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">probes</text>
+    <text id="probes-kind" x="130" y="572" font-size="14" text-anchor="middle" fill="#1e1e1e">(dial) · never on the brief</text>
+    <text id="probes-sub" x="130" y="594" font-size="14" text-anchor="middle" fill="#1e1e1e">{placeholder} ← probe_vocab</text>
+  </g>
+  <line id="edge-probes" x1="130" y1="520" x2="130" y2="480" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-probes" x="140" y="505" font-size="14" font-style="italic" fill="#1864ab">parsed by</text>
+
+  <!-- Centre column: constructor, gate, helpers -->
+  <g id="build-node">
+    <rect id="build-box" x="290" y="120" width="220" height="120" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="build-name" x="400" y="155" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">build_brief</text>
+    <text id="build-kind" x="400" y="177" font-size="14" text-anchor="middle" fill="#1e1e1e">(function)</text>
+    <text id="build-l1" x="400" y="199" font-size="14" text-anchor="middle" fill="#1e1e1e">pure · once per trial</text>
+    <text id="build-l2" x="400" y="221" font-size="14" text-anchor="middle" fill="#1e1e1e">before turn 0</text>
+  </g>
+  <line id="edge-task" x1="240" y1="70" x2="290" y2="140" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-task" x="268" y="96" font-size="14" font-style="italic" fill="#1864ab">task</text>
+  <line id="edge-setup" x1="240" y1="185" x2="290" y2="185" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-setup" x="265" y="176" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">setup</text>
+  <line id="edge-dials" x1="240" y1="305" x2="290" y2="225" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="edge-runner" x1="240" y1="410" x2="300" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-runner" x="306" y="266" font-size="14" font-style="italic" fill="#1864ab">calls</text>
+
+  <g id="gate-node">
+    <rect id="gate-box" x="290" y="290" width="220" height="160" rx="10" fill="#ffe8cc" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="gate-name" x="400" y="318" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">refusal gate</text>
+    <text id="gate-kind" x="400" y="340" font-size="14" text-anchor="middle" fill="#1e1e1e">(ValueError · before spend)</text>
+    <text id="gate-l1" x="400" y="364" font-size="14" text-anchor="middle" fill="#1e1e1e">lever = a readout (guarded)</text>
+    <text id="gate-l2" x="400" y="386" font-size="14" text-anchor="middle" fill="#1e1e1e">lever ∈ hidden_ids (always)</text>
+    <text id="gate-l3" x="400" y="408" font-size="14" text-anchor="middle" fill="#1e1e1e">no surface on a guarded world</text>
+    <text id="gate-l4" x="400" y="430" font-size="14" text-anchor="middle" fill="#1e1e1e">two burial forms in one arm</text>
+  </g>
+  <line id="edge-raises" x1="400" y1="240" x2="400" y2="290" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-raises" x="410" y="270" font-size="14" font-style="italic" fill="#1864ab">raises</text>
+
+  <g id="helpers-node">
+    <rect id="helpers-box" x="290" y="470" width="220" height="70" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="helpers-name" x="400" y="500" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">resolve_* · coerce_*</text>
+    <text id="helpers-kind" x="400" y="522" font-size="14" text-anchor="middle" fill="#1e1e1e">(functions) · told text</text>
+  </g>
+  <g id="padding-node">
+    <rect id="padding-box" x="290" y="556" width="220" height="64" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="padding-name" x="400" y="583" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">neutral_padding</text>
+    <text id="padding-kind" x="400" y="605" font-size="14" text-anchor="middle" fill="#1e1e1e">(function) · burial filler</text>
+  </g>
+  <path id="edge-helpers-stub" d="M510,505 H525" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5"/>
+  <path id="edge-helpers" d="M510,588 H525 V228 H512" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-helpers" x="530" y="300" font-size="14" font-style="italic" fill="#1864ab">uses</text>
+
+  <!-- TaskBrief, grouped in rendered order -->
+  <g id="brief-node">
+    <rect id="brief-box" x="570" y="20" width="300" height="590" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="brief-name" x="720" y="48" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">TaskBrief</text>
+    <text id="brief-kind" x="720" y="70" font-size="14" text-anchor="middle" fill="#1e1e1e">(frozen dataclass) · rendered order</text>
+  </g>
+  <g id="group-task">
+    <rect id="group-task-box" x="585" y="84" width="270" height="96" rx="6" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="group-task-name" x="597" y="104" font-size="16" font-weight="bold" fill="#1e1e1e">Task statement</text>
+    <text id="group-task-l1" x="597" y="126" font-size="14" fill="#1e1e1e">question · question_kind</text>
+    <text id="group-task-l2" x="597" y="148" font-size="14" fill="#1e1e1e">task_note</text>
+    <text id="group-task-l3" x="597" y="170" font-size="14" fill="#1e1e1e">objective_kind · answer_kind</text>
+  </g>
+  <g id="group-commit">
+    <rect id="group-commit-box" x="585" y="188" width="270" height="96" rx="6" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="group-commit-name" x="597" y="208" font-size="16" font-weight="bold" fill="#1e1e1e">Commitment</text>
+    <text id="group-commit-l1" x="597" y="230" font-size="14" fill="#1e1e1e">context_padding · constitution</text>
+    <text id="group-commit-l2" x="597" y="252" font-size="14" fill="#1e1e1e">constitution_in_history</text>
+    <text id="group-commit-l3" x="597" y="274" font-size="14" fill="#1e1e1e">protocol</text>
+  </g>
+  <g id="group-told">
+    <rect id="group-told-box" x="585" y="292" width="270" height="96" rx="6" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="group-told-name" x="597" y="312" font-size="16" font-weight="bold" fill="#1e1e1e">Told about the world</text>
+    <text id="group-told-l1" x="597" y="334" font-size="14" fill="#1e1e1e">framing · monitoring · monitor</text>
+    <text id="group-told-l2" x="597" y="356" font-size="14" fill="#1e1e1e">stakes · reversibility</text>
+    <text id="group-told-l3" x="597" y="378" font-size="14" fill="#1e1e1e">irreversible</text>
+  </g>
+  <g id="group-aff">
+    <rect id="group-aff-box" x="585" y="396" width="270" height="96" rx="6" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="group-aff-name" x="597" y="416" font-size="16" font-weight="bold" fill="#1e1e1e">Affordances (class)</text>
+    <text id="group-aff-l1" x="597" y="438" font-size="14" fill="#1e1e1e">probes · levers · max_rates</text>
+    <text id="group-aff-l2" x="597" y="460" font-size="14" fill="#1e1e1e">assays</text>
+    <text id="group-aff-l3" x="597" y="482" font-size="14" fill="#1e1e1e">over-cap Intervene → clamped</text>
+  </g>
+  <g id="group-episode">
+    <rect id="group-episode-box" x="585" y="500" width="270" height="96" rx="6" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="group-episode-name" x="597" y="520" font-size="16" font-weight="bold" fill="#1e1e1e">Episode</text>
+    <text id="group-episode-l1" x="597" y="542" font-size="14" fill="#1e1e1e">budget_total · budget_unit</text>
+    <text id="group-episode-l2" x="597" y="564" font-size="14" fill="#1e1e1e">action_costs · max_turns</text>
+    <text id="group-episode-l3" x="597" y="586" font-size="14" fill="#1e1e1e">sim_steps · sim_dt (not rendered)</text>
+  </g>
+  <line id="edge-returns" x1="510" y1="180" x2="570" y2="180" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-returns" x="540" y="171" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">returns</text>
+
+  <!-- Right column: the agent side -->
+  <g id="surface-node">
+    <rect id="surface-box" x="930" y="30" width="240" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="surface-name" x="1050" y="60" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">surface_brief</text>
+    <text id="surface-kind" x="1050" y="82" font-size="14" text-anchor="middle" fill="#1e1e1e">(function) · naming.py</text>
+    <text id="surface-sub" x="1050" y="104" font-size="14" text-anchor="middle" fill="#1e1e1e">opaque-names arms only</text>
+  </g>
+  <g id="begin-node">
+    <rect id="begin-box" x="930" y="170" width="240" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="begin-name" x="1050" y="200" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">SessionAgent.begin</text>
+    <text id="begin-kind" x="1050" y="222" font-size="14" text-anchor="middle" fill="#1e1e1e">(protocol method)</text>
+    <text id="begin-sub" x="1050" y="244" font-size="14" text-anchor="middle" fill="#1e1e1e">once, before turn 0</text>
+  </g>
+  <g id="render-node">
+    <rect id="render-box" x="930" y="310" width="240" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="render-name" x="1050" y="340" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">render_brief</text>
+    <text id="render-kind" x="1050" y="362" font-size="14" text-anchor="middle" fill="#1e1e1e">(function)</text>
+    <text id="render-sub" x="1050" y="384" font-size="14" text-anchor="middle" fill="#1e1e1e">→ LLMAgent system prompt</text>
+  </g>
+  <g id="history-node">
+    <rect id="history-box" x="930" y="440" width="240" height="70" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 4"/>
+    <text id="history-name" x="1050" y="468" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">turn history</text>
+    <text id="history-kind" x="1050" y="490" font-size="14" text-anchor="middle" fill="#1e1e1e">(LLMAgent) · turn −1 entry</text>
+  </g>
+  <g id="records-node">
+    <rect id="records-box" x="930" y="540" width="240" height="70" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="records-name" x="1050" y="568" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">records.jsonl</text>
+    <text id="records-kind" x="1050" y="590" font-size="14" text-anchor="middle" fill="#1e1e1e">(store) · structural ids</text>
+  </g>
+  <line id="edge-opaque" x1="870" y1="75" x2="930" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-opaque" x="900" y="66" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">opaque</text>
+  <line id="edge-surfaced" x1="1050" y1="120" x2="1050" y2="170" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-surfaced" x="1060" y="150" font-size="14" font-style="italic" fill="#1864ab">surfaced</text>
+  <line id="edge-plain" x1="870" y1="215" x2="930" y2="215" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-plain" x="900" y="206" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">plain</text>
+  <line id="edge-renders" x1="1050" y1="260" x2="1050" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-renders" x="1060" y="290" font-size="14" font-style="italic" fill="#1864ab">renders</text>
+  <path id="edge-history" d="M1170,232 H1184 V475 H1172" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-history" x="1196" y="420" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab" transform="rotate(-90 1196 420)">displaced</text>
+  <line id="edge-stored" x1="870" y1="575" x2="930" y2="575" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-stored" x="900" y="566" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">stored</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="legend-solid" x1="20" y1="652" x2="70" y2="652" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="legend-solid-text" x="80" y="657" font-size="14" fill="#1e1e1e">primary flow</text>
+    <line id="legend-dashed" x1="200" y1="652" x2="250" y2="652" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+    <text id="legend-dashed-text" x="260" y="657" font-size="14" fill="#1e1e1e">reads · raises · stores</text>
+    <rect id="legend-dashbox" x="450" y="642" width="36" height="20" rx="4" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 3"/>
+    <text id="legend-dashbox-text" x="494" y="657" font-size="14" fill="#1e1e1e">conditional / off the brief</text>
+    <rect id="legend-input" x="720" y="643" width="18" height="18" fill="#fff3f3" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-input-text" x="744" y="657" font-size="14" fill="#1e1e1e">input</text>
+    <rect id="legend-fn" x="800" y="643" width="18" height="18" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-fn-text" x="824" y="657" font-size="14" fill="#1e1e1e">function</text>
+    <rect id="legend-data" x="902" y="643" width="18" height="18" fill="#fff9db" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-data-text" x="926" y="657" font-size="14" fill="#1e1e1e">data</text>
+    <rect id="legend-gate" x="980" y="643" width="18" height="18" fill="#ffe8cc" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-gate-text" x="1004" y="657" font-size="14" fill="#1e1e1e">refusal</text>
+  </g>
+</svg>

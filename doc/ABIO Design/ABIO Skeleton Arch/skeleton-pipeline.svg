@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+  <rect x="0" y="0" width="1280" height="560" rx="14" fill="#fbfbfd" stroke="#d9d9e3"/>
+  <!-- lane label -->
+  <text x="40" y="46" font-size="22" font-weight="700" fill="#1d1d22">From typed blocks to a graded world</text>
+  <text x="40" y="72" font-size="14" fill="#6b6b78">compose → materialize → simulate → read ground truth off the assembled world</text>
+
+  <!-- Stage 1: block library -->
+  <rect x="40" y="110" width="230" height="330" rx="12" fill="#ffffff" stroke="#c7c7d2"/>
+  <text x="155" y="138" font-size="15" font-weight="700" text-anchor="middle" fill="#1d1d22">Block Library</text>
+  <text x="155" y="157" font-size="11.5" text-anchor="middle" fill="#8a8a96">typed templates · a role each</text>
+  <g font-size="12.5" fill="#22222a">
+    <rect x="62" y="172" width="186" height="30" rx="7" fill="#eef4ff" stroke="#a9c5f5"/><text x="72" y="191">Source / Feedstock</text>
+    <rect x="62" y="208" width="186" height="30" rx="7" fill="#ffeef0" stroke="#f2a9b4"/><text x="72" y="227">Conflict-Crux ✦</text>
+    <rect x="62" y="244" width="186" height="30" rx="7" fill="#fff6e6" stroke="#f0cf8f"/><text x="72" y="263">Signaling / Transducer</text>
+    <rect x="62" y="280" width="186" height="30" rx="7" fill="#ecf8ee" stroke="#a6ddb0"/><text x="72" y="299">Homeostasis</text>
+    <rect x="62" y="316" width="186" height="30" rx="7" fill="#f3eefe" stroke="#c9b3f2"/><text x="72" y="335">Transport / Env-Pressure</text>
+    <rect x="62" y="352" width="186" height="30" rx="7" fill="#eef4ff" stroke="#a9c5f5"/><text x="72" y="371">Conversion · Sink · Buffer</text>
+    <text x="72" y="404" font-size="11" fill="#8a8a96">instantiate + bind params (seed)</text>
+  </g>
+
+  <!-- arrow -->
+  <path d="M276 275 h30" stroke="#9a9aa6" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- Stage 2: skeleton graph -->
+  <rect x="316" y="110" width="360" height="330" rx="12" fill="#ffffff" stroke="#c7c7d2"/>
+  <text x="496" y="138" font-size="15" font-weight="700" text-anchor="middle" fill="#1d1d22">Skeleton</text>
+  <text x="496" y="157" font-size="11.5" text-anchor="middle" fill="#8a8a96">BlockInstances + typed Wires</text>
+
+  <!-- levers / control surface -->
+  <text x="340" y="188" font-size="11" font-weight="700" fill="#3a6fd8">control surface (agent levers)</text>
+  <circle cx="348" cy="212" r="7" fill="#3a6fd8"/><circle cx="348" cy="300" r="7" fill="#3a6fd8"/>
+
+  <!-- blocks in graph -->
+  <rect x="372" y="196" width="96" height="34" rx="7" fill="#eef4ff" stroke="#a9c5f5"/><text x="420" y="217" font-size="11.5" text-anchor="middle" fill="#22222a">Source</text>
+  <rect x="372" y="284" width="96" height="34" rx="7" fill="#fff6e6" stroke="#f0cf8f"/><text x="420" y="305" font-size="11.5" text-anchor="middle" fill="#22222a">Signaling</text>
+  <rect x="500" y="240" width="96" height="34" rx="7" fill="#ecf8ee" stroke="#a6ddb0"/><text x="548" y="261" font-size="11.5" text-anchor="middle" fill="#22222a">Homeostasis</text>
+  <rect x="500" y="330" width="120" height="40" rx="7" fill="#ffeef0" stroke="#f2a9b4" stroke-width="2"/><text x="560" y="355" font-size="12" font-weight="700" text-anchor="middle" fill="#b03048">Conflict-Crux ✦</text>
+
+  <!-- wires -->
+  <g stroke-width="2" fill="none">
+    <path d="M355 212 h17" stroke="#3a6fd8"/>
+    <path d="M355 300 h17" stroke="#3a6fd8"/>
+    <path d="M468 213 C 486 213, 486 250, 500 252" stroke="#7a7a86"/><!-- species -->
+    <path d="M468 301 C 486 301, 486 262, 500 262" stroke="#e0a63a" stroke-dasharray="4 3"/><!-- control -->
+    <path d="M596 258 C 620 258, 600 348, 620 350" stroke="#7a7a86"/>
+    <path d="M548 274 v56" stroke="#7a7a86"/>
+  </g>
+  <text x="452" y="410" font-size="11" fill="#8a8a96">— species wire (mass)   ·  · control wire (modulation)</text>
+  <text x="340" y="428" font-size="11" font-style="italic" fill="#b03048">indirection depth = levers → crux (the difficulty dial)</text>
+
+  <!-- arrow -->
+  <path d="M682 275 h30" stroke="#9a9aa6" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- Stage 3: world -->
+  <rect x="722" y="150" width="230" height="250" rx="12" fill="#ffffff" stroke="#c7c7d2"/>
+  <text x="837" y="178" font-size="15" font-weight="700" text-anchor="middle" fill="#1d1d22">WorldImpl</text>
+  <text x="837" y="197" font-size="11.5" text-anchor="middle" fill="#8a8a96">materialize(seed)</text>
+  <g font-size="12" fill="#22222a">
+    <rect x="744" y="212" width="186" height="28" rx="6" fill="#f4f4f8" stroke="#d0d0da"/><text x="754" y="230">ChemistryImpl</text>
+    <rect x="744" y="246" width="186" height="28" rx="6" fill="#f4f4f8" stroke="#d0d0da"/><text x="754" y="264">Compartments + conc.</text>
+    <rect x="744" y="280" width="186" height="28" rx="6" fill="#f4f4f8" stroke="#d0d0da"/><text x="754" y="298">namespaced molecule ids</text>
+    <text x="754" y="332" font-size="10.5" fill="#8a8a96">wired ports unified to one</text>
+    <text x="754" y="348" font-size="10.5" fill="#8a8a96">shared MoleculeImpl object</text>
+  </g>
+
+  <!-- arrow -->
+  <path d="M958 275 h30" stroke="#9a9aa6" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- Stage 4: oracle -->
+  <rect x="998" y="150" width="242" height="250" rx="12" fill="#ffffff" stroke="#c7c7d2"/>
+  <text x="1119" y="178" font-size="15" font-weight="700" text-anchor="middle" fill="#1d1d22">Oracle</text>
+  <text x="1119" y="197" font-size="11.5" text-anchor="middle" fill="#8a8a96">verify.simulate → Timeline</text>
+  <g font-size="12" fill="#22222a">
+    <rect x="1020" y="212" width="198" height="28" rx="6" fill="#f4f4f8" stroke="#d0d0da"/><text x="1030" y="230">simulate assembled world</text>
+    <rect x="1020" y="246" width="198" height="28" rx="6" fill="#f4f4f8" stroke="#d0d0da"/><text x="1030" y="264">map crux frontier</text>
+    <rect x="1020" y="280" width="198" height="28" rx="6" fill="#ecf8ee" stroke="#a6ddb0"/><text x="1030" y="298">ground truth (deterministic)</text>
+    <text x="1030" y="332" font-size="10.5" fill="#8a8a96">by-simulation, not by-formula</text>
+    <text x="1030" y="348" font-size="10.5" fill="#8a8a96">— still taint-free / reproducible</text>
+  </g>
+
+  <text x="40" y="500" font-size="12.5" fill="#6b6b78">Everything left of <tspan font-weight="700" fill="#3a6fd8">Skeleton</tspan> is new (composition layer); <tspan font-weight="700">WorldImpl</tspan> and <tspan font-weight="700">Oracle</tspan> already exist. A composed Skeleton plugs in through the existing <tspan font-style="italic">TaskArchetype.drafter</tspan> seam.</text>
+  <text x="40" y="524" font-size="12.5" fill="#b03048">Two block roles force new engine capabilities: Signaling (rate modulation by a species) and Transport (cross-compartment flow) — flagged as gated dependencies.</text>
+
+  <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#9a9aa6"/></marker></defs>
+</svg>

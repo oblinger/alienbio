@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 560" width="3000" height="1120" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1c1c"/></marker>
+    <style>
+      .inst{fill:#bac8ff;stroke:#364fc7;stroke-width:2}
+      .ext{fill:#fff3f3;stroke:#c92a2a;stroke-width:2}
+      .store{fill:#fff9db;stroke:#e67700;stroke-width:2}
+      .t{font-size:20px;font-weight:700;fill:#1c1c1c}
+      .b{font-size:15px;fill:#1c1c1c}
+      .m{font-size:13px;fill:#495057;font-style:italic}
+      .l{font-size:13px;fill:#1971c2;font-style:italic}
+      .a{stroke:#1c1c1c;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+      .bus{stroke:#1c1c1c;stroke-width:2;fill:none}
+    </style>
+  </defs>
+  <rect width="1500" height="560" fill="#ffffff"/>
+
+  <text class="m" x="40" y="44">the operator</text>
+  <text class="m" x="370" y="44">commands — each parses its own flags</text>
+  <text class="m" x="760" y="44">what they call</text>
+  <text class="m" x="1140" y="44">the gates</text>
+
+  <rect id="box-cli" class="ext" x="40" y="70" width="280" height="100" rx="6"/>
+  <text class="t" x="56" y="98">bio — cli.py main()</text>
+  <text class="b" x="56" y="124">verb → COMMANDS[verb], rest verbatim</text>
+  <text class="m" x="56" y="148">exit 0 · 1 user error / gate · 2 usage</text>
+
+  <path class="bus" d="M 320 120 L 345 120 L 345 410"/>
+  <path id="edge-cli-suite" class="a" d="M 345 110 L 370 110"/>
+  <path id="edge-cli-config" class="a" d="M 345 210 L 370 210"/>
+  <path id="edge-cli-matrix" class="a" d="M 345 310 L 370 310"/>
+  <path id="edge-cli-report" class="a" d="M 345 410 L 370 410"/>
+  <text class="l" x="330" y="190" text-anchor="end">dispatch</text>
+
+  <rect id="box-suite" class="inst" x="370" y="70" width="340" height="80" rx="6"/>
+  <text class="t" x="386" y="98">suite_cmd.py</text>
+  <text class="b" x="386" y="122">run · resume · aggregate · report · models</text>
+  <text class="m" x="386" y="142">--dry prints plan, guard verdicts, cost — creates nothing</text>
+
+  <rect id="box-config" class="inst" x="370" y="170" width="340" height="80" rx="6"/>
+  <text class="t" x="386" y="198">config_cmd.py</text>
+  <text class="b" x="386" y="222">set-key · list-keys · set-default-agent · show</text>
+  <text class="m" x="386" y="242">test-key makes one live call</text>
+
+  <rect id="box-matrix" class="inst" x="370" y="270" width="340" height="80" rx="6"/>
+  <text class="t" x="386" y="298">test_matrix_cmd.py</text>
+  <text class="b" x="386" y="322">--markdown · --check</text>
+  <text class="m" x="386" y="342">--check is the CI gate</text>
+
+  <rect id="box-reportcmd" class="inst" x="370" y="370" width="340" height="80" rx="6"/>
+  <text class="t" x="386" y="398">report_cmd.py</text>
+  <text class="b" x="386" y="422">--open · --no-examples · --junit · --out</text>
+  <text class="m" x="386" y="442">writes reports/report.md and report.html</text>
+
+  <path id="edge-suite-experiment" class="a" d="M 710 110 L 760 110"/>
+  <text class="l" x="735" y="99" text-anchor="middle">load · run</text>
+  <path id="edge-config-config" class="a" d="M 710 210 L 760 210"/>
+  <text class="l" x="735" y="199" text-anchor="middle">keys</text>
+  <path id="edge-matrix-capabilities" class="a" d="M 710 310 L 760 310"/>
+  <text class="l" x="735" y="299" text-anchor="middle">matrix</text>
+  <path id="edge-report-report" class="a" d="M 710 410 L 760 410"/>
+  <text class="l" x="735" y="399" text-anchor="middle">build</text>
+
+  <rect id="box-experiment" class="inst" x="760" y="70" width="330" height="80" rx="6"/>
+  <text class="t" x="776" y="98">ABIO-Experiment</text>
+  <text class="b" x="776" y="122">load_spec · run_experiment · aggregate</text>
+  <text class="m" x="776" y="142">render_report · estimate_cost · write_key_figure</text>
+
+  <rect id="box-configpy" class="inst" x="760" y="170" width="330" height="80" rx="6"/>
+  <text class="t" x="776" y="198">config.py</text>
+  <text class="b" x="776" y="222">env var → ALIENBIO_*_API_KEY → config.yaml</text>
+  <text class="m" x="776" y="242">no dotenv anywhere in the tree</text>
+
+  <rect id="box-capabilities" class="inst" x="760" y="270" width="330" height="80" rx="6"/>
+  <text class="t" x="776" y="298">capabilities.py</text>
+  <text class="b" x="776" y="322">35 DIMENSIONS · AST scan of tests/capabilities/</text>
+  <text class="m" x="776" y="342">phrase = the proving test's first docstring paragraph</text>
+
+  <path id="edge-reportpy-capabilities" class="a" d="M 925 370 L 925 350"/>
+  <text class="l" x="935" y="366">DIMENSIONS</text>
+
+  <rect id="box-reportpy" class="inst" x="760" y="370" width="330" height="80" rx="6"/>
+  <text class="t" x="776" y="398">report.py</text>
+  <text class="b" x="776" y="422">run_pytest → junit → four sections → md + html</text>
+  <text class="m" x="776" y="442">runs every catalog example fresh; key.png as a data URI</text>
+
+  <path id="edge-reportpy-reports" class="a" d="M 1090 410 L 1140 410"/>
+  <text class="l" x="1115" y="399" text-anchor="middle">write</text>
+
+  <rect id="box-ci" class="inst" x="1140" y="70" width="320" height="200" rx="6"/>
+  <text class="t" x="1156" y="98">justfile · ci.yml</text>
+  <text class="b" x="1156" y="124">just test · check · report · docs · docs-deploy</text>
+  <text class="b" x="1156" y="150">CI, one job: uv sync → pytest</text>
+  <text class="b" x="1156" y="174">--cov-fail-under=85 → bio test-matrix --check</text>
+  <text class="b" x="1156" y="198">→ pyright src/ → mkdocs build</text>
+  <text class="m" x="1156" y="224">bio report is local only, never in CI</text>
+  <text class="m" x="1156" y="248">docs-deploy: rsync site/ → oblinger.github.io/abio-docs</text>
+
+  <path id="edge-ci-outputs" class="a" d="M 1300 270 L 1300 370"/>
+  <text class="l" x="1310" y="324">docs-deploy</text>
+
+  <rect id="box-outputs" class="store" x="1140" y="370" width="320" height="80" rx="6"/>
+  <text class="t" x="1156" y="398">reports/ · site/</text>
+  <text class="b" x="1156" y="422">report.md · report.html (standalone)</text>
+  <text class="m" x="1156" y="442">the published docs site</text>
+
+  <!-- key -->
+  <text class="m" x="40" y="498">KEY</text>
+  <rect class="inst" x="40" y="510" width="26" height="18"/>
+  <text class="b" x="74" y="524">instrument code</text>
+  <rect class="ext" x="230" y="510" width="26" height="18"/>
+  <text class="b" x="264" y="524">the operator's entry</text>
+  <rect class="store" x="440" y="510" width="26" height="18"/>
+  <text class="b" x="474" y="524">files written</text>
+  <path class="a" d="M 620 519 L 670 519"/>
+  <text class="b" x="680" y="524">call or write, in the direction drawn</text>
+</svg>

@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="background" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Base class -->
+  <rect id="entity-box" x="500" y="6" width="200" height="50" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="entity-name" x="600" y="28" font-size="18" font-weight="600" text-anchor="middle">Entity</text>
+  <text id="entity-kind" x="600" y="47" font-size="14" text-anchor="middle">(base, infra/entity)</text>
+
+  <!-- Hub -->
+  <rect id="chem-box" x="440" y="120" width="320" height="320" rx="12" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="chem-name" x="600" y="146" font-size="22" font-weight="700" text-anchor="middle">ChemistryImpl</text>
+  <text id="chem-kind" x="600" y="168" font-size="14" text-anchor="middle">(class, head "Chemistry")</text>
+  <text id="chem-f1" x="464" y="210" font-size="16">atoms: {symbol: AtomImpl}</text>
+  <text id="chem-f2" x="464" y="238" font-size="16">molecules: {id: MoleculeImpl}</text>
+  <text id="chem-f3" x="464" y="266" font-size="16">reactions: {id: ReactionImpl}</text>
+  <text id="chem-f4" x="464" y="300" font-size="16">validate() · attributes()</text>
+  <rect id="refusal-box" x="460" y="326" width="280" height="96" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text id="refusal-1" x="600" y="352" font-size="16" font-weight="600" text-anchor="middle">one id namespace</text>
+  <text id="refusal-2" x="600" y="376" font-size="14" text-anchor="middle">a molecule id that is also a</text>
+  <text id="refusal-3" x="600" y="396" font-size="14" text-anchor="middle">reaction id is refused at</text>
+  <text id="refusal-4" x="600" y="414" font-size="14" text-anchor="middle">construction (ValueError)</text>
+
+  <!-- derives from -->
+  <line id="e-derives" x1="600" y1="120" x2="600" y2="56" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-derives" x="612" y="94" font-size="14" fill="#1971c2" font-style="italic">derives from</text>
+
+  <!-- Construction paths (left) -->
+  <rect id="expr-box" x="20" y="120" width="250" height="64" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="expr-name" x="145" y="147" font-size="18" font-weight="600" text-anchor="middle">!Chemistry</text>
+  <text id="expr-kind" x="145" y="169" font-size="14" text-anchor="middle">(Expr constructor head)</text>
+  <line id="e-expr" x1="270" y1="152" x2="440" y2="152" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-expr" x="355" y="142" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">hydrate</text>
+
+  <rect id="mk-box" x="20" y="230" width="250" height="64" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="mk-name" x="145" y="257" font-size="18" font-weight="600" text-anchor="middle">mk.C</text>
+  <text id="mk-kind" x="145" y="279" font-size="14" text-anchor="middle">(maker, bio/makers)</text>
+  <line id="e-mk" x1="270" y1="262" x2="440" y2="262" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-mk" x="355" y="252" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">construct</text>
+
+  <rect id="derivers-box" x="20" y="340" width="250" height="64" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="derivers-name" x="145" y="367" font-size="18" font-weight="600" text-anchor="middle">suite derivers</text>
+  <text id="derivers-kind" x="145" y="389" font-size="14" text-anchor="middle">(carve · augment · runner)</text>
+  <line id="e-derivers" x1="270" y1="372" x2="440" y2="372" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-derivers" x="355" y="362" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">construct</text>
+
+  <!-- Graph view -->
+  <rect id="graph-box" x="20" y="440" width="200" height="56" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="graph-name" x="120" y="464" font-size="18" font-weight="600" text-anchor="middle">GraphView</text>
+  <text id="graph-kind" x="120" y="484" font-size="14" text-anchor="middle">(dataclass, graph_ops)</text>
+  <line id="e-graph" x1="440" y1="430" x2="220" y2="462" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-graph" x="300" y="436" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">graph queries</text>
+
+  <!-- Consumers (right) -->
+  <rect id="names-box" x="930" y="120" width="250" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="names-name" x="1055" y="147" font-size="18" font-weight="600" text-anchor="middle">build_name_map</text>
+  <text id="names-kind" x="1055" y="169" font-size="14" text-anchor="middle">(function, suite/naming)</text>
+  <line id="e-names" x1="760" y1="152" x2="930" y2="152" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-names" x="845" y="142" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">dict keys</text>
+
+  <rect id="world-box" x="930" y="210" width="250" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="world-name" x="1055" y="237" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
+  <text id="world-kind" x="1055" y="259" font-size="14" text-anchor="middle">(class, bio/world)</text>
+  <line id="e-world" x1="760" y1="242" x2="930" y2="242" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-world" x="845" y="232" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">molecule order</text>
+
+  <rect id="sim-box" x="930" y="300" width="250" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="sim-name" x="1055" y="327" font-size="18" font-weight="600" text-anchor="middle">WorldSimulatorImpl</text>
+  <text id="sim-kind" x="1055" y="349" font-size="14" text-anchor="middle">(class, bio/world_simulator)</text>
+  <line id="e-sim" x1="760" y1="332" x2="930" y2="332" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-sim" x="845" y="322" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">from_chemistry</text>
+
+  <rect id="cons-box" x="930" y="390" width="250" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="cons-name" x="1055" y="417" font-size="18" font-weight="600" text-anchor="middle">check_conservation</text>
+  <text id="cons-kind" x="1055" y="439" font-size="14" text-anchor="middle">(function, bio/conservation)</text>
+  <line id="e-cons" x1="760" y1="422" x2="930" y2="422" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-cons" x="845" y="412" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">atom balance</text>
+
+  <!-- Contained entities (bottom row) -->
+  <rect id="atom-box" x="230" y="510" width="150" height="56" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="atom-name" x="305" y="534" font-size="18" font-weight="600" text-anchor="middle">AtomImpl</text>
+  <text id="atom-kind" x="305" y="554" font-size="14" text-anchor="middle">(class)</text>
+
+  <rect id="mol-box" x="490" y="510" width="180" height="56" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="mol-name" x="580" y="534" font-size="18" font-weight="600" text-anchor="middle">MoleculeImpl</text>
+  <text id="mol-kind" x="580" y="554" font-size="14" text-anchor="middle">(class, Entity)</text>
+
+  <rect id="rxn-box" x="800" y="510" width="170" height="56" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="rxn-name" x="885" y="534" font-size="18" font-weight="600" text-anchor="middle">ReactionImpl</text>
+  <text id="rxn-kind" x="885" y="554" font-size="14" text-anchor="middle">(class, Entity)</text>
+
+  <rect id="mod-box" x="1040" y="510" width="145" height="56" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="mod-name" x="1112" y="534" font-size="18" font-weight="600" text-anchor="middle">Modulation</text>
+  <text id="mod-kind" x="1112" y="554" font-size="14" text-anchor="middle">(dataclass)</text>
+
+  <!-- contains -->
+  <line id="e-has-atoms" x1="470" y1="440" x2="330" y2="510" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-has-atoms" x="360" y="490" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">by symbol</text>
+  <line id="e-has-mols" x1="580" y1="440" x2="580" y2="510" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-has-mols" x="590" y="482" font-size="14" fill="#1971c2" font-style="italic">by id</text>
+  <line id="e-has-rxns" x1="740" y1="440" x2="860" y2="510" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-has-rxns" x="810" y="470" font-size="14" fill="#1971c2" font-style="italic">by id</text>
+
+  <!-- keyed by -->
+  <line id="e-mol-atoms" x1="490" y1="538" x2="380" y2="538" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-mol-atoms" x="435" y="530" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">atoms</text>
+  <line id="e-rxn-mols" x1="800" y1="538" x2="670" y2="538" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-rxn-mols" x="735" y="530" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">stoichiometry</text>
+  <line id="e-rxn-mod" x1="970" y1="538" x2="1040" y2="538" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-rxn-mod" x="1005" y="590" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">modifiers</text>
+  <line id="leader-rxn-mod" x1="1005" y1="577" x2="1005" y2="542" stroke="#1971c2" stroke-width="1"/>
+
+  <!-- Legend -->
+  <line id="legend-solid" x1="20" y1="646" x2="110" y2="646" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="legend-solid-label" x="120" y="651" font-size="14">builds or reads</text>
+  <line id="legend-dotted" x1="260" y1="646" x2="330" y2="646" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="legend-dotted-label" x="340" y="651" font-size="14">contains, keyed by, derives from</text>
+  <rect id="legend-in" x="600" y="636" width="18" height="18" fill="#fff3f3" stroke="#1e1e1e"/>
+  <text id="legend-in-label" x="626" y="651" font-size="14">construction path</text>
+  <rect id="legend-out" x="770" y="636" width="18" height="18" fill="#ebfbee" stroke="#1e1e1e"/>
+  <text id="legend-out-label" x="796" y="651" font-size="14">consumer</text>
+  <rect id="legend-held" x="890" y="636" width="18" height="18" fill="#fff9db" stroke="#1e1e1e"/>
+  <text id="legend-held-label" x="916" y="651" font-size="14">held entity</text>
+</svg>

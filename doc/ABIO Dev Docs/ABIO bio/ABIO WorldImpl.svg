@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="background" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Construction paths in -->
+  <g id="skeleton-node">
+    <rect id="skeleton-box" x="20" y="80" width="190" height="80" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="skeleton-name" x="115" y="114" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">Skeleton</text>
+    <text id="skeleton-kind" x="115" y="138" font-size="14" text-anchor="middle" fill="#1e1e1e">.materialize(seed)</text>
+  </g>
+  <g id="worldhead-node">
+    <rect id="worldhead-box" x="20" y="215" width="190" height="80" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="worldhead-name" x="115" y="249" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">!World</text>
+    <text id="worldhead-kind" x="115" y="273" font-size="14" text-anchor="middle" fill="#1e1e1e">(Expr constructor head)</text>
+  </g>
+  <g id="runner-node">
+    <rect id="runner-box" x="20" y="350" width="190" height="80" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="runner-name" x="115" y="384" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">_world_from_state</text>
+    <text id="runner-kind" x="115" y="408" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · suite/runner.py</text>
+  </g>
+
+  <line id="edge-skeleton" x1="210" y1="120" x2="300" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-skeleton" x="255" y="110" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">Fragment</text>
+  <line id="edge-worldhead" x1="210" y1="255" x2="300" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-worldhead" x="255" y="245" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">records</text>
+  <line id="edge-runner" x1="210" y1="390" x2="300" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-runner" x="255" y="380" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">end state</text>
+
+  <!-- WorldImpl container -->
+  <rect id="worldimpl-box" x="300" y="30" width="440" height="540" rx="12" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="3"/>
+  <text id="worldimpl-name" x="320" y="60" font-size="22" font-weight="bold" fill="#1e1e1e">WorldImpl</text>
+  <text id="worldimpl-kind" x="440" y="60" font-size="14" fill="#1e1e1e">(class) · read-only after __init__</text>
+
+  <g id="compartment-node">
+    <rect id="compartment-box" x="330" y="80" width="190" height="80" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="compartment-name" x="425" y="114" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">Compartment</text>
+    <text id="compartment-kind" x="425" y="138" font-size="14" text-anchor="middle" fill="#1e1e1e">(dataclass) · one per node</text>
+  </g>
+  <g id="buildtree-node">
+    <rect id="buildtree-box" x="600" y="90" width="120" height="60" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="buildtree-name" x="660" y="117" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">build_tree</text>
+    <text id="buildtree-kind" x="660" y="139" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn)</text>
+  </g>
+  <g id="chemistry-node">
+    <rect id="chemistry-box" x="330" y="200" width="210" height="80" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="chemistry-name" x="435" y="234" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">ChemistryImpl</text>
+    <text id="chemistry-kind" x="435" y="258" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · held, not copied</text>
+  </g>
+  <text id="note-resolve-1" x="520" y="314" font-size="14" font-style="italic" text-anchor="middle" fill="#495057">every id re-keyed through comp_to_int</text>
+  <text id="note-resolve-2" x="520" y="332" font-size="14" font-style="italic" text-anchor="middle" fill="#495057">and the chemistry's molecule order</text>
+  <g id="transport-node">
+    <rect id="transport-box" x="330" y="350" width="210" height="80" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="transport-name" x="435" y="384" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">Transport</text>
+    <text id="transport-kind" x="435" y="408" font-size="14" text-anchor="middle" fill="#1e1e1e">(dataclass) · flows</text>
+  </g>
+  <g id="lawspec-node">
+    <rect id="lawspec-box" x="330" y="455" width="210" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="lawspec-name" x="435" y="485" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">PopulationLawSpec</text>
+    <text id="lawspec-kind" x="435" y="508" font-size="14" text-anchor="middle" fill="#1e1e1e">GrowthLaw · DeathLaw ·</text>
+    <text id="lawspec-kind2" x="435" y="528" font-size="14" text-anchor="middle" fill="#1e1e1e">CountFlowSpec (dataclasses)</text>
+  </g>
+
+  <!-- Derived at construction -->
+  <g id="tree-node">
+    <rect id="tree-box" x="800" y="70" width="230" height="70" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="tree-name" x="915" y="100" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">CompartmentTreeImpl</text>
+    <text id="tree-kind" x="915" y="124" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · int ids, root = 0</text>
+  </g>
+  <g id="state-node">
+    <rect id="state-box" x="800" y="200" width="230" height="80" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="state-name" x="915" y="234" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">WorldStateImpl</text>
+    <text id="state-kind" x="915" y="258" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · initial_state</text>
+  </g>
+  <g id="flux-node">
+    <rect id="flux-box" x="800" y="350" width="230" height="80" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="flux-name" x="915" y="384" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">TransportFlux</text>
+    <text id="flux-kind" x="915" y="408" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · flow_objs</text>
+  </g>
+  <g id="poplaw-node">
+    <rect id="poplaw-box" x="800" y="455" width="230" height="90" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="poplaw-name" x="915" y="485" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">PopulationLaw</text>
+    <text id="poplaw-kind" x="915" y="508" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · population_law_objs</text>
+    <text id="poplaw-kind2" x="915" y="528" font-size="14" text-anchor="middle" fill="#1e1e1e">Growth · Death · CountFlow</text>
+  </g>
+
+  <!-- Inside-world edges -->
+  <line id="edge-to-buildtree" x1="520" y1="120" x2="600" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="edge-tree" x1="720" y1="120" x2="800" y2="120" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-tree" x="760" y="111" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">tree</text>
+  <line id="edge-values" x1="520" y1="152" x2="800" y2="215" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-values" x="640" y="200" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">initial values</text>
+  <line id="edge-axis" x1="540" y1="255" x2="800" y2="255" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-axis" x="680" y="246" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">molecule axis</text>
+  <line id="edge-indexes" x1="915" y1="140" x2="915" y2="200" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-indexes" x="925" y="175" font-size="14" font-style="italic" fill="#1864ab">indexes</text>
+  <line id="edge-flux" x1="540" y1="390" x2="800" y2="390" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-flux" x="670" y="381" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">resolve</text>
+  <line id="edge-poplaw" x1="540" y1="500" x2="800" y2="500" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="label-poplaw" x="670" y="491" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">resolve</text>
+
+  <!-- Reader -->
+  <g id="sim-node">
+    <rect id="sim-box" x="800" y="590" width="385" height="70" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="sim-name" x="992" y="619" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">WorldSimulatorImpl</text>
+    <text id="sim-kind" x="992" y="643" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · from_chemistry, via verify.simulate</text>
+  </g>
+  <polyline id="edge-read-state" points="1030,240 1150,240 1150,590" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-read-state" x="1142" y="400" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab" transform="rotate(-90 1142 400)">copy + tree</text>
+  <polyline id="edge-read-flux" points="1030,390 1110,390 1110,590" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-read-flux" x="1102" y="465" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab" transform="rotate(-90 1102 465)">flows=</text>
+  <polyline id="edge-read-poplaw" points="1030,500 1070,500 1070,590" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="label-read-poplaw" x="1062" y="550" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab" transform="rotate(-90 1062 550)">laws=</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="legend-solid" x1="30" y1="605" x2="110" y2="605" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="legend-solid-text" x="120" y="610" font-size="14" fill="#1e1e1e">construct, call or read</text>
+    <line id="legend-dotted" x1="330" y1="605" x2="380" y2="605" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+    <text id="legend-dotted-text" x="390" y="610" font-size="14" fill="#1e1e1e">derived inside __init__</text>
+    <rect id="legend-in" x="30" y="630" width="22" height="16" fill="#fff3f3" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-in-text" x="60" y="643" font-size="14" fill="#1e1e1e">builds a world</text>
+    <rect id="legend-held" x="190" y="630" width="22" height="16" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-held-text" x="220" y="643" font-size="14" fill="#1e1e1e">held as given</text>
+    <rect id="legend-derived" x="340" y="630" width="22" height="16" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-derived-text" x="370" y="643" font-size="14" fill="#1e1e1e">derived, held</text>
+    <rect id="legend-reader" x="490" y="630" width="22" height="16" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-reader-text" x="520" y="643" font-size="14" fill="#1e1e1e">reads the world</text>
+  </g>
+</svg>

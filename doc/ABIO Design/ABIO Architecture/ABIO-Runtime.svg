@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 760" width="3000" height="1520" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1c1c"/></marker>
+    <style>
+      .inst{fill:#bac8ff;stroke:#364fc7;stroke-width:2}
+      .sub{fill:#ebfbee;stroke:#2b8a3e;stroke-width:2}
+      .store{fill:#fff9db;stroke:#e67700;stroke-width:2}
+      .ext{fill:#fff3f3;stroke:#c92a2a;stroke-width:2}
+      .t{font-size:20px;font-weight:700;fill:#1c1c1c}
+      .b{font-size:15px;fill:#1c1c1c}
+      .m{font-size:13px;fill:#495057;font-style:italic}
+      .l{font-size:13px;fill:#1971c2;font-style:italic}
+      .a{stroke:#1c1c1c;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+    </style>
+  </defs>
+  <rect width="1500" height="760" fill="#ffffff"/>
+
+  <text class="m" x="40" y="44">what the agent is given</text>
+  <text class="m" x="400" y="44">one trial</text>
+  <text class="m" x="1080" y="44">the agents</text>
+
+  <!-- left column -->
+  <rect id="box-brief" class="inst" x="40" y="70" width="300" height="130" rx="6"/>
+  <text class="t" x="56" y="98">brief.py</text>
+  <text class="b" x="56" y="124">TaskBrief — built once, before turn 0</text>
+  <text class="b" x="56" y="148">constitution · stakes · monitoring · probes</text>
+  <text class="b" x="56" y="172">levers · max_rates · protocol · padding</text>
+  <text class="m" x="56" y="192">render_brief → the prompt text</text>
+
+  <path id="edge-brief-runner" class="a" d="M 340 135 L 400 135"/>
+  <text class="l" x="370" y="124" text-anchor="middle">brief</text>
+
+  <rect id="box-naming" class="inst" x="40" y="240" width="300" height="110" rx="6"/>
+  <text class="t" x="56" y="268">naming.py</text>
+  <text class="b" x="56" y="294">NameMap: structural ids ↔ m01 / r01</text>
+  <text class="b" x="56" y="318">OpaqueAgent translates every crossing</text>
+  <text class="m" x="56" y="340">the runner itself never leaves structural ids</text>
+
+  <path id="edge-naming-runner" class="a" d="M 340 295 L 400 295"/>
+  <text class="l" x="370" y="284" text-anchor="middle">rename</text>
+
+  <rect id="box-experiment" class="inst" x="40" y="560" width="300" height="110" rx="6"/>
+  <text class="t" x="56" y="588">ABIO-Experiment</text>
+  <text class="b" x="56" y="614">run_experiment: drafter closure,</text>
+  <text class="b" x="56" y="638">agent factory, on_trial → records.jsonl</text>
+  <text class="m" x="56" y="660">guards cleared before this call</text>
+
+  <path id="edge-experiment-mass" class="a" d="M 340 615 L 400 615"/>
+  <text class="l" x="370" y="604" text-anchor="middle">run()</text>
+
+  <!-- runner -->
+  <rect id="box-runner" class="inst" x="400" y="70" width="620" height="330" rx="6"/>
+  <text class="t" x="416" y="98">runner.py — run(): one trial</text>
+  <text class="b" x="416" y="126">1  narrow the truth — narrow_observation · project_observation(hidden_ids)</text>
+  <text class="b" x="416" y="152">2  build the brief from that view · wrap in OpaqueAgent · agent.begin(brief)</text>
+  <text class="b" x="416" y="178">3  each turn: fresh WorldImpl from the prior end-state → every_turn probes → act</text>
+  <text class="b" x="416" y="204">4  validate as data — unknown id ⇒ rejected · over-cap Intervene ⇒ clamped</text>
+  <text class="b" x="416" y="230">5  apply · agent.notice(outcome) · certainty window · simulate one burst</text>
+  <text class="b" x="416" y="256">6  stop on Commit · illegal_action_limit · budget exhausted · max_turns</text>
+  <text class="b" x="416" y="282">7  grade · audit_prompts over every prompt sent → TrialRecord</text>
+  <text class="m" x="416" y="310">probe answers land only on probe_records — never on the main line</text>
+  <text class="m" x="416" y="334">a taint hit raises TaintError carrying the full record</text>
+  <text class="m" x="416" y="358">the hidden set is frozen at the turn-0 draw; only noise is redrawn</text>
+  <text class="m" x="416" y="382">llm_agent is duck-typed here — the live layer is swappable</text>
+
+  <path id="edge-runner-agent" class="a" d="M 1020 125 L 1080 125"/>
+  <text class="l" x="1050" y="114" text-anchor="middle">act</text>
+
+  <path id="edge-runner-bio" class="a" d="M 550 400 L 550 440"/>
+  <text class="l" x="560" y="426">simulate</text>
+
+  <path id="edge-runner-record" class="a" d="M 880 400 L 880 440"/>
+  <text class="l" x="890" y="426">TrialRecord</text>
+
+  <!-- agents column -->
+  <rect id="box-agent" class="inst" x="1080" y="70" width="380" height="110" rx="6"/>
+  <text class="t" x="1096" y="98">agent.py</text>
+  <text class="b" x="1096" y="124">Measure · Intervene · Commit · Wait</text>
+  <text class="b" x="1096" y="148">Agent.act · SessionAgent.begin / notice · probe</text>
+  <text class="m" x="1096" y="170">ScriptedAgent / Policy — the $0 arms</text>
+
+  <path id="edge-llm-agent" class="a" d="M 1270 210 L 1270 180"/>
+  <text class="l" x="1280" y="200">implements</text>
+
+  <rect id="box-llm" class="inst" x="1080" y="210" width="380" height="190" rx="6"/>
+  <text class="t" x="1096" y="238">llm_agent.py — the live arm</text>
+  <text class="b" x="1096" y="264">_maybe_compact(compact_at) → _history_window</text>
+  <text class="b" x="1096" y="288">token ceiling · prompt_texts / hashes · UsageMeter</text>
+  <text class="b" x="1096" y="312">probe(): forked context on a child seed</text>
+  <text class="b" x="1096" y="336">retry / backoff · PINNED_MODEL · prices</text>
+  <text class="m" x="1096" y="362">constitution rides history as turn −1 (T029)</text>
+  <text class="m" x="1096" y="386">ops.LLMFn is the one provider seam</text>
+
+  <path id="edge-llm-api" class="a" d="M 1270 400 L 1270 440"/>
+  <text class="l" x="1280" y="426">LLMFn, metered</text>
+
+  <rect id="box-api" class="ext" x="1080" y="440" width="380" height="60" rx="6"/>
+  <text class="t" x="1096" y="468">Anthropic API</text>
+  <text class="m" x="1096" y="490">default_anthropic_llm_fn — the only network edge</text>
+
+  <!-- bottom row -->
+  <rect id="box-bio" class="sub" x="400" y="440" width="300" height="70" rx="6"/>
+  <text class="t" x="416" y="468">bio engine</text>
+  <text class="b" x="416" y="494">WorldImpl · verify.simulate(SimConfig)</text>
+
+  <rect id="box-record" class="store" x="740" y="440" width="280" height="90" rx="6"/>
+  <text class="t" x="756" y="468">trial.py — TrialRecord</text>
+  <text class="b" x="756" y="494">frozen: score · action_log · probes</text>
+  <text class="b" x="756" y="518">usage · name_map · taint_hits · oracle</text>
+
+  <path id="edge-mass-runner" class="a" d="M 720 560 L 720 400"/>
+  <text class="l" x="730" y="551">run(unit)</text>
+  <path id="edge-record-mass" class="a" d="M 880 530 L 880 560"/>
+  <text class="l" x="890" y="551">record</text>
+
+  <rect id="box-mass" class="inst" x="400" y="560" width="620" height="130" rx="6"/>
+  <text class="t" x="416" y="588">mass_trial.py — MassTrialRunner, the grid driver</text>
+  <text class="b" x="416" y="614">units (condition, i) in sorted condition_key order · seed = base.child(label/i)</text>
+  <text class="b" x="416" y="638">matched dials dropped from the label, so arms share worlds</text>
+  <text class="b" x="416" y="662">ThreadPoolExecutor(concurrency) · lands in submission order · skip() for resume</text>
+  <text class="m" x="416" y="684">on_error="record" → an error line; a TaintError's record keeps its usage</text>
+
+  <!-- key -->
+  <text class="m" x="40" y="722">KEY</text>
+  <rect class="inst" x="40" y="734" width="26" height="18"/>
+  <text class="b" x="74" y="748">instrument — suite/</text>
+  <rect class="sub" x="260" y="734" width="26" height="18"/>
+  <text class="b" x="294" y="748">substrate — bio/</text>
+  <rect class="store" x="450" y="734" width="26" height="18"/>
+  <text class="b" x="484" y="748">the record every scorer reads</text>
+  <rect class="ext" x="720" y="734" width="26" height="18"/>
+  <text class="b" x="754" y="748">external, paid</text>
+  <path class="a" d="M 900 743 L 950 743"/>
+  <text class="b" x="960" y="748">call or write, in the direction drawn</text>
+</svg>

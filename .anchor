@@ -1,0 +1,10 @@
+slug: ABIO
+traits:
+- code
+doc: doc/ABIO.md
+backlog: doc/ABIO Track/ABIO Backlog.md
+inbox: doc/ABIO Track/ABIO Inbox.md
+stones:
+  pebbles:
+    prefix: P
+agent: ABIO

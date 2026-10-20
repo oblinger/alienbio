@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="background" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Zone titles and the boundary -->
+  <text id="zone-structural" x="40" y="40" font-size="16" font-weight="700" fill="#1e1e1e">STRUCTURAL SIDE · the world's own ids</text>
+  <text id="zone-surface" x="900" y="236" font-size="16" font-weight="700" fill="#1e1e1e">SURFACE SIDE · m01 / r01</text>
+  <line id="boundary-top" x1="820" y1="56" x2="820" y2="244" stroke="#c92a2a" stroke-width="2" stroke-dasharray="8,5"/>
+  <line id="boundary-bottom" x1="820" y1="366" x2="820" y2="408" stroke="#c92a2a" stroke-width="2" stroke-dasharray="8,5"/>
+  <text id="boundary-label" x="830" y="76" font-size="14" fill="#c92a2a">translation</text>
+  <text id="boundary-label-2" x="830" y="94" font-size="14" fill="#c92a2a">boundary</text>
+
+  <!-- ChemistryImpl -->
+  <rect id="chem-box" x="40" y="80" width="250" height="90" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="chem-name" x="165" y="108" font-size="18" font-weight="600" text-anchor="middle">ChemistryImpl</text>
+  <text id="chem-kind" x="165" y="128" font-size="14" text-anchor="middle">(class, bio/chemistry)</text>
+  <text id="chem-f1" x="165" y="154" font-size="14" text-anchor="middle">molecule and reaction ids</text>
+
+  <!-- NameMap -->
+  <rect id="nm-box" x="440" y="60" width="300" height="135" rx="12" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="nm-name" x="590" y="86" font-size="18" font-weight="700" text-anchor="middle">NameMap</text>
+  <text id="nm-kind" x="590" y="106" font-size="14" text-anchor="middle">(frozen dataclass)</text>
+  <text id="nm-f1" x="460" y="134" font-size="16">to_surface: id → m01 / r01</text>
+  <text id="nm-f2" x="460" y="158" font-size="16">to_structural: m01 → id</text>
+  <text id="nm-f3" x="590" y="182" font-size="14" text-anchor="middle">injective · one per trial seed</text>
+
+  <!-- runner.run -->
+  <rect id="run-box" x="40" y="250" width="250" height="120" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="run-name" x="165" y="278" font-size="18" font-weight="600" text-anchor="middle">runner.run</text>
+  <text id="run-kind" x="165" y="298" font-size="14" text-anchor="middle">(function, suite/runner)</text>
+  <text id="run-f1" x="165" y="326" font-size="14" text-anchor="middle">brief · world · graders</text>
+  <text id="run-f2" x="165" y="348" font-size="14" text-anchor="middle">all in structural ids</text>
+
+  <!-- OpaqueAgent -->
+  <rect id="oa-box" x="440" y="250" width="300" height="120" rx="12" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="oa-name" x="590" y="278" font-size="18" font-weight="700" text-anchor="middle">OpaqueAgent</text>
+  <text id="oa-kind" x="590" y="298" font-size="14" text-anchor="middle">(class, wraps any agent)</text>
+  <text id="oa-f1" x="590" y="326" font-size="16" text-anchor="middle">begin · notice · act · probe</text>
+  <text id="oa-f2" x="590" y="350" font-size="14" text-anchor="middle">other attributes forwarded</text>
+
+  <!-- inner agent -->
+  <rect id="agent-box" x="900" y="250" width="270" height="120" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="agent-name" x="1035" y="278" font-size="18" font-weight="600" text-anchor="middle">inner agent</text>
+  <text id="agent-kind" x="1035" y="298" font-size="14" text-anchor="middle">(LLMAgent or scripted)</text>
+  <text id="agent-f1" x="1035" y="326" font-size="14" text-anchor="middle">sees and speaks m01 / r01</text>
+  <text id="agent-f2" x="1035" y="348" font-size="14" text-anchor="middle">keeps prompt_texts</text>
+
+  <!-- TrialRecord -->
+  <rect id="rec-box" x="40" y="440" width="250" height="100" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="rec-name" x="165" y="466" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+  <text id="rec-kind" x="165" y="486" font-size="14" text-anchor="middle">(frozen dataclass)</text>
+  <text id="rec-f1" x="165" y="510" font-size="14" text-anchor="middle">name_map = to_surface</text>
+  <text id="rec-f2" x="165" y="530" font-size="14" text-anchor="middle">brief · log · oracle: ids</text>
+
+  <!-- audit_prompts -->
+  <rect id="audit-box" x="440" y="440" width="300" height="100" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="audit-name" x="590" y="466" font-size="18" font-weight="600" text-anchor="middle">audit_prompts</text>
+  <text id="audit-kind" x="590" y="486" font-size="14" text-anchor="middle">(function, suite/runner)</text>
+  <text id="audit-f1" x="590" y="510" font-size="14" text-anchor="middle">secrets in surface form</text>
+  <text id="audit-f2" x="590" y="530" font-size="14" text-anchor="middle">plus every structural id</text>
+
+  <!-- token_pattern -->
+  <rect id="tok-box" x="900" y="440" width="270" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="tok-name" x="1035" y="466" font-size="18" font-weight="600" text-anchor="middle">token_pattern</text>
+  <text id="tok-kind" x="1035" y="486" font-size="14" text-anchor="middle">(function, suite/naming)</text>
+  <text id="tok-f1" x="1035" y="510" font-size="14" text-anchor="middle">the one id boundary,</text>
+  <text id="tok-f2" x="1035" y="530" font-size="14" text-anchor="middle">shared with NameMap</text>
+
+  <!-- records.jsonl -->
+  <rect id="store-box" x="40" y="598" width="250" height="62" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="store-name" x="165" y="623" font-size="18" font-weight="600" text-anchor="middle">records.jsonl</text>
+  <text id="store-kind" x="165" y="645" font-size="14" text-anchor="middle">(store, suite/store)</text>
+
+  <!-- scorers -->
+  <rect id="scor-box" x="440" y="598" width="300" height="62" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="scor-name" x="590" y="623" font-size="18" font-weight="600" text-anchor="middle">realism · hazard</text>
+  <text id="scor-kind" x="590" y="645" font-size="14" text-anchor="middle">(scorers, read the alias)</text>
+
+  <!-- Edges -->
+  <line id="e-build" x1="290" y1="125" x2="438" y2="125" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-build" x="365" y="115" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">build_name_map</text>
+
+  <line id="e-held" x1="590" y1="195" x2="590" y2="248" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-held" x="600" y="234" font-size="14" fill="#1971c2" font-style="italic">held</text>
+
+  <line id="e-call" x1="290" y1="285" x2="438" y2="285" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-call" x="365" y="275" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">begin · act</text>
+
+  <line id="e-back" x1="440" y1="335" x2="292" y2="335" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-back" x="365" y="355" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">structural_action</text>
+
+  <line id="e-out" x1="740" y1="285" x2="898" y2="285" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-out-1" x="820" y="259" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">surface_brief</text>
+  <text id="l-out-2" x="820" y="276" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">surface_observation</text>
+
+  <line id="e-in" x1="900" y1="335" x2="742" y2="335" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-in" x="820" y="355" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">action in m01/r01</text>
+
+  <line id="e-store-map" x1="165" y1="370" x2="165" y2="438" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-store-map" x="175" y="410" font-size="14" fill="#1971c2" font-style="italic">name_map</text>
+
+  <line id="e-prompts" x1="1000" y1="370" x2="742" y2="470" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-prompts" x="905" y="398" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle" transform="rotate(-21 905 398)">prompt_texts</text>
+
+  <line id="e-scan" x1="740" y1="505" x2="898" y2="505" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-scan" x="820" y="495" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">scans with</text>
+
+  <line id="e-hits" x1="440" y1="490" x2="292" y2="490" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-hits" x="365" y="480" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">taint_hits</text>
+
+  <line id="e-json" x1="165" y1="540" x2="165" y2="596" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-json" x="175" y="573" font-size="14" fill="#1971c2" font-style="italic">record_to_json</text>
+
+  <line id="e-alias" x1="290" y1="530" x2="438" y2="610" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-alias" x="378" y="566" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle" transform="rotate(28 378 566)">alias</text>
+
+  <!-- Legend -->
+  <rect id="legend-box" x="820" y="598" width="350" height="70" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+  <line id="legend-solid" x1="836" y1="618" x2="930" y2="618" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="legend-solid-l" x="942" y="623" font-size="14">call, value translated</text>
+  <line id="legend-dot" x1="836" y1="648" x2="930" y2="648" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="legend-dot-l" x="942" y="653" font-size="14">build · hold · store · read</text>
+</svg>

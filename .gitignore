@@ -77,3 +77,11 @@ reports/
 # dvc-dat 3.0's artifact store, written at the repo root by any test that
 # touches a Dat (the manager defaults art_folder to `art/` beside `data/`)
 art/
+
+# Anchor (DAS repo-anchor shape, 2026-10-19): the Track folder is a grout worktree, never history
+
+/doc/*Track/
+
+/doc/.obsidian/
+
+/.claude/settings.local.json

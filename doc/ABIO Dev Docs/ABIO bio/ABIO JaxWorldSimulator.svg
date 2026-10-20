@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="background" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Band 1: built once in __init__ -->
+  <g id="reactionspec-node">
+    <rect id="reactionspec-box" x="15" y="40" width="220" height="90" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="reactionspec-name" x="125" y="70" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">ReactionSpec</text>
+    <text id="reactionspec-kind" x="125" y="94" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · reactions by id</text>
+    <text id="reactionspec-note" x="125" y="116" font-size="14" text-anchor="middle" fill="#1e1e1e">rate_law, modulators</text>
+  </g>
+  <g id="jaxsim-node">
+    <rect id="jaxsim-box" x="315" y="40" width="240" height="90" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="jaxsim-name" x="435" y="70" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">JaxWorldSimulator</text>
+    <text id="jaxsim-kind" x="435" y="94" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · jax_simulator.py</text>
+    <text id="jaxsim-note" x="435" y="116" font-size="14" text-anchor="middle" fill="#1e1e1e">builds kernels in __init__</text>
+  </g>
+  <g id="tensors-node">
+    <rect id="tensors-box" x="635" y="40" width="240" height="90" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="tensors-name" x="755" y="70" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">build_*_tensors</text>
+    <text id="tensors-kind" x="755" y="94" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · jax_core.py</text>
+    <text id="tensors-note" x="755" y="116" font-size="14" text-anchor="middle" fill="#1e1e1e">padded [Rn, M], laws</text>
+  </g>
+  <g id="lowerjax-node">
+    <rect id="lowerjax-box" x="955" y="40" width="230" height="90" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="lowerjax-name" x="1070" y="70" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">lower_jax</text>
+    <text id="lowerjax-kind" x="1070" y="94" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · rate_expr.py</text>
+    <text id="lowerjax-note" x="1070" y="116" font-size="14" text-anchor="middle" fill="#1e1e1e">law tree → one rate per C</text>
+  </g>
+
+  <!-- Band 2: one step -->
+  <g id="statein-node">
+    <rect id="statein-box" x="15" y="225" width="220" height="90" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="statein-name" x="125" y="255" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">WorldStateImpl</text>
+    <text id="statein-kind" x="125" y="279" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · input</text>
+    <text id="statein-note" x="125" y="301" font-size="14" text-anchor="middle" fill="#1e1e1e">conc. + multiplicity</text>
+  </g>
+  <g id="array-node">
+    <rect id="array-box" x="315" y="225" width="240" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="array-name" x="435" y="255" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">state array S</text>
+    <text id="array-kind" x="435" y="279" font-size="14" text-anchor="middle" fill="#1e1e1e">(data) · [C, M]</text>
+    <text id="array-note" x="435" y="301" font-size="14" text-anchor="middle" fill="#1e1e1e">float64 by default</text>
+  </g>
+  <g id="stepfn-node">
+    <rect id="stepfn-box" x="635" y="225" width="240" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="stepfn-name" x="755" y="255" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">make_step_fn</text>
+    <text id="stepfn-kind" x="755" y="279" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · reactions, native flows</text>
+    <text id="stepfn-note" x="755" y="301" font-size="14" text-anchor="middle" font-style="italic" fill="#1e1e1e">NaN→0 · RATE_CAP · snap</text>
+  </g>
+  <g id="flows-node">
+    <rect id="flows-box" x="955" y="225" width="230" height="90" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="flows-name" x="1070" y="255" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">apply_flows</text>
+    <text id="flows-kind" x="1070" y="279" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · flow.py</text>
+    <text id="flows-note" x="1070" y="301" font-size="14" text-anchor="middle" fill="#1e1e1e">host · shared with ref.</text>
+  </g>
+
+  <!-- Band 3: results, the device loop, the reference -->
+  <g id="reference-node">
+    <rect id="reference-box" x="15" y="410" width="220" height="90" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="reference-name" x="125" y="440" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">WorldSimulatorImpl</text>
+    <text id="reference-kind" x="125" y="464" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · reference</text>
+    <text id="reference-note" x="125" y="486" font-size="14" text-anchor="middle" fill="#1e1e1e">parity partner</text>
+  </g>
+  <g id="stateout-node">
+    <rect id="stateout-box" x="315" y="410" width="240" height="90" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="stateout-name" x="435" y="440" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">WorldStateImpl</text>
+    <text id="stateout-kind" x="435" y="464" font-size="14" text-anchor="middle" fill="#1e1e1e">(class) · output</text>
+    <text id="stateout-note" x="435" y="486" font-size="14" text-anchor="middle" fill="#1e1e1e">a copy of the input's</text>
+  </g>
+  <g id="runfn-node">
+    <rect id="runfn-box" x="635" y="410" width="240" height="90" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="runfn-name" x="755" y="440" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">make_run_fn</text>
+    <text id="runfn-kind" x="755" y="464" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · jax_core.py</text>
+    <text id="runfn-note" x="755" y="486" font-size="14" text-anchor="middle" fill="#1e1e1e">jit · fori_loop · vmap</text>
+  </g>
+  <g id="population-node">
+    <rect id="population-box" x="955" y="410" width="230" height="90" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="population-name" x="1070" y="440" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e1e1e">apply_population_laws</text>
+    <text id="population-kind" x="1070" y="464" font-size="14" text-anchor="middle" fill="#1e1e1e">(fn) · population.py</text>
+    <text id="population-note" x="1070" y="486" font-size="14" text-anchor="middle" fill="#1e1e1e">host · shared with ref.</text>
+  </g>
+
+  <!-- Edges -->
+  <line id="e-reactions" x1="235" y1="85" x2="313" y2="85" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-reactions-label" x="274" y="76" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">input</text>
+  <line id="e-init" x1="555" y1="85" x2="633" y2="85" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-init-label" x="594" y="76" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">builds</text>
+  <line id="e-lowers" x1="875" y1="85" x2="953" y2="85" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-lowers-label" x="915" y="76" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">calls</text>
+  <line id="e-tensors" x1="755" y1="130" x2="755" y2="223" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-tensors-label" x="765" y="182" font-size="14" font-style="italic" text-anchor="start" fill="#1864ab">tensors, laws</text>
+
+  <line id="e-toarray" x1="235" y1="270" x2="313" y2="270" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-toarray-label" x="274" y="261" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">copy in</text>
+  <line id="e-step" x1="555" y1="270" x2="633" y2="270" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-step-label" x="594" y="261" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">step</text>
+  <line id="e-host" x1="875" y1="270" x2="953" y2="270" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-host-label" x="915" y="261" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">then</text>
+  <line id="e-then" x1="1070" y1="315" x2="1070" y2="408" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-then-label" x="1080" y="367" font-size="14" font-style="italic" text-anchor="start" fill="#1864ab">then</text>
+
+  <line id="e-runfast" x1="490" y1="315" x2="660" y2="408" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-runfast-label" x="553" y="390" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab" transform="rotate(28.7 553 390)">run_fast / run_batch</text>
+  <line id="e-wraps" x1="755" y1="410" x2="755" y2="317" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-wraps-label" x="765" y="367" font-size="14" font-style="italic" text-anchor="start" fill="#1864ab">loops step_fn</text>
+  <line id="e-final" x1="635" y1="455" x2="557" y2="455" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-final-label" x="596" y="446" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">final</text>
+  <path id="e-stepreturn" d="M1070,500 V555 H435 V502" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-stepreturn-label" x="755" y="547" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">step returns</text>
+  <line id="e-parity" x1="235" y1="455" x2="313" y2="455" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-parity-label" x="274" y="446" font-size="14" font-style="italic" text-anchor="middle" fill="#1864ab">1e-9</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <rect id="legend-frame" x="15" y="595" width="1170" height="70" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="618" x2="85" y2="618" stroke="#1e1e1e" stroke-width="2.5"/>
+    <text id="legend-solid-text" x="95" y="623" font-size="14" fill="#1e1e1e">primary flow</text>
+    <line id="legend-dotted" x1="35" y1="645" x2="85" y2="645" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5"/>
+    <text id="legend-dotted-text" x="95" y="650" font-size="14" fill="#1e1e1e">calls, returns, compares</text>
+    <rect id="legend-built" x="320" y="607" width="22" height="16" rx="3" fill="#ebfbee" stroke="#1e1e1e"/>
+    <text id="legend-built-text" x="350" y="620" font-size="14" fill="#1e1e1e">built once in __init__</text>
+    <rect id="legend-device" x="320" y="634" width="22" height="16" rx="3" fill="#dbe4ff" stroke="#1e1e1e"/>
+    <text id="legend-device-text" x="350" y="647" font-size="14" fill="#1e1e1e">on device, jit-compiled</text>
+    <rect id="legend-host" x="600" y="607" width="22" height="16" rx="3" fill="#fff9db" stroke="#1e1e1e"/>
+    <text id="legend-host-text" x="630" y="620" font-size="14" fill="#1e1e1e">host Python</text>
+    <rect id="legend-ref" x="600" y="634" width="22" height="16" rx="3" fill="#fff3f3" stroke="#1e1e1e"/>
+    <text id="legend-ref-text" x="630" y="647" font-size="14" fill="#1e1e1e">reference simulator</text>
+    <text id="legend-italic-text" x="850" y="620" font-size="14" font-style="italic" fill="#1e1e1e">italic note: governed by</text>
+    <text id="legend-italic-text2" x="850" y="647" font-size="14" font-style="italic" fill="#1e1e1e">§ Parity with the reference</text>
+  </g>
+</svg>

@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Row 1: setup before turn 0 -->
+  <g id="n-run">
+    <rect id="n-run-box" x="20" y="30" width="170" height="76" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-run-name" x="105" y="62" font-size="18" font-weight="600" text-anchor="middle">run</text>
+    <text id="n-run-kind" x="105" y="86" font-size="14" text-anchor="middle">(fn) one trial</text>
+  </g>
+  <g id="n-brief">
+    <rect id="n-brief-box" x="270" y="30" width="220" height="76" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-brief-name" x="380" y="62" font-size="18" font-weight="600" text-anchor="middle">build_brief</text>
+    <text id="n-brief-kind" x="380" y="86" font-size="14" text-anchor="middle">(fn) → TaskBrief</text>
+  </g>
+  <g id="n-opaque">
+    <rect id="n-opaque-box" x="590" y="30" width="230" height="76" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-opaque-name" x="705" y="62" font-size="18" font-weight="600" text-anchor="middle">OpaqueAgent</text>
+    <text id="n-opaque-kind" x="705" y="86" font-size="14" text-anchor="middle">(class) surface names</text>
+  </g>
+  <g id="n-probe">
+    <rect id="n-probe-box" x="900" y="30" width="280" height="92" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-probe-name" x="1040" y="58" font-size="18" font-weight="600" text-anchor="middle">ProbeAgent.probe</text>
+    <text id="n-probe-kind" x="1040" y="80" font-size="14" text-anchor="middle">(protocol) → ProbeRecord</text>
+    <text id="n-probe-when" x="1040" y="104" font-size="14" text-anchor="middle">every_turn · after_action · at_commit</text>
+  </g>
+
+  <!-- Row 2: one turn -->
+  <g id="n-world">
+    <rect id="n-world-box" x="20" y="250" width="200" height="76" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-world-name" x="120" y="282" font-size="18" font-weight="600" text-anchor="middle">_world_from_state</text>
+    <text id="n-world-kind" x="120" y="306" font-size="14" text-anchor="middle">(fn) fresh WorldImpl</text>
+  </g>
+  <g id="n-narrow">
+    <rect id="n-narrow-box" x="285" y="250" width="235" height="76" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-narrow-name" x="402" y="282" font-size="18" font-weight="600" text-anchor="middle">narrow_observation</text>
+    <text id="n-narrow-kind" x="402" y="306" font-size="14" text-anchor="middle">(fn) then minus hidden_ids</text>
+  </g>
+  <g id="n-act">
+    <rect id="n-act-box" x="620" y="250" width="180" height="76" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-act-name" x="710" y="282" font-size="18" font-weight="600" text-anchor="middle">agent.act</text>
+    <text id="n-act-kind" x="710" y="306" font-size="14" text-anchor="middle">(Agent protocol)</text>
+  </g>
+  <g id="n-validate">
+    <rect id="n-validate-box" x="900" y="250" width="280" height="76" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-validate-name" x="1040" y="282" font-size="18" font-weight="600" text-anchor="middle">validate action</text>
+    <text id="n-validate-kind" x="1040" y="306" font-size="14" text-anchor="middle">(in run) reject · clamp, as data</text>
+  </g>
+
+  <!-- Row 3: simulate, stop, record, audit -->
+  <g id="n-audit">
+    <rect id="n-audit-box" x="20" y="440" width="200" height="76" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-audit-name" x="120" y="472" font-size="18" font-weight="600" text-anchor="middle">audit_prompts</text>
+    <text id="n-audit-kind" x="120" y="496" font-size="14" text-anchor="middle">(fn) whole-token scan</text>
+  </g>
+  <g id="n-record">
+    <rect id="n-record-box" x="290" y="440" width="210" height="76" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-record-name" x="395" y="472" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-record-kind" x="395" y="496" font-size="14" text-anchor="middle">(frozen dataclass)</text>
+  </g>
+  <g id="n-stop">
+    <rect id="n-stop-box" x="590" y="440" width="210" height="76" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-stop-name" x="695" y="472" font-size="18" font-weight="600" text-anchor="middle">stop check</text>
+    <text id="n-stop-kind" x="695" y="496" font-size="14" text-anchor="middle">(Budget, dataclass)</text>
+  </g>
+  <g id="n-sim">
+    <rect id="n-sim-box" x="900" y="440" width="280" height="76" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sim-name" x="1040" y="472" font-size="18" font-weight="600" text-anchor="middle">simulate</text>
+    <text id="n-sim-kind" x="1040" y="496" font-size="14" text-anchor="middle">(fn) WorldSimulatorImpl.run</text>
+  </g>
+
+  <!-- Row 4: what is raised -->
+  <g id="n-taint">
+    <rect id="n-taint-box" x="20" y="572" width="200" height="56" rx="10" fill="#ffe3e3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-taint-name" x="120" y="595" font-size="18" font-weight="600" text-anchor="middle">TaintError</text>
+    <text id="n-taint-kind" x="120" y="616" font-size="14" text-anchor="middle">(exception) full record</text>
+  </g>
+  <g id="n-trialerr">
+    <rect id="n-trialerr-box" x="290" y="572" width="210" height="56" rx="10" fill="#ffe3e3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-trialerr-name" x="395" y="595" font-size="18" font-weight="600" text-anchor="middle">TrialError</text>
+    <text id="n-trialerr-kind" x="395" y="616" font-size="14" text-anchor="middle">(exception) partial record</text>
+  </g>
+
+  <!-- Primary flow: solid -->
+  <line id="e-each-turn" x1="105" y1="106" x2="105" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-each-turn-label" x="115" y="182" font-size="14" fill="#1971c2" font-style="italic">each turn</text>
+  <line id="e-state" x1="220" y1="288" x2="285" y2="288" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-state-label" x="252" y="278" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">state</text>
+  <line id="e-obs" x1="520" y1="288" x2="620" y2="288" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-obs-label" x="570" y="278" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">Observation</text>
+  <line id="e-action" x1="800" y1="272" x2="900" y2="272" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-action-label" x="850" y="262" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">Action</text>
+  <line id="e-apply" x1="1040" y1="326" x2="1040" y2="440" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-apply-label" x="1050" y="388" font-size="14" fill="#1971c2" font-style="italic">apply if accepted</text>
+  <line id="e-endstate" x1="900" y1="478" x2="800" y2="478" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-endstate-label" x="850" y="468" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">end-state</text>
+  <polyline id="e-next" points="650,440 650,383 160,383 160,326" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-next-label" x="405" y="373" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">next turn</text>
+  <line id="e-stop" x1="590" y1="478" x2="500" y2="478" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-stop-label" x="545" y="468" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">stop</text>
+
+  <!-- Secondary: reads, records, raises (dotted) -->
+  <line id="e-view" x1="190" y1="68" x2="270" y2="68" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-view-label" x="230" y="58" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">turn 0</text>
+  <line id="e-begin" x1="440" y1="106" x2="650" y2="250" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-begin-label" x="560" y="170" font-size="14" fill="#1971c2" font-style="italic">begin(brief)</text>
+  <line id="e-wraps" x1="705" y1="106" x2="705" y2="250" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-wraps-label" x="715" y="182" font-size="14" fill="#1971c2" font-style="italic">wraps</text>
+  <line id="e-probe" x1="790" y1="250" x2="1000" y2="122" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-probe-label" x="900" y="205" font-size="14" fill="#1971c2" font-style="italic">probe(text)</text>
+  <line id="e-notice" x1="900" y1="306" x2="800" y2="306" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-notice-label" x="850" y="324" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">notice</text>
+  <line id="e-audit" x1="290" y1="478" x2="220" y2="478" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-audit-label" x="255" y="468" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">audit</text>
+  <line id="e-hit" x1="120" y1="516" x2="120" y2="572" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-hit-label" x="130" y="549" font-size="14" fill="#1971c2" font-style="italic">any hit</text>
+  <polyline id="e-crash" points="1040,516 1040,600 500,600" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-crash-label" x="770" y="590" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">exception mid-loop</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="legend-solid" x1="560" y1="655" x2="610" y2="655" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="legend-solid-label" x="620" y="660" font-size="14">one turn (primary flow)</text>
+    <line id="legend-dotted" x1="830" y1="655" x2="880" y2="655" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+    <text id="legend-dotted-label" x="890" y="660" font-size="14">call, record or raise</text>
+  </g>
+</svg>

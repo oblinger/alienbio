@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 620" width="3000" height="1240" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1c1c"/></marker>
+    <style>
+      .infra{fill:#f1f3f5;stroke:#495057;stroke-width:2}
+      .sub{fill:#ebfbee;stroke:#2b8a3e;stroke-width:2}
+      .inst{fill:#bac8ff;stroke:#364fc7;stroke-width:2}
+      .legacy{fill:#f8f9fa;stroke:#868e96;stroke-width:2;stroke-dasharray:8 5}
+      .t{font-size:20px;font-weight:700;fill:#1c1c1c}
+      .b{font-size:15px;fill:#1c1c1c}
+      .m{font-size:13px;fill:#495057;font-style:italic}
+      .l{font-size:13px;fill:#1971c2;font-style:italic}
+      .a{stroke:#1c1c1c;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+    </style>
+  </defs>
+  <rect width="1500" height="620" fill="#ffffff"/>
+
+  <text class="m" x="40" y="44">what the entities are made of</text>
+  <text class="m" x="450" y="44">who stands on it</text>
+  <text class="m" x="830" y="44">what they promise · a leftover</text>
+  <text class="m" x="1190" y="44">who imports</text>
+
+  <rect id="box-entity" class="infra" x="40" y="70" width="330" height="130" rx="6"/>
+  <text class="t" x="56" y="98">entity.py — Entity</text>
+  <text class="b" x="56" y="124">local_name · parent / children · dat anchor</text>
+  <text class="b" x="56" y="148">head registry via __init_subclass__</text>
+  <text class="m" x="56" y="174">to_dict · hydrate · save · MockDat when unpersisted</text>
+
+  <rect id="box-io" class="infra" x="40" y="230" width="330" height="90" rx="6"/>
+  <text class="t" x="56" y="258">io.py — IO</text>
+  <text class="b" x="56" y="282">prefix binding · ref rendering · DAT load / save</text>
+  <text class="m" x="56" y="306">the only runtime import of the vendored dvc_dat</text>
+
+  <rect id="box-mk" class="infra" x="40" y="350" width="330" height="90" rx="6"/>
+  <text class="t" x="56" y="378">mk.py — Pegboard</text>
+  <text class="b" x="56" y="402">mk.M / R / C · with mk.anchor(target)</text>
+  <text class="m" x="56" y="426">outside a block a maker mints a MockDat</text>
+
+  <rect id="box-graph" class="infra" x="40" y="470" width="330" height="60" rx="6"/>
+  <text class="t" x="56" y="498">graph_ops.py</text>
+  <text class="m" x="56" y="520">GraphView · paths · match (subgraph isomorphism)</text>
+
+  <path id="edge-entity-bio" class="a" d="M 370 135 L 450 135"/>
+  <text class="l" x="410" y="124" text-anchor="middle">base class</text>
+  <path id="edge-io-bio" class="a" d="M 370 275 L 450 275"/>
+  <text class="l" x="410" y="264" text-anchor="middle">bio.io slot</text>
+  <path id="edge-mk-bio" class="a" d="M 370 395 L 450 395"/>
+  <text class="l" x="410" y="384" text-anchor="middle">makers</text>
+  <path id="edge-graph-bio" class="a" d="M 370 500 L 450 500"/>
+  <text class="l" x="410" y="489" text-anchor="middle">queries</text>
+
+  <rect id="box-bio" class="sub" x="450" y="70" width="330" height="460" rx="6"/>
+  <text class="t" x="466" y="98">bio/ — the substrate</text>
+  <text class="b" x="466" y="124">ChemistryImpl · MoleculeImpl · ReactionImpl</text>
+  <text class="b" x="466" y="148">· CompartmentImpl are Entities</text>
+  <text class="m" x="466" y="174">12 infra import sites</text>
+  <text class="b" x="466" y="282">bio.io: declared, read lazily by _bio_io(),</text>
+  <text class="m" x="466" y="306">raises rather than inventing one; attached only by tests</text>
+  <text class="b" x="466" y="402">makers.py registers M / R / C</text>
+  <text class="m" x="466" y="426">prefixes mol / rxn / chem</text>
+  <text class="b" x="466" y="500">chemistry.py delegates graph queries</text>
+
+  <path id="edge-bio-protocols" class="a" d="M 780 170 L 830 170"/>
+  <text class="l" x="805" y="159" text-anchor="middle">implements</text>
+
+  <rect id="box-protocols" class="infra" x="830" y="70" width="310" height="200" rx="6"/>
+  <text class="t" x="846" y="98">protocols/bio.py</text>
+  <text class="b" x="846" y="124">eleven runtime_checkable Protocols:</text>
+  <text class="b" x="846" y="148">Atom · Molecule · Reaction · Flow ·</text>
+  <text class="b" x="846" y="172">Chemistry · CompartmentTree · WorldState</text>
+  <text class="b" x="846" y="196">State · Simulator …</text>
+  <text class="m" x="846" y="222">re-exported beside each *Impl from bio/</text>
+  <text class="m" x="846" y="246">protocols/infra.py Entity — never exported</text>
+
+  <path id="edge-viz-bio" class="a" d="M 830 370 L 780 370"/>
+  <text class="l" x="805" y="359" text-anchor="middle">reads</text>
+
+  <rect id="box-viz" class="legacy" x="830" y="310" width="310" height="120" rx="6"/>
+  <text class="t" x="846" y="338">viz/</text>
+  <text class="b" x="846" y="364">plots.py · helpers.py — eight matplotlib</text>
+  <text class="b" x="846" y="388">figures over timelines</text>
+  <text class="m" x="846" y="414">zero importers in src/; demos and one test only</text>
+
+  <path id="edge-suite-protocols" class="a" d="M 1190 170 L 1140 170"/>
+  <text class="l" x="1165" y="159" text-anchor="middle">typing</text>
+
+  <rect id="box-suite" class="inst" x="1190" y="70" width="270" height="200" rx="6"/>
+  <text class="t" x="1206" y="98">suite/</text>
+  <text class="b" x="1206" y="124">9 infra import sites: skeleton,</text>
+  <text class="b" x="1206" y="148">blocks, expr_heads, arch_*,</text>
+  <text class="b" x="1206" y="172">pipeline, boundedness</text>
+  <text class="m" x="1206" y="198">types / observation import WorldState</text>
+  <text class="m" x="1206" y="222">under TYPE_CHECKING only</text>
+  <text class="m" x="1206" y="246">expr/ and commands/ import none of this</text>
+
+  <!-- key -->
+  <text class="m" x="40" y="568">KEY</text>
+  <rect class="infra" x="40" y="580" width="26" height="18"/>
+  <text class="b" x="74" y="594">cross-cutting — infra/, protocols/</text>
+  <rect class="sub" x="360" y="580" width="26" height="18"/>
+  <text class="b" x="394" y="594">substrate — bio/</text>
+  <rect class="inst" x="560" y="580" width="26" height="18"/>
+  <text class="b" x="594" y="594">instrument — suite/</text>
+  <rect class="legacy" x="760" y="580" width="26" height="18"/>
+  <text class="b" x="794" y="594">exported, not on any path</text>
+  <path class="a" d="M 1020 589 L 1070 589"/>
+  <text class="b" x="1080" y="594">call or write, in the direction drawn</text>
+</svg>
