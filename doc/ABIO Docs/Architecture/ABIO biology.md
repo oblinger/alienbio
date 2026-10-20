@@ -1,5 +1,4 @@
- [[ABIO Architecture Docs]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO biology](ha://p/ABIO%20biology) 
 # ABIO biology
 Molecules, reactions, chemistry, compartments and the simulators over them.
 

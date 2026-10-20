@@ -1,7 +1,5 @@
-[[ABIO Architecture Docs]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Naming Conventions](ha://p/ABIO%20Naming%20Conventions) 
 # Naming Conventions
-
 Standard naming patterns used throughout the alienbio codebase.
 
 ## Protocol vs Implementation Pattern

@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO biology]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Atom](ha://p/ABIO%20Atom) 
 # Atom
-
 Chemical element with symbol, name, and atomic weight.
 
 ## Overview

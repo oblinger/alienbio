@@ -1,5 +1,4 @@
- [[ABIO Architecture Docs]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO infra](ha://p/ABIO%20infra) 
 # ABIO infra
 Infrastructure: entity base classes, serialization, data management, and configuration.
 

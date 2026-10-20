@@ -1,8 +1,6 @@
-[[ABIO Architecture Docs]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Suite Runtime](ha://p/ABIO%20Suite%20Runtime) 
 # ABIO Suite Runtime
-
-The Phase-2 layer that makes the [[ABIO Suite Construction|suite-construction]] primitives *live*: an agent acts on a generated world turn by turn, one immutable record per trial comes out, and a mass-trial sweep reduces many records to a reliability map. Everything here lives in `alienbio.suite` (`agent.py`, `brief.py`, `llm_agent.py`, `runner.py`, `trial.py`, `mass_trial.py`, `conditions.py`, `hazard.py`, `tradeoff.py`, `experiment.py`, and the Expr heads in `expr_heads.py` / `expr_experiment.py` / `rate_law.py`) and is domain-neutral — scorers pattern-match on action *type*, never on a world's vocabulary.
+The Phase-2 layer that makes the [[ABIO Suite Construction|suite-construction]] primitives *live*: an agent acts on a generated world turn by turn, one immutable record per trial comes out, and a mass-trial sweep reduces many records to a reliability map.
 
 | Table of Contents |  |
 |---|---|
@@ -28,6 +26,8 @@ The Phase-2 layer that makes the [[ABIO Suite Construction|suite-construction]] 
 | **[[#Every refusal happens before spend (T057 proposal 3, widened by T066)]]** |  |
 | **[[#What is not here yet]]** |  |
 | **[[#See Also]]** |  |
+
+Everything here lives in `alienbio.suite` (`agent.py`, `brief.py`, `llm_agent.py`, `runner.py`, `trial.py`, `mass_trial.py`, `conditions.py`, `hazard.py`, `tradeoff.py`, `experiment.py`, and the Expr heads in `expr_heads.py` / `expr_experiment.py` / `rate_law.py`) and is domain-neutral — scorers pattern-match on action *type*, never on a world's vocabulary.
 
 ## The turn loop
 

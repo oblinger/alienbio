@@ -3,7 +3,9 @@ description: "Adversarial stress-test of the Skeleton block grammar against 20 c
 ---
 :>> [[ABIO]] → [[ABIO Design]] → [[ABIO Skeleton Arch]] → [Block Grammar Coverage 2026-07-18](ha://p/Block%20Grammar%20Coverage%202026-07-18) 
 # Block Grammar Coverage — 20 biological situations (2026-07-18)
-A stress-test of the reduced grammar (reaction-primitive over pool-ports + recursive patterns + conservation/boundedness invariants) against 20 real biological situations, to find missing blocks **before** freezing the roster. Legend: **✓** clean · **◑** encodable via idiom (verbose/indirect) · **✗** gap (not expressible even with the two pending engine features).
+A stress-test of the reduced grammar (reaction-primitive over pool-ports + recursive patterns + conservation/boundedness invariants) against 20 real biological situations, to find missing blocks **before** freezing the roster.
+
+Legend: **✓** clean · **◑** encodable via idiom (verbose/indirect) · **✗** gap (not expressible even with the two pending engine features).
 
 ## Three structural bounds that everything turns on
 

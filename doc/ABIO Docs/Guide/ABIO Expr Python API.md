@@ -1,7 +1,5 @@
-[[ABIO docs]] → [[ABIO Alienbio User Guide]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Expr Python API](ha://p/ABIO%20Expr%20Python%20API) 
 # ABIO Expr Python API
-
 The Python side of [[ABIO Expr Spec|Expr]]: how a Python function becomes a head a spec can call, how an expander builds structure, how forms are built and evaluated from Python, how the drafters and the experiment file are reached from Python, and where the trust boundary sits.
 
 > **Status.** Documents the API **as shipped** in `alienbio.expr` (roadmap M47, 2026-08-30). Every ```python fence on this page is executed, in order, by `tests/expr/test_spec_examples.py`.

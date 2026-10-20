@@ -2,14 +2,16 @@
 description: "Hip-pocket taxonomy of research ideas the Alien Biology + Deliberative Coherence testbed can run — catalog for the Buck Shlegeris (Redwood) conversation."
 ---
 
-| -[[ABIO Idea Taxonomy]]- | : <br>→ [[ABIO]] → [[ABIO Idea]] → [ABIO Idea Taxonomy](ha://p/ABIO%20Idea%20Taxonomy)                  |
-| ------------------------ | ------------------------------------------------------------------------------------------------------- |
-| Agenda                   | [[AUP 3 Research Agenda]],                                                                              |
-| Deep-dives               | [[ABIO AI-Control]] (control), [[ABIO Gamer Emerge Exp]] (emergence), [[ABIO Greybox]] (model organism) |
-| For                      | [[Buck Interview Prep]],                                                                                |
-| .                        |                                                                                                         |
+| -[[ABIO Idea Taxonomy]]- | : Hip-pocket taxonomy of research ideas the Alien Biology + Deliberative Coherence testbed can run — catalog for the Buck Shlegeris (Redwood) conversation.<br>→ [[ABIO]] → [[ABIO Idea]] → [ABIO Idea Taxonomy](ha://p/ABIO%20Idea%20Taxonomy) |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agenda                   | [[AUP 3 Research Agenda]],                                                                                                                                                                                                                      |
+| Deep-dives               | [[ABIO AI-Control]] (control), [[ABIO Gamer Emerge Exp]] (emergence), [[ABIO Greybox]] (model organism)                                                                                                                                         |
+| For                      | [[Buck Interview Prep]],                                                                                                                                                                                                                        |
+| .                        |                                                                                                                                                                                                                                                 |
 
 # ABIO Idea Taxonomy
+A menu of concrete research ideas the Alien Biology testbed can run, each with what it measures and why a control researcher cares.
+
 **What this is.** A menu of concrete research ideas the [[AUP 4 Alien Biology Testbed|Alien Biology testbed]] can actually run — each named, described in a line or two, with what you'd *measure* and why a **control** person cares. Meant to be in your hip pocket for Buck: if he asks "what would you do with this?", you point at an entry, not a vision. The most-developed ideas already have their own docs ([[ABIO AI-Control]], [[ABIO Gamer Emerge Exp]], [[ABIO Greybox]]); everything else here is a one-paragraph seed.
 
 **The one shared asset.** Every idea below reuses the same machine: a **generative** biology world (novel-by-construction → no training contamination), **asymmetric knowledge** (we hold ground truth the agent lacks), **executable** causal chains (actions have real consequences), and the **Delta Principle** (hold the AI fixed, move the *world* so optimal-aligned behavior sits nearer/farther from its innate tendencies — vary drivers cheaply without retraining). That's the thing that's hard to build and that a lot of these ideas share.

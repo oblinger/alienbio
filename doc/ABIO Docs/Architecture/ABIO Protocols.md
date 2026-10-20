@@ -1,7 +1,5 @@
-[[ABIO Architecture Docs]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Protocols](ha://p/ABIO%20Protocols) 
 # Protocols
-
 Alphabetical listing of all classes in the Alien Biology system, organized by subsystem.
 
 ## By Subsystem

@@ -1,8 +1,6 @@
-[[ABIO Architecture Docs]] 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Commands](ha://p/ABIO%20Commands) 
 # Commands
 The reference for the `bio` CLI's two commands, `suite` and `config`, with their subcommands and flags.
-
-The M1 command set (`build`, `run`, `report`, `fetch`, `store`, `hydrate`, `dehydrate`, `cd`, `agent`, `experiment`, `sim`, `scenario`, `lookup`) went with the M1 scenario runtime in M47.7 — an experiment is now one declared file run through the suite harness ([[ABIO Suite Runtime]]).
 
 | Command | CLI | Description |
 |---|---|---|
@@ -13,5 +11,7 @@ The M1 command set (`build`, `run`, `report`, `fetch`, `store`, `hydrate`, `dehy
 | | `bio suite models` | Refresh the recorded `models.list` snapshot (`suite/models_snapshot.json`, id → `created_at`) that lets an undated generation id count as pinned; a free call. |
 | | `bio report [--open] [--no-examples]` | Run the suite once and write what it tested, and whether it passed, as one page: the capability matrix with each proving test's sentence, the broader suites, the examples run fresh, the runs on disk — each with its key figure embedded (`reports/report.md` + `.html`, the HTML self-contained; `just report`). |
 | config | `bio config [show \| set KEY VALUE]` | The framework configuration: provider keys (read from the environment), the pinned model. |
+
+The M1 command set (`build`, `run`, `report`, `fetch`, `store`, `hydrate`, `dehydrate`, `cd`, `agent`, `experiment`, `sim`, `scenario`, `lookup`) went with the M1 scenario runtime in M47.7 — an experiment is now one declared file run through the suite harness ([[ABIO Suite Runtime]]).
 
 Every catalog experiment (`catalog/experiments/*.yaml`) is a `bio suite run` target; the twelve scripted zeros are pinned as golden regressions in CI.

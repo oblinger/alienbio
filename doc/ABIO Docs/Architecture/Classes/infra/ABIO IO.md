@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO infra]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO IO](ha://p/ABIO%20IO) 
 # IO
-
 Entity I/O: prefix bindings, formatting, lookup, and persistence.
 
 ## Overview

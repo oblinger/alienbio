@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO biology]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Compartment](ha://p/ABIO%20Compartment) 
 # Compartment
-
 Entity representing a biological compartment in the hierarchy.
 
 ## Overview

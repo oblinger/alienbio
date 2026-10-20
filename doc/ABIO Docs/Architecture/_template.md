@@ -1,5 +1,6 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [_template](ha://p/_template) 
 # EntityName
-**Subsystem**: [[Parent Subsystem]] > Category
+**Subsystem**: ~~[[Parent Subsystem]]~~ > Category
 Brief one-sentence description of what this entity is. Can be multiple lines if needed for the description, but no blank lines in this top section.
 
 ## Overview
@@ -67,8 +68,8 @@ class EntityName(Protocol):
 ```
 
 ## See Also
-- [[RelatedEntity]] - How it relates
-- [[AnotherEntity]] - Another relationship
+- ~~[[RelatedEntity]]~~ - How it relates
+- ~~[[AnotherEntity]]~~ - Another relationship
 
 ---
 

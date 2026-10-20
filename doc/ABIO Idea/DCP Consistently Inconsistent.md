@@ -3,7 +3,9 @@ description: "The response to 'coherence ≠ alignment' — it is exceedingly ha
 ---
 :>> [[ABIO]] → [[ABIO Idea]] → [DCP Consistently Inconsistent](ha://p/DCP%20Consistently%20Inconsistent) 
 # DCP Consistently Inconsistent
-**The conjecture:** it is exceedingly difficult to be *consistently inconsistent* — to hold a systematic inconsistency (a misalignment) and yet, no matter how you re-analyze your own reasoning, always explain it away so consistently that you're never alerted to it. Under repeated, controlled self-analysis, systematic inconsistency surfaces.
+**The conjecture:** it is exceedingly difficult to be *consistently inconsistent* — to hold a systematic inconsistency (a misalignment) and yet, no matter how you re-analyze your own reasoning, always explain it away so consistently that you're never alerted to it.
+
+Under repeated, controlled self-analysis, systematic inconsistency surfaces.
 
 *This is the response to the "coherence ≠ alignment" objection to [[DCP Conjecture]]: a coherent schemer would have to be inconsistent in a perfectly consistent way — and that is the hard part.*
 

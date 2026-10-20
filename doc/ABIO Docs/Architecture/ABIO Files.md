@@ -1,14 +1,6 @@
- [[ABIO Architecture Docs]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Files](ha://p/ABIO%20Files) 
 # ABIO Files
 The alienbio repository as it stands, file by file.
-
-Regenerated from the tree 2026-10-07 (T065). The previous version described
-the M1 design-era layout — `protocols/infra.py`, `biology/`, `generators/`,
-`execution/`, a Rust crate of mirrored classes, `catalog/kegg1` — none of
-which survived M47.7 (the M1 scenario runtime) or T056 (the M1 remnants).
-Each entry below is a module's own one-line docstring summary, so the page
-drifts only when a module's docstring does.
 
 ## src/alienbio — the package
 
@@ -188,3 +180,12 @@ not a runtime surprise.
 - [[ABIO DAT]] — dvc-dat integration, name resolution, `_spec_.yaml`.
 - [[ABIO Data]] — the `data/` folder's intent-based categories (⚠️ still
   describes the M1-era `chem/` / `world/` / `test/` tree).
+
+## History
+
+Regenerated from the tree 2026-10-07 (T065). The previous version described
+the M1 design-era layout — `protocols/infra.py`, `biology/`, `generators/`,
+`execution/`, a Rust crate of mirrored classes, `catalog/kegg1` — none of
+which survived M47.7 (the M1 scenario runtime) or T056 (the M1 remnants).
+Each entry above is a module's own one-line docstring summary, so the page
+drifts only when a module's docstring does.

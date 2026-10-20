@@ -1,5 +1,5 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Notes](ha://p/ABIO%20Notes) 
 # ABIO MISCELLANEOUS NOTES
-
 > Design notes from the M1 era (2026-01 to 2026-02), kept as history. The `bio build|run` verbs, `BioSystem`, `AgentSession` and the scenario runtime they discuss were deleted in M47.7 and T056; the shipped design is [[ABIO Architecture]].
 
 | Table of Contents |  |

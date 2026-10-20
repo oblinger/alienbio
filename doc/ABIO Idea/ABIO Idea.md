@@ -1,4 +1,8 @@
-| -[[ABIO Idea]]-                   | : <br>→ [[ABIO]] → [ABIO Idea](ha://p/ABIO%20Idea)                                                                                                                                                                           |
+---
+description: "the ideas Alien Biology could become, grouped by what each would measure"
+---
+
+| -[[ABIO Idea]]-                   | : the ideas Alien Biology could become, grouped by what each would measure<br>→ [[ABIO]] → [ABIO Idea](ha://p/ABIO%20Idea)                                                                                                   |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Related                           | [[Buck Interview Prep]],  [[Dan AI Safety Opinions]],                                                                                                                                                                        |
 | Details                           | [[ABIO Ctrl Contain Exp Detail]],  [[ABIO Inference Bench Detail]],                                                                                                                                                          |

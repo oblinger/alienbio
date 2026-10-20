@@ -1,6 +1,8 @@
 :>> [[ABIO]] → [ABIO Demos](ha://p/ABIO%20Demos) 
 # ABIO Demos
-Demonstration suite for the Alien Biology framework (Milestone 20). Eight focused demos form a sequential tutorial covering the full system, plus three combination demos showing realistic multi-feature experiments.
+Demonstration suite for the Alien Biology framework (Milestone 20).
+
+Eight focused demos form a sequential tutorial covering the full system, plus three combination demos showing realistic multi-feature experiments.
 
 All demos use the full pipeline: YAML spec (M18) → rate compilation (M16) → `bio.sim()` → fetch/store (M17), with scenarios generated from templates (M19).
 

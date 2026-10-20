@@ -1,6 +1,5 @@
-[[Modules/index|API Reference]] 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO suite](ha://p/ABIO%20suite) 
 # Suite Module
-
 Suite construction and the suite runtime: blocks and skeletons, worlds, tasks and objectives, the brief, the runner, mass trials, the experiment harness, and the Expr heads over all of it (`expr_heads`, `expr_experiment`, `rate_law`).
 
 ::: alienbio.suite

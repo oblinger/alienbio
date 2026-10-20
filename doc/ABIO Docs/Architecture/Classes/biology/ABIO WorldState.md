@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO biology]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO WorldState](ha://p/ABIO%20WorldState) 
 # WorldState
-
 Concentration and multiplicity storage for multi-compartment simulations.
 
 ## Overview

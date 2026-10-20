@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO infra]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO entity](ha://p/ABIO%20entity) 
 # Entity
-
 Base class for all biology objects with tree structure and DAT anchoring.
 
 ## Overview

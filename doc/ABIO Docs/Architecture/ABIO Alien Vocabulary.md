@@ -1,8 +1,8 @@
-[[ABIO docs]] → [[ABIO Topics]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Alien Vocabulary](ha://p/ABIO%20Alien%20Vocabulary) 
 # Alien Vocabulary
+Naming conventions and word lists for alien biology domains.
 
-Naming conventions and word lists for alien biology domains. Names are ordered by desirability—use names from the top of each list first.
+Names are ordered by desirability—use names from the top of each list first.
 
 ---
 
@@ -193,5 +193,5 @@ When adding names, ensure they:
 
 ## See Also
 
-- [[B10. World Specification Example]] — Uses these conventions
-- [[Spec Language]] — YAML syntax for biology specs
+- ~~[[B10. World Specification Example]]~~ — Uses these conventions
+- ~~[[Spec Language]]~~ — YAML syntax for biology specs

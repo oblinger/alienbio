@@ -1,7 +1,8 @@
-[[Modules/index|API Reference]] 
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO expr Module](ha://p/ABIO%20expr%20Module) 
 # Expr Module
+The Expr language: forms, the environment, the registry, the interpreter, the YAML tags, includes.
 
-The Expr language: forms, the environment, the registry, the interpreter, the YAML tags, includes. The user-facing specification is [[ABIO Expr Spec]]; the Python side is [[ABIO Expr Python API]].
+The user-facing specification is [[ABIO Expr Spec]]; the Python side is [[ABIO Expr Python API]].
 
 ::: alienbio.expr
     options:

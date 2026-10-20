@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO biology]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Molecule](ha://p/ABIO%20Molecule) 
 # Molecule
-
 Chemical compound composed of atoms with derived properties.
 
 ## Overview

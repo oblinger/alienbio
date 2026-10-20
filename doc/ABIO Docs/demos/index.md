@@ -1,10 +1,12 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [demos index](ha://p/demos%20index) 
 # Demo Gallery
-
-Interactive demonstrations of AlienBio's core capabilities. Each demo is available in three formats:
+Interactive demonstrations of AlienBio's core capabilities.
 
 - **Notebook** — rendered inline below (also downloadable as `.ipynb`)
 - **Script** — standalone Python script (`.py`)
 - **Output** — pre-generated figures (`.png`)
+
+Each demo is available in three formats:
 
 ---
 

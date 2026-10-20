@@ -2,10 +2,13 @@
 description: "the design home for the Alien Biology Framework"
 ---
 
-| -[[ABIO Design]]- | : the design home for the Alien Biology Framework<br>→ [[ABIO]] → [ABIO Design](ha://p/ABIO%20Design)                                                                                                                                                                                                                                                                                                                                     |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Related           | [[ABIO Docs]],  [[ABIO Idea]],  [[ABIO Roadmap]],  [[ABIO Backlog]],  [[AUP]],                                                                                                                                                                                                                                                                                                                                                            |
-| ...               | [[ABIO Architecture]],  [[ABIO Capability Dimensions]],  [[ABIO Completed Roadmap]],  [[ABIO Architecture.svg]],  [[ABIO Unified Protocol Model.svg]],  [[ABIO Experiment Catalog]],  [[ABIO Expr]],  [[ABIO Hardening Proposal]],  [[ABIO Phase-2 Design Brief]],  [[ABIO PRD]],  [[ABIO Refactor Proposals]],  [[ABIO Semantic Layer]],  [[ABIO Skeleton Arch]],  [[ABIO Suite Protocol Assessment]],  [[ABIO Unified Protocol Model]], |
+| -[[ABIO Design]]- | : the design home for the Alien Biology Framework<br>→ [[ABIO]] → [ABIO Design](ha://p/ABIO%20Design)                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Related           | [[ABIO Docs]],  [[ABIO Idea]],  [[ABIO Roadmap]],  [[ABIO Backlog]],  [[AUP]],                                                                                                                    |
+| Plan              | [[ABIO PRD\|PRD]],  [[ABIO Completed Roadmap\|Completed Roadmap]],  [[ABIO Capability Dimensions\|Capability Dimensions]],  [[ABIO Experiment Catalog\|Experiment Catalog]],                      |
+| Architecture      | [[ABIO Architecture\|Architecture]],  [[ABIO Skeleton Arch\|Skeleton]],  [[ABIO Expr\|Expr]],  [[ABIO Semantic Layer\|Semantic Layer]],  [[ABIO Unified Protocol Model\|Unified Protocol Model]], |
+| Proposals         | [[ABIO Phase-2 Design Brief\|Phase-2 Brief]],  [[ABIO Refactor Proposals\|Refactor]],  [[ABIO Hardening Proposal\|Hardening]],  [[ABIO Suite Protocol Assessment\|Suite Protocol Assessment]],    |
+| ...               |                                                                                                                                                                                                   |
 
 # ABIO Design
 The design home for the Alien Biology Framework (`code` trait).

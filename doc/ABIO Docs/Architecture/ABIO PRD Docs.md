@@ -1,6 +1,6 @@
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO PRD Docs](ha://p/ABIO%20PRD%20Docs) 
 # Scenario Generator PRD
 **Subsystem**: [[ABIO biology]] > Generators
-Product Requirements Document for synthetic alien biology scenario generation.
 
 ---
 
@@ -38,6 +38,8 @@ Product Requirements Document for synthetic alien biology scenario generation.
 |    [[#8.2 CLI]] |  |
 | **[[#9. Example Complete Specification]]** |  |
 | **[[#10. See Also]]** |  |
+
+Product Requirements Document for synthetic alien biology scenario generation.
 
 ## 1. Overview
 

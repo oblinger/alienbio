@@ -1,5 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO biology]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Flow](ha://p/ABIO%20Flow) 
+# Flow
 Transport between compartments: `TransportFlux`, applied in one rationed pass.
 
 Rewritten 2026-10-07 (T068). This page described a `MembraneFlow` /

@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO biology]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO WorldSimulator](ha://p/ABIO%20WorldSimulator) 
 # WorldSimulator
-
 Multi-compartment simulation with reactions and flows.
 
 ## Overview

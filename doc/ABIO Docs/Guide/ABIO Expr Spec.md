@@ -1,7 +1,5 @@
-[[ABIO docs]] → [[ABIO Alienbio User Guide]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Expr Spec](ha://p/ABIO%20Expr%20Spec) 
 # ABIO Expr Spec
-
 The specification of **Expr**, the language every alienbio spec file is written in — by example: each section opens with the smallest file that shows the feature, then states the rules.
 
 | Table of Contents |  |

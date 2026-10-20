@@ -1,8 +1,8 @@
- [[ABIO Architecture Docs]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Modules](ha://p/ABIO%20Modules) 
 # Modules
+Code organization for alienbio (`src/alienbio/`, ~35k LOC), module by module.
 
-Code organization for alienbio (`src/alienbio/`, ~35k LOC), as of T056 (2026-09-10). The design-level view is [[ABIO Architecture]]; this page is the tree.
+As of T056 (2026-09-10). The design-level view is [[ABIO Architecture]]; this page is the tree.
 
 ## Source Tree
 

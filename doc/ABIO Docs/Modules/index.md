@@ -1,5 +1,6 @@
-[[ABIO]] 
+:>> [[ABIO]] → [[ABIO Docs]] → [Modules index](ha://p/Modules%20index) 
 # API Reference
+The auto-generated API reference for the alienbio Python package, one page per module.
 
 This section contains auto-generated API documentation from the Python source code.
 

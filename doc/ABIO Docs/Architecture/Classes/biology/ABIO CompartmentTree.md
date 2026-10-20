@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO biology]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO CompartmentTree](ha://p/ABIO%20CompartmentTree) 
 # CompartmentTree
-
 Hierarchical topology of compartments for efficient simulation.
 
 ## Overview

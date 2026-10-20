@@ -1,7 +1,5 @@
- [[ABIO Architecture Docs]] → [[ABIO biology]] 
-
+:>> [[ABIO]] → [[ABIO Docs]] → [ABIO Chemistry](ha://p/ABIO%20Chemistry) 
 # Chemistry
-
 Container for atoms, molecules, and reactions forming a chemical system.
 
 ## Overview
