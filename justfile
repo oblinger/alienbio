@@ -39,7 +39,7 @@ clean:
 diagrams:
     #!/usr/bin/env bash
     shopt -s nullglob
-    for f in docs/diagrams/*.dot; do
+    for f in "doc/ABIO Docs"/diagrams/*.dot; do
         dot -Tsvg "$f" -o "${f%.dot}.svg"
         echo "Generated ${f%.dot}.svg"
     done

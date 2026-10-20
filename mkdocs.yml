@@ -1,4 +1,5 @@
 site_name: AlienBio Documentation
+docs_dir: doc/ABIO Docs
 site_description: Documentation for the AlienBio project
 site_url: https://oblinger.github.io/abio-docs/
 repo_url: https://github.com/oblinger/alienbio

@@ -4,7 +4,7 @@ description: "How alienbio is built — a chemistry substrate, an instrument (Ex
 
 | -[[ABIO Architecture]]- | : How alienbio is built — a chemistry substrate, an instrument (Expr + suite/) that drafts worlds and runs agents against them under guards, and the operator surface + files that AUP's paper consumes.<br>→ [[ABIO]] → [[ABIO Design]] → [ABIO Architecture](ha://p/ABIO%20Architecture)                                                                                 |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Related                 | [[ABIO PRD]],  ~~[[ABIO Suite Runtime]]~~,  ~~[[ABIO Protocols]]~~,  ~~[[ABIO Expr Spec]]~~,  [[ABIO051 - Deep Scan\|T051]],                                                                                                                                                                                                                                               |
+| Related                 | [[ABIO PRD]],  [[ABIO Suite Runtime]],  [[ABIO Protocols]],  [[ABIO Expr Spec]],  [[ABIO051 - Deep Scan\|T051]],                                                                                                                                                                                                                                                           |
 | ...                     | [[ABIO-Analysis.svg]],  [[ABIO-Bio-Engine.svg]],  [[ABIO-Experiment.svg]],  [[ABIO-Expr.svg]],  [[ABIO-Generators.svg]],  [[ABIO-Infra.svg]],  [[ABIO-Operator-Surface.svg]],  [[ABIO-Runtime.svg]],  [[ABIO-Analysis]],  [[ABIO-Bio-Engine]],  [[ABIO-Experiment]],  [[ABIO-Expr]],  [[ABIO-Generators]],  [[ABIO-Infra]],  [[ABIO-Operator-Surface]],  [[ABIO-Runtime]], |
 
 # ABIO Architecture
@@ -38,7 +38,7 @@ Row order is the scan order of [[ABIO051 - Deep Scan|T051]] § Scope (riskiest f
 | Consumer | [[AUP]] — every phase-1/2/3 arm is a `catalog/experiments/*.yaml` spec or a script over `DRAFTERS` |
 | Gates | `just test` · `just check` · `bio test-matrix --check`<br>fourteen golden zeros (`records.jsonl` hashes) · CI (`.github/workflows/ci.yml`) |
 | Truth | generator-held oracles on `task.setup["oracle"]`; the agent sees surface names only; a registered filing (`catalog/registrations.yaml`) is what admits a live model to a guarded world |
-| Published | `https://oblinger.github.io/abio-docs/` — built from the repo `docs/` mirror of ~~[[ABIO Docs]]~~ |
+| Published | `https://oblinger.github.io/abio-docs/` — built from the repo `docs/` mirror of [[ABIO Docs]] |
 
 
 alienbio is one Python package in three layers. The **substrate** (`bio/`, `infra/`) is a deterministic alien-chemistry engine: molecules, reactions, compartments, flows and populations, integrated by a reference simulator and a JAX simulator that must agree to 1e-9. The **instrument** (`expr/` + `suite/`) turns a YAML spec into an experiment: the Expr language loads the spec and resolves it against registered heads; the experiment layer expands axes into a condition grid and guards every run before spend (the no-peeking rule, the registration licence, unknown dials, the cost ceiling); the generators draft a world + task + oracle per trial; the runtime runs a scripted or live-model agent through the turn loop under opaque names and a taint audit; the analysis half scores the records and writes the report. The **boundary** is the `bio` CLI on one side and, on the other, the files a run leaves in `runs/<name>/` — `records.jsonl` is the artifact the paper reads, and the golden zeros pin it byte-for-byte across the ten shipped experiment types.
@@ -54,7 +54,7 @@ Single process, no daemon. `bio suite run` loads one spec, plans the grid, then 
 - **No peeking, encoded once.** `no_peeking_violation` is the single rule: a live model on a guarded drafter, or on any world with a guarded dial in play, is refused before spend unless a filed registration in `catalog/registrations.yaml` names exactly those dials on exactly that drafter. The registry test pins the filed AUP entries, so a deleted licence is a red test.
 - **Frozen bytes are the contract.** Fourteen golden zeros hash `records.jsonl`; every additive dial defaults to the byte-identical path and serializes only when set. A change that re-pins a golden is a recorded decision, not a refactor.
 - **One rate grammar, two simulators.** The full rate expression grammar compiles to `bio/rate_expr.py` trees both simulators run; parity to 1e-9 is a CI test, and the M24/M47 parity bugs were found by it.
-- **Vault → repo → site.** ~~[[ABIO Docs]]~~ is authored in the vault, mirrored read-only into the repo's `docs/`, and published by mkdocs from the repo copy (the resolution in [[ABIO Design]] § Structural resolution). This doc and its subsystem siblings are design, not docs, so they stay in the vault.
+- **Vault → repo → site.** [[ABIO Docs]] is authored in the vault, mirrored read-only into the repo's `docs/`, and published by mkdocs from the repo copy (the resolution in [[ABIO Design]] § Structural resolution). This doc and its subsystem siblings are design, not docs, so they stay in the vault.
 
 ## Design decisions
 
@@ -71,7 +71,7 @@ Anchor-wide rulings — the safety-adjacency rule, the no-peeking rule's origin,
 ## See also
 
 - [[ABIO PRD]] — what ABIO is for; the ten requirements with build status.
-- ~~[[ABIO Suite Runtime]]~~ — the published description of the turn loop, agents and experiment artifacts.
-- ~~[[ABIO Protocols]]~~ — the class index the substrate implements.
-- ~~[[ABIO Expr Spec]]~~ — the language by example.
+- [[ABIO Suite Runtime]] — the published description of the turn loop, agents and experiment artifacts.
+- [[ABIO Protocols]] — the class index the substrate implements.
+- [[ABIO Expr Spec]] — the language by example.
 - [[ABIO Roadmap]] — the forward milestones (M-Bench, M-FixPoint, M-Harden); the 41 done ones in [[ABIO Completed Roadmap]].

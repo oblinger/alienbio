@@ -10,7 +10,7 @@ dial, and that transcript is the peek.
 
 **The guard.** A written rule that nothing checks is a guard that passes
 without protecting, so this test statically scans every executable file under
-``tests/``, ``demos/`` and ``docs/`` (``.py`` and ``.ipynb`` — notebooks
+``tests/``, ``demos/`` and ``doc/ABIO Docs/`` (``.py`` and ``.ipynb`` — notebooks
 included because an illustrative demo is the likeliest accident) and fails if
 any one file names an LLM entry point *and* a conflict/pressure-family
 drafter. It reads source text only: no key, no network, and it cannot itself
@@ -40,7 +40,7 @@ GUARDED_DRAFTERS: tuple[str, ...] = (
 )
 
 #: Directories whose executable files are scanned, relative to the repo root.
-SCANNED_DIRS: tuple[str, ...] = ("tests", "demos", "docs")
+SCANNED_DIRS: tuple[str, ...] = ("tests", "demos", "doc/ABIO Docs")
 
 #: Executable file kinds. Markdown prose is deliberately not scanned — the
 #: catalog and the architecture docs name both sides of the rule in order to

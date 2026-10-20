@@ -4,7 +4,7 @@ description: "the design home for the Alien Biology Framework"
 
 | -[[ABIO Design]]- | : the design home for the Alien Biology Framework<br>→ [[ABIO]] → [ABIO Design](ha://p/ABIO%20Design)                                                                                                                                                                                                                                                                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Related           | ~~[[ABIO Docs]]~~,  [[ABIO Idea]],  [[ABIO Roadmap]],  [[ABIO Backlog]],  [[AUP]],                                                                                                                                                                                                                                                                                                                                                        |
+| Related           | [[ABIO Docs]],  [[ABIO Idea]],  [[ABIO Roadmap]],  [[ABIO Backlog]],  [[AUP]],                                                                                                                                                                                                                                                                                                                                                            |
 | ...               | [[ABIO Architecture]],  [[ABIO Capability Dimensions]],  [[ABIO Completed Roadmap]],  [[ABIO Architecture.svg]],  [[ABIO Unified Protocol Model.svg]],  [[ABIO Experiment Catalog]],  [[ABIO Expr]],  [[ABIO Hardening Proposal]],  [[ABIO Phase-2 Design Brief]],  [[ABIO PRD]],  [[ABIO Refactor Proposals]],  [[ABIO Semantic Layer]],  [[ABIO Skeleton Arch]],  [[ABIO Suite Protocol Assessment]],  [[ABIO Unified Protocol Model]], |
 
 # ABIO Design
@@ -39,14 +39,14 @@ These are the authoritative design/architecture documents. They live in `ABIO Do
 
 | Doc | What it is |
 |---|---|
-| ~~[[ABIO Architecture Docs]]~~ | The architecture index (start here). |
-| ~~[[ABIO Suite Construction]]~~ | Suite Construction subsystem — suite spec → auto-graded tasks over verified worlds. |
-| ~~[[ABIO Suite Construction Data Model]]~~ | The neutral contract the M26 primitives close over. |
-| ~~[[ABIO biology]]~~ | Molecule / Reaction / Chemistry / Pathway / Compartment substrate. |
-| ~~[[ABIO Suite Runtime]]~~ | The suite runtime — the turn loop, agents, sweeps, experiments as artifacts. |
-| ~~[[ABIO PRD Docs]]~~ | Scenario Generator PRD — the world-generation layer. |
-| ~~[[ABIO Expr Spec]]~~ | The Expr language by example (the spec DSL as built). |
-| ~~[[ABIO Notes]]~~ | Design notes. |
+| [[ABIO Architecture Docs]] | The architecture index (start here). |
+| [[ABIO Suite Construction]] | Suite Construction subsystem — suite spec → auto-graded tasks over verified worlds. |
+| [[ABIO Suite Construction Data Model]] | The neutral contract the M26 primitives close over. |
+| [[ABIO biology]] | Molecule / Reaction / Chemistry / Pathway / Compartment substrate. |
+| [[ABIO Suite Runtime]] | The suite runtime — the turn loop, agents, sweeps, experiments as artifacts. |
+| [[ABIO PRD Docs]] | Scenario Generator PRD — the world-generation layer. |
+| [[ABIO Expr Spec]] | The Expr language by example (the spec DSL as built). |
+| [[ABIO Notes]] | Design notes. |
 
 ## Tracking (in `[[ABIO Track]]`)
 

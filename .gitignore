@@ -66,7 +66,7 @@ timeline.yaml
 src/dvc_dat
 
 # Generated docs (regenerate with just docs)
-docs/diagrams/*.svg
+doc/ABIO Docs/diagrams/*.svg
 site/
 src/alienbio/catalog/jobs/hardcoded_test/report.csv
 
