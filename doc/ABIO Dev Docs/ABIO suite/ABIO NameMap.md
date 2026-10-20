@@ -8,7 +8,7 @@ The opaque-names boundary: a seed-shuffled map from a world's structural ids to 
 ![[ABIO NameMap.svg|2400]] 
 *The token boundary* is the topic that governs `token_pattern`'s node: the surfacing and the taint audit spell one boundary, so they cannot disagree about what a whole id is.
 
-This page covers `suite/naming.py`: the map, how it is built, what crosses it in each direction, and the boundary regex. The turn loop that builds the map, wraps the agent, stores the map and runs `audit_prompts` is [[ABIO Runner]]; the brief's fields are [[ABIO TaskBrief]]; the shared-id rule the builder mirrors is [[ABIO ChemistryImpl]]; where the boundary sits in the live loop is [[ABIO-Runtime]], and the operator-facing account is [[ABIO Suite Runtime]] § Opaque names.
+This page covers `suite/naming.py`: the map, how it is built, what crosses it in each direction, and the boundary regex. The turn loop that builds the map, wraps the agent, stores the map and runs `audit_prompts` is [[ABIO Runner]]; the brief's fields are [[ABIO TaskBrief]]; the shared-id rule the builder mirrors is [[ABIO ChemistryImpl]]; where the boundary sits in the live loop is [[ABIO-Runtime]], and the operator-facing account is ~~[[ABIO Suite Runtime]]~~ § Opaque names.
 
 
 

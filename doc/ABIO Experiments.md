@@ -30,7 +30,7 @@ The specification of the experiments ABIO runs: the question each asks, the worl
 | **[[#Phase 3: H4-H5 (Goal-Directed Reasoning)]]** |  |
 | **[[#Phase 4: Systematic Measurement]]** |  |
 
-**Related**: [[ABIO Roadmap]], [[ABIO alienbio]], [[ABIO Notes#2026-01-14 ABIO Experiments roadmap]] 
+**Related**: [[ABIO Roadmap]], ~~[[ABIO alienbio]]~~, ~~[[ABIO Notes#2026-01-14 ABIO Experiments roadmap]]~~ 
 
 This document specifies the experiments that validate the Alien Biology testbed and measure LLM capabilities.
 

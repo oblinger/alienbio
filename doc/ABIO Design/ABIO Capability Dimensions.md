@@ -5,7 +5,7 @@ description: "The dimensions of generality and capability the Alien Biology fram
 # ABIO Capability Dimensions
 **What this is.** The framework's end-goal (see [[ABIO Roadmap]] § Meta-Thesis) is to be a **taint-free, generative, parameterized testing framework** whose worlds and tasks cover long reasoning chains and multi-turn settings under partial observability and partial understanding — general enough to *execute the kinds of experiments described in [[AUP]]* (Series A: Deliberative Coherence; Series B: Driver Conflicts; Series C: Modulating Factors).
 
-**Related**: [[ABIO]] · [[ABIO Roadmap]] · [[AUP]] · [[ABIO Suite Construction]] 
+**Related**: [[ABIO]] · [[ABIO Roadmap]] · [[AUP]] · ~~[[ABIO Suite Construction]]~~ 
 
 This document enumerates the **capability dimensions** those experiments require of the framework. It is a **capability inventory, not an experiment design** — each entry is something the framework must be able to *do* or *dial*, harvested by reading the ASP series for what they presuppose. The roadmap's forward milestones (M27–M35) build these; the list is the source of truth those milestones reference.
 

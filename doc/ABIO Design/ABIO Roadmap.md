@@ -9,7 +9,7 @@ Shape B task-checklist roadmap for the alienbio project — 3 forward milestones
 | M-Harden | Proposed (awaiting review) | M-Harden.1 — cost-model conformance |
 | Completed | [[ABIO Completed Roadmap]] |  |
 
-**Related**: [[ABIO alienbio]], [[ABIO Testing Guide|Testing]] 
+**Related**: ~~[[ABIO alienbio]]~~, ~~[[ABIO Testing Guide|Testing]]~~ 
 
 | Table of Contents |  |
 |---|---|

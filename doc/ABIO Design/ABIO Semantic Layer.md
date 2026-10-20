@@ -3,7 +3,7 @@ description: "M27 semantic layer — the Opus-authored content (task-archetype c
 ---
 :>> [[ABIO]] → [[ABIO Design]] → [ABIO Semantic Layer](ha://p/ABIO%20Semantic%20Layer) 
 # ABIO Semantic Layer
-The **M27 semantic layer** is the content half of Suite Construction. [[ABIO Suite Construction|M26]] shipped eight *neutral* engines (`suite/` — FT01–FT08) that manipulate opaque tokens, motifs, predicates, and recipes but contain **no biology and no task meaning**. M27 authors that meaning: the concrete `TaskArchetype`s, `Vocabulary`s, and world-validity `Predicate`s the engines close over, plus the wiring that runs them end-to-end into a materialized `Suite`. It is **Opus-authored** (design, not mechanical) and was unblocked by the M25 aims-interview ([[ABIO001 - M25 aims interview + M9 ablation|F001]], all six Qs resolved).
+The **M27 semantic layer** is the content half of Suite Construction. ~~[[ABIO Suite Construction|M26]]~~ shipped eight *neutral* engines (`suite/` — FT01–FT08) that manipulate opaque tokens, motifs, predicates, and recipes but contain **no biology and no task meaning**. M27 authors that meaning: the concrete `TaskArchetype`s, `Vocabulary`s, and world-validity `Predicate`s the engines close over, plus the wiring that runs them end-to-end into a materialized `Suite`. It is **Opus-authored** (design, not mechanical) and was unblocked by the M25 aims-interview ([[ABIO001 - M25 aims interview + M9 ablation|F001]], all six Qs resolved).
 
 This doc is the build spec for backlog **[[ABIO Backlog#^F005|F005]]** and roadmap **[[ABIO Roadmap|M-Semantic]]** (M27.1–M27.4). It is grounded in the real seams in `src/alienbio/suite/` — every type and function named below exists on `main` today.
 
@@ -11,7 +11,7 @@ This doc is the build spec for backlog **[[ABIO Backlog#^F005|F005]]** and roadm
 
 The owner drew a hard line ([[ABIO006 - Framework-capability roadmap (M27+) - MUX-session build handoff &|F006]] § Verbatim user direction): **build framework CAPABILITIES; do NOT design or plan the ASP experiments.** The semantic layer sits near that line, so the boundary is drawn explicitly here:
 
-- **In scope (framework).** A *reusable, parameterized, domain-neutral* archetype template — "identify-a-hidden-pathway", "diagnose-the-perturbed-node", "explain-this-molecule". These are exactly the archetypes the owner-approved [[ABIO Suite Construction]] architecture already names as *the deliverable* ("identify-this-pathway, cure-this-disease, explain-this-molecule, …"). Authoring them is **implementing approved architecture**. Each is a template with parameters (pathway length, distractor count, layers traversed) — machinery, not a specific scenario.
+- **In scope (framework).** A *reusable, parameterized, domain-neutral* archetype template — "identify-a-hidden-pathway", "diagnose-the-perturbed-node", "explain-this-molecule". These are exactly the archetypes the owner-approved ~~[[ABIO Suite Construction]]~~ architecture already names as *the deliverable* ("identify-this-pathway, cure-this-disease, explain-this-molecule, …"). Authoring them is **implementing approved architecture**. Each is a template with parameters (pathway length, distractor count, layers traversed) — machinery, not a specific scenario.
 - **Out of scope (experiment design).** Authoring a *specific engineered world/scenario* that realizes a particular ASP study — e.g. a world tuned so two objectives conflict in exactly the way ASP Series B examines. That is designing an experiment; the framework must be *able to express* it, but M27 does not author it.
 
 **The test:** if the artifact is a generic template parameterized by dials, it is framework (in scope); if it is a specific hand-tuned instance chosen to probe a research hypothesis, it is experiment design (out of scope). Every archetype below is written to the generic side of that test.
@@ -20,7 +20,7 @@ One residual confirmation is parked for the owner (§ Open question) — but M27
 
 ## `ObjectiveRecipe` — defining the architecture's named-but-undefined protocol
 
-**Grounded in [[ABIO Suite Construction Data Model]] (the architecture).** That doc's type model already names this protocol: `TaskArchetype: … recipe: ObjectiveRecipe` (L6). But `ObjectiveRecipe` is **declared and never defined** — it is absent from the [[ABIO Protocols]] glossary, and the code on `main` has drifted to `recipe: Any` (`suite/types.py`). This section *defines* `ObjectiveRecipe`; § Architecture reconciliation below tracks closing the drift. Adopting the architecture's name (not a new one) is deliberate — the semantic layer implements the existing architecture, it does not fork it.
+**Grounded in ~~[[ABIO Suite Construction Data Model]]~~ (the architecture).** That doc's type model already names this protocol: `TaskArchetype: … recipe: ObjectiveRecipe` (L6). But `ObjectiveRecipe` is **declared and never defined** — it is absent from the ~~[[ABIO Protocols]]~~ glossary, and the code on `main` has drifted to `recipe: Any` (`suite/types.py`). This section *defines* `ObjectiveRecipe`; § Architecture reconciliation below tracks closing the drift. Adopting the architecture's name (not a new one) is deliberate — the semantic layer implements the existing architecture, it does not fork it.
 
 Everything the semantic layer supplies is the **neutral/semantic boundary** the data-model doc already draws (its § "The neutral / semantic boundary" table): each neutral engine consumes one kind of opaque content — set-cover ← *what a feature means*, carve/splice ← *what a role/constraint means*, verify ← *what a predicate means*, graders ← *what "correct" means*, Op harness ← *the directive text*, NL renderer ← *the controlled vocabulary*. M27.1–M27.4 below fill exactly those cells; `ObjectiveRecipe` is the "graders ← what correct means" cell made concrete.
 
@@ -87,13 +87,13 @@ Per the commit flow ([[ABIO]] CLAUDE.md): build in a worktree off `main`, `just 
 
 ## Architecture reconciliation (drift to close alongside the build)
 
-`ObjectiveRecipe` is defined in the *architecture* ([[ABIO Suite Construction Data Model]]) but nowhere else — three surfaces disagree and must converge as M27.1 lands:
+`ObjectiveRecipe` is defined in the *architecture* (~~[[ABIO Suite Construction Data Model]]~~) but nowhere else — three surfaces disagree and must converge as M27.1 lands:
 
 | Surface | State today | Reconcile to |
 |---|---|---|
-| [[ABIO Suite Construction Data Model]] (architecture — source of truth) | `recipe: ObjectiveRecipe` (named, undefined) | Add the method signatures defined above (or a link to them). |
+| ~~[[ABIO Suite Construction Data Model]]~~ (architecture — source of truth) | `recipe: ObjectiveRecipe` (named, undefined) | Add the method signatures defined above (or a link to them). |
 | `suite/types.py` (code, `main`) | `recipe: Any` (drifted) | `recipe: ObjectiveRecipe` — a real `Protocol` in `suite/types.py`. |
-| [[ABIO Protocols]] (glossary) | **absent** — and so are `Renderable`, `Op`, `Predicate`, `Directive`, `Vocabulary` | Add the M26/M27 suite protocols to the glossary (a `/module-doc`- or `/architect`-class pass, not hand-authored ad hoc). |
+| ~~[[ABIO Protocols]]~~ (glossary) | **absent** — and so are `Renderable`, `Op`, `Predicate`, `Directive`, `Vocabulary` | Add the M26/M27 suite protocols to the glossary (a `/module-doc`- or `/architect`-class pass, not hand-authored ad hoc). |
 
 None of this is new capability — it is making the code and the glossary honor the architecture that already exists. Do it in the same worktree as the recipe-contract implementation so the three surfaces land in sync.
 
@@ -103,8 +103,8 @@ Parked for the owner in [[ABIO queries]] (not chat): **how much archetype-*conte
 
 ## See also
 
-- [[ABIO Suite Construction]] — the M26 subsystem this supplies content to (the pipeline stages map 1:1 to § M27.4).
-- [[ABIO Suite Construction Data Model]] — **the architecture** for this: the neutral type model (`TaskArchetype`/`Motif`/`Vocabulary`/`FeatureSet`/`ObjectiveRecipe`) + the neutral/semantic boundary table this doc fills.
-- [[ABIO Protocols]] — the anchor's protocol glossary (currently missing the M26/M27 suite protocols — see § Architecture reconciliation).
+- ~~[[ABIO Suite Construction]]~~ — the M26 subsystem this supplies content to (the pipeline stages map 1:1 to § M27.4).
+- ~~[[ABIO Suite Construction Data Model]]~~ — **the architecture** for this: the neutral type model (`TaskArchetype`/`Motif`/`Vocabulary`/`FeatureSet`/`ObjectiveRecipe`) + the neutral/semantic boundary table this doc fills.
+- ~~[[ABIO Protocols]]~~ — the anchor's protocol glossary (currently missing the M26/M27 suite protocols — see § Architecture reconciliation).
 - [[ABIO Capability Dimensions]] — the capability inventory M27+ builds toward.
 - [[ABIO Roadmap]] § M27 — the milestone this fleshes out.

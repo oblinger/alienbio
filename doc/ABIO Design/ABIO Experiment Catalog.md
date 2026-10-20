@@ -5,7 +5,7 @@ description: "The coverage-driver for the ABIO framework buildout: an enumeratio
 # ABIO Experiment Catalog
 The coverage-driver for the framework buildout. [[ABIO Capability Dimensions]] lists *what the framework must be able to do*; this catalog **exercises** that list by inventing concrete experiments and reading off which capabilities each one demands — turning an abstract inventory into a prioritized, coverage-proven build backlog.
 
-**Related**: [[ABIO]] · [[ABIO Roadmap]] · [[ABIO Capability Dimensions]] · [[AUP]] · [[ABIO Suite Construction]] 
+**Related**: [[ABIO]] · [[ABIO Roadmap]] · [[ABIO Capability Dimensions]] · [[AUP]] · ~~[[ABIO Suite Construction]]~~ 
 
 **Owner mandate (2026-07-18).** The earlier "build capabilities; do not design experiments" boundary is lifted: *"you can just invent experiments and then build the generic capabilities you need to cover them… a very significant buildout… meta-milestones that enumerate different experiment types, then flesh those out and then make sure that the framework can cover them."* So: **inventing fully-specified experiments is the method; the deliverable is still generic framework capability.** Every experiment below is a throwaway probe — its value is the capability requirements it surfaces, never the specific scenario.
 
@@ -245,7 +245,7 @@ The scripted zero `catalog/experiments/exp10.yaml` (M36.9, `ebf5c80`) runs EXP-1
 
 Reading the ⬜s off **all ten** fleshed experiments (plus the task families every type needs) gives the build waves, in dependency order. Each capability is annotated with the experiments that force it (its acceptance experiments):
 
-1. **Task families** (semantic-layer archetypes atop M27, the [[ABIO Suite Construction|M26]] engines): `diagnose_perturbation` (M29.2 — EXP-3/4/5/8), `design_intervention` (M29.3 — EXP-2/7/9), `predict_response` (M29.4 — EXP-6), and generalizing `identify_pathway` (M29.1 — EXP-1/10) onto a real generated world rather than the toy host.
+1. **Task families** (semantic-layer archetypes atop M27, the ~~[[ABIO Suite Construction|M26]]~~ engines): `diagnose_perturbation` (M29.2 — EXP-3/4/5/8), `design_intervention` (M29.3 — EXP-2/7/9), `predict_response` (M29.4 — EXP-6), and generalizing `identify_pathway` (M29.1 — EXP-1/10) onto a real generated world rather than the toy host.
 2. **Substrate dials:** observability (M28.2 — EXP-1/4/8), noise/stochasticity (M28.3 — EXP-1/9), epistemic-accessibility control (EXP-1), and two substrate-generator extensions surfaced by wave 2: *structurally-present-but-unmentioned* features (hazard injection — EXP-4/5) and matched world-pairs with an invertible hidden regularity (EXP-8).
 3. **Conflict / pressure generators:** multi-objective conflict engineering + ladder (M31.1 — EXP-2/7), emergent-instrumental-pressure + pathway-overlap (M31.2 — EXP-2), fixed-model / vary-world Delta harness (M31.3 — EXP-8), and the deliberation-budget / time-pressure ladder (M32.1 — EXP-5/10).
 4. **Deliberation observability (new second-wave axis):** deliberation-trace capture (M33.1 — EXP-4/5/6/10) is a *prerequisite* for the reasoning-level scorers below — it must land before per-objective surfacing, blind-spot, and degradation scoring can read anything.
@@ -259,5 +259,5 @@ Each item is a *generic* capability whose acceptance test is "the relevant flesh
 ## See also
 - [[ABIO Capability Dimensions]] — the capability inventory this catalog exercises (the ⬜/🟡/✅ status source).
 - [[ABIO Roadmap]] § M36 — the meta-milestone this catalog fleshes; the build waves above map to M29/M28/M31/M33/M34.
-- [[ABIO Suite Construction]] / [[ABIO Semantic Layer]] — the M26 engines + M27 archetype layer these experiments are built on.
+- ~~[[ABIO Suite Construction]]~~ / [[ABIO Semantic Layer]] — the M26 engines + M27 archetype layer these experiments are built on.
 - [[AUP]] — the Series A/B/C the experiment TYPES are harvested from.

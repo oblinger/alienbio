@@ -2,12 +2,12 @@
 description: "the generative expression language — G4 design note"
 ---
 
-| -[[ABIO Expr]]-                                                                             | : the generative expression language — G4 design note<br>→ [[ABIO]] → [[ABIO Design]] → [ABIO Expr](ha://p/ABIO%20Expr)     |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Related                                                                                     | [[ABIO Unified Protocol Model]],  [[ABIO Expr Spec\|Spec]],  [[ABIO Expr Python API\|Python API]],  [[ABIO Skeleton Arch]], |
-| [[ABIO Expr Templates\| every head, layer 0–6, with a worked example each                   |                                                                                                                             |
-| [[ABIO Expr Python Escapes\| where `!py` and `!x` reach into Python, and the trust boundary |                                                                                                                             |
-| ...                                                                                         | [[ABIO Expr Python Escapes\|Python Escapes]],  [[ABIO Expr Templates\|Templates]],                                          |
+| -[[ABIO Expr]]-                                                                             | : the generative expression language — G4 design note<br>→ [[ABIO]] → [[ABIO Design]] → [ABIO Expr](ha://p/ABIO%20Expr)             |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Related                                                                                     | [[ABIO Unified Protocol Model]],  ~~[[ABIO Expr Spec\|Spec]]~~,  ~~[[ABIO Expr Python API\|Python API]]~~,  [[ABIO Skeleton Arch]], |
+| [[ABIO Expr Templates\| every head, layer 0–6, with a worked example each                   |                                                                                                                                     |
+| [[ABIO Expr Python Escapes\| where `!py` and `!x` reach into Python, and the trust boundary |                                                                                                                                     |
+| ...                                                                                         | [[ABIO Expr Python Escapes\|Python Escapes]],  [[ABIO Expr Templates\|Templates]],                                                  |
 
 # ABIO Expr
 The generative expression language of the Alien Biology Framework — the G4 design note: one call-shaped form over YAML data, evaluated against Python-registered functions and expanders.
@@ -123,7 +123,7 @@ Plain YAML that carries no tag is **data**, evaluated element-wise: a mapping of
 
 ### Python spelling — `X.head(…)`
 
-The same trees are built in Python through a pegboard in the style of `mk` ([[ABIO Factory Pegboard API]]):
+The same trees are built in Python through a pegboard in the style of `mk` (~~[[ABIO Factory Pegboard API]]~~):
 
 ```python
 from alienbio.expr import X
@@ -540,7 +540,7 @@ Recorded here so they are not re-litigated; each names the alternative that lost
 
 ## History
 
-- 2026-08-30 — **built**: M47.1–M47.8 landed (`ccb4a25` … `e8d1258`); an *as built* line under each decision; [[ABIO Expr Spec]] and [[ABIO Expr Python API]] are the reference for shipped code with every example executed in CI.
+- 2026-08-30 — **built**: M47.1–M47.8 landed (`ccb4a25` … `e8d1258`); an *as built* line under each decision; ~~[[ABIO Expr Spec]]~~ and ~~[[ABIO Expr Python API]]~~ are the reference for shipped code with every example executed in CI.
 
-- 2026-08-29 — **ratified by the owner**; roadmap M47 (build) + M48 (capability test matrix) added; user docs [[ABIO Expr Spec]] + [[ABIO Expr Python API]] written; § A complete example added; `extends:` dropped, `type.name:` retired.
+- 2026-08-29 — **ratified by the owner**; roadmap M47 (build) + M48 (capability test matrix) added; user docs ~~[[ABIO Expr Spec]]~~ + ~~[[ABIO Expr Python API]]~~ written; § A complete example added; `extends:` dropped, `type.name:` retired.
 - 2026-08-28 — folder created; language, template catalog and Python-escape pages drafted as the G4 design note (owner's direction the same day: logic in Python, structure as templates, formulas either way; the format is Python-call-shaped; register functions and expanders into a Python-backed environment).

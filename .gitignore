@@ -81,7 +81,11 @@ art/
 # Anchor (DAS repo-anchor shape, 2026-10-19): the Track folder is a grout worktree, never history
 
 /doc/*Track/
+/doc/**/*Track/
 
 /doc/.obsidian/
 
 /.claude/settings.local.json
+# grout (HA F471)
+.obsidian/
+doc/*Track/

@@ -8,7 +8,7 @@ A contamination-proof benchmark that scores how well a model **infers the hidden
 | Related | |
 | --- | --- |
 | Detail | [[ABIO Inference Bench Detail]] (generation architecture + examples) |
-| Built | [[ABIO Suite Construction]] (the subsystem design — suite over verified worlds) |
+| Built | ~~[[ABIO Suite Construction]]~~ (the subsystem design — suite over verified worlds) |
 | Testbed | [[AUP 4 Alien Biology Testbed]] · [[ABIO]] |
 | Legacy | [[Measuring Intelligence]] |
 | Siblings | [[ABIO AI-Control]] (its capability ruler) · [[ABIO Gamer Emerge Exp]] |
