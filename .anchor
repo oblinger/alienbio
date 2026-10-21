@@ -8,3 +8,4 @@ stones:
   pebbles:
     prefix: P
 agent: ABIO
+namespace: true
