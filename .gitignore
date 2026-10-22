@@ -92,3 +92,6 @@ doc/*Track/
 
 # local archive zips (ATT P0063)
 Yore/
+
+# zipped archives stay on disk, out of git; restic backs up all of ~/ob (Dan, 2026-10-22)
+*.zip
