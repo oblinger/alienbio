@@ -407,7 +407,9 @@ def run_experiment(
             # not only the manifest, so a record store can be read alone.
             payload["agent"] = kind
             payload["model"] = persisted_model
-            payload["memory"] = spec.memory
+            # Round 4: the level in force — a ``memory`` axis runs per level
+            # (T066) and every line used to say ``spec.memory``.
+            payload["memory"] = cond.get("memory", spec.memory)
             # M45.18: the sampling in force on a live line (null on a scripted one).
             payload["temperature"] = spec.temperature if kind == "llm" else None
             payload["top_p"] = spec.top_p if kind == "llm" else None

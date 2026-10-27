@@ -27,6 +27,7 @@ from .drafters import (
     guarded_dials,
     guarded_drafters,
     unknown_spec_dials,
+    _FACTORY_DIALS,
     _unknown_dials_message,
 )
 from .spec import (
@@ -77,6 +78,28 @@ def unknown_dials_violation(spec: ExperimentSpec) -> Optional[str]:
     if spec.drafter in _registry:
         return _unknown_dials_message(_registry.get(spec.drafter), unknown)
     return f"{spec.drafter}: unknown dial(s) {unknown}"
+
+
+def fixed_factory_dials_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why ``spec`` sets an agent-factory dial in ``fixed_dials`` — ``None``
+    when it does not.
+
+    Deep scan round 4 (2026-10-27): the factory reads the merged dial vector,
+    so ``fixed_dials: {agent: llm}`` built a live model, while every guard
+    (:func:`~alienbio.suite.spec.agent_kinds_in_play`, the sampling rule,
+    the no-peeking rule) and :func:`~alienbio.suite.spec.estimate_cost` read
+    only the spec field and the axes: preflight ok, estimate $0.00, a paid
+    trial. ``model`` / ``max_tokens`` / ``memory`` there ran one setting and
+    priced and recorded another. Each has a spec field (held fixed) or an
+    axis (swept); one place each keeps the guards and the run agreeing.
+    """
+    misplaced = sorted(set(spec.fixed_dials) & _FACTORY_DIALS)
+    if not misplaced:
+        return None
+    return (
+        f"{spec.name}: {', '.join(misplaced)} in fixed_dials reaches the agent factory but not the "
+        "guards or the cost estimate — set the spec field (held fixed) or an axis (swept) instead"
+    )
 
 
 def _head_dials(spec: ExperimentSpec) -> frozenset[str]:
@@ -395,8 +418,14 @@ def inert_arm_violation(spec: ExperimentSpec) -> Optional[str]:
     marker (T066). A forgetting arm that quietly measures nothing is worse
     than one that refuses, because the contrast still gets reported.
     """
-    turns = _default_expected_turns(spec.fixed_dials, spec.axes)
+    # Round 4: each cell's own ``max_turns``, not the grid's largest — a
+    # ``max_turns: [4, 40]`` axis with ``compact_at: 10`` left the 4-turn
+    # cells inert while the 40-turn ones cleared the check.
+    grid_turns = _default_expected_turns(spec.fixed_dials, spec.axes)
     for dials in _condition_dial_vectors(spec):
+        turns = dials.get("max_turns", grid_turns)
+        if isinstance(turns, bool) or not isinstance(turns, int):
+            turns = grid_turns
         at = dials.get("compact_at", spec.compact_at)
         if isinstance(at, int) and not isinstance(at, bool) and at >= turns:
             return (
@@ -424,18 +453,19 @@ def certainty_windows_violation(spec: ExperimentSpec) -> Optional[str]:
         return None
     if isinstance(windows, bool) or not isinstance(windows, int) or windows < 1:
         return f"{spec.name}: certainty_windows must be an int >= 1, got {windows!r}"
-    from .runner import run as _run
+    from .runner import certainty_slice_problem, run as _run
 
-    default_steps = int(inspect.signature(_run).parameters["sim_cfg"].default.steps)
+    default_cfg = inspect.signature(_run).parameters["sim_cfg"].default
     for dials in _condition_dial_vectors(spec):
-        steps = dials.get("sim_steps", default_steps)
+        steps = dials.get("sim_steps", default_cfg.steps)
+        every = dials.get("sample_every", default_cfg.sample_every)
         if isinstance(steps, bool) or not isinstance(steps, int) or steps < 1:
             continue  # the runner's own dial validation owns that verdict
-        if steps % windows:
-            return (
-                f"{spec.name}: certainty_windows={windows} must divide sim_steps={steps} "
-                "(each window integrates sim_steps / certainty_windows steps)"
-            )
+        if isinstance(every, bool) or not isinstance(every, int) or every < 1:
+            continue
+        problem = certainty_slice_problem(steps, windows, every)
+        if problem:
+            return f"{spec.name}: {problem}"
     return None
 
 
@@ -607,6 +637,7 @@ class Preflight:
     checks: tuple[tuple[str, Optional[str]], ...]
     estimate: Optional[CostEstimate]
     refusal: Optional[BaseException]
+    skipped: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -616,7 +647,10 @@ class Preflight:
         """The verdicts as ``bio suite run --dry`` prints them."""
         out = [f"out_dir exists: {'yes (run refuses without resume)' if self.out_exists else 'no'}"]
         for name, why in self.checks:
-            out.append(f"{name}: ok" if why is None else f"{name}: REFUSED — {why}")
+            if name in self.skipped:
+                out.append(f"{name}: skipped (an earlier check refused)")
+            else:
+                out.append(f"{name}: ok" if why is None else f"{name}: REFUSED — {why}")
         return out
 
 
@@ -648,6 +682,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     checks: list[tuple[str, Optional[str]]] = []
     refusal: Optional[BaseException] = None
     estimate: Optional[CostEstimate] = None
+    skipped: list[str] = []
 
     def check(name: str, run_it: Callable[[], Any], *, only_if_clean: bool = False) -> None:
         """One verdict. ``only_if_clean`` marks a check that does real work
@@ -656,7 +691,10 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
         cheaper verdict should not be shadowed by a slower one."""
         nonlocal refusal
         if only_if_clean and refusal is not None:
+            # Round 4: named as skipped — ``--dry`` printed ``draft: ok``
+            # for a check that never ran.
             checks.append((name, None))
+            skipped.append(name)
             return
         try:
             run_it()
@@ -676,7 +714,8 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
 
     check("registration", lambda: registration_admission(spec))
     check("no-peeking", lambda: _raise_if(no_peeking_violation(spec), "no-peeking"))
-    check("dials", lambda: _raise_if(unknown_dials_violation(spec), "dials"))
+    check("dials", lambda: (_raise_if(unknown_dials_violation(spec), "dials"),
+                            _raise_if(fixed_factory_dials_violation(spec), "dials")))
     check("episode-dials", lambda: _raise_if(misplaced_episode_dials_violation(spec), "episode-dials"))
     check("surface", lambda: _raise_if(declared_surface_violation(spec), "surface"))
     check("sampling", lambda: _raise_if(sampling_violation(spec), "sampling"))
@@ -722,4 +761,4 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
             )
 
     check("out_dir", _out_dir)
-    return Preflight(resolved_out, out_exists, tuple(checks), estimate, refusal)
+    return Preflight(resolved_out, out_exists, tuple(checks), estimate, refusal, tuple(skipped))

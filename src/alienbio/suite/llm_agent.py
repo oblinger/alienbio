@@ -262,12 +262,16 @@ def _retry_kind(exc: BaseException) -> Optional[str]:
     """Which retry bucket ``exc`` falls into, matched by class NAME (not
     ``isinstance``) so this module never needs to import ``anthropic`` — a
     test can raise a plain class sharing the real exception's name."""
-    name = type(exc).__name__
-    if name == "RateLimitError":
+    # Round 4 (2026-10-27): every class name in the MRO, not the exact type —
+    # the SDK raises subclasses (``InternalServerError`` for a 5xx/529,
+    # ``APITimeoutError`` for a timeout), which an exact-name match never
+    # retried.
+    names = {cls.__name__ for cls in type(exc).__mro__}
+    if "RateLimitError" in names:
         return "rate_limit"
-    if name == "APIConnectionError":
+    if "APIConnectionError" in names:
         return "connection_error"
-    if name == "APIStatusError" and getattr(exc, "status_code", 0) >= 500:
+    if "APIStatusError" in names and (getattr(exc, "status_code", 0) or 0) >= 500:
         return "server_error"
     return None
 
@@ -399,6 +403,12 @@ OUTPUT_BUDGET_KEY = "max_tokens"
 OUTPUT_SCHEDULE_KEYS: frozenset[str] = frozenset({"every", "deep", "shallow"})
 
 
+def _keeps_no_history(memory: Any) -> bool:
+    """``memory`` keeps no turn history: ``'none'`` or a zero-turn window
+    (round 4 — ``memory=0`` passed both "requires turn memory" refusals)."""
+    return memory == "none" or (isinstance(memory, int) and not isinstance(memory, bool) and memory == 0)
+
+
 def validate_agent_config(
     *,
     memory: Any,
@@ -451,7 +461,8 @@ def validate_agent_config(
             "LLMAgent: compact_at and history_token_limit are both forgetting "
             "triggers — use one per arm"
         )
-    if (compact_at is not None or history_token_limit is not None) and memory == "none":
+    # Round 4: ``memory=0`` is a zero-turn window — no history, as for 'none'.
+    if (compact_at is not None or history_token_limit is not None) and _keeps_no_history(memory):
         raise ValueError(
             "LLMAgent: a forgetting trigger requires turn memory (memory != 'none') "
             "— with no history there is nothing to forget"
@@ -864,7 +875,7 @@ class LLMAgent:
             # oldest turn-history entry — so a finite ``memory=k`` window
             # displaces it as turns accumulate. With no history at all it
             # would never reach the model: refused visibly.
-            if self.memory == "none":
+            if _keeps_no_history(self.memory):
                 raise ValueError(
                     "LLMAgent: constitution_in_history requires turn memory "
                     "(memory != 'none') — with no history window the "

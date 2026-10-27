@@ -1,11 +1,11 @@
 """M47.8 / M48.2 — the Expr Spec and Python API are the reference for shipped
 code: every fenced example on those pages runs.
 
-``doc/ABIO Docs/Guide/ABIO Expr Spec.md``: each ```yaml fence is loaded through the
+``doc/ABIO Guides/ABIO Expr Spec.md``: each ```yaml fence is loaded through the
 Expr loader; unless its first line is ``# fragment`` it is also evaluated
 (a top-level ``!experiment`` through ``load_experiment``). The page's Head
 catalog must name every head the standard environment registers.
-``doc/ABIO Docs/Guide/ABIO Expr Python API.md``: the ```python fences run in order in
+``doc/ABIO Guides/ABIO Expr Python API.md``: the ```python fences run in order in
 one namespace, with the same fixture files beside them.
 """
 
@@ -22,8 +22,8 @@ from alienbio.expr.yaml_tags import load_text
 from alienbio.suite.expr_experiment import load_experiment
 
 REPO = Path(__file__).resolve().parents[2]
-SPEC = REPO / "doc" / "ABIO Docs" / "Guide" / "ABIO Expr Spec.md"
-API = REPO / "doc" / "ABIO Docs" / "Guide" / "ABIO Expr Python API.md"
+SPEC = REPO / "doc" / "ABIO Guides" / "ABIO Expr Spec.md"
+API = REPO / "doc" / "ABIO Guides" / "ABIO Expr Python API.md"
 
 HELPERS = '''
 from alienbio.expr import fn, guard, GuardViolation

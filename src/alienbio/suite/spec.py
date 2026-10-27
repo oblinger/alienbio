@@ -579,17 +579,22 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
 
     prompt_tokens = spec.expected_prompt_tokens
     output_tokens = _expected_output_tokens(spec)
-    memory = spec.memory
-    if memory == "full":
-        input_per_trial = sum(prompt_tokens * (1 + t / 2) for t in range(turns))
-        memory_desc = "full"
-    elif memory == "none":
-        input_per_trial = prompt_tokens * turns
-        memory_desc = "none"
-    else:
+    def _input_for(memory: Any) -> tuple[float, str]:
+        if memory == "full":
+            return sum(prompt_tokens * (1 + t / 2) for t in range(turns)), "full"
+        if memory == "none":
+            return prompt_tokens * turns, "none"
         k = cast(int, memory)
-        input_per_trial = prompt_tokens * turns * (1 + min(k, turns - 1) / 2)
-        memory_desc = f"k={k}"
+        return prompt_tokens * turns * (1 + min(k, turns - 1) / 2), f"k={k}"
+
+    # Round 4 (2026-10-27): a ``memory`` axis runs per level (T066), so it is
+    # priced per level — each owns an equal share of the llm trials, as the
+    # model axis below. Pricing every cell at ``spec.memory`` read a
+    # none/full ladder ~5.75x low at 20 turns.
+    memory_axis = next((levels for name, levels in spec.axes if name == "memory"), None)
+    per_level = [_input_for(m) for m in (memory_axis or (spec.memory,))]
+    input_per_trial = sum(tokens for tokens, _ in per_level) / len(per_level)
+    memory_desc = "/".join(desc for _, desc in per_level)
     output_per_trial = output_tokens * turns
 
     total_input_tokens = round(input_per_trial * llm_trials)

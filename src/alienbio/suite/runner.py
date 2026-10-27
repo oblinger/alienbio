@@ -420,6 +420,33 @@ def _projected_key(dials: Mapping[str, Any], swept: Optional[Collection[str]]) -
     return condition_key({k: v for k, v in dials.items() if k in swept})
 
 
+def certainty_slice_problem(steps: int, windows: int, sample_every: int) -> Optional[str]:
+    """Why ``windows`` certainty slices cannot cut a ``steps``-step turn —
+    ``None`` when they can.
+
+    T062: ``windows`` divides ``steps``. Round 4 (2026-10-27): the slice must
+    also sit on the ``sample_every`` grid — a multiple of it, or a divisor of
+    it — because ``simulate`` samples each slice from its own step 0. At
+    ``steps=200, windows=8, sample_every=10`` the 25-step slices sampled at
+    turn steps 25, 35, 45 … instead of 30, 40, 50, so the recorded grid moved
+    with the dial while the sample count stayed the same, and
+    ``score_read="held"`` integrated the shifted samples.
+    """
+    if steps % windows:
+        return (
+            f"certainty_windows={windows} must divide sim_steps={steps} "
+            "(each window integrates sim_steps / certainty_windows steps)"
+        )
+    slice_steps = steps // windows
+    if slice_steps % sample_every and sample_every % slice_steps:
+        return (
+            f"certainty_windows={windows} cuts sim_steps={steps} into {slice_steps}-step slices, "
+            f"off the sample_every={sample_every} grid — the slice must be a multiple or a divisor "
+            "of sample_every, or the recorded timeline's sampling grid moves with the dial"
+        )
+    return None
+
+
 def run(
     world: WorldImpl,
     task: TaskInstance,
@@ -595,12 +622,10 @@ def run(
         windows_cfg = certainty_cfg.get("windows", 1)
         if isinstance(windows_cfg, bool) or not isinstance(windows_cfg, int) or windows_cfg < 1:
             raise ValueError(f"task.setup['certainty']['windows'] must be an int >= 1, got {windows_cfg!r}")
-        if sim_cfg.steps % windows_cfg:
+        problem = certainty_slice_problem(sim_cfg.steps, windows_cfg, sim_cfg.sample_every)
+        if problem:
             # T062 (i) — refused before the first turn, not as an error record.
-            raise ValueError(
-                f"certainty_windows={windows_cfg} must divide sim_steps={sim_cfg.steps} "
-                "(each window integrates sim_steps / certainty_windows steps)"
-            )
+            raise ValueError(problem)
     certainty_schedule: list[bool] = []
 
     # T062 — the per-turn readout series: the drafter's declared readouts
