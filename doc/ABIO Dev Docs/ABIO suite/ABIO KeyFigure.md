@@ -42,7 +42,7 @@ The chooser, the writer, the plotter table, and eleven plotters with one shape: 
     `key_figure`, then `key.png` at `DPI` 130 and `key.json` (`readout`, `caption`) in `out_dir`; returns the PNG path or `None`. A declared readout that draws nothing does not raise here: `key.json` names the readout with a "nothing to draw" caption and the call returns `None`; an unknown readout name still raises `ValueError`. ^write-key-figure
 
 **plot_dose**`(rmap) -> Optional[KeyFigure]`
-    `pressure_summary`: mean side-product per `pi`, one line per condition, normal-approximation 95 % intervals (`z = 1.96`) from `byproduct_values`, narrow at three trials. ^plot-dose
+    `pressure_summary`: mean side-product per `pi`, one line per condition, 95 % Student-t intervals at n−1 df (`mean_confidence_interval`'s default since `abb5796`; 4.303 at three trials, where `z = 1.96` was too narrow) from `byproduct_values`. ^plot-dose
 
 **plot_conflict**`(rmap) -> Optional[KeyFigure]`
     `conflict_summary` split by `rung`: each target's mean attainment along `RUNGS`, one panel per group. ^plot-conflict
@@ -72,7 +72,7 @@ The chooser, the writer, the plotter table, and eleven plotters with one shape: 
     Only when exactly one non-error record: its action kinds by turn, rejected actions as crosses, destructive ones red, targets annotated. ^plot-trial
 
 **plot_cells**`(rmap) -> Optional[KeyFigure]`
-    Any run with cells: mean objective score per condition with its CI. ^plot-cells
+    Any run with cells: mean objective score per condition with its CI (the cell's t interval). ^plot-cells
 
 
 
@@ -100,7 +100,7 @@ A frozen dataclass: one run's figure.
 # KeyFigure Semantics
 
 ## Choosing the readout
-`key_figure` reads the same summary functions `render_report` does, but tries them in `PLOTTERS`' order, not the report's: the oracle-gated families (dose, conflict, delta, degradation) come before the ones any swept `monitoring` or `stakes` axis feeds, so a run feeding two families draws the more specific one. The module docstring and the comment on `PLOTTERS` say so since `343d166`; `key_figure`'s own docstring still says "in report order". `report_text.py` prints hazard, consideration, blindspot, conflict, caution, monitoring, degradation, delta, dose; `PLOTTERS` tries dose, conflict, delta, degradation, monitoring, caution, blindspot, consideration, hazard. The difference matters whenever one run feeds two summaries, because several summaries have no oracle filter: `caution_summary` reads every record, `monitoring_summary` any record whose key carries `monitoring`. An EXP-4 hazard run sweeping `monitoring` draws the monitoring figure unless the spec declares `key_readout: hazard`, which is what `exp04.yaml` does. The declared readout is the dependable path; the fallback order is a heuristic.
+`key_figure` reads the same summary functions `render_report` does, but tries them in `PLOTTERS`' order, not the report's: the oracle-gated families (dose, conflict, delta, degradation) come before the ones any swept `monitoring` or `stakes` axis feeds, so a run feeding two families draws the more specific one. The module docstring and the comment on `PLOTTERS` say so since `343d166`, `key_figure`'s own docstring since `bf91515`. `report_text.py` prints hazard, consideration, blindspot, conflict, caution, monitoring, degradation, delta, dose; `PLOTTERS` tries dose, conflict, delta, degradation, monitoring, caution, blindspot, consideration, hazard. The difference matters whenever one run feeds two summaries, because several summaries have no oracle filter: `caution_summary` reads every record, `monitoring_summary` any record whose key carries `monitoring`. An EXP-4 hazard run sweeping `monitoring` draws the monitoring figure unless the spec declares `key_readout: hazard`, which is what `exp04.yaml` does. The declared readout is the dependable path; the fallback order is a heuristic.
 
 `run_experiment` calls `write_key_figure` after it has written `records.jsonl`, the manifest and `report.txt`. A declared readout the records cannot feed (every trial errored, say) used to raise there, turning a paid, recorded run into a crash; since `343d166` `write_key_figure` writes a `key.json` saying nothing was drawn and returns `None`. `key_figure` called directly still raises for that case.
 
@@ -115,3 +115,4 @@ Each figure is `7.2 × 3.8` in at 130 dpi, two columns when it has more than one
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `0b77270`, by reading `plots.py`, the section order in `report_text.py`, and the two `write_key_figure` call sites; no figure was drawn. Left out: `hazard.py`'s three summaries (their own page when written), the `bio report` page that embeds the PNG, and each plot's styling beyond what changes what it shows.
 - 2026-10-28 — refreshed against 0eb23e5 (`343d166`): `PLOTTERS`' order is documented as specific-first by design, `write_key_figure` no longer raises when a declared readout draws nothing, a missing monitoring arm draws no bar.
+- 2026-10-28 — refreshed against `bf91515`: `key_figure`'s docstring names `PLOTTERS` order; dose and cell CIs are t intervals (`abb5796`).

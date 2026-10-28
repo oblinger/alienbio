@@ -132,10 +132,11 @@ Aliases and protocols.
 # Types Semantics
 
 ## Frozen, not immutable
-Every class is `@dataclass(frozen=True)` and the module docstring says nothing mutates after construction, but fields typed `Tags`, `Mapping` or `Any` hold whatever is passed: `GraderSpec("x").config["tol"] = 1` succeeds and shows in the instance. The generated `__hash__` then fails on those fields: `GraderSpec`, `Motif` and `CarveResult` raise `TypeError: unhashable type: 'dict'`, and an `Answer` with a list value raises on `list`. Nothing in `src/` hashes them today.
+Every class is `@dataclass(frozen=True)`, and frozen is shallow (stated in the module docstring since T088 types 1): fields typed `Tags`, `Mapping` or `Any` hold the caller's object, uncopied: `GraderSpec("x").config["tol"] = 1` succeeds and shows in the instance. The generated `__hash__` then fails on those fields: `GraderSpec`, `Motif` and `CarveResult` raise `TypeError: unhashable type: 'dict'`, and an `Answer` with a list value raises on `list`. Nothing in `src/` hashes them or mutates a held collection. Deep-freezing is not done because the payloads compare by `==` (the render round trip) and serialize as plain JSON.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; hashability and the mutable `config` confirmed on the HEAD export, the consumer census by `git grep -w` per name over `src/` (`Renderable`, `Difficulty` and `ScriptedOp` have no reader). Left out: what each recipe builds (the archetype and pipeline docs).
+- 2026-10-28 — refreshed against `0377846`: the module docstring now calls frozen shallow and says why it is not deep; no behaviour change.

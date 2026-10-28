@@ -117,18 +117,22 @@ A frozen dataclass carrying one modifier's effect on its reaction's rate: a `kin
 
 
 ## reaction Interface
-The module exports `ReactionImpl` and `Modulation`, both re-exported from `alienbio.bio` (and `ReactionImpl` from `alienbio`), plus two type aliases used in the signatures above and nowhere else in `src/`.
+The module exports `ReactionImpl` and `Modulation`, both re-exported from `alienbio.bio` (and `ReactionImpl` from `alienbio`), plus two type aliases used in the signatures above and nowhere else in `src/`, and `rebuild_reaction`, imported from `alienbio.bio.reaction` by the suite derivers (not re-exported).
 
 | reaction | |
 | --- | --- |
 | [[#^ratevalue\|RateValue]] | The type of a reaction's rate |
 | [[#^modifiervalue\|ModifierValue]] | The type of a modifier's value |
+| [[#^rebuild-reaction\|rebuild_reaction]] | A copy with only the named parts changed |
 
 **RateValue**` = float`
     A rate constant. The alias once admitted a callable for the M1 single-compartment simulator; since T056 it is `float` alone. ^ratevalue
 
 **ModifierValue**` = Union[Modulation, str]`
     What a modifier maps to: a `Modulation`, or a bare role-tag string kept for backward compatibility (F015 Q2). ^modifiervalue
+
+**rebuild_reaction**`(rxn: ReactionImpl, *, reactants: Optional[Dict[MoleculeImpl, float]] = None, products: Optional[Dict[MoleculeImpl, float]] = None, modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None, rate: Optional[RateValue] = None, rate_law: Any = <keep>, dat: Optional[DatLike] = None) -> ReactionImpl`
+    A fresh `ReactionImpl` under `rxn`'s local name carrying every part not passed — sides, modifiers, `rate`, `rate_law`, `description`; `rate_law=None` drops the law deliberately, `dat` defaults to `MockDat("rxn/<name>")`. The one way a suite edit rebuilds a reaction (T088: the derivers passed sides and `rate` only, so a reaction with a `rate_law` came back as mass action). ^rebuild-reaction
 
 
 
@@ -188,7 +192,8 @@ This module stores only what it is given: every parameter defaults to `None`, an
 | `RateLawBlock.realize` (`suite/expr_heads.py`) | `mk.R` with sampled `Modulation`s | the drawn tree, expression form only |
 | `!Reaction {…}` (`suite/expr_heads.py`) | `hydrate`, minting unknown molecules | a JSON tree in `rate_law:` |
 | `ChemistryImpl.hydrate` | `hydrate` per entry | as given |
-| Suite derivers — `carve`, `augment`, `perturbations`, the runner's `_chemistry_with_rate`, `ChemistryImpl.subgraph` | the constructor directly, sharing molecules | as each passes it |
+| Suite derivers — `carve`, `augment`, `perturbations` | `rebuild_reaction`, sharing molecules | carried unless the caller passes one |
+| The runner's `_chemistry_with_rate`, `ChemistryImpl.subgraph` | the constructor directly, sharing molecules | as each passes it |
 
 
 
@@ -201,3 +206,4 @@ A reaction's `name` is its `local_name`, and `ChemistryImpl` keys reactions by i
 # BRIEF
 - 2026-10-18 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member traced to `bio/reaction.py`, readers to `world_simulator.py`, `jax_core.py`, `conservation.py`, `energy.py`, `suite/rate_law.py` and `suite/expr_heads.py`. The coefficient loss in § Serialization, the multi-key modifier drop, the unchecked `rate` and the pass-through of a malformed tuple `rate_law` were reproduced against the venv, not fixed. Left out: `__repr__` (a debug string; it prints a `Modulation` as its full dataclass repr), the members inherited unchanged from `Entity`, and the published page `ABIO Reaction`, a separate older page this doc does not link. Drift noted, not fixed: the docstrings at `reaction.py:93`, `131`, `242` and `275` and the `Reaction` Protocol's `rate: Union[float, Callable]` (`protocols/bio.py:154`) still describe a callable rate; the Protocol has no `rate_law`; `Callable` is imported and unused. The constructor block id is `^reactionimpl`, matching [[ABIO ChemistryImpl]].
 - 2026-10-28 — refreshed against 0eb23e5: `Modulation` refuses a negative or NaN `Ki` and `Ki = 0` is the perfect-inhibitor limit (`40c5c09`), in the class intro, the `Ki` block and the kinds table; the simulator line references named by function. The `rate` docstrings now say numeric (`2e9cd6a`), as the page already did. Figure: the hub note says a non-number rate is refused at construction, not downstream.
+- 2026-10-28 — refreshed against `b32d46b`: new module function `rebuild_reaction` (carries every unpassed part, `rate_law` included) given a block and index row; `carve`/`augment`/`perturbations` build through it.

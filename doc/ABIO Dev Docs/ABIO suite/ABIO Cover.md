@@ -6,7 +6,7 @@ description: "`cover`: the FT02 set-covering solver — `cover` partitions items
 A small combinatorial solver that groups task feature requirements into as few admissible containers as an aggressiveness knob allows.
 
 ![ABIO Cover](ABIO%20Cover.svg) 
-*The monotone merge chain* is the topic behind the merge loop (the threshold only stops one fixed sequence; ‡ features compare by predicate identity, not by key).
+*The monotone merge chain* is the topic behind the merge loop (the threshold only stops one fixed sequence; ‡ features match by key).
 
 `suite/cover.py` is domain-free: `admissible`, `cost` and the predicates inside features are opaque callables it only calls. Its run-path caller is `pipeline.build_suite`, which covers the sampled archetypes' `feature_reqs` and stamps each task's container index on `TaskInstance.setup["container"]` without using it to share worlds. The Expr `cover(features, aggressiveness, admissible)` head builds `FeatureSet`s from a name-to-predicate mapping ([ABIO ExprExperiment](ABIO%20ExprExperiment.md)). `FeatureSet` and `Predicate` are [ABIO Types](ABIO%20Types.md)'s; the tie-break seed is [ABIO Dist](ABIO%20Dist.md)'s. `Cover`, `Feature` and `cover` are re-exported from `alienbio.suite`. The design is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
 
@@ -38,7 +38,7 @@ One alias, one constant, one function.
 | [cover](#^cover) | Partition items into containers |
 
 **Feature**` = tuple[str, Predicate]`
-    The elements of `FeatureSet.features`. ^feature
+    The elements of `FeatureSet.features`; matched by key inside `cover`. ^feature
 
 **_MAX_IMPROVE_STEPS**` = 10_000`
     Merges and moves together; reaching it logs a warning and returns the current cover. ^max-improve-steps
@@ -56,11 +56,12 @@ Each merge step considers every admissible pair whose merge lowers `cost`, picks
 
 
 
-## Features are compared by object
-A feature is a `(key, predicate)` tuple in a frozenset, so equality includes the predicate object. Two items each requiring `"x"` with two separately built lambdas share no feature: they were placed in two containers and their overlap reads 0. Shared requirements must share the predicate object, which module-level predicates do and inline ones do not.
+## Features are matched by key
+A feature is a `(key, predicate)` tuple, but `cover` canonicalizes each key to the first predicate it sees before placing anything (T088 cover 1). Two items each requiring `"x"` with two separately built lambdas share the feature: overlap 1, one container. The later items' predicates are never consulted; a caller giving one key two meanings gets the first.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and `pipeline.build_suite`; the monotone counts and the predicate-identity split confirmed on the HEAD export, no spend. Not determined: whether the Expr head's `_callable` returns one object per named predicate (T088 § suite/cover).
+- 2026-10-28 — refreshed against `9db219f`: features match by key (the first predicate stands for it), so separately built lambdas for one key now share a container.

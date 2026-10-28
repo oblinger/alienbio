@@ -42,7 +42,7 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 | [_utc_now_iso](#^utc-now-iso) | The timestamp format of the manifest |
 
 **record_to_json**`(record: TrialRecord, label: str, index: int) -> dict[str, Any]`
-    The record as one line's dict, with `label` and `index` (the cell label and trial index the resume keys on) first. `final_timeline` is summarised to `final_time` (the last time, or `None`) and `final_state` — the record's own `final_state`, or, when that is empty, the last timeline state through `final_state_dict`. `oracle`/`answer` go through `_json_safe`, the whole dict through `_encode_nonfinite` (every non-finite float, at any depth, as `"inf"`/`"-inf"`/`"nan"`), and seven keys are written only when set ([The record line](#the-record-line)). Does not add `agent`, `model`, `memory`, `temperature`, `top_p` or `registration`; `run_experiment` stamps those on the dict before dumping it. ^record-to-json
+    The record as one line's dict, with `label` and `index` (the cell label and trial index the resume keys on) first. `final_timeline` is summarised to `final_time` (the last time, or `None`) and `final_state` — the record's own `final_state`, or, when that is empty, the last timeline state through `final_state_dict`. `oracle`/`answer` go through `_json_safe`, the whole dict through `_encode_nonfinite` (every non-finite float, at any depth, as `"inf"`/`"-inf"`/`"nan"`), and nine top-level keys are written only when set ([The record line](#the-record-line)). Does not add `agent`, `model`, `memory`, `temperature`, `top_p` or `registration`; `run_experiment` stamps those on the dict before dumping it. ^record-to-json
 
 **record_from_json**`(d: Mapping[str, Any]) -> TrialRecord`
     The inverse, lossy where the line is: `final_timeline` comes back as `Timeline(times=(final_time,), states=())`, a JSON list wherever a tuple went in, and the line-only keys are ignored ([Reload and its limits](#reload-and-its-limits)). The always-written keys are read with `d[...]` and raise `KeyError` when missing; every only-when-set key, and `taint_hits`, `usage`, `wall_time_s`, `oracle`, `final_state`, `name_map`, `answer` and an action's `target`/`value`/`delta`, are read with `.get` and default. The numeric fields — `objective_score`, `spent`, `usage`, condition levels, `final_state`, `oracle`, an action's `value`/`delta`, `compaction`/`forgetting`/`monitor` — go through `_decode_nonfinite`; `answer`, `name_map` and prose do not, so a non-finite float inside an `answer` reloads as its string. ^record-from-json
@@ -141,7 +141,7 @@ A line is `record_to_json`'s dict plus the extras `run_experiment` stamps, dumpe
 | `final_time`, `final_state` | always; the summarised timeline |
 | `probes`, `certainty_schedule` | only when non-empty |
 | `compaction`, `forgetting`, `monitor`, `readout_series` | only when not `None` |
-| `parse_failures`, `aborted` | only when non-zero / not `None` (`01fee6a`) |
+| `parse_failures`, `aborted`, `grade_error` | only when non-zero / not `None` (`01fee6a`; `grade_error` `552c1a7`) |
 | `action_log[].value`, `.delta` | only when not `None` |
 | `agent`, `model`, `memory`, `temperature`, `top_p` | always, stamped by `run_experiment`<br>`model`, `temperature`, `top_p` null unless the trial's kind is `llm` |
 | `registration` | stamped only when the spec claims one |
@@ -212,3 +212,4 @@ When anything was retried, the error lines are appended to `records.retried.json
 - The bare `:>>` line the daemon adds on write is left to it, as on the sibling suite docs.
 - 2026-10-28 — fixed from the hypotheses above (alienbio `420b0cc` non-finite floats, `36ca296` atomic manifest + crash-safe retries, `002a936` resume/crash counts, `bce6629` the `model`-axis readers + docstring): every section above now states the fixed behaviour; tests in `tests/suite/test_moddoc_findings_store.py`. The retried-line skip keys on the whole line, not `(label, index)`, so a genuine second failure is still kept. The `stopped_early` reload item was fixed separately (`dbbfce1`).
 - 2026-10-28 — refreshed against 0eb23e5: `read_manifest`/`read_records` added (`01fee6a`, `3885584`); the manifest is strict JSON; `parse_failures`/`aborted` ride the line only when set; the repo root is `spec.REPO_ROOT` (`f95c6cf`); a reload sorts to run order.
+- 2026-10-28 — refreshed against `552c1a7`: `grade_error` rides the line only when set and `record_from_json` reads it back.

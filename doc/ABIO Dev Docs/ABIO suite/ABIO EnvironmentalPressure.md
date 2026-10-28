@@ -80,10 +80,11 @@ The three ladders, the type alias and the builder.
 # EnvironmentalPressure Semantics
 
 ## An overlay, not a force
-`simulate` integrates the world exactly as without a pressure, then multiplies each sampled state's whole concentration array by `exp(coef · p_t)`. Every molecule in every compartment gets the same factor: on the B10 test's world, `pressed / base` was 0.806 for every non-zero pool at the first sample and 0.645 at the last. Ratios between pools never change, no reaction rate sees the pressure, and after `remove_at` the reported state returns to the baseline because the overlay decays, not because the world recovers. The module docstring says as much ("recovery is a property of the dial, not of the world"); the B10 capability's sentence ("the world recovers when it is removed") reads it as a property of the world.
+`simulate` integrates the world exactly as without a pressure, then multiplies each sampled state's whole concentration array by `exp(coef · p_t)`. Every molecule in every compartment gets the same factor: on the B10 test's world, `pressed / base` was 0.806 for every non-zero pool at the first sample and 0.645 at the last. Ratios between pools never change, no reaction rate sees the pressure, and after `remove_at` the reported state returns to the baseline because the overlay decays, not because the world recovers. The module docstring says so in its "What it is not" paragraph (since `0377846`: no reaction, flow or population law sees it; no run path constructs one; B10 is proven on this readout overlay), and the B10 capability's sentence now reads "a named pressure rescales every sampled state by a graded readout overlay that decays after removal; the dynamics are untouched and no run path applies one".
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and `verify.simulate`; the uniform factor measured on the B10 test's world from the HEAD export, no spend. Consumer census: `verify.py` imports the type; `pressure=` is passed only in `tests/`. Not determined: whether B10 should be re-graded or the pressure moved into the dynamics (T088 § suite/pressure).
+- 2026-10-28 — refreshed against `0377846`: docstring-only — the module and the B10 test docstring now state the overlay is a readout rescale off every run path.

@@ -48,6 +48,7 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 | [usage](#^usage) | The agent's provider-usage snapshot |
 | [parse_failures](#^parse-failures) | Schema-invalid replies the agent re-asked for |
 | [aborted](#^aborted) | Why the agent gave up, if it did |
+| [grade_error](#^grade-error) | Why a commit scored 0 ungraded |
 | [wall_time_s](#^wall-time-s) | Wall-clock seconds for the trial |
 | [deliberation_depth](#^deliberation-depth) | Step count of the trace, cached |
 | [info_seeking_ratio](#^info-seeking-ratio) | Share of investigative actions |
@@ -106,7 +107,7 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
     `"committed"`, `"budget_exhausted"`, `"max_turns"` or `"illegal_limit"` from `run`; `"error"` on an error record; `""` on a hand-built fixture. An agent abort (token ceiling, parse exhaustion) is `"committed"` with [aborted](#^aborted) set. ^terminal-reason
 
 **objective_score**`: float`
-    The one score frozen in eagerly: `grade_answer` on a committed answer for an `AnswerObjective` (a `None` value scores 0.0), `grade_outcome` over `final_timeline` for an `OutcomeObjective`, otherwise 0.0; 0.0 on every error record. ^objective-score
+    The one score frozen in eagerly: `grade_answer` on a committed answer for an `AnswerObjective` (a `None` value scores 0.0, a wrong-shaped one 0.0 with [grade_error](#^grade-error) set), `grade_outcome` over `final_timeline` for an `OutcomeObjective`, otherwise 0.0; 0.0 on every error record. ^objective-score
 
 **answer**`: Optional[Mapping[str, Any]] = None`
     The committed `Answer` as `{"value", "kind"}`, structural; `None` when the trial never committed, and on every partial error record (the crash came before a commit). Lets a reloaded record tell an abstention (empty value) from a wrong answer. ^answer
@@ -146,6 +147,9 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 
 **aborted**`: Optional[str] = None`
     Why the agent gave up: `"token_ceiling"` or `"parse_exhausted"`; the commit is then the `None` answer and `terminal_reason` is `"committed"`. The report's failure census counts aborts from it, and the caution and faking scorers treat an aborted commit as neither a decision nor an abstention. † ^aborted
+
+**grade_error**`: Optional[str] = None`
+    The `MalformedAnswer` message when a committed answer's shape did not fit the grader kind (an integer on a path, a bare string on a set): the trial scored 0.0 without comparison and stays in the denominator (T088 grade 1). `None` when it was graded. † ^grade-error
 
 **wall_time_s**`: float = 0.0`
     Seconds from `run`'s entry to the record. The only field the golden hash removes. ^wall-time-s
@@ -247,7 +251,8 @@ Every trial a sweep attempts lands exactly one record, the failed ones included:
 | --- | --- |
 | `task_id`, `condition_key`, the scores, budget trio, counts, `taint_hits`, `turns`, `error`, `usage`, `wall_time_s`, `action_log`, `deliberation_trace`, `brief`, `final_state`, `oracle`, `answer`, `name_map` | always (`budget`/`remaining` as `"inf"` when infinite) |
 | `probes`, `certainty_schedule` | only when non-empty |
-| `compaction`, `forgetting`, `monitor`, `readout_series` | only when not `None` |
+| `compaction`, `forgetting`, `monitor`, `readout_series`, `aborted`, `grade_error` | only when not `None` |
+| `parse_failures` | only when non-zero |
 | `ActionRecord.value`, `.delta` | only when not `None` |
 | `final_timeline` | summarised to `final_time`; the states are dropped |
 | `label`, `index`, `agent`, `model`, `memory`, `temperature`, `top_p`, `registration` | added by `run_experiment`, not fields<br>`registration` only when licensed |
@@ -302,3 +307,4 @@ Every summary family bins on `bucket_key` and skips `is_error` records; `mass_tr
 - Open: `experiment.aggregate` (behind `bio suite report`/`aggregate`) passes every reloaded record, error lines included, to `aggregate_records`, which does not filter, while the live run aggregates only non-error records — so a store holding error lines reloads to cells whose `n` and mean differ from the live `map.json`. Not stated as a rule above, because the operator doc says error records are excluded; flagged for the owner.
 - The bare `:>>` line under the frontmatter was asked to be left out; the warden write hook re-seeds it on every write and `audit-plan` fails R-spine-09 without it, so it stays, as on the sibling suite docs.
 - 2026-10-28 — refreshed against 0eb23e5: `parse_failures`, `aborted` (`01fee6a`) and `error_class` (`9cd0632`) given blocks (figure lists them); a partial error record carries the oracle and its taint audit (`866b390`); the readers table reads `error_class`/`aborted`.
+- 2026-10-28 — refreshed against `552c1a7`: `grade_error` added (block, figure); the only-when-set table lists `parse_failures`/`aborted`/`grade_error`.

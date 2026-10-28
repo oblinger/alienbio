@@ -67,7 +67,7 @@
   <g id="n-g">
     <rect id="n-g-box" x="660" y="390" width="240" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-g-name" x="780" y="416" font-size="16" font-weight="600" text-anchor="middle">grader_spec</text>
-    <text id="n-g-kind" x="780" y="438" font-size="13" text-anchor="middle">ordered_path, partial ‡</text>
+    <text id="n-g-kind" x="780" y="438" font-size="13" text-anchor="middle">ordered_path, given_prefix 1 ‡</text>
   </g>
   <line id="e-rec-q" x1="380" y1="320" x2="200" y2="390" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <line id="e-rec-k" x1="460" y1="320" x2="460" y2="390" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
@@ -75,7 +75,7 @@
 
   <g id="n-echo">
     <rect id="n-echo-box" x="20" y="500" width="880" height="56" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
-    <text id="n-echo-k1" x="460" y="524" font-size="13" text-anchor="middle">echo the question: answer [r0, r2] against key [r0, r1, r2] scores 0.33 (common prefix 1 of 3);</text>
+    <text id="n-echo-k1" x="460" y="524" font-size="13" text-anchor="middle">echo the question: answer [r0, r2] against key [r0, r1, r2] scores 0 (the given start earns none);</text>
     <text id="n-echo-k2" x="460" y="542" font-size="13" text-anchor="middle">one length-n chain between the ends in 12 of 12 seeds, so the key is unambiguous there</text>
   </g>
 
@@ -85,6 +85,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, contains</text>
-    <text id="legend-dagger" x="400" y="646" font-size="14">‡ prefix credit pays for the first node, which the question already names</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ prefix credit skips the first node, which the question already names (T088)</text>
   </g>
 </svg>

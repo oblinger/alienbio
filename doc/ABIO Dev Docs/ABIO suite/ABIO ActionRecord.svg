@@ -51,8 +51,8 @@
     <text id="n-metrics-k1" x="170" y="352" font-size="14" text-anchor="middle">info_seeking_count / _ratio</text>
     <text id="n-metrics-k2" x="170" y="374" font-size="14" text-anchor="middle">destructive_count / _rate</text>
     <text id="n-metrics-k3" x="170" y="396" font-size="14" text-anchor="middle">actions_before_commit</text>
-    <text id="n-metrics-k4" x="170" y="426" font-size="14" text-anchor="middle">read kind, destructive;</text>
-    <text id="n-metrics-k5" x="170" y="446" font-size="14" text-anchor="middle">rejected ones count ‡</text>
+    <text id="n-metrics-k4" x="170" y="426" font-size="14" text-anchor="middle">count accepted actions,</text>
+    <text id="n-metrics-k5" x="170" y="446" font-size="14" text-anchor="middle">as the families do ‡</text>
   </g>
   <line id="e-ar-metrics" x1="420" y1="160" x2="250" y2="300" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="l-ar-metrics" x="345" y="245" font-size="14" fill="#1971c2" font-style="italic">log</text>
@@ -77,6 +77,6 @@
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
     <text id="legend-dashed" x="340" y="646" font-size="14">dashed box: unreached from a run</text>
-    <text id="legend-dagger" x="600" y="646" font-size="14">‡ an illegal Measure counts as investigation</text>
+    <text id="legend-dagger" x="600" y="646" font-size="14">‡ a rejected action counts neither way (T088)</text>
   </g>
 </svg>

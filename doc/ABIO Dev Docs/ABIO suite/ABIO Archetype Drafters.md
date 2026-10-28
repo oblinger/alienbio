@@ -6,7 +6,7 @@ description: "`arch_diagnose` + `arch_intervene` + `arch_predict`: the three M29
 The three task families whose ground truth is a generation choice or a simulation, each a chain world, a hand-built binding and a recipe that reads its key off that binding.
 
 ![ABIO Archetype Drafters](ABIO%20Archetype%20Drafters.svg) 
-*What the key depends on* is the topic behind the three key boxes (‡: by default the diagnose label changes nothing in the world, and the predict key is the same token on every seed).
+*What the key depends on* is the topic behind the three key boxes (‡: the predict key is the same token on every seed).
 
 The three modules are documented together because each has the same three parts: a `draft_*_world(seed, …)` that builds an `n_nodes` chain `m0 → … → m{n−1}` with `m0` at 100 and returns a `CarveResult` constructed by hand (no carve), a frozen `*Recipe` dataclass implementing `ObjectiveRecipe`, and a factory returning the `TaskArchetype`. [ABIO Generative](ABIO%20Generative.md) attaches each drafter to its factory, and the `diagnose`, `predict` and `intervene` heads add the EXP oracles ([ABIO Drafters](ABIO%20Drafters.md)); catalog runs are exp03–exp06 and exp09. The hazard injected into diagnose worlds is [ABIO Hazard](ABIO%20Hazard.md)'s; `perturbed_reaction` and the assay oracle serve [ABIO Faking](ABIO%20Faking.md). The factories and recipes are re-exported from `alienbio.suite`. The design is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
 
@@ -24,13 +24,13 @@ Name the perturbed molecule among the candidates.
 | [diagnose_perturbation](#^diagnose-perturbation) | The factory |
 
 **draft_diagnosis_world**`(seed, *, n_nodes=4, distractor_count=0, hazard=False, hazard_rate=0.01, perturbation=None) -> (WorldImpl, CarveResult)`
-    Chain reactions `r0 …` at the default rate 1.0, distractors `d0 …` at 1.0 with no reactions; the target is `m{seed.child("target") draw}`. `hazard` adds `rh: m{n−1} → hz` at `hazard_rate` and records both ids on `added`. `perturbation` multiplies the target's `perturbed_reaction` by that factor; without it the world is the same for every target (§ [What the key depends on](#what-the-key-depends-on)). With `n_nodes = 1` a requested perturbation is silently skipped. ^draft-diagnosis-world
+    Chain reactions `r0 …` at the default rate 1.0, distractors `d0 …` at 1.0 with no reactions; the target is `m{seed.child("target") draw}`. `hazard` adds `rh: m{n−1} → hz` at `hazard_rate` and records both ids on `added`. `perturbation` multiplies the target's `perturbed_reaction` by that factor; `None` applies `DEFAULT_PERTURBATION = 3.0` (T088), so the answer is in the dynamics (§ [What the key depends on](#what-the-key-depends-on)). With `n_nodes = 1` there is no reaction to perturb. ^draft-diagnosis-world
 
 **perturbed_reaction**`(world, target_id) -> Optional[str]`
     The sorted-first reaction producing the target, else the one consuming it, else `None`. ^perturbed-reaction
 
 **perturb_reaction_rate**`(world, reaction_id, factor) -> WorldImpl`
-    Rebuilds that reaction with `mk.R` at `rate · factor`, keeping modifiers; refuses a non-numeric rate. Like [ABIO Perturbations](ABIO%20Perturbations.md), it rebuilds without the reaction's `rate_law` and the world without flows. ^perturb-reaction-rate
+    Rebuilds that reaction with `mk.R` at `rate · factor`, keeping modifiers, and the world through `rebuild_world` (flows and population laws kept, T088); refuses a non-numeric rate and a reaction carrying a `rate_law` (its `rate` is unused, so scaling it would be inert). ^perturb-reaction-rate
 
 **DiagnosePerturbationRecipe**`(target_role="target", verb="diagnose")`
     Question: every molecule not in `added`, as a `node_set`; key: `Answer(binding["target"], "node_id")`; grader `node_id`. ^diagnoseperturbationrecipe
@@ -80,7 +80,7 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 | [design_intervention](#^design-intervention) | The factory |
 
 **draft_intervention_world**`(seed, *, n_nodes=4, target_value=None, sim_cfg=SimConfig()) -> (WorldImpl, CarveResult, (str, float))`
-    Seeded chain rates; target `m{n−1}`; with no `target_value` the goal is the sink's level at the end of `simulate(world, sim_cfg)`, 20 s by default ([ABIO Generative](ABIO%20Generative.md) § The horizon of the goal). ^draft-intervention-world
+    Seeded chain rates; target `m{n−1}`; with no `target_value` the goal is the sink's level at the end of `simulate(world, sim_cfg)`, 20 s by default; the `intervene` head passes the episode-horizon `sim_cfg` (T088, [ABIO Drafters](ABIO%20Drafters.md)). ^draft-intervention-world
 
 **make_target_scorer**`(target_mol_id, target_value) -> Callable[[Timeline], float]`
     `1 / (1 + |final − goal|)` on the final state, the target's concentration summed over compartments. ^make-target-scorer
@@ -100,7 +100,7 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 # Archetype Drafters Semantics
 
 ## What the key depends on
-**Diagnose**: the target is a label on the skeleton. Every chain rate is 1.0, so without `perturbation` every seed drafts the same world and the target never changes it: two seeds whose targets were `m4` and `m5` simulated to identical final states. exp04, exp05 and exp04-diagnose-zero run that way (only exp03 sets `perturbation`), so their diagnose answer is unobservable and any agent scores chance, `1/n_nodes`; those experiments measure hazard surfacing, and the answer score is noise.
+**Diagnose**: the reaction feeding the seed-chosen target runs at `perturbation` (default 3.0, T088) times the chain's 1.0, so every seed drafts its own world and the answer is observable. One collision remains: `r0` feeds `m1` and is the only reaction touching `m0`, so targets `m0` and `m1` draft the same world. Before T088 the default was label-only — one world for every seed, the answer at chance — and exp04, exp05 and exp04-diagnose-zero ran that way; they were re-pinned at `bf91515`.
 
 **Predict**: the lever is always the chain's throttle and the target always the terminal sink, so speeding the throttle always raises it. Over 40 seeds at `n_nodes = 4` the key was `up` every time, and `same` every time with `ill_posed`. A policy that always answers `up` scores 1.0 on every well-posed trial of exp06.
 
@@ -111,3 +111,4 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the three sources at alienbio HEAD `64988be`; the identical diagnose worlds and the constant predict keys (40 seeds each arm) confirmed on the HEAD export, the catalog usage by `git grep`, no spend. The module docstring of `arch_intervene` still says the agent loop is out of scope; exp09 runs it through the runner.
+- 2026-10-28 — refreshed against `bf91515`: diagnose perturbs by default (`DEFAULT_PERTURBATION = 3.0`), `perturb_reaction_rate` keeps flows and refuses a `rate_law` reaction, the intervene head passes the episode-horizon `sim_cfg`.

@@ -25,7 +25,7 @@ One constant and two functions.
     Relative to the repository root, which the caller resolves (`guards` uses `spec.REPO_ROOT`; tests monkeypatch it in `suite/guards.py`). ^registry-relpath
 
 **load_registry**`(path: Path) -> dict[str, Registration]`
-    `yaml.safe_load` of the file; an empty or comments-only file is an empty registry. Raises `ValueError` when the top level is not a mapping, an id is not a non-empty string, or any entry breaks the contract (§ [The entry contract](#the-entry-contract)). A missing file raises `FileNotFoundError`; callers reach it through `resolve_registration`, which checks first. ^load-registry
+    A `SafeLoader` subclass that refuses a repeated mapping key (T088); an empty or comments-only file is an empty registry. Raises `ValueError` on a repeated id or field (`registration registry <path>: duplicate key 'a' at line N`), when the top level is not a mapping, an id is not a non-empty string, or any entry breaks the contract (§ [The entry contract](#the-entry-contract)). A missing file raises `FileNotFoundError`; callers reach it through `resolve_registration`, which checks first. ^load-registry
 
 **resolve_registration**`(reg_id: str, path: Path) -> Registration`
     Raises `ValueError` when `path` does not exist ("file the entry first"), when the file fails to load, or when `reg_id` is not an id in it (the message lists the ids it has). Otherwise the entry. Parses the whole file on every call, so one malformed entry refuses every claim. ^resolve-registration
@@ -68,13 +68,12 @@ A frozen dataclass: one resolved entry.
 # Registration Semantics
 
 ## The entry contract
-An entry carries exactly `osf`, `filed`, `dials` and `drafters`; an unknown key and a missing key each raise, so the file cannot grow a side channel. `dials` and `drafters` must be non-empty lists of non-empty strings. What the parse leaves unchecked:
+An entry carries exactly `osf`, `filed`, `dials` and `drafters`; an unknown key, a missing key and a key given twice each raise, so the file cannot grow a side channel; the same id twice raises too (T088). `dials` and `drafters` must be non-empty lists of non-empty strings. What the parse leaves unchecked:
 
 | Shape | What happens |
 | --- | --- |
 | Quoted impossible date `'2026-99-99'` | Accepted; only the shape is matched |
-| Unquoted impossible date `2026-13-45` | A bare PyYAML error naming no entry |
-| The same id twice | PyYAML keeps the last, silently |
+| Unquoted impossible date `2026-13-45` | `ValueError` naming the file, not the entry |
 | A dial the build does not know | Accepted; it admits nothing |
 | A repeated name in `dials` | Collapsed by the set |
 
@@ -88,3 +87,4 @@ The design's audit trail is that the file only changes by commit. The record lin
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the duplicate-id last-wins, the quoted impossible date and the unattributed unquoted-date error confirmed by `load_registry` on scratch files from the HEAD export, no spend. Consumer census: `suite/guards.py` only in `src/`. Left out: how the guard combines the license with the no-peeking rule ([ABIO Guards](ABIO%20Guards.md)).
+- 2026-10-28 — refreshed against `9db219f`: `load_registry` refuses a repeated id or field; an unquoted impossible date now raises a `ValueError` naming the file.

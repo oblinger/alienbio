@@ -17,7 +17,7 @@
     <text id="n-dd-name" x="375" y="66" font-size="16" font-weight="600" text-anchor="middle">draft_diagnosis_world</text>
     <text id="n-dd-k1" x="375" y="88" font-size="13" text-anchor="middle">chain at rate 1.0, inert d_i,</text>
     <text id="n-dd-k2" x="375" y="106" font-size="13" text-anchor="middle">target drawn per seed;</text>
-    <text id="n-dd-k3" x="375" y="124" font-size="13" text-anchor="middle">perturbation? hazard rh → hz</text>
+    <text id="n-dd-k3" x="375" y="124" font-size="13" text-anchor="middle">feeder ×3 default; rh → hz</text>
   </g>
   <g id="n-dp">
     <rect id="n-dp-box" x="240" y="240" width="270" height="110" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -31,7 +31,7 @@
     <text id="n-di-name" x="375" y="466" font-size="16" font-weight="600" text-anchor="middle">draft_intervention_world</text>
     <text id="n-di-k1" x="375" y="488" font-size="13" text-anchor="middle">seeded rates; target m(n−1);</text>
     <text id="n-di-k2" x="375" y="506" font-size="13" text-anchor="middle">goal = sink at sim_cfg end</text>
-    <text id="n-di-k3" x="375" y="524" font-size="13" text-anchor="middle">(20 s default)</text>
+    <text id="n-di-k3" x="375" y="524" font-size="13" text-anchor="middle">(head: episode horizon)</text>
   </g>
   <line id="e-seed-dd" x1="180" y1="280" x2="260" y2="150" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-seed-dp" x1="180" y1="295" x2="240" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
@@ -62,9 +62,9 @@
   <g id="n-kd">
     <rect id="n-kd-box" x="920" y="40" width="260" height="110" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
     <text id="n-kd-name" x="1050" y="66" font-size="15" font-weight="600" text-anchor="middle">diagnose key</text>
-    <text id="n-kd-k1" x="1050" y="88" font-size="13" text-anchor="middle">a label: without perturbation</text>
-    <text id="n-kd-k2" x="1050" y="106" font-size="13" text-anchor="middle">every seed is one world ‡</text>
-    <text id="n-kd-k3" x="1050" y="124" font-size="13" text-anchor="middle">exp04, exp05: chance</text>
+    <text id="n-kd-k1" x="1050" y="88" font-size="13" text-anchor="middle">in the dynamics: target's</text>
+    <text id="n-kd-k2" x="1050" y="106" font-size="13" text-anchor="middle">feeder ×3; m0, m1 share r0</text>
+    <text id="n-kd-k3" x="1050" y="124" font-size="13" text-anchor="middle">exp03–exp05</text>
   </g>
   <g id="n-kp">
     <rect id="n-kp-box" x="920" y="240" width="260" height="110" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>

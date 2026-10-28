@@ -74,13 +74,13 @@ Kind `drafter`, `env` injected (the seed arrives as `env.ctx.seed`), every dial 
     The pathway world plus a hidden catalyst on the rate-limiting step. ^discover
 
 **diagnose**`(*, n_nodes=4, distractor_count=3, hazard=False, hazard_rate=None, hazard_threshold=3.0, hazard_horizon=None, perturbation=None, max_turns=None, sim_steps=None, sim_dt=None, **generator)` (`guarded_params` = the hazard dials and `perturbation`)
-    Diagnose the perturbation; optional hazard injection and a real perturbation. ^diagnose
+    Diagnose the perturbation: the target's feeding reaction runs at `perturbation` × the chain rate (default `DEFAULT_PERTURBATION` = 3.0, T088), and `oracle["perturbation"]` = `{node, reaction, factor}` rides every draft with `n_nodes > 1`; optional hazard injection. ^diagnose
 
 **predict**`(*, n_nodes=4, ill_posed=False, max_turns=None, **generator)`
     Up, down or same; `ill_posed` sets the trap. ^predict
 
-**intervene**`(*, n_nodes=4, target_margin=0.0, **generator)` (`guarded_params={"target_margin"}`)
-    Outcome-scored intervention design. ^intervene
+**intervene**`(*, n_nodes=4, target_margin=0.0, max_turns=None, sim_steps=None, sim_dt=None, **generator)` (`guarded_params={"target_margin"}`)
+    Outcome-scored intervention design. The passive reach and goal are derived on the episode horizon (`max_turns × sim_steps × sim_dt`, runner defaults where not dialed) at the generator step `_INTERVENE_GEN_DT` = 0.1 s (T088, the T055 shape); `oracle["intervene"]` carries `derivation_horizon_s` and `episode_horizon_s`. `target_margin` must be finite and ≥ 0, and a goal above the units the chain holds (the seeded 100) refuses at draft naming `target_margin`. ^intervene
 
 The catalog examples register nine more drafter heads from trusted `.py` includes (`catalog/examples/*/helpers.py`); `DRAFTERS` resolves them on first use.
 
@@ -180,7 +180,7 @@ A drafter's dials are its keyword parameters: declared once, typed, defaulted in
 
 
 ## Seed matching
-Arms whose dial vectors differ only in `WORLD_INVARIANT_DIALS` draw byte-identical worlds and agent seeds, which is how a belief, framing, agent or budget contrast is paired by construction. Every brief- and agent-side dial is in the tuple, the observation dials `observability`, `observation_noise`, `sample_every` and the forgetting dials `compact_at`, `compact_budget`, `history_token_limit` included since `59934bf` (the Pilot's call; exp04-diagnose-zero, which sweeps `observability`, re-pinned). The episode clock `sim_steps` and `sim_dt` is deliberately absent (‡): the drafters that read it (`phase1_pressure`, `pressure_w2`, `diagnose`) draft a different world per level, so an axis over it is paired only when the spec lists it in `matched_dials`.
+Arms whose dial vectors differ only in `WORLD_INVARIANT_DIALS` draw byte-identical worlds and agent seeds, which is how a belief, framing, agent or budget contrast is paired by construction. Every brief- and agent-side dial is in the tuple, the observation dials `observability`, `observation_noise`, `sample_every` and the forgetting dials `compact_at`, `compact_budget`, `history_token_limit` included since `59934bf` (the Pilot's call; exp04-diagnose-zero, which sweeps `observability`, re-pinned). The episode clock `sim_steps` and `sim_dt` is deliberately absent (‡): the drafters that read it (`phase1_pressure`, `pressure_w2`, `diagnose`, `intervene`) draft a different world or oracle per level, so an axis over it is paired only when the spec lists it in `matched_dials`.
 
 
 
@@ -193,3 +193,4 @@ A live model is refused on a guarded drafter outright, and on any drafter when a
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `a068f1f` (read with `git show`; `drafters.py` last changed at `01fee6a`). The drafter bodies were read for their signatures, guards and returns only; their worlds are the generator docs'. Run against an export of that tree: the brief, episode and factory dials missing from `WORLD_INVARIANT_DIALS` are `compact_at`, `compact_budget`, `history_token_limit`, `observability`, `observation_noise`, `sample_every`, `sim_dt`, `sim_steps`. Not run: an observability sweep end to end (the world difference follows from `mass_trial.py` 590–594, which derives the trial seed from the label of every unmatched dial). Findings filed on T088.
 - 2026-10-28 — refreshed against 0eb23e5 (`59934bf`, `64988be`, `0cee5f0`, `c2bfa3c`): the observation and forgetting dials joined `WORLD_INVARIANT_DIALS`; `GUARDED_DRAFTERS`/`GUARDED_DIALS` are computed on every read; the `conflict` and `delta` questions; figure note follows.
+- 2026-10-28 — refreshed against `bf91515`: `diagnose` perturbs by default and always attaches the perturbation oracle; `intervene` reads the episode horizon, stamps both horizons and refuses an unreachable goal.

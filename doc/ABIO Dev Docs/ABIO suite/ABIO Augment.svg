@@ -67,8 +67,8 @@
     <rect id="n-out-box" x="980" y="160" width="200" height="100" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-out-name" x="1080" y="186" font-size="17" font-weight="600" text-anchor="middle">new WorldImpl</text>
     <text id="n-out-k1" x="1080" y="208" font-size="13" text-anchor="middle">"augmented" chemistry,</text>
-    <text id="n-out-k2" x="1080" y="226" font-size="13" text-anchor="middle">compartments only:</text>
-    <text id="n-out-k3" x="1080" y="244" font-size="13" text-anchor="middle">flows, pop. laws dropped</text>
+    <text id="n-out-k2" x="1080" y="226" font-size="13" text-anchor="middle">rebuild_world keeps</text>
+    <text id="n-out-k3" x="1080" y="244" font-size="13" text-anchor="middle">flows, pop. laws</text>
   </g>
   <line id="e-fe-out" x1="910" y1="235" x2="980" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
 

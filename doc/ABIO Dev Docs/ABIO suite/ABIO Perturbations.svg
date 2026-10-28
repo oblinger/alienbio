@@ -18,7 +18,7 @@
     <rect id="n-rate-box" x="320" y="60" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-rate-name" x="440" y="86" font-size="18" font-weight="600" text-anchor="middle">perturb_rate</text>
     <text id="n-rate-kind" x="440" y="108" font-size="14" text-anchor="middle">(fn) new ReactionImpl,</text>
-    <text id="n-rate-kind2" x="440" y="128" font-size="14" text-anchor="middle">rate · factor, no rate_law ‡</text>
+    <text id="n-rate-kind2" x="440" y="128" font-size="14" text-anchor="middle">rate · factor; rate_law × factor</text>
   </g>
   <g id="n-rm">
     <rect id="n-rm-box" x="320" y="230" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -40,15 +40,15 @@
     <rect id="n-rebuild-box" x="640" y="150" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-rebuild-name" x="765" y="176" font-size="18" font-weight="600" text-anchor="middle">_rebuild_world</text>
     <text id="n-rebuild-kind" x="765" y="198" font-size="14" text-anchor="middle">ChemistryImpl("perturbed"),</text>
-    <text id="n-rebuild-kind2" x="765" y="218" font-size="14" text-anchor="middle">WorldImpl(chem, comps) ‡</text>
+    <text id="n-rebuild-kind2" x="765" y="218" font-size="14" text-anchor="middle">rebuild_world(world, chem) ‡</text>
   </g>
   <line id="e-rate-rebuild" x1="560" y1="110" x2="660" y2="150" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <line id="e-rm-rebuild" x1="560" y1="260" x2="640" y2="215" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <g id="n-comp">
     <rect id="n-comp-box" x="640" y="400" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-comp-name" x="765" y="426" font-size="17" font-weight="600" text-anchor="middle">new Compartment</text>
-    <text id="n-comp-kind" x="765" y="448" font-size="14" text-anchor="middle">WorldImpl(chem, (comp,));</text>
-    <text id="n-comp-kind2" x="765" y="468" font-size="14" text-anchor="middle">chemistry shared ‡</text>
+    <text id="n-comp-kind" x="765" y="448" font-size="14" text-anchor="middle">rebuild_world(world, (comp,));</text>
+    <text id="n-comp-kind2" x="765" y="468" font-size="14" text-anchor="middle">chemistry shared</text>
   </g>
   <line id="e-spike-comp" x1="560" y1="440" x2="640" y2="440" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
 
@@ -56,7 +56,7 @@
     <rect id="n-out-box" x="960" y="270" width="220" height="100" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-out-name" x="1070" y="296" font-size="18" font-weight="600" text-anchor="middle">new WorldImpl</text>
     <text id="n-out-k1" x="1070" y="318" font-size="14" text-anchor="middle">flows and population</text>
-    <text id="n-out-k2" x="1070" y="338" font-size="14" text-anchor="middle">laws empty; input</text>
+    <text id="n-out-k2" x="1070" y="338" font-size="14" text-anchor="middle">laws kept; input</text>
     <text id="n-out-k3" x="1070" y="358" font-size="14" text-anchor="middle">never mutated</text>
   </g>
   <line id="e-rebuild-out" x1="890" y1="200" x2="980" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
@@ -75,6 +75,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
-    <text id="legend-dagger" x="340" y="646" font-size="14">‡ not carried over: flows, population laws, the edited reaction's rate_law, the chemistry's name</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ not carried over: the chemistry's name (it becomes "perturbed")</text>
   </g>
 </svg>

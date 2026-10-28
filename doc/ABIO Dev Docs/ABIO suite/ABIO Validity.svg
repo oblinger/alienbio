@@ -49,8 +49,8 @@
   <g id="n-isr">
     <rect id="n-isr-box" x="320" y="300" width="270" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-isr-name" x="455" y="326" font-size="17" font-weight="600" text-anchor="middle">is_shortcut_resistant</text>
-    <text id="n-isr-k1" x="455" y="348" font-size="13" text-anchor="middle">fails only on an exact</text>
-    <text id="n-isr-k2" x="455" y="366" font-size="13" text-anchor="middle">top-k = answer match ‡</text>
+    <text id="n-isr-k1" x="455" y="348" font-size="13" text-anchor="middle">fails when a top-k recovers</text>
+    <text id="n-isr-k2" x="455" y="366" font-size="13" text-anchor="middle">half the answer or more</text>
   </g>
   <line id="e-chem-isr" x1="240" y1="372" x2="320" y2="350" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-isr-heur" x1="455" y1="390" x2="455" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
@@ -73,6 +73,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
-    <text id="legend-dagger" x="340" y="646" font-size="14">‡ each gate tests less than its name: an absolute distance; an exact match</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ non_obvious_causal tests less than its name: an absolute distance only</text>
   </g>
 </svg>

@@ -30,10 +30,10 @@
 
   <g id="n-adj">
     <rect id="n-adj-box" x="320" y="320" width="250" height="100" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-adj-name" x="445" y="346" font-size="18" font-weight="600" text-anchor="middle">_adjacent(u, v)</text>
-    <text id="n-adj-k1" x="445" y="368" font-size="13" text-anchor="middle">bipartite neighbour, or one</text>
-    <text id="n-adj-k2" x="445" y="386" font-size="13" text-anchor="middle">reaction u → v (directed);</text>
-    <text id="n-adj-k3" x="445" y="404" font-size="13" text-anchor="middle">relation ignored ‡</text>
+    <text id="n-adj-name" x="445" y="346" font-size="18" font-weight="600" text-anchor="middle">_edge_holds(u, v, rel)</text>
+    <text id="n-adj-k1" x="445" y="368" font-size="13" text-anchor="middle">catalytic rel: a modifier;</text>
+    <text id="n-adj-k2" x="445" y="386" font-size="13" text-anchor="middle">else a side, or one reaction</text>
+    <text id="n-adj-k3" x="445" y="404" font-size="13" text-anchor="middle">u → v (directed) ‡</text>
   </g>
   <line id="e-carve-adj" x1="445" y1="220" x2="445" y2="320" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="l-carve-adj" x="455" y="275" font-size="13" fill="#1971c2" font-style="italic">edge_ok</text>
@@ -58,7 +58,7 @@
     <text id="n-splice-k1" x="780" y="368" font-size="13" text-anchor="middle">(fn) synth molecules; per edge</text>
     <text id="n-splice-k2" x="780" y="386" font-size="13" text-anchor="middle">not adjacent: modifier / product /</text>
     <text id="n-splice-k3" x="780" y="404" font-size="13" text-anchor="middle">reactant / rxn::u->v; rebuilt</text>
-    <text id="n-splice-k4" x="780" y="422" font-size="13" text-anchor="middle">reactions lose rate_law ‡</text>
+    <text id="n-splice-k4" x="780" y="422" font-size="13" text-anchor="middle">reactions keep rate_law</text>
   </g>
   <line id="e-res-splice" x1="830" y1="140" x2="830" y2="320" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-splice-adj" x1="650" y1="370" x2="570" y2="370" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
@@ -93,6 +93,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
-    <text id="legend-dagger" x="340" y="646" font-size="14">‡ a "catalyzes" edge binds onto a consumed reactant; a spliced reaction runs mass action</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ molecule↔molecule edges read _adjacent; carve and splice share the test</text>
   </g>
 </svg>

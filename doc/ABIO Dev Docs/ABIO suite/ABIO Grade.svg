@@ -33,12 +33,12 @@
   <g id="n-ns">
     <rect id="n-ns-box" x="640" y="30" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-ns-name" x="765" y="54" font-size="16" font-weight="600" text-anchor="middle">node_set</text>
-    <text id="n-ns-kind" x="765" y="74" font-size="13" text-anchor="middle">Jaccard on set(value) ‡</text>
+    <text id="n-ns-kind" x="765" y="74" font-size="13" text-anchor="middle">Jaccard on a list or set ‡</text>
   </g>
   <g id="n-op">
     <rect id="n-op-box" x="640" y="96" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-op-name" x="765" y="120" font-size="16" font-weight="600" text-anchor="middle">ordered_path</text>
-    <text id="n-op-kind" x="765" y="140" font-size="13" text-anchor="middle">equal, or prefix credit; list() ‡</text>
+    <text id="n-op-kind" x="765" y="140" font-size="13" text-anchor="middle">equal, or prefix credit; list ‡</text>
   </g>
   <g id="n-ni">
     <rect id="n-ni-box" x="640" y="162" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
@@ -48,7 +48,7 @@
   <g id="n-sc">
     <rect id="n-sc-box" x="640" y="228" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-sc-name" x="765" y="252" font-size="16" font-weight="600" text-anchor="middle">scalar</text>
-    <text id="n-sc-kind" x="765" y="272" font-size="13" text-anchor="middle">|a − k| ≤ tol; float() ‡</text>
+    <text id="n-sc-kind" x="765" y="272" font-size="13" text-anchor="middle">|a − k| ≤ tol; real number ‡</text>
   </g>
   <g id="n-js">
     <rect id="n-js-box" x="640" y="294" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
@@ -93,6 +93,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, raises</text>
-    <text id="legend-dagger" x="380" y="646" font-size="14">‡ the value's type is trusted: "m0" splits into {"m", "0"}; 7 raises</text>
+    <text id="legend-dagger" x="380" y="646" font-size="14">‡ shape checked (T088): a wrong shape raises MalformedAnswer, scored 0 with grade_error</text>
   </g>
 </svg>

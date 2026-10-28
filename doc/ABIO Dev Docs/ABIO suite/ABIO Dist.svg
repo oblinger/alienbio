@@ -63,7 +63,7 @@
     <rect id="n-tree-box" x="640" y="380" width="260" height="90" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-tree-name" x="770" y="406" font-size="17" font-weight="600" text-anchor="middle">nested dict / list</text>
     <text id="n-tree-k1" x="770" y="428" font-size="13" text-anchor="middle">{"a/b": U, "a": {"b": U}}</text>
-    <text id="n-tree-k2" x="770" y="448" font-size="13" text-anchor="middle">both paths "/a/b": same draw</text>
+    <text id="n-tree-k2" x="770" y="448" font-size="13" text-anchor="middle">paths "/a\/b" and "/a/b": two draws</text>
   </g>
   <line id="e-tree-ps" x1="770" y1="380" x2="770" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <g id="n-blocks">
@@ -82,6 +82,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">derives, implements</text>
-    <text id="legend-dagger" x="420" y="646" font-size="14">‡ the seed is the path string: "/a/b" twice, or "/0" key and index, is one draw</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ the seed is the path string: keys escaped, positions [i], no two leaves share one</text>
   </g>
 </svg>

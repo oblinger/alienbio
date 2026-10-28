@@ -28,7 +28,7 @@ Three functions; the private `_condition_label` writes a key as `name=value&name
     Drops error records, removes `agent` from each `bucket_key`, groups scores per remaining condition and agent, and for each condition with an `idle` arm returns `(label, live_agent, live_mean, idle_mean, n)` per other agent. `n` is `min(len(live), len(idle))`: with five live trials and one idle it reads 1. Records with no `agent` on their key are skipped. ^idle-baseline-comparison
 
 **primary_contrast_result**`(rmap: ReliabilityMap, contrast: Mapping[str, Any]) -> Optional[dict[str, Any]]`
-    Pools every non-error record whose `bucket_key` has `axis == low` against every one with `axis == high`, all other dials pooled, and returns `{cohens_d, welch_t, n_low, n_high}` (high minus low). `None` when a side has fewer than two scores or `cohens_d` raises on zero pooled variance. § [The design block](#the-design-block). ^primary-contrast-result
+    Pools every non-error record whose `bucket_key` has `axis == low` against every one with `axis == high`, all other dials pooled and the idle twin excluded unless `axis` is `agent` (T088), and returns `{cohens_d, welch_t, n_low, n_high}` (high minus low). `None` when a side has fewer than two scores or `cohens_d` raises on zero pooled variance. § [The design block](#the-design-block). ^primary-contrast-result
 
 
 
@@ -60,10 +60,11 @@ Fixed, top to bottom; a family section prints only when its summary returns rows
 ## The design block
 Printed when the manifest carries `design` (`power.PowerDesign.to_dict`). The verdict is `ok` when the spec's `trials_per_condition` is at least `required_trials_per_condition`, and `UNDERPOWERED` otherwise, including when either is missing. `alpha_used` is `alpha / len(rmap.contrasts)` under `bonferroni`; it is printed and compared with nothing, since no p-value is computed anywhere in the report.
 
-The primary contrast pools every other swept dial, the `agent` axis included. Every catalog spec that declares one also sets `idle_baseline: true`, so the idle twin's records sit on both sides of the contrast: two live trials per side at scores 0/0.1 and 1/0.9 give `d = 12.7`; adding two idle zeros per side gives `d = 1.15` from the same live arm.
+The primary contrast pools every other swept dial but drops records with `agent == "idle"` from both sides unless the contrast's axis is `agent` (T088 report_text 1). Every catalog spec that declares one also sets `idle_baseline: true`; before the fix the idle twin sat on both sides: two live trials per side at scores 0/0.1 and 1/0.9 give `d = 12.7`, and adding two idle zeros per side read `d = 1.15` from the same live arm.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the idle pooling in `primary_contrast_result` and the `min` n of `idle_baseline_comparison` confirmed on duck-typed records against the HEAD export, the catalog's `idle_baseline` + `primary_contrast` pairing by `git grep`, no spend. Left out: each family's own columns (on its module doc) and the figure and `bio report` pages (`plots.py`, `report.py`).
+- 2026-10-28 — refreshed against `abb5796`: `primary_contrast_result` excludes the idle twin unless the axis is `agent`.

@@ -47,7 +47,7 @@
     <rect id="g3-box" x="302" y="224" width="396" height="60" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
     <text id="g3-label" x="314" y="242" font-size="15" font-weight="600">outcome</text>
     <text id="g3-l1" x="314" y="262" font-size="14">terminal_reason · objective_score · answer · aborted†</text>
-    <text id="g3-l2" x="314" y="278" font-size="14">final_state · oracle · taint_hits · error</text>
+    <text id="g3-l2" x="314" y="278" font-size="14">final_state · oracle · taint_hits · error · grade_error†</text>
 
     <rect id="g4-box" x="302" y="288" width="396" height="42" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
     <text id="g4-label" x="314" y="306" font-size="15" font-weight="600">instrument extras</text>

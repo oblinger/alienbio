@@ -54,7 +54,7 @@
     <rect id="n-pc-box" x="610" y="460" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-pc-name" x="735" y="486" font-size="17" font-weight="600" text-anchor="middle">primary_contrast_result</text>
     <text id="n-pc-kind" x="735" y="508" font-size="14" text-anchor="middle">(fn) low vs high, other</text>
-    <text id="n-pc-kind2" x="735" y="528" font-size="14" text-anchor="middle">dials pooled, idle too ‡</text>
+    <text id="n-pc-kind2" x="735" y="528" font-size="14" text-anchor="middle">dials pooled, idle out ‡</text>
   </g>
   <line id="e-design-pc" x1="735" y1="410" x2="735" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <g id="n-es">
@@ -93,6 +93,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
-    <text id="legend-dagger" x="340" y="646" font-size="14">‡ the idle twin sits on both sides of the contrast; n reads the smaller arm</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ the idle twin is kept out of the contrast (T088); n reads the smaller arm</text>
   </g>
 </svg>

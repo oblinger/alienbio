@@ -13,7 +13,7 @@ The compiled form of a rate law: a small tree of tuples, built once from the rat
 
 
 ## rate_expr Interface
-Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and the twelve functions (the two constants since 2026-10); the constants are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers and `inhibitor_ratio` are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` by name.
+Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and thirteen functions (the two constants since 2026-10, `inhibitor_ratio` since `bf91515`); the constants are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` by name.
 
 | rate_expr | |
 | --- | --- |
@@ -45,7 +45,7 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
     Returns `("species", name)`. The name is not checked: it is a pool name straight out of the compiler, a molecule name on a `ReactionImpl`, or a molecule id on a `ReactionSpec`, depending on which [[#^map-species|map_species]] pass the tree has been through. ^species
 
 **modulation**`(kind: str, pool: Hashable, params: Mapping[str, float]) -> RateNode`
-    Returns `("mod", kind, pool, params)` with every parameter coerced to `float` into a new dict. `ValueError` when `kind` is not in `MODULATION_KINDS`. Does not check that the kind's required parameter is present and fills no defaults; a missing `a`, `Ki` or `K` surfaces as `KeyError` at evaluation ([[#Modulation factors]]). ^modulation
+    Returns `("mod", kind, pool, params)` with every parameter coerced to `float` into a new dict. `ValueError` when `kind` is not in `MODULATION_KINDS`, or when a `Ki` is negative or NaN (as `Modulation` refuses it; such a `Ki` built an inhibitor that activates, T088). Does not check that the kind's required parameter is present and fills no defaults; a missing `a`, `Ki` or `K` surfaces as `KeyError` at evaluation ([[#Modulation factors]]). ^modulation
 
 **MODULATION_KINDS**`= ("activator", "inhibitor", "michaelis", "hill")`
     The kinds [[#^modulation|modulation]] accepts, the same four `Modulation` kinds `bio/reaction.py` implements and `suite/rate_law.py`'s `MODULATION_HEADS` compiles. ^modulation-kinds
@@ -136,7 +136,7 @@ A law that names a reactant is the whole rate (`Vmax * S / (Km + S)` over substr
 | Kind | Needs | Factor at `m` | Default |
 | --- | --- | --- | --- |
 | `activator` | `a` | `1 + a·m` | — |
-| `inhibitor` | `Ki` | `1 / (1 + m/Ki)`; 1 at `m = 0`, 0 for `m > 0` when `Ki = 0` | — |
+| `inhibitor` | `Ki ≥ 0` | `1 / (1 + m/Ki)`; 1 at `m = 0`, 0 for `m > 0` when `Ki = 0` | — |
 | `michaelis` | `K` | `Vmax·m / (K + m)`; 0 when `K + m ≤ 0` | `Vmax = 1.0` |
 | `hill` | `K` | `Vmax·mⁿ / (Kⁿ + mⁿ)`; 0 when the denominator ≤ 0 | `Vmax = 1.0`, `n = 2.0` |
 
@@ -176,3 +176,4 @@ The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_referenc
 - 2026-10-18 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `bio/rate_expr.py`, `suite/rate_law.py`, `suite/expr_heads.py`, `bio/reaction.py`, `bio/world_simulator.py`, `bio/jax_core.py` and the two parity tests. The node grammar has no class, so it is a Semantics section and the page has one Interface section. Left out: the private `_lower_modulation`, `_BINARY` and `_UNARY`, named in prose only. The edge cases in § One tree, two evaluators were reproduced against HEAD for `eval_rate` (`0.0 ** -1.0` raises, `(-1e-13) ** 0.5` is complex, `hill` with `n = -1` at 0 raises), not fixed; the JAX column is read from the code, not run. The module docstring's "the modulation math is exactly `WorldSimulatorImpl._modulation_factor`'s" holds for the arithmetic but not for a missing parameter: this module defaults `Vmax = 1.0`, `n = 2.0` (`rate_expr.py:108,110,113`) where the modulator path treats a missing field as inert (`world_simulator.py:317–332`); unreachable from compiled worlds because `rate_law._MODULATION_DEFAULTS` fills both. `suite/rate_law.py`'s numeric `hill`/`michaelis` heads guard with `if (K or m)` rather than this module's `denom > 0`, so they differ on a negative denominator.
 - 2026-10-27 — the findings above fixed: `ieee_pow`/`ieee_div`/`ieee_exp` (the reference reads an undefined operation as JAX does), `from_json` checks a tuple tree, every walker refuses an unknown tag with `ValueError`, and `suite/rate_law.py`'s numeric `hill`/`michaelis` heads guard on `denom > 0` like this module.
 - 2026-10-28 — refreshed against 0eb23e5: `inhibitor_ratio` (`40c5c09`, the `Ki = 0` perfect-inhibitor limit) given a block and index row; `modulation_factor`, the factor table and the parity table follow. Figure still true.
+- 2026-10-28 — refreshed against `bf91515`: `modulation()` refuses a negative or NaN `Ki`; `inhibitor_ratio` is exported. Figure still true.

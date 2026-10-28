@@ -33,9 +33,9 @@
   <g id="n-ci">
     <rect id="n-ci-box" x="300" y="220" width="260" height="96" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-ci-name" x="430" y="246" font-size="17" font-weight="600" text-anchor="middle">mean_confidence_interval</text>
-    <text id="n-ci-k1" x="430" y="268" font-size="13" text-anchor="middle">(fn) mean ± z · se,</text>
-    <text id="n-ci-k2" x="430" y="286" font-size="13" text-anchor="middle">z = 1.96 always ‡</text>
-    <text id="n-ci-k3" x="430" y="304" font-size="13" text-anchor="middle">covers 81 % at n = 3</text>
+    <text id="n-ci-k1" x="430" y="268" font-size="13" text-anchor="middle">(fn) mean ± c · se,</text>
+    <text id="n-ci-k2" x="430" y="286" font-size="13" text-anchor="middle">c = t quantile, n − 1 df ‡</text>
+    <text id="n-ci-k3" x="430" y="304" font-size="13" text-anchor="middle">covers 95 % at any n</text>
   </g>
   <line id="e-ci-se" x1="300" y1="300" x2="220" y2="330" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <line id="e-ci-mean" x1="330" y1="220" x2="220" y2="80" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
@@ -103,6 +103,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
-    <text id="legend-dagger" x="340" y="646" font-size="14">‡ the normal z at 3 trials per condition: a nominal 95 % interval covers 81 %</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ T088: was the normal z, which at 3 trials per condition covered 81 %, not 95 %</text>
   </g>
 </svg>

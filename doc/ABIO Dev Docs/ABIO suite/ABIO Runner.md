@@ -137,7 +137,7 @@ Before turn 0, `run` resolves the episode dials and the `Budget`, narrows the in
 
 `Measure` and `Wait` change nothing in the world; a `Wait`'s `duration` is not read, since every turn already plays one fixed burst. Time passes every turn whatever the agent did, rejected actions included. The persistent `chemistry` and `state` are only ever rebound to new objects, never mutated, which is what keeps two `run` calls on the same `world` independent. The timeline keeps every sample of every burst, dropping each later burst's first sample (it duplicates the previous turn's last), with times offset by the elapsed simulated time.
 
-After the loop: the score is `grade_answer` for a committed `AnswerObjective` (0.0 when the committed value is `None`, the abort sentinel `LLMAgent` commits on a token ceiling or parse exhaustion), `grade_outcome` on the final timeline for an `OutcomeObjective` whether or not the agent committed, and 0.0 for an `AnswerObjective` that never committed. Then `audit_prompts`, then the oracle (`task.setup["oracle"]` plus the monitoring dial's actual side), then the record; a non-empty `taint_hits` raises `TaintError` instead of returning.
+After the loop: the score is `grade_answer` for a committed `AnswerObjective` (0.0 when the committed value is `None`, the abort sentinel `LLMAgent` commits on a token ceiling or parse exhaustion; 0.0 with the message on `grade_error` when the answer's shape does not fit the grader kind and `grade_answer` raises `MalformedAnswer`, T088), `grade_outcome` on the final timeline for an `OutcomeObjective` whether or not the agent committed, and 0.0 for an `AnswerObjective` that never committed. Then `audit_prompts`, then the oracle (`task.setup["oracle"]` plus the monitoring dial's actual side), then the record; a non-empty `taint_hits` raises `TaintError` instead of returning.
 
 
 
@@ -252,6 +252,7 @@ Configuration errors raise plain `ValueError` before turn 0, outside the error h
 | `name_map` | structural → surface, empty when names were not opaque |
 | `usage`, `compaction`, `forgetting` | read off the agent by `getattr`, `None` when absent |
 | `parse_failures`, `aborted` | the LLM agent's schema-failure count and abort tag, read only when they carry the agent's own types (`0` / `None` otherwise, then not written) |
+| `grade_error` | the `MalformedAnswer` message of a wrong-shaped commit |
 
 The record also carries the brief, the answer (`{"value", "kind"}` or `None`), `final_state`, the oracle, `wall_time_s` (perf-counter from entry) and the budget figures.
 
@@ -282,3 +283,4 @@ The monitor's `logs_turn` and `shows_turn` derive their own draws from the seed 
 # BRIEF
 - 2026-10-19 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `suite/runner.py`, with the seams checked against `agent.py`, `brief.py`, `naming.py`, `observation.py`, `trial.py`, `verify.py`, `monitor.py`, `llm_agent.py` (probe metering), `mass_trial.py` (error landing) and `tests/suite/test_runner.py` / `test_hidden_pool_levers.py`. Left out as members: the private helpers `_world_from_state`, `_chemistry_with_rate`, `_state_with_concentration`, `_state_scaled`, `_action_cost`, `_is_finite_number`, `_parse_probes`, `_projected_key`, `_leaf_strings`, `_mock_dat` and the unit sets — named in prose where a reader needs them. `Budget.unit`'s "turns" meters action cost, not turns; stated as the source has it. The figure's "validate action" and "stop check" nodes name inline blocks of `run`, not symbols. The `ABIO suite/` folder did not exist and was created for this page.
 - 2026-10-28 — refreshed against 0eb23e5: blocks added for `trial_preamble`/`TrialPreamble` (`131609f`), `resolve_int_dial` (public since `f95c6cf`) and `certainty_slice_problem`; `probe` receives the turn's observation and the record carries `parse_failures`/`aborted` (`01fee6a`).
+- 2026-10-28 — refreshed against `552c1a7`: the grading block catches `MalformedAnswer` — score 0, message on `grade_error`.

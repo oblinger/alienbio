@@ -55,10 +55,11 @@ The hidden set is drawn over all molecule ids, including the drafter's structura
 
 
 ## Noise
-The multiplier `max(0, 1 + N(0, σ))` keeps values non-negative at the cost of zero mean. Measured over 20 000 draws on a value of 1: σ = 0.1 reads mean 1.0002 and never 0; σ = 0.5 reads 1.0052 and 0 in 2.1 % of draws; σ = 1.0 reads 1.083 and 0 in 15.7 %. A true zero stays zero at every σ.
+The multiplier `max(0, 1 + N(0, σ))` keeps values non-negative at the cost of zero mean. Measured over 20 000 draws on a value of 1: σ = 0.1 reads mean 1.0002 and never 0; σ = 0.5 reads 1.0052 and 0 in 2.1 % of draws; σ = 1.0 reads 1.083 and 0 in 15.7 %. A true zero stays zero at every σ. Kept as drawn (T088 observation 1, the docstring now states the bias): `observation_noise` is a dial AUP's registrations license, and their records were taken on this draw.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and the runner's call sites (`runner.py` ~538, ~822); the noise bias and zero mass measured with `add_measurement_noise` on the HEAD export, no spend. Left out: the auditor block and the name map, on their own docs.
+- 2026-10-28 — refreshed against `0377846`: the bias is now stated in the source docstring and kept as drawn; no behaviour change.

@@ -1,5 +1,5 @@
 ---
-description: "`boundedness`: the opt-in F019 homeostasis gate — `static_bounded_fate` flags pools that are produced but never a reactant, `repair_static` gives each a dilution sink, `simulate_boundedness` classifies every pool's growth over a trailing window, `check_boundedness` runs both into a `BoundednessReport`. Source: `src/alienbio/suite/boundedness.py`."
+description: "`boundedness`: the opt-in F019 homeostasis gate — `static_bounded_fate` flags pools that are produced but never a reactant and fed by a boundary source, `repair_static` gives each a dilution sink, `simulate_boundedness` classifies every pool's growth over a trailing window, `check_boundedness` runs both into a `BoundednessReport`. Source: `src/alienbio/suite/boundedness.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Boundedness](ha://p/ABIO%20Boundedness) 
 # ABIO Boundedness
@@ -17,13 +17,13 @@ Four functions; the defaults are module constants `_DEFAULT_THETA = 10.0`, `_DEF
 
 | boundedness | |
 | --- | --- |
-| [static_bounded_fate](#^static-bounded-fate) | Pools produced but never consumed |
+| [static_bounded_fate](#^static-bounded-fate) | Source-fed pools produced but never consumed |
 | [repair_static](#^repair-static) | Add a dilution sink per flagged pool |
 | [simulate_boundedness](#^simulate-boundedness) | Classify each pool over the window |
 | [check_boundedness](#^check-boundedness) | Both layers in one report |
 
 **static_bounded_fate**`(chemistry: ChemistryImpl) -> list[UnboundedPool]`
-    Collects every molecule that is a product of some reaction (a boundary source `∅ → X` included) and a reactant of none, sorted by name, each with a reason naming the producing reactions. Reads `chemistry.reactions` only: modifiers, flows and population laws count neither way. § [The two layers](#the-two-layers). ^static-bounded-fate
+    Collects every molecule that is a product of some reaction, a reactant of none, and fed by a boundary source (a reaction with no reactants, `∅ → X`) directly or through a chain of reactions, sorted by name, each with a reason naming the producing reactions. Reads `chemistry.reactions` only: modifiers, flows and population laws count neither way. § [The two layers](#the-two-layers). ^static-bounded-fate
 
 **repair_static**`(chemistry: ChemistryImpl, *, rate: float = 0.01) -> ChemistryImpl`
     Returns `chemistry` itself when nothing is flagged; otherwise a new chemistry named `f"{local_name}_bounded"` with one `pool → ∅` reaction `_boundedness/<pool>_dilution` at `rate` per flagged pool, molecules and atoms copied. Raises `ValueError` when that id already exists. Returns a chemistry, not a world: compartments, flows and population laws are the caller's to rebuild. ^repair-static
@@ -104,9 +104,9 @@ A frozen dataclass: one molecule's dynamic classification.
 # Boundedness Semantics
 
 ## The two layers
-The static walk is per molecule, not per compartment, and reads stoichiometry alone. It is a necessary condition for an open system: a pool that is only ever produced grows while its producer runs. It misreads two shapes. A closed world's terminal product is flagged although mass conservation bounds it: `a → b → c` from `a = 1` with no source flags `c`. And a pool consumed only by a population law (a growth law's resource) is flagged although it has a fate, since population laws are not reactions. An autocatalytic `x → 2x` passes the walk, `x` being a reactant; only the dynamic layer catches it.
+The static walk is per molecule, not per compartment, and reads stoichiometry alone. It is a necessary condition for an open system: a pool that is only ever produced grows while its producer runs. A closed world's terminal product is not flagged: `a → b → c` from `a = 1` with no source leaves `c` unflagged, mass conservation bounding it (T088 boundedness 1). It still misreads one shape: a source-fed pool consumed only by a population law (a growth law's resource) is flagged although it has a fate, since population laws are not reactions. An autocatalytic `x → 2x` passes the walk, `x` being a reactant; only the dynamic layer catches it.
 
-The dynamic layer compares two samples, not a trend. A pool that is zero at the window's start and positive at the end reads as diverging (the floor makes the factor huge), and a pool already near zero that keeps decaying reads as collapsing: the same batch world flags `a` (1.4e-7 → 7e-10) and `b` as collapsing. `window = 0` puts the start at the final sample, so every factor is 1 and every pool reads bounded.
+The dynamic layer compares two samples, not a trend. A pool that is zero at the window's start and positive at the end reads as diverging (the floor makes the factor huge), and a pool already near zero that keeps decaying reads as collapsing: the batch world `a → b → c` flags `a` (1.4e-7 → 7e-10) and `b` as collapsing. `window = 0` puts the start at the final sample, so every factor is 1 and every pool reads bounded.
 
 
 
@@ -118,3 +118,4 @@ F019 Q2 = C: a static accumulator has one unambiguous fix, a dilution sink, so `
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the closed-batch false flags (static `c`, collapsing `a` and `b`) and the vacuous `window = 0` confirmed by running `check_boundedness` on a three-pool world from the HEAD export, no spend. Consumer census: `catalog/examples/organism/helpers.py` and `tests/suite/test_boundedness.py`. Not determined: whether any generator should call it (T088 § suite/boundedness).
+- 2026-10-28 — refreshed against `9db219f`: the static walk flags a produced-never-consumed pool only when a boundary source feeds it, so a closed world's terminal product is no longer flagged.

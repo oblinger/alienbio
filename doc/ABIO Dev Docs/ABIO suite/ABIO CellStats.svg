@@ -71,6 +71,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">reads</text>
-    <text id="legend-dagger" x="340" y="646" font-size="14">‡ keys equal under == share a cell: flag=True, flag=1 and flag=1.0 are one row</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ keys equal under == but of different leaf types (flag=True, flag=1, flag=1.0) refuse</text>
   </g>
 </svg>

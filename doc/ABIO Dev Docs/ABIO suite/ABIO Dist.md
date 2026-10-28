@@ -6,7 +6,7 @@ description: "`dist`: the suite's sampling seam — `Seed` (an int with SHA-256 
 The determinism root of the framework: every seed in a run is a `Seed` derived from the spec's base seed by labelled SHA-256 children, and every randomized parameter is a `Dist` sampled from one.
 
 ![ABIO Dist](ABIO%20Dist.svg) 
-*Path seeds* is the topic behind `ParamSchema` (‡: two leaves whose paths spell the same string draw the same value).
+*Path seeds* is the topic behind `ParamSchema` (‡: keys are escaped and positions spelled `[i]`, so no two leaves share a path).
 
 `suite/dist.py` is imported by about forty suite modules. The run's root is `Seed(spec.base_seed)` in `run_experiment`; trials, turns, observation and noise draws, brief filler and every generator take labelled children of it ([ABIO MassTrialRunner](ABIO%20MassTrialRunner.md), [ABIO Runner](ABIO%20Runner.md), [ABIO Observation](ABIO%20Observation.md)). The block library holds its rate holes as `Dist`s and samples them under each block's seed ([ABIO Blocks](ABIO%20Blocks.md), [ABIO Skeleton](ABIO%20Skeleton.md)); the pressure, W2, phase-1 and delta generators do the same ([ABIO PressureGen](ABIO%20PressureGen.md), [ABIO W2Gen](ABIO%20W2Gen.md)). The Expr environment seeds from it ([ABIO Env](../ABIO%20expr%20Modules/ABIO%20Env.md)). Every name is re-exported from `alienbio.suite`. The subsystem view is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
 
@@ -68,7 +68,7 @@ The tree sampler.
 | [ParamSchema](#^paramschema) | A nested tree sampled by path |
 
 **ParamSchema**`(tree: Any)` with `sample(seed) -> Any`
-    Walks dicts, lists and tuples; each `Dist` leaf is sampled with `seed.child(path)`, the path being `/key` and `/index` segments joined from the root; other leaves pass through. Order-independent. No caller in `src/` outside the re-export. ^paramschema
+    Walks dicts, lists and tuples; each `Dist` leaf is sampled with `seed.child(path)`, the path being `/key` segments (`\`, `/` and `[` escaped) and `[index]` segments joined from the root; other leaves pass through. Order-independent. No caller in `src/` outside the re-export. ^paramschema
 
 
 
@@ -76,7 +76,7 @@ The tree sampler.
 # Dist Semantics
 
 ## Path seeds
-A leaf's seed depends only on its path string, so leaves whose paths spell the same string are the same draw: `{"a/b": Uniform(0, 1), "a": {"b": Uniform(0, 1)}}` sampled both as 0.4437, and a dict key `"0"` collides with list index `0` (`{"0": U}` and `[U]` both read 0.1159). The `Dist` test is the runtime protocol, which only checks for a `sample` attribute, so any object with one (a nested `ParamSchema`, or a pandas DataFrame) is sampled rather than passed through.
+A leaf's seed depends only on its path string, and no two places spell the same one (T088 dist 1): `{"a/b": U, "a": {"b": U}}` seeds `/a\/b` and `/a/b`, two independent draws, and a dict key `"0"` (`/0`) is not list index `0` (`[0]`). The change moved every draw of a schema holding a list or a key with `\`, `/` or `[`; no `src/` caller existed to re-pin. The `Dist` test is the runtime protocol, which only checks for a `sample` attribute, so any object with one (a nested `ParamSchema`, or a pandas DataFrame) is sampled rather than passed through.
 
 
 
@@ -88,3 +88,4 @@ Reproducibility rests on every caller spelling its child labels the same way acr
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the path collisions and the negative-seed refusal confirmed on the HEAD export, the importer count by `git grep`, no spend.
+- 2026-10-28 — refreshed against `9db219f`: `ParamSchema` paths escape keys and spell positions `[i]`, so the key-path and key-vs-index collisions are gone.

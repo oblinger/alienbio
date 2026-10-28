@@ -216,6 +216,7 @@ The module's free names besides the six classes. Nothing here is re-exported by 
 | [[#^build-tree\|build_tree]] | Records → integer tree and id map |
 | [[#^nodeid\|NodeId]] | Alias for a compartment's string id |
 | [[#^populationlawspec\|PopulationLawSpec]] | Any of the three law records |
+| [[#^rebuild-world\|rebuild_world]] | Swap chemistry or compartments, keep flows and laws |
 
 **build_tree**`(compartments: tuple[Compartment, ...]) -> tuple[CompartmentTreeImpl, dict[NodeId, int]]`
     Build a `CompartmentTreeImpl` whose node names are the record ids, and return it with the `id → integer` map. The root gets 0; the rest follow in the order described in [[#The compartment tree]]. `ValueError` when there is not exactly one record with `parent=None`, or when some record cannot be reached from the root (a missing parent, a cycle, a self-parent). Reads only `id` and `parent`. Called by `WorldImpl.__init__` and nothing else in `src/` or `tests/`. ^build-tree
@@ -225,6 +226,9 @@ The module's free names besides the six classes. Nothing here is re-exported by 
 
 **PopulationLawSpec**`= Union[GrowthLaw, DeathLaw, CountFlowSpec]`
     The type of a `population_laws` entry. ^populationlawspec
+
+**rebuild_world**`(world: WorldImpl, chemistry: Optional[ChemistryImpl] = None, compartments: Optional[tuple[Compartment, ...]] = None) -> WorldImpl`
+    A new world with `chemistry` and/or `compartments` swapped in and `world`'s `flows` and `population_laws` carried, re-resolved by the constructor. The rebuild `perturbations`, `augment` and `arch_diagnose.perturb_reaction_rate` call (T088: they called `WorldImpl(chem, compartments)` and dropped both). ^rebuild-world
 
 
 
@@ -275,7 +279,7 @@ Every path ends in this constructor; they differ in what they pass.
 | `world` head | `suite/expr_heads.py` | `materialize`'s, with `initial:` overlaid on one record | carried |
 | `_world_from_state` | `suite/runner.py` | each turn, the records refilled from the last end state | carried |
 | the single-compartment drafters | `suite/arch_diagnose.py`, `arch_predict.py`, `arch_intervene.py`, `pipeline.py` | one record | none |
-| the rebuilders | `suite/perturbations.py`, `augment.py`, `arch_diagnose.perturb_reaction_rate`, `drafters.py` (the discover drafter) | `world.compartments` | **dropped** |
+| `rebuild_world` | `suite/perturbations.py`, `augment.py`, `arch_diagnose.perturb_reaction_rate`, the discover drafter's `_world` | `world.compartments`, or the edited records (the catalyst added, on discover) | carried |
 
 The per-turn rebuild gets the same integer ids every turn: it passes the records in the state's row order, which names every parent before its children, so `build_tree` assigns rows in one round in that order. The `mk` makers build the chemistry (`mk.C`), not the world.
 
@@ -294,3 +298,4 @@ A world is changed by building a new one. `__slots__` and getter-only properties
 # BRIEF
 - 2026-10-18 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `bio/world.py`, `compartment_tree.py`, `world_state.py`, `flow.py`, `population.py`, `suite/skeleton.py`, `expr_heads.py`, `runner.py`, `verify.py` and the rebuilders. Left out: `__repr__`, and the dataclasses' generated constructors, which are their field lists. Constructor block id is `^init`. `CompartmentImpl` (`bio/compartment.py`), named in the module docstring as a precedent, is the M1 entity and is not on this path, so it is not drawn. The duplicate-id `KeyError` was reproduced against HEAD; the rebuilders dropping flows and laws, and `alienbio.bio` not exporting `WorldImpl` while its docstring lists it, were read from the source; none fixed.
 - 2026-10-28 — refreshed against 0eb23e5: the constructor block no longer says a duplicate compartment id surfaces as a bare `KeyError` (`build_tree` names it since `235377b`, as § The compartment tree already said). Figure still true.
+- 2026-10-28 — refreshed against `b32d46b`: new module function `rebuild_world` (carries flows and population laws) given a block and index row; the rebuilders row now carries them (the discover drafter's `_world` too, at the round's last commit). Figure still true.

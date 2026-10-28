@@ -28,7 +28,7 @@ One alias and two functions.
     `n_species`, `n_reactions`, and `mean_degree` — the mean over molecules and reactions of `len(chem.neighbors(node))` (0 for an empty chemistry). ^graph-stats
 
 **augment**`(world: WorldImpl, target_stats: TargetStats, protected: set[NodeId], seed: Seed = Seed(0), max_iters: int = 10_000) -> WorldImpl`
-    Runs the fill loop, logs a warning naming every statistic still off target, and returns `WorldImpl(augmented_chemistry, world.compartments)`; filler molecules start at 0. `protected` only keeps fresh ids from colliding with it; no existing node is touched either way. ^augment
+    Runs the fill loop, logs a warning naming every statistic still off target, and returns `rebuild_world(world, augmented_chemistry)`; filler molecules start at 0. `protected` only keeps fresh ids from colliding with it; no existing node is touched either way. ^augment
 
 
 
@@ -41,10 +41,11 @@ Each iteration recomputes the statistics over a fresh `ChemistryImpl` and takes 
 
 
 ## What the returned world keeps
-The result is built from the chemistry and `compartments` only, so `world.flows` and `world.population_laws` are dropped, as in [ABIO Perturbations](ABIO%20Perturbations.md). The chemistry is renamed `"augmented"`.
+The result is [`rebuild_world`](../ABIO%20bio/ABIO%20WorldImpl.md)`(world, augmented_chemistry)` (T088): compartments, `world.flows` and `world.population_laws` are kept, as in [ABIO Perturbations](ABIO%20Perturbations.md); a filler edge rebuilds its reaction through `rebuild_reaction`, keeping `rate_law` and description. The chemistry is renamed `"augmented"`.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the silent typo and the unreachable lower target confirmed on a two-molecule world from the HEAD export, no spend. Consumer census: `tests/suite/test_augment.py` and the re-export only.
+- 2026-10-28 — refreshed against `b32d46b`: the returned world comes from `rebuild_world`, so flows and population laws survive; filler edges rebuild via `rebuild_reaction`.

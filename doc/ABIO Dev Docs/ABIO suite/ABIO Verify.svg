@@ -82,6 +82,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
-    <text id="legend-dagger" x="340" y="646" font-size="14">‡ unvalidated: sample_every 0 raises a bare ZeroDivisionError</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ validated at construction: dt positive finite, steps and sample_every positive ints</text>
   </g>
 </svg>

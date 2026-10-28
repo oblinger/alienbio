@@ -1,19 +1,19 @@
 ---
-description: "`effect_size` + `stats_summary`: M34.3's closed-form statistics, one page because they are one family — single-sample `sample_mean`/`_variance`/`_std`, `standard_error`, `mean_confidence_interval` (normal z), and two-sample `mean_difference`, `cohens_d`, `welch_t`. Sources: `src/alienbio/suite/effect_size.py`, `src/alienbio/suite/stats_summary.py`."
+description: "`effect_size` + `stats_summary`: M34.3's closed-form statistics, one page because they are one family — single-sample `sample_mean`/`_variance`/`_std`, `standard_error`, `mean_confidence_interval` (Student-t by default), `t_critical`, and two-sample `mean_difference`, `cohens_d`, `welch_t`. Sources: `src/alienbio/suite/effect_size.py`, `src/alienbio/suite/stats_summary.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Stats](ha://p/ABIO%20Stats) 
 # ABIO Stats
 The suite's descriptive and two-sample statistics: means, variances and a confidence interval over one sample, and the mean difference, Cohen's d and Welch's t between two.
 
 ![ABIO Stats](ABIO%20Stats.svg) 
-*The critical value* is the topic behind `mean_confidence_interval` (‡: every caller takes the default normal z, so the interval is narrow at the n a run has).
+*The critical value* is the topic behind `mean_confidence_interval` (‡: every caller takes the default, the Student-t quantile at `n − 1` df since T088; it was the normal z, narrow at the n a run has).
 
-The two modules are documented together: both are M34.3, both are pure closed-form arithmetic with `n − 1` variances and no randomness, and their callers are the same few analysis modules. `mean_confidence_interval` gives every interval the report prints: the per-cell CIs of the reliability map ([ABIO MassTrialRunner](ABIO%20MassTrialRunner.md)), the side-product distribution ([ABIO Census](ABIO%20Census.md)) and the dose figure's error bars ([ABIO KeyFigure](ABIO%20KeyFigure.md)). `cohens_d` and `welch_t` give the map's pairwise contrasts and the primary contrast ([ABIO ReportText](ABIO%20ReportText.md)); [ABIO PowerDesign](ABIO%20PowerDesign.md) sizes runs for them. Every function is re-exported from `alienbio.suite`. The subsystem view is [ABIO-Analysis](../../ABIO%20Architecture/ABIO-Analysis.md).
+The two modules are documented together: both are M34.3, both are pure closed-form arithmetic with `n − 1` variances and no randomness, and their callers are the same few analysis modules. `mean_confidence_interval` gives every interval the report prints: the per-cell CIs of the reliability map ([ABIO MassTrialRunner](ABIO%20MassTrialRunner.md)), the side-product distribution ([ABIO Census](ABIO%20Census.md)) and the dose figure's error bars ([ABIO KeyFigure](ABIO%20KeyFigure.md)). `cohens_d` and `welch_t` give the map's pairwise contrasts and the primary contrast ([ABIO ReportText](ABIO%20ReportText.md)); [ABIO PowerDesign](ABIO%20PowerDesign.md) sizes runs for them. Every function but `t_critical` is re-exported from `alienbio.suite`. The subsystem view is [ABIO-Analysis](../../ABIO%20Architecture/ABIO-Analysis.md).
 
 
 
 ## stats_summary Interface
-Five functions over one `Sequence[float]`.
+Five functions over one `Sequence[float]`, and the t quantile.
 
 | stats_summary | |
 | --- | --- |
@@ -21,7 +21,8 @@ Five functions over one `Sequence[float]`.
 | [sample_variance](#^sample-variance) | Unbiased variance |
 | [sample_std](#^sample-std) | Its square root |
 | [standard_error](#^standard-error) | Standard deviation over √n |
-| [mean_confidence_interval](#^mean-confidence-interval) | Mean ± z · SE |
+| [mean_confidence_interval](#^mean-confidence-interval) | Mean ± c · SE |
+| [t_critical](#^t-critical) | Two-sided Student-t quantile |
 
 **sample_mean**`(values) -> float`
     `sum / len`; `ValueError` when empty. ^sample-mean
@@ -35,8 +36,11 @@ Five functions over one `Sequence[float]`.
 **standard_error**`(values) -> float`
     `sample_std / sqrt(n)`. ^standard-error
 
-**mean_confidence_interval**`(values, z: float = 1.959963984540054) -> tuple[float, float]`
-    `(mean − z·se, mean + z·se)`. `z` is the caller's critical value and is never looked up; a negative `z` raises. Fewer than 2 values raise, so every caller guards `n ≥ 2` and substitutes `(mean, mean)`. § [The critical value](#the-critical-value). ^mean-confidence-interval
+**mean_confidence_interval**`(values, z: Optional[float] = None) -> tuple[float, float]`
+    `(mean − c·se, mean + c·se)`; `c` is `z` when given, else `t_critical(n − 1)` (T088 stats 1). A negative `z` raises. Fewer than 2 values raise, so every caller guards `n ≥ 2` and substitutes `(mean, mean)`. § [The critical value](#the-critical-value). ^mean-confidence-interval
+
+**t_critical**`(df: float, confidence: float = 0.95) -> float`
+    `c` with `P(|T| ≤ c) = confidence` at `df` degrees of freedom (4.303 at df 2, 2.571 at 5, 2.042 at 30): bisection on the t CDF via the regularized incomplete beta, `math` only. `ValueError` unless `df` is positive finite and `0 < confidence < 1`. ^t-critical
 
 
 
@@ -64,7 +68,7 @@ Three functions over two samples `a`, `b`; each reads `a − b`.
 # Stats Semantics
 
 ## The critical value
-The default `z = 1.96` is the large-sample normal value. No caller passes another, and the catalog's specs run 3 trials per condition. Over 20 000 normal samples the nominal 95 % interval covered the true mean 81.2 % of the time at n = 3, 89.3 % at n = 6, 92.2 % at n = 12 and 94.1 % at n = 30. Student's t quantile at `n − 1` degrees of freedom (4.30 at n = 3) is the value that gives 95 %.
+The default is Student's t quantile at `n − 1` degrees of freedom (4.30 at n = 3), the value that covers at 95 % for normal scores; no caller passes `z`, so the map's cell CIs, the census and the dose figure all print t intervals (T088 stats 1). The old default, the normal `z = 1.96`, covered the true mean 81.2 % of the time at n = 3 (the catalog's trials per condition), 89.3 % at n = 6, 92.2 % at n = 12 and 94.1 % at n = 30, over 20 000 normal samples.
 
 
 
@@ -76,3 +80,4 @@ The default `z = 1.96` is the large-sample normal value. No caller passes anothe
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the sources at alienbio HEAD `64988be`; the CI coverage measured by Monte Carlo on the HEAD export (20 000 draws per n, seed 0), the catalog's `trials_per_condition` by `git grep`, no spend. Consumer census: `mass_trial`, `census`, `plots`, `report_text`; `mean_difference` and the three single-sample helpers other than the CI have no caller in `src/`.
+- 2026-10-28 — refreshed against `abb5796`: `mean_confidence_interval` defaults to the Student-t quantile via the new `t_critical`.
