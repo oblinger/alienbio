@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-rec">
+    <rect id="n-rec-box" x="20" y="80" width="240" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="140" y="106" font-size="18" font-weight="600" text-anchor="middle">TrialRecords</text>
+    <text id="n-rec-kind" x="140" y="128" font-size="14" text-anchor="middle">non-error: (bucket_key,</text>
+    <text id="n-rec-kind2" x="140" y="148" font-size="14" text-anchor="middle">objective_score) pairs</text>
+  </g>
+  <g id="n-agg">
+    <rect id="n-agg-box" x="340" y="88" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-agg-name" x="460" y="114" font-size="18" font-weight="600" text-anchor="middle">aggregate_cells</text>
+    <text id="n-agg-kind" x="460" y="136" font-size="14" text-anchor="middle">(fn) group by key ‡</text>
+  </g>
+  <line id="e-rec-agg" x1="260" y1="120" x2="340" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-cs">
+    <rect id="n-cs-box" x="660" y="80" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cs-name" x="780" y="106" font-size="18" font-weight="600" text-anchor="middle">CellStats</text>
+    <text id="n-cs-kind" x="780" y="128" font-size="14" text-anchor="middle">(dataclass) n, mean,</text>
+    <text id="n-cs-kind2" x="780" y="148" font-size="14" text-anchor="middle">std (0.0 when n = 1)</text>
+  </g>
+  <line id="e-agg-cs" x1="580" y1="120" x2="660" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-agg-cs" x="620" y="110" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">per key</text>
+  <g id="n-sum">
+    <rect id="n-sum-box" x="960" y="80" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sum-name" x="1070" y="106" font-size="18" font-weight="600" text-anchor="middle">CellSummary</text>
+    <text id="n-sum-kind" x="1070" y="128" font-size="14" text-anchor="middle">(mass_trial) stats + CI</text>
+    <text id="n-sum-kind2" x="1070" y="148" font-size="14" text-anchor="middle">→ ReliabilityMap.cells</text>
+  </g>
+  <line id="e-cs-sum" x1="900" y1="120" x2="960" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-cm">
+    <rect id="n-cm-box" x="340" y="250" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-cm-name" x="460" y="276" font-size="18" font-weight="600" text-anchor="middle">cell_mean</text>
+    <text id="n-cm-kind" x="460" y="298" font-size="14" text-anchor="middle">(fn) one key; no caller</text>
+  </g>
+  <line id="e-rec-cm" x1="200" y1="160" x2="360" y2="250" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-marg">
+    <rect id="n-marg-box" x="20" y="400" width="300" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-marg-name" x="170" y="426" font-size="17" font-weight="600" text-anchor="middle">mass_trial / caution</text>
+    <text id="n-marg-kind" x="170" y="448" font-size="14" text-anchor="middle">marginal means of two</text>
+    <text id="n-marg-kind2" x="170" y="468" font-size="14" text-anchor="middle">two-level axes, levels → 0, 1</text>
+  </g>
+  <path id="e-cs-marg" d="M 780 160 L 780 360 L 170 360 L 170 400" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-cs-marg" x="640" y="352" font-size="14" fill="#1971c2" font-style="italic">cell means</text>
+
+  <g id="n-twi">
+    <rect id="n-twi-box" x="420" y="400" width="300" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-twi-name" x="570" y="426" font-size="18" font-weight="600" text-anchor="middle">two_way_interaction</text>
+    <text id="n-twi-kind" x="570" y="448" font-size="14" text-anchor="middle">(fn) m11 − m10 − m01 + m00;</text>
+    <text id="n-twi-kind2" x="570" y="468" font-size="14" text-anchor="middle">0 = additive</text>
+  </g>
+  <line id="e-marg-twi" x1="320" y1="445" x2="420" y2="445" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-inter">
+    <rect id="n-inter-box" x="820" y="400" width="360" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-inter-name" x="1000" y="426" font-size="17" font-weight="600" text-anchor="middle">ReliabilityMap.interactions,</text>
+    <text id="n-inter-kind" x="1000" y="448" font-size="14" text-anchor="middle">CautionFactorial.interaction</text>
+    <text id="n-inter-kind2" x="1000" y="468" font-size="14" text-anchor="middle">printed in report.txt</text>
+  </g>
+  <line id="e-twi-inter" x1="720" y1="445" x2="820" y2="445" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">reads</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ keys equal under == share a cell: flag=True, flag=1 and flag=1.0 are one row</text>
+  </g>
+</svg>
