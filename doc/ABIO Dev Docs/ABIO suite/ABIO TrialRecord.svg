@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Column A: the writer and the per-turn records -->
+  <g id="n-run">
+    <rect id="n-run-box" x="20" y="30" width="195" height="70" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-run-name" x="117" y="60" font-size="20" font-weight="600" text-anchor="middle">runner.run</text>
+    <text id="n-run-kind" x="117" y="84" font-size="14" text-anchor="middle">(fn) plays one trial</text>
+  </g>
+  <g id="n-action">
+    <rect id="n-action-box" x="20" y="150" width="195" height="64" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-action-name" x="117" y="177" font-size="20" font-weight="600" text-anchor="middle">ActionRecord</text>
+    <text id="n-action-kind" x="117" y="200" font-size="14" text-anchor="middle">(dataclass) value · delta</text>
+  </g>
+  <g id="n-probe">
+    <rect id="n-probe-box" x="20" y="250" width="195" height="64" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-probe-name" x="117" y="277" font-size="20" font-weight="600" text-anchor="middle">ProbeRecord</text>
+    <text id="n-probe-kind" x="117" y="300" font-size="14" text-anchor="middle">(dataclass) one per probe</text>
+  </g>
+  <g id="n-trialerror">
+    <rect id="n-trialerror-box" x="20" y="370" width="195" height="70" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-trialerror-name" x="117" y="400" font-size="20" font-weight="600" text-anchor="middle">TrialError</text>
+    <text id="n-trialerror-kind" x="117" y="424" font-size="14" text-anchor="middle">(exception) partial record</text>
+  </g>
+
+  <!-- Column B: the record itself, field groups in the order run fills them -->
+  <g id="n-trialrecord">
+    <rect id="n-tr-box" x="290" y="30" width="420" height="416" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tr-name" x="500" y="58" font-size="20" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-tr-kind" x="500" y="80" font-size="14" text-anchor="middle">(frozen dataclass) one per trial, errors included</text>
+
+    <rect id="g1-box" x="302" y="96" width="396" height="60" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g1-label" x="314" y="114" font-size="15" font-weight="600">identity · condition · budget</text>
+    <text id="g1-l1" x="314" y="134" font-size="14">task_id · condition_key · brief · name_map</text>
+    <text id="g1-l2" x="314" y="150" font-size="14">budget · spent · remaining · illegal_actions · turns</text>
+
+    <rect id="g2-box" x="302" y="160" width="396" height="60" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g2-label" x="314" y="178" font-size="15" font-weight="600">per turn</text>
+    <text id="g2-l1" x="314" y="198" font-size="14">action_log · deliberation_trace · final_timeline</text>
+    <text id="g2-l2" x="314" y="214" font-size="14">readout_series† · certainty_schedule† · probes†</text>
+
+    <rect id="g3-box" x="302" y="224" width="396" height="60" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g3-label" x="314" y="242" font-size="15" font-weight="600">outcome</text>
+    <text id="g3-l1" x="314" y="262" font-size="14">terminal_reason · objective_score · answer</text>
+    <text id="g3-l2" x="314" y="278" font-size="14">final_state · oracle · taint_hits · error</text>
+
+    <rect id="g4-box" x="302" y="288" width="396" height="42" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g4-label" x="314" y="306" font-size="15" font-weight="600">instrument extras</text>
+    <text id="g4-l1" x="314" y="322" font-size="14">compaction† · forgetting† · monitor†</text>
+
+    <rect id="g5-box" x="302" y="334" width="396" height="42" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g5-label" x="314" y="352" font-size="15" font-weight="600">usage</text>
+    <text id="g5-l1" x="314" y="368" font-size="14">usage · wall_time_s (the one field the hash drops)</text>
+
+    <rect id="g6-box" x="302" y="380" width="396" height="58" rx="6" fill="#f8f9fa" stroke="#868e96" stroke-width="1" stroke-dasharray="4 3"/>
+    <text id="g6-label" x="314" y="398" font-size="15" font-weight="600">derived (not stored)</text>
+    <text id="g6-l1" x="314" y="417" font-size="14">bucket_key · is_error · deliberation_depth</text>
+    <text id="g6-l2" x="314" y="433" font-size="14">info_seeking_ratio · destructive_rate · …</text>
+  </g>
+
+  <!-- Column C: the store -->
+  <g id="n-tojson">
+    <rect id="n-tojson-box" x="790" y="30" width="390" height="70" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tojson-name" x="985" y="60" font-size="20" font-weight="600" text-anchor="middle">record_to_json</text>
+    <text id="n-tojson-kind" x="985" y="84" font-size="14" text-anchor="middle">(fn, store.py) final timeline summarised</text>
+  </g>
+  <g id="n-jsonl">
+    <rect id="n-jsonl-box" x="790" y="170" width="390" height="92" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-jsonl-name" x="985" y="198" font-size="20" font-weight="600" text-anchor="middle">records.jsonl</text>
+    <text id="n-jsonl-kind" x="985" y="220" font-size="14" text-anchor="middle">(file) one record per line, as it lands</text>
+    <text id="n-jsonl-note" x="985" y="242" font-size="14" text-anchor="middle">† keys written only when set; record_from_json reloads</text>
+  </g>
+  <g id="n-retried">
+    <rect id="n-retried-box" x="790" y="340" width="200" height="64" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-retried-name" x="890" y="367" font-size="18" font-weight="600" text-anchor="middle">records.retried.jsonl</text>
+    <text id="n-retried-kind" x="890" y="390" font-size="14" text-anchor="middle">(file) retried error lines</text>
+  </g>
+
+  <!-- Bottom row: the readers -->
+  <g id="n-cell">
+    <rect id="n-cell-box" x="20" y="510" width="195" height="74" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cell-name" x="117" y="541" font-size="20" font-weight="600" text-anchor="middle">CellSummary</text>
+    <text id="n-cell-kind" x="117" y="565" font-size="14" text-anchor="middle">(dataclass) stats + CI</text>
+  </g>
+  <g id="n-agg">
+    <rect id="n-agg-box" x="290" y="510" width="210" height="74" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-agg-name" x="395" y="541" font-size="20" font-weight="600" text-anchor="middle">aggregate_records</text>
+    <text id="n-agg-kind" x="395" y="565" font-size="14" text-anchor="middle">(fn, mass_trial.py)</text>
+  </g>
+  <g id="n-families">
+    <rect id="n-families-box" x="540" y="510" width="220" height="74" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-families-name" x="650" y="537" font-size="18" font-weight="600" text-anchor="middle">analysis families</text>
+    <text id="n-families-kind" x="650" y="557" font-size="14" text-anchor="middle">(fns) dose · delta · caution</text>
+    <text id="n-families-kind2" x="650" y="575" font-size="14" text-anchor="middle">census · harm_committed</text>
+  </g>
+  <g id="n-report">
+    <rect id="n-report-box" x="815" y="510" width="165" height="74" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-report-name" x="897" y="541" font-size="20" font-weight="600" text-anchor="middle">report.txt</text>
+    <text id="n-report-kind" x="897" y="565" font-size="14" text-anchor="middle">(file) render_report</text>
+  </g>
+  <g id="n-golden">
+    <rect id="n-golden-box" x="1000" y="510" width="180" height="74" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-golden-name" x="1090" y="541" font-size="20" font-weight="600" text-anchor="middle">golden hash</text>
+    <text id="n-golden-kind" x="1090" y="565" font-size="14" text-anchor="middle">(test) 15 catalog zeros</text>
+  </g>
+
+  <!-- Edges: solid = primary flow, dotted = contains / carries / reads -->
+  <g id="e-run-tr">
+    <line id="e-run-tr-line" x1="215" y1="65" x2="288" y2="65" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="e-run-tr-label" x="252" y="55" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">builds</text>
+  </g>
+  <g id="e-action-tr">
+    <line id="e-action-tr-line" x1="215" y1="182" x2="288" y2="189" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+    <text id="e-action-tr-label" x="250" y="174" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">actions</text>
+  </g>
+  <g id="e-probe-tr">
+    <line id="e-probe-tr-line" x1="215" y1="270" x2="288" y2="214" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+    <text id="e-probe-tr-label" x="252" y="272" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">probes</text>
+  </g>
+  <g id="e-tr-error">
+    <line id="e-tr-error-line" x1="290" y1="405" x2="217" y2="405" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+    <text id="e-tr-error-label" x="252" y="395" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">rides</text>
+  </g>
+  <g id="e-tr-tojson">
+    <line id="e-tr-tojson-line" x1="710" y1="65" x2="788" y2="65" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="e-tr-tojson-label" x="750" y="55" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">on_trial</text>
+  </g>
+  <g id="e-tojson-jsonl">
+    <line id="e-tojson-jsonl-line" x1="985" y1="100" x2="985" y2="168" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="e-tojson-jsonl-label" x="995" y="139" font-size="14" fill="#1971c2" font-style="italic">one line</text>
+  </g>
+  <g id="e-jsonl-retried">
+    <line id="e-jsonl-retried-line" x1="890" y1="262" x2="890" y2="338" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+    <text id="e-jsonl-retried-label" x="900" y="305" font-size="14" fill="#1971c2" font-style="italic">resume moves error lines</text>
+  </g>
+  <g id="e-jsonl-golden">
+    <line id="e-jsonl-golden-line" x1="1120" y1="262" x2="1120" y2="508" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+    <text id="e-jsonl-golden-label1" x="1110" y="440" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">sha256 of the lines,</text>
+    <text id="e-jsonl-golden-label2" x="1110" y="458" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">wall_time_s removed</text>
+  </g>
+  <g id="e-tr-agg">
+    <line id="e-tr-agg-line" x1="395" y1="446" x2="395" y2="508" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="e-tr-agg-label" x="405" y="482" font-size="14" fill="#1971c2" font-style="italic">bins on bucket_key</text>
+  </g>
+  <g id="e-tr-families">
+    <line id="e-tr-families-line" x1="650" y1="446" x2="650" y2="508" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+    <text id="e-tr-families-label" x="660" y="482" font-size="14" fill="#1971c2" font-style="italic">skip is_error, read fields</text>
+  </g>
+  <g id="e-agg-cell">
+    <line id="e-agg-cell-line" x1="290" y1="547" x2="217" y2="547" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="e-agg-cell-label" x="252" y="537" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">per cell</text>
+  </g>
+  <g id="e-families-report">
+    <line id="e-families-report-line" x1="760" y1="547" x2="813" y2="547" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  </g>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="legend-solid" x1="20" y1="640" x2="70" y2="640" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="80" y="645" font-size="14">writes / primary flow</text>
+    <line id="legend-dotted" x1="260" y1="640" x2="310" y2="640" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4"/>
+    <text id="legend-dotted-text" x="320" y="645" font-size="14">contains / carries / reads</text>
+    <text id="legend-dagger" x="530" y="645" font-size="14">† written to records.jsonl only when set</text>
+    <rect id="legend-derived" x="960" y="632" width="30" height="16" rx="3" fill="#f8f9fa" stroke="#868e96" stroke-width="1" stroke-dasharray="4 3"/>
+    <text id="legend-derived-text" x="1000" y="645" font-size="14">computed, not stored</text>
+  </g>
+</svg>
