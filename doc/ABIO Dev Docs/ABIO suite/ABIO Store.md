@@ -13,7 +13,7 @@ The run's own evidence on disk: one canonical-JSON line per trial in `records.js
 
 
 ## store Interface
-Module-level functions only. The codecs are pure: no file is opened here, and the line is written, the file appended and the manifest dumped by `run_experiment`. The manifest builder is the one impure member — it shells out to `git` and reads the clock, the platform and the models snapshot. Nothing here may import `guards` at module level (`guards` imports this module), so `_build_manifest` resolves `registration_admission` late.
+Module-level functions only. The codecs are pure; `run_experiment` decides when each file is written, and the three writers here (`_write_manifest`, `_atomic_write_text`, `_append_retried`) do the writing. The manifest builder is the other impure member — it shells out to `git` and reads the clock, the platform and the models snapshot. Nothing here may import `guards` at module level (`guards` imports this module), so `_build_manifest` resolves `registration_admission` late.
 
 | store | |
 | --- | --- |
@@ -23,8 +23,14 @@ Module-level functions only. The codecs are pure: no file is opened here, and th
 | [_brief_from_json](#^brief-from-json) | Its inverse |
 | [_canonical_json](#^canonical-json) | Sorted-key compact JSON, the line's bytes |
 | [_json_safe](#^json-safe) | Sets to sorted lists, recursively |
-| [_encode_float](#^encode-float) | `inf`/`-inf` as JSON strings |
+| [_encode_float](#^encode-float) | `inf`/`-inf`/`nan` as JSON strings |
 | [_decode_float](#^decode-float) | Their inverse |
+| [_encode_nonfinite](#^encode-nonfinite) | `_encode_float` at every depth |
+| [_decode_nonfinite](#^decode-nonfinite) | Its inverse, on the numeric fields |
+| [manifest_model_label](#^manifest-model-label) | What a manifest says ran |
+| [_write_manifest](#^write-manifest) | `manifest.json`, atomically |
+| [_atomic_write_text](#^atomic-write-text) | Temp file + `os.replace` |
+| [_append_retried](#^append-retried) | Retried lines, never twice |
 | [_build_manifest](#^build-manifest) | The start-of-run `manifest.json` dict |
 | [_single_model](#^single-model) | The one model a run uses, or `None` |
 | [_model_axis_levels](#^model-axis-levels) | The `model` axis levels, as strings |
@@ -34,10 +40,10 @@ Module-level functions only. The codecs are pure: no file is opened here, and th
 | [_utc_now_iso](#^utc-now-iso) | The timestamp format of the manifest |
 
 **record_to_json**`(record: TrialRecord, label: str, index: int) -> dict[str, Any]`
-    The record as one line's dict, with `label` and `index` (the cell label and trial index the resume keys on) first. `final_timeline` is summarised to `final_time` (the last time, or `None`) and `final_state` — the record's own `final_state`, or, when that is empty, the last timeline state through `final_state_dict`. `budget`/`remaining` go through `_encode_float`, `oracle`/`answer` through `_json_safe`, and seven keys are written only when set ([The record line](#the-record-line)). Does not add `agent`, `model`, `memory`, `temperature`, `top_p` or `registration`; `run_experiment` stamps those on the dict before dumping it. ^record-to-json
+    The record as one line's dict, with `label` and `index` (the cell label and trial index the resume keys on) first. `final_timeline` is summarised to `final_time` (the last time, or `None`) and `final_state` — the record's own `final_state`, or, when that is empty, the last timeline state through `final_state_dict`. `oracle`/`answer` go through `_json_safe`, the whole dict through `_encode_nonfinite` (every non-finite float, at any depth, as `"inf"`/`"-inf"`/`"nan"`), and seven keys are written only when set ([The record line](#the-record-line)). Does not add `agent`, `model`, `memory`, `temperature`, `top_p` or `registration`; `run_experiment` stamps those on the dict before dumping it. ^record-to-json
 
 **record_from_json**`(d: Mapping[str, Any]) -> TrialRecord`
-    The inverse, lossy where the line is: `final_timeline` comes back as `Timeline(times=(final_time,), states=())`, a JSON list wherever a tuple went in, and the line-only keys are ignored ([Reload and its limits](#reload-and-its-limits)). The always-written keys are read with `d[...]` and raise `KeyError` when missing; every only-when-set key, and `taint_hits`, `usage`, `wall_time_s`, `oracle`, `final_state`, `name_map`, `answer` and an action's `target`/`value`/`delta`, are read with `.get` and default. ^record-from-json
+    The inverse, lossy where the line is: `final_timeline` comes back as `Timeline(times=(final_time,), states=())`, a JSON list wherever a tuple went in, and the line-only keys are ignored ([Reload and its limits](#reload-and-its-limits)). The always-written keys are read with `d[...]` and raise `KeyError` when missing; every only-when-set key, and `taint_hits`, `usage`, `wall_time_s`, `oracle`, `final_state`, `name_map`, `answer` and an action's `target`/`value`/`delta`, are read with `.get` and default. The numeric fields — `objective_score`, `spent`, `usage`, condition levels, `final_state`, `oracle`, an action's `value`/`delta`, `compaction`/`forgetting`/`monitor` — go through `_decode_nonfinite`; `answer`, `name_map` and prose do not, so a non-finite float inside an `answer` reloads as its string. ^record-from-json
 
 **_brief_to_json**`(brief: TaskBrief) -> dict[str, Any]`
     Every `TaskBrief` field: `question` and `monitoring` through `_json_safe`, `budget_total` through `_encode_float`, the affordances as lists. Six later keys are written only when set: `affordances.max_rates` (sorted, when non-empty; T023), `context_padding` (T027), `constitution_in_history` (when true; T029), `protocol` (T032), `monitor` (T060), `task_note` (T061). ^brief-to-json
@@ -46,16 +52,34 @@ Module-level functions only. The codecs are pure: no file is opened here, and th
     The inverse. Requires `question`, the three kinds, `constitution`, `affordances.probes`/`levers`, the budget pair, `action_costs`, `max_turns`, `sim_steps` and `sim_dt`; every other key defaults when absent. ^brief-from-json
 
 **_canonical_json**`(payload: Any) -> str`
-    `json.dumps(payload, sort_keys=True, separators=(",", ":"), default=repr)`: the exact bytes of a `records.jsonl` line and the input to `spec_sha256`. `default=repr` turns an unknown leaf into its repr string rather than raising. NaN and infinity are not refused (`allow_nan` stays on): a non-finite float that did not pass `_encode_float` lands as the bare token `NaN` or `Infinity`. `suite/render.py` defines its own function of the same name. ^canonical-json
+    `json.dumps(_encode_nonfinite(payload), sort_keys=True, separators=(",", ":"), default=repr, allow_nan=False)`: the exact bytes of a `records.jsonl` line and the input to `spec_sha256`. `default=repr` turns an unknown leaf into its repr string rather than raising. Every line is strict JSON: non-finite floats are spelled as strings first, and `allow_nan=False` refuses any that slipped past. `suite/render.py` defines its own function of the same name. ^canonical-json
 
 **_json_safe**`(value: Any) -> Any`
-    A dumps-safe copy: a set or frozenset becomes a list sorted by `repr`, a dict, list or tuple recurses (tuples become lists), anything else passes through unchanged — floats included, so an `inf` inside an oracle is not encoded. ^json-safe
+    A dumps-safe copy: a set or frozenset becomes a list sorted by `repr`, a dict, list or tuple recurses (tuples become lists), anything else passes through unchanged — floats included; `_encode_nonfinite` spells the non-finite ones. ^json-safe
 
 **_encode_float**`(value: float) -> Any`
-    `"inf"` or `"-inf"` for an infinite value, the float otherwise. NaN passes through. Applied to `budget`, `remaining`, `brief.budget_total` and every `readout_series` value, and nowhere else. ^encode-float
+    `"inf"`, `"-inf"` or `"nan"` for a non-finite float, the value otherwise — the store's one spelling. Applied directly to `budget`, `remaining`, `brief.budget_total` and every `readout_series` value, and through `_encode_nonfinite` to everything else. ^encode-float
 
 **_decode_float**`(value: Any) -> float`
-    `"inf"`/`"-inf"` back to the floats, anything else through `float()`. ^decode-float
+    `"inf"`/`"-inf"`/`"nan"` back to the floats, anything else through `float()`. ^decode-float
+
+**_encode_nonfinite**`(value: Any) -> Any`
+    `value` with every float through `_encode_float`; dict, list and tuple recurse, each keeping its type. A finite tree comes back equal, so its bytes do not move (the goldens prove it). ^encode-nonfinite
+
+**_decode_nonfinite**`(value: Any) -> Any`
+    The strings `"inf"`/`"-inf"`/`"nan"` back to floats, dict and list recursing. Used only on fields that carry numbers ([record_from_json](#^record-from-json)). ^decode-nonfinite
+
+**manifest_model_label**`(manifest: Mapping[str, Any]) -> Optional[str]`
+    The manifest's `model`, else its `models` levels joined with `", "`, else `None`. `render_report`'s `Model:` line and `bio report`'s run table (kind and model column) both read it. ^manifest-model-label
+
+**_write_manifest**`(path: Path, manifest: Mapping[str, Any]) -> None`
+    `json.dump(indent=2)` into `manifest.json.tmp` beside `path`, fsync, `os.replace`; on any failure the temp file is removed and the old manifest stands. ^write-manifest
+
+**_atomic_write_text**`(path: Path, text: str) -> None`
+    The same temp-file + `os.replace` for text; a resume's `records.jsonl` rewrite. ^atomic-write-text
+
+**_append_retried**`(path: Path, lines: list[str]) -> None`
+    Appends to `records.retried.jsonl` every line not already in it byte for byte, so a resume replayed after a crash adds nothing; a trial that fails again on a later press writes a different line and is kept. ^append-retried
 
 **_build_manifest**`(spec: ExperimentSpec, trials_planned: int, started_at: str) -> dict[str, Any]`
     The manifest as `run_experiment` writes it before the grid: the spec and its sha256, provenance, the model and memory in force, sampling, the resolved registration, the directive hash, the counters at zero and the dry-run `cost_estimate` ([The manifest](#the-manifest)). Calls `estimate_cost(spec)` and `registration_admission(spec)`, so it raises whatever they raise; `preflight` has already run both. ^build-manifest
@@ -84,18 +108,18 @@ Module-level functions only. The codecs are pure: no file is opened here, and th
 # Store Semantics
 
 ## The run directory
-`out_dir` is the spec's `out_dir` or `runs/<spec.name>`, resolved by `preflight`. Every file is written whole with `write_text` except the two `.jsonl` files, which are appended.
+`out_dir` is the spec's `out_dir` or `runs/<spec.name>`, resolved by `preflight`. `manifest.json` and a resume's `records.jsonl` rewrite go through a temp file and `os.replace`, so neither is ever torn; the other whole files use `write_text`, and the two `.jsonl` files are appended.
 
 | File | Written by | When | Read by |
 | --- | --- | --- | --- |
-| `manifest.json` | `run_experiment` via `_build_manifest` | before the grid, then rewritten at the end with finish time, counts and spend | `preflight`'s `resume` check; `aggregate`; `bio suite resume` (the spec to run) and `bio suite report` (the header); `bio report`'s run table |
+| `manifest.json` | `run_experiment` via `_build_manifest` | before the grid (counts = the lines a resume kept), rewritten if the grid raises (counts and spend so far, `finished_at` null) and at the end with finish time, counts and spend | `preflight`'s `resume` check; `aggregate`; `bio suite resume` (the spec to run) and `bio suite report` (the header); `bio report`'s run table |
 | `records.jsonl` | `run_experiment`'s `on_trial`: `record_to_json` + line extras → `_canonical_json` | one line appended per fresh trial, as it lands; rewritten whole (temp file + `replace`) by a resume that retries | `aggregate`, a resume, the golden test, `preflight`'s `out_dir` check (existence only) |
-| `records.retried.jsonl` | `run_experiment` on a resume | appended before the grid, when error lines are retried | nothing in the package; it is evidence |
+| `records.retried.jsonl` | `run_experiment` on a resume | appended before the grid, when error lines are retried, before `records.jsonl` is rewritten; a line already there is not appended again | nothing in the package; it is evidence |
 | `map.json`, `map.csv` | `ReliabilityMap.to_json`/`to_csv`, from `run_experiment` or `bio suite aggregate` | after the grid | nothing in the package |
 | `report.txt` | `render_report(rmap, manifest)`, from `run_experiment` or `bio suite report` | after the final manifest write | `bio report` (the spend figure, by regex) |
 | `key.png`, `key.json` | `plots.write_key_figure` (`savefig` + readout and caption) | last; absent when nothing applies | `bio report` § 4 |
 
-Because the line is appended in `on_trial` the moment its trial returns, before its price is looked up, a crash, a kill or a pricing failure loses no landed trial. A run that never finished leaves a manifest with `finished_at: null`, `trials_completed: 0` and the start-time estimate; the records beside it are complete for what ran, and `bio suite resume` continues it.
+Because the line is appended in `on_trial` the moment its trial returns, before its price is looked up, a crash, a kill or a pricing failure loses no landed trial. A run that raised leaves a manifest with `finished_at: null` and `trials_completed`/`failed_trials`/`cost_usd_spent` as of the crash; one killed outright (SIGKILL, power) keeps the start-of-run counts — the lines a resume kept, or 0. The records beside it are complete for what ran, and `bio suite resume` continues it.
 
 
 
@@ -105,7 +129,7 @@ A line is `record_to_json`'s dict plus the extras `run_experiment` stamps, dumpe
 | Keys | On the line |
 | --- | --- |
 | `label`, `index` | always; the resume key |
-| the `TrialRecord` core (`task_id` … `name_map`, `action_log`, `deliberation_trace`, `brief`) | always; `budget`/`remaining` as `"inf"` when infinite |
+| the `TrialRecord` core (`task_id` … `name_map`, `action_log`, `deliberation_trace`, `brief`) | always; any non-finite float as `"inf"`/`"-inf"`/`"nan"`, so the line is strict JSON |
 | `final_time`, `final_state` | always; the summarised timeline |
 | `probes`, `certainty_schedule` | only when non-empty |
 | `compaction`, `forgetting`, `monitor`, `readout_series` | only when not `None` |
@@ -129,11 +153,11 @@ The run's own proof, written by `_build_manifest` before any trial and updated i
 | `memory`, `memories` | the memory policy; under a `memory` axis null, with the levels in `memories` | start |
 | `temperature`, `top_p` | the sampling regime every live call ran under (M45.18) | start |
 | `registration` | the resolved licence — `id`, `osf`, `filed`, sorted `dials` and `drafters` — or null (T030) | start |
-| `directive_sha256` | sha256 of `DEFAULT_DIRECTIVE`, the system-prompt preamble | start |
+| `directive_sha256` | sha256 of `DEFAULT_DIRECTIVE`, the system-prompt preamble — not the directive in force, equal today because `agents.py` passes no other | start |
 | `design` | the power design, stated before the spend (M46.9), or null | start |
 | `cost_estimate`, `cost_ceiling_usd` | the dry-run projection, pinned so actual spend can be compared (M45.5) | start |
 | `started_at`, `trials_planned` | the start, and the grid size | start |
-| `finished_at`, `trials_completed`, `failed_trials` | null / 0 / 0 at start; the count of records on the map, error records included, and of those the error count | end |
+| `finished_at`, `trials_completed`, `failed_trials` | null at start, with the lines a resume kept (0 on a fresh run); after a crash, what landed; at the end the count of records on the map, error records included, and of those the error count | start, crash, end |
 | `cost_usd_spent`, `usage_totals`, `stopped_reason` | priced usage of every landed record<br>summed token counts<br>`"cost_ceiling"` on an early stop | end |
 | `cost_usd_retried` | the priced usage of the error lines a resume retried, already inside `cost_usd_spent` | end only |
 
@@ -160,7 +184,7 @@ The `models`/`memories` keys are absent, not empty, when nothing is swept, so `m
 | error, `TaintError`, `retry_taint=False` | kept in place and skipped — a taint is deterministic and would fail again |
 | any other error | appended to `records.retried.jsonl`, dropped from `records.jsonl`, its priced usage added to the running spend; the trial re-runs |
 
-When anything was retried, `records.jsonl` is rewritten from the kept lines through a temp file, so `aggregate` never sees an error line next to its replacement: one line per `(label, index)`. Seeds are keyed by `(label, index)`, so a retried trial re-draws the same world. The manifest is then rebuilt from the current spec, carrying only `started_at` from the old one, and the grid appends the missing trials.
+When anything was retried, the error lines are appended to `records.retried.jsonl` first (skipping any already there), then `records.jsonl` is rewritten from the kept lines through a temp file, so `aggregate` never sees an error line next to its replacement: one line per `(label, index)`. A crash between the two leaves the error lines in `records.jsonl`; the next resume retries them again and appends nothing twice. Seeds are keyed by `(label, index)`, so a retried trial re-draws the same world. The manifest is then rebuilt from the current spec, carrying `started_at` from the old one and counting the kept lines, and the grid appends the missing trials.
 
 
 
@@ -177,3 +201,4 @@ When anything was retried, `records.jsonl` is rewritten from the kept lines thro
   - A resumed run that crashes leaves its manifest at `trials_completed: 0`, `finished_at: null` though `records.jsonl` holds every earlier line; `bio suite report` and `bio report` then print zero completed.
   - `directive_sha256` hashes `DEFAULT_DIRECTIVE` (`store.py` 389), not the directive in force; true today because `agents.py` never passes another, latent if one becomes a dial.
 - The bare `:>>` line the daemon adds on write is left to it, as on the sibling suite docs.
+- 2026-10-28 — fixed from the hypotheses above (alienbio `420b0cc` non-finite floats, `36ca296` atomic manifest + crash-safe retries, `002a936` resume/crash counts, `bce6629` the `model`-axis readers + docstring): every section above now states the fixed behaviour; tests in `tests/suite/test_moddoc_findings_store.py`. The retried-line skip keys on the whole line, not `(label, index)`, so a genuine second failure is still kept. The `stopped_early` reload item was fixed separately (`dbbfce1`).
