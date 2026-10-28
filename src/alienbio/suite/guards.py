@@ -357,6 +357,12 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
 
     The drafted task is also read for one brief-side refusal whose inputs it
     already carries: a declared lever on a structurally hidden pool (T066 Q1).
+
+    Every condition is drafted and every refusing one is named, joined with
+    ``; `` (round 4/5 leftover, 2026-10-27: it returned on the first refusal,
+    and returned ``None`` on the first NON-config exception — so one
+    transient failure hid every later condition's config refusal). A
+    non-config exception skips only its own condition.
     """
     from .dist import Seed
 
@@ -368,6 +374,7 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     except KeyError:
         return f"{spec.name}: unknown drafter {spec.drafter!r}; expected one of {sorted(DRAFTERS)}"
     kwargs = dict(spec.drafter_kwargs or {})
+    refusals: list[str] = []
     for dials, trial_seed in _condition_units(spec):
         try:
             _world, task = drafter(trial_seed.child("draft"), dials, **kwargs)
@@ -387,7 +394,7 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
                 offenders = sorted(hidden.intersection(n for n in named if isinstance(n, str)))
                 if offenders:
                     cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
-                    return (
+                    refusals.append(
                         f"{spec.drafter}: condition {cond} declares lever(s) {offenders} on a structurally "
                         "hidden pool — the agent cannot observe it and an Intervene would write the "
                         "measurement's own ground truth (T066 Q1)"
@@ -401,10 +408,10 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
             # drafter — is left to the run, where it becomes an error record
             # a resume retries rather than a refusal that kills the grid.
             cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
-            return f"{spec.drafter}: condition {cond} drafts no world — {exc}"
+            refusals.append(f"{spec.drafter}: condition {cond} drafts no world — {exc}")
         except Exception:  # noqa: BLE001 — transient, not a config verdict
-            return None
-    return None
+            continue
+    return "; ".join(refusals) if refusals else None
 
 
 def inert_arm_violation(spec: ExperimentSpec) -> Optional[str]:
