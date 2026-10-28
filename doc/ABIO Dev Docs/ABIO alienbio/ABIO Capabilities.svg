@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-tests">
+    <rect id="n-tests-box" x="20" y="40" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tests-name" x="140.0" y="68" font-size="18" font-weight="600" text-anchor="middle">tests/capabilities/</text>
+    <text id="n-tests-kind" x="140.0" y="92" font-size="14" text-anchor="middle">(files) test_*.py, read as text</text>
+  </g>
+  <g id="n-scan">
+    <rect id="n-scan-box" x="320" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-scan-name" x="440.0" y="68" font-size="18" font-weight="600" text-anchor="middle">scan</text>
+    <text id="n-scan-kind" x="440.0" y="92" font-size="14" text-anchor="middle">(fn) ast · @capability ids</text>
+  </g>
+  <g id="n-phr">
+    <rect id="n-phr-box" x="620" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-phr-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">phrases</text>
+    <text id="n-phr-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(fn) first docstring paragraph</text>
+  </g>
+  <g id="n-dims">
+    <rect id="n-dims-box" x="20" y="200" width="240" height="90" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dims-name" x="140.0" y="228" font-size="18" font-weight="600" text-anchor="middle">DIMENSIONS</text>
+    <text id="n-dims-kind" x="140.0" y="252" font-size="14" text-anchor="middle">(table) 35 rows · 30 built</text>
+    <text id="n-dims-kind2" x="140.0" y="270" font-size="14" text-anchor="middle">2 partial · 1 planned · 2 future</text>
+  </g>
+  <g id="n-mat">
+    <rect id="n-mat-box" x="320" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mat-name" x="440.0" y="228" font-size="18" font-weight="600" text-anchor="middle">matrix</text>
+    <text id="n-mat-kind" x="440.0" y="252" font-size="14" text-anchor="middle">(fn) each dimension, its tests</text>
+  </g>
+  <g id="n-unk">
+    <rect id="n-unk-box" x="620" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-unk-name" x="740.0" y="228" font-size="18" font-weight="600" text-anchor="middle">unknown_ids</text>
+    <text id="n-unk-kind" x="740.0" y="252" font-size="14" text-anchor="middle">(fn) ids no row carries</text>
+  </g>
+  <g id="n-und">
+    <rect id="n-und-box" x="920" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-und-name" x="1040.0" y="228" font-size="18" font-weight="600" text-anchor="middle">check_phrases</text>
+    <text id="n-und-kind" x="1040.0" y="252" font-size="14" text-anchor="middle">(fn) tests with no sentence</text>
+  </g>
+  <g id="n-chk">
+    <rect id="n-chk-box" x="320" y="360" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chk-name" x="440.0" y="388" font-size="18" font-weight="600" text-anchor="middle">check</text>
+    <text id="n-chk-kind" x="440.0" y="412" font-size="14" text-anchor="middle">(fn) built or partial, no test</text>
+  </g>
+  <g id="n-cmd">
+    <rect id="n-cmd-box" x="620" y="360" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cmd-name" x="740.0" y="388" font-size="18" font-weight="600" text-anchor="middle">test_matrix_command</text>
+    <text id="n-cmd-kind" x="740.0" y="412" font-size="14" text-anchor="middle">(bio test-matrix) --markdown · --check</text>
+  </g>
+  <g id="n-report">
+    <rect id="n-report-box" x="920" y="40" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-report-name" x="1040.0" y="68" font-size="18" font-weight="600" text-anchor="middle">report.py</text>
+    <text id="n-report-kind" x="1040.0" y="92" font-size="14" text-anchor="middle">(bio report) matrix + phrases</text>
+  </g>
+  <g id="n-rmd">
+    <rect id="n-rmd-box" x="20" y="520" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rmd-name" x="140.0" y="548" font-size="18" font-weight="600" text-anchor="middle">render_markdown</text>
+    <text id="n-rmd-kind" x="140.0" y="572" font-size="14" text-anchor="middle">(fn) the doc's status table</text>
+  </g>
+  <g id="n-rtx">
+    <rect id="n-rtx-box" x="320" y="520" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rtx-name" x="440.0" y="548" font-size="18" font-weight="600" text-anchor="middle">render_text</text>
+    <text id="n-rtx-kind" x="440.0" y="572" font-size="14" text-anchor="middle">(fn) the terminal listing</text>
+  </g>
+  <g id="n-gate">
+    <rect id="n-gate-box" x="620" y="520" width="240" height="70" rx="10" fill="#ffe3e3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gate-name" x="740.0" y="548" font-size="18" font-weight="600" text-anchor="middle">capability gate</text>
+    <text id="n-gate-kind" x="740.0" y="572" font-size="14" text-anchor="middle">(stderr) exit 1 on any finding</text>
+  </g>
+  <g id="n-ci">
+    <rect id="n-ci-box" x="920" y="520" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ci-name" x="1040.0" y="548" font-size="18" font-weight="600" text-anchor="middle">CI</text>
+    <text id="n-ci-kind" x="1040.0" y="572" font-size="14" text-anchor="middle">(.github/workflows/ci.yml)</text>
+  </g>
+  <line id="e-tests-scan" x1="260" y1="75" x2="320" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-tests-scan" x="290" y="65" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">ast</text>
+  <line id="e-scan-phr" x1="560" y1="75" x2="620" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-scan-mat" x1="440" y1="110" x2="440" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-dims-mat" x1="260" y1="235" x2="320" y2="235" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-scan-unk" x1="520" y1="110" x2="660" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-phr-und" x1="820" y1="110" x2="960" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-mat-chk" x1="440" y1="270" x2="440" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-chk-cmd" x1="560" y1="395" x2="620" y2="395" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-unk-cmd" x1="740" y1="270" x2="740" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-und-cmd" x1="1000" y1="270" x2="840" y2="370" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-und-cmd" x="930" y="340" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">--check</text>
+  <line id="e-phr-report" x1="860" y1="75" x2="920" y2="75" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-cmd-rmd" x1="640" y1="430" x2="200" y2="520" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cmd-rmd" x="360" y="470" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle" transform="rotate(-11 360 470)">--markdown</text>
+  <line id="e-cmd-rtx" x1="660" y1="430" x2="500" y2="520" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cmd-rtx" x="598" y="508" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">default</text>
+  <line id="e-cmd-gate" x1="740" y1="430" x2="740" y2="520" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-ci-cmd" x1="1000" y1="520" x2="840" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-ci-cmd" x="930" y="460" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">runs --check</text>
+  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call or data · dotted: shared with bio report · nothing here runs a test: a skipped proving test satisfies the gate</text>
+  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">the folder is two levels above the package; in an installed wheel it is missing and every built row reads no test</text>
+</svg>
