@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO Compartment](ha://p/ABIO%20Compartment) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO Compartment](ha://p/ABIO%20Compartment) 
 # Compartment
 Entity representing a biological compartment in the hierarchy.
 

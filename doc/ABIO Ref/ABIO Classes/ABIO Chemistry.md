@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO Chemistry](ha://p/ABIO%20Chemistry) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO Chemistry](ha://p/ABIO%20Chemistry) 
 # Chemistry
 Container for atoms, molecules, and reactions forming a chemical system.
 

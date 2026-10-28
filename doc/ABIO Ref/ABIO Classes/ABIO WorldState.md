@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO WorldState](ha://p/ABIO%20WorldState) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO WorldState](ha://p/ABIO%20WorldState) 
 # WorldState
 Concentration and multiplicity storage for multi-compartment simulations.
 

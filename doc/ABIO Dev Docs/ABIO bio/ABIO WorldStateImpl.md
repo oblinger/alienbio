@@ -1,7 +1,7 @@
 ---
 description: "`WorldStateImpl`: the dense multi-compartment store of concentrations, multiplicities and volumes that every simulator step reads and copies. Source: `src/alienbio/bio/world_state.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO WorldStateImpl](ha://p/ABIO%20WorldStateImpl) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO WorldStateImpl](ha://p/ABIO%20WorldStateImpl) 
 # ABIO WorldStateImpl
 The world's state at one instant: a flat list of concentrations indexed compartment × molecule, plus a multiplicity and a volume per compartment, optionally labelled with real compartment and molecule ids.
 

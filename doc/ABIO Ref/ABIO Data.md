@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Data](ha://p/ABIO%20Data) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Data](ha://p/ABIO%20Data) 
 # ABIO Data
 What the `data/` folder actually holds, and why nothing is filed there on purpose.
 

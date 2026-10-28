@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO alienbio](ha://p/ABIO%20alienbio) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO alienbio](ha://p/ABIO%20alienbio) 
 # alienbio
 **Topic**: ~~[[ABIO Topics]]~~ 
 The top-level package: what `import alienbio` gives you.

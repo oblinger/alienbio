@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Files](ha://p/ABIO%20Files) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Files](ha://p/ABIO%20Files) 
 # ABIO Files
 The alienbio repository as it stands, file by file.
 

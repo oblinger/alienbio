@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Guides]] → [ABIO Expr Spec](ha://p/ABIO%20Expr%20Spec) 
+:>> [ABIO](../ABIO.md) → [ABIO Guides](ABIO%20Guides.md) → [ABIO Expr Spec](ha://p/ABIO%20Expr%20Spec) 
 # ABIO Expr Spec
 The specification of **Expr**, the language every alienbio spec file is written in — by example: each section opens with the smallest file that shows the feature, then states the rules.
 

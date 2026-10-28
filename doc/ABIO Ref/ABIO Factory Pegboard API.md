@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Factory Pegboard API](ha://p/ABIO%20Factory%20Pegboard%20API) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Factory Pegboard API](ha://p/ABIO%20Factory%20Pegboard%20API) 
 # Factory Pegboard API
 The API spec for how Bio holds active component instances as a pegboard: `bio.create()` builds them and plain Python assignment sets them.
 **Status**: IMPLEMENTED

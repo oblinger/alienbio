@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO Flow](ha://p/ABIO%20Flow) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO Flow](ha://p/ABIO%20Flow) 
 # Flow
 Transport between compartments: `TransportFlux`, applied in one rationed pass.
 

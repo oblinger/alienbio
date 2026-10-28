@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Modules](ha://p/ABIO%20Modules) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Modules](ha://p/ABIO%20Modules) 
 # Modules
 Code organization for alienbio (`src/alienbio/`, ~35k LOC), module by module.
 

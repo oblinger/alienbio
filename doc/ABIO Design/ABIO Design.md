@@ -8,7 +8,7 @@ description: "the design home for the Alien Biology Framework"
 | Plan                              | [PRD](ABIO%20PRD.md),  [Completed Roadmap](ABIO%20Completed%20Roadmap.md),  [Capability Dimensions](ABIO%20Capability%20Dimensions.md),  [Experiment Catalog](ABIO%20Experiment%20Catalog.md),                                                                                     |
 | Architecture                      | [Architecture](../ABIO%20Architecture/ABIO%20Architecture.md),  [Skeleton](ABIO%20Skeleton%20Arch/ABIO%20Skeleton%20Arch.md),  [Expr](ABIO%20Expr/ABIO%20Expr.md),  [Semantic Layer](ABIO%20Semantic%20Layer.md),  [Unified Protocol Model](ABIO%20Unified%20Protocol%20Model.md), |
 | Proposals                         | [Phase-2 Brief](ABIO%20Phase-2%20Design%20Brief.md),  [Refactor](ABIO%20Refactor%20Proposals.md),  [Hardening](ABIO%20Hardening%20Proposal.md),  [Suite Protocol Assessment](ABIO%20Suite%20Protocol%20Assessment.md),                                                             |
-| ...                               |                                                                                                                                                                                                                                                                                    |
+| ...                               | [ABIO Curriculum Map](ABIO%20Curriculum%20Map.md),                                                                                                                                                                                                                                 |
 
 # ABIO Design
 The design home for the Alien Biology Framework (`code` trait).

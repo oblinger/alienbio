@@ -1,7 +1,7 @@
 ---
 description: "`TrialRecord` and `ProbeRecord`: the frozen record every trial produces, error trials included, its condition key and the one bucket key every summary bins on, and the readers that fill and read it. Source: `src/alienbio/suite/trial.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO TrialRecord](ha://p/ABIO%20TrialRecord) 
 # ABIO TrialRecord
 The one immutable record a trial produces: what the agent was told, what it did turn by turn, how the trial ended and scored, and the framework-side truth the scorers read, frozen at the end of `runner.run` and written as one `records.jsonl` line.
 

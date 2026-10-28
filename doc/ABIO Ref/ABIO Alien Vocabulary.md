@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Alien Vocabulary](ha://p/ABIO%20Alien%20Vocabulary) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Alien Vocabulary](ha://p/ABIO%20Alien%20Vocabulary) 
 # Alien Vocabulary
 Naming conventions and word lists for alien biology domains.
 

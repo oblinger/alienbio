@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO WorldSimulator](ha://p/ABIO%20WorldSimulator) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO WorldSimulator](ha://p/ABIO%20WorldSimulator) 
 # WorldSimulator
 Multi-compartment simulation with reactions and flows.
 

@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO PRD Docs](ha://p/ABIO%20PRD%20Docs) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO PRD Docs](ha://p/ABIO%20PRD%20Docs) 
 # Scenario Generator PRD
 **Subsystem**: [[ABIO biology]] > Generators
 

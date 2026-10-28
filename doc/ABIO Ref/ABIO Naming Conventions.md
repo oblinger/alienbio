@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Naming Conventions](ha://p/ABIO%20Naming%20Conventions) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Naming Conventions](ha://p/ABIO%20Naming%20Conventions) 
 # Naming Conventions
 Standard naming patterns used throughout the alienbio codebase.
 

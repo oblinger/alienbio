@@ -1,7 +1,7 @@
 ---
 description: "`PopulationLaw` + `PerCapitaGrowth`, `PerCapitaDeath`, `CountFlow` and `apply_population_laws`: the population pass on the multiplicity axis. Source: `src/alienbio/bio/population.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO PopulationLaw](ha://p/ABIO%20PopulationLaw) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO PopulationLaw](ha://p/ABIO%20PopulationLaw) 
 # ABIO PopulationLaw
 The population pass: three count-based rate laws that grow, kill and move a compartment's `multiplicity`, and the one function that rations their summed demand off the frozen state.
 

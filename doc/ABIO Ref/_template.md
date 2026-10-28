@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [_template](ha://p/_template) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO _template](ha://p/ABIO%20_template) 
 # EntityName
 **Subsystem**: ~~[[Parent Subsystem]]~~ > Category
 Brief one-sentence description of what this entity is. Can be multiple lines if needed for the description, but no blank lines in this top section.

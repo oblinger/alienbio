@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO entity](ha://p/ABIO%20entity) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO entity](ha://p/ABIO%20entity) 
 # Entity
 Base class for all biology objects with tree structure and DAT anchoring.
 

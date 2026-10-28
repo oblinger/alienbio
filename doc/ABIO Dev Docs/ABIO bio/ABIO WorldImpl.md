@@ -1,7 +1,7 @@
 ---
 description: "`WorldImpl` + its declaration records (`Compartment`, `Transport`, `GrowthLaw`, `DeathLaw`, `CountFlowSpec`) and `build_tree`: the one place string ids become integer indices. Source: `src/alienbio/bio/world.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO WorldImpl](ha://p/ABIO%20WorldImpl) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO WorldImpl](ha://p/ABIO%20WorldImpl) 
 # ABIO WorldImpl
 A runnable world: a chemistry plus a flat list of compartment records, from which the constructor derives the integer-indexed tree, the initial state and the simulator-ready flows and population laws, once.
 

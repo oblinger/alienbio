@@ -1,7 +1,7 @@
 ---
 description: "spec → guards → grid → records → manifest → report: the hub that every run passes through, and where every refusal happens before spend. Source: suite/experiment.py (3.2k), expr_experiment.py, registration.py, conditions.py."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO-Experiment](ha://p/ABIO-Experiment) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO-Experiment](ha://p/ABIO-Experiment) 
 # ABIO-Experiment
 The hub of the instrument, in six modules since T058: the spec, the drafter and agent registries, the guards, the record store and the report each have their own, and `experiment.py` keeps `run_experiment` + `aggregate` and re-exports the rest.
 

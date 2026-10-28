@@ -1,7 +1,7 @@
 ---
 description: "`NameMap` and `OpaqueAgent`: the opaque `m01`/`r01` names a model agent sees, translated at the runner boundary in both directions, and `token_pattern`, the one token boundary the surfacing and the taint audit share. Source: `src/alienbio/suite/naming.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO NameMap](ha://p/ABIO%20NameMap) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO NameMap](ha://p/ABIO%20NameMap) 
 # ABIO NameMap
 The opaque-names boundary: a seed-shuffled map from a world's structural ids to `m01…`/`r01…` surface names, the agent wrapper that translates every crossing through it, and the token boundary the taint audit reads it by.
 

@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO Molecule](ha://p/ABIO%20Molecule) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO Molecule](ha://p/ABIO%20Molecule) 
 # Molecule
 Chemical compound composed of atoms with derived properties.
 

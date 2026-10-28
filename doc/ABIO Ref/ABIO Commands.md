@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Commands](ha://p/ABIO%20Commands) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Commands](ha://p/ABIO%20Commands) 
 # Commands
 The reference for the `bio` CLI's two commands, `suite` and `config`, with their subcommands and flags.
 

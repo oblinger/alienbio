@@ -1,7 +1,7 @@
 ---
 description: "`llm_agent`: the live-model agent — `LLMAgent` (history window, forgetting triggers, discarded-branch probes, token ceiling), `UsageMeter`, the Anthropic provider fn, prices, pinned models and the models snapshot, the per-turn output budget. Source: `src/alienbio/suite/llm_agent.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO LLMAgent](ha://p/ABIO%20LLMAgent) 
 # ABIO LLMAgent
 The real-model agent: `LLMAgent` turns each narrowed observation into one model call over the `LLMOp` seam, parses the reply into an `Action`, keeps its own turn history, and meters every token the provider reports.
 

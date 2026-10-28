@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO Atom](ha://p/ABIO%20Atom) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO Atom](ha://p/ABIO%20Atom) 
 # Atom
 Chemical element with symbol, name, and atomic weight.
 

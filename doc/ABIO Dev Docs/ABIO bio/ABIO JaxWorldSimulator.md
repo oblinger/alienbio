@@ -1,7 +1,7 @@
 ---
 description: "`JaxWorldSimulator`: the JAX stepper that must match the reference world simulator to 1e-9. Source: `src/alienbio/bio/jax_simulator.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO JaxWorldSimulator](ha://p/ABIO%20JaxWorldSimulator) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO JaxWorldSimulator](ha://p/ABIO%20JaxWorldSimulator) 
 # ABIO JaxWorldSimulator
 The JAX world simulator: the same reactions, flows and population laws as the reference, with the reaction step compiled into one vectorised kernel over a `[compartments, molecules]` array.
 

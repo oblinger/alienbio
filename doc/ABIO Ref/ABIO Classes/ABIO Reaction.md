@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO Reaction](ha://p/ABIO%20Reaction) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO Reaction](ha://p/ABIO%20Reaction) 
 # Reaction
 Transformation between molecules with stoichiometry and rate.
 

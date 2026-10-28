@@ -1,7 +1,7 @@
 ---
 description: "Suite Construction subsystem — how a suite spec becomes a battery of auto-graded tasks over a small set of verified worlds. Set-covering resolves the world/task catch-22; simulated verify-then-keep guarantees ground truth."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO Suite Construction](ha://p/ABIO%20Suite%20Construction) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO Suite Construction](ha://p/ABIO%20Suite%20Construction) 
  [[ABIO Architecture Docs]] · [[ABIO Inference Bench]] · [[ABIO PRD Docs|Scenario Generator PRD]] 
 
 # ABIO Suite Construction

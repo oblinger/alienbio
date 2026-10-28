@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Demos]] → [ABIO Demo Gallery](ha://p/ABIO%20Demo%20Gallery) 
+:>> [ABIO](../ABIO.md) → [ABIO Demos](ABIO%20Demos.md) → [ABIO Demo Gallery](ha://p/ABIO%20Demo%20Gallery) 
 # Demo Gallery
 Interactive demonstrations of AlienBio's core capabilities.
 

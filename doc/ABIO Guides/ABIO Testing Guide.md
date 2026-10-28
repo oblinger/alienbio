@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Guides]] → [ABIO Testing Guide](ha://p/ABIO%20Testing%20Guide) 
+:>> [ABIO](../ABIO.md) → [ABIO Guides](ABIO%20Guides.md) → [ABIO Testing Guide](ha://p/ABIO%20Testing%20Guide) 
 # Testing Guide
 **Topic**: ~~[[ABIO Topics]]~~ 
 Testing tiers (smoke, commit, release) and test organization.

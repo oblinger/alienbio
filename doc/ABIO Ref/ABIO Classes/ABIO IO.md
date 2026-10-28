@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO IO](ha://p/ABIO%20IO) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO IO](ha://p/ABIO%20IO) 
 # IO
 Entity I/O: prefix bindings, formatting, lookup, and persistence.
 

@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO Classes]] → [ABIO CompartmentTree](ha://p/ABIO%20CompartmentTree) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO Classes](ABIO%20Classes.md) → [ABIO CompartmentTree](ha://p/ABIO%20CompartmentTree) 
 # CompartmentTree
 Hierarchical topology of compartments for efficient simulation.
 

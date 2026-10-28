@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Documentation](ha://p/ABIO%20Documentation) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Documentation](ha://p/ABIO%20Documentation) 
 # Documentation
 **Topic**: ~~[[ABIO Topics]]~~ 
 Documentation standards and conventions.

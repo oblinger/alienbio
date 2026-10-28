@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [ABIO Protocols](ha://p/ABIO%20Protocols) 
+:>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO Protocols](ha://p/ABIO%20Protocols) 
 # Protocols
 Alphabetical listing of all classes in the Alien Biology system, organized by subsystem.
 

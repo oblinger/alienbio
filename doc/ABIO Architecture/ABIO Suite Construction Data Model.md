@@ -1,7 +1,7 @@
 ---
 description: "Shared data model for the Suite Construction neutral primitives — the domain-neutral contracts (types + adapters over existing ABIO classes) that carve, cover, verify, grade, render, and sample close over. This is the boundary that keeps the primitives implementation-clean."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO Suite Construction Data Model](ha://p/ABIO%20Suite%20Construction%20Data%20Model) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO Suite Construction Data Model](ha://p/ABIO%20Suite%20Construction%20Data%20Model) 
  [[ABIO Architecture Docs]] · [[ABIO Suite Construction]] 
 
 # Suite Construction Data Model

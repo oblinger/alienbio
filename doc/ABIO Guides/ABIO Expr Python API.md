@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Guides]] → [ABIO Expr Python API](ha://p/ABIO%20Expr%20Python%20API) 
+:>> [ABIO](../ABIO.md) → [ABIO Guides](ABIO%20Guides.md) → [ABIO Expr Python API](ha://p/ABIO%20Expr%20Python%20API) 
 # ABIO Expr Python API
 The Python side of [[ABIO Expr Spec|Expr]]: how a Python function becomes a head a spec can call, how an expander builds structure, how forms are built and evaluated from Python, how the drafters and the experiment file are reached from Python, and where the trust boundary sits.
 
