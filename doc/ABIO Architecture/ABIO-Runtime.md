@@ -1,7 +1,7 @@
 ---
 description: "the live loop — brief, opaque names, the turn loop with rejection-as-data, probes, compaction, the taint audit, and the grid driver that runs trials in a thread pool. Source: suite/runner.py, agent.py, llm_agent.py, brief.py, trial.py, mass_trial.py, naming.py."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO-Runtime](ha://p/ABIO-Runtime) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO-Runtime](ha://p/ABIO-Runtime) 
 # ABIO-Runtime
 The paid-run blast radius: everything between a drafted world and the frozen record, including the one edge that reaches the network.
 
@@ -13,14 +13,14 @@ The paid-run blast radius: everything between a drafted world and the frozen rec
 
 | MODULE | LOC | Role |
 | --- | --- | --- |
-| `agent.py` | 311 | The action algebra (`Measure`, `Intervene`, `Commit`, `Wait`), the `Agent` / `SessionAgent` / `ProbeAgent` protocols, `ScriptedAgent` and `Policy`. No I/O, no world access. |
-| `brief.py` | 716 | `TaskBrief`, `Affordances`, `build_brief`, `render_brief`;<br>constitution, stakes, monitoring, probes, protocol, padding, `DEFAULT_ACTION_COSTS`. |
-| `naming.py` | 236 | `NameMap` (injective, longest-first), `build_name_map`, `OpaqueAgent`, `surface_brief` / `surface_observation` / `structural_action`. |
-| `ops.py` | ~110 | `LLMFn`, the one provider seam; `LLMOp` validates and retries a schema'd reply; `canonical` prompt text. |
-| `llm_agent.py` | 1130 | `LLMAgent` (history window, `compact_at`, `history_token_limit`, token ceiling, `prompt_texts`/hashes, probe forking), `UsageMeter`, prices, `PINNED_MODEL`, `_call_with_retry`, `default_anthropic_llm_fn`. |
-| `trial.py` | 237 | Frozen `TrialRecord` + `ProbeRecord`; `condition_key`, `hashable_condition_key`, `final_state_dict`. |
-| `runner.py` | 939 | `run`, `Budget`/`BUDGET_LADDER`, `_world_from_state`, probe timings, `audit_prompts`, `TaintError`. |
-| `mass_trial.py` | 596 | `MassTrialRunner.run`/`run_one`, `condition_grid`, `ReliabilityMap`, `CellSummary`, `ContrastResult`, `Provenance`, `aggregate_records`. |
+| `agent.py` | 331 | The action algebra (`Measure`, `Intervene`, `Commit`, `Wait`), the `Agent` / `SessionAgent` / `ProbeAgent` protocols, `ScriptedAgent` and `Policy`. No I/O, no world access. |
+| `brief.py` | 896 | `TaskBrief`, `Affordances`, `build_brief`, `render_brief`;<br>constitution, stakes, monitoring, probes, protocol, padding, `DEFAULT_ACTION_COSTS`. |
+| `naming.py` | 286 | `NameMap` (injective, longest-first), `build_name_map`, `OpaqueAgent`, `surface_brief` / `surface_observation` / `structural_action`. |
+| `ops.py` | 107 | `LLMFn`, the one provider seam; `LLMOp` validates and retries a schema'd reply; `canonical` prompt text. |
+| `llm_agent.py` | 1382 | `LLMAgent` (history window, `compact_at`, `history_token_limit`, token ceiling, `prompt_texts`/hashes, probe forking), `UsageMeter`, prices, `PINNED_MODEL`, `_call_with_retry`, `default_anthropic_llm_fn`. |
+| `trial.py` | 319 | Frozen `TrialRecord` + `ProbeRecord`; `condition_key`, `hashable_condition_key`, `final_state_dict`. |
+| `runner.py` | 1317 | `run`, `Budget`/`BUDGET_LADDER`, `_world_from_state`, probe timings, `audit_prompts`, `TaintError`. |
+| `mass_trial.py` | 724 | `MassTrialRunner.run`/`run_one`, `condition_grid`, `ReliabilityMap`, `CellSummary`, `ContrastResult`, `Provenance`, `aggregate_records`. |
 
 Layering is strict and acyclic: `agent`/`ops` → `brief` → `naming`/`trial`/`llm_agent` → `runner` → `mass_trial`. `runner.py` never imports `llm_agent.py`: it duck-types `SessionAgent`/`ProbeAgent` and reads `usage`, `prompt_texts`, `compaction` by `getattr`, so the live layer is swappable. Only `runner.py` and `mass_trial.py` touch `bio/`.
 
@@ -30,11 +30,11 @@ Box 4 hypotheses (2026-09-10): the error record keeps its transcript (`TrialErro
 
 | HYPOTHESIS | Why it would be quiet | Where |
 | --- | --- | --- |
-| An error record drops its transcript | the generic error path keeps only `usage`; `brief`, `turns`, `action_log`, `probes`, `final_timeline` are gone, so a $-charged trial shows an empty transcript; a factory-stage failure keeps no usage at all | `mass_trial.py` ~530–540 |
-| A systematic taint shrinks n silently | a `TaintError` record is re-stamped `terminal_reason="error"` and excluded from cells and contrasts; only `Provenance.failed_trials` counts it, without the reason | `mass_trial.py` ~529, ~593 |
-| The cost ceiling overshoots by up to `concurrency` | `stop()` is checked at submission; spend advances only when a unit lands, in submission order, so one slow early trial defers all accounting | `mass_trial.py` ~573–584; `experiment.py` ~2741 |
-| Probe spend never trips the token ceiling | `meter_tokens` subtracts `_probe_tokens`; `every_turn` probes on a long grid spend past the ceiling until the USD ceiling catches it between trials | `llm_agent.py` ~905 |
-| The constitution vanishes without a trace | stored as history turn −1, it is always inside the displaced set at `compact_at`; an unusable summary replaces it with a stub; a finite `memory=k` window drops it with no field on the record saying when | `llm_agent.py` ~751, ~826, ~852–876 |
-| A molecule and a reaction sharing an id | `build_name_map` writes molecules then reactions into one dict; the reaction wins silently and `structural_text` maps the surface name back to the wrong entity | `naming.py` ~112–118 |
-| The taint audit has blind spots | returns `()` when the agent exposes no `prompt_texts`; secrets are molecules and `AnswerObjective.key` leaves only, so hidden reaction structure and `OutcomeObjective` targets are never scanned | `runner.py` ~907–914 |
-| A clamp note for a compacted turn is dropped | `notice()` returns silently when no history entry matches `outcome.turn` | `llm_agent.py` ~769 |
+| An error record drops its transcript — closed (box 4, `TrialError`) | the generic error path keeps only `usage`; `brief`, `turns`, `action_log`, `probes`, `final_timeline` are gone, so a $-charged trial shows an empty transcript; a factory-stage failure keeps no usage at all | `mass_trial.py` ~530–540 |
+| A systematic taint shrinks n silently — closed (T054: the census names the class) | a `TaintError` record is re-stamped `terminal_reason="error"` and excluded from cells and contrasts; only `Provenance.failed_trials` counts it, without the reason | `mass_trial.py` ~529, ~593 |
+| The cost ceiling overshoots by up to `concurrency` — closed (box 4) | `stop()` is checked at submission; spend advances only when a unit lands, in submission order, so one slow early trial defers all accounting | `mass_trial.py` ~573–584; `experiment.py` ~2741 |
+| Probe spend never trips the token ceiling — as designed | `meter_tokens` subtracts `_probe_tokens`; `every_turn` probes on a long grid spend past the ceiling until the USD ceiling catches it between trials | `llm_agent.py` ~905 |
+| The constitution vanishes without a trace — closed (T054, `TrialRecord.forgetting`) | stored as history turn −1, it is always inside the displaced set at `compact_at`; an unusable summary replaces it with a stub; a finite `memory=k` window drops it with no field on the record saying when | `llm_agent.py` ~751, ~826, ~852–876 |
+| A molecule and a reaction sharing an id — closed (T054: refused) | `build_name_map` writes molecules then reactions into one dict; the reaction wins silently and `structural_text` maps the surface name back to the wrong entity | `naming.py` ~112–118 |
+| The taint audit has blind spots — closed (T054) | returns `()` when the agent exposes no `prompt_texts`; secrets are molecules and `AnswerObjective.key` leaves only, so hidden reaction structure and `OutcomeObjective` targets are never scanned | `runner.py` ~907–914 |
+| A clamp note for a compacted turn is dropped — as designed | `notice()` returns silently when no history entry matches `outcome.turn` | `llm_agent.py` ~769 |
