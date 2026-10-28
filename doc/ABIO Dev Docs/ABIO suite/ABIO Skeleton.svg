@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Authoring: generator and the Skeleton wrapper -->
+  <g id="n-gen">
+    <rect id="n-gen-box" x="15" y="55" width="260" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gen-name" x="145" y="79" font-size="18" font-weight="600" text-anchor="middle">build_conflict_skeleton</text>
+    <text id="n-gen-kind" x="145" y="100" font-size="14" text-anchor="middle">(generator fn) composes blocks</text>
+  </g>
+  <g id="n-skel">
+    <rect id="n-skel-box" x="15" y="175" width="260" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-skel-name" x="145" y="199" font-size="18" font-weight="600" text-anchor="middle">Skeleton</text>
+    <text id="n-skel-kind" x="145" y="220" font-size="14" text-anchor="middle">(class) control_surface, crux</text>
+  </g>
+  <line id="e-gen-skel" x1="145" y1="111" x2="145" y2="175" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-gen-skel" x="155" y="148" font-size="14" fill="#1971c2" font-style="italic">returns</text>
+
+  <!-- The block tree -->
+  <g id="n-tree">
+    <rect id="n-tree-box" x="295" y="15" width="410" height="345" rx="12" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-tree-name" x="310" y="38" font-size="16" font-weight="600" fill="#343a40">block tree · SkeletonBlock</text>
+  </g>
+  <g id="n-root">
+    <rect id="n-root-box" x="400" y="55" width="200" height="56" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-root-name" x="500" y="79" font-size="18" font-weight="600" text-anchor="middle">root</text>
+    <text id="n-root-kind" x="500" y="100" font-size="14" text-anchor="middle">(SkeletonBlock) composite</text>
+  </g>
+  <g id="n-source">
+    <rect id="n-source-box" x="310" y="175" width="180" height="56" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-source-name" x="400" y="199" font-size="18" font-weight="600" text-anchor="middle">SourceBlock</text>
+    <text id="n-source-kind" x="400" y="220" font-size="14" text-anchor="middle">(primitive) ∅ → pool</text>
+  </g>
+  <g id="n-crux">
+    <rect id="n-crux-box" x="505" y="175" width="195" height="56" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-crux-name" x="602" y="199" font-size="18" font-weight="600" text-anchor="middle">ConflictCruxBlock</text>
+    <text id="n-crux-kind" x="602" y="220" font-size="14" text-anchor="middle">(pattern) the crux</text>
+  </g>
+  <g id="n-rxn">
+    <rect id="n-rxn-box" x="505" y="285" width="195" height="56" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rxn-name" x="602" y="309" font-size="18" font-weight="600" text-anchor="middle">ReactionBlock</text>
+    <text id="n-rxn-kind" x="602" y="330" font-size="14" text-anchor="middle">(primitive) route_a</text>
+  </g>
+  <line id="e-skel-root" x1="275" y1="193" x2="400" y2="73" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-skel-root" x="320" y="168" font-size="14" fill="#1971c2" font-style="italic">root</text>
+  <line id="e-root-source" x1="470" y1="111" x2="420" y2="175" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-root-crux" x1="530" y1="111" x2="580" y2="175" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-root-crux" x="566" y="146" font-size="14" fill="#1971c2" font-style="italic">bound</text>
+  <line id="e-crux-rxn" x1="602" y1="231" x2="602" y2="285" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <!-- Fragment and materialize -->
+  <g id="n-frag">
+    <rect id="n-frag-box" x="295" y="400" width="270" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-frag-name" x="430" y="425" font-size="18" font-weight="600" text-anchor="middle">Fragment</text>
+    <text id="n-frag-kind" x="430" y="447" font-size="14" text-anchor="middle">(dataclass) merged up the tree</text>
+  </g>
+  <line id="e-source-frag" x1="400" y1="231" x2="400" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-source-frag" x="408" y="300" font-size="14" fill="#1971c2" font-style="italic">realize</text>
+  <line id="e-rxn-frag" x1="560" y1="341" x2="520" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-rxn-frag" x="560" y="382" font-size="14" fill="#1971c2" font-style="italic">realize</text>
+
+  <g id="n-mat">
+    <rect id="n-mat-box" x="730" y="400" width="190" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mat-name" x="825" y="425" font-size="18" font-weight="600" text-anchor="middle">materialize</text>
+    <text id="n-mat-kind" x="825" y="447" font-size="14" text-anchor="middle">(method) seed → world</text>
+  </g>
+  <line id="e-frag-mat" x1="565" y1="430" x2="730" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-frag-mat" x="650" y="420" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">mk.C + compartments</text>
+
+  <g id="n-world">
+    <rect id="n-world-box" x="975" y="390" width="210" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-world-name" x="1080" y="415" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
+    <text id="n-world-kind" x="1080" y="437" font-size="14" text-anchor="middle">(class) chemistry · cells</text>
+    <text id="n-world-kind2" x="1080" y="457" font-size="14" text-anchor="middle">flows · population laws</text>
+  </g>
+  <line id="e-mat-world" x1="920" y1="430" x2="975" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- Validate and oracle -->
+  <g id="n-val">
+    <rect id="n-val-box" x="730" y="525" width="190" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-val-name" x="825" y="550" font-size="18" font-weight="600" text-anchor="middle">validate</text>
+    <text id="n-val-kind" x="825" y="572" font-size="14" text-anchor="middle">(method) two canaries ‡</text>
+  </g>
+  <line id="e-mat-val" x1="825" y1="460" x2="825" y2="525" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-mat-val" x="835" y="497" font-size="14" fill="#1971c2" font-style="italic">chemistry</text>
+
+  <g id="n-oracle">
+    <rect id="n-oracle-box" x="730" y="55" width="190" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-oracle-name" x="825" y="79" font-size="18" font-weight="600" text-anchor="middle">oracle</text>
+    <text id="n-oracle-kind" x="825" y="100" font-size="14" text-anchor="middle">(method) sim, read crux</text>
+  </g>
+  <line id="e-oracle-crux" x1="730" y1="100" x2="700" y2="190" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-oracle-crux" x="742" y="160" font-size="14" fill="#1971c2" font-style="italic">ground_truth</text>
+  <line id="e-oracle-mat" x1="890" y1="111" x2="890" y2="400" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-oracle-mat" x="900" y="262" font-size="14" fill="#1971c2" font-style="italic">materializes first</text>
+
+  <!-- Consumers -->
+  <g id="n-head">
+    <rect id="n-head-box" x="975" y="55" width="210" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="1080" y="79" font-size="18" font-weight="600" text-anchor="middle">drafter head</text>
+    <text id="n-head-kind" x="1080" y="100" font-size="14" text-anchor="middle">(DRAFTERS) setup · oracle</text>
+  </g>
+  <line id="e-oracle-head" x1="920" y1="83" x2="975" y2="83" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-runner">
+    <rect id="n-runner-box" x="975" y="525" width="210" height="60" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-runner-name" x="1080" y="550" font-size="18" font-weight="600" text-anchor="middle">runner</text>
+    <text id="n-runner-kind" x="1080" y="572" font-size="14" text-anchor="middle">(suite.runner) steps it</text>
+  </g>
+  <line id="e-world-runner" x1="1080" y1="470" x2="1080" y2="525" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-world-runner" x="1090" y="502" font-size="14" fill="#1971c2" font-style="italic">per trial</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <rect id="legend-box" x="15" y="605" width="1170" height="60" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="635" x2="85" y2="635" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="640" font-size="14">build flow: generator → tree → Fragment → WorldImpl</text>
+    <line id="legend-dotted" x1="470" y1="635" x2="520" y2="635" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="530" y="640" font-size="14">contains, binds, reads</text>
+    <text id="legend-dagger" x="730" y="640" font-size="14">‡ conservation is vacuous: minted pools carry no atoms</text>
+  </g>
+</svg>
