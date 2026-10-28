@@ -1,8 +1,10 @@
 """Protocol definitions for the alienbio system.
 
-Protocols are organized by subsystem:
-- infra: Entity base, IO, Expr, Context
-- bio: Atom, Molecule, Reaction, Chemistry, Pathway, Compartment, Generators
+One module, ``bio``: Atom, Molecule, Reaction, Flow, GeneralFlow, Chemistry,
+CompartmentTree, WorldState, Simulator — the nine Protocols the classes in
+``alienbio.bio`` satisfy (``_conformance.py`` holds them to it under pyright).
+The infra layer (``Entity``, ``IO``) is concrete classes, not Protocols; the
+suite's Protocols live in ``alienbio.suite``.
 
 Usage:
     from alienbio.protocols import Atom, Molecule, Reaction, Chemistry
@@ -24,9 +26,6 @@ from .bio import (
 )
 
 
-# Infra protocols (to be implemented)
-# from .infra import Entity, IO, Expr, Context
-
 __all__ = [
     # Bio protocols
     "Atom",
@@ -38,5 +37,4 @@ __all__ = [
     "CompartmentTree",
     "WorldState",
     "Simulator",
-    # Execution
 ]

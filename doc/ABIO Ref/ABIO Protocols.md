@@ -8,12 +8,12 @@ Alphabetical listing of all classes in the Alien Biology system, organized by su
 |-----------|---------|
 | [[ABIO infra\|Infrastructure]] | Entity, IO, DAT |
 | [[ABIO Expr Spec\|Expr]] | Form (Name, Call, Quoted, Include, PyRef), QuotedForm, Env, Ctx, Limits, Registry, Head, TemplateHead, ExprError, GuardViolation, UnsafeSpecError |
-| [[ABIO biology\|Biology]] | Atom, Chemistry, Compartment, CompartmentTree, ContainerGenerator, Flow, Generator, Molecule, MoleculeGenerator, Pathway, Reaction, ReactionGenerator, WorldSimulator, WorldState |
-| [[ABIO biology\|Execution]] | Simulator, State, Timeline, World |
+| [[ABIO biology\|Biology]] | Atom, Chemistry, Compartment, CompartmentTree, Flow, GeneralFlow, Molecule, Reaction, WorldState |
+| [[ABIO biology\|Execution]] | Simulator, WorldSimulator |
 | [[ABIO Suite Construction\|Suite construction (M26/M27)]] | Motif, CarveResult, Skeleton, SkeletonBlock, TaskArchetype, ObjectiveRecipe, TaskInstance, Question, Answer, AnswerObjective, OutcomeObjective, SuiteSpec, Suite, Draft, Dist, Seed, Vocabulary, Renderable, Op, LLMOp, Predicate, Directive |
 | [[ABIO Suite Runtime\|Suite runtime (Phase 2)]] | Agent, SessionAgent, ScriptedAgent, LLMAgent, Measure, Intervene, Commit, Wait, ActionOutcome, ReasoningStep, TaskBrief, Affordances, Budget, SimConfig, TrialRecord, ActionRecord, DeliberationTrace, MassTrialRunner, ReliabilityMap, Provenance, ConditionSpec, ExperimentSpec, PowerDesign |
 
-The biology and execution rows name the **protocols** in `alienbio.protocols` (`CompartmentTree`, `State`, `World`, …); their concrete classes in `alienbio.bio` carry an `Impl` suffix (`CompartmentTreeImpl`, `StateImpl`, `WorldImpl`). The Expr row is `alienbio.expr` ([[ABIO Expr Python API]]); the M1 execution stack (Action, Context, Experiment, Measurement, Step, Task, Test, TestHarness, Bio, Interpreter) was deleted in M47.7. The suite rows name concrete dataclasses and Protocols in `alienbio.suite` — the M26 neutral shadow types (`StateVector`, `Topology`, a neutral `World`/`Compartment`) were retired in July 2026 (F007) and the suite now builds directly on the biology classes.
+The biology and execution rows name the nine **protocols** in `alienbio.protocols` (`Atom`, `Molecule`, `Reaction`, `Flow`, `GeneralFlow`, `Chemistry`, `CompartmentTree`, `WorldState`, `Simulator`) and the concrete classes in `alienbio.bio` that satisfy them, which carry an `Impl` suffix (`CompartmentTreeImpl`, `WorldStateImpl`, `WorldSimulatorImpl`; `Compartment` is `CompartmentImpl`, which has no Protocol). There is no `State` or `World` protocol and no `StateImpl`: the single-compartment state and simulator went in T056, and `WorldImpl` is a concrete bundle with no Protocol of its own. `pyright src/` holds each implementation to its Protocol through `protocols/_conformance.py`. The Expr row is `alienbio.expr` ([[ABIO Expr Python API]]); the M1 execution stack (Action, Context, Experiment, Measurement, Step, Task, Test, TestHarness, Bio, Interpreter) was deleted in M47.7. The suite rows name concrete dataclasses and Protocols in `alienbio.suite` — the M26 neutral shadow types (`StateVector`, `Topology`, a neutral `World`/`Compartment`) were retired in July 2026 (F007) and the suite now builds directly on the biology classes.
 
 ---
 
@@ -93,21 +93,18 @@ The biology and execution rows name the **protocols** in `alienbio.protocols` (`
 - **[[ABIO Suite Construction Data Model|Seed]]** — A hierarchical deterministic seed; `seed.child(label)` derives every per-condition, per-trial, per-turn seed *(suite; M26)*
 - **[[ABIO Suite Runtime|SessionAgent]]** — The optional Protocol an agent implements to be briefed (`begin(brief)`) and told each action's outcome (`notice(outcome)`) *(suite runtime; M46)*
 - **[[ABIO Suite Runtime|SimConfig]]** — Steps and sampling cadence of one simulation burst — one per turn in the runner *(suite)*
-- **~~[[ABIO simulator|Simulator]]~~** — Execution engine for biology dynamics
+- **Simulator** — The protocol both simulators satisfy (`tree`, `dt`, `step`, `run`): `WorldSimulatorImpl` and `JaxWorldSimulator`; see [ABIO WorldSimulator](ABIO%20Classes/ABIO%20WorldSimulator.md) 
 - **[[ABIO Suite Construction|Skeleton]]** — The F013 recursive `SkeletonBlock` tree a generator materializes into a world (materialize / validate / oracle); not the pre-F013 `Skeleton`, now `CarveResult` *(suite; M38)*
-- **~~[[ABIO state|State]]~~** — Snapshot of molecule concentrations
 - **[[ABIO Suite Construction Data Model|Suite]]** / **[[ABIO Suite Construction Data Model|SuiteSpec]]** — A materialized suite (worlds + `TaskInstance`s) and the archetype mix it came from (`SuiteSpec.per_archetype` / `seed` were unread and are gone, M47.7) *(suite; M26/M27)*
 
 ## T
 - **[[ABIO Suite Construction Data Model|TaskArchetype]]** / **[[ABIO Suite Construction Data Model|TaskInstance]]** — The family a task belongs to (with its `ObjectiveRecipe` and optional drafter), and one concrete task: archetype + world + `CarveResult` + objective + question *(suite; M26/M27)*
 - **[[ABIO Suite Runtime|TaskBrief]]** — What the runner tells the agent at trial start: the question, expected answer kind, constitution, affordances, budget and costs, turn and step limits — never the key, target or hidden state *(suite runtime; M46)*
-- **~~[[ABIO timeline|Timeline]]~~** — Sequence of states with intervention hooks
 - **[[ABIO Suite Runtime|TrialRecord]]** — The frozen unit of observation one agent-run emits: timeline, deliberation trace, action log, objective score, terminal reason, budget accounting, illegal-action count, brief *(suite runtime; M40)*
 
 ## V
 - **[[ABIO Alien Vocabulary|Vocabulary]]** — Injective token↔surface-phrase bijection the NL renderer substitutes through (lossless round-trip) *(suite; M26/M27)*
 
 ## W
-- **~~[[ABIO world|World]]~~** — Complete runnable setup with system, generators, initial conditions
 - **[[ABIO WorldSimulator]]** — Multi-compartment simulation engine with reactions and flows
 - **[[ABIO WorldState]]** — Dense concentration storage for multi-compartment simulations

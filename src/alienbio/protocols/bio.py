@@ -10,14 +10,23 @@ Protocols for the biology subsystem:
 - WorldState: Concentration storage for all compartments
 - Simulator: Step-based simulation
 
-These protocols define the interfaces that implementation classes must satisfy.
-Use these for type hints to allow for alternative implementations.
+These protocols state the interfaces the implementation classes in
+``alienbio.bio`` satisfy; ``protocols/_conformance.py`` assigns each
+implementation to its Protocol under ``TYPE_CHECKING``, so ``pyright src/`` is
+the check that holds them together. The engine-facing members
+(``Flow.compute_flux``, ``GeneralFlow.apply``, ``Simulator``) take and return
+the one state class and one tree class (``WorldStateImpl``,
+``CompartmentTreeImpl``), because the engine reads their arrays directly; a
+second state or tree class would need those signatures widened first.
+
+``@runtime_checkable`` checks member presence only — an object with the right
+attribute names passes ``isinstance`` whatever their types — so lean on the
+static check, not on ``isinstance``.
 """
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, Iterable, List, Optional, Protocol, runtime_checkable
 
 from typing import TYPE_CHECKING, Mapping
 
@@ -158,6 +167,13 @@ class Reaction(Protocol):
         callable here: ``ReactionImpl`` refuses a non-number (``b86bcd1``)."""
         ...
 
+    @property
+    def rate_law(self) -> Optional[Any]:
+        """The compiled rate expression (a ``bio.rate_expr`` tree), or ``None``
+        for plain mass action at ``rate``. When set, both simulators read it
+        instead of ``rate``."""
+        ...
+
 
 @runtime_checkable
 class Flow(Protocol):
@@ -279,7 +295,10 @@ class Chemistry(Protocol):
         ...
 
     def match(self, pattern: Any) -> List[Dict[str, str]]:
-        """All subgraph embeddings of ``pattern`` into this chemistry."""
+        """All subgraph embeddings of ``pattern`` into this chemistry.
+
+        ``pattern`` is typed ``Any`` because the one implementation takes a
+        ``ChemistryImpl`` (it reads the pattern's graph view)."""
         ...
 
 
@@ -384,9 +403,10 @@ class WorldState(Protocol):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# State (for single-compartment Chemistry simulations)
+# Simulation: Simulator
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@runtime_checkable
 class Simulator(Protocol):
     """Protocol for simulators.
 
@@ -404,7 +424,6 @@ class Simulator(Protocol):
         """Time step size."""
         ...
 
-    @abstractmethod
     def step(self, state: "WorldStateImpl") -> "WorldStateImpl":
         """Advance the simulation by one time step."""
         ...
