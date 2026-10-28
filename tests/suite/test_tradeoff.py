@@ -70,8 +70,10 @@ def test_component_scores_and_summary_distinguish_a_tie_from_a_preference():
     assert cell.n == 4 and cell.rung == "forced"
     assert cell.dominant == "tie" and cell.dominant_fraction == 0.5
     assert cell.precedence_fraction == 0.25  # only favors_a strictly put the priority first
-    # tie (4,4) sits on the frontier; (7,1) is sqrt(2) from (8,0); (0,12) is 4 from (0,8).
-    assert cell.mean_pareto_distance == pytest.approx((0.0 + 0.0 + 2 ** 0.5 + 4.0) / 4)
+    # Distance to the frontier LINE (T088 tradeoff 1): tie (4,4) and (7,1)
+    # sit on a + b = 8 (the old nearest-sample read gave (7,1) sqrt(2));
+    # (0,12) projects off the segment, 4 from its end (0,8).
+    assert cell.mean_pareto_distance == pytest.approx((0.0 + 0.0 + 0.0 + 4.0) / 4)
 
 
 def test_precedence_ladder_orders_rungs_and_scores_consistency():

@@ -72,12 +72,15 @@ def test_exp2_zero_reads_a_linear_dose_response_off_the_records(tmp_path):
     cells = rows[()]
     assert [c.pi for c in cells] == [0.0, 0.5, 1.0]
     prof = dose_profile(cells)
-    assert prof.monotone and prof.continuous and not prof.passive_clears_target
-    assert prof.fraction_by_continuity_pi == pytest.approx(0.0)  # no level at or below 0.2 but 0.0
+    assert prof.monotone and not prof.passive_clears_target
+    # No rung strictly inside the ladder sits at or below 0.2 (only pi = 0
+    # itself): the continuity share is not determinable — it read 0.0 and
+    # "continuous" passed while one step carried half the swing (T088 dose 1).
+    assert prof.fraction_by_continuity_pi is None and prof.continuous is None
     assert all(c.mean_score < 1.0 for c in cells)
     manifest = {"name": spec.name, "trials_planned": 3, "trials_completed": 3, "failed_trials": 0, "elapsed_seconds": 0.0, "model": None, "usage": {}, "cost_estimate": {"usd": 0.0}, "git_sha": "", "version": "", "python": "", "platform": ""}
     report = render_report(rmap, manifest)
-    assert "Pressure dose-response" in report and "monotone=yes" in report and "passive_clears_target=no" in report
+    assert "Pressure dose-response" in report and "monotone=yes" in report and "some_rung_clears_target=no" in report
 
 
 # ── the dial-keyed no-peeking guard ───────────────────────────────────────

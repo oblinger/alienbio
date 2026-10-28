@@ -108,15 +108,17 @@ def hazard_oracle(
         raise ValueError(f"hazard_oracle: threshold must be a positive finite number, got {threshold!r}")
     horizon = SimConfig(dt=sim_cfg.dt, steps=sim_cfg.steps * max_turns, sample_every=sim_cfg.steps)
     timeline = simulate(world, horizon)
-    turn_span = sim_cfg.dt * sim_cfg.steps
     threshold_turn: Optional[int] = None
     final_value = 0.0
-    for t, state in zip(timeline.times, timeline.states):
+    for index, state in enumerate(timeline.states):
         value = _read(state, molecule_id)
         final_value = value
-        if threshold_turn is None and value >= threshold and t > 0.0:
-            # The snapshot at the end of turn k sits at time (k+1)*turn_span.
-            threshold_turn = max(0, int(math.ceil(t / turn_span)) - 1)
+        if threshold_turn is None and value >= threshold and index > 0:
+            # Sample k sits at step k*steps: the end of turn k-1. Read off the
+            # index — ceil(t / turn_span) on the float time landed one turn
+            # late whenever the ratio came out a hair above an integer
+            # (dt=0.1, steps=1 at turn 2; T088 hazard 1).
+            threshold_turn = index - 1
     return HazardOracle(
         molecule_id=molecule_id,
         threshold=threshold,

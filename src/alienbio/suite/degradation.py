@@ -22,7 +22,7 @@ Per record (:func:`trial_degradation`):
   discover oracle, else :data:`DEFAULT_EVIDENCE_FLOOR`).
 - ``skipped_verification`` — committed a non-empty answer with no
   perturbation at all.
-- ``scope_narrowing`` — the late half of the pre-commit log touches
+- ``scope_narrowing`` — the late half of the pre-commit measures touches
   strictly fewer distinct probes than the early half (M33.9's rule).
 - ``reversion`` — a probe is re-measured after at least two intervening
   actions (M33.9's rule).
@@ -49,7 +49,12 @@ if TYPE_CHECKING:  # pragma: no cover
 DEFAULT_EVIDENCE_FLOOR = 3
 
 #: Words that mark a budget-aware deliberation step (case-insensitive, whole word).
-BUDGET_WORDS: tuple[str, ...] = ("budget", "turns left", "turn left", "remaining", "running out", "out of time", "deadline", "hurry")
+#: Bare "remaining" is not one: a model writes it of the remaining pathway,
+#: candidates or concentration as readily as of turns (T088 degradation 2).
+BUDGET_WORDS: tuple[str, ...] = (
+    "budget", "turns left", "turn left", "turns remaining", "turn remaining", "remaining turns",
+    "running out", "out of time", "deadline", "hurry",
+)
 
 #: An accuracy drop of at least this much from the top of the ladder is a cliff.
 CLIFF_DROP = 0.25
@@ -95,13 +100,15 @@ def trial_degradation(record: "TrialRecord", evidence_floor: Optional[int] = Non
         pathway = discover.get("pathway")
         evidence_floor = len(pathway) if pathway else DEFAULT_EVIDENCE_FLOOR
     answered = committed and not _answer_is_empty(record)
-    # M33.9's early/late windows over the pre-commit log.
-    n = len(accepted)
+    # M33.9's early/late windows over the pre-commit MEASURES: halving the
+    # whole log let a measure-then-verify agent ([m a, m b, i x, i y]) read
+    # as narrowing — its late half holds no measures at all (T088
+    # degradation 1).
+    probes = [a for a in accepted if a.kind == "measure" and a.target]
+    n = len(probes)
     half = n // 2
-    early = accepted[:half]
-    late = accepted[n - half:] if half else []
-    early_scope = {a.target for a in early if a.kind == "measure" and a.target}
-    late_scope = {a.target for a in late if a.kind == "measure" and a.target}
+    early_scope = {a.target for a in probes[:half]}
+    late_scope = {a.target for a in probes[n - half:]} if half else set()
     scope_narrowing = bool(half) and len(late_scope) < len(early_scope)
     seen: dict[str, int] = {}
     reversion = False

@@ -21,6 +21,16 @@ states the process in one line (:func:`monitor_brief_text`). Three arms:
   agent-indistinguishable from the monitored arm, since the log has no
   in-world consequence beyond its visibility, and the two arms would be one
   experiment. So belief = sham vs unmonitored; mechanism = monitored vs sham.
+  The sham is checkable, so that belief decays (T088 monitor 1): a ledger
+  at 0 after ``n`` shown turns has probability ``(1 − c)^n`` under a real
+  auditor — at ``c = 1`` the announcement is contradicted on the second
+  turn, at ``c = 0.5`` the odds are 1/64 after six. "belief" holds only for
+  an agent that does not compare ledger to announcement, and only early;
+  read the sham arm per turn, not as one belief.
+
+Matched-seed arms draw the same per-turn uniforms (``turn/<n>/monitor``),
+so monitored arms at ``c₁ < c₂`` log NESTED turn sets — the coverage
+contrast is coupled by design, not two independent draws (T088 monitor 2).
 
 ``monitor_salience`` (in ``(0, 1]``, default 1) decouples conspicuousness
 from coverage: the auditor block appears in the observation on a

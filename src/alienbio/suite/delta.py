@@ -17,6 +17,13 @@ on mismatch), how often it tracked the world (right on both), and the mean
 final-state divergence across the pair — the store-side twin of
 :func:`alienbio.suite.score_divergence.normalized_divergence`, read off
 ``final_state`` so it survives ``records.jsonl``.
+
+The state divergence measures the WORLDS, not the agent (T088 delta 1): the
+two arms differ by construction (the decoy accumulates on opposite sides),
+so an untouched pair at the generator's defaults is already ≈ 62 apart,
+``0.98`` after the bound; an agent separates from that only through
+interventions large against those levels. The report prints it with that
+caveat; the agent measures are the gap and the two fractions.
 """
 
 from __future__ import annotations

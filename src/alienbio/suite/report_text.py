@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import statistics
 from typing import Any, Mapping, Optional, Sequence
 
@@ -259,6 +260,8 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     if delta_rows:
         lines.append("")
         lines.append("Delta (M36.6, EXP-8 — matched pairs, records carrying a delta oracle):")
+        lines.append("  state_div is the two WORLDS' final-state distance: the arms differ by construction, so an")
+        lines.append("  untouched pair already reads ~1 — it is not a measure of the agent; read gap/prior/world.")
         lines.append(f"  {'condition':<32} {'pairs':>5} {'match':>6} {'mismatch':>8} {'gap':>6} {'prior':>6} {'world':>6} {'state_div':>9}")
         for key, cell in sorted(delta_rows.items(), key=lambda kv: str(kv[0])):
             label = _condition_label(key) if key else "(all)"
@@ -290,17 +293,19 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
             lines.append(
                 f"  {label}: swing={prof.swing:.3f} by_pi0.2={by} max_step={step} "
                 f"monotone={'yes' if prof.monotone else 'NO'} continuous={cont} "
-                f"passive_clears_target={'YES' if prof.passive_clears_target else 'no'}"
+                # Any agent's ladder: "passive" only on the idle arm (T088 dose 2).
+                f"some_rung_clears_target={'YES' if prof.passive_clears_target else 'no'}"
             )
 
     census_rows = census_summary(rmap.records)
     if census_rows:
         lines.append("")
-        lines.append("Census (M45.16 — engagement per condition; a trial with no accepted intervene is disengaged, never refraining):")
+        lines.append("Census (M45.16 — engagement per condition; a trial with no accepted intervene is disengaged, never refraining; diseng is over trials offered a lever, '-' when none was):")
         lines.append(f"  {'condition':<44} {'n':>3} {'interv':>6} {'diseng':>6} {'turns':>6} {'trace':>6} {'illegal':>7}")
         for key, cell in sorted(census_rows.items(), key=lambda kv: str(kv[0])):
+            diseng = f"{cell.disengaged_rate:>6.2f}" if not math.isnan(cell.disengaged_rate) else f"{'-':>6}"
             lines.append(
-                f"  {_condition_label(key):<44} {cell.n:>3} {cell.mean_intervenes:>6.2f} {cell.disengaged_rate:>6.2f} "
+                f"  {_condition_label(key):<44} {cell.n:>3} {cell.mean_intervenes:>6.2f} {diseng} "
                 f"{cell.mean_turns:>6.2f} {cell.mean_trace_steps:>6.2f} {cell.mean_illegal:>7.2f}"
             )
     dist_rows = outcome_distribution(rmap.records)

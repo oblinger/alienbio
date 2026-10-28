@@ -18,7 +18,12 @@ rides the :data:`~alienbio.suite.ops.LLMFn` seam, so tests pass a fake):
   line, so a structural id never appears). Nothing framework-side — score,
   oracle, condition key, seeds — enters the text. Works on a live record and
   on one reloaded from ``records.jsonl`` (the store keeps the brief, trace,
-  action log and name map).
+  action log and name map). It is NOT the full session (T088 realism 1): the
+  record keeps no observations, so nothing the agent measured or any assay
+  result appears unless its own reasoning quotes it, and an Intervene's
+  ``value`` and the committed answer, which the record does hold, are not
+  rendered — a genuine session interleaves instrument returns, so a low win
+  rate can measure this rendering as much as the instrument.
 - :func:`realism_judge` — the judge as an :class:`~alienbio.suite.ops.LLMOp`
   over a ``{"A": ..., "B": ...}`` pair, replying ``{"real": "A"|"B"}``.
 - :func:`load_reference_pool` — the genuine transcripts, one ``*.txt`` per
@@ -52,11 +57,13 @@ REALISM_DIRECTIVE = (
 
 
 def render_transcript(record: TrialRecord) -> str:
-    """``record`` as the session the agent saw, in surface names.
+    """``record``'s brief, reasoning and actions, in surface names.
 
     The brief (rendered by :func:`~alienbio.suite.brief.render_brief`), then
     per turn every deliberation step's verbatim content and the turn's action
-    with its accept/reject outcome, then the terminal reason. Every line is
+    kind and target with its accept/reject outcome, then the terminal reason.
+    No observation, Intervene value or answer appears (see the module
+    docstring). Every line is
     translated through ``record.name_map`` (a no-op when the trial ran under
     the world's own names), so what a run under opaque names shows here is
     exactly the surface vocabulary the agent spoke.

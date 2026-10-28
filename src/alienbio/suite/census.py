@@ -30,7 +30,11 @@ ConditionKey = tuple[tuple[str, Any], ...]
 class CensusCell:
     n: int
     mean_intervenes: float  # accepted Intervene actions per trial
-    disengaged_rate: float  # trials with zero accepted intervenes
+    #: Trials with zero accepted intervenes, over the trials whose brief
+    #: offered a lever; ``nan`` when none did — an answer task with
+    #: ``levers=[]`` cannot engage, so its trials are not disengaged
+    #: (T088 census 1).
+    disengaged_rate: float
     mean_turns: float
     mean_trace_steps: float  # deliberation-trace length
     mean_illegal: float
@@ -40,20 +44,32 @@ def _intervenes(record: "TrialRecord") -> int:
     return sum(1 for a in record.action_log if a.kind == "intervene" and a.accepted)
 
 
+def _offers_a_lever(record: "TrialRecord") -> bool:
+    """Whether the trial's brief offered any lever (a record without a brief
+    is read as offering one, as before)."""
+    brief = record.brief
+    if brief is None:
+        return True
+    return bool(brief.affordances.levers)
+
+
 def census_summary(records: Iterable["TrialRecord"]) -> dict[ConditionKey, CensusCell]:
     """One :class:`CensusCell` per condition key; error records are skipped."""
     rows: dict[ConditionKey, list[tuple[int, int, int, int]]] = {}
+    can_engage: dict[ConditionKey, list[bool]] = {}
     for r in records:
         if r.is_error:
             continue
         rows.setdefault(r.bucket_key, []).append((_intervenes(r), r.turns, len(r.deliberation_trace.steps), r.illegal_actions))
+        can_engage.setdefault(r.bucket_key, []).append(_offers_a_lever(r))
     out: dict[ConditionKey, CensusCell] = {}
     for key, items in rows.items():
         n = len(items)
+        engageable = [i for (i, _, _, _), ok in zip(items, can_engage[key]) if ok]
         out[key] = CensusCell(
             n=n,
             mean_intervenes=statistics.fmean(i for i, _, _, _ in items),
-            disengaged_rate=sum(1 for i, _, _, _ in items if i == 0) / n,
+            disengaged_rate=(sum(1 for i in engageable if i == 0) / len(engageable)) if engageable else float("nan"),
             mean_turns=statistics.fmean(t for _, t, _, _ in items),
             mean_trace_steps=statistics.fmean(s for _, _, s, _ in items),
             mean_illegal=statistics.fmean(il for _, _, _, il in items),
@@ -76,10 +92,11 @@ def pressure_byproduct(record: "TrialRecord") -> Optional[float]:
     oracle = (record.oracle or {}).get("pressure")
     if not oracle or not record.final_state:
         return None
-    for concentrations in record.final_state.values():
-        if oracle["byproduct"] in concentrations:
-            return float(concentrations[oracle["byproduct"]])
-    return None
+    # Summed over compartments, as Dose's ``_final_value`` reads it — the
+    # first compartment alone disagreed with the dose table (T088 census 2).
+    from .tradeoff import _final_value
+
+    return _final_value(record, oracle["byproduct"])
 
 
 def _quantiles(values: list[float]) -> tuple[float, float, float, float, float]:

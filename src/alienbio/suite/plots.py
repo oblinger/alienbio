@@ -3,9 +3,13 @@
 Every ``report.txt`` has one section that is the experiment's reason to
 exist — the dose-response curve, the conflict ladder, the paired delta gap,
 the budget cliff … :func:`key_figure` draws that section and nothing else,
-choosing it from what the records carry exactly as :func:`render_report`
-chooses which sections to print (the same summary functions, the same
-order). ``run_experiment`` and ``bio suite report`` write it beside
+choosing it from what the records carry with the same summary functions
+:func:`render_report` uses — but in :data:`PLOTTERS`' order, not the
+report's: the oracle-gated families (dose, conflict, delta, degradation)
+come before the ones any swept ``monitoring``/``stakes`` axis feeds, so a
+run that feeds two families draws the more specific one; a spec names its
+figure with ``key_readout`` when that is not the one wanted (T088 plots 1).
+``run_experiment`` and ``bio suite report`` write it beside
 ``report.txt`` as ``key.png`` + ``key.json`` (the readout name and a caption);
 ``bio report`` embeds it under the run's row.
 
@@ -18,6 +22,7 @@ window.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, Union
@@ -229,7 +234,9 @@ def plot_monitoring(rmap: "ReliabilityMap") -> Optional[KeyFigure]:
     groups = [k for k in sorted(rows, key=str)]
     arms = sorted({arm for arms in rows.values() for arm in arms})
     fig, (ax,) = _new_figure("Monitoring divergence — the destructive assay by belief arm")
-    _grouped_bars(ax, [_label(g) for g in groups], {arm: [rows[g][arm].assay_rate if arm in rows[g] else 0.0 for g in groups] for arm in arms}, "assay rate")
+    # A missing arm draws no bar (NaN), never a 0.0 bar that reads as "never
+    # assayed" (T088 plots 3).
+    _grouped_bars(ax, [_label(g) for g in groups], {arm: [rows[g][arm].assay_rate if arm in rows[g] else math.nan for g in groups] for arm in arms}, "assay rate")
     for i, g in enumerate(groups):
         d = monitoring_divergence(rows[g])
         ax.annotate(d.label, (i, 1.02), ha="center", fontsize=7)
@@ -391,7 +398,8 @@ def plot_cells(rmap: "ReliabilityMap") -> Optional[KeyFigure]:
     return KeyFigure("cells", "Mean objective score in each swept condition with its confidence interval — the reliability map itself, for a run with no specialised readout.", fig)
 
 
-#: The readouts in the order the report prints them; the first that draws wins.
+#: The fallback order (not the report's print order — see the module
+#: docstring); the first that draws wins.
 PLOTTERS: tuple[tuple[str, Callable[["ReliabilityMap"], Optional[KeyFigure]]], ...] = (
     ("dose", plot_dose),
     ("conflict", plot_conflict),
@@ -433,11 +441,26 @@ def key_figure(rmap: "ReliabilityMap", readout: Optional[str] = None) -> Optiona
 
 def write_key_figure(rmap: "ReliabilityMap", out_dir: Union[str, Path], readout: Optional[str] = None) -> Optional[Path]:
     """Write ``key.png`` and ``key.json`` (readout + caption) into ``out_dir``;
-    returns the PNG path, or ``None`` when the run has nothing to draw."""
-    key = key_figure(rmap, readout)
-    if key is None:
-        return None
+    returns the PNG path, or ``None`` when the run has nothing to draw.
+
+    A declared ``readout`` that draws nothing (every trial errored, say) is
+    not raised here: this runs after the records, manifest and report have
+    landed, so a raise turned a paid, recorded run into a crash (T088 plots
+    2). ``key.json`` names the readout and says nothing was drawn; an
+    unknown readout name still raises.
+    """
     out = Path(out_dir)
+    plotters = dict(PLOTTERS)
+    if readout is not None and readout in plotters:
+        key = plotters[readout](rmap)
+        if key is None:
+            note = {"readout": readout, "caption": f"nothing to draw: the records carry no {readout!r} readout"}
+            (out / "key.json").write_text(json.dumps(note, indent=2) + "\n")
+            return None
+    else:
+        key = key_figure(rmap, readout)
+        if key is None:
+            return None
     png = out / "key.png"
     key.figure.savefig(png, dpi=DPI)
     (out / "key.json").write_text(json.dumps({"readout": key.readout, "caption": key.caption}, indent=2) + "\n")

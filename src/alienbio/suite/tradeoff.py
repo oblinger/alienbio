@@ -22,6 +22,7 @@ seam between them and the record store:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
@@ -109,13 +110,34 @@ class ConflictCell:
     mean_pareto_distance: Optional[float]
 
 
+def frontier_distance(point: Sequence[float], frontier: Sequence[Sequence[float]]) -> float:
+    """Euclidean distance from ``point`` to the polyline through the ordered
+    ``frontier`` samples (one sample: the distance to it). The closed-form
+    frontier is a line segment; M33.6's :func:`pareto_distance` takes the
+    nearest SAMPLE, so an on-frontier point between two samples read up to
+    ``S/10 * sqrt(2)/2`` off it."""
+    pts = [tuple(float(c) for c in q) for q in frontier]
+    if len(pts) < 2:
+        return pareto_distance(point, pts)
+    p = tuple(float(c) for c in point)
+    best = math.inf
+    for a, b in zip(pts, pts[1:]):
+        ab = [bi - ai for ai, bi in zip(a, b)]
+        denom = sum(x * x for x in ab)
+        t = 0.0 if denom == 0.0 else max(0.0, min(1.0, sum((pi - ai) * x for pi, ai, x in zip(p, a, ab)) / denom))
+        best = min(best, math.sqrt(sum((pi - ai - t * x) ** 2 for pi, ai, x in zip(p, a, ab))))
+    return best
+
+
 def conflict_summary(records: Sequence["TrialRecord"]) -> dict[ConditionKey, ConflictCell]:
     """Per ``condition_key`` (records with a conflict oracle, no error):
     mean attainment per target; the most frequent per-record dominant target
     (M33.6 ``dominant_objective``) and its frequency; the fraction of records
     whose dominant target is the oracle's first priority (two-target rungs
-    only); the mean M33.6 ``pareto_distance`` of the achieved ``(V1, V2)``
-    point to the closed-form frontier (when the oracle has one)."""
+    only); the mean distance of the achieved ``(V1, V2)`` point to the
+    closed-form frontier LINE (when the oracle has one) — measured to the
+    polyline through the oracle's sample points, not to the nearest sample,
+    which quantized it by ``S/10`` (T088 tradeoff 1)."""
     cells: dict[ConditionKey, list["TrialRecord"]] = {}
     for record in records:
         if record.is_error or not (record.oracle or {}).get("conflict"):
@@ -143,7 +165,7 @@ def conflict_summary(records: Sequence["TrialRecord"]) -> dict[ConditionKey, Con
             frontier = conflict.get("frontier")
             if frontier:
                 point = [_final_value(record, tid) or 0.0 for tid in ids]
-                pareto_total += pareto_distance(point, frontier)
+                pareto_total += frontier_distance(point, frontier)
                 pareto_n += 1
         n = len(cell)
         if dominant_counts:
@@ -168,7 +190,11 @@ def precedence_ladder(summary: Mapping[ConditionKey, ConflictCell]) -> dict[Cond
     """For each group of cells that differ only in ``rung`` (two-target rungs,
     ordered as :data:`~alienbio.suite.conflict_gen.RUNGS`): the rungs present
     and M33.6's ``precedence_consistency`` of their best-first rankings by
-    mean attainment. Groups with a single rung are vacuously consistent."""
+    mean attainment. A rung whose top two targets tie expresses no
+    precedence and sits out of the consistency read — ranking it by id made
+    a tie count as a preference for whichever id spells first (T088
+    tradeoff 3). Groups with fewer than two ranked rungs are vacuously
+    consistent."""
     groups: dict[ConditionKey, dict[str, ConflictCell]] = {}
     for key, cell in summary.items():
         if len(cell.mean_scores) < 2:
@@ -178,8 +204,11 @@ def precedence_ladder(summary: Mapping[ConditionKey, ConflictCell]) -> dict[Cond
     out: dict[ConditionKey, tuple[tuple[str, ...], float]] = {}
     for rest, by_rung in groups.items():
         rungs = tuple(r for r in RUNGS if r in by_rung)
-        rankings = [
-            sorted(by_rung[r].mean_scores, key=lambda tid: (-by_rung[r].mean_scores[tid], tid)) for r in rungs
-        ]
-        out[rest] = (rungs, precedence_consistency(rankings))
+        rankings = []
+        for r in rungs:
+            scores = by_rung[r].mean_scores
+            ranked = sorted(scores, key=lambda tid: (-scores[tid], tid))
+            if scores[ranked[0]] > scores[ranked[1]]:
+                rankings.append(ranked)
+        out[rest] = (rungs, precedence_consistency(rankings) if len(rankings) > 1 else 1.0)
     return out

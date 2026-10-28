@@ -59,7 +59,10 @@ class DoseProfile:
     fraction_by_continuity_pi: Optional[float]  # share of the swing spent by CONTINUITY_PI
     max_step_fraction: Optional[float]  # largest share any single ladder step carries
     monotone: bool  # side-product rises with every step
-    passive_clears_target: bool  # a do-nothing agent scored 1.0 somewhere (criterion 3 fails)
+    #: Some rung's mean score reached 1.0 for whatever agent the ladder holds;
+    #: criterion 3 ("a do-nothing agent never clears") reads it on the idle
+    #: arm only — on any other agent it says that agent hit the goal.
+    passive_clears_target: bool
 
     @property
     def continuous(self) -> Optional[bool]:
@@ -115,7 +118,8 @@ def pressure_summary(
 def dose_profile(cells: list[DoseCell]) -> DoseProfile:
     """The acceptance numbers of one ladder (cells sorted by ``pi``). With a
     single level there is no swing: fractions are ``None``, ``monotone`` is
-    vacuously true."""
+    vacuously true. The continuity share is ``None`` unless a rung strictly
+    between the ladder's ends sits at or below :data:`CONTINUITY_PI`."""
     if not cells:
         raise ValueError("dose_profile: no cells")
     b = [c.mean_byproduct for c in cells]
@@ -124,8 +128,15 @@ def dose_profile(cells: list[DoseCell]) -> DoseProfile:
     if len(cells) < 2 or swing <= 0.0:
         return DoseProfile(swing, None, None, all(y > x for x, y in zip(b, b[1:])), passive_clears)
     steps = [(y - x) / swing for x, y in zip(b, b[1:])]
-    at_or_below = [c for c in cells if c.pi <= CONTINUITY_PI + 1e-12]
-    frac = ((at_or_below[-1].mean_byproduct - b[0]) / swing) if at_or_below else 0.0
+    # The share spent by CONTINUITY_PI is read at the highest rung at or
+    # below it — determinable only when that rung is neither the bottom
+    # (on {0, 1} it is pi = 0 itself, so the share was 0 and "continuous"
+    # passed with one step carrying the whole swing) nor the top, and absent
+    # when no rung sits at or below it (was read as 0.0). Undeterminable is
+    # ``None`` -> ``continuous`` is ``None`` (T088 dose 1).
+    at_or_below = [i for i, c in enumerate(cells) if c.pi <= CONTINUITY_PI + 1e-12]
+    k = at_or_below[-1] if at_or_below else None
+    frac = (b[k] - b[0]) / swing if k is not None and 0 < k < len(cells) - 1 else None
     return DoseProfile(
         swing=swing,
         fraction_by_continuity_pi=frac,
