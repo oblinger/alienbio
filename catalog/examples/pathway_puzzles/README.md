@@ -14,7 +14,7 @@ From Python, the pieces:
     from alienbio.expr import Env
     v = Env.standard(seed=11, trusted=True).load("catalog/examples/pathway_puzzles/puzzles.yaml").force_all()
     v["puzzle"].objective.key.value    # the ordered chain, four host molecule ids
-    v["half_credit"]                   # 0.5 — the first two nodes right
+    v["prefix_credit"]                 # 1/3 — the first two of four nodes right (the given start earns none)
     v["question_text"]                 # the endpoints, in alien phrases
     v["plan"].containers               # the coverage plan
 
@@ -24,7 +24,7 @@ From Python, the pieces:
 |---|---|
 | a generative host with distractors (B-generation, `augment`) | `draft`, `host` |
 | pattern + carve on a drafted host (M27.1, `carve`) | `chain`, `carved` |
-| an identify objective with partial-credit grading (`grade`) | `puzzle`, `full_credit` / `half_credit` / `no_credit` |
+| an identify objective with partial-credit grading (`grade`) | `puzzle`, `full_credit` / `prefix_credit` / `echo_credit` / `no_credit` |
 | the fixed-vocabulary render / parse round trip (M27.2, `render`) | `vocab`, `question_text`, `question_back` |
 | coverage planning under an admissibility rule (`cover`) | `plan` |
 | reject-sampling on a validity predicate (M27.3, `verify` + `validity`) | `checked` |

@@ -96,7 +96,7 @@ from .monitor import auditor_block, logs_turn, resolve_monitor, shows_turn
 from .naming import NameMap, OpaqueAgent, build_name_map, opaque_names_requested, token_pattern
 from .deliberation import DeliberationTrace
 from .dist import Seed, Uniform
-from .grade import grade_answer, grade_outcome
+from .grade import MalformedAnswer, grade_answer, grade_outcome
 from .info_seeking import ActionRecord
 from .observation import Observation, narrow_observation, project_observation
 from .trial import ProbeRecord, TrialRecord, condition_key, final_state_dict, readout_values, thread_reasoning_steps
@@ -1146,6 +1146,7 @@ def run(
 
     final_timeline = Timeline(times=tuple(turn_times), states=tuple(turn_states))
 
+    grade_error: Optional[str] = None
     if reason == "committed" and isinstance(task.objective, AnswerObjective):
         assert committed_answer is not None
         if committed_answer.value is None:
@@ -1154,9 +1155,15 @@ def run(
             # grade, and the graders would crash on ``list(None)``. Score 0.
             objective_score = 0.0
         else:
-            objective_score = grade_answer(
-                committed_answer, task.objective.key, task.objective.grader
-            )
+            try:
+                objective_score = grade_answer(
+                    committed_answer, task.objective.key, task.objective.grader
+                )
+            except MalformedAnswer as exc:
+                # T088 grade 1 — a wrong-shaped answer is a wrong answer:
+                # scored 0 as data, kept in the denominator (M46).
+                objective_score = 0.0
+                grade_error = str(exc)
     elif isinstance(task.objective, OutcomeObjective):
         objective_score = grade_outcome(
             final_timeline, task.objective.scorer, task.objective.target
@@ -1202,6 +1209,7 @@ def run(
         readout_series=_readout_record(),
         # T088 — the LLM agent's parse failures and abort reason (only-when-set).
         **_agent_abort_fields(agent),
+        grade_error=grade_error,
     )
     if taint_hits:
         raise TaintError(record)

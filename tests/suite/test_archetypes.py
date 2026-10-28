@@ -87,7 +87,8 @@ def test_grader_spec_is_partial_ordered_path():
     arch = identify_pathway(pathway_length=2)
     spec = arch.recipe.grader_spec()
     assert spec.kind == "ordered_path"
-    assert spec.config == {"partial": True}
+    # T088 identify_pathway 1: the question's start node earns no credit.
+    assert spec.config == {"partial": True, "given_prefix": 1}
 
 
 def test_recipe_holds_role_order():

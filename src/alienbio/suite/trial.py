@@ -241,6 +241,10 @@ class TrialRecord:
     #: within ``max_retries``); the trial's commit is then the ``None``
     #: answer. ``None`` when it did not abort (not written).
     aborted: Optional[str] = None
+    #: T088 (grade 1) — why a committed answer scored 0 without being
+    #: compared: its shape did not fit the grader kind (an integer on a path,
+    #: a bare string on a set). ``None`` when it was graded (not written).
+    grade_error: Optional[str] = None
 
     @property
     def bucket_key(self) -> tuple[tuple[str, Any], ...]:

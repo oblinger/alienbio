@@ -37,7 +37,11 @@ def test_the_identify_key_is_the_carved_chain_and_grades_with_partial_credit(val
     assert isinstance(obj, AnswerObjective) and obj.key.kind == "ordered_path"
     assert obj.key.value == [values["carved"].binding[f"r{i}"] for i in range(4)]
     assert values["full_credit"] == 1.0
-    assert values["half_credit"] == pytest.approx(0.5)
+    # T088 identify_pathway 1: the question's start node earns no credit, so
+    # the right first two of four score (2 - 1) / (4 - 1), and echoing the
+    # question's endpoints scores 0 (it scored 1/4).
+    assert values["prefix_credit"] == pytest.approx(1 / 3)
+    assert values["echo_credit"] == 0.0
     assert values["no_credit"] == 0.0
     assert values["task"].objective is obj
 

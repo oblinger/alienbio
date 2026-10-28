@@ -78,8 +78,10 @@ class IdentifyPathwayRecipe:
         return Answer(value=self._path(skeleton), kind="ordered_path")
 
     def grader_spec(self) -> GraderSpec:
-        """Order-sensitive path grading with longest-common-prefix partial credit."""
-        return GraderSpec(kind="ordered_path", config={"partial": True})
+        """Order-sensitive path grading with longest-common-prefix partial
+        credit, the question's given start node earning none (T088: echoing
+        the endpoints scored ``1/n``)."""
+        return GraderSpec(kind="ordered_path", config={"partial": True, "given_prefix": 1})
 
 
 def identify_pathway(

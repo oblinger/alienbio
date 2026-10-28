@@ -26,11 +26,14 @@ chain: !pattern
 carved: !carve {host: !x host, pattern: !x chain, allow_add: False}
 
 # 3. the objective: recover the ordered chain between the endpoints; the
-#    grader gives longest-correct-prefix partial credit
+#    grader gives longest-correct-prefix partial credit, the start node the
+#    question states earning none (T088): two of four nodes is 1/3, the
+#    question's endpoints echoed back 0
 puzzle: !identify {world: !x host, skeleton: !x carved, roles: !x chain_names(pathway_length)}
 task: !task {objective: !x puzzle, archetype: pathway-puzzle}
 full_credit: !x grade(puzzle.objective.key.value, puzzle.objective)
-half_credit: !x grade(puzzle.objective.key.value[:2], puzzle.objective)
+prefix_credit: !x grade(puzzle.objective.key.value[:2], puzzle.objective)
+echo_credit: !x grade([puzzle.objective.key.value[0], puzzle.objective.key.value[-1]], puzzle.objective)
 no_credit: !x grade([], puzzle.objective)
 
 # 4. the alien vocabulary: every node id gets an opaque phrase; the question
