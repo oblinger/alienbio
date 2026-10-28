@@ -440,3 +440,22 @@ class WorldImpl:
             f"WorldImpl(chemistry={self._chemistry.local_name!r}, "
             f"compartments={len(self._compartments)})"
         )
+
+
+def rebuild_world(
+    world: "WorldImpl",
+    chemistry: Optional[ChemistryImpl] = None,
+    compartments: Optional[tuple[Compartment, ...]] = None,
+) -> "WorldImpl":
+    """A new :class:`WorldImpl` with ``chemistry`` and/or ``compartments``
+    swapped in and ``world``'s non-reaction dynamics — its ``flows`` and
+    ``population_laws`` — carried over (T088: the suite's perturbation,
+    carve and augment rebuilds called ``WorldImpl(chem, compartments)`` and
+    silently dropped both). The one way a suite edit rebuilds a world."""
+    return WorldImpl(
+        chemistry if chemistry is not None else world.chemistry,
+        compartments if compartments is not None else world.compartments,
+        flows=world.flows,
+        population_laws=world.population_laws,
+    )
+

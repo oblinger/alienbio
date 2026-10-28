@@ -45,7 +45,7 @@ from typing import Dict
 
 from ..bio.chemistry import ChemistryImpl, _mock_dat
 from ..bio.molecule import MoleculeImpl
-from ..bio.reaction import ReactionImpl
+from ..bio.reaction import ReactionImpl, rebuild_reaction
 from .dist import Seed
 from .types import (
     CarveResult,
@@ -303,12 +303,11 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
                 new_products[mol] = 1.0
             else:
                 new_reactants[mol] = 1.0
-            reactions[rxn_id] = ReactionImpl(
-                rxn_id,
+            reactions[rxn_id] = rebuild_reaction(
+                rxn,
                 reactants=new_reactants,
                 products=new_products,
                 modifiers=new_modifiers,
-                rate=rxn.rate,
                 dat=_mock_dat(f"rxn/{rxn_id}"),
             )
         else:
@@ -326,12 +325,11 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
         reactions.pop(nid, None)
         for rid in list(reactions.keys()):
             rxn = reactions[rid]
-            reactions[rid] = ReactionImpl(
-                rid,
+            reactions[rid] = rebuild_reaction(
+                rxn,
                 reactants={m: c for m, c in rxn.reactants.items() if m.name != nid},
                 products={m: c for m, c in rxn.products.items() if m.name != nid},
                 modifiers={m: r for m, r in rxn.modifiers.items() if m.name != nid},
-                rate=rxn.rate,
                 dat=_mock_dat(f"rxn/{rid}"),
             )
 

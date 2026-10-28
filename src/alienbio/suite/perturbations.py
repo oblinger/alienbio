@@ -23,8 +23,9 @@ that does not exist fails loudly rather than silently no-op'ing.
 from __future__ import annotations
 
 from ..bio.chemistry import ChemistryImpl, _mock_dat
-from ..bio.reaction import ReactionImpl
-from ..bio.world import Compartment, WorldImpl
+from ..bio.rate_expr import const
+from ..bio.reaction import ReactionImpl, rebuild_reaction
+from ..bio.world import Compartment, WorldImpl, rebuild_world
 
 
 def _rebuild_world(
@@ -35,7 +36,8 @@ def _rebuild_world(
 
     Molecules and atoms are reused by identity (never rebuilt); only the reaction
     table is swapped. The compartments are shared unchanged, so the new world's
-    ``initial_state`` re-derives against the same molecule axis.
+    ``initial_state`` re-derives against the same molecule axis; flows and
+    population laws are carried over (:func:`~alienbio.bio.world.rebuild_world`).
     """
     chem = world.chemistry
     new_chem = ChemistryImpl(
@@ -45,7 +47,7 @@ def _rebuild_world(
         reactions=reactions,
         dat=_mock_dat("chem/perturbed"),
     )
-    return WorldImpl(new_chem, world.compartments)
+    return rebuild_world(world, new_chem)
 
 
 def perturb_rate(world: WorldImpl, reaction_id: str, factor: float) -> WorldImpl:
@@ -53,7 +55,10 @@ def perturb_rate(world: WorldImpl, reaction_id: str, factor: float) -> WorldImpl
 
     Every other reaction, all molecules, atoms, and compartments are identical
     (reused by identity). The perturbed reaction keeps its reactants, products,
-    and modifiers; only its rate constant scales.
+    modifiers and description; its rate constant scales — or, for a reaction
+    with a compiled ``rate_law`` (which makes ``rate`` unused), the law is
+    multiplied by ``factor`` (T088: the law used to be dropped, so the
+    reaction ran mass action at ``rate * factor``).
 
     Raises:
         KeyError: if ``reaction_id`` is not a reaction of ``world``.
@@ -68,12 +73,11 @@ def perturb_rate(world: WorldImpl, reaction_id: str, factor: float) -> WorldImpl
     rate = old.rate  # numeric: ReactionImpl refuses anything else (2026-10)
 
     new_reactions = dict(chem.reactions)
-    new_reactions[reaction_id] = ReactionImpl(
-        reaction_id,
-        reactants=old.reactants,
-        products=old.products,
-        modifiers=old.modifiers,
+    law = old.rate_law
+    new_reactions[reaction_id] = rebuild_reaction(
+        old,
         rate=rate * factor,
+        rate_law=("mul", const(factor), law) if law is not None else None,
         dat=_mock_dat(f"rxn/{reaction_id}"),
     )
     return _rebuild_world(world, new_reactions)
@@ -109,8 +113,8 @@ def spike_concentration(
     Edits the single compartment's initial condition only: the named molecule's
     starting concentration becomes ``current + amount`` (``current`` defaults to
     ``0.0`` when the compartment did not list it). The chemistry — molecules,
-    reactions, atoms — is reused by identity; every other concentration is
-    unchanged.
+    reactions, atoms — is reused by identity, flows and population laws are
+    carried over; every other concentration is unchanged.
 
     Raises:
         KeyError: if ``molecule_id`` is not a molecule of ``world``.
@@ -140,4 +144,4 @@ def spike_concentration(
         concentrations=new_conc,
         multiplicity=comp.multiplicity,
     )
-    return WorldImpl(chem, (new_comp,))
+    return rebuild_world(world, compartments=(new_comp,))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numbers
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Mapping, Optional, TYPE_CHECKING, Self, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, TYPE_CHECKING, Self, Tuple, Union, cast
 
 from ..infra.entity import DatLike, Entity
 
@@ -385,3 +385,38 @@ class ReactionImpl(Entity, head="Reaction"):
             )
             arrow = f"-[{mod_str}]->"
         return f"ReactionImpl({self._local_name}: {reactant_str} {arrow} {product_str}, rate={rate_str})"
+
+
+_KEEP: Any = object()
+
+
+def rebuild_reaction(
+    rxn: "ReactionImpl",
+    *,
+    reactants: Optional[Dict[MoleculeImpl, float]] = None,
+    products: Optional[Dict[MoleculeImpl, float]] = None,
+    modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None,
+    rate: Optional[RateValue] = None,
+    rate_law: Any = _KEEP,
+    dat: Optional[DatLike] = None,
+) -> "ReactionImpl":
+    """A fresh :class:`ReactionImpl` under ``rxn``'s name with only the named
+    parts changed: everything not passed — sides, modifiers, ``rate``, the
+    compiled ``rate_law`` and ``description`` — is carried over (T088: the
+    suite's rebuilds passed sides and ``rate`` only, so a reaction with a
+    ``rate_law`` came back as mass action). ``rate_law=None`` drops the law
+    deliberately. ``dat`` defaults to a fresh mock anchor."""
+    from ..infra.entity import MockDat
+
+    name = rxn.local_name
+    return ReactionImpl(
+        name,
+        reactants=dict(rxn.reactants) if reactants is None else reactants,
+        products=dict(rxn.products) if products is None else products,
+        modifiers=dict(rxn.modifiers) if modifiers is None else modifiers,
+        rate=rxn.rate if rate is None else rate,
+        rate_law=rxn.rate_law if rate_law is _KEEP else rate_law,
+        dat=dat if dat is not None else cast(Any, MockDat(f"rxn/{name}")),
+        description=rxn.description,
+    )
+

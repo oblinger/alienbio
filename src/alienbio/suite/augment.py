@@ -36,8 +36,8 @@ from typing import Dict, Mapping
 
 from ..bio.chemistry import ChemistryImpl, _mock_dat
 from ..bio.molecule import MoleculeImpl
-from ..bio.reaction import ReactionImpl
-from ..bio.world import WorldImpl
+from ..bio.reaction import ReactionImpl, rebuild_reaction
+from ..bio.world import WorldImpl, rebuild_world
 from .dist import Seed
 from .types import NodeId
 
@@ -143,14 +143,7 @@ def augment(
         rxn = reactions[r]
         new_reactants = dict(rxn.reactants)
         new_reactants[molecules[s]] = 1.0
-        reactions[r] = ReactionImpl(
-            r,
-            reactants=new_reactants,
-            products=dict(rxn.products),
-            modifiers=dict(rxn.modifiers),
-            rate=rxn.rate,
-            dat=_mock_dat(f"rxn/{r}"),
-        )
+        reactions[r] = rebuild_reaction(rxn, reactants=new_reactants, dat=_mock_dat(f"rxn/{r}"))
         return True
 
     def _stats() -> dict[str, float]:
@@ -232,4 +225,4 @@ def augment(
         reactions=reactions,
         dat=_mock_dat("chem/augmented"),
     )
-    return WorldImpl(new_network, world.compartments)
+    return rebuild_world(world, new_network)
