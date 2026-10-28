@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-yaml">
+    <rect id="n-yaml-box" x="20" y="60" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-yaml-name" x="130" y="86" font-size="18" font-weight="600" text-anchor="middle">design: key</text>
+    <text id="n-yaml-kind" x="130" y="108" font-size="14" text-anchor="middle">(spec YAML or Expr</text>
+    <text id="n-yaml-kind2" x="130" y="128" font-size="14" text-anchor="middle">power(...) head)</text>
+  </g>
+  <g id="n-from">
+    <rect id="n-from-box" x="320" y="68" width="200" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-from-name" x="420" y="94" font-size="18" font-weight="600" text-anchor="middle">from_dict</text>
+    <text id="n-from-kind" x="420" y="116" font-size="14" text-anchor="middle">(static) unknown keys refuse</text>
+  </g>
+  <line id="e-yaml-from" x1="240" y1="100" x2="320" y2="100" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-pd">
+    <rect id="n-pd-box" x="320" y="220" width="240" height="100" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pd-name" x="440" y="246" font-size="18" font-weight="600" text-anchor="middle">PowerDesign</text>
+    <text id="n-pd-k1" x="440" y="268" font-size="14" text-anchor="middle">(dataclass) d, alpha, power,</text>
+    <text id="n-pd-k2" x="440" y="288" font-size="14" text-anchor="middle">primary_contrast,</text>
+    <text id="n-pd-k3" x="440" y="308" font-size="14" text-anchor="middle">multiple_comparison</text>
+  </g>
+  <line id="e-from-pd" x1="420" y1="132" x2="420" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-tfe">
+    <rect id="n-tfe-box" x="660" y="220" width="250" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tfe-name" x="785" y="246" font-size="18" font-weight="600" text-anchor="middle">trials_for_effect</text>
+    <text id="n-tfe-k1" x="785" y="268" font-size="14" text-anchor="middle">(fn) ceil(2((zα+zβ)/d)²) + 1,</text>
+    <text id="n-tfe-k2" x="785" y="288" font-size="14" text-anchor="middle">at least 2 ‡</text>
+    <text id="n-tfe-k3" x="785" y="308" font-size="14" text-anchor="middle">d 0.5 → 64, d 1 → 17</text>
+  </g>
+  <line id="e-pd-tfe" x1="560" y1="270" x2="660" y2="270" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-pd-tfe" x="610" y="260" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">required n</text>
+  <g id="n-z">
+    <rect id="n-z-box" x="980" y="240" width="200" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-z-name" x="1080" y="266" font-size="17" font-weight="600" text-anchor="middle">z_quantile</text>
+    <text id="n-z-kind" x="1080" y="286" font-size="14" text-anchor="middle">(fn) NormalDist inv_cdf</text>
+  </g>
+  <line id="e-tfe-z" x1="910" y1="270" x2="980" y2="270" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-de">
+    <rect id="n-de-box" x="660" y="390" width="250" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-de-name" x="785" y="416" font-size="17" font-weight="600" text-anchor="middle">detectable_effect</text>
+    <text id="n-de-kind" x="785" y="438" font-size="14" text-anchor="middle">(fn) near-inverse; no caller</text>
+  </g>
+  <line id="e-de-z" x1="910" y1="420" x2="1040" y2="300" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-spec">
+    <rect id="n-spec-box" x="20" y="390" width="280" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="160" y="416" font-size="17" font-weight="600" text-anchor="middle">spec._validate_design</text>
+    <text id="n-spec-k1" x="160" y="438" font-size="14" text-anchor="middle">contrast names a swept axis;</text>
+    <text id="n-spec-k2" x="160" y="458" font-size="14" text-anchor="middle">n below required: refuse</text>
+  </g>
+  <line id="e-spec-pd" x1="220" y1="390" x2="340" y2="320" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-dict">
+    <rect id="n-dict-box" x="340" y="420" width="200" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dict-name" x="440" y="446" font-size="17" font-weight="600" text-anchor="middle">to_dict</text>
+    <text id="n-dict-kind" x="440" y="466" font-size="14" text-anchor="middle">(method) + required n</text>
+  </g>
+  <line id="e-pd-dict" x1="440" y1="320" x2="440" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-rep">
+    <rect id="n-rep-box" x="340" y="530" width="320" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rep-name" x="500" y="556" font-size="17" font-weight="600" text-anchor="middle">manifest → report design block</text>
+    <text id="n-rep-kind" x="500" y="578" font-size="14" text-anchor="middle">alpha_used via bonferroni_alpha</text>
+  </g>
+  <line id="e-dict-rep" x1="440" y1="480" x2="440" y2="530" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-bon">
+    <rect id="n-bon-box" x="760" y="530" width="250" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bon-name" x="885" y="556" font-size="17" font-weight="600" text-anchor="middle">bonferroni_alpha</text>
+    <text id="n-bon-kind" x="885" y="578" font-size="14" text-anchor="middle">(fn) alpha / contrasts</text>
+  </g>
+  <line id="e-rep-bon" x1="660" y1="562" x2="760" y2="562" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ sized per condition; the report's primary contrast pools conditions and the idle twin</text>
+  </g>
+</svg>
