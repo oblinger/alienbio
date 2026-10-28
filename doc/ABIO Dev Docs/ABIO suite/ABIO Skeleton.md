@@ -21,6 +21,7 @@ A frozen dataclass and a thin wrapper, not a block subclass: the root of a block
 | [chemistry](#^chemistry) | The built chemistry, `None` until materialized |
 | [control_surface](#^control-surface) | Lever port paths, read only by `indirection_depth` |
 | [crux](#^crux) | Path of the block whose `ground_truth` is the answer |
+| [conservation](#^conservation) | The conservation verdict `validate` recorded |
 | [materialize](#^materialize) | Realize the tree into a `WorldImpl` under a seed |
 | [validate](#^validate) | Pool-direction and conservation canaries |
 | [oracle](#^oracle) | Materialize, simulate, read the crux |
@@ -38,11 +39,14 @@ A frozen dataclass and a thin wrapper, not a block subclass: the root of a block
 **crux**`: BlockRef = ""`
     The `/`-separated path from the root to the block `oracle` reads (`"root/crux"`, or `"root"` when the root block carries `ground_truth`). The empty default makes `oracle` raise `SkeletonError` (the path does not start at the root). ^crux
 
+**conservation**`: Optional[str] = None`
+    Set by `validate`: `bio.conservation.conservation_outcome`'s verdict on the chemistry (`balanced`, `vacuous: no atoms`, `partial: …`, `violated: …`). Every skeleton-minted world reads `vacuous: no atoms` today. `None` before `validate` runs; `compare=False`, and not persisted with the world. ^conservation
+
 **materialize**`(seed: Seed) -> WorldImpl`
     Realizes the tree under `seed.child(root.name)`, builds one `ChemistryImpl` from the merged fragment's molecules and reactions, places the fragment's compartments (one default `cell` of volume 1 when no block declared any), folds `initial` concentrations onto them, and returns `WorldImpl(chem, compartments, flows=…, population_laws=…)`. Caches the realized root and the chemistry onto `self`. Raises `SkeletonError` from `Fragment.merge` on a namespace collision and from binding resolution on an unknown port or child. Calling it again re-realizes the already-realized tree, overwriting both caches. § [Materialize](#materialize). ^materialize
 
 **validate**`() -> Optional[SkeletonError]`
-    Returns `None` when clean, else one `SkeletonError` joining every violation; it never raises for a content violation. Raises `SkeletonError` when called before `materialize`. Checks that every pool has an `OUT` and an `IN` port, then runs `validate_conservation` on the chemistry. § [Validate](#validate). ^validate
+    Returns `None` when clean, else one `SkeletonError` joining every violation; it never raises for a content violation. Raises `SkeletonError` when called before `materialize`. Checks that every pool has an `OUT` and an `IN` port, then runs `validate_conservation` on the chemistry and records `conservation_outcome`'s verdict on [conservation](#^conservation). § [Validate](#validate). ^validate
 
 **oracle**`(seed: Seed, sim_cfg: SimConfig = SimConfig()) -> Any`
     `materialize(seed)`, `verify.simulate(world, sim_cfg, seed.child("oracle-sim"))`, find the `crux` block in the realized tree, return its `ground_truth(timeline)`. Deterministic in `seed`. The return shape is the crux block's: a tuple on every generator crux, a multiplicity on `PopulationBlock`. Because it materializes, it replaces the cached root and chemistry of a skeleton already materialized under another seed. ^oracle
@@ -140,7 +144,7 @@ A frozen dataclass: what one block's `realize` emits and what `_realize_tree` me
     `GrowthLaw`, `DeathLaw` and `CountFlowSpec` records, passed straight to `WorldImpl`. ^population-laws
 
 **merge**`(other: "Fragment") -> "Fragment"`
-    The union of two fragments. A molecule id on both sides is accepted only when it is the same object (a bound pool), a reaction id on both sides always raises `SkeletonError`, and a compartment id on both sides is accepted only when the two records are equal (neighbouring transport blocks declaring one shared container). `initial` is a plain dict union, the right side winning on a shared key; `provenance`, `flows` and `population_laws` concatenate unchecked. ^merge
+    The union of two fragments. A molecule id on both sides is accepted only when it is the same object (a bound pool), a reaction id on both sides always raises `SkeletonError`, and a compartment id on both sides is accepted when the two records are equal (neighbouring transport blocks declaring one shared container) or differ only in that one leaves `parent` unset, the placed one winning — so a `TransportBlock` chain `A → B → C` nests B under A and C under B; any other difference raises. `initial` is a plain dict union, the right side winning on a shared key; `provenance`, `flows` and `population_laws` concatenate unchecked. ^merge
 
 
 
@@ -333,7 +337,7 @@ Two checks, each appending to one error list:
 | Pool direction | A pool (binding group or lone port, tree-wide, from the authored bindings) with no `OUT` port, or no `IN` port | Modifier ports are `IN`, so a pool read only as a modifier passes as having a fate while nothing drains it |
 | Conservation | Any non-boundary reaction whose atoms do not balance (`bio.conservation.validate_conservation`) | Every skeleton-minted pool is `mk.M(id)` with no atoms, so every reaction balances trivially (‡) |
 
-The conservation canary is vacuous on every assembled world today: no library block assigns atoms, so `molecule_quantity` returns `{}` for every molecule and nothing can fail. This is the follow-up filed at F013: assign per-tag atoms, as F018 did. Namespace collisions are not re-checked; `materialize` already raised on them.
+The conservation canary is vacuous on every assembled world today: no library block assigns atoms, so `molecule_quantity` returns `{}` for every molecule and nothing can fail. `validate` no longer lets that read as a pass: it records `conservation_outcome`'s verdict on `Skeleton.conservation`, `vacuous: no atoms` on every skeleton-minted world (`40c5c09`). Making the canary real is the follow-up filed at F013: assign per-tag atoms, as F018 did. Namespace collisions are not re-checked; `materialize` already raised on them.
 
 `validate` does not run the boundedness gate. `suite/boundedness.py`'s `check_boundedness(world_or_skeleton, seed)` accepts a `Skeleton` (materializing it) and runs the static bounded-fate walk and the simulate-and-check classification, but it is opt-in and no production code calls it; only its tests do.
 
@@ -404,3 +408,4 @@ Depth is capped on the Expr side only: every template level counts toward `limit
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD `09c4c05`; pool ids, the vacuous conservation result, the modifier-only pass, the container drop and the `indirection_depth` values were read from local materializations of W1, the clean-only ablation, phase 1 and two toy trees, no spend. The block library is one table, not a member block per block: each block's own signature is in `blocks.py`, and the generators' blocks are on their own pages. Left out: the design decisions' history (on [ABIO Skeleton Arch](../../ABIO%20Design/ABIO%20Skeleton%20Arch/ABIO%20Skeleton%20Arch.md)), the private helpers (`_realize_tree`, `_UnionFind`, `_block_by_path`, `_global_ports`, `_collect_global_edges`, `_bfs_distance`, `_seed_initial`), described in prose only, and the boundedness module's own interface.
+- 2026-10-28 — refreshed against 0eb23e5: `Skeleton.conservation` added (`40c5c09`); `Fragment.merge` accepts a parentless compartment declaration beside a placed one (`6631831`).

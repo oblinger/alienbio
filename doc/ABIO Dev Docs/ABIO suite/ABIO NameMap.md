@@ -84,8 +84,8 @@ The wrapper that lets any agent see and speak surface names while the runner see
 **notice**`(outcome: ActionOutcome) -> None`
     When the inner agent is a `SessionAgent`, call its `notice` with a copy of `outcome` whose `action` is `surface_action`'s and whose `reason` is surfaced with `surface_text`, so the agent hears its own names back, rejection reasons included. `turn`, `accepted` and `result` (a destructive assay's revealed rate, a float) are passed as they are. ^notice
 
-**probe**`(text: str) -> Optional[str]`
-    `None` when the inner agent has no `probe`. Otherwise asks it `surface_text(text)` and returns the answer through `structural_text`, or the answer unchanged when it is not a string. The probe's text arrives structural because the runner substitutes `{placeholder}` tokens from the drafter's `probe_vocab` first. ^probe
+**probe**`(text: str, observation: Optional[Observation] = None) -> Optional[str]`
+    `None` when the inner agent has no `probe`. Otherwise asks it `surface_text(text)` with the turn's observation through `surface_observation` (or `None`) and returns the answer through `structural_text`, or the answer unchanged when it is not a string. The probe's text arrives structural because the runner substitutes `{placeholder}` tokens from the drafter's `probe_vocab` first. ^probe
 
 **act**`(observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]`
     Call the inner agent's `act` with `surface_observation(observation, name_map)`, then return `structural_action` of its action and its reasoning steps with each entry of `refs` mapped through `structural`. A step's `content` is returned verbatim, so the trace holds the model's own words in surface names ([[#What crosses, in which direction]]). ^act
@@ -179,3 +179,4 @@ Inside the crossing, `surface_brief` surfaces every field `render_brief` prints,
 
 # BRIEF
 - 2026-10-19 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; the dot boundary, the per-kind padding and `protocol` passing through `surface_brief` unsurfaced were confirmed by running them against the venv, not inferred. Left out: `__getattr__` as a member block (its block id would be `^--getattr--`; the forwarding is in the OpaqueAgent paragraph), `NameMap`'s dataclass constructor (it takes the private compiled patterns; `of` is the way in), and `TrialRecord.name_map` and the store's `name_map` key as members (they belong to the trial and store docs). The figure omits `brief.py` and `llm_agent.py` as nodes, for density.
+- 2026-10-28 — refreshed against 0eb23e5: `OpaqueAgent.probe` takes the turn's `observation` and surfaces it for the inner agent (`01fee6a`); the dot boundary, `protocol` surfacing and `token_pattern` export were already current.

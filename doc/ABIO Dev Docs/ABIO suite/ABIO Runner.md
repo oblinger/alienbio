@@ -69,7 +69,7 @@ The exception `run` raises when a record's `taint_hits` is non-empty, complete o
 
 
 ## runner Interface
-The module-level exports. `alienbio.suite` re-exports `run`, `Budget` and `BUDGET_LADDER`; `mass_trial.py`, `experiment.py`, `drafters.py`, `spec.py` and `guards.py` import `run`; `degradation.py` imports `Budget` (its `budget_total` reads a level through `Budget.from_dial`, F085); `drafters.py` imports `resolve_int_dial` (the positive-int dial reader `run` uses for `max_turns`, `sim_steps` and `sample_every`; public since F085). One private name is imported from outside: `tests/suite/test_probes.py` imports `_parse_probes`; `tests/suite/test_hidden_pool_levers.py` imports `narrow_observation` through this module, where it is only an import from `suite/observation.py`.
+The module-level exports. `alienbio.suite` re-exports `run`, `Budget` and `BUDGET_LADDER`; `mass_trial.py`, `experiment.py`, `drafters.py`, `spec.py` and `guards.py` import `run`; `degradation.py` imports `Budget` (its `budget_total` reads a level through `Budget.from_dial`, F085); `drafters.py` imports `resolve_int_dial` (public since F085); `guards.py` imports `trial_preamble` (its `draft` check builds each condition's brief exactly as the run would) and `certainty_slice_problem` (its `certainty-windows` check). One private name is imported from outside: `tests/suite/test_probes.py` imports `_parse_probes`; `tests/suite/test_hidden_pool_levers.py` imports `narrow_observation` through this module, where it is only an import from `suite/observation.py`.
 
 | runner | |
 | --- | --- |
@@ -78,6 +78,10 @@ The module-level exports. `alienbio.suite` re-exports `run`, `Budget` and `BUDGE
 | [[#^budget-ladder\|BUDGET_LADDER]] | Named budget levels, unlimited down to 4 |
 | [[#^probe-timings\|PROBE_TIMINGS]] | The three probe schedule points |
 | [[#^default-assay-kill\|DEFAULT_ASSAY_KILL]] | Share of the culture a destructive assay kills |
+| [[#^trial-preamble\|trial_preamble]] | Resolve a trial's pre-turn-0 state and brief |
+| [[#^trialpreamble\|TrialPreamble]] | What `trial_preamble` returns |
+| [[#^resolve-int-dial\|resolve_int_dial]] | A positive-int dial, or the default |
+| [[#^certainty-slice-problem\|certainty_slice_problem]] | Why certainty windows cannot cut a turn |
 
 **run**`(world: WorldImpl, task: TaskInstance, agent: Agent, dials: Mapping[str, Any], seed: Seed, *, sim_cfg: SimConfig = SimConfig(steps=10, sample_every=10), max_turns: int = 50, assay_kill: float = DEFAULT_ASSAY_KILL, illegal_action_limit: int = 10, illegal_action_cost: Optional[float] = None, swept: Optional[Collection[str]] = None) -> TrialRecord`
     Narrows the turn-0 truth, builds the brief, wraps the agent for opaque names when asked, then loops turns ([[#One turn of the loop]]) until a `Commit`, the illegal-action limit, budget exhaustion or `max_turns`; grades, audits the prompts, and returns the record. `sim_cfg`, `max_turns` and `assay_kill` are defaults a condition's dials override (`max_turns`, `sim_steps`, `sim_dt`, `sample_every`, `assay_kill`); `illegal_action_cost`, when set, is what a rejected action costs instead of its verb's cost; `swept` projects the record's `condition_key` to those dials only, the key a grid record carries. Never mutates `world`, its chemistry or its initial state, so it is deterministic in `(world, task, agent, dials, seed)`. Raises `ValueError` before turn 0 for a malformed dial (a non-positive-int episode dial, `assay_kill` outside `[0, 1]`, a bad `probes` list, a bad `task.setup["certainty"]`) or whatever `build_brief` refuses; `TrialError` for a failure inside the loop; `TaintError` for a tainted prompt. ^run
@@ -93,6 +97,18 @@ The module-level exports. `alienbio.suite` re-exports `run`, `Budget` and `BUDGE
 
 **DEFAULT_ASSAY_KILL**`: float = 0.5`
     The default for `run`'s `assay_kill`: the factor `1 − assay_kill` by which an accepted destructive assay scales every concentration in every compartment ([[#The destructive assay]]). ^default-assay-kill
+
+**trial_preamble**`(world: WorldImpl, task: TaskInstance, dials: Mapping[str, Any], seed: Seed, *, sim_cfg: SimConfig, max_turns: int, assay_kill: float) -> TrialPreamble`
+    The one place a trial's pre-turn-0 state is resolved: the budget, the episode dials over `run`'s defaults, `assay_kill` (refused outside `[0, 1]`), the `hidden_ids` set, the turn-0 observation on `seed.child("turn/0/observe")` (hidden ids projected out) and the brief on `seed.child("brief")`. `run` calls it first; the preflight `draft` check calls it with `run`'s keyword defaults, so it refuses what the run would. Raises what the dial validation or `build_brief` raises. ^trial-preamble
+
+**TrialPreamble**`(budget, max_turns, assay_kill, sim_cfg, hidden, first_observation, brief)`
+    Frozen dataclass: the resolved `Budget`, `max_turns`, `assay_kill`, `SimConfig`, hidden-id `frozenset`, turn-0 `Observation` and `TaskBrief`. ^trialpreamble
+
+**resolve_int_dial**`(dials: Mapping[str, Any], name: str, default: int) -> int`
+    `dials[name]` as a positive int, `default` when absent; a present non-int, `bool` or value `< 1` raises `ValueError`. `run` reads `max_turns`, `sim_steps` and `sample_every` through it; `drafters.py` reads the episode horizon the same way. ^resolve-int-dial
+
+**certainty_slice_problem**`(steps: int, windows: int, sample_every: int) -> Optional[str]`
+    `None` when `windows` certainty slices can cut a `steps`-step turn: `windows` divides `steps`, and with more than one window the slice is a multiple or a divisor of `sample_every`, so the recorded sampling grid does not move with the dial. Otherwise the refusal text, which `run` raises and the preflight `certainty-windows` check reports ([[#The certainty dial]]). ^certainty-slice-problem
 
 
 
@@ -193,7 +209,7 @@ Matching is whole-token through `naming.token_pattern`, the one spelling of the 
 | `after_action` | after the action is selected, before it is validated or applied |
 | `at_commit` | at the same point, only on the turn whose action is a `Commit` |
 
-Each firing calls `agent.probe(text)` when the agent is a `ProbeAgent` and appends a `ProbeRecord(turn, timing, text, answer, error)`; an agent without `probe` gets `answer=None`, and an exception from `probe` is caught and recorded in `error`. The answer never enters the turn history: the record's `probes` field is the only place it lands, so the transcript and actions are byte-identical with probes on and off — which holds as long as the agent's `probe` leaves what `act` reads untouched, as the `ProbeAgent` contract requires. `OpaqueAgent.probe` asks in surface names and translates the answer back. Probe spend is metered by the agent, not the runner: `LLMAgent.probe` records each probe call's usage under `usage["per_probe"]` and appends the probe prompt to `prompt_texts`, so the taint audit covers it.
+Each firing calls `agent.probe(text, observation)` — the turn's observation, the one `act` sees or saw — when the agent is a `ProbeAgent` and appends a `ProbeRecord(turn, timing, text, answer, error)`; an agent without `probe` gets `answer=None`, and an exception from `probe` is caught and recorded in `error`. The answer never enters the turn history: the record's `probes` field is the only place it lands, so the transcript and actions are byte-identical with probes on and off — which holds as long as the agent's `probe` leaves what `act` reads untouched, as the `ProbeAgent` contract requires. `OpaqueAgent.probe` asks in surface names and translates the answer back. Probe spend is metered by the agent, not the runner: `LLMAgent.probe` records each probe call's usage under `usage["per_probe"]` and appends the probe prompt to `prompt_texts`, so the taint audit covers it.
 
 
 
@@ -235,13 +251,14 @@ Configuration errors raise plain `ValueError` before turn 0, outside the error h
 | `probes` | every `ProbeRecord` |
 | `name_map` | structural → surface, empty when names were not opaque |
 | `usage`, `compaction`, `forgetting` | read off the agent by `getattr`, `None` when absent |
+| `parse_failures`, `aborted` | the LLM agent's schema-failure count and abort tag, read only when they carry the agent's own types (`0` / `None` otherwise, then not written) |
 
 The record also carries the brief, the answer (`{"value", "kind"}` or `None`), `final_state`, the oracle, `wall_time_s` (perf-counter from entry) and the budget figures.
 
 
 
 ## The certainty dial
-When the drafter sets `task.setup["certainty"]` (`p`, `on`, `off`, optional `windows`), each turn's burst runs on a burst-only chemistry: one seeded Bernoulli(`p`) draw per window picks the `on` or `off` rate set for the named reactions, without rebinding the persistent chemistry, so an `Intervene` on a rate composes as usual. `on` and `off` must name reactions in the world and `windows` must be an int `>= 1` dividing `sim_steps`, all checked before turn 0. With `windows > 1` the turn is integrated in equal slices, and a slice's closing sample is kept only when it falls on the turn's `sample_every` grid, so the recorded timeline does not move with the window count.
+When the drafter sets `task.setup["certainty"]` (`p`, `on`, `off`, optional `windows`), each turn's burst runs on a burst-only chemistry: one seeded Bernoulli(`p`) draw per window picks the `on` or `off` rate set for the named reactions, without rebinding the persistent chemistry, so an `Intervene` on a rate composes as usual. `on` and `off` must name reactions in the world and `windows` must be an int `>= 1` that `certainty_slice_problem` accepts (it divides `sim_steps`, and its slice sits on the `sample_every` grid), all checked before turn 0. With `windows > 1` the turn is integrated in equal slices, and a slice's closing sample is kept only when it falls on the turn's `sample_every` grid, so the recorded timeline does not move with the window count.
 
 
 
@@ -264,3 +281,4 @@ The monitor's `logs_turn` and `shows_turn` derive their own draws from the seed 
 
 # BRIEF
 - 2026-10-19 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `suite/runner.py`, with the seams checked against `agent.py`, `brief.py`, `naming.py`, `observation.py`, `trial.py`, `verify.py`, `monitor.py`, `llm_agent.py` (probe metering), `mass_trial.py` (error landing) and `tests/suite/test_runner.py` / `test_hidden_pool_levers.py`. Left out as members: the private helpers `_world_from_state`, `_chemistry_with_rate`, `_state_with_concentration`, `_state_scaled`, `_action_cost`, `_is_finite_number`, `_parse_probes`, `_projected_key`, `_leaf_strings`, `_mock_dat` and the unit sets — named in prose where a reader needs them. `Budget.unit`'s "turns" meters action cost, not turns; stated as the source has it. The figure's "validate action" and "stop check" nodes name inline blocks of `run`, not symbols. The `ABIO suite/` folder did not exist and was created for this page.
+- 2026-10-28 — refreshed against 0eb23e5: blocks added for `trial_preamble`/`TrialPreamble` (`131609f`), `resolve_int_dial` (public since `f95c6cf`) and `certainty_slice_problem`; `probe` receives the turn's observation and the record carries `parse_failures`/`aborted` (`01fee6a`).

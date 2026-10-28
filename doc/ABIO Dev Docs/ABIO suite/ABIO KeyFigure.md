@@ -33,13 +33,13 @@ The chooser, the writer, the plotter table, and eleven plotters with one shape: 
 | [plot_cells](#^plot-cells) | Mean score per condition, any run |
 
 **PLOTTERS**`: tuple[tuple[str, Callable[[ReliabilityMap], Optional[KeyFigure]]], ...]`
-    `dose, conflict, delta, degradation, monitoring, caution, blindspot, consideration, hazard, trial, cells`. The comment above it says "in the order the report prints them"; it is not (§ [Choosing the readout](#choosing-the-readout)). ^plotters
+    `dose, conflict, delta, degradation, monitoring, caution, blindspot, consideration, hazard, trial, cells`. Specific-first by design, not the report's print order; the comment above it and the module docstring say so (§ [Choosing the readout](#choosing-the-readout)). ^plotters
 
 **key_figure**`(rmap: ReliabilityMap, readout: Optional[str] = None) -> Optional[KeyFigure]`
     With `readout` (the spec's `key_readout`): that plotter's figure, raising `ValueError` for an unknown name or when it draws nothing. Without: the first plotter in `PLOTTERS` that draws; `None` only for an empty run, since `cells` draws whenever the map has cells. ^key-figure
 
 **write_key_figure**`(rmap: ReliabilityMap, out_dir: str | Path, readout: Optional[str] = None) -> Optional[Path]`
-    `key_figure`, then `key.png` at `DPI` 130 and `key.json` (`readout`, `caption`) in `out_dir`; returns the PNG path or `None`. ^write-key-figure
+    `key_figure`, then `key.png` at `DPI` 130 and `key.json` (`readout`, `caption`) in `out_dir`; returns the PNG path or `None`. A declared readout that draws nothing does not raise here: `key.json` names the readout with a "nothing to draw" caption and the call returns `None`; an unknown readout name still raises `ValueError`. ^write-key-figure
 
 **plot_dose**`(rmap) -> Optional[KeyFigure]`
     `pressure_summary`: mean side-product per `pi`, one line per condition, normal-approximation 95 % intervals (`z = 1.96`) from `byproduct_values`, narrow at three trials. ^plot-dose
@@ -54,7 +54,7 @@ The chooser, the writer, the plotter table, and eleven plotters with one shape: 
     `degradation_ladder`: accuracy and exhaustion per rung, the cliff rung shaded. Needs a `budget` axis. ^plot-degradation
 
 **plot_monitoring**`(rmap) -> Optional[KeyFigure]`
-    `monitoring_summary`: assay rate per arm per condition, `monitoring_divergence(...).label` above each group. A missing arm draws as a `0.0` bar. ^plot-monitoring
+    `monitoring_summary`: assay rate per arm per condition, `monitoring_divergence(...).label` above each group. A missing arm draws no bar (`NaN`), never a `0.0` bar that would read as an arm that never assayed. ^plot-monitoring
 
 **plot_caution**`(rmap) -> Optional[KeyFigure]`
     `caution_summary` along `reversibility` if swept, else `stakes`: info-seeking and destructive acts, two panels. ^plot-caution
@@ -100,9 +100,9 @@ A frozen dataclass: one run's figure.
 # KeyFigure Semantics
 
 ## Choosing the readout
-The module docstring says `key_figure` chooses "exactly as `render_report` chooses which sections to print (the same summary functions, the same order)". The functions are the same; the order is not. `report_text.py` prints hazard, consideration, blindspot, conflict, caution, monitoring, degradation, delta, dose; `PLOTTERS` tries dose, conflict, delta, degradation, monitoring, caution, blindspot, consideration, hazard. The difference matters whenever one run feeds two summaries, because several summaries have no oracle filter: `caution_summary` reads every record, `monitoring_summary` any record whose key carries `monitoring`. An EXP-4 hazard run sweeping `monitoring` draws the monitoring figure unless the spec declares `key_readout: hazard`, which is what `exp04.yaml` does. The declared readout is the dependable path; the fallback order is a heuristic.
+`key_figure` reads the same summary functions `render_report` does, but tries them in `PLOTTERS`' order, not the report's: the oracle-gated families (dose, conflict, delta, degradation) come before the ones any swept `monitoring` or `stakes` axis feeds, so a run feeding two families draws the more specific one. The module docstring and the comment on `PLOTTERS` say so since `343d166`; `key_figure`'s own docstring still says "in report order". `report_text.py` prints hazard, consideration, blindspot, conflict, caution, monitoring, degradation, delta, dose; `PLOTTERS` tries dose, conflict, delta, degradation, monitoring, caution, blindspot, consideration, hazard. The difference matters whenever one run feeds two summaries, because several summaries have no oracle filter: `caution_summary` reads every record, `monitoring_summary` any record whose key carries `monitoring`. An EXP-4 hazard run sweeping `monitoring` draws the monitoring figure unless the spec declares `key_readout: hazard`, which is what `exp04.yaml` does. The declared readout is the dependable path; the fallback order is a heuristic.
 
-A declared readout that draws nothing raises. `run_experiment` calls `write_key_figure` after it has written `records.jsonl`, the manifest and `report.txt`, so a run whose records cannot feed its declared readout (every trial errored, say) completes its grid and then raises.
+`run_experiment` calls `write_key_figure` after it has written `records.jsonl`, the manifest and `report.txt`. A declared readout the records cannot feed (every trial errored, say) used to raise there, turning a paid, recorded run into a crash; since `343d166` `write_key_figure` writes a `key.json` saying nothing was drawn and returns `None`. `key_figure` called directly still raises for that case.
 
 
 
@@ -114,3 +114,4 @@ Each figure is `7.2 × 3.8` in at 130 dpi, two columns when it has more than one
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `0b77270`, by reading `plots.py`, the section order in `report_text.py`, and the two `write_key_figure` call sites; no figure was drawn. Left out: `hazard.py`'s three summaries (their own page when written), the `bio report` page that embeds the PNG, and each plot's styling beyond what changes what it shows.
+- 2026-10-28 — refreshed against 0eb23e5 (`343d166`): `PLOTTERS`' order is documented as specific-first by design, `write_key_figure` no longer raises when a declared readout draws nothing, a missing monitoring arm draws no bar.

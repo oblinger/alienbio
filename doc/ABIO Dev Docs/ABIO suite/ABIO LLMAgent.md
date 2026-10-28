@@ -47,8 +47,8 @@ A plain class that satisfies `Agent`, `SessionAgent` and `ProbeAgent` structural
 **notice**`(outcome: ActionOutcome) -> None`
     Writes `{"accepted", "reason"}` (plus `"result"` when the outcome carries one) into the history entry whose `turn` is `outcome.turn`; returns silently when none matches. ^notice
 
-**probe**`(text: str) -> Optional[str]`
-    Sends `text` with the current history window to `llm_fn` directly, on seed child `probe/<n>`, under the probe override; returns the reply text, `canonical(reply)` for a non-string reply, or `None`. Leaves the history, the turn counter and the main-line token count untouched ([Probes on discarded branches](#Probes%20on%20discarded%20branches)). Exceptions propagate to the runner, which records them on the `ProbeRecord`. ^probe
+**probe**`(text: str, observation: Optional[Observation] = None) -> Optional[str]`
+    Sends `text` with the current history window and `observation` (the runner passes the turn's) to `llm_fn` directly, on seed child `probe/<n>`, under the probe override; returns the reply text, `canonical(reply)` for a non-string reply, or `None`. Leaves the history, the turn counter and the main-line token count untouched ([Probes on discarded branches](#Probes%20on%20discarded%20branches)). Exceptions propagate to the runner, which records them on the `ProbeRecord`. ^probe
 
 **meter**`: UsageMeter`
     The meter the provider fn records into; the agent reads it before and after each call to compute per-call deltas. It only fills when the same object was passed to `default_anthropic_llm_fn`, which the `llm` factory does. ^meter
@@ -63,10 +63,10 @@ A plain class that satisfies `Agent`, `SessionAgent` and `ProbeAgent` structural
     The sha256 hex digest of each entry of `prompt_texts`. ^prompt-hashes
 
 **parse_failures**`: int`
-    Incremented by the `LLMOp` schema check on every reply that is not a well-formed action, retries included. Not copied onto the record ([Parsing a reply](#Parsing%20a%20reply)). ^parse-failures
+    Incremented by the `LLMOp` schema check on every reply that is not a well-formed action, retries included. The runner copies it onto `TrialRecord.parse_failures` ([Parsing a reply](#Parsing%20a%20reply)). ^parse-failures
 
 **aborted**`: Optional[str]`
-    `"parse_exhausted"` after a schema exhaustion; the token-ceiling abort does not set it (the tag lives on the `Commit`'s `params`). ^aborted
+    `"parse_exhausted"` after a schema exhaustion, `"token_ceiling"` after the ceiling abort (the same tag rides the `Commit`'s `params`). The runner copies it onto `TrialRecord.aborted`, which the census and the caution and faking scorers read. ^aborted
 
 **compaction**`: Optional[dict[str, Any]]`
     `{"turn", "budget", "displaced", "summary"}` once compaction has run, `summary` `None` when the summarizer reply was unusable. Read by the runner onto `TrialRecord.compaction`. ^compaction
@@ -303,7 +303,7 @@ History is a list of entries of four shapes; the window each call carries is cut
 
 
 ## Probes on discarded branches
-`probe(text)` (T026) builds `{"probe": text, "turn": _turn[, "history": window]}`, where the window is the same `memory`/fill-limit slice `act` would cut from the history as it stands. It carries no `compartments`: the probe sees the history and the system prompt, not the observation of the turn in progress. Under `after_action` timing `act` has already run, so `turn` is the next turn and the window includes the just-chosen action with its outcome still `None`. On the `compact_at` turn an `every_turn` probe fires before `act` and so sees the pre-compaction window.
+`probe(text, observation)` (T026) builds `{"probe": text, "turn": _turn[, "compartments": observation][, "history": window]}`, where the window is the same `memory`/fill-limit slice `act` would cut from the history as it stands and `compartments` is the turn's observation the runner passes (the one `act` sees or saw), so the probe's context is the act's context plus `probe`. Under `after_action` or `at_commit` timing `act` has already run, so `turn` is the next turn and the window includes the just-chosen action with its outcome still `None`. On the `compact_at` turn an `every_turn` probe fires before `act` and so sees the pre-compaction window.
 
 The call goes to `llm_fn` directly, outside `LLMOp`: no schema, no cache, no schema retries, no output budget. The system prompt gets `PROBE_OVERRIDE_DIRECTIVE` appended (T028), and the provider fn, seeing the `probe` key, offers no `emit_action` tool and returns the text blocks verbatim. The seed is `seed.child("probe/<n>")`, `n` the probe count so far. The meter delta is appended to `per_probe` with its turn, and the probe's input plus output tokens are added to a separate probe count that the ceiling check subtracts, so probes on and probes off reach the ceiling on the same turn. The prompt joins `prompt_texts`, so the taint audit covers it.
 
@@ -312,9 +312,9 @@ The call goes to `llm_fn` directly, outside `LLMOp`: no schema, no cache, no sch
 ## Metering and the two ceilings
 **The meter.** Only the provider fn writes the meter, once per successful response. The agent snapshots it before and after each call; the delta becomes one `per_turn` entry (main-line and compaction calls, with the turn's `max_tokens` when one was set) or one `per_probe` entry. A ceiling-abort turn makes no call and writes no `per_turn` entry; a parse-exhausted turn writes the usage of its failed attempts.
 
-**The token ceiling** (`token_ceiling`, the agent's own runaway guard). The running estimate adds `max(1, len(system + canonical(context)) // 4)` once per main-line call and once per summarizer call, whatever the number of schema retries. The check is `max(estimate so far + this turn's estimate, meter input + output − probe tokens) > token_ceiling`; cache-read and cache-write tokens are not in the meter side. It runs twice per turn, the first time before the summarizer can spend. On a trip the agent appends an abort entry, advances its turn and returns `Commit(Answer(None, "json"), params={"aborted": "token_ceiling"})`; the runner records a `committed` trial that scores 0.0. Nothing caps the summary's length at the call ([Output budget](#Output%20budget)), so a long summary can still push the second check over.
+**The token ceiling** (`token_ceiling`, the agent's own runaway guard). The running estimate adds `max(1, estimate_tokens(system + canonical(context)))` (`ops.estimate_tokens`, `len // 4`) once per main-line call and once per summarizer call, whatever the number of schema retries. The check is `max(estimate so far + this turn's estimate, meter input + output − probe tokens) > token_ceiling`; cache-read and cache-write tokens are not in the meter side. It runs twice per turn, the first time before the summarizer can spend. On a trip the agent appends an abort entry, advances its turn and returns `Commit(Answer(None, "json"), params={"aborted": "token_ceiling"})`; the runner records a `committed` trial that scores 0.0. `compact_budget` is the summarizer call's `max_tokens` ([Output budget](#Output%20budget)), so the summary cannot outrun the bound the compact-turn estimate assumes.
 
-**The cost ceiling** (`cost_ceiling_usd`, the experiment's). `run_experiment` prices each landed record's `usage` totals with `price_for` and `cost_usd` (cache reads and writes included, probe calls included because the meter totals include them) and stops starting new trials once the running sum reaches the ceiling. The dry-run `estimate_cost` prices the grid from `expected_prompt_tokens`, `expected_turns` and `memory` alone; it does not model probe or summarizer calls.
+**The cost ceiling** (`cost_ceiling_usd`, the experiment's). `run_experiment` prices each landed record's `usage` totals with `price_for` and `cost_usd` (cache reads and writes included, probe calls included because the meter totals include them) and stops starting new trials once the running sum reaches the ceiling. The dry-run `estimate_cost` prices the grid from `expected_prompt_tokens`, `expected_turns` and `memory`, plus the probe and summarizer calls an arm declares (`CostEstimate.calls_per_trial`, since `245f79c`).
 
 
 
@@ -331,7 +331,7 @@ Two independent layers:
 
 
 ## Parsing a reply
-`act` wraps `llm_fn` so that a string reply carrying JSON inside fences or prose reaches the schema as a `dict` (`extract_action_json`, M46.4). The schema check `_validate_action_json` requires a `type` in `measure`/`intervene`/`wait`/`commit` with its fields: a string `probe`; a string `lever` and numeric `value`; a numeric `duration`; an `answer` dict with `value` and a string `kind`. Each failure increments `parse_failures`. After `max_retries` failures `act` sets `aborted = "parse_exhausted"` and commits a null answer tagged the same way, so a sweep keeps going and the record shows the failure in its action and reasoning. `parse_failures` itself is read by nothing in the runner and does not reach the record.
+`act` wraps `llm_fn` so that a string reply carrying JSON inside fences or prose reaches the schema as a `dict` (`extract_action_json`, M46.4). The schema check `_validate_action_json` requires a `type` in `measure`/`intervene`/`wait`/`commit` with its fields: a string `probe`; a string `lever` and numeric `value`; a numeric `duration`; an `answer` dict with `value` and a string `kind`. Each failure increments `parse_failures`. After `max_retries` failures `act` sets `aborted = "parse_exhausted"` and commits a null answer tagged the same way, so a sweep keeps going and the record shows the failure in its action and reasoning. The runner copies `parse_failures` and `aborted` onto the record (`TrialRecord.parse_failures`, `TrialRecord.aborted`, each written only when set) when they carry the agent's own types, so a scripted agent or a test double leaves both unset.
 
 
 
@@ -346,7 +346,7 @@ Two independent layers:
 - wraps the request in `_call_with_retry` and records each successful response in `meter`;
 - returns the concatenated text in probe or compaction mode, else `reply_from_content(response.content)`.
 
-The key comes from `config.get_api_key("anthropic")`: `ANTHROPIC_API_KEY` in the environment first, then `ALIENBIO_ANTHROPIC_API_KEY`, then the config file's `api_keys` (the factory's docstring says environment only). The `llm` factory in `suite/agents.py` passes `model`, `meter`, `temperature` and `top_p`, and never `max_tokens`.
+The key comes from `config.get_api_key("anthropic")`: `ANTHROPIC_API_KEY` in the environment first, then `ALIENBIO_ANTHROPIC_API_KEY`, then the config file's `api_keys`, as the factory's docstring says. The `llm` factory in `suite/agents.py` passes `model`, `meter`, `temperature` and `top_p`, and never `max_tokens`.
 
 
 
@@ -368,3 +368,4 @@ A flat `max_tokens` or an `output_schedule {every, deep, shallow}` (T059), one p
 
 # BRIEF
 - 2026-10-27 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 2a7c8ed (`llm_agent.py` unchanged through `af28794`), with the seams checked against `agent.py`, `ops.py`, `brief.py`, `naming.py`, `runner.py`, `agents.py`, `expr_experiment.py`, `spec.py`, `guards.py`, `experiment.py`, `store.py`, `config.py`, `models_snapshot.json` and the tests `test_llm_agent.py`, `test_r4_deep_scan.py`, `test_r4r5_leftovers.py`. Left out as members: the private helpers `_estimate_tokens`, `_validate_action_json`, `_parse_action`, `_call_with_retry`, `_retry_kind`, `_keeps_no_history`, `_sleep` and the agent's `_history_window`, `_pending_compaction`, `_compacted_history`, `_maybe_compact`, `_ceiling_abort`, `_tolerant_llm_fn`, `_counting_schema`, `_make_op` (named in the semantics where a reader needs them), and the constructor keywords kept as plain attributes (`memory`, `token_ceiling`, `compact_at`, …), covered by the constructor block. Every link is a markdown link (R-ob-repo-links); the Files tree entry the facet asks for was not added — only the Dev Docs row was in scope. The figure draws `_parse_action` and `Action` as nodes for the flow, though neither has an Interface section here; `LLMOp` is drawn because it carries the cache and the schema retries.
+- 2026-10-28 — refreshed against 0eb23e5: `probe` takes the turn's `observation` and its context carries `compartments` (`01fee6a`); the ceiling abort sets `aborted` and the runner copies `parse_failures`/`aborted` onto the record; `compact_budget` is the summarizer's `max_tokens` (`bd1fd75`); `estimate_cost` prices probe and summarizer calls; the token yardstick is `ops.estimate_tokens` (`3885584`); the key-lookup docstring is current.

@@ -49,7 +49,7 @@
   <rect id="probe-box" x="330" y="515" width="215" height="85" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
   <text id="probe-name" x="437" y="541" font-size="18" font-weight="600" text-anchor="middle">probe</text>
   <text id="probe-kind" x="437" y="561" font-size="14" text-anchor="middle">(method, ProbeAgent)</text>
-  <text id="probe-f1" x="437" y="583" font-size="14" text-anchor="middle">prompt + window copy</text>
+  <text id="probe-f1" x="437" y="583" font-size="14" text-anchor="middle">prompt · window · obs</text>
 
   <!-- Action -->
   <rect id="action-box" x="625" y="90" width="240" height="75" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>

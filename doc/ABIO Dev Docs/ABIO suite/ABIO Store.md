@@ -1,5 +1,5 @@
 ---
-description: "`store`: the on-disk record store of a run — the `records.jsonl` line codec with its only-when-set keys, the brief codec, the `manifest.json` builder and the model/memory/axis helpers it shares with `bio suite run --dry`, and the run directory every writer and reader meets in. Source: `src/alienbio/suite/store.py`."
+description: "`store`: the on-disk record store of a run — the `records.jsonl` line codec with its only-when-set keys, the brief codec, the `manifest.json` builder, the one manifest and records readers (`read_manifest`, `read_records`), and the model/memory/axis helpers it shares with `bio suite run --dry`, and the run directory every writer and reader meets in. Source: `src/alienbio/suite/store.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Store](ha://p/ABIO%20Store) 
 # ABIO Store
@@ -27,6 +27,8 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 | [_decode_float](#^decode-float) | Their inverse |
 | [_encode_nonfinite](#^encode-nonfinite) | `_encode_float` at every depth |
 | [_decode_nonfinite](#^decode-nonfinite) | Its inverse, on the numeric fields |
+| [read_manifest](#^read-manifest) | `manifest.json` parsed, non-finite floats decoded |
+| [read_records](#^read-records) | Every `records.jsonl` line, parsed and rebuilt |
 | [manifest_model_label](#^manifest-model-label) | What a manifest says ran |
 | [_write_manifest](#^write-manifest) | `manifest.json`, atomically |
 | [_atomic_write_text](#^atomic-write-text) | Temp file + `os.replace` |
@@ -69,11 +71,17 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 **_decode_nonfinite**`(value: Any) -> Any`
     The strings `"inf"`/`"-inf"`/`"nan"` back to floats, dict and list recursing. Used only on fields that carry numbers ([record_from_json](#^record-from-json)). ^decode-nonfinite
 
+**read_manifest**`(path: Path) -> dict[str, Any]`
+    `manifest.json` parsed, with the `"inf"`/`"-inf"`/`"nan"` spellings `_write_manifest` writes decoded back to floats on the numeric-bearing keys only (`cost_estimate`, `cost_ceiling_usd`, `cost_usd_spent`, `usage_totals`, and the spec's `axes`, `fixed_dials`, `drafter_kwargs`, `cost_ceiling_usd`, `price_usd_per_mtok`, `top_p`, `expected_cache_hit_rate`); prose fields are never decoded. The one reader every resume, drift check, `aggregate`, `bio suite resume|report` and `bio report` goes through. Raises what the read or `json.loads` raises. ^read-manifest
+
+**read_records**`(path: Path) -> Iterator[tuple[str, dict[str, Any], TrialRecord]]`
+    Every non-blank `records.jsonl` line as `(line, parsed dict, record)`; the line is kept verbatim so a resume can rewrite the store from it. The one reader the resume and `aggregate` share. ^read-records
+
 **manifest_model_label**`(manifest: Mapping[str, Any]) -> Optional[str]`
     The manifest's `model`, else its `models` levels joined with `", "`, else `None`. `render_report`'s `Model:` line and `bio report`'s run table (kind and model column) both read it. ^manifest-model-label
 
 **_write_manifest**`(path: Path, manifest: Mapping[str, Any]) -> None`
-    `json.dump(indent=2)` into `manifest.json.tmp` beside `path`, fsync, `os.replace`; on any failure the temp file is removed and the old manifest stands. ^write-manifest
+    `json.dumps(_encode_nonfinite(manifest), indent=2, allow_nan=False)` written through `_atomic_write_text` (`manifest.json.tmp` beside `path`, fsync, `os.replace`); on any failure the temp file is removed and the old manifest stands. The manifest is strict JSON like every record line; a finite manifest's bytes are unchanged. ^write-manifest
 
 **_atomic_write_text**`(path: Path, text: str) -> None`
     The same temp-file + `os.replace` for text; a resume's `records.jsonl` rewrite. ^atomic-write-text
@@ -97,7 +105,7 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
     `trials_per_condition` times the product of every axis's level count — the manifest's `trials_planned`. An `idle_baseline` arm is already an `agent` axis level (`ExperimentSpec.__post_init__` adds it), so it counts. ^trials-planned
 
 **_git_info**`(repo_root: Path) -> tuple[str, bool]`
-    `(git rev-parse HEAD, non-empty git status --porcelain)` at `repo_root`, each with a 10 s timeout. Any failure of the first call gives `("unknown", False)`; a failure of the second gives the commit and `False`. Provenance never fails a run. The root is `_REPO_ROOT`, three parents above this file — the checkout, or a `site-packages` parent when installed. ^git-info
+    `(git rev-parse HEAD, non-empty git status --porcelain)` at `repo_root`, each with a 10 s timeout. Any failure of the first call gives `("unknown", False)`; a failure of the second gives the commit and `False`. Provenance never fails a run. The root is `spec.REPO_ROOT` (one constant since `f95c6cf`), three parents above `spec.py` — the checkout, or a `site-packages` parent when installed. ^git-info
 
 **_utc_now_iso**`() -> str`
     `datetime.now(timezone.utc).isoformat()`, the form of `started_at` and `finished_at`. ^utc-now-iso
@@ -133,6 +141,7 @@ A line is `record_to_json`'s dict plus the extras `run_experiment` stamps, dumpe
 | `final_time`, `final_state` | always; the summarised timeline |
 | `probes`, `certainty_schedule` | only when non-empty |
 | `compaction`, `forgetting`, `monitor`, `readout_series` | only when not `None` |
+| `parse_failures`, `aborted` | only when non-zero / not `None` (`01fee6a`) |
 | `action_log[].value`, `.delta` | only when not `None` |
 | `agent`, `model`, `memory`, `temperature`, `top_p` | always, stamped by `run_experiment`<br>`model`, `temperature`, `top_p` null unless the trial's kind is `llm` |
 | `registration` | stamped only when the spec claims one |
@@ -142,7 +151,7 @@ A line is `record_to_json`'s dict plus the extras `run_experiment` stamps, dumpe
 
 
 ## The manifest
-The run's own proof, written by `_build_manifest` before any trial and updated in place by `run_experiment` at the end. Written with `json.dumps(indent=2)`, not canonically.
+The run's own proof, written by `_build_manifest` before any trial and updated in place by `run_experiment` at the end. Written by `_write_manifest` with `indent=2`, not canonically, and strict JSON: a non-finite float anywhere (a spec carrying `inf` in a dial, a ceiling or a level) is spelled `"inf"`/`"-inf"`/`"nan"`, and `read_manifest` decodes it back.
 
 | Keys | What it proves | Written |
 | --- | --- | --- |
@@ -166,7 +175,7 @@ The `models`/`memories` keys are absent, not empty, when nothing is swept, so `m
 
 
 ## Reload and its limits
-`aggregate(out_dir)` rebuilds a `ReliabilityMap` from `manifest.json` (its `spec`, through `spec_from_dict`) and every non-blank `records.jsonl` line through `record_from_json`, then `aggregate_records`; no world is drafted, no trial run. Error lines ride `records` and are excluded from the cells there, as in the live run. The reload loses:
+`aggregate(out_dir)` rebuilds a `ReliabilityMap` from `manifest.json` (`read_manifest`, its `spec` through `spec_from_dict`) and every non-blank `records.jsonl` line (`read_records`), sorts the lines back to run order (`mass_trial.grid_positions`, then index), then calls `aggregate_records`; no world is drafted, no trial run. Error lines ride `records` and are excluded from the cells there, as in the live run. The reload loses:
 
 - **The timeline** — `final_timeline` is `Timeline(times=(final_time,), states=())`. Scores are frozen on the line, and `final_state` survives as a mapping, so every scorer in the report reads the same; code that indexes `final_timeline.states` does not.
 - **Tuples** — a tuple condition level, oracle value or answer reloads as a list, so a reloaded `condition_key` can differ from the live one; `bucket_key` freezes both to the same key.
@@ -202,3 +211,4 @@ When anything was retried, the error lines are appended to `records.retried.json
   - `directive_sha256` hashes `DEFAULT_DIRECTIVE` (`store.py` 389), not the directive in force; true today because `agents.py` never passes another, latent if one becomes a dial.
 - The bare `:>>` line the daemon adds on write is left to it, as on the sibling suite docs.
 - 2026-10-28 — fixed from the hypotheses above (alienbio `420b0cc` non-finite floats, `36ca296` atomic manifest + crash-safe retries, `002a936` resume/crash counts, `bce6629` the `model`-axis readers + docstring): every section above now states the fixed behaviour; tests in `tests/suite/test_moddoc_findings_store.py`. The retried-line skip keys on the whole line, not `(label, index)`, so a genuine second failure is still kept. The `stopped_early` reload item was fixed separately (`dbbfce1`).
+- 2026-10-28 — refreshed against 0eb23e5: `read_manifest`/`read_records` added (`01fee6a`, `3885584`); the manifest is strict JSON; `parse_failures`/`aborted` ride the line only when set; the repo root is `spec.REPO_ROOT` (`f95c6cf`); a reload sorts to run order.

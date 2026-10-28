@@ -6,7 +6,7 @@ description: "`rate_law`: the compiled tier of Expr — `compile_rate` turns a `
 The page for what a `rate:` slot may say and what it becomes: the product form the engine has always run, the general expression it falls back to, how a bare name is told apart as a constant or a pool, and which draws are made when.
 
 ![ABIO RateLaw](ABIO%20RateLaw.svg) 
-*Two shapes* is the topic behind the fork after `_compile_product` (the expression path runs only when the product form refuses); *Names: constant or pool* governs the `Name` edges (‡ marks the two places a bare name is read differently).
+*Two shapes* is the topic behind the fork after `_compile_product` (the expression path runs only when the product form refuses); *Names: constant or pool* governs the `Name` edges (‡ marks where a misspelled parameter silently becomes a pool).
 
 A rate law is not run by the interpreter: `compile_rate` reads the quoted form once, at world build, and the engine evaluates the result every step. The caller is the `reaction` block head ([ABIO ExprHeads](ABIO%20ExprHeads.md)), whose `RateLawBlock` realizes a law into a `ReactionImpl` with `Modulation` modifiers or a `rate_law` tree ([ABIO ReactionImpl](../ABIO%20bio/ABIO%20ReactionImpl.md)); the tree grammar and its evaluation on both simulators are [ABIO RateExpr](../ABIO%20bio/ABIO%20RateExpr.md). Constants are evaluated through a narrowed registry ([ABIO Registry](../ABIO%20expr%20Modules/ABIO%20Registry.md) § Views) with the builtin `math`, `op` and `dist` heads of [ABIO Heads](../ABIO%20expr%20Modules/ABIO%20Heads.md); quoted forms close over their environment as `QuotedForm` ([ABIO Interp](../ABIO%20expr%20Modules/ABIO%20Interp.md)). The grammar as a user writes it is in [ABIO Expr Spec](../../ABIO%20Guides/ABIO%20Expr%20Spec.md).
 
@@ -76,10 +76,10 @@ Kind `rate`, registered as ordinary functions so `!x hill(0.5, 0.5, n=2)` is a n
 | [hill](#^hill) | `Vmax · mⁿ / (Kⁿ + mⁿ)` |
 | [michaelis](#^michaelis) | `Vmax · m / (K + m)` |
 | [activator](#^activator) | `1 + a · m` |
-| [inhibitor](#^inhibitor) | `1 / (1 + m / Ki)` |
+| [inhibitor](#^inhibitor) | `1 / (1 + m / Ki)`; `Ki = 0` is the perfect inhibitor |
 
 **hill**`(m, K, n=2.0, Vmax=1.0) -> float`
-    `0.0` when the denominator is not positive, as the compiled law guards. ^hill
+    `0.0` when the denominator is not positive. Each of the four numeric heads is `bio.rate_expr.modulation_factor` itself, so `!x` arithmetic reads exactly as the compiled law both simulators run, zero-denominator conventions included. ^hill
 
 **michaelis**`(m, K, Vmax=1.0) -> float`
     `0.0` when `K + m` is not positive. ^michaelis
@@ -88,7 +88,7 @@ Kind `rate`, registered as ordinary functions so `!x hill(0.5, 0.5, n=2)` is a n
     Linear activation. ^activator
 
 **inhibitor**`(m, Ki) -> float`
-    Linear inhibition; `Ki = 0` divides by zero. ^inhibitor
+    Linear inhibition. `Ki = 0` is the perfect-inhibitor limit (`rate_expr.inhibitor_ratio`): factor `0.0` with any inhibitor present, `1.0` with none; it raised `ZeroDivisionError` before `64988be`. ^inhibitor
 
 
 
@@ -116,7 +116,7 @@ The entry point and its tables.
 # RateLaw Semantics
 
 ## Two shapes
-`_compile_product` tries first. It flattens a chain of `*` and reads each factor: a modulation head over a pool that is neither consumed nor produced becomes a `ModulationSpec` (over a reactant or product it refuses: that is substrate-saturation kinetics); a bare name of a reactant or product is skipped (mass action over it is implicit); anything else must be a constant — a literal, a bound number or Dist, a quote, `-x`, a product of constants, or a call of a `dist` or `math` head — and the constants multiply into `k`. A product of two distributions refuses. If any factor refuses with the "compilable subset" message, `_compile_expr` compiles the whole form instead: `+ - * / **`, `neg`, `exp`, `log`, `sqrt`, the modulation heads (now allowed over any pool), constants, and species. Any other refusal is final.
+`_compile_product` tries first. It flattens a chain of `*` and reads each factor: a modulation head over a pool that is neither consumed nor produced becomes a `ModulationSpec` (over a reactant or product it refuses: that is substrate-saturation kinetics); a bare name of a reactant or product is skipped (mass action over it is implicit); anything else must be a constant — a literal, a bound number or Dist, a quote, `-x`, a product of constants, or a call of a `dist` or `math` head — and the constants multiply into `k`. A product of two distributions refuses. If any factor is not of the product form (the typed `_NotProductForm`; an unbound name, which is a pool, raises it too), `_compile_expr` compiles the whole form instead: `+ - * / **`, `neg`, `exp`, `log`, `sqrt`, the modulation heads (now allowed over any pool), constants, and species. Any other refusal is final.
 
 | Written | Compiles to |
 | --- | --- |
@@ -129,10 +129,10 @@ The entry point and its tables.
 
 
 ## Names: constant or pool
-A bare name bound in scope is a constant (a number or a Dist); an unbound one is a pool, spelled through `Env.pool`; a quoted string is always a pool. A pool named like a bound variable must be quoted to mean the pool. Two consequences follow (‡):
+A bare name bound in scope is a constant (a number or a Dist); an unbound one is a pool, spelled through `Env.pool`; a quoted string is always a pool. A pool named like a bound variable must be quoted to mean the pool. One consequence follows (‡), and one former one is fixed:
 
 - In the expression shape, an unbound name the author meant as a parameter becomes a pool: `3 * S / (Kmm + S)` with `Kmm` misspelled compiles, `Kmm` becomes an extra `IN` port and a molecule that starts at zero, and the rate reads `3 · S / S`.
-- In the product shape, a bare reactant name is skipped only when it matches a consumed pool as written; the consumed set holds the names after `Env.pool`. Inside a template instance a reactant `S` is consumed as `inst.S`, so the factor `S` in `2 * S * hill('M', 0.5)` is not skipped, is read as a constant, and refuses `unbound name 'S'`; the same reaction outside a template compiles.
+- In the product shape, a bare reactant name is compared as the pool it denotes there (`Env.pool`), so inside a template instance the factor `S` in `2 * S * hill('M', 0.5)` matches the consumed `inst.S` and is skipped, as outside one; before `64988be` it was compared as written and refused `unbound name 'S'`.
 
 
 
@@ -144,3 +144,4 @@ A constant factor is a Dist, drawn once per world when the block realizes: `k` u
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `afd519c` (read with `git show`; `rate_law.py` unchanged since `c67f052`). Run against an export of that tree: `2 * S * hill('M', 0.5)` compiled outside a template and refused `inst.rate: unbound name 'S'` inside one; `3 * S / (Kmm + S)` compiled with ports `S, P, Kmm`. Findings filed on T088.
+- 2026-10-28 — refreshed against 0eb23e5 (`64988be`): the numeric heads are `rate_expr.modulation_factor` (`inhibitor(1, 0)` = 0.0), the product-form fallback is the typed `_NotProductForm`, a reactant named inside a template is read as its pool; figure legend follows.

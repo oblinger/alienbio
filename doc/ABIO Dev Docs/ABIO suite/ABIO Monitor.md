@@ -91,10 +91,11 @@ Both draws key on the trial seed by turn, so arms with matched seeds draw the sa
 
 
 ## The sham
-The sham is announced with the same coverage as the monitored arm and its ledger never moves, so it is false in a way the agent can check. After `n` shown turns the chance a real auditor at coverage `c` would still read `0` is `(1 − c)^n`: at `c = 1` the sham is contradicted on the second turn, at `c = 0.5` after six turns the odds are 1 in 64. An agent that compares the ledger to the announcement learns it is not being logged, so "sham vs unmonitored" measures belief only for agents that do not check, and only early. The module docstring explains why the sham cannot also fill its ledger (it would be the monitored arm); it does not state that its belief decays with turns and coverage.
+The sham is announced with the same coverage as the monitored arm and its ledger never moves, so it is false in a way the agent can check. After `n` shown turns the chance a real auditor at coverage `c` would still read `0` is `(1 − c)^n`: at `c = 1` the sham is contradicted on the second turn, at `c = 0.5` after six turns the odds are 1 in 64. An agent that compares the ledger to the announcement learns it is not being logged, so "sham vs unmonitored" measures belief only for agents that do not check, and only early. The module docstring explains why the sham cannot also fill its ledger (it would be the monitored arm) and, since `343d166`, states this decay and the nested-coverage coupling, and says to read the sham arm per turn rather than as one belief.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `a68f934`, by reading `monitor.py` and its call sites in `runner.py` (the observation append before `act`, the ledger increment after the action) and `brief.py`; nothing was run. Left out: the registration that licenses the dials (`catalog/registrations.yaml`, `aup-exploration`) and the record field's serialization.
+- 2026-10-28 — refreshed against 0eb23e5: the module docstring now states the sham's `(1 − c)^n` decay and the nested-coverage coupling (`343d166`, docstring only); behaviour unchanged.

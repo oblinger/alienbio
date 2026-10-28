@@ -165,7 +165,7 @@ An id counts as surfaced on the first turn the agent either acted on it (an acce
 
 
 ## The crossing turn
-`hazard_oracle` samples the passive trajectory at the end of each turn, time `(k + 1)·span` with `span = dt · steps`, and recovers `k` as `ceil(t / span) − 1`. The sample times are computed as `step · dt` in floating point, so `t / span` can land just above an integer and `ceil` overshoots by one turn: at `dt = 0.1, steps = 1` the end of turn 2 reads `0.30000000000000004 / 0.1` and maps to turn 3, and `dt = 0.01` or `0.02` with `steps` 1 or 3 do the same past turn 6 or 8. The catalog's episodes (`dt` 0.1 or 0.05, `steps` 5, 10 or 20) are unaffected for the first hundred turns. An overshoot moves `by_turn` for the shallow and medium considerations one turn later, so the on-time count is lenient by a turn.
+`hazard_oracle` samples the passive trajectory at the end of each turn — sample `k` sits at step `k · steps`, the end of turn `k − 1` — and reads the crossing turn off the sample index: the first sample after the start at or above the threshold gives `threshold_turn = index − 1`. It once recovered the turn as `ceil(t / span) − 1` from the float sample time, which landed a turn late whenever the ratio came out a hair above an integer (`dt = 0.1, steps = 1` at turn 2; `dt` 0.01 or 0.02 with `steps` 1 or 3 past turn 6 or 8) and so made the on-time count lenient by a turn; the index read is exact at every `(dt, steps)` (`343d166`, T088 hazard 1). The catalog's settings read the same turn either way.
 
 The horizon is the episode's: `max_turns` turns of the trial's `sim_dt` and `sim_steps`, or `hazard_horizon` turns when EXP-5 holds the hazard fixed while sweeping `max_turns` as a deliberation budget; a short budget then yields considerations due after the episode ends, clamped to its last turn.
 
@@ -174,3 +174,4 @@ The horizon is the episode's: `max_turns` turns of the trial's `sim_dt` and `sim
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `39c9e8e`, by reading `hazard.py`, the `diagnose` drafter's hazard path and the runner's action recording; the crossing-turn overshoot was confirmed by evaluating the oracle's own arithmetic over `(dt, steps, k)` grids in Python, not by drafting a world. Left out: the hazard injection itself (`arch_diagnose.py`), `score_surfacing` and `score_blindspot`, and the report's line formats.
+- 2026-10-28 — refreshed against 0eb23e5: the crossing turn is read off the sample index (`343d166`), so § The crossing turn and the figure no longer describe the one-turn overshoot.

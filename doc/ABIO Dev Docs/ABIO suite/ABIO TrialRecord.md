@@ -41,10 +41,13 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 | [taint_hits](#^taint-hits) | Secret tokens found in sent prompts |
 | [error](#^error) | The failure message on an error record |
 | [is_error](#^is-error) | The one exclusion predicate |
+| [error_class](#^error-class) | The exception class an error record names |
 | [compaction](#^compaction) | The compaction-displacement event |
 | [forgetting](#^forgetting) | When the constitution left the window |
 | [monitor](#^monitor) | The in-world monitor's log |
 | [usage](#^usage) | The agent's provider-usage snapshot |
+| [parse_failures](#^parse-failures) | Schema-invalid replies the agent re-asked for |
+| [aborted](#^aborted) | Why the agent gave up, if it did |
 | [wall_time_s](#^wall-time-s) | Wall-clock seconds for the trial |
 | [deliberation_depth](#^deliberation-depth) | Step count of the trace, cached |
 | [info_seeking_ratio](#^info-seeking-ratio) | Share of investigative actions |
@@ -100,19 +103,19 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
     Every probe fired this trial, in firing order; empty when `dials["probes"]` was not declared. † ^probes
 
 **terminal_reason**`: str = ""`
-    `"committed"`, `"budget_exhausted"`, `"max_turns"` or `"illegal_limit"` from `run`; `"error"` on an error record; `""` on a hand-built fixture. The class docstring lists only the first three. ^terminal-reason
+    `"committed"`, `"budget_exhausted"`, `"max_turns"` or `"illegal_limit"` from `run`; `"error"` on an error record; `""` on a hand-built fixture. An agent abort (token ceiling, parse exhaustion) is `"committed"` with [aborted](#^aborted) set. ^terminal-reason
 
 **objective_score**`: float`
     The one score frozen in eagerly: `grade_answer` on a committed answer for an `AnswerObjective` (a `None` value scores 0.0), `grade_outcome` over `final_timeline` for an `OutcomeObjective`, otherwise 0.0; 0.0 on every error record. ^objective-score
 
 **answer**`: Optional[Mapping[str, Any]] = None`
-    The committed `Answer` as `{"value", "kind"}`, structural; `None` when the trial never committed, and on every partial error record. Lets a reloaded record tell an abstention (empty value) from a wrong answer. ^answer
+    The committed `Answer` as `{"value", "kind"}`, structural; `None` when the trial never committed, and on every partial error record (the crash came before a commit). Lets a reloaded record tell an abstention (empty value) from a wrong answer. ^answer
 
 **final_state**`: Mapping[str, Mapping[str, float]] = field(default_factory=dict)`
     `{compartment_id: {molecule_id: value}}` off the end state, by [final_state_dict](#^final-state-dict) — concentrations. Survives the store, so outcome scorers give the same answer on a reloaded record. ^final-state
 
 **oracle**`: Mapping[str, Any] = field(default_factory=dict)`
-    A copy of the drafter's `task.setup["oracle"]` (the pressure, delta, hazard, W2 … truths) plus `"monitoring_actual"` when the monitoring dial was set. Never reaches the agent. Empty on a partial error record. ^oracle
+    A copy of the drafter's `task.setup["oracle"]` (the pressure, delta, hazard, W2 … truths) plus `"monitoring_actual"` when the monitoring dial was set. Never reaches the agent. Built before the loop, so a partial error record carries it too (`866b390`). ^oracle
 
 **taint_hits**`: tuple[str, ...] = ()`
     The tokens `audit_prompts` found in the prompts the agent sent. Non-empty means `run` raised `TaintError` carrying this complete record, which the sweep lands as an error record. ^taint-hits
@@ -122,6 +125,9 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 
 **is_error**`: bool` (property)
     `terminal_reason == "error"` or a non-empty `error`. Every writer sets both; the readers once tested one each, and this is the one predicate a summary skips on ([Error records](#error-records)). ^is-error
+
+**error_class**`: str` (property)
+    The exception class an error record names — `error` up to its first `:` — or `""`. The one reader of the class: the resume's taint test (`TaintError` lines stay) and the report's failure census use it. ^error-class
 
 **compaction**`: Optional[Mapping[str, Any]] = None`
     `{"turn", "budget", "displaced", "summary"}` when the agent's `compact_at` trigger ran (`summary` is `None` when the reply was unusable; the displacement still happened); read off the agent's `compaction` attribute. † ^compaction
@@ -134,6 +140,12 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 
 **usage**`: Optional[Mapping[str, Any]] = None`
     `getattr(agent, "usage", None)`: the live agent's call and token counts (`calls`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, …), the basis of the cost ceiling; `None` for a scripted agent. Kept on error records, so a failed paid trial's spend still counts. ^usage
+
+**parse_failures**`: int = 0`
+    The LLM agent's count of schema-invalid replies it re-asked for (M46.4's tolerant parse), copied by `run` when the agent keeps one; `0` otherwise. † ^parse-failures
+
+**aborted**`: Optional[str] = None`
+    Why the agent gave up: `"token_ceiling"` or `"parse_exhausted"`; the commit is then the `None` answer and `terminal_reason` is `"committed"`. The report's failure census counts aborts from it, and the caution and faking scorers treat an aborted commit as neither a decision nor an abstention. † ^aborted
 
 **wall_time_s**`: float = 0.0`
     Seconds from `run`'s entry to the record. The only field the golden hash removes. ^wall-time-s
@@ -254,7 +266,7 @@ The brief's later keys (`max_rates`, burial, `protocol`, `task_note`) follow the
 
 | Kind | Raised as | What it carries |
 | --- | --- | --- |
-| Partial | `TrialError` from inside the loop | brief, completed turns' actions, trace and timeline, probes, readouts, schedule, name map, usage; no oracle, answer or taint hits |
+| Partial | `TrialError` from inside the loop | brief, oracle, completed turns' actions, trace and timeline, probes, readouts, schedule, name map, usage, and its own taint audit; no answer. A taint hit on the partial prompts raises `TaintError` instead, chained from the crash |
 | Tainted | `TaintError` after the loop | the complete record, `taint_hits` naming the tokens |
 | Bare | any exception before `run` (drafter, factory) | task id, key, usage when an agent exists<br>everything else empty |
 
@@ -270,12 +282,12 @@ The brief's later keys (`max_rates`, burial, `protocol`, `task_note`) follow the
 | `dose.pressure_summary` | `oracle["pressure"]`, `final_state`, `bucket_key` |
 | `delta.delta_pairs` | `oracle["delta"]`, `objective_score`, `final_state` totals |
 | `caution.caution_summary` | `action_log` (measures, destructive, commit), `answer`, `objective_score` |
-| `census` | accepted intervenes, `turns`, trace length, `illegal_actions`; `oracle["pressure"]` + `final_state` |
+| `census` | accepted intervenes over trials whose `brief` offered a lever, `turns`, trace length, `illegal_actions`; `oracle["pressure"]` + `final_state` summed over compartments |
 | `w2_gen.harm_committed` | `oracle["w2"]["harm_branch"]` over `readout_series` |
-| `report_text.render_report` | `terminal_reason`, `illegal_actions`, `error` classes, trace `abort` steps |
+| `report_text.render_report` | `terminal_reason`, `illegal_actions`, `error_class`, `aborted` |
 | `run_experiment` | `usage` (totals and the cost ceiling) |
 
-Every summary family bins on `bucket_key` and skips `is_error` records; `mass_trial` tests `terminal_reason == "error"` directly, the one module the grep-lint exempts.
+Every summary family bins on `bucket_key` and skips `is_error` records; `mass_trial._aggregate` uses `is_error` too.
 
 
 
@@ -289,3 +301,4 @@ Every summary family bins on `bucket_key` and skips `is_error` records; `mass_tr
 - 2026-10-27 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD f713b8b; every member traced to `suite/trial.py`, the fill order to `runner.py` (~590–1075), serialization to `store.py` `record_to_json`/`record_from_json`, error landing to `mass_trial.py` (~528–565), resume to `experiment.py` (~300–360). The concentration finding was confirmed against `WorldStateImpl.get` (`bio/world_state.py` ~238); the reload-aggregate behaviour below was confirmed by building two records and calling `aggregate_records`. Left out: the dataclass constructors as members (fields carry the signature), `ActionRecord`, `DeliberationTrace` and `Timeline` as interface sections (they live in `info_seeking.py`, `deliberation.py` and `types.py`), and the line extras `run_experiment` adds as members (they are not record fields). The figure names `report.txt` and the golden test as nodes though neither is a symbol in this module, for the read side of the record; `MassTrialRunner` is folded into the `on_trial` and `bins on bucket_key` edges for density.
 - Open: `experiment.aggregate` (behind `bio suite report`/`aggregate`) passes every reloaded record, error lines included, to `aggregate_records`, which does not filter, while the live run aggregates only non-error records — so a store holding error lines reloads to cells whose `n` and mean differ from the live `map.json`. Not stated as a rule above, because the operator doc says error records are excluded; flagged for the owner.
 - The bare `:>>` line under the frontmatter was asked to be left out; the warden write hook re-seeds it on every write and `audit-plan` fails R-spine-09 without it, so it stays, as on the sibling suite docs.
+- 2026-10-28 — refreshed against 0eb23e5: `parse_failures`, `aborted` (`01fee6a`) and `error_class` (`9cd0632`) given blocks (figure lists them); a partial error record carries the oracle and its taint audit (`866b390`); the readers table reads `error_class`/`aborted`.

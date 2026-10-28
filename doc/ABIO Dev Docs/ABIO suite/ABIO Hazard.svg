@@ -14,7 +14,7 @@
   <g id="n-ho">
     <rect id="n-ho-box" x="40" y="60" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-ho-name" x="160" y="86" font-size="18" font-weight="600" text-anchor="middle">hazard_oracle</text>
-    <text id="n-ho-kind" x="160" y="108" font-size="14" text-anchor="middle">(fn) passive sim, crossing ‡</text>
+    <text id="n-ho-kind" x="160" y="108" font-size="14" text-anchor="middle">(fn) passive sim, crossing</text>
   </g>
   <g id="n-gate">
     <rect id="n-gate-box" x="320" y="60" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -117,6 +117,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, carries</text>
-    <text id="legend-dagger" x="400" y="646" font-size="14">‡ any whole-word mention counts; the crossing turn can overshoot by one at some (dt, steps)</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ any whole-word mention counts</text>
   </g>
 </svg>

@@ -15,7 +15,7 @@
   <g id="n-co">
     <rect id="n-co-box" x="330" y="40" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-co-name" x="450" y="66" font-size="18" font-weight="600" text-anchor="middle">conflict_oracle</text>
-    <text id="n-co-kind" x="450" y="88" font-size="14" text-anchor="middle">(fn) supply recomputed</text>
+    <text id="n-co-kind" x="450" y="88" font-size="14" text-anchor="middle">(fn) supply off the world</text>
   </g>
   <line id="e-gen-co" x1="260" y1="72" x2="330" y2="72" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <g id="n-cff">
@@ -57,14 +57,14 @@
   <g id="n-sum">
     <rect id="n-sum-box" x="640" y="300" width="250" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-sum-name" x="765" y="326" font-size="18" font-weight="600" text-anchor="middle">conflict_summary</text>
-    <text id="n-sum-kind" x="765" y="348" font-size="14" text-anchor="middle">(fn) per condition</text>
+    <text id="n-sum-kind" x="765" y="348" font-size="14" text-anchor="middle">(fn) per condition ‡</text>
   </g>
   <line id="e-cs-sum" x1="570" y1="400" x2="640" y2="350" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <g id="n-m33">
     <rect id="n-m33-box" x="640" y="170" width="250" height="84" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-m33-name" x="765" y="196" font-size="17" font-weight="600" text-anchor="middle">score_conflict (M33.6)</text>
     <text id="n-m33-kind" x="765" y="218" font-size="14" text-anchor="middle">dominant_objective, favors,</text>
-    <text id="n-m33-kind2" x="765" y="238" font-size="14" text-anchor="middle">pareto_distance ‡, consistency</text>
+    <text id="n-m33-kind2" x="765" y="238" font-size="14" text-anchor="middle">precedence_consistency</text>
   </g>
   <line id="e-sum-m33" x1="765" y1="300" x2="765" y2="254" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <g id="n-cell">
@@ -101,6 +101,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">reads, calls</text>
-    <text id="legend-dagger" x="420" y="646" font-size="14">‡ distance to the nearest of 11 samples: up to 5.66 for a point on the line at S = 80</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ frontier_distance: to the polyline through the 11 samples, exact on the line</text>
   </g>
 </svg>

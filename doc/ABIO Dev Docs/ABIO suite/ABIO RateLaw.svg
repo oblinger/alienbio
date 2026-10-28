@@ -99,6 +99,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">compiles, realizes</text>
     <line id="legend-dotted" x1="250" y1="641" x2="300" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="310" y="646" font-size="14">falls back, reads</text>
-    <text id="legend-dagger" x="460" y="646" font-size="14">‡ a misspelled parameter becomes a pool; a reactant named inside a template refuses</text>
+    <text id="legend-dagger" x="460" y="646" font-size="14">‡ a misspelled parameter becomes a pool</text>
   </g>
 </svg>

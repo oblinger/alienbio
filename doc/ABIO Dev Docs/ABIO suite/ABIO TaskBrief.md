@@ -147,6 +147,8 @@ The module's functions and tables. Nothing is listed in an `__all__` and `alienb
 | [[#^resolve-reversibility\|resolve_reversibility]] | The reversibility dial's text |
 | [[#^resolve-irreversible-levers\|resolve_irreversible_levers]] | Which levers are destructive |
 | [[#^resolve-assays\|resolve_assays]] | The assay allowlist |
+| [[#^task-readouts\|task_readouts]] | The ids the task is read on |
+| [[#^lever-exclusion\|lever_exclusion]] | Why a lever can never be on the surface |
 | [[#^neutral-padding\|neutral_padding]] | Seed-deterministic neutral filler |
 | [[#^default-action-costs\|DEFAULT_ACTION_COSTS]] | Per-verb default costs |
 | [[#^default-max-rate\|DEFAULT_MAX_RATE]] | Fallback lever cap on a guarded world |
@@ -185,8 +187,14 @@ The module's functions and tables. Nothing is listed in an `__all__` and `alienb
 **resolve_assays**`(dials: Mapping[str, Any], chemistry: ChemistryImpl) -> tuple[str, ...]`
     Absent → `()`; `"all"` → every reaction id, sorted; a list → its entries as strings, `ValueError` naming any that is not a reaction in `chemistry`. ^resolve-assays
 
+**task_readouts**`(task: TaskInstance, chemistry: ChemistryImpl) -> frozenset[str]`
+    The ids the task is read on, which an `Intervene` must never set: a structured question's `target`/`tracked` (a bare id, an `(id, goal)` pair's id, or each entry's id in a collection of pairs — the conflict rungs name both), every id in a tuple `OutcomeObjective.target` (bare or the id of an `(id, goal)` pair), and on a bare-collection question every molecule it names unless the answer key is itself a world node; each as named and as the molecules it resolves to. The runner reads it too. ^task-readouts
+
+**lever_exclusion**`(lever: str, chemistry: ChemistryImpl, readouts: frozenset[str], hidden_ids: frozenset[str]) -> Optional[str]`
+    Why `lever` can never be on this trial's control surface — it is a readout, a structurally hidden pool, or a reaction with a compiled rate law — else `None`. `build_brief` drops such a lever from the default surface and refuses it declared; the runner names the same reason when it rejects an `Intervene` on it. ^lever-exclusion
+
 **neutral_padding**`(n_tokens: int, seed: Seed) -> str`
-    Sentences drawn by `seed.rng()` from four fixed facilities-language vocabularies (subject, verb, object, tail; no digits, no chemistry), appended until `len(text) // 4 >= n_tokens`, the suite's chars/4 token estimate. Deterministic in `(n_tokens, seed)`. `ValueError` unless `n_tokens` is a positive `int` (a `bool` is refused). ^neutral-padding
+    Sentences drawn by `seed.rng()` from four fixed facilities-language vocabularies (subject, verb, object, tail; no digits, no chemistry), appended until `ops.estimate_tokens(text) >= n_tokens` (`len // 4`, the suite's one token yardstick since `3885584`). Deterministic in `(n_tokens, seed)`. `ValueError` unless `n_tokens` is a positive `int` (a `bool` is refused). ^neutral-padding
 
 **DEFAULT_ACTION_COSTS**`: Mapping[str, float]`
     `measure` 1.0, `intervene` 5.0, `commit` 0.0, `wait` 0.0, keyed by lower-cased action type. Lives here so `runner._action_cost` and the brief read one table without a circular import. ^default-action-costs
@@ -219,7 +227,7 @@ Every row raises `ValueError` from `build_brief`, which the runner calls before 
 | No control surface | `setup["require_levers"]` and no `levers` dial | M45.2 | surface |
 | Malformed lever entry | not a `str` or an `{id, max_rate}` mapping; an unknown key; a non-string `id` | T023 | — |
 | Bad cap | a `max_rate` or a `lever_caps` value that is a `bool`, non-numeric, non-finite or ≤ 0; `lever_caps` not a mapping | T023 | — |
-| Lever is a readout | a declared lever is in `task_readouts`: the structured question's `target` or `tracked`, any string in a tuple/list `OutcomeObjective.target`, or a molecule a bare-collection question names unless the answer key is a node — on any world (guarded only until 2026-10-28) | T023, every readout since T051 box 4 | — |
+| Lever is a readout | a declared lever is in `task_readouts`: the structured question's `target` or `tracked`, any id in a tuple/list `OutcomeObjective.target` (bare or an `(id, goal)` pair's id; the conflict question's two pairs name both targets), or a molecule a bare-collection question names unless the answer key is a node — on any world (guarded only until 2026-10-28) | T023, every readout since T051 box 4 | — |
 | Lever is a hidden pool | a lever is in `setup["hidden_ids"]`, on any world | T066 Q1 | draft |
 | Lever has a rate law | a declared lever (dial or drafter default) names a reaction carrying a compiled `rate_law`, on any world; the implicit surface leaves such a reaction out instead | module-doc pass 2026-10-27, owner (A) | draft |
 | Bad defaults | `setup["brief_defaults"]` set but not a mapping | T047 | draft |
@@ -365,3 +373,4 @@ A guarded dial puts an alignment-bearing arm on a world: a live model reaches it
 
 # BRIEF
 - 2026-10-19 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `suite/brief.py`, `runner.py` (`build_brief` call, `_parse_probes`, `PROBE_TIMINGS`, cap clamp), `naming.py` (`surface_brief`, `OpaqueAgent`), `llm_agent.py` (`begin`), `store.py` (`_brief_to_json`), `monitor.py`, `drafters.py` (`EPISTEMIC_DISCLOSURE`, `_clean_route_for_pi`, the guarded adapter, `GUARDED_BRIEF_DIALS`, `WORLD_INVARIANT_DIALS`), `phase1_gen.py` (`phase1_chemistry_note`, `_CLEAN_ROUTE_CLAUSE`), `w2_gen.py`, `guards.py` and the tests `test_hidden_pool_levers`, `test_pressure_acceptance`, `test_bury_commitment`, `test_constitution_in_history`, `test_protocol`, `test_task_note`, `test_epistemic_level4`. Left out: the private `_estimate_padding_tokens` and `_PADDING_*` vocabularies (described in `neutral_padding`, no blocks). The brief asked for `BRIEF_ONLY_DIALS`, which no longer exists in the source; the world-invariant set is `drafters.WORLD_INVARIANT_DIALS`, documented in its place. The figure draws `render_brief` as the renderer, not `compose_briefing`, which only composes framing text. `epistemic_access`, `probes` and `probe_vocab` are documented as what they are — drafter- and runner-side, reaching the agent through `question` and `ProbeAgent.probe` — not as brief fields. The module docstring's note that `agent.types` re-exports the two coercers is stale: `alienbio/agent/` is gone.
+- 2026-10-28 — refreshed against 0eb23e5: blocks added for `task_readouts` and `lever_exclusion` (public since `a799468`, never given blocks); `task_readouts` reads an `(id, goal)` pair's id and every entry of a collection target (`c2bfa3c`, `0cee5f0`); `neutral_padding` sizes with `ops.estimate_tokens` (`3885584`).
