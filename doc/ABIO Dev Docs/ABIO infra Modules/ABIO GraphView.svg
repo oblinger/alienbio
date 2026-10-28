@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-callers">
+    <rect id="n-callers-box" x="20" y="50" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-callers-name" x="145" y="78" font-size="18" font-weight="600" text-anchor="middle">suite callers</text>
+    <text id="n-callers-kind" x="145" y="102" font-size="14" text-anchor="middle">(suite) validity, augment, carve</text>
+    <text id="n-callers-kind2" x="145" y="120" font-size="14" text-anchor="middle">neighbors only</text>
+  </g>
+  <g id="n-chem">
+    <rect id="n-chem-box" x="20" y="290" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chem-name" x="145" y="318" font-size="18" font-weight="600" text-anchor="middle">ChemistryImpl</text>
+    <text id="n-chem-kind" x="145" y="342" font-size="14" text-anchor="middle">(bio) four graph queries</text>
+  </g>
+  <g id="n-adapt">
+    <rect id="n-adapt-box" x="330" y="50" width="230" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-adapt-name" x="445" y="78" font-size="18" font-weight="600" text-anchor="middle">_reaction_graph_view</text>
+    <text id="n-adapt-kind" x="445" y="102" font-size="14" text-anchor="middle">(bio.chemistry) names as ids,</text>
+    <text id="n-adapt-kind2" x="445" y="120" font-size="14" text-anchor="middle">rebuilt on every query</text>
+  </g>
+  <g id="n-view">
+    <rect id="n-view-box" x="620" y="50" width="230" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-view-name" x="735" y="78" font-size="18" font-weight="600" text-anchor="middle">GraphView</text>
+    <text id="n-view-kind" x="735" y="102" font-size="14" text-anchor="middle">(dataclass) ids, incidence,</text>
+    <text id="n-view-kind2" x="735" y="120" font-size="14" text-anchor="middle">species_key</text>
+  </g>
+  <g id="n-nb">
+    <rect id="n-nb-box" x="620" y="180" width="230" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-nb-name" x="735" y="206" font-size="18" font-weight="600" text-anchor="middle">neighbors</text>
+    <text id="n-nb-kind" x="735" y="227" font-size="14" text-anchor="middle">(fn) bipartite adjacency</text>
+  </g>
+  <g id="n-paths">
+    <rect id="n-paths-box" x="620" y="265" width="230" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-paths-name" x="735" y="291" font-size="18" font-weight="600" text-anchor="middle">paths</text>
+    <text id="n-paths-kind" x="735" y="312" font-size="14" text-anchor="middle">(fn) simple, ≤ max_len edges</text>
+  </g>
+  <g id="n-edges">
+    <rect id="n-edges-box" x="620" y="350" width="230" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-edges-name" x="735" y="376" font-size="18" font-weight="600" text-anchor="middle">edge_set</text>
+    <text id="n-edges-kind" x="735" y="397" font-size="14" text-anchor="middle">(fn) undirected pairs</text>
+  </g>
+  <g id="n-match">
+    <rect id="n-match-box" x="620" y="435" width="230" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-match-name" x="735" y="461" font-size="18" font-weight="600" text-anchor="middle">match</text>
+    <text id="n-match-kind" x="735" y="482" font-size="14" text-anchor="middle">(fn) backtracking embedding</text>
+  </g>
+  <g id="n-sub">
+    <rect id="n-sub-box" x="620" y="520" width="230" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sub-name" x="735" y="546" font-size="18" font-weight="600" text-anchor="middle">subgraph_selection</text>
+    <text id="n-sub-kind" x="735" y="567" font-size="14" text-anchor="middle">(fn) kept ids, in order</text>
+  </g>
+  <line id="e-callers-chem" x1="145" y1="130" x2="145" y2="290" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-callers-chem" x="135" y="215" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">neighbors</text>
+  <line id="e-chem-adapt" x1="230" y1="290" x2="400" y2="130" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-chem-adapt" x="322" y="225" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">every query</text>
+  <line id="e-adapt-view" x1="560" y1="90" x2="620" y2="90" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-adapt-view" x="590" y="80" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">builds</text>
+  <line id="e-view-nb" x1="735" y1="130" x2="735" y2="180" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-view-nb" x="745" y="160" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">read by all five</text>
+  <line id="e-chem-nb" x1="270" y1="325" x2="620" y2="210" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-chem-paths" x1="270" y1="325" x2="620" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-chem-match" x1="270" y1="325" x2="620" y2="465" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-chem-sub" x1="270" y1="325" x2="620" y2="550" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-chem-fan" x="300" y="450" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">delegates one to one</text>
+  <polyline id="e-paths-nb" points="850,295 885,295 885,200 850,200" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-paths-nb" x="893" y="255" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">per step</text>
+  <polyline id="e-edges-nb" points="850,370 960,370 960,222 850,222" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-edges-nb" x="968" y="300" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">per node</text>
+  <polyline id="e-match-edges" points="850,465 885,465 885,395 850,395" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-match-edges" x="893" y="435" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">host and pattern</text>
+  <text id="t-legend" x="20" y="630" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call · dotted: reads · undirected and unweighted: a path may cross a reaction backwards · through ChemistryImpl, species match by name</text>
+  <text id="t-legend2" x="20" y="650" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">paths, subgraph and match have no caller in src/ outside ChemistryImpl; tests reach them</text>
+</svg>
