@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-rmap">
+    <rect id="n-rmap-box" x="20" y="120" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rmap-name" x="130" y="146" font-size="18" font-weight="600" text-anchor="middle">ReliabilityMap</text>
+    <text id="n-rmap-kind" x="130" y="168" font-size="14" text-anchor="middle">(mass_trial) records, cells,</text>
+    <text id="n-rmap-kind2" x="130" y="188" font-size="14" text-anchor="middle">interactions, contrasts</text>
+  </g>
+  <g id="n-man">
+    <rect id="n-man-box" x="20" y="320" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-man-name" x="130" y="346" font-size="18" font-weight="600" text-anchor="middle">manifest</text>
+    <text id="n-man-kind" x="130" y="368" font-size="14" text-anchor="middle">(store) cost, usage,</text>
+    <text id="n-man-kind2" x="130" y="388" font-size="14" text-anchor="middle">design, spec</text>
+  </g>
+  <g id="n-render">
+    <rect id="n-render-box" x="310" y="226" width="220" height="68" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-render-name" x="420" y="254" font-size="18" font-weight="600" text-anchor="middle">render_report</text>
+    <text id="n-render-kind" x="420" y="276" font-size="14" text-anchor="middle">(fn) sections in order</text>
+  </g>
+  <line id="e-rmap-render" x1="240" y1="180" x2="330" y2="226" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-man-render" x1="240" y1="340" x2="330" y2="294" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-fixed">
+    <rect id="n-fixed-box" x="610" y="30" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fixed-name" x="735" y="56" font-size="17" font-weight="600" text-anchor="middle">always printed</text>
+    <text id="n-fixed-kind" x="735" y="78" font-size="14" text-anchor="middle">header · conditions ·</text>
+    <text id="n-fixed-kind2" x="735" y="98" font-size="14" text-anchor="middle">failure census</text>
+  </g>
+  <g id="n-fam">
+    <rect id="n-fam-box" x="610" y="150" width="250" height="140" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fam-name" x="735" y="176" font-size="17" font-weight="600" text-anchor="middle">family sections</text>
+    <text id="n-fam-k1" x="735" y="200" font-size="14" text-anchor="middle">hazard · tradeoff · caution</text>
+    <text id="n-fam-k2" x="735" y="222" font-size="14" text-anchor="middle">faking · degradation · delta</text>
+    <text id="n-fam-k3" x="735" y="244" font-size="14" text-anchor="middle">dose · census</text>
+    <text id="n-fam-k4" x="735" y="270" font-size="14" text-anchor="middle">each when its summary has rows</text>
+  </g>
+  <g id="n-design">
+    <rect id="n-design-box" x="610" y="330" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-design-name" x="735" y="356" font-size="17" font-weight="600" text-anchor="middle">design block</text>
+    <text id="n-design-kind" x="735" y="378" font-size="14" text-anchor="middle">power verdict, alpha_used</text>
+    <text id="n-design-kind2" x="735" y="398" font-size="14" text-anchor="middle">(compared with nothing)</text>
+  </g>
+  <line id="e-render-fixed" x1="500" y1="226" x2="610" y2="80" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-render-fam" x1="530" y1="250" x2="610" y2="230" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-render-design" x1="500" y1="294" x2="610" y2="360" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-pc">
+    <rect id="n-pc-box" x="610" y="460" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pc-name" x="735" y="486" font-size="17" font-weight="600" text-anchor="middle">primary_contrast_result</text>
+    <text id="n-pc-kind" x="735" y="508" font-size="14" text-anchor="middle">(fn) low vs high, other</text>
+    <text id="n-pc-kind2" x="735" y="528" font-size="14" text-anchor="middle">dials pooled, idle too ‡</text>
+  </g>
+  <line id="e-design-pc" x1="735" y1="410" x2="735" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-es">
+    <rect id="n-es-box" x="930" y="468" width="250" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-es-name" x="1055" y="494" font-size="17" font-weight="600" text-anchor="middle">cohens_d, welch_t</text>
+    <text id="n-es-kind" x="1055" y="516" font-size="14" text-anchor="middle">(effect_size)</text>
+  </g>
+  <line id="e-pc-es" x1="860" y1="500" x2="930" y2="500" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-bon">
+    <rect id="n-bon-box" x="930" y="346" width="250" height="48" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bon-name" x="1055" y="376" font-size="16" font-weight="600" text-anchor="middle">power.bonferroni_alpha</text>
+  </g>
+  <line id="e-design-bon" x1="860" y1="370" x2="930" y2="370" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-idle">
+    <rect id="n-idle-box" x="310" y="460" width="220" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-idle-name" x="420" y="486" font-size="16" font-weight="600" text-anchor="middle">idle_baseline_comparison</text>
+    <text id="n-idle-kind" x="420" y="508" font-size="14" text-anchor="middle">(fn) live vs idle per</text>
+    <text id="n-idle-kind2" x="420" y="528" font-size="14" text-anchor="middle">condition; n = min ‡</text>
+  </g>
+  <line id="e-render-idle" x1="420" y1="294" x2="420" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-render-idle" x="430" y="380" font-size="14" fill="#1971c2" font-style="italic">last section</text>
+
+  <g id="n-txt">
+    <rect id="n-txt-box" x="930" y="150" width="250" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-txt-name" x="1055" y="176" font-size="18" font-weight="600" text-anchor="middle">report.txt</text>
+    <text id="n-txt-kind" x="1055" y="198" font-size="14" text-anchor="middle">written by bio suite</text>
+    <text id="n-txt-kind2" x="1055" y="218" font-size="14" text-anchor="middle">run | report</text>
+  </g>
+  <line id="e-fam-txt" x1="860" y1="190" x2="930" y2="190" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-fam-txt" x="895" y="180" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">str</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ the idle twin sits on both sides of the contrast; n reads the smaller arm</text>
+  </g>
+</svg>
