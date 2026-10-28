@@ -92,7 +92,6 @@ nav:
     - "06: Features": ABIO Demos/notebooks/06_features.ipynb
     - "07: Skinning": ABIO Demos/notebooks/07_skinning.ipynb
     - "08: Evaluation": ABIO Demos/notebooks/08_evaluation.ipynb
-    - "09: JAX Scale": ABIO Demos/notebooks/09_jax_scale.ipynb
     - "Combo: Disease": ABIO Demos/notebooks/combo_disease_investigation.ipynb
     - "Combo: Alien Exam": ABIO Demos/notebooks/combo_alien_exam.ipynb
     - "Combo: Ecosystem": ABIO Demos/notebooks/combo_ecosystem.ipynb
