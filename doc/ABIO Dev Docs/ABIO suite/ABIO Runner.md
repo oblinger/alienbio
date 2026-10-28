@@ -1,7 +1,7 @@
 ---
 description: "`runner`: the live agent turn loop — `run` (observe, act, validate, simulate, record), `Budget`, `TrialError`, `TaintError`, `audit_prompts`. Source: `src/alienbio/suite/runner.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO Runner](ha://p/ABIO%20Runner) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Runner](ha://p/ABIO%20Runner) 
 # ABIO Runner
 The agent turn loop: `run` plays one agent against one drafted world, turn by turn, and returns one frozen `TrialRecord` — every action it took, accepted or rejected, every probe answer, the trajectory and the score.
 
@@ -133,15 +133,14 @@ An illegal action never raises. It is logged as an `ActionRecord` with `accepted
 | `Measure`, `params["assay"]` true | probe in `brief.affordances.assays` | `unknown assay '…'` |
 | | probe is a reaction in this world | `assay '…' is allowlisted but not a reaction in this world` |
 | `Measure` | probe in `brief.affordances.probes` | `unknown probe '…'` |
-| `Intervene` | lever in `brief.affordances.levers` | `unknown lever '…'` |
+| `Intervene` | lever in `brief.affordances.levers`; on a miss, `brief.lever_exclusion` names why the brief left it off | `'…' is this task's readout molecule …`, `'…' names a structurally hidden pool …`, `'…' is a reaction with a compiled rate law …`, else `unknown lever '…'` |
 | | lever is a reaction or a molecule here | `lever '…' is allowlisted but not resolvable in this world` |
-| | lever is not a reaction with a compiled `rate_law` (the rebuild would drop the law for mass action at the setpoint) | `lever '…' is a reaction with a compiled rate law; …` |
 | | value is a finite real, not a `bool` | `non-finite value …` |
 | | value `>= 0` | `negative value …` |
 | `Commit`, `Wait` | none | |
 | any other type | none passes | `unknown action type '…'` (charged only `illegal_action_cost`: an unknown verb has no normal cost) |
 
-The affordances are read off the structural brief, before any surface naming, and `OpaqueAgent` has already translated the agent's surface names back to structural ids. A negative setpoint is refused because the engine has no guard on input: a molecule set to −5 ran on −5 in every compartment, and a negative rate would be floored to 0 by the stepper with no note on the record. An action that is none of the four types raises `ValueError`, which leaves the loop as a `TrialError`, not as a rejection.
+The affordances are read off the structural brief, before any surface naming, and `OpaqueAgent` has already translated the agent's surface names back to structural ids. The readout, hidden-pool and rate-law refusals are one check, not three: the brief never puts those ids on the surface, so an `Intervene` naming one fails the membership test, and `lever_exclusion` (the same function `build_brief` uses to leave them off) supplies the reason; a rate-law lever would otherwise have its law replaced by mass action at the setpoint. A negative setpoint is refused because the engine has no guard on input: a molecule set to −5 ran on −5 in every compartment, and a negative rate would be floored to 0 by the stepper with no note on the record. An action that is none of the four types is rejected as data like the rest (since `484db58`); it does not raise.
 
 Each rejection increments the record's `illegal_actions`; once it reaches `illegal_action_limit` (default 10) the trial ends with `"illegal_limit"` at the bottom of that turn. An accepted `Intervene` over its lever's cap is not a rejection ([[#Intervene is a set, and the lever cap]]).
 

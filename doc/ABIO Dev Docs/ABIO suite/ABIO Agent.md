@@ -1,7 +1,7 @@
 ---
 description: "`agent`: the `Agent` Protocol and its two optional extensions (`SessionAgent`, `ProbeAgent`), the closed four-verb `Action` set, `ReasoningStep`, `ActionOutcome`, and the deterministic `ScriptedAgent` with its `WaitUntil` guard. Source: `src/alienbio/suite/agent.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Agent](ha://p/ABIO%20Agent) 
 # ABIO Agent
 The seam every decision-maker binds to: an agent takes an observation and returns one of four neutral actions plus its reasoning, and may opt in to being briefed, told each action's fate, and probed.
 
@@ -204,12 +204,12 @@ The deterministic, network-free agent that keeps CI green with zero model calls 
     Handed to a callable policy every turn; the step-list path never reads it. ^seed
 
 **act**`(observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]`
-    A callable policy is called and its result returned as is. A step list is walked in order: a `WaitUntil` either measures its probe (unmet) or advances (met); any other step is returned as the action with one `ReasoningStep(kind="policy")` naming its type, and the position advances. Raises `RuntimeError` when called after the list is exhausted. ^scriptedagent-act
+    A callable policy is called and its result returned as is. A step list is walked in order: a `WaitUntil` either measures its probe (unmet) or advances (met); any other step is returned as the action with one `ReasoningStep(kind="policy")` naming its type, and the position advances. Raises `RuntimeError` when called after the list is exhausted, naming the step count, the turn, and whether the list ended on a `Commit`. ^scriptedagent-act
 
 
 
 ## agent Interface
-The module-level type aliases. The module has no `__all__`; `alienbio.suite` re-exports `Action`, `Agent`, `Commit`, `Intervene`, `Measure`, `Policy`, `PolicyStep`, `ReasoningStep`, `ScriptedAgent`, `Wait` and `WaitUntil`, while `ActionOutcome`, `SessionAgent`, `ProbeAgent` and `ObservationPredicate` are imported from `alienbio.suite.agent` directly.
+The module-level type aliases. The module has no `__all__`; `alienbio.suite` re-exports every public name in it: `Action`, `ActionOutcome`, `Agent`, `Commit`, `Intervene`, `Measure`, `ObservationPredicate`, `Policy`, `PolicyStep`, `ProbeAgent`, `ReasoningStep`, `ScriptedAgent`, `SessionAgent`, `Wait` and `WaitUntil`.
 
 | agent | |
 | --- | --- |
@@ -224,8 +224,8 @@ The module-level type aliases. The module has no `__all__`; `alienbio.suite` re-
 **ObservationPredicate**`= Callable[[Observation], bool]`
     The type of `WaitUntil.predicate`. ^observationpredicate
 
-**PolicyStep**`= Union[Measure, Intervene, Commit, WaitUntil]`
-    One step-list entry. `Wait` is not in the union, though `act` would fire one. ^policystep
+**PolicyStep**`= Union[Measure, Intervene, Commit, Wait, WaitUntil]`
+    One step-list entry. ^policystep
 
 **Policy**`= Union[tuple[PolicyStep, ...], Callable[[Observation, Seed], tuple[Action, tuple[ReasoningStep, ...]]]]`
     The two policy forms `ScriptedAgent` accepts. ^agent-policy
@@ -313,4 +313,4 @@ A policy that needs the declared surface is a plain class with `begin`, `notice`
 
 
 # BRIEF
-- 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD a799468; members traced to `suite/agent.py`, behavior to `suite/runner.py` (turn loop, rejection, costs since `d0a2797`, unknown-type rejection since `484db58`, rate-law and readout refusals through `brief.lever_exclusion` since `f1b2af0`/`a799468`), `suite/agents.py`, `suite/llm_agent.py` (`_parse_action`), `suite/naming.py`, `suite/mass_trial.py` (seed paths), `suite/info_seeking.py` (`ActionRecord`) and `tests/suite/test_agent.py`, `test_runner.py`, `test_gameability.py`. Left out: `ScriptedAgent._pos` (private), the private agent classes and factories of `suite/agents.py` as members (they are tabled under Agent families, and belong to a future `agents` doc), and `ActionRecord` as an Interface section (it is defined in `suite/info_seeking.py`). The default costs are read from `brief.DEFAULT_ACTION_COSTS`. The brief's task list named a `prior-commit` agent; no such entry exists in `AGENTS` at this HEAD, so it is not listed.
+- 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD a799468; members traced to `suite/agent.py`, behavior to `suite/runner.py` (turn loop, rejection, costs since `d0a2797`, unknown-type rejection since `484db58`, rate-law and readout refusals through `brief.lever_exclusion` since `f1b2af0`/`a799468`), `suite/agents.py`, `suite/llm_agent.py` (`_parse_action`), `suite/naming.py`, `suite/mass_trial.py` (seed paths), `suite/info_seeking.py` (`ActionRecord`) and `tests/suite/test_agent.py`, `test_runner.py`, `test_gameability.py`. Left out: `ScriptedAgent._pos` (private), the private agent classes and factories of `suite/agents.py` as members (they are tabled under Agent families, and belong to a future `agents` doc), and `ActionRecord` as an Interface section (it is defined in `suite/info_seeking.py`). The default costs are read from `brief.DEFAULT_ACTION_COSTS`. The brief's task list named a `prior-commit` agent; it is not a framework entry in `AGENTS` but the grid example's own, added to `AGENTS` when `catalog/examples/grid/helpers.py` is loaded, so it is not listed.
