@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-form">
+    <rect id="n-form-box" x="20" y="40" width="230" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-form-name" x="135" y="68" font-size="18" font-weight="600" text-anchor="middle">form tree</text>
+    <text id="n-form-kind" x="135" y="92" font-size="14" text-anchor="middle">(Form) Name · Call · Quoted · data</text>
+  </g>
+  <g id="n-eval">
+    <rect id="n-eval-box" x="330" y="40" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-eval-name" x="445" y="68" font-size="18" font-weight="600" text-anchor="middle">evaluate</text>
+    <text id="n-eval-kind" x="445" y="92" font-size="14" text-anchor="middle">(fn) depth check, then by shape</text>
+  </g>
+  <line id="e-form-eval" x1="250" y1="75" x2="330" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-env">
+    <rect id="n-env-box" x="930" y="40" width="250" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-env-name" x="1055" y="66" font-size="18" font-weight="600" text-anchor="middle">Env</text>
+    <text id="n-env-kind" x="1055" y="88" font-size="14" text-anchor="middle">(class) bindings · registry · ctx</text>
+    <text id="n-env-kind2" x="1055" y="108" font-size="14" text-anchor="middle">seed + path per node</text>
+  </g>
+  <line id="e-eval-env" x1="560" y1="60" x2="930" y2="60" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-eval-env" x="745" y="50" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">Name: lookup · every key: child(key)</text>
+
+  <g id="n-qf">
+    <rect id="n-qf-box" x="930" y="200" width="250" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-qf-name" x="1055" y="228" font-size="18" font-weight="600" text-anchor="middle">QuotedForm</text>
+    <text id="n-qf-kind" x="1055" y="252" font-size="14" text-anchor="middle">(dataclass) form + env, a Dist</text>
+  </g>
+  <line id="e-eval-qf" x1="560" y1="100" x2="930" y2="215" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-eval-qf" x="790" y="140" font-size="14" fill="#1971c2" font-style="italic">Quoted</text>
+
+  <g id="n-guard">
+    <rect id="n-guard-box" x="20" y="200" width="230" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-guard-name" x="135" y="228" font-size="18" font-weight="600" text-anchor="middle">_guarded_call</text>
+    <text id="n-guard-kind" x="135" y="252" font-size="14" text-anchor="middle">(fn) retry · prune · reject</text>
+  </g>
+  <line id="e-eval-guard" x1="380" y1="110" x2="200" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-eval-guard" x="160" y="150" font-size="14" fill="#1971c2" font-style="italic">Call with guards:</text>
+
+  <g id="n-disp">
+    <rect id="n-disp-box" x="330" y="200" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-disp-name" x="445" y="228" font-size="18" font-weight="600" text-anchor="middle">_dispatch</text>
+    <text id="n-disp-kind" x="445" y="252" font-size="14" text-anchor="middle">(fn) split on head kind</text>
+  </g>
+  <line id="e-eval-disp" x1="445" y1="110" x2="445" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-eval-disp" x="455" y="160" font-size="14" fill="#1971c2" font-style="italic">Call</text>
+  <line id="e-guard-disp" x1="250" y1="235" x2="330" y2="235" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-guard-disp" x="290" y="225" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">attempt</text>
+
+  <g id="n-reg">
+    <rect id="n-reg-box" x="640" y="200" width="220" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reg-name" x="750" y="228" font-size="18" font-weight="600" text-anchor="middle">Registry</text>
+    <text id="n-reg-kind" x="750" y="252" font-size="14" text-anchor="middle">(class) the head table</text>
+  </g>
+  <line id="e-disp-reg" x1="560" y1="235" x2="640" y2="235" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-disp-reg" x="600" y="225" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">head</text>
+
+  <g id="n-spec">
+    <rect id="n-spec-box" x="20" y="390" width="250" height="80" rx="10" fill="#e6fcf5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="145" y="416" font-size="18" font-weight="600" text-anchor="middle">special forms</text>
+    <text id="n-spec-kind" x="145" y="438" font-size="14" text-anchor="middle">(heads) let · each · if · quote</text>
+    <text id="n-spec-kind2" x="145" y="458" font-size="14" text-anchor="middle">run · seed · template · and · or</text>
+  </g>
+  <g id="n-tmpl">
+    <rect id="n-tmpl-box" x="310" y="390" width="260" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tmpl-name" x="440" y="416" font-size="18" font-weight="600" text-anchor="middle">TemplateHead.expand</text>
+    <text id="n-tmpl-kind" x="440" y="438" font-size="14" text-anchor="middle">(class) bind args, defaults,</text>
+    <text id="n-tmpl-kind2" x="440" y="458" font-size="14" text-anchor="middle">body under its instance</text>
+  </g>
+  <g id="n-exp">
+    <rect id="n-exp-box" x="610" y="390" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-exp-name" x="735" y="416" font-size="18" font-weight="600" text-anchor="middle">expander head</text>
+    <text id="n-exp-kind" x="735" y="438" font-size="14" text-anchor="middle">(head) forms in, a form out,</text>
+    <text id="n-exp-kind2" x="735" y="458" font-size="14" text-anchor="middle">re-evaluated one level deeper</text>
+  </g>
+  <g id="n-fn">
+    <rect id="n-fn-box" x="900" y="390" width="280" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fn-name" x="1040" y="416" font-size="18" font-weight="600" text-anchor="middle">function heads</text>
+    <text id="n-fn-kind" x="1040" y="438" font-size="14" text-anchor="middle">(fn · dist · op · drafter …)</text>
+    <text id="n-fn-kind2" x="1040" y="458" font-size="14" text-anchor="middle">evaluated args, ctx / env injected</text>
+  </g>
+  <line id="e-disp-spec" x1="400" y1="270" x2="160" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-disp-spec" x="250" y="320" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">forms + env</text>
+  <line id="e-disp-tmpl" x1="440" y1="270" x2="440" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-disp-tmpl" x="450" y="340" font-size="14" fill="#1971c2" font-style="italic">template</text>
+  <line id="e-disp-exp" x1="500" y1="270" x2="700" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-disp-exp" x="590" y="345" text-anchor="end" font-size="14" fill="#1971c2" font-style="italic">expander</text>
+  <line id="e-disp-fn" x1="540" y1="270" x2="980" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-disp-fn" x="800" y="368" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">args child(i)</text>
+  <line id="e-spec-tmpl" x1="145" y1="470" x2="145" y2="520" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+  <line id="e-spec-tmpl2" x1="145" y1="520" x2="400" y2="520" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+  <line id="e-spec-tmpl3" x1="400" y1="520" x2="400" y2="470" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-spec-tmpl" x="270" y="540" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">template makes</text>
+
+  <g id="n-inst">
+    <rect id="n-inst-box" x="610" y="510" width="250" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-inst-name" x="735" y="536" font-size="18" font-weight="600" text-anchor="middle">ctx.instances</text>
+    <text id="n-inst-kind" x="735" y="558" font-size="14" text-anchor="middle">(dict) name → claiming path</text>
+  </g>
+  <line id="e-tmpl-inst" x1="500" y1="470" x2="610" y2="530" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-tmpl-inst" x="548" y="508" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">claim ‡</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">evaluation flow</text>
+    <line id="legend-dotted" x1="220" y1="641" x2="270" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="280" y="646" font-size="14">reads, makes, claims</text>
+    <text id="legend-dagger" x="450" y="646" font-size="14">‡ a second document path claiming one instance name refuses; a retry renames it retry1</text>
+  </g>
+</svg>
