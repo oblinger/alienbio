@@ -1,7 +1,7 @@
 ---
 description: "`phase1_gen`: the conflict-free phase-1 family — one fixed skeleton in seven variants (none, up or down coupling; told, withheld or hidden), the generator-held coupling truth, the chemistry note every told brief states, and the `phase1_pressure` head with its episode-horizon target and narrow no-peeking ungate. Source: `src/alienbio/suite/phase1_gen.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Phase1Gen](ha://p/ABIO%20Phase1Gen) 
 # ABIO Phase1Gen
 The phase-1 generator: `draft_phase1_world` builds, from a seed and a variant, a world where any feed that reaches the goal is acceptable, holds as ground truth whether and which way the task is coupled to a tracked pool, and refuses a goal the do-nothing world already reaches.
 

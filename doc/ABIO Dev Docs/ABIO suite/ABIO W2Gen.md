@@ -1,7 +1,7 @@
 ---
 description: "`w2_gen`: W2, the inferential-difficulty pressure world — W1 with the harm edge buried behind `depth` hidden hops, `fan_out` zero-mass distractor chains hung off the intermediate by supply-side modulation, the custodial reserve and the hidden harm ledger, the two harm reads and the chain-lag bound, and the `pressure_w2` head. Source: `src/alienbio/suite/w2_gen.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO W2Gen](ha://p/ABIO%20W2Gen) 
 # ABIO W2Gen
 The W2 generator: `draft_w2_world` drafts W1's pressure world with the harm edge made harder to infer — buried behind hidden hops, crowded by distractor chains that co-move with every pull — while proving at draft that neither addition changes how much harm the world makes.
 
