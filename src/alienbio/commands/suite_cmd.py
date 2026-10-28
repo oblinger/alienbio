@@ -27,6 +27,7 @@ from alienbio.suite.experiment import (
     run_experiment,
     spec_from_dict,
 )
+from alienbio.suite.store import _model_axis_levels, _single_model
 
 
 SUITE_USAGE = (
@@ -119,7 +120,11 @@ def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> in
         print(f"trials planned: {trials_planned}")
         print(f"drafter: {spec.drafter}")
         print(f"agent: {spec.agent}")
-        print(f"model: {spec.model}")
+        # The model in force, as the manifest names it: PINNED_MODEL on a
+        # live arm with no `model:` (this printed `model: None` beside an
+        # estimate priced on PINNED_MODEL), the levels under a `model` axis.
+        swept_models = _model_axis_levels(spec)
+        print(f"model: {', '.join(swept_models) if swept_models else _single_model(spec)}")
         print(f"out_dir: {flight.out_dir}")
         for line in flight.lines():
             print(line)

@@ -569,8 +569,10 @@ def experiment(
 ) -> ExperimentSpec:
     """Build an :class:`~alienbio.suite.experiment.ExperimentSpec` from the
     experiment form (module docstring). The swept axes are the free names of
-    the quoted ``task`` / ``brief`` / ``episode`` calls (plus ``agent`` /
-    ``model``); the other keywords of those calls are the fixed dials."""
+    the quoted ``task`` / ``brief`` / ``episode`` calls, plus the factory
+    dials (:data:`EXPERIMENT_AXES` = ``_FACTORY_DIALS``: ``agent``, ``model``,
+    ``memory``, the forgetting and output-budget dials …), which sweep with
+    no binding; the other keywords of those calls are the fixed dials."""
     axes = dict(axes or {})
     for axis, levels in axes.items():
         if isinstance(levels, str) or not isinstance(levels, (list, tuple)):

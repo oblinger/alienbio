@@ -38,15 +38,15 @@ The retry pass is not a check: on a resume, `run_experiment` re-runs error lines
 
 | MODULE | LOC | Role |
 | --- | --- | --- |
-| `spec.py` | 577 | `ExperimentSpec` (30 fields), `spec_from_dict` + validators, `load_spec`, `agent_kinds_in_play`, `estimate_cost` (prices every `model`-axis level). |
-| `drafters.py` | 1180 | The drafter heads and `DRAFTERS`, `WORLD_INVARIANT_DIALS`, `runtime_dials`, `guarded_drafters()`/`guarded_dials()` (read live by the guards), `CONFLICT_FREE_DRAFTERS`. |
-| `agents.py` | 388 | The scripted agent factories and `AGENTS`. |
-| `store.py` | 386 | `record_to_json`/`record_from_json`, the brief codec, `_build_manifest`. |
-| `guards.py` | 874 | `preflight` and its sixteen ordered checks (`PREFLIGHT_CHECKS`), one `*_violation` function each, `Preflight`, `_resume_spec_drift` — every refusal before spend, in the run's order; `--dry` prints the same list. |
+| `spec.py` | 769 | `ExperimentSpec` (31 fields, one `__post_init__` normaliser for both forms), `spec_from_dict` + validators, `load_spec`, `agent_kinds_in_play`, `estimate_cost` (prices every `model`-axis level). |
+| `drafters.py` | 1582 | The drafter heads and `DRAFTERS`, `WORLD_INVARIANT_DIALS`, `runtime_dials`, `guarded_drafters()`/`guarded_dials()` (read live by the guards), `CONFLICT_FREE_DRAFTERS`. |
+| `agents.py` | 397 | The scripted agent factories and `AGENTS`. |
+| `store.py` | 454 | `record_to_json`/`record_from_json`, the brief codec, `_build_manifest`. |
+| `guards.py` | 862 | `preflight` and its sixteen ordered checks (`PREFLIGHT_CHECKS`), one `*_violation` function each, `Preflight`, `_resume_spec_drift` — every refusal before spend, in the run's order; `--dry` prints the same list. |
 | `report_text.py` | 389 | `render_report`, `idle_baseline_comparison`, `primary_contrast_result`. |
-| `experiment.py` | 500 | `run_experiment`, `aggregate`, and the facade that re-exports every name above (48 test files and AUP's launchers import from here). |
-| `expr_experiment.py` | 832 | The Expr front end: `!experiment`, the `brief`/`episode`/`power`/`llm`/`task`/`pattern`/`suite` heads, `load_experiment`, `spec_to_text` (the declared inverse). |
-| `registration.py` | 153 | `Registration`, `load_registry`, `resolve_registration`;<br>the registry test pins the filed AUP entries. |
+| `experiment.py` | 518 | `run_experiment`, `aggregate`, and the facade that re-exports every name above (48 test files and AUP's launchers import from here). |
+| `expr_experiment.py` | 874 | The Expr front end: `!experiment`, the `brief`/`episode`/`power`/`llm`/`task`/`pattern`/`suite` heads, `load_experiment`, `spec_to_text` (the declared inverse). |
+| `registration.py` | 154 | `Registration`, `load_registry`, `resolve_registration`;<br>the registry test pins the filed AUP entries. |
 | `conditions.py` | 217 | The older orthogonal dial sampler (`DialAxis`, `ConditionSpec`, `sample`); not on the run path. |
 | `models_snapshot.json` | — | Pinned `models.list` snapshot, refreshed by `bio suite models`. |
 
@@ -60,8 +60,10 @@ Hypotheses for the latent-bug pass ([[ABIO051 - Deep Scan|T051]] box 4).
 | --- | --- | --- |
 | Resume after an edited axis | `existing_by_key` keys on each line's own `(label, index)`; nothing compares the on-disk `spec_sha256` to the new spec, so colliding labels are reused as the new cell and the rest re-charged | `experiment.py` ~2661; `mass_trial.py` ~555 |
 | Resume overwrites the manifest hash | the manifest is rebuilt from the current spec, keeping only `started_at`; `aggregate` then re-keys everything through it | `experiment.py` ~2679–2687, ~2804 |
-| Pricing falls back to `PINNED_MODEL` | `cost_model = cond.get("model") or spec.model or PINNED_MODEL`; a `model` axis is estimated at the default price, and an unpriced model raises mid-grid after the money is spent | `experiment.py` ~629, ~2712; `llm_agent.py` ~172 |
-| `expected_turns` misses a non-dial budget | derived from `fixed_dials` and `axes` only; a budget arriving another way falls through to the literal 8 | `experiment.py` ~312–329 |
+| ~~Pricing falls back to `PINNED_MODEL`~~ | Fixed `0d20f64` (T051 box 4): `estimate_cost` prices every `model`-axis level and an unpriced level refuses at the `price` check, before spend | `spec.py` `estimate_cost` |
+| ~~`expected_turns` falls through to the literal 8~~ | Fixed `0d20f64` (T051 box 4): with no budget declared it is the runner's `max_turns` default (50) | `spec.py` `_default_expected_turns` |
+| ~~A Python-form spec keeps `expected_turns = 8`~~ | Fixed `4b994c2`: the derivation ran in `spec_from_dict` only, so `ExperimentSpec(fixed_dials={"max_turns": 20}, agent="llm", …)` was estimated at 8 turns and `spec_to_dict` pinned the 8; it now runs in `ExperimentSpec.__post_init__` | `spec.py` `__post_init__` |
+| ~~A Python-form `idle_baseline` runs no idle arm~~ | Fixed `60db002`: only `spec_from_dict` added the `agent` axis, while `aggregate` and `bio suite resume` rebuild through it, so `spec_from_dict(spec_to_dict(s)) != s`; `__post_init__` adds it for both forms, once | `spec.py` `_with_idle_arm` |
 | The record stamps the claimed licence string | `payload["registration"] = spec.registration`, not the resolved entry; lines written before the claim carry no stamp | `experiment.py` ~2731 |
 | Two condition-key normalizations | the grid resets each key to the swept axes; a direct `runner.run` record carries every dial; scorers sort inconsistently | `mass_trial.py` ~517; `trial.py` ~47 |
 | `_canonical_json` hashes exotic values by `repr` | `default=repr` on the spec hash | `experiment.py` ~2507 |

@@ -115,3 +115,18 @@ def test_python_form_idle_baseline_runs_the_idle_arm_and_resumes(tmp_path):
     rebuilt = spec_from_dict(manifest["spec"])
     assert rebuilt == spec
     run_experiment(rebuilt, out_dir=str(out), resume=True)  # not refused as drift
+
+
+# C ─ --dry names the model in force ─────────────────────────────────────────
+
+
+def test_dry_names_the_pinned_model_on_a_live_spec_with_no_model(tmp_path, capsys):
+    from alienbio.commands.suite_cmd import _run
+    from alienbio.suite.llm_agent import PINNED_MODEL
+    from pathlib import Path
+
+    live = Path(__file__).resolve().parents[2] / "catalog" / "experiments" / "exp04-first-live.yaml"
+    _run(str(live), str(tmp_path / "out"), dry=True, verbose=False)
+    out = capsys.readouterr().out
+    assert f"model: {PINNED_MODEL}\n" in out
+    assert "model: None" not in out
