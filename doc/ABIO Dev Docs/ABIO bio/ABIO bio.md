@@ -7,6 +7,7 @@ description: "module docs for src/alienbio/bio/: the chemistry substrate, its ra
 | Chemistry                   | [ChemistryImpl](ABIO%20ChemistryImpl.md),  [ReactionImpl](ABIO%20ReactionImpl.md),  [RateExpr](ABIO%20RateExpr.md),                                                                                                         |
 | World                       | [WorldImpl](ABIO%20WorldImpl.md),  [WorldStateImpl](ABIO%20WorldStateImpl.md),  [TransportFlux](ABIO%20TransportFlux.md),  [PopulationLaw](ABIO%20PopulationLaw.md),                                                        |
 | Simulators                  | [WorldSimulatorImpl](ABIO%20WorldSimulatorImpl.md),  [JaxWorldSimulator](ABIO%20JaxWorldSimulator.md),                                                                                                                      |
+| Checks                      | [Conservation](ABIO%20Conservation.md),                                                                                                                                                                                     |
 | ...                         |                                                                                                                                                                                                                             |
 
 # ABIO bio

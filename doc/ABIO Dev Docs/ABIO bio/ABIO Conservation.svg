@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-mol">
+    <rect id="n-mol-box" x="20" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mol-name" x="140.0" y="68" font-size="18" font-weight="600" text-anchor="middle">MoleculeImpl</text>
+    <text id="n-mol-kind" x="140.0" y="92" font-size="14" text-anchor="middle">(class) atoms {AtomImpl: n}</text>
+  </g>
+  <g id="n-mq">
+    <rect id="n-mq-box" x="320" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mq-name" x="440.0" y="68" font-size="18" font-weight="600" text-anchor="middle">molecule_quantity</text>
+    <text id="n-mq-kind" x="440.0" y="92" font-size="14" text-anchor="middle">(fn) atoms → {symbol: n}</text>
+  </g>
+  <g id="n-rxn">
+    <rect id="n-rxn-box" x="620" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rxn-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">ReactionImpl</text>
+    <text id="n-rxn-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(class) reactants · products</text>
+  </g>
+  <g id="n-chem">
+    <rect id="n-chem-box" x="920" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chem-name" x="1040.0" y="68" font-size="18" font-weight="600" text-anchor="middle">ChemistryImpl</text>
+    <text id="n-chem-kind" x="1040.0" y="92" font-size="14" text-anchor="middle">(class) reactions by name</text>
+  </g>
+  <g id="n-imb">
+    <rect id="n-imb-box" x="320" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-imb-name" x="440.0" y="228" font-size="18" font-weight="600" text-anchor="middle">reaction_imbalance</text>
+    <text id="n-imb-kind" x="440.0" y="252" font-size="14" text-anchor="middle">(fn) Σ products − Σ reactants</text>
+  </g>
+  <g id="n-chk">
+    <rect id="n-chk-box" x="620" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chk-name" x="740.0" y="228" font-size="18" font-weight="600" text-anchor="middle">check_conservation</text>
+    <text id="n-chk-kind" x="740.0" y="252" font-size="14" text-anchor="middle">(fn) one verdict per reaction</text>
+  </g>
+  <g id="n-bv">
+    <rect id="n-bv-box" x="920" y="200" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bv-name" x="1040.0" y="228" font-size="18" font-weight="600" text-anchor="middle">BalanceViolation</text>
+    <text id="n-bv-kind" x="1040.0" y="252" font-size="14" text-anchor="middle">(dataclass) name · vector · reason</text>
+  </g>
+  <g id="n-energy">
+    <rect id="n-energy-box" x="20" y="360" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-energy-name" x="140.0" y="388" font-size="18" font-weight="600" text-anchor="middle">energy.check_energy</text>
+    <text id="n-energy-kind" x="140.0" y="412" font-size="14" text-anchor="middle">(caller) bio/energy.py</text>
+  </g>
+  <g id="n-bnd">
+    <rect id="n-bnd-box" x="320" y="360" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bnd-name" x="440.0" y="388" font-size="18" font-weight="600" text-anchor="middle">is_boundary_reaction</text>
+    <text id="n-bnd-kind" x="440.0" y="412" font-size="14" text-anchor="middle">(fn) an empty side → exempt</text>
+  </g>
+  <g id="n-val">
+    <rect id="n-val-box" x="620" y="360" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-val-name" x="740.0" y="388" font-size="18" font-weight="600" text-anchor="middle">validate_conservation</text>
+    <text id="n-val-kind" x="740.0" y="412" font-size="14" text-anchor="middle">(fn) raise on any</text>
+  </g>
+  <g id="n-err">
+    <rect id="n-err-box" x="920" y="360" width="240" height="70" rx="10" fill="#ffe3e3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-err-name" x="1040.0" y="388" font-size="18" font-weight="600" text-anchor="middle">ConservationError</text>
+    <text id="n-err-kind" x="1040.0" y="412" font-size="14" text-anchor="middle">(exception) ValueError</text>
+  </g>
+  <g id="n-ws">
+    <rect id="n-ws-box" x="20" y="520" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ws-name" x="140.0" y="548" font-size="18" font-weight="600" text-anchor="middle">WorldStateImpl</text>
+    <text id="n-ws-kind" x="140.0" y="572" font-size="14" text-anchor="middle">(class) amount(c, j)</text>
+  </g>
+  <g id="n-tq">
+    <rect id="n-tq-box" x="320" y="520" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tq-name" x="440.0" y="548" font-size="18" font-weight="600" text-anchor="middle">total_quantity</text>
+    <text id="n-tq-kind" x="440.0" y="572" font-size="14" text-anchor="middle">(fn) the canary, tests only</text>
+  </g>
+  <g id="n-piq">
+    <rect id="n-piq-box" x="620" y="520" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-piq-name" x="740.0" y="548" font-size="18" font-weight="600" text-anchor="middle">per_index_quantity</text>
+    <text id="n-piq-kind" x="740.0" y="572" font-size="14" text-anchor="middle">(list) built by the caller</text>
+  </g>
+  <g id="n-skel">
+    <rect id="n-skel-box" x="920" y="520" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-skel-name" x="1040.0" y="548" font-size="18" font-weight="600" text-anchor="middle">Skeleton.validate</text>
+    <text id="n-skel-kind" x="1040.0" y="572" font-size="14" text-anchor="middle">(caller) suite/skeleton.py</text>
+  </g>
+  <line id="e-mol-mq" x1="260" y1="75" x2="320" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-mol-mq" x="290" y="65" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">atoms</text>
+  <line id="e-mq-imb" x1="440" y1="110" x2="440" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-mq-imb" x="450" y="160" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">quantity=</text>
+  <line id="e-rxn-imb" x1="680" y1="110" x2="520" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-rxn-imb" x="585" y="145" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">stoich</text>
+  <line id="e-chem-chk" x1="1000" y1="110" x2="800" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-chem-chk" x="915" y="165" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">each reaction</text>
+  <line id="e-chk-imb" x1="620" y1="235" x2="560" y2="235" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-chk-bv" x1="860" y1="235" x2="920" y2="235" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-chk-bnd" x1="660" y1="270" x2="500" y2="360" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-chk-bnd" x="552" y="305" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">exempt</text>
+  <line id="e-energy-bnd" x1="260" y1="395" x2="320" y2="395" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-energy-bnd" x="290" y="385" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">imports</text>
+  <line id="e-val-chk" x1="740" y1="360" x2="740" y2="270" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-val-chk" x="750" y="320" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">calls</text>
+  <line id="e-val-err" x1="860" y1="395" x2="920" y2="395" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-val-err" x="890" y="385" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">raises</text>
+  <line id="e-skel-val" x1="1000" y1="520" x2="820" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-skel-val" x="930" y="465" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">defaults ‡</text>
+  <line id="e-ws-tq" x1="260" y1="555" x2="320" y2="555" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-piq-tq" x1="620" y1="555" x2="560" y2="555" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-piq-tq" x="590" y="545" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">[j]</text>
+  <text id="t-legend" x="20" y="650" font-size="13" fill="#495057" text-anchor="start">solid: call or data · dotted: imports, raises, exemption · ‡ require_atoms=False, so an atom-free reaction passes</text>
+</svg>
