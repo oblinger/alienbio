@@ -374,12 +374,9 @@ def run_experiment(
 
     started_at = _utc_now_iso()
     if resume and manifest_path.exists():
-        # Drift already refused in preflight; only the start time is carried.
-        try:
-            prior_manifest = json.loads(manifest_path.read_text())
-        except (OSError, ValueError):
-            prior_manifest = {}
-        started_at = prior_manifest.get("started_at", started_at)
+        # Preflight already refused an unreadable, spec-less or drifted
+        # manifest; only the start time is carried.
+        started_at = json.loads(manifest_path.read_text()).get("started_at", started_at)
 
     trials_planned = _trials_planned(spec)
     manifest = _build_manifest(spec, trials_planned, started_at)

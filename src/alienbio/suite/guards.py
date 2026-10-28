@@ -360,36 +360,24 @@ def agent_construction_violation(spec: ExperimentSpec) -> Optional[str]:
 
 def _first_brief(world: Any, task: Any, dials: Mapping[str, Any], trial_seed: Any) -> Any:
     """The ``TaskBrief`` :func:`~alienbio.suite.runner.run` builds before turn
-    0 of this condition's first trial: the same budget, episode clock, turn-0
-    observation (hidden pools projected out) and seeds, from the runner's own
-    defaults. ``run`` takes ``trial_seed.child("run")`` (``MassTrialRunner``),
-    so the brief's seed is that seed's ``child("brief")``. Builds no agent
-    and simulates nothing, so it is free.
-
-    A mirror of ``run``'s preamble, kept to the calls it makes; it has no
-    helper of its own to call. Raises what ``build_brief`` (or the runner's
-    dial validation) raises."""
-    import dataclasses
-
-    from .brief import build_brief
-    from .observation import narrow_observation, project_observation
-    from .runner import Budget, _resolve_int_dial, run as _run
+    0 of this condition's first trial — through the runner's own
+    :func:`~alienbio.suite.runner.trial_preamble` over ``run``'s keyword
+    defaults, so this check can only pass a brief the run would build. ``run``
+    takes ``trial_seed.child("run")`` (``MassTrialRunner``). Builds no agent
+    and simulates nothing, so it is free. Raises what the preamble's dial
+    validation or ``build_brief`` raises."""
+    from .runner import run as _run, trial_preamble
 
     params = inspect.signature(_run).parameters
-    run_seed = trial_seed.child("run")
-    budget = Budget.from_dial(dials.get("budget"))
-    max_turns = _resolve_int_dial(dials, "max_turns", params["max_turns"].default)
-    default_cfg = params["sim_cfg"].default
-    sim_cfg = dataclasses.replace(
-        default_cfg,
-        steps=_resolve_int_dial(dials, "sim_steps", default_cfg.steps),
-        dt=float(dials.get("sim_dt", default_cfg.dt)),
-        sample_every=_resolve_int_dial(dials, "sample_every", default_cfg.sample_every),
-    )
-    first = narrow_observation(world.initial_state, dials, run_seed.child("turn/0/observe"))
-    if isinstance(task.setup, Mapping) and task.setup.get("hidden_ids") is not None:
-        first = project_observation(first, frozenset(str(h) for h in task.setup["hidden_ids"]))
-    return build_brief(task, world.chemistry, first, dials, budget, max_turns, sim_cfg, seed=run_seed.child("brief"))
+    return trial_preamble(
+        world,
+        task,
+        dials,
+        trial_seed.child("run"),
+        sim_cfg=params["sim_cfg"].default,
+        max_turns=params["max_turns"].default,
+        assay_kill=params["assay_kill"].default,
+    ).brief
 
 
 def draft_violation(spec: ExperimentSpec) -> Optional[str]:

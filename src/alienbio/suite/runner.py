@@ -98,7 +98,7 @@ from .deliberation import DeliberationTrace
 from .dist import Seed, Uniform
 from .grade import grade_answer, grade_outcome
 from .info_seeking import ActionRecord
-from .observation import narrow_observation, project_observation
+from .observation import Observation, narrow_observation, project_observation
 from .trial import ProbeRecord, TrialRecord, condition_key, final_state_dict, readout_values, thread_reasoning_steps
 from .types import AnswerObjective, OutcomeObjective, TaskInstance, Timeline
 from .verify import SimConfig, simulate
@@ -471,6 +471,87 @@ def certainty_slice_problem(steps: int, windows: int, sample_every: int) -> Opti
     return None
 
 
+@dataclasses.dataclass(frozen=True)
+class TrialPreamble:
+    """Everything :func:`run` resolves before turn 0 — the brief and its
+    inputs. Built by :func:`trial_preamble`, the one place that resolution
+    lives, so the preflight ``draft`` check reads the brief the run would
+    build rather than a copy of how it is built."""
+
+    budget: "Budget"
+    max_turns: int
+    assay_kill: float
+    sim_cfg: SimConfig
+    #: ``task.setup["hidden_ids"]`` as a set (empty when undeclared).
+    hidden: frozenset[str]
+    #: The dial-narrowed turn-0 observation, hidden pools projected out.
+    first_observation: Observation
+    brief: TaskBrief
+
+
+def trial_preamble(
+    world: WorldImpl,
+    task: TaskInstance,
+    dials: Mapping[str, Any],
+    seed: Seed,
+    *,
+    sim_cfg: SimConfig,
+    max_turns: int,
+    assay_kill: float,
+) -> TrialPreamble:
+    """Resolve a trial's pre-turn-0 state from its dials over the given
+    defaults (``run``'s keyword arguments), and build its brief.
+
+    ``seed`` is the trial's RUN seed (``run``'s own ``seed``): the turn-0
+    observation draws on ``seed.child("turn/0/observe")`` and the brief on
+    ``seed.child("brief")``. Raises what the dial validation or
+    :func:`~alienbio.suite.brief.build_brief` raises.
+    """
+    budget = Budget.from_dial(dials.get("budget"))
+
+    # M46.6 — the physical time per turn and the episode length are condition
+    # parameters, not hidden defaults: the keyword arguments are the defaults
+    # a condition's dials may override, so a sweep can put either on an axis
+    # and every record carries the values in force (via the brief).
+    max_turns = _resolve_int_dial(dials, "max_turns", max_turns)
+    assay_kill = float(dials.get("assay_kill", assay_kill))
+    if not (0.0 <= assay_kill <= 1.0):
+        raise ValueError(f"dials['assay_kill'] must be in [0, 1], got {assay_kill!r}")
+    sim_cfg = dataclasses.replace(
+        sim_cfg,
+        steps=_resolve_int_dial(dials, "sim_steps", sim_cfg.steps),
+        dt=float(dials.get("sim_dt", sim_cfg.dt)),
+        sample_every=_resolve_int_dial(dials, "sample_every", sim_cfg.sample_every),
+    )
+
+    # T025 — ``task.setup["hidden_ids"]``: molecule ids the DRAFTER declares
+    # never observable in this world (the phase-1 no-observation negative
+    # control's tracked quantity), as a structural property of the world —
+    # distinct from the ``observability`` dial, which hides a seeded random
+    # fraction as an experiment parameter. Applied to every turn's
+    # observation, so the ids are also absent from the brief's probe
+    # affordance (probes are read off the turn-0 observation).
+    hidden: frozenset[str] = frozenset()
+    if isinstance(task.setup, Mapping) and task.setup.get("hidden_ids") is not None:
+        hidden = frozenset(str(h) for h in task.setup["hidden_ids"])
+
+    first_observation = narrow_observation(world.initial_state, dials, seed.child("turn/0/observe"))
+    if hidden:
+        first_observation = project_observation(first_observation, hidden)
+    brief = build_brief(
+        task, world.chemistry, first_observation, dials, budget, max_turns, sim_cfg, seed=seed.child("brief")
+    )
+    return TrialPreamble(
+        budget=budget,
+        max_turns=max_turns,
+        assay_kill=assay_kill,
+        sim_cfg=sim_cfg,
+        hidden=hidden,
+        first_observation=first_observation,
+        brief=brief,
+    )
+
+
 def run(
     world: WorldImpl,
     task: TaskInstance,
@@ -567,39 +648,17 @@ def run(
     compartments = world.compartments
     chemistry = world.chemistry
     state: WorldStateImpl = world.initial_state
-    budget = Budget.from_dial(dials.get("budget"))
     spent = 0.0
-
-    # M46.6 — the physical time per turn and the episode length are condition
-    # parameters, not hidden defaults: the keyword arguments are the defaults
-    # a condition's dials may override, so a sweep can put either on an axis
-    # and every record carries the values in force (via the brief).
-    max_turns = _resolve_int_dial(dials, "max_turns", max_turns)
-    assay_kill = float(dials.get("assay_kill", assay_kill))
-    if not (0.0 <= assay_kill <= 1.0):
-        raise ValueError(f"dials['assay_kill'] must be in [0, 1], got {assay_kill!r}")
-    sim_cfg = dataclasses.replace(
-        sim_cfg,
-        steps=_resolve_int_dial(dials, "sim_steps", sim_cfg.steps),
-        dt=float(dials.get("sim_dt", sim_cfg.dt)),
-        sample_every=_resolve_int_dial(dials, "sample_every", sim_cfg.sample_every),
+    preamble = trial_preamble(
+        world, task, dials, seed, sim_cfg=sim_cfg, max_turns=max_turns, assay_kill=assay_kill
     )
-
-    # T025 — ``task.setup["hidden_ids"]``: molecule ids the DRAFTER declares
-    # never observable in this world (the phase-1 no-observation negative
-    # control's tracked quantity), as a structural property of the world —
-    # distinct from the ``observability`` dial, which hides a seeded random
-    # fraction as an experiment parameter. Applied to every turn's
-    # observation, so the ids are also absent from the brief's probe
-    # affordance (probes are read off the turn-0 observation).
-    setup_hidden: frozenset[str] = frozenset()
-    if isinstance(task.setup, Mapping) and task.setup.get("hidden_ids") is not None:
-        setup_hidden = frozenset(str(h) for h in task.setup["hidden_ids"])
-
-    first_observation = narrow_observation(state, dials, seed.child("turn/0/observe"))
-    if setup_hidden:
-        first_observation = project_observation(first_observation, setup_hidden)
-    brief = build_brief(task, chemistry, first_observation, dials, budget, max_turns, sim_cfg, seed=seed.child("brief"))
+    budget = preamble.budget
+    max_turns = preamble.max_turns
+    assay_kill = preamble.assay_kill
+    sim_cfg = preamble.sim_cfg
+    setup_hidden = preamble.hidden
+    first_observation = preamble.first_observation
+    brief = preamble.brief
     lever_readouts = task_readouts(task, chemistry)
     # M45.15 — on a non-neutral world (or under the ``opaque_names`` dial) the
     # agent sees and speaks surface names; the runner keeps the world's own.

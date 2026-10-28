@@ -24,6 +24,11 @@ D. A ``TrialError`` partial record carried no ``oracle`` though the oracle
    is known before turn 0, so an error line could not be read against its
    world's ground truth; it carries the oracle and the partial audit's
    ``taint_hits`` now (the answer stays unknown).
+E. The preflight ``draft`` check built each condition's brief through a
+   copy of ``runner.run``'s pre-turn-0 setup (budget, clock, turn-0
+   observation, hidden-pool projection, seeds); both now call
+   ``runner.trial_preamble``, so the check can only pass the brief the run
+   builds.
 """
 
 from __future__ import annotations
@@ -297,3 +302,37 @@ def test_the_terminal_reason_docstring_lists_every_value_the_runner_emits():
     doc = TrialRecord.__doc__ or ""
     for value in emitted:
         assert f'"{value}"' in doc, value
+
+
+# E ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "dials",
+    [
+        {"variant": "coupling_told", "levers": ["root/uptake_route_in", "root/uptake_neutral_in"]},
+        {
+            "variant": "coupling_unobservable",
+            "levers": ["root/uptake_route_in", "root/uptake_neutral_in"],
+            "max_turns": 3, "sim_steps": 20, "sim_dt": 0.02, "budget": 40,
+        },
+    ],
+)
+def test_the_draft_check_builds_the_brief_the_run_builds(dials):
+    from alienbio.suite.guards import _first_brief
+
+    trial_seed = Seed(9).child("cond/0")
+    world, task = DRAFTERS["phase1_pressure"](trial_seed.child("draft"), dict(dials))
+    record = run(world, task, _wait_agent(), dials, trial_seed.child("run"))
+    assert _first_brief(world, task, dials, trial_seed) == record.brief
+
+
+def test_the_run_and_the_draft_check_share_one_preamble():
+    import inspect
+
+    from alienbio.suite import guards, runner as runner_mod
+
+    assert "trial_preamble(" in inspect.getsource(runner_mod.run)
+    first = inspect.getsource(guards._first_brief)
+    assert "trial_preamble(" in first
+    assert "narrow_observation" not in first and "build_brief(" not in first
