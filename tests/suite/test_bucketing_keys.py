@@ -85,3 +85,36 @@ def test_no_summary_re_derives_the_bucket_or_the_exclusion():
                 line = text[: m.start()].count("\n") + 1
                 offenders.append(f"{path.name}:{line}: {m.group(0)}")
     assert offenders == [], offenders
+
+
+def test_mass_trial_looks_cells_up_by_the_hashable_key():
+    """The eleventh site (T084 A): ``_marginal_cell_means`` built a RAW
+    ``condition_key`` and looked it up in cells keyed by ``bucket_key`` — a
+    list or mapping level raised ``TypeError: unhashable`` after the paid
+    grid. ``mass_trial.py`` is excluded from the lint above (it defines the
+    grid), so it gets its own: outside ``condition_grid`` every
+    ``condition_key(...)`` call is wrapped in ``hashable_condition_key``."""
+    import ast
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "src" / "alienbio" / "suite" / "mass_trial.py"
+    tree = ast.parse(path.read_text())
+    offenders = []
+
+    def visit(node, func, wrapped):
+        if isinstance(node, ast.FunctionDef):
+            func = node.name
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id == "condition_key" and not wrapped and func != "condition_grid":
+                offenders.append(f"mass_trial.py:{node.lineno} in {func}")
+            inner = node.func.id == "hashable_condition_key"
+            for arg in node.args:
+                visit(arg, func, inner)
+            for kw in node.keywords:
+                visit(kw.value, func, False)
+            return
+        for child in ast.iter_child_nodes(node):
+            visit(child, func, False)
+
+    visit(tree, None, False)
+    assert offenders == [], offenders

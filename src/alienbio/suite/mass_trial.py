@@ -60,7 +60,7 @@ from .effect_size import cohens_d, welch_t
 from .reliability_grid import CellStats, aggregate_cells, two_way_interaction
 from .runner import run as run_trial
 from .stats_summary import mean_confidence_interval
-from .trial import TrialRecord, condition_key
+from .trial import TrialRecord, condition_key, hashable_condition_key
 from .types import TaskInstance, Timeline
 
 #: One sorted ``(dial_name, level)`` tuple — identical shape to
@@ -240,6 +240,23 @@ def _levels_of(axes: Sequence[Axis], name: str) -> tuple[Any, ...]:
     raise KeyError(name)
 
 
+def _frozen(level: Any) -> Any:
+    """One level in the hashable form ``bucket_key`` gives it (list ->
+    tuple, mapping -> sorted item tuple, recursively)."""
+    return hashable_condition_key((("", level),))[0][1]
+
+
+def _sorted_levels(levels: Sequence[Any]) -> list[Any]:
+    """Frozen levels in ascending order: natural order when the levels
+    compare (numbers, strings, lists of either), else by their canonical
+    JSON form — a mapping level (``output_schedule``) has no natural order."""
+    frozen = [_frozen(level) for level in levels]
+    try:
+        return sorted(frozen)
+    except TypeError:
+        return sorted(frozen, key=lambda v: json.dumps(v, sort_keys=True, default=repr))
+
+
 def _marginal_cell_means(
     cells: Mapping[ConditionKey, CellSummary],
     axes: Sequence[Axis],
@@ -251,7 +268,10 @@ def _marginal_cell_means(
     Marginalizes over any OTHER swept axes by unweighted-averaging the
     matching cells' means (the standard fixed-effect marginal) — with no
     other axes swept this degenerates to reading the single matching cell's
-    mean directly.
+    mean directly. Cells are looked up by the key they are stored under —
+    ``bucket_key``, the hashable form — so a list or mapping level
+    (``levers``, ``output_schedule``) reads its cell instead of raising
+    ``TypeError: unhashable`` after the grid has been paid for (T084 A).
     """
     other_axes = [(name, levels) for name, levels in axes if name not in (axis_a, axis_b)]
     other_combos = (
@@ -265,11 +285,11 @@ def _marginal_cell_means(
                 dials: dict[str, Any] = {axis_a: level_a, axis_b: level_b}
                 for (name, _), value in zip(other_axes, combo):
                     dials[name] = value
-                key = condition_key(dials)
+                key = hashable_condition_key(condition_key(dials))
                 if key in cells:
                     means.append(cells[key].stats.mean)
             if means:
-                result[(level_a, level_b)] = statistics.fmean(means)
+                result[(_frozen(level_a), _frozen(level_b))] = statistics.fmean(means)
     return result
 
 
@@ -282,11 +302,13 @@ def _pooled_raw_scores(
 ) -> list[float]:
     """Raw ``objective_score`` values pooled across every cell whose
     ``axis_a``/``axis_b`` dials match ``level_a``/``level_b`` (any other
-    swept axis' level included)."""
+    swept axis' level included). ``raw_by_key`` is keyed by ``bucket_key``
+    and the levels are compared frozen, so a list level matches its cell."""
     pooled: list[float] = []
+    frozen_a, frozen_b = _frozen(level_a), _frozen(level_b)
     for key, values in raw_by_key.items():
         by_name = dict(key)
-        if by_name.get(axis_a) == level_a and by_name.get(axis_b) == level_b:
+        if by_name.get(axis_a) == frozen_a and by_name.get(axis_b) == frozen_b:
             pooled.extend(values)
     return pooled
 
@@ -353,10 +375,14 @@ def _aggregate(
         marginal = _marginal_cell_means(cells, axes, axis_a, axis_b)
         if len(marginal) < 4:
             continue  # some combination has no observations yet
-        interactions[(axis_a, axis_b)] = two_way_interaction(marginal)
-
-        a0, a1 = sorted(_levels_of(axes, axis_a))
-        b0, b1 = sorted(_levels_of(axes, axis_b))
+        a0, a1 = _sorted_levels(_levels_of(axes, axis_a))
+        b0, b1 = _sorted_levels(_levels_of(axes, axis_b))
+        # Keyed by rank, so two_way_interaction's own sort sees 0 < 1 in the
+        # order chosen here — a mapping level has no order of its own.
+        rank_a, rank_b = {a0: 0, a1: 1}, {b0: 0, b1: 1}
+        interactions[(axis_a, axis_b)] = two_way_interaction(
+            {(rank_a[a], rank_b[b]): mean for (a, b), mean in marginal.items()}
+        )
         low = _pooled_raw_scores(raw_by_key, axis_a, a0, axis_b, b0)
         high = _pooled_raw_scores(raw_by_key, axis_a, a1, axis_b, b1)
         if len(low) >= 2 and len(high) >= 2:
