@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-text">
+    <rect id="n-text-box" x="20" y="50" width="220" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-text-name" x="130" y="76" font-size="18" font-weight="600" text-anchor="middle">YAML text</text>
+    <text id="n-text-kind" x="130" y="98" font-size="14" text-anchor="middle">(str) a spec file</text>
+  </g>
+  <g id="n-load">
+    <rect id="n-load-box" x="310" y="50" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-load-name" x="420" y="76" font-size="18" font-weight="600" text-anchor="middle">load_text</text>
+    <text id="n-load-kind" x="420" y="98" font-size="14" text-anchor="middle">(fn) YAMLError → ExprError</text>
+  </g>
+  <line id="e-text-load" x1="240" y1="82" x2="310" y2="82" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-loader">
+    <rect id="n-loader-box" x="600" y="50" width="290" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-loader-name" x="745" y="76" font-size="18" font-weight="600" text-anchor="middle">ExprLoader</text>
+    <text id="n-loader-kind" x="745" y="98" font-size="14" text-anchor="middle">(SafeLoader subclass) tag dispatch</text>
+  </g>
+  <line id="e-load-loader" x1="530" y1="82" x2="600" y2="82" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-xq">
+    <rect id="n-xq-box" x="20" y="200" width="260" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-xq-name" x="150" y="228" font-size="18" font-weight="600" text-anchor="middle">!x · !q</text>
+    <text id="n-xq-kind" x="150" y="252" font-size="14" text-anchor="middle">(constructors) parse; q quotes</text>
+  </g>
+  <g id="n-ref">
+    <rect id="n-ref-box" x="310" y="200" width="260" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ref-name" x="440" y="228" font-size="18" font-weight="600" text-anchor="middle">!ref</text>
+    <text id="n-ref-kind" x="440" y="252" font-size="14" text-anchor="middle">(constructor) a Name</text>
+  </g>
+  <g id="n-inc">
+    <rect id="n-inc-box" x="600" y="200" width="260" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-inc-name" x="730" y="228" font-size="18" font-weight="600" text-anchor="middle">!include · !py</text>
+    <text id="n-inc-kind" x="730" y="252" font-size="14" text-anchor="middle">(constructors) load-time nodes</text>
+  </g>
+  <g id="n-head">
+    <rect id="n-head-box" x="890" y="200" width="260" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="1020" y="226" font-size="18" font-weight="600" text-anchor="middle">!head</text>
+    <text id="n-head-kind" x="1020" y="248" font-size="14" text-anchor="middle">(multi-constructor) a Call;</text>
+    <text id="n-head-kind2" x="1020" y="268" font-size="14" text-anchor="middle">mapping · sequence · scalar</text>
+  </g>
+  <line id="e-loader-xq" x1="640" y1="114" x2="200" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-loader-ref" x1="680" y1="114" x2="470" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-loader-inc" x1="730" y1="114" x2="730" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-loader-head" x1="820" y1="114" x2="980" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-parse">
+    <rect id="n-parse-box" x="20" y="360" width="230" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-parse-name" x="135" y="388" font-size="18" font-weight="600" text-anchor="middle">parse</text>
+    <text id="n-parse-kind" x="135" y="412" font-size="14" text-anchor="middle">(Parse) inline to forms</text>
+  </g>
+  <line id="e-xq-parse" x1="135" y1="270" x2="135" y2="360" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-xq-parse" x="145" y="320" font-size="14" fill="#1971c2" font-style="italic">scalar</text>
+  <g id="n-form">
+    <rect id="n-form-box" x="310" y="360" width="550" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-form-name" x="585" y="388" font-size="18" font-weight="600" text-anchor="middle">form tree</text>
+    <text id="n-form-kind" x="585" y="412" font-size="14" text-anchor="middle">(Form) data with Name · Call · Quoted · Include · PyRef</text>
+  </g>
+  <line id="e-parse-form" x1="250" y1="395" x2="310" y2="395" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-ref-form" x1="440" y1="270" x2="440" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-inc-form" x1="730" y1="270" x2="730" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-head-form" x1="960" y1="280" x2="830" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-legacy">
+    <rect id="n-legacy-box" x="930" y="360" width="220" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-legacy-name" x="1040" y="388" font-size="18" font-weight="600" text-anchor="middle">refused</text>
+    <text id="n-legacy-kind" x="1040" y="412" font-size="14" text-anchor="middle">!ev · !_ · !quote · reserved</text>
+  </g>
+  <line id="e-head-legacy" x1="1080" y1="280" x2="1080" y2="360" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-dinl">
+    <rect id="n-dinl-box" x="20" y="500" width="200" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dinl-name" x="120" y="528" font-size="18" font-weight="600" text-anchor="middle">dump (inline)</text>
+    <text id="n-dinl-kind" x="120" y="552" font-size="14" text-anchor="middle">(Parse) a Quoted's text</text>
+  </g>
+  <g id="n-dumper">
+    <rect id="n-dumper-box" x="270" y="500" width="270" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dumper-name" x="405" y="528" font-size="18" font-weight="600" text-anchor="middle">ExprDumper</text>
+    <text id="n-dumper-kind" x="405" y="552" font-size="14" text-anchor="middle">(SafeDumper) Call ‡ · Name · Quoted</text>
+  </g>
+  <line id="e-dumper-dinl" x1="270" y1="535" x2="220" y2="535" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-dump">
+    <rect id="n-dump-box" x="600" y="500" width="260" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dump-name" x="730" y="528" font-size="18" font-weight="600" text-anchor="middle">dump_structural</text>
+    <text id="n-dump-kind" x="730" y="552" font-size="14" text-anchor="middle">(fn) yaml.dump, insertion order</text>
+  </g>
+  <line id="e-form-dump" x1="800" y1="430" x2="800" y2="500" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-dump-dumper" x1="600" y1="535" x2="540" y2="535" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <polyline id="e-dump-text" points="860,545 1180,545 1180,22 130,22 130,50" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-dump-text" x="1170" y="500" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">text, not always equal ‡</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">read, write</text>
+    <line id="legend-dotted" x1="210" y1="641" x2="260" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="270" y="646" font-size="14">delegates, refuses, round trip</text>
+    <text id="legend-dagger" x="490" y="646" font-size="14">‡ a lone non-string positional is written quoted and reads back as a string</text>
+  </g>
+</svg>
