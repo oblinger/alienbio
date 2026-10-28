@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-agent">
+    <rect id="n-agent-box" x="20" y="80" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-agent-name" x="130" y="106" font-size="18" font-weight="600" text-anchor="middle">agent.act</text>
+    <text id="n-agent-kind" x="130" y="128" font-size="14" text-anchor="middle">(action, ReasoningStep</text>
+    <text id="n-agent-kind2" x="130" y="148" font-size="14" text-anchor="middle">tuple), each turn</text>
+  </g>
+  <g id="n-thread">
+    <rect id="n-thread-box" x="320" y="80" width="260" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-thread-name" x="450" y="106" font-size="17" font-weight="600" text-anchor="middle">thread_reasoning_steps</text>
+    <text id="n-thread-kind" x="450" y="128" font-size="14" text-anchor="middle">(trial) one step per</text>
+    <text id="n-thread-kind2" x="450" y="148" font-size="14" text-anchor="middle">reasoning step + action tag ‡</text>
+  </g>
+  <line id="e-agent-thread" x1="240" y1="120" x2="320" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-step">
+    <rect id="n-step-box" x="660" y="40" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-step-name" x="780" y="66" font-size="18" font-weight="600" text-anchor="middle">DeliberationStep</text>
+    <text id="n-step-kind" x="780" y="88" font-size="14" text-anchor="middle">(dataclass) turn, kind,</text>
+    <text id="n-step-kind2" x="780" y="108" font-size="14" text-anchor="middle">content, refs</text>
+  </g>
+  <line id="e-thread-step" x1="580" y1="100" x2="660" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-trace">
+    <rect id="n-trace-box" x="660" y="180" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-trace-name" x="780" y="206" font-size="18" font-weight="600" text-anchor="middle">DeliberationTrace</text>
+    <text id="n-trace-kind" x="780" y="228" font-size="14" text-anchor="middle">(dataclass) steps;</text>
+    <text id="n-trace-kind2" x="780" y="248" font-size="14" text-anchor="middle">extend returns a new trace</text>
+  </g>
+  <line id="e-step-trace" x1="780" y1="120" x2="780" y2="180" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-thread-trace" x1="580" y1="145" x2="660" y2="210" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-thread-trace" x="590" y="200" font-size="14" fill="#1971c2" font-style="italic">extend</text>
+
+  <g id="n-rec">
+    <rect id="n-rec-box" x="960" y="180" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="1070" y="206" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-rec-kind" x="1070" y="228" font-size="14" text-anchor="middle">deliberation_trace →</text>
+    <text id="n-rec-kind2" x="1070" y="248" font-size="14" text-anchor="middle">records.jsonl</text>
+  </g>
+  <line id="e-trace-rec" x1="900" y1="220" x2="960" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-readers">
+    <rect id="n-readers-box" x="300" y="340" width="360" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-readers-name" x="480" y="366" font-size="17" font-weight="600" text-anchor="middle">the trace's own readers</text>
+    <text id="n-readers-k1" x="480" y="390" font-size="14" text-anchor="middle">steps_of_kind · first_ref_turn</text>
+    <text id="n-readers-k2" x="480" y="410" font-size="14" text-anchor="middle">refs_by_turn · all_refs: no caller;</text>
+    <text id="n-readers-k3" x="480" y="430" font-size="14" text-anchor="middle">depth: deliberation_depth</text>
+  </g>
+  <line id="e-trace-readers" x1="700" y1="260" x2="600" y2="340" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-scorers">
+    <rect id="n-scorers-box" x="760" y="340" width="420" height="100" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-scorers-name" x="970" y="366" font-size="17" font-weight="600" text-anchor="middle">scorers reading steps directly</text>
+    <text id="n-scorers-k1" x="970" y="390" font-size="14" text-anchor="middle">hazard: id in refs or whole word in content</text>
+    <text id="n-scorers-k2" x="970" y="410" font-size="14" text-anchor="middle">degradation: budget words · census: length</text>
+    <text id="n-scorers-k3" x="970" y="430" font-size="14" text-anchor="middle">realism: the transcript</text>
+  </g>
+  <line id="e-rec-scorers" x1="1070" y1="260" x2="1070" y2="340" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">contains, calls</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ no reasoning step, no entry: the trace is not a turn log</text>
+  </g>
+</svg>
