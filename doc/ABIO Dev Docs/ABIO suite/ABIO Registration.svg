@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-file">
+    <rect id="n-file-box" x="20" y="60" width="240" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-file-name" x="140" y="86" font-size="17" font-weight="600" text-anchor="middle">registrations.yaml</text>
+    <text id="n-file-kind" x="140" y="108" font-size="14" text-anchor="middle">(catalog) id → entry,</text>
+    <text id="n-file-kind2" x="140" y="128" font-size="14" text-anchor="middle">changes only by commit</text>
+  </g>
+  <g id="n-load">
+    <rect id="n-load-box" x="340" y="68" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-load-name" x="460" y="94" font-size="18" font-weight="600" text-anchor="middle">load_registry</text>
+    <text id="n-load-kind" x="460" y="116" font-size="14" text-anchor="middle">(fn) yaml.safe_load ‡</text>
+  </g>
+  <line id="e-file-load" x1="260" y1="100" x2="340" y2="100" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-parse">
+    <rect id="n-parse-box" x="340" y="230" width="240" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-parse-name" x="460" y="256" font-size="18" font-weight="600" text-anchor="middle">_parse_entry</text>
+    <text id="n-parse-kind" x="460" y="278" font-size="14" text-anchor="middle">(fn) exactly osf, filed,</text>
+    <text id="n-parse-kind2" x="460" y="298" font-size="14" text-anchor="middle">dials, drafters ‡</text>
+  </g>
+  <line id="e-load-parse" x1="460" y1="132" x2="460" y2="230" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-load-parse" x="470" y="186" font-size="14" fill="#1971c2" font-style="italic">each entry</text>
+
+  <g id="n-reg">
+    <rect id="n-reg-box" x="660" y="230" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reg-name" x="780" y="256" font-size="18" font-weight="600" text-anchor="middle">Registration</text>
+    <text id="n-reg-kind" x="780" y="278" font-size="14" text-anchor="middle">(dataclass) id, osf, filed,</text>
+    <text id="n-reg-kind2" x="780" y="298" font-size="14" text-anchor="middle">dials, drafters</text>
+  </g>
+  <line id="e-parse-reg" x1="580" y1="270" x2="660" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-resolve">
+    <rect id="n-resolve-box" x="660" y="68" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-resolve-name" x="780" y="94" font-size="18" font-weight="600" text-anchor="middle">resolve_registration</text>
+    <text id="n-resolve-kind" x="780" y="116" font-size="14" text-anchor="middle">(fn) missing file / id refuse</text>
+  </g>
+  <line id="e-resolve-load" x1="660" y1="100" x2="580" y2="100" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-resolve-load" x="620" y="90" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">calls</text>
+  <line id="e-reg-resolve" x1="780" y1="230" x2="780" y2="132" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-reg-resolve" x="790" y="186" font-size="14" fill="#1971c2" font-style="italic">registry[id]</text>
+
+  <g id="n-spec">
+    <rect id="n-spec-box" x="960" y="40" width="220" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="1070" y="66" font-size="17" font-weight="600" text-anchor="middle">ExperimentSpec</text>
+    <text id="n-spec-kind" x="1070" y="88" font-size="14" text-anchor="middle">registration: id</text>
+  </g>
+  <g id="n-guard">
+    <rect id="n-guard-box" x="960" y="160" width="220" height="100" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-guard-name" x="1070" y="186" font-size="17" font-weight="600" text-anchor="middle">guards</text>
+    <text id="n-guard-kind" x="1070" y="208" font-size="14" text-anchor="middle">registration_admission:</text>
+    <text id="n-guard-kind2" x="1070" y="228" font-size="14" text-anchor="middle">drafters known, covered;</text>
+    <text id="n-guard-kind3" x="1070" y="248" font-size="14" text-anchor="middle">no_peeking: dials</text>
+  </g>
+  <line id="e-spec-guard" x1="1070" y1="104" x2="1070" y2="160" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-guard-resolve" x1="960" y1="180" x2="900" y2="120" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-dict">
+    <rect id="n-dict-box" x="660" y="400" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dict-name" x="780" y="426" font-size="18" font-weight="600" text-anchor="middle">to_dict</text>
+    <text id="n-dict-kind" x="780" y="448" font-size="14" text-anchor="middle">(method) sorted lists</text>
+  </g>
+  <line id="e-reg-dict" x1="780" y1="310" x2="780" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-man">
+    <rect id="n-man-box" x="960" y="400" width="220" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-man-name" x="1070" y="426" font-size="17" font-weight="600" text-anchor="middle">manifest.json</text>
+    <text id="n-man-kind" x="1070" y="448" font-size="14" text-anchor="middle">(store) the whole license</text>
+  </g>
+  <line id="e-dict-man" x1="900" y1="432" x2="960" y2="432" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-rec">
+    <rect id="n-rec-box" x="960" y="510" width="220" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="1070" y="536" font-size="17" font-weight="600" text-anchor="middle">records.jsonl</text>
+    <text id="n-rec-kind" x="1070" y="558" font-size="14" text-anchor="middle">(experiment) the id per line</text>
+  </g>
+  <path id="e-spec-rec" d="M 1180 72 L 1192 72 L 1192 542 L 1180 542" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, stamps</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ a repeated id keeps the last entry silently; a date is checked for shape, not validity</text>
+  </g>
+</svg>
