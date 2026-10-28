@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Top row: the two feed levers, the dead-end sink, the oracle -->
+  <g id="n-sinkn">
+    <rect id="n-sinkn-box" x="20" y="60" width="150" height="60" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sinkn-name" x="95" y="85" font-size="18" font-weight="600" text-anchor="middle">sink_neutral</text>
+    <text id="n-sinkn-kind" x="95" y="107" font-size="14" text-anchor="middle">(pool) dead end</text>
+  </g>
+  <g id="n-feedn">
+    <rect id="n-feedn-box" x="230" y="60" width="240" height="60" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-feedn-name" x="350" y="85" font-size="18" font-weight="600" text-anchor="middle">feed_neutral</text>
+    <text id="n-feedn-kind" x="350" y="107" font-size="14" text-anchor="middle">(lever) root/uptake_neutral_in</text>
+  </g>
+  <g id="n-feedr">
+    <rect id="n-feedr-box" x="500" y="60" width="240" height="60" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-feedr-name" x="620" y="85" font-size="18" font-weight="600" text-anchor="middle">feed_route</text>
+    <text id="n-feedr-kind" x="620" y="107" font-size="14" text-anchor="middle">(lever) root/uptake_route_in</text>
+  </g>
+  <g id="n-oracle">
+    <rect id="n-oracle-box" x="820" y="60" width="360" height="60" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-oracle-name" x="1000" y="85" font-size="18" font-weight="600" text-anchor="middle">oracle["phase1"]</text>
+    <text id="n-oracle-kind" x="1000" y="107" font-size="14" text-anchor="middle">(dict) coupled · direction · lever_effects</text>
+  </g>
+
+  <!-- Middle row: the task chain -->
+  <g id="n-source">
+    <rect id="n-source-box" x="20" y="230" width="160" height="60" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-source-name" x="100" y="255" font-size="18" font-weight="600" text-anchor="middle">source</text>
+    <text id="n-source-kind" x="100" y="277" font-size="14" text-anchor="middle">(SourceBlock)</text>
+  </g>
+  <g id="n-prec">
+    <rect id="n-prec-box" x="240" y="230" width="200" height="60" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-prec-name" x="340" y="255" font-size="18" font-weight="600" text-anchor="middle">precursor</text>
+    <text id="n-prec-kind" x="340" y="277" font-size="14" text-anchor="middle">(pool) root/route1_in</text>
+  </g>
+  <g id="n-inter">
+    <rect id="n-inter-box" x="500" y="230" width="240" height="60" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-inter-name" x="620" y="255" font-size="18" font-weight="600" text-anchor="middle">intermediate</text>
+    <text id="n-inter-kind" x="620" y="277" font-size="14" text-anchor="middle">(pool) the driver; id by coupling</text>
+  </g>
+  <g id="n-target">
+    <rect id="n-target-box" x="820" y="230" width="240" height="60" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-target-name" x="940" y="255" font-size="18" font-weight="600" text-anchor="middle">target T</text>
+    <text id="n-target-kind" x="940" y="277" font-size="14" text-anchor="middle">(pool) root/sink_target_in</text>
+  </g>
+
+  <!-- Bottom row: the tracked pool and the variant-specific blocks -->
+  <g id="n-bg">
+    <rect id="n-bg-box" x="240" y="430" width="200" height="60" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bg-name" x="340" y="455" font-size="18" font-weight="600" text-anchor="middle">background</text>
+    <text id="n-bg-kind" x="340" y="477" font-size="14" text-anchor="middle">(SourceBlock) none, down</text>
+  </g>
+  <g id="n-tracked">
+    <rect id="n-tracked-box" x="500" y="430" width="240" height="80" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="8 5"/>
+    <text id="n-tracked-name" x="620" y="455" font-size="18" font-weight="600" text-anchor="middle">tracked pool</text>
+    <text id="n-tracked-kind" x="620" y="477" font-size="14" text-anchor="middle">(pool) root/sink_byproduct_in</text>
+    <text id="n-tracked-hidden" x="620" y="498" font-size="14" font-style="italic" text-anchor="middle">hidden_ids on unobservable</text>
+  </g>
+  <g id="n-scrub">
+    <rect id="n-scrub-box" x="790" y="430" width="210" height="60" rx="10" fill="#ffe8cc" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-scrub-name" x="895" y="455" font-size="18" font-weight="600" text-anchor="middle">scrub</text>
+    <text id="n-scrub-kind" x="895" y="477" font-size="14" text-anchor="middle">(SignalingBlock) down only</text>
+  </g>
+  <g id="n-ssink">
+    <rect id="n-ssink-box" x="1050" y="430" width="130" height="60" rx="10" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ssink-name" x="1115" y="455" font-size="18" font-weight="600" text-anchor="middle">scrub_sink</text>
+    <text id="n-ssink-kind" x="1115" y="477" font-size="14" text-anchor="middle">(pool)</text>
+  </g>
+  <g id="n-note">
+    <rect id="n-note-box" x="20" y="540" width="420" height="60" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-note-name" x="230" y="565" font-size="18" font-weight="600" text-anchor="middle">phase1_chemistry_note</text>
+    <text id="n-note-kind" x="230" y="587" font-size="14" text-anchor="middle">(fn) told variants only; withheld is silent</text>
+  </g>
+
+  <!-- Mass-flow edges (solid) -->
+  <line id="e-source-prec" x1="180" y1="260" x2="240" y2="260" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-prec-inter" x1="440" y1="260" x2="500" y2="260" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-prec-inter" x="470" y="250" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">route1</text>
+  <line id="e-inter-target" x1="740" y1="260" x2="820" y2="260" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-inter-target" x="780" y="250" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">route2</text>
+  <line id="e-feedr-inter" x1="620" y1="120" x2="620" y2="230" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-feedr-inter" x="630" y="180" font-size="14" fill="#1971c2" font-style="italic">uptake_route · cap 20</text>
+  <line id="e-feedn-sinkn" x1="230" y1="90" x2="170" y2="90" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-feedn-sinkn" x="200" y="148" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">uptake_neutral (inert)</text>
+  <line id="e-inter-tracked" x1="620" y1="290" x2="620" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-inter-tracked" x="630" y="365" font-size="14" fill="#1971c2" font-style="italic">side · up variants only</text>
+  <line id="e-bg-tracked" x1="440" y1="460" x2="500" y2="460" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-tracked-scrub" x1="740" y1="460" x2="790" y2="460" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-scrub-ssink" x1="1000" y1="460" x2="1050" y2="460" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- Modulation, note and grading edges (dotted) -->
+  <line id="e-inter-scrub" x1="720" y1="290" x2="850" y2="430" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 5" marker-end="url(#arrowhead)"/>
+  <text id="l-inter-scrub" x="800" y="340" font-size="14" fill="#1971c2" font-style="italic">activator</text>
+  <line id="e-oracle-target" x1="940" y1="120" x2="940" y2="230" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 5" marker-end="url(#arrowhead)"/>
+  <text id="l-oracle-target" x="950" y="180" font-size="14" fill="#1971c2" font-style="italic">v_target on the episode horizon</text>
+  <line id="e-note-tracked" x1="440" y1="555" x2="500" y2="490" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 5" marker-end="url(#arrowhead)"/>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="lg-solid" x1="480" y1="560" x2="530" y2="560" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="lg-solid-t" x="540" y="565" font-size="14">mass flow (one reaction)</text>
+    <line id="lg-dot" x1="480" y1="590" x2="530" y2="590" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 5"/>
+    <text id="lg-dot-t" x="540" y="595" font-size="14">modulation · briefing note · grading</text>
+    <rect id="lg-hidden" x="850" y="550" width="40" height="22" rx="4" fill="#dbe4ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="8 5"/>
+    <text id="lg-hidden-t" x="900" y="566" font-size="14">hidden on coupling_unobservable</text>
+    <rect id="lg-lever" x="850" y="580" width="40" height="22" rx="4" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="lg-lever-t" x="900" y="596" font-size="14">declared lever (0-rate inlet)</text>
+    <text id="lg-sinks" x="480" y="640" font-size="14">T, tracked, sink_neutral and scrub_sink drain to ∅ at k_sink 0.2; ids are seed-stable.</text>
+  </g>
+</svg>
