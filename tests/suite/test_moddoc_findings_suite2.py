@@ -16,6 +16,10 @@ B. A reloaded map (``experiment.aggregate`` -> ``aggregate_records``) folded
    n = 2 and half the mean — while the live ``MassTrialRunner.run`` map
    excluded them; the reducer now skips ``is_error`` records itself and
    derives ``failed_trials`` from them, so both paths agree.
+C. ``estimate_cost`` priced one call per turn: an arm with ``probes`` (a
+   forked call per probe per turn, or once ``at_commit``) or ``compact_at``
+   (one summarizer call over the displaced history) read low — a two-probe
+   arm ~3x. Both are priced now, read high, and the formula names them.
 """
 
 from __future__ import annotations
@@ -179,3 +183,67 @@ def test_a_reloaded_map_excludes_error_records_like_the_live_one():
     assert cell.stats.mean == live_cell.stats.mean
     assert reloaded.provenance.failed_trials == 1
     assert len(reloaded.records) == 2  # the census still sees the error line
+
+
+# C ---------------------------------------------------------------------------
+
+
+def _llm_spec(**over):
+    import dataclasses
+
+    from alienbio.suite.spec import ExperimentSpec
+
+    base = ExperimentSpec(
+        name="est", axes=(), drafter="phase1_pressure", agent="llm",
+        trials_per_condition=2, base_seed=1, model="claude-sonnet-5",
+        price_usd_per_mtok=(1.0, 2.0), memory="none", expected_turns=4,
+        expected_prompt_tokens=100, expected_output_tokens=10,
+    )
+    return dataclasses.replace(base, **over)
+
+
+PROBE = {"text": "What do you expect next?", "timing": "every_turn"}
+
+
+def test_two_every_turn_probes_triple_the_calls_and_the_spend():
+    from alienbio.suite.spec import estimate_cost
+
+    plain = estimate_cost(_llm_spec())
+    probed = estimate_cost(_llm_spec(fixed_dials={"probes": [PROBE, dict(PROBE, text="And then?")]}))
+    assert plain.calls_per_trial == 4
+    assert probed.calls_per_trial == 12
+    assert probed.input_tokens == 3 * plain.input_tokens
+    assert probed.output_tokens == 3 * plain.output_tokens
+    assert probed.usd == pytest.approx(3 * plain.usd)
+    assert "probe call" in probed.formula and "probe call" not in plain.formula
+
+
+def test_an_at_commit_probe_adds_one_last_turn_call():
+    from alienbio.suite.spec import estimate_cost
+
+    plain = estimate_cost(_llm_spec(memory="full"))
+    probed = estimate_cost(_llm_spec(memory="full", fixed_dials={"probes": [dict(PROBE, timing="at_commit")]}))
+    assert probed.calls_per_trial == plain.calls_per_trial + 1
+    # Read high: the last turn's full-history prompt, 100 * (1 + 3/2).
+    assert probed.input_tokens - plain.input_tokens == 2 * 250
+
+
+def test_a_swept_probe_axis_is_priced_at_its_largest_level():
+    from alienbio.suite.spec import estimate_cost
+
+    est = estimate_cost(_llm_spec(axes=(("probes", ((), (PROBE,))),)))
+    assert est.calls_per_trial == 8
+
+
+def test_compaction_adds_one_summarizer_call():
+    from alienbio.suite.spec import estimate_cost
+
+    plain = estimate_cost(_llm_spec())
+    compact = estimate_cost(_llm_spec(compact_at=2, compact_budget=50))
+    assert compact.calls_per_trial == plain.calls_per_trial + 1
+    # Prompt = the history up to turn 2 (100 * (1 + 2/2)), reply <= 50.
+    assert compact.input_tokens - plain.input_tokens == 2 * 200
+    assert compact.output_tokens - plain.output_tokens == 2 * 50
+    assert "summarizer call" in compact.formula
+    uncapped = estimate_cost(_llm_spec(compact_at=2))
+    assert uncapped.output_tokens - plain.output_tokens == 2 * 10

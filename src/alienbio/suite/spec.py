@@ -520,6 +520,57 @@ class CostEstimate:
     usd: float
     model: Optional[str]
     formula: str
+    #: Model calls one llm trial is priced at: one per turn, plus each
+    #: declared probe's forked call (per turn for ``every_turn`` /
+    #: ``after_action``, once for ``at_commit``) and one summarizer call
+    #: under ``compact_at``. ``0`` on an all-scripted spec.
+    calls_per_trial: int = 0
+
+
+def _probe_counts(spec: ExperimentSpec) -> tuple[int, int]:
+    """``(per_turn, once)`` probe calls per trial — the largest declared set
+    when ``probes`` is swept (read high). ``every_turn`` and ``after_action``
+    fire each turn (``after_action`` only on a turn that acts; priced as if
+    every turn does), ``at_commit`` once."""
+    candidates: list[Any] = [spec.fixed_dials.get("probes")]
+    for name, levels in spec.axes:
+        if name == "probes":
+            candidates.extend(levels)
+    best = (0, 0)
+    for decl in candidates:
+        if not isinstance(decl, (list, tuple)):
+            continue
+        timings = [entry.get("timing") for entry in decl if isinstance(entry, Mapping)]
+        counts = (
+            sum(1 for t in timings if t in ("every_turn", "after_action")),
+            sum(1 for t in timings if t == "at_commit"),
+        )
+        if sum(counts) > sum(best):
+            best = counts
+    return best
+
+
+def _compact_turn(spec: ExperimentSpec) -> Optional[int]:
+    """The turn a summarizer call fires at, read high: the latest declared
+    ``compact_at`` (the spec's, or the largest swept level) — the later the
+    turn, the longer the displaced history it is prompted with."""
+    levels: list[Any] = [spec.compact_at]
+    for name, axis_levels in spec.axes:
+        if name == "compact_at":
+            levels.extend(axis_levels)
+    turns = [int(v) for v in levels if isinstance(v, int) and not isinstance(v, bool)]
+    return max(turns) if turns else None
+
+
+def _compact_budget(spec: ExperimentSpec) -> Optional[int]:
+    """The summarizer reply's cap, read high: the largest declared
+    ``compact_budget`` (``None`` = uncapped, priced as a turn's output)."""
+    levels: list[Any] = [spec.compact_budget]
+    for name, axis_levels in spec.axes:
+        if name == "compact_budget":
+            levels.extend(axis_levels)
+    budgets = [int(v) for v in levels if isinstance(v, int) and not isinstance(v, bool)]
+    return max(budgets) if budgets else None
 
 
 def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
@@ -539,7 +590,13 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
     ``P * (1 + t/2)`` over ``t`` in ``range(T)`` (each prior turn's history
     roughly adds half a turn's worth of tokens); ``"none"`` is flat ``P *
     T``; an ``int`` k is ``P * T * (1 + min(k, T-1)/2)``. Output tokens are
-    flat ``O * T`` (``O`` = ``expected_output_tokens``). ``usd`` is
+    flat ``O * T`` (``O`` = ``expected_output_tokens``). Each declared probe
+    (``dials["probes"]``, T026) is a forked call on the next act's context:
+    an ``every_turn`` / ``after_action`` probe adds the main line's input and
+    output again, an ``at_commit`` probe one last-turn call; ``compact_at``
+    (T049) adds one summarizer call prompted with the history up to that
+    turn (``P * (1 + c/2)``) and replying at most ``compact_budget`` tokens
+    (``O`` when unset). All read high. ``usd`` is
     :func:`~alienbio.suite.llm_agent.cost_usd` at
     :func:`~alienbio.suite.llm_agent.price_for` ``(model,
     spec.price_usd_per_mtok)``.
@@ -593,9 +650,35 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
     # none/full ladder ~5.75x low at 20 turns.
     memory_axis = next((levels for name, levels in spec.axes if name == "memory"), None)
     per_level = [_input_for(m) for m in (memory_axis or (spec.memory,))]
-    input_per_trial = sum(tokens for tokens, _ in per_level) / len(per_level)
+    main_input = sum(tokens for tokens, _ in per_level) / len(per_level)
     memory_desc = "/".join(desc for _, desc in per_level)
-    output_per_trial = output_tokens * turns
+    main_output = output_tokens * turns
+
+    # The calls beyond one per turn (second suite round, 2026-10-28): a
+    # probe is a forked call on the exact next-act context and a compaction
+    # one summarizer call, both metered on the real run and both missing
+    # from the estimate, which read a two-probe arm ~3x low.
+    per_turn_probes, commit_probes = _probe_counts(spec)
+    def _last_turn_input(memory: Any) -> float:
+        if memory == "none":
+            return float(prompt_tokens)
+        window = turns - 1 if memory == "full" else min(cast(int, memory), turns - 1)
+        return prompt_tokens * (1 + window / 2)
+
+    last_turn_input = max(_last_turn_input(m) for m in (memory_axis or (spec.memory,)))
+    compact_turn = _compact_turn(spec)
+    compact_budget = _compact_budget(spec)
+    input_per_trial = main_input * (1 + per_turn_probes) + last_turn_input * commit_probes
+    output_per_trial = main_output * (1 + per_turn_probes) + output_tokens * commit_probes
+    calls_per_trial = turns * (1 + per_turn_probes) + commit_probes
+    extra_desc: list[str] = []
+    if per_turn_probes or commit_probes:
+        extra_desc.append(f"{per_turn_probes} per-turn + {commit_probes} at-commit probe call(s)")
+    if compact_turn is not None:
+        input_per_trial += prompt_tokens * (1 + compact_turn / 2)
+        output_per_trial += compact_budget if compact_budget is not None else output_tokens
+        calls_per_trial += 1
+        extra_desc.append(f"1 summarizer call at turn {compact_turn}")
 
     total_input_tokens = round(input_per_trial * llm_trials)
     total_output_tokens = round(output_per_trial * llm_trials)
@@ -635,8 +718,9 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
         price_desc = f"@ ${price[0]}/${price[1]} per MTok"
     else:
         price_desc = "@ " + " + ".join(f"{m} ${prices[m][0]}/${prices[m][1]}" for m in models) + f" per MTok, {len(models)} equal shares"
+    calls_desc = f", {calls_per_trial} calls/trial incl. " + " + ".join(extra_desc) if extra_desc else ""
     formula = (
-        f"{llm_trials} llm_trials x ({turns} turns, memory={memory_desc}: "
+        f"{llm_trials} llm_trials x ({turns} turns, memory={memory_desc}{calls_desc}: "
         f"{input_per_trial:.0f} input + {output_per_trial:.0f} output tok/trial{cache_desc}) "
         f"{price_desc} = ${usd:.4f}"
     )
@@ -648,4 +732,5 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
         usd=usd,
         model=model,
         formula=formula,
+        calls_per_trial=calls_per_trial,
     )
