@@ -11,6 +11,11 @@ A. With no ``levers`` dial the default control surface offered every
    brief excludes both from the default surface and refuses both declared,
    on every world, and the runner rejects an ``Intervene`` off the brief's
    surface naming the brief's reason.
+B. A reloaded map (``experiment.aggregate`` -> ``aggregate_records``) folded
+   error records into its cells — one good and one error trial reloaded to
+   n = 2 and half the mean — while the live ``MassTrialRunner.run`` map
+   excluded them; the reducer now skips ``is_error`` records itself and
+   derives ``failed_trials`` from them, so both paths agree.
 """
 
 from __future__ import annotations
@@ -136,3 +141,41 @@ def test_an_unlisted_lever_is_still_unknown():
     world, task = _pathway_world()
     record = run(world, task, _setter("no/such/lever", 1.0), {}, Seed(5), max_turns=1)
     assert "unknown lever" in record.action_log[0].reason
+
+
+# B ---------------------------------------------------------------------------
+
+
+def _tiny_world(seed, dials):
+    from tests.suite.test_experiment import _tiny_drafter
+
+    return _tiny_drafter(seed, dials)
+
+
+def test_a_reloaded_map_excludes_error_records_like_the_live_one():
+    from alienbio.suite.mass_trial import MassTrialRunner, aggregate_records
+    from alienbio.suite.store import record_from_json, record_to_json
+    from tests.suite.test_experiment import _tiny_agent_factory
+
+    calls: list[int] = []
+
+    def drafter(seed, dials):
+        calls.append(1)
+        if len(calls) == 2:
+            raise RuntimeError("boom")
+        return _tiny_world(seed, dials)
+
+    axes = [("level", ("a",))]
+    live = MassTrialRunner().run(axes, drafter, _tiny_agent_factory, trials_per_condition=2, base_seed=Seed(1))
+    assert [r.is_error for r in live.records] == [False, True]
+    (live_cell,) = live.cells.values()
+    assert live_cell.stats.n == 1
+    assert live.provenance.failed_trials == 1
+
+    stored = [record_from_json(record_to_json(r, "level=a", i)) for i, r in enumerate(live.records)]
+    reloaded = aggregate_records(stored, tuple((n, tuple(v)) for n, v in axes), Seed(1), 2)
+    (cell,) = reloaded.cells.values()
+    assert cell.stats.n == 1
+    assert cell.stats.mean == live_cell.stats.mean
+    assert reloaded.provenance.failed_trials == 1
+    assert len(reloaded.records) == 2  # the census still sees the error line

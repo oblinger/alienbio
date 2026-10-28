@@ -133,9 +133,10 @@ class Provenance:
     and the fixed per-condition trial count (Q1 = C: a fixed floor, not a
     power-driven top-up).
 
-    ``failed_trials`` (M46.3) is how many ``(condition, trial)`` units raised
-    under ``on_error="record"`` — always ``0`` under ``on_error="raise"``
-    (a failure there propagates instead). Defaults to ``0`` so every
+    ``failed_trials`` (M46.3) is how many error records
+    (``TrialRecord.is_error``) the map was built over — counted by the
+    reducer, so a live run and a reloaded store agree; always ``0`` under
+    ``on_error="raise"`` (a failure there propagates instead). Defaults to ``0`` so every
     existing hand-built fixture constructs unchanged.
 
     ``stopped_early`` (M45.5) is ``True`` iff :meth:`MassTrialRunner.run`'s
@@ -324,11 +325,16 @@ def _aggregate(
     effect-size contrast. Introduces no new statistics: every number here
     comes from ``reliability_grid``/``stats_summary``/``effect_size``.
     """
+    # Error records ride ``records`` (the census and the failure report read
+    # them) but never a cell: the ONE place both the live run and a reloaded
+    # store (``experiment.aggregate``) exclude them — the reloaded path used
+    # to fold them in as score 0 (one good + one error line read n = 2).
+    scored = [record for record in records if not record.is_error]
     raw_by_key: dict[ConditionKey, list[float]] = {}
-    for record in records:
+    for record in scored:
         raw_by_key.setdefault(record.bucket_key, []).append(record.objective_score)
 
-    observations = [(record.bucket_key, record.objective_score) for record in records]
+    observations = [(record.bucket_key, record.objective_score) for record in scored]
     stats = aggregate_cells(observations)
 
     cells: dict[ConditionKey, CellSummary] = {}
@@ -366,7 +372,12 @@ def _aggregate(
                 # observations, rather than crashing the whole aggregation.
                 continue
 
-    provenance = Provenance(axes=axes, base_seed=base_seed, trials_per_condition=trials_per_condition)
+    provenance = Provenance(
+        axes=axes,
+        base_seed=base_seed,
+        trials_per_condition=trials_per_condition,
+        failed_trials=len(records) - len(scored),
+    )
     return ReliabilityMap(cells=cells, interactions=interactions, contrasts=contrasts, provenance=provenance, records=tuple(records))
 
 
@@ -497,7 +508,6 @@ class MassTrialRunner:
         keys = sorted(condition_grid(axes_tuple), key=lambda k: str(k))
 
         records: list[TrialRecord] = []
-        failed_trials = 0
         stopped_early = False
         if not isinstance(concurrency, int) or isinstance(concurrency, bool) or concurrency < 1:
             raise ValueError(f"MassTrialRunner.run: concurrency must be an int >= 1, got {concurrency!r}")
@@ -556,12 +566,10 @@ class MassTrialRunner:
                 )
 
         def land(label: str, i: int, record: Optional[TrialRecord]) -> None:
-            nonlocal failed_trials, stopped_early
+            nonlocal stopped_early
             if record is None:
                 stopped_early = True
                 return
-            if record.terminal_reason == "error":
-                failed_trials += 1
             records.append(record)
             if on_trial is not None:
                 on_trial(label, i, record)
@@ -627,7 +635,5 @@ class MassTrialRunner:
                         drain(False)
                 drain(True)
 
-        successful = tuple(r for r in records if r.terminal_reason != "error")
-        rmap = _aggregate(successful, axes_tuple, base_seed, trials_per_condition)
-        provenance = replace(rmap.provenance, failed_trials=failed_trials, stopped_early=stopped_early)
-        return replace(rmap, records=tuple(records), provenance=provenance)
+        rmap = _aggregate(records, axes_tuple, base_seed, trials_per_condition)
+        return replace(rmap, provenance=replace(rmap.provenance, stopped_early=stopped_early))
