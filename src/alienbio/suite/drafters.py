@@ -10,7 +10,7 @@ import math
 from typing import Any, Iterable, Mapping, NamedTuple, Optional, Protocol, Sequence, cast
 
 
-from ..bio.world import WorldImpl
+from ..bio.world import WorldImpl, rebuild_world
 from ..expr.registry import Head, fn as _head, registry as _registry
 from .archetypes import identify_pathway as identify_pathway_archetype
 from .conflict_gen import draft_conflict_world
@@ -1100,7 +1100,7 @@ def discover(
                 Compartment(c.id, c.parent, c.kind, c.volume, concentrations={**dict(c.concentrations), CATALYST_ID: catalyst_level}, multiplicity=c.multiplicity)
                 for c in world.compartments
             )
-            return WorldImpl(new_chem, comps)
+            return rebuild_world(world, new_chem, comps)
 
         with_catalyst = _world(level)
         without = _world(0.0)
