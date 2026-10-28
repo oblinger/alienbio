@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-ip">
+    <rect id="n-ip-box" x="20" y="60" width="240" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ip-name" x="140" y="86" font-size="18" font-weight="600" text-anchor="middle">identify_pathway(n)</text>
+    <text id="n-ip-k1" x="140" y="108" font-size="13" text-anchor="middle">roles r0 … r(n−1),</text>
+    <text id="n-ip-k2" x="140" y="126" font-size="13" text-anchor="middle">_is_molecule + constraints,</text>
+    <text id="n-ip-k3" x="140" y="144" font-size="13" text-anchor="middle">edges reacts_to</text>
+  </g>
+  <g id="n-ta">
+    <rect id="n-ta-box" x="340" y="60" width="240" height="100" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ta-name" x="460" y="86" font-size="18" font-weight="600" text-anchor="middle">TaskArchetype</text>
+    <text id="n-ta-k1" x="460" y="108" font-size="13" text-anchor="middle">motif, verb identify,</text>
+    <text id="n-ta-k2" x="460" y="126" font-size="13" text-anchor="middle">empty FeatureSet, recipe,</text>
+    <text id="n-ta-k3" x="460" y="144" font-size="13" text-anchor="middle">no drafter → carve</text>
+  </g>
+  <line id="e-ip-ta" x1="260" y1="110" x2="340" y2="110" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-bs">
+    <rect id="n-bs-box" x="660" y="60" width="240" height="100" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bs-name" x="780" y="86" font-size="17" font-weight="600" text-anchor="middle">build_suite</text>
+    <text id="n-bs-k1" x="780" y="108" font-size="13" text-anchor="middle">draft host → carve →</text>
+    <text id="n-bs-k2" x="780" y="126" font-size="13" text-anchor="middle">splice → recipe →</text>
+    <text id="n-bs-k3" x="780" y="144" font-size="13" text-anchor="middle">render guard</text>
+  </g>
+  <line id="e-ta-bs" x1="580" y1="110" x2="660" y2="110" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-dr">
+    <rect id="n-dr-box" x="960" y="60" width="220" height="100" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dr-name" x="1070" y="86" font-size="16" font-weight="600" text-anchor="middle">drafters</text>
+    <text id="n-dr-k1" x="1070" y="108" font-size="13" text-anchor="middle">identify_pathway (one</text>
+    <text id="n-dr-k2" x="1070" y="126" font-size="13" text-anchor="middle">task); discover builds</text>
+    <text id="n-dr-k3" x="1070" y="144" font-size="13" text-anchor="middle">on the same substrate</text>
+  </g>
+  <line id="e-dr-bs" x1="960" y1="110" x2="900" y2="110" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-cr">
+    <rect id="n-cr-box" x="660" y="240" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cr-name" x="780" y="266" font-size="17" font-weight="600" text-anchor="middle">CarveResult.binding</text>
+    <text id="n-cr-kind" x="780" y="288" font-size="13" text-anchor="middle">role → host molecule</text>
+  </g>
+  <line id="e-bs-cr" x1="780" y1="160" x2="780" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-rec">
+    <rect id="n-rec-box" x="340" y="230" width="240" height="90" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="460" y="256" font-size="16" font-weight="600" text-anchor="middle">IdentifyPathwayRecipe</text>
+    <text id="n-rec-k1" x="460" y="278" font-size="13" text-anchor="middle">(dataclass) role_names,</text>
+    <text id="n-rec-k2" x="460" y="296" font-size="13" text-anchor="middle">verb "identify"</text>
+  </g>
+  <line id="e-cr-rec" x1="660" y1="275" x2="580" y2="275" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-ta-rec" x1="460" y1="160" x2="460" y2="230" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-q">
+    <rect id="n-q-box" x="20" y="390" width="240" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-q-name" x="140" y="416" font-size="16" font-weight="600" text-anchor="middle">build_question</text>
+    <text id="n-q-kind" x="140" y="438" font-size="13" text-anchor="middle">[first, last] ordered_path</text>
+  </g>
+  <g id="n-k">
+    <rect id="n-k-box" x="340" y="390" width="240" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-k-name" x="460" y="416" font-size="16" font-weight="600" text-anchor="middle">build_key</text>
+    <text id="n-k-kind" x="460" y="438" font-size="13" text-anchor="middle">the full bound chain</text>
+  </g>
+  <g id="n-g">
+    <rect id="n-g-box" x="660" y="390" width="240" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-g-name" x="780" y="416" font-size="16" font-weight="600" text-anchor="middle">grader_spec</text>
+    <text id="n-g-kind" x="780" y="438" font-size="13" text-anchor="middle">ordered_path, partial ‡</text>
+  </g>
+  <line id="e-rec-q" x1="380" y1="320" x2="200" y2="390" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-rec-k" x1="460" y1="320" x2="460" y2="390" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-rec-g" x1="540" y1="320" x2="720" y2="390" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-echo">
+    <rect id="n-echo-box" x="20" y="500" width="880" height="56" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="n-echo-k1" x="460" y="524" font-size="13" text-anchor="middle">echo the question: answer [r0, r2] against key [r0, r1, r2] scores 0.33 (common prefix 1 of 3);</text>
+    <text id="n-echo-k2" x="460" y="542" font-size="13" text-anchor="middle">one length-n chain between the ends in 12 of 12 seeds, so the key is unambiguous there</text>
+  </g>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, contains</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ prefix credit pays for the first node, which the question already names</text>
+  </g>
+</svg>
