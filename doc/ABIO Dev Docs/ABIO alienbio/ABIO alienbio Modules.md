@@ -4,7 +4,8 @@ description: "module docs for the src/alienbio/ package root and commands/: the 
 
 | -[ABIO alienbio Modules](ABIO%20alienbio%20Modules.md)- | : module docs for the src/alienbio/ package root and commands/: the bio CLI and its verbs, configuration and API keys, the capability matrix, and the one-page test report |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Front door                                              | [CLI](ABIO%20CLI.md),  [SuiteCmd](ABIO%20SuiteCmd.md),                                                                                                                                                |
+| Front door                                              | [CLI](ABIO%20CLI.md),  [SuiteCmd](ABIO%20SuiteCmd.md),                                                                                                                     |
+| Settings                                                | [Config](ABIO%20Config.md), |
 | ...                                                     |                                                                                                                                                                            |
 
 # ABIO alienbio Modules
