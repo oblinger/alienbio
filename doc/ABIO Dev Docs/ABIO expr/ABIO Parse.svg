@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-src">
+    <rect id="n-src-box" x="20" y="50" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-src-name" x="140" y="78" font-size="18" font-weight="600" text-anchor="middle">inline text</text>
+    <text id="n-src-kind" x="140" y="102" font-size="14" text-anchor="middle">(str) !x / !q scalar · X.parse</text>
+  </g>
+  <g id="n-parse">
+    <rect id="n-parse-box" x="330" y="50" width="220" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-parse-name" x="440" y="78" font-size="18" font-weight="600" text-anchor="middle">parse</text>
+    <text id="n-parse-kind" x="440" y="102" font-size="14" text-anchor="middle">(fn) validate, then convert</text>
+  </g>
+  <line id="e-src-parse" x1="260" y1="85" x2="330" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-val">
+    <rect id="n-val-box" x="640" y="50" width="260" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-val-name" x="770" y="78" font-size="18" font-weight="600" text-anchor="middle">validate_expression</text>
+    <text id="n-val-kind" x="770" y="102" font-size="14" text-anchor="middle">(safe_eval) the AST allowlist</text>
+  </g>
+  <line id="e-parse-val" x1="550" y1="85" x2="640" y2="85" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-parse-val" x="595" y="75" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">first</text>
+
+  <g id="n-conv">
+    <rect id="n-conv-box" x="330" y="220" width="220" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-conv-name" x="440" y="248" font-size="18" font-weight="600" text-anchor="middle">_convert</text>
+    <text id="n-conv-kind" x="440" y="272" font-size="14" text-anchor="middle">(fn) one case per AST node</text>
+  </g>
+  <line id="e-parse-conv" x1="440" y1="120" x2="440" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-parse-conv" x="450" y="175" font-size="14" fill="#1971c2" font-style="italic">ast body</text>
+  <g id="n-comp">
+    <rect id="n-comp-box" x="20" y="220" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-comp-name" x="140" y="248" font-size="18" font-weight="600" text-anchor="middle">_comprehension</text>
+    <text id="n-comp-kind" x="140" y="272" font-size="14" text-anchor="middle">(fn) one each per generator</text>
+  </g>
+  <line id="e-conv-comp" x1="330" y1="255" x2="260" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-form">
+    <rect id="n-form-box" x="640" y="220" width="260" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-form-name" x="770" y="246" font-size="18" font-weight="600" text-anchor="middle">form tree</text>
+    <text id="n-form-kind" x="770" y="268" font-size="14" text-anchor="middle">(Form) Name · Call · Quoted</text>
+    <text id="n-form-kind2" x="770" y="288" font-size="14" text-anchor="middle">op:* · each · if</text>
+  </g>
+  <line id="e-conv-form" x1="550" y1="255" x2="640" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-conv-form" x="595" y="245" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">forms</text>
+  <polyline id="e-comp-form" points="140,290 140,340 700,340 700,300" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-comp-form" x="420" y="360" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">each (+ op:flatten, op:set)</text>
+  <g id="n-heads">
+    <rect id="n-heads-box" x="960" y="220" width="170" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-heads-name" x="1045" y="246" font-size="18" font-weight="600" text-anchor="middle">op:* heads</text>
+    <text id="n-heads-kind" x="1045" y="268" font-size="14" text-anchor="middle">(Heads) run at</text>
+    <text id="n-heads-kind2" x="1045" y="288" font-size="14" text-anchor="middle">evaluation</text>
+  </g>
+  <line id="e-form-heads" x1="900" y1="260" x2="960" y2="260" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-form-heads" x="930" y="250" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">names</text>
+
+  <g id="n-dump">
+    <rect id="n-dump-box" x="640" y="420" width="260" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dump-name" x="770" y="448" font-size="18" font-weight="600" text-anchor="middle">dump</text>
+    <text id="n-dump-kind" x="770" y="472" font-size="14" text-anchor="middle">(fn) form to text</text>
+  </g>
+  <line id="e-form-dump" x1="830" y1="300" x2="830" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-form-dump" x="840" y="390" font-size="14" fill="#1971c2" font-style="italic">form</text>
+  <g id="n-dcall">
+    <rect id="n-dcall-box" x="330" y="420" width="220" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dcall-name" x="440" y="448" font-size="18" font-weight="600" text-anchor="middle">_dump_call</text>
+    <text id="n-dcall-kind" x="440" y="472" font-size="14" text-anchor="middle">(fn) infix · if · head(...)</text>
+  </g>
+  <line id="e-dump-dcall" x1="640" y1="455" x2="550" y2="455" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-dump-dcall" x="595" y="445" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">Call</text>
+  <g id="n-dfstr">
+    <rect id="n-dfstr-box" x="20" y="420" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dfstr-name" x="140" y="448" font-size="18" font-weight="600" text-anchor="middle">_dump_fstr</text>
+    <text id="n-dfstr-kind" x="140" y="472" font-size="14" text-anchor="middle">(fn) f-string parts</text>
+  </g>
+  <line id="e-dcall-dfstr" x1="330" y1="455" x2="260" y2="455" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-dcall-dfstr" x="295" y="445" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">op:fstr</text>
+  <polyline id="e-dump-src" points="900,455 1160,455 1160,22 140,22 140,50" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-dump-src" x="1150" y="400" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">text that re-parses equal ‡</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">conversion</text>
+    <line id="legend-dotted" x1="210" y1="641" x2="260" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="270" y="646" font-size="14">checks, names, round trip</text>
+    <text id="legend-dagger" x="470" y="646" font-size="14">‡ except each from a comprehension, op:set / op:flatten, and dotted heads</text>
+  </g>
+</svg>
