@@ -50,6 +50,8 @@ The six AUP rows stay out of the curriculum on the M48.9 rule: nothing neutral m
 - **An intended solution per rung** — no scripted agent solves a neutral rung except by a constant key (M-Bench.2's "intended solution succeeds" has no content yet). Smallest fix: one oracle-policy scripted agent per promoted world, asserted to score 1.0 against `idle`'s ≤ 0.2.
 - **Dimensions no world exercises** — B16 (planned), B18 and C11 (future); out of the curriculum's scope.
 
+Added by the M-Bench.4 red-team the same night (`tests/suite/test_gameability.py`, 58 strict xfails): `pathway_puzzles`' key is `['r0','r1','r2']` on every seed and spelled out in the ids the agent sees, so its rung-1 promotion needs opaque node names drawn per seed; and every neutral world accepts an `Intervene` on its own readout (the 4c guard runs only on guarded drafters) — on `agent_loop` that scores 0.85 against the intended 0.25.
+
 ## Proposed roadmap edits
 
 Not applied; for the orchestrator.
