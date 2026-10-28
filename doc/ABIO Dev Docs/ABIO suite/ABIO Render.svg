@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-q">
+    <rect id="n-q-box" x="20" y="180" width="220" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-q-name" x="130" y="206" font-size="17" font-weight="600" text-anchor="middle">Question / Answer</text>
+    <text id="n-q-kind" x="130" y="228" font-size="13" text-anchor="middle">(types) payload + kind</text>
+    <text id="n-q-kind2" x="130" y="246" font-size="13" text-anchor="middle">tuple payload ‡</text>
+  </g>
+  <g id="n-vocab">
+    <rect id="n-vocab-box" x="320" y="40" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-vocab-name" x="440" y="66" font-size="18" font-weight="600" text-anchor="middle">Vocabulary</text>
+    <text id="n-vocab-kind" x="440" y="88" font-size="13" text-anchor="middle">(dataclass) injective; no</text>
+    <text id="n-vocab-kind2" x="440" y="108" font-size="13" text-anchor="middle">phrase holds " | " or "(none)"</text>
+  </g>
+  <g id="n-bv">
+    <rect id="n-bv-box" x="20" y="40" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bv-name" x="130" y="66" font-size="17" font-weight="600" text-anchor="middle">build_vocabulary</text>
+    <text id="n-bv-kind" x="130" y="88" font-size="13" text-anchor="middle">(vocab) alien phrases</text>
+    <text id="n-bv-kind2" x="130" y="108" font-size="13" text-anchor="middle">per world, per seed</text>
+  </g>
+  <line id="e-bv-vocab" x1="240" y1="80" x2="320" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-render">
+    <rect id="n-render-box" x="320" y="180" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-render-name" x="440" y="206" font-size="18" font-weight="600" text-anchor="middle">render</text>
+    <text id="n-render-kind" x="440" y="228" font-size="13" text-anchor="middle">prefix + phrases joined</text>
+    <text id="n-render-kind2" x="440" y="246" font-size="13" text-anchor="middle">by SEP + suffix</text>
+  </g>
+  <line id="e-q-render" x1="240" y1="220" x2="320" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-vocab-render" x1="440" y1="120" x2="440" y2="180" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-vocab-render" x="450" y="156" font-size="13" fill="#1971c2" font-style="italic">phrase_for</text>
+
+  <g id="n-tmpl">
+    <rect id="n-tmpl-box" x="640" y="40" width="270" height="100" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tmpl-name" x="775" y="66" font-size="13" font-weight="600" text-anchor="middle">_TEMPLATES, _VERB_TEMPLATES</text>
+    <text id="n-tmpl-k1" x="775" y="88" font-size="13" text-anchor="middle">"The path is: … ."</text>
+    <text id="n-tmpl-k2" x="775" y="106" font-size="13" text-anchor="middle">"Which pathway connects: …?"</text>
+    <text id="n-tmpl-k3" x="775" y="124" font-size="13" text-anchor="middle">(verb, kind) or generic</text>
+  </g>
+  <line id="e-render-tmpl" x1="560" y1="200" x2="660" y2="140" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-text">
+    <rect id="n-text-box" x="640" y="190" width="270" height="60" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-text-name" x="775" y="216" font-size="16" font-weight="600" text-anchor="middle">one sentence</text>
+    <text id="n-text-kind" x="775" y="236" font-size="13" text-anchor="middle">"The path is: zor-ax | kth'on."</text>
+  </g>
+  <line id="e-render-text" x1="560" y1="220" x2="640" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-parse">
+    <rect id="n-parse-box" x="640" y="320" width="270" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-parse-name" x="775" y="346" font-size="18" font-weight="600" text-anchor="middle">parse</text>
+    <text id="n-parse-k1" x="775" y="368" font-size="13" text-anchor="middle">strip template, split on SEP,</text>
+    <text id="n-parse-k2" x="775" y="386" font-size="13" text-anchor="middle">token_for; set / list / JSON ‡</text>
+  </g>
+  <line id="e-text-parse" x1="775" y1="250" x2="775" y2="320" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-guard">
+    <rect id="n-guard-box" x="320" y="320" width="240" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-guard-name" x="440" y="346" font-size="16" font-weight="600" text-anchor="middle">_assert_task_consistent</text>
+    <text id="n-guard-k1" x="440" y="368" font-size="13" text-anchor="middle">(pipeline) parse(render(x))</text>
+    <text id="n-guard-k2" x="440" y="386" font-size="13" text-anchor="middle">== x, else RuntimeError</text>
+  </g>
+  <line id="e-parse-guard" x1="640" y1="365" x2="560" y2="365" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-guard-render" x1="440" y1="320" x2="440" y2="260" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-discard">
+    <rect id="n-discard-box" x="320" y="470" width="590" height="60" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="n-discard-k1" x="615" y="496" font-size="13" text-anchor="middle">the sentence is then discarded: no agent reads it; the agent's</text>
+    <text id="n-discard-k2" x="615" y="514" font-size="13" text-anchor="middle">names come from NameMap and the brief from TaskBrief</text>
+  </g>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, reads</text>
+    <text id="legend-dagger" x="380" y="646" font-size="14">‡ a tuple comes back a list, NaN unequal, "a |" + "b" parses as "a" + "| b"</text>
+  </g>
+</svg>
