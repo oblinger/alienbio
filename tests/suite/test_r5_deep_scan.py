@@ -62,9 +62,12 @@ def test_manifest_names_the_model_an_agent_axis_runs():
 
 
 def test_resume_admits_a_widened_max_turns_axis():
-    before = spec_from_dict(_d(axes={"pi": [0.5], "max_turns": [2, 3]}, fixed_dials={"levers": []}))
-    after = spec_from_dict(_d(axes={"pi": [0.5], "max_turns": [2, 3, 4]}, fixed_dials={"levers": []}))
+    no_levers = {"levers": []}
+    before = spec_from_dict(_d(axes={"pi": [0.5], "max_turns": [2, 3]}, fixed_dials=no_levers))
+    after = spec_from_dict(_d(axes={"pi": [0.5], "max_turns": [2, 3, 4]}, fixed_dials=no_levers))
     assert _resume_spec_drift(spec_to_dict(before), after) == []
     # An explicit expected_turns edit is still drift.
-    edited = spec_from_dict(_d(axes={"pi": [0.5], "max_turns": [2, 3]}, fixed_dials={"levers": []}, expected_turns=9))
+    edited = spec_from_dict(
+        _d(axes={"pi": [0.5], "max_turns": [2, 3]}, fixed_dials=no_levers, expected_turns=9)
+    )
     assert _resume_spec_drift(spec_to_dict(before), edited) == ["expected_turns"]
