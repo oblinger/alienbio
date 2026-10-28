@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Draft-time half -->
+  <g id="n-draft">
+    <rect id="n-draft-box" x="20" y="20" width="560" height="270" rx="12" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-draft-name" x="35" y="43" font-size="16" font-weight="600" fill="#343a40">draft time (drafters: diagnose, predict)</text>
+  </g>
+  <g id="n-ho">
+    <rect id="n-ho-box" x="40" y="60" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ho-name" x="160" y="86" font-size="18" font-weight="600" text-anchor="middle">hazard_oracle</text>
+    <text id="n-ho-kind" x="160" y="108" font-size="14" text-anchor="middle">(fn) passive sim, crossing ‡</text>
+  </g>
+  <g id="n-gate">
+    <rect id="n-gate-box" x="320" y="60" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gate-name" x="440" y="86" font-size="18" font-weight="600" text-anchor="middle">assert_hazard_gate</text>
+    <text id="n-gate-kind" x="440" y="108" font-size="14" text-anchor="middle">(fn) refuse: never crosses</text>
+  </g>
+  <line id="e-ho-gate" x1="280" y1="92" x2="320" y2="92" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-hor">
+    <rect id="n-hor-box" x="40" y="160" width="240" height="56" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-hor-name" x="160" y="184" font-size="17" font-weight="600" text-anchor="middle">HazardOracle</text>
+    <text id="n-hor-kind" x="160" y="205" font-size="14" text-anchor="middle">threshold_turn, final</text>
+  </g>
+  <line id="e-ho-hor" x1="160" y1="124" x2="160" y2="160" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-dc">
+    <rect id="n-dc-box" x="320" y="150" width="240" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dc-name" x="440" y="174" font-size="16" font-weight="600" text-anchor="middle">diagnosis_considerations</text>
+    <text id="n-dc-kind" x="440" y="195" font-size="14" text-anchor="middle">hz / rh / terminal</text>
+  </g>
+  <line id="e-hor-dc" x1="280" y1="188" x2="320" y2="180" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-pc">
+    <rect id="n-pc-box" x="320" y="220" width="240" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pc-name" x="440" y="244" font-size="16" font-weight="600" text-anchor="middle">prediction_considerations</text>
+    <text id="n-pc-kind" x="440" y="265" font-size="14" text-anchor="middle">typed; meta if ill-posed</text>
+  </g>
+
+  <g id="n-oracle">
+    <rect id="n-oracle-box" x="640" y="120" width="250" height="84" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-oracle-name" x="765" y="146" font-size="17" font-weight="600" text-anchor="middle">task oracle</text>
+    <text id="n-oracle-kind" x="765" y="168" font-size="14" text-anchor="middle">hazard, considerations</text>
+    <text id="n-oracle-kind2" x="765" y="188" font-size="14" text-anchor="middle">(never in the brief)</text>
+  </g>
+  <line id="e-dc-oracle" x1="560" y1="178" x2="640" y2="168" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-pc-oracle" x1="560" y1="245" x2="640" y2="195" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-rec">
+    <rect id="n-rec-box" x="940" y="120" width="240" height="84" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="1060" y="146" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-rec-kind" x="1060" y="168" font-size="14" text-anchor="middle">oracle, action_log,</text>
+    <text id="n-rec-kind2" x="1060" y="188" font-size="14" text-anchor="middle">trace, name_map</text>
+  </g>
+  <line id="e-oracle-rec" x1="890" y1="162" x2="940" y2="162" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <!-- Record half -->
+  <g id="n-ev">
+    <rect id="n-ev-box" x="640" y="300" width="250" height="84" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ev-name" x="765" y="326" font-size="18" font-weight="600" text-anchor="middle">surfacing_events</text>
+    <text id="n-ev-kind" x="765" y="348" font-size="14" text-anchor="middle">accepted measure / intervene</text>
+    <text id="n-ev-kind2" x="765" y="368" font-size="14" text-anchor="middle">or any mention ‡</text>
+  </g>
+  <line id="e-rec-ev" x1="1000" y1="204" x2="860" y2="300" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-hst">
+    <rect id="n-hst-box" x="940" y="300" width="240" height="84" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-hst-name" x="1060" y="326" font-size="17" font-weight="600" text-anchor="middle">hazard_surfacing_turn</text>
+    <text id="n-hst-kind" x="1060" y="348" font-size="14" text-anchor="middle">measure on hz, or a</text>
+    <text id="n-hst-kind2" x="1060" y="368" font-size="14" text-anchor="middle">step naming it</text>
+  </g>
+  <line id="e-rec-hst" x1="1060" y1="204" x2="1060" y2="300" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-cp">
+    <rect id="n-cp-box" x="340" y="310" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cp-name" x="460" y="336" font-size="18" font-weight="600" text-anchor="middle">consideration_profile</text>
+    <text id="n-cp-kind" x="460" y="358" font-size="14" text-anchor="middle">(fn) earliest turn per id</text>
+  </g>
+  <line id="e-ev-cp" x1="640" y1="342" x2="580" y2="342" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-ss">
+    <rect id="n-ss-box" x="40" y="310" width="240" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ss-name" x="160" y="336" font-size="17" font-weight="600" text-anchor="middle">score_surfacing</text>
+    <text id="n-ss-kind" x="160" y="358" font-size="14" text-anchor="middle">surfacing_profile</text>
+  </g>
+  <line id="e-cp-ss" x1="340" y1="342" x2="280" y2="342" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-cs">
+    <rect id="n-cs-box" x="340" y="440" width="240" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cs-name" x="460" y="466" font-size="17" font-weight="600" text-anchor="middle">consideration_summary</text>
+    <text id="n-cs-kind" x="460" y="488" font-size="14" text-anchor="middle">surfaced, on time (EXP-5)</text>
+  </g>
+  <line id="e-cp-cs" x1="460" y1="374" x2="460" y2="440" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-bs">
+    <rect id="n-bs-box" x="40" y="440" width="240" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bs-name" x="160" y="466" font-size="17" font-weight="600" text-anchor="middle">blindspot_summary</text>
+    <text id="n-bs-kind" x="160" y="488" font-size="14" text-anchor="middle">rate + coverage (EXP-6)</text>
+  </g>
+  <line id="e-cp-bs" x1="380" y1="374" x2="250" y2="440" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-hss">
+    <rect id="n-hss-box" x="940" y="440" width="240" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-hss-name" x="1060" y="466" font-size="16" font-weight="600" text-anchor="middle">hazard_surfacing_summary</text>
+    <text id="n-hss-kind" x="1060" y="488" font-size="14" text-anchor="middle">n, surfaced, turn (EXP-4)</text>
+  </g>
+  <line id="e-hst-hss" x1="1060" y1="384" x2="1060" y2="440" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-rep">
+    <rect id="n-rep-box" x="640" y="530" width="250" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rep-name" x="765" y="554" font-size="17" font-weight="600" text-anchor="middle">report_text, plots</text>
+    <text id="n-rep-kind" x="765" y="575" font-size="14" text-anchor="middle">three sections, three plotters</text>
+  </g>
+  <line id="e-cs-rep" x1="580" y1="490" x2="660" y2="530" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-hss-rep" x1="940" y1="490" x2="870" y2="530" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <polyline id="e-bs-rep2" points="160,504 160,558 640,558" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, carries</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ any whole-word mention counts; the crossing turn can overshoot by one at some (dt, steps)</text>
+  </g>
+</svg>
