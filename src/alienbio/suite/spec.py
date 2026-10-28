@@ -121,6 +121,10 @@ class ExperimentSpec:
         must remember: the defect was exactly a derivation one entry point
         ran and the other did not, and the dataclass is frozen, so the
         constructor is the only place every spec is guaranteed to pass."""
+        # M45.7 for both forms: only ``spec_from_dict`` used to add the idle
+        # arm, so a directly built ``idle_baseline=True`` spec ran none, while
+        # ``aggregate`` and ``bio suite resume`` rebuilt it WITH the arm.
+        object.__setattr__(self, "axes", _with_idle_arm(self.axes, self.agent, self.idle_baseline))
         # The 2026-10-28 module-doc finding: a directly built spec kept the
         # literal ``expected_turns = 8``, so a Python-form 20-turn live spec
         # was estimated at 8 turns, and ``spec_to_dict`` pinned the 8 through
@@ -130,6 +134,19 @@ class ExperimentSpec:
         else:
             turns = _validate_positive_int("expected_turns", self.expected_turns)
         object.__setattr__(self, "expected_turns", turns)
+
+
+def _with_idle_arm(
+    axes: tuple[tuple[str, tuple[Any, ...]], ...], agent: str, idle_baseline: bool
+) -> tuple[tuple[str, tuple[Any, ...]], ...]:
+    """M45.7 — ``axes`` plus the matched idle arm: an ``agent`` axis
+    ``(agent, "idle")`` when ``idle_baseline`` asks for one, unless ``agent``
+    is already ``idle`` or an ``agent`` axis is swept (which also makes the
+    expansion idempotent). The idle twin is just another arm of the grid —
+    M46.8's matched seeds make it the baseline for the same (condition, trial)."""
+    if idle_baseline and agent != "idle" and not any(name == "agent" for name, _ in axes):
+        return axes + (("agent", (agent, "idle")),)
+    return axes
 
 
 def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
@@ -182,10 +199,9 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
     axes_raw = d["axes"]
     axes = tuple((name, tuple(levels)) for name, levels in axes_raw.items())
     idle_baseline = bool(d.get("idle_baseline", False))
-    if idle_baseline and d["agent"] != "idle" and not any(name == "agent" for name, _ in axes):
-        # M45.7: the idle twin is just another arm of the grid — M46.8's
-        # matched seeds make it the baseline for the same (condition, trial).
-        axes = axes + (("agent", (d["agent"], "idle")),)
+    # Expanded here too (``__post_init__`` then finds it done) so the axis
+    # checks below and the design / matched_dials validators see the idle arm.
+    axes = _with_idle_arm(axes, d["agent"], idle_baseline)
     model = d.get("model")
     if model is not None:
         _require_pinned_model(model)

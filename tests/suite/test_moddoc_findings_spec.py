@@ -10,8 +10,11 @@ Offline, scripted agents only: no model calls, no spend.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
+from alienbio.suite.experiment import run_experiment
 from alienbio.suite.spec import ExperimentSpec, estimate_cost, spec_from_dict, spec_to_dict
 
 
@@ -61,3 +64,54 @@ def test_python_form_expected_turns_round_trips():
 def test_python_form_refuses_non_positive_expected_turns():
     with pytest.raises(ValueError, match="expected_turns"):
         _live(expected_turns=0)
+
+
+# B ─ idle_baseline ──────────────────────────────────────────────────────────
+
+
+def _idle_spec(**kw):
+    base = dict(
+        name="py-idle", axes=(("rung", ("single",)),), drafter="conflict",
+        agent="measure-commit", trials_per_condition=1, base_seed=3, idle_baseline=True,
+        fixed_dials={"levers": []},
+    )
+    base.update(kw)
+    return ExperimentSpec(**base)
+
+
+def test_python_form_idle_baseline_adds_the_idle_arm_once():
+    spec = _idle_spec()
+    assert dict(spec.axes)["agent"] == ("measure-commit", "idle")
+    again = ExperimentSpec(**{f: getattr(spec, f) for f in spec.__dataclass_fields__})
+    assert again == spec
+    assert [name for name, _ in again.axes].count("agent") == 1
+
+
+def test_python_form_idle_baseline_round_trips():
+    spec = _idle_spec()
+    assert spec_from_dict(spec_to_dict(spec)) == spec
+
+
+def test_python_form_idle_baseline_matches_dict_form():
+    py = _idle_spec()
+    d = spec_to_dict(py)
+    d["axes"] = {"rung": ["single"]}
+    d["idle_baseline"] = True
+    assert spec_from_dict(d) == py
+
+
+def test_idle_agent_gets_no_extra_arm():
+    spec = _idle_spec(agent="idle")
+    assert "agent" not in dict(spec.axes)
+
+
+def test_python_form_idle_baseline_runs_the_idle_arm_and_resumes(tmp_path):
+    spec = _idle_spec()
+    out = tmp_path / "run"
+    run_experiment(spec, out_dir=str(out))
+    agents = sorted(dict(json.loads(line)["condition_key"])["agent"] for line in (out / "records.jsonl").read_text().splitlines())
+    assert agents == ["idle", "measure-commit"]
+    manifest = json.loads((out / "manifest.json").read_text())
+    rebuilt = spec_from_dict(manifest["spec"])
+    assert rebuilt == spec
+    run_experiment(rebuilt, out_dir=str(out), resume=True)  # not refused as drift
