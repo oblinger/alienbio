@@ -346,14 +346,17 @@ def test_two_fluxes_over_drawing_one_pool_split_it_independently_of_list_order()
     assert first.get(b, 0) == second.get(b, 0) and first.get(c, 0) == second.get(c, 0)
 
 
-def test_a_non_competing_flux_moves_exactly_what_it_did_before() -> None:
+def test_a_non_competing_flux_moves_exactly_its_own_demand() -> None:
     """With nothing over-drawn every ratio is exactly 1.0: the move is the
-    flux's own `apply()` on the frozen state, bit for bit."""
+    flux's own demand off the frozen state, bit for bit."""
     tree, sim, state, a, b = _two_compartment_sim(1.0, 2.0, 0.3, dt=0.1)
     state.set(a, 0, 4.0)
     stepped = sim.step(state)
+    flux = sim.flows[0]
+    assert isinstance(flux, TransportFlux)
+    events, _ = flux.demand(state, tree, 0.1)
     alone = state.copy()
-    sim.flows[0].apply(alone, tree, 0.1)
+    flux.apply_events(alone, state, events)
     assert stepped.get(a, 0) == alone.get(a, 0) and stepped.get(b, 0) == alone.get(b, 0)
 
 

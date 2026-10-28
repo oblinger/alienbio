@@ -37,7 +37,13 @@ class Flow(ABC):
     - origin: the compartment where this flow is anchored
     - name: human-readable identifier
     - compute_flux(): calculate transfer rate
-    - apply(): modify state based on flux
+
+    How a flow changes state is its subclass's business, and :func:`apply_flows`
+    (the step's flow pass) dispatches on the subclass: a :class:`TransportFlux`
+    states a demand and is rationed with every other flux, a :class:`GeneralFlow`
+    runs its ``apply``. There is no one-flow ``apply`` on the base: the
+    TransportFlux one neither simulator had called since T053 throttled a
+    co-transport twice and disagreed with the pass (module-doc finding, 2026-10).
     """
 
     __slots__ = ("_origin", "_name")
@@ -92,22 +98,6 @@ class Flow(ABC):
 
         Returns:
             Flux value (positive = into origin for membrane flows)
-        """
-        ...
-
-    @abstractmethod
-    def apply(
-        self,
-        state: WorldStateImpl,
-        tree: CompartmentTreeImpl,
-        dt: float = 1.0,
-    ) -> None:
-        """Apply this flow to the state (mutates in place).
-
-        Args:
-            state: World state to modify
-            tree: Compartment topology
-            dt: Time step
         """
         ...
 
@@ -356,7 +346,7 @@ class TransportFlux(Flow):
 
         Returns:
             Event rate (events per unit time); may be negative (floored to 0
-            in :meth:`apply`).
+            in :meth:`demand`).
         """
         conc_src = state.get(self._origin, self._driver_molecule)
         if self._rate_law == "first_order":
@@ -382,12 +372,25 @@ class TransportFlux(Flow):
         draws: Dict[tuple[CompartmentId, int], float] = {}
         if event_count <= 0.0:
             return 0.0, draws
+        # ``WorldImpl`` refuses a zero-size receiver at draft; one can still
+        # empty mid-run (a population dying out). It cannot hold an amount, so
+        # the flux is blocked rather than drawing a share into nowhere.
+        for receiver in self.receivers():
+            if frozen.get_multiplicity(receiver) * frozen.get_volume(receiver) <= 0.0:
+                return 0.0, draws
         for mol, count in self._stoichiometry.items():
             if count == 0:
                 continue
             losing = self._origin if count > 0 else self._dest
             draws[(losing, mol)] = draws.get((losing, mol), 0.0) + abs(count) * event_count
         return event_count, draws
+
+    def receivers(self) -> tuple[CompartmentId, ...]:
+        """The compartments this flux moves amount INTO: ``dest``, plus
+        ``origin`` when any species is antiported (a negative count)."""
+        if any(count < 0 for count in self._stoichiometry.values()):
+            return (self._dest, self._origin)
+        return (self._dest,)
 
     def apply_events(
         self,
@@ -402,37 +405,22 @@ class TransportFlux(Flow):
         origin_scale = scales.get_multiplicity(self._origin) * scales.get_volume(self._origin)
         dest_scale = scales.get_multiplicity(self._dest) * scales.get_volume(self._dest)
         for mol, count in self._stoichiometry.items():
+            if count == 0:
+                continue
+            # ``demand`` states no events into a zero-size receiver, and a
+            # losing pool of size 0 holds no amount, so its rationed share is 0.
+            assert origin_scale > 0.0 and dest_scale > 0.0, (
+                f"TransportFlux {self._name!r} moved events between compartments "
+                f"{self._origin} (size {origin_scale}) and {self._dest} (size {dest_scale})"
+            )
             delta_n = event_count * count
-            if origin_scale > 0:
-                remaining = state.get(self._origin, mol) - delta_n / origin_scale
-                # A draw rationed to the whole pool can leave -1e-17 of
-                # rounding; snap it, as the reaction pass does (M48.6).
-                if -ROUNDING_FLOOR < remaining < 0.0:
-                    remaining = 0.0
-                state.set(self._origin, mol, remaining)
-            if dest_scale > 0:
-                state.set(self._dest, mol, state.get(self._dest, mol) + delta_n / dest_scale)
-
-    def apply(
-        self,
-        state: WorldStateImpl,
-        tree: CompartmentTreeImpl,
-        dt: float = 1.0,
-    ) -> None:
-        """Apply this flux ALONE to ``state`` (mutates in place): the event
-        count read off ``state``, rationed against every transported species'
-        available AMOUNT in its losing compartment, then the same clamped
-        count moved for each species. The stepper does not call this — it
-        runs every flow together through :func:`apply_flows`, which rations
-        the SUMMED demand of all flows on each pool; this is the one-flow
-        path for callers that step a flux by hand.
-        """
-        event_count, draws = self.demand(state, tree, dt)
-        for (comp, mol), amount in draws.items():
-            available = state.amount(comp, mol)
-            if amount > available:
-                event_count = min(event_count, event_count * available / amount if amount > 0 else 0.0)
-        self.apply_events(state, state, max(event_count, 0.0))
+            remaining = state.get(self._origin, mol) - delta_n / origin_scale
+            # A draw rationed to the whole pool can leave -1e-17 of
+            # rounding; snap it, as the reaction pass does (M48.6).
+            if -ROUNDING_FLOOR < remaining < 0.0:
+                remaining = 0.0
+            state.set(self._origin, mol, remaining)
+            state.set(self._dest, mol, state.get(self._dest, mol) + delta_n / dest_scale)
 
     def attributes(self) -> Dict[str, Any]:
         """Semantic content for serialization."""
@@ -483,7 +471,7 @@ def apply_flows(
     state a demand; those run sequentially after the fluxes, as before.
     """
     fluxes: list[tuple[TransportFlux, float, Dict[tuple[CompartmentId, int], float]]] = []
-    others: list[Flow] = []
+    others: list[GeneralFlow] = []
     demand: Dict[tuple[CompartmentId, int], float] = {}
     for flow in flows:
         if isinstance(flow, TransportFlux):
@@ -491,8 +479,13 @@ def apply_flows(
             fluxes.append((flow, events, draws))
             for key, amount in draws.items():
                 demand[key] = demand.get(key, 0.0) + amount
-        else:
+        elif isinstance(flow, GeneralFlow):
             others.append(flow)
+        else:
+            raise TypeError(
+                f"apply_flows cannot run {type(flow).__name__} {flow.name!r}: "
+                f"a flow is a TransportFlux or a GeneralFlow"
+            )
     ratio: Dict[tuple[CompartmentId, int], float] = {}
     for (comp, mol), dem in demand.items():
         # Demand is read off the frozen state, but the pool it draws is what

@@ -194,12 +194,6 @@ class Flow(Protocol):
         """Compute flux for this flow."""
         ...
 
-    def apply(
-        self, state: "WorldStateImpl", tree: "CompartmentTreeImpl", dt: float
-    ) -> None:
-        """Apply this flow to the state (mutates in place)."""
-        ...
-
     def attributes(self) -> Dict[str, Any]:
         """Semantic content for serialization."""
         ...
@@ -219,6 +213,13 @@ class GeneralFlow(Flow, Protocol):
     @property
     def description(self) -> str:
         """Description of what this flow does."""
+        ...
+
+    def apply(
+        self, state: "WorldStateImpl", tree: "CompartmentTreeImpl", dt: float
+    ) -> None:
+        """Apply this flow to the state (mutates in place). Only a general flow
+        has one: a TransportFlux is run by the flow pass, which rations it."""
         ...
 
 

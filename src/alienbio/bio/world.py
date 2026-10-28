@@ -277,17 +277,27 @@ class WorldImpl:
                         f"{mol_name2!r}"
                     )
                 stoich_int[mol_to_int[mol_name2]] = count
-            resolved_flows.append(
-                TransportFlux(
-                    origin=comp_to_int[tr.origin],
-                    dest=comp_to_int[tr.dest],
-                    stoichiometry=stoich_int,
-                    driver_molecule=mol_to_int[tr.driver_molecule],
-                    rate_constant=tr.rate_constant,
-                    rate_law=tr.rate_law,
-                    name=tr.name,
-                )
+            flux = TransportFlux(
+                origin=comp_to_int[tr.origin],
+                dest=comp_to_int[tr.dest],
+                stoichiometry=stoich_int,
+                driver_molecule=mol_to_int[tr.driver_molecule],
+                rate_constant=tr.rate_constant,
+                rate_law=tr.rate_law,
+                name=tr.name,
             )
+            # A receiver of multiplicity x volume 0 holds no amount: the flux
+            # would draw its share out of the sender and drop it (module-doc
+            # finding, 2026-10). Refused here, where the world is built.
+            for receiver in flux.receivers():
+                size = state.get_multiplicity(receiver) * state.get_volume(receiver)
+                if size <= 0.0:
+                    raise ValueError(
+                        f"transport {tr.name!r} moves amount into compartment "
+                        f"{int_to_comp[receiver]!r}, which has size 0 "
+                        f"(multiplicity x volume = {size})"
+                    )
+            resolved_flows.append(flux)
         self._flow_objs = tuple(resolved_flows)
 
         # Resolve each string-id population-law spec into an int-indexed
