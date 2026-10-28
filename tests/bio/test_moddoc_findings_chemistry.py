@@ -126,3 +126,17 @@ def test_subgraph_keeps_each_reactions_modifiers_and_rate_law() -> None:
     assert kept.rate_law == rxn.rate_law
     # a modifier outside the kept nodes is dropped, like a reactant would be
     assert sub.reactions["mm"].modifiers and not chem.subgraph(["S", "P", "mm"]).reactions["mm"].modifiers
+
+
+# ── E2: validate checks modifiers ────────────────────────────────────────────
+
+
+def test_validate_reports_a_modifier_missing_from_the_molecules() -> None:
+    mols = {n: MoleculeImpl(n, dat=MockDat(f"mol/{n}")) for n in ("A", "B")}
+    stray = MoleculeImpl("E", dat=MockDat("mol/E"))
+    rxn = ReactionImpl(
+        "r", reactants={mols["A"]: 1}, products={mols["B"]: 1},
+        modifiers={stray: "catalyst"}, dat=MockDat("rxn/r"),
+    )
+    chem = ChemistryImpl("c", molecules=mols, reactions={"r": rxn}, dat=MockDat("chem/c"))
+    assert chem.validate() == ["Reaction r: modifier E not in chemistry"]

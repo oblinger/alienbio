@@ -232,7 +232,7 @@ class ChemistryImpl(Entity, head="Chemistry"):
 
         Checks:
         - All molecule atoms are atoms in this chemistry
-        - All reaction reactants/products are molecules in this chemistry
+        - All reaction reactants/products/modifiers are molecules in this chemistry
 
         Returns:
             List of error messages (empty if valid)
@@ -260,6 +260,11 @@ class ChemistryImpl(Entity, head="Chemistry"):
                 if mol not in mol_set:
                     errors.append(
                         f"Reaction {rxn_name}: product {mol.name} not in chemistry"
+                    )
+            for mol in reaction.modifiers:
+                if mol not in mol_set:
+                    errors.append(
+                        f"Reaction {rxn_name}: modifier {mol.name} not in chemistry"
                     )
 
         return errors
