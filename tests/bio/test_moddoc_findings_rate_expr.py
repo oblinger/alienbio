@@ -137,3 +137,10 @@ def test_lower_jax_refuses_an_unknown_tag_with_a_value_error() -> None:
     jnp = pytest.importorskip("jax.numpy")
     with pytest.raises(ValueError, match="unknown rate node"):
         rx.lower_jax(("bogus", ("const", 1.0)), jnp.zeros((1, 1)), int)
+
+
+# ── E8: the two shared constants are exported ────────────────────────────────
+
+
+def test_the_shared_constants_are_in_all() -> None:
+    assert {"ROUNDING_FLOOR", "RATE_CAP"} <= set(rx.__all__)

@@ -13,7 +13,7 @@ The compiled form of a rate law: a small tree of tuples, built once from the rat
 
 
 ## rate_expr Interface
-Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RateNode` and the twelve functions; `ROUNDING_FLOOR` and `RATE_CAP` are not in it but are imported by name by `world_simulator.py`, `jax_core.py` and `population.py`, and are the one copy of each constant.
+Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and the twelve functions (the two constants since 2026-10); the constants are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers are module-level but not exported.
 
 | rate_expr | |
 | --- | --- |

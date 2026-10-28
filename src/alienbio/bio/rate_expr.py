@@ -335,6 +335,8 @@ def from_json(data: Any) -> RateNode:
 
 __all__ = [
     "MODULATION_KINDS",
+    "RATE_CAP",
+    "ROUNDING_FLOOR",
     "RateNode",
     "const",
     "eval_rate",
