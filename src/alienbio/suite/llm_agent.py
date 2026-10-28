@@ -69,7 +69,7 @@ from .agent import Action, ActionOutcome, Commit, Intervene, Measure, ReasoningS
 from .brief import TaskBrief, render_brief
 from .dist import Seed
 from .observation import Observation
-from .ops import LLMFn, LLMOp, canonical
+from .ops import LLMFn, LLMOp, canonical, estimate_tokens
 from .types import Answer, Directive
 
 #: One Sonnet-class model id, pinned (not a floating alias) so runs are
@@ -548,8 +548,7 @@ def _estimate_tokens(directive: Directive, context: Any) -> int:
     provider-reported usage; it exists only to size the runaway-cost guard
     (:data:`LLMAgent.token_ceiling`), not to bill precisely.
     """
-    payload = directive + canonical(context)
-    return max(1, len(payload) // 4)
+    return max(1, estimate_tokens(directive + canonical(context)))
 
 
 #: The action verbs an ``LLMAgent`` reply's ``"type"`` field may name.
@@ -968,7 +967,7 @@ class LLMAgent:
         kept: list[dict[str, Any]] = []
         total = 0
         for entry in reversed(window):
-            tokens = len(canonical(entry)) // 4
+            tokens = estimate_tokens(canonical(entry))
             if kept and total + tokens > self.history_token_limit:
                 break
             kept.append(entry)

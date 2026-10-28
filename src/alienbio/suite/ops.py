@@ -57,6 +57,15 @@ def canonical(context: Any) -> str:
     return json.dumps(context, sort_keys=True, separators=(",", ":"), default=repr)
 
 
+def estimate_tokens(text: str) -> int:
+    """The suite's one crude token yardstick: ``len(text) // 4``.
+
+    Sizes the runaway-cost guard, the history fill window and
+    ``bury_commitment``'s filler — never billing, which reads provider usage.
+    """
+    return len(text) // 4
+
+
 @dataclass
 class LLMOp(Generic[T]):
     """An :class:`~alienbio.suite.types.Op` backed by an injected model call.

@@ -227,6 +227,7 @@ from .store import (  # noqa: F401
     _trials_planned,
     _utc_now_iso,
     _write_manifest,
+    read_records,
     record_from_json,
     record_to_json,
 )
@@ -249,6 +250,19 @@ from .report_text import (  # noqa: F401
     primary_contrast_result,
     render_report,
 )
+
+
+def _usage_usd(usage: Mapping[str, Any], model: Optional[str], spec: ExperimentSpec) -> float:
+    """USD for one record's provider ``usage`` under the model in force for
+    its trial (``model``, else ``spec.model``, else :data:`PINNED_MODEL`) —
+    the one pricing of a landed or retried line against the cost ceiling."""
+    return cost_usd(
+        usage.get("input_tokens", 0),
+        usage.get("output_tokens", 0),
+        price_for(model or spec.model or PINNED_MODEL, spec.price_usd_per_mtok),
+        cache_read_tokens=usage.get("cache_read_tokens", 0),
+        cache_write_tokens=usage.get("cache_write_tokens", 0),
+    )
 
 
 def run_experiment(
@@ -318,42 +332,29 @@ def run_experiment(
         clean_lines: list[str] = []
         retried_lines: list[str] = []
         kept_taint = 0
-        with records_path.open() as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                d = json.loads(line)
-                record = record_from_json(d)
-                if record.error_class == "TaintError" and not retry_taint:
-                    # T054 #2: a taint is framework-deterministic (same brief,
-                    # same leak), so retrying it re-spends the whole tainted
-                    # set on every press and lands the same error again. It
-                    # stays in place; `retry_taint=True` opts in once the leak
-                    # is fixed.
-                    kept_taint += 1
-                    clean_lines.append(line)
-                    existing_by_key[(d["label"], d["index"])] = record
-                    continue
-                if record.error:
-                    retried_lines.append(line)
-                    # T051 box 4 — a retried line's real usage still counts
-                    # against the ceiling: before, every resume re-armed the
-                    # full ceiling with the prior press's error spend dropped
-                    # (three presses of a $4 ceiling spent $18, each manifest
-                    # reporting $6).
-                    if record.usage:
-                        retried_model = d.get("model") or spec.model or PINNED_MODEL
-                        retried_usd += cost_usd(
-                            record.usage.get("input_tokens", 0),
-                            record.usage.get("output_tokens", 0),
-                            price_for(retried_model, spec.price_usd_per_mtok),
-                            cache_read_tokens=record.usage.get("cache_read_tokens", 0),
-                            cache_write_tokens=record.usage.get("cache_write_tokens", 0),
-                        )
-                    continue
+        for line, d, record in read_records(records_path):
+            if record.error_class == "TaintError" and not retry_taint:
+                # T054 #2: a taint is framework-deterministic (same brief,
+                # same leak), so retrying it re-spends the whole tainted
+                # set on every press and lands the same error again. It
+                # stays in place; `retry_taint=True` opts in once the leak
+                # is fixed.
+                kept_taint += 1
                 clean_lines.append(line)
                 existing_by_key[(d["label"], d["index"])] = record
+                continue
+            if record.error:
+                retried_lines.append(line)
+                # T051 box 4 — a retried line's real usage still counts
+                # against the ceiling: before, every resume re-armed the
+                # full ceiling with the prior press's error spend dropped
+                # (three presses of a $4 ceiling spent $18, each manifest
+                # reporting $6).
+                if record.usage:
+                    retried_usd += _usage_usd(record.usage, d.get("model"), spec)
+                continue
+            clean_lines.append(line)
+            existing_by_key[(d["label"], d["index"])] = record
         if retried_lines:
             # Evidence first, then the store: a crash between the two leaves
             # the error lines in records.jsonl, the next resume reads them
@@ -441,15 +442,7 @@ def run_experiment(
         # paid trial's usage is never lost to a pricing failure (which
         # ``estimate_cost`` now refuses before spend anyway).
         if record.usage:
-            cost_model = cond.get("model") or spec.model or PINNED_MODEL
-            price = price_for(cost_model, spec.price_usd_per_mtok)
-            spent_state["usd"] += cost_usd(
-                record.usage.get("input_tokens", 0),
-                record.usage.get("output_tokens", 0),
-                price,
-                cache_read_tokens=record.usage.get("cache_read_tokens", 0),
-                cache_write_tokens=record.usage.get("cache_write_tokens", 0),
-            )
+            spent_state["usd"] += _usage_usd(record.usage, cond.get("model"), spec)
         landed[(label, i)] = bool(record.error)
         if progress is not None:
             progress(f"{label}#{i} {record.terminal_reason} score={record.objective_score}")
@@ -531,15 +524,8 @@ def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
     manifest = json.loads(manifest_path.read_text())
     spec = spec_from_dict(manifest["spec"])
 
-    records: list[TrialRecord] = []
     records_path = base / "records.jsonl"
-    if records_path.exists():
-        with records_path.open() as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                records.append(record_from_json(json.loads(line)))
+    records = [record for _line, _d, record in read_records(records_path)] if records_path.exists() else []
 
     rmap = aggregate_records(records, spec.axes, Seed(spec.base_seed), spec.trials_per_condition)
     # The early stop is a fact about the run, not the records: the manifest

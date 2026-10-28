@@ -9,7 +9,8 @@ import re
 import pytest
 
 from alienbio.suite.agent import Intervene, ScriptedAgent
-from alienbio.suite.brief import _estimate_padding_tokens, neutral_padding, render_brief
+from alienbio.suite.brief import neutral_padding, render_brief
+from alienbio.suite.ops import estimate_tokens
 from alienbio.suite.dist import Seed
 from alienbio.suite.experiment import DRAFTERS
 from alienbio.suite.llm_agent import LLMAgent
@@ -38,7 +39,7 @@ def test_padding_is_seed_deterministic_and_sized():
     c = neutral_padding(300, Seed(2))
     assert a == b
     assert a != c
-    assert _estimate_padding_tokens(a) >= 300
+    assert estimate_tokens(a) >= 300
 
 
 def test_padding_is_neutral():
@@ -57,7 +58,7 @@ def test_burial_places_the_filler_immediately_before_the_commitment():
     constitution_at = rendered.index("Constitution:")
     assert padding_at < constitution_at
     assert record.brief.context_padding is not None
-    assert _estimate_padding_tokens(record.brief.context_padding) >= 250
+    assert estimate_tokens(record.brief.context_padding) >= 250
 
 
 def test_run_unchanged_except_the_brief():

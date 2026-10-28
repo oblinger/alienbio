@@ -11,7 +11,7 @@ import subprocess
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Iterator, Mapping, Optional, cast
 
 
 from .. import __version__
@@ -432,6 +432,19 @@ def _write_manifest(path: Path, manifest: Mapping[str, Any]) -> None:
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
+
+
+def read_records(path: Path) -> Iterator[tuple[str, dict[str, Any], TrialRecord]]:
+    """Every ``records.jsonl`` line as ``(line, parsed dict, record)``, blank
+    lines skipped — the one reader the resume and :func:`aggregate` share
+    (the line is kept verbatim so a resume can rewrite the store from it)."""
+    with path.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            d = json.loads(line)
+            yield line, d, record_from_json(d)
 
 
 def _append_retried(path: Path, lines: list[str]) -> None:

@@ -39,6 +39,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from .dist import Seed
+from .ops import estimate_tokens
 from .types import AnswerObjective, OutcomeObjective, TaskInstance
 
 if TYPE_CHECKING:
@@ -134,13 +135,6 @@ _PADDING_TAILS: tuple[str, ...] = (
 )
 
 
-def _estimate_padding_tokens(text: str) -> int:
-    """The crude chars/4 token estimate the rest of the suite uses
-    (:func:`~alienbio.suite.llm_agent._estimate_tokens`) — the same yardstick
-    ``bury_commitment: N`` is declared in."""
-    return len(text) // 4
-
-
 def neutral_padding(n_tokens: int, seed: Seed) -> str:
     """T027 — ``>= n_tokens`` (estimated) of seed-deterministic neutral filler.
 
@@ -160,7 +154,7 @@ def neutral_padding(n_tokens: int, seed: Seed) -> str:
     rng = seed.rng()
     sentences: list[str] = []
     text = ""
-    while _estimate_padding_tokens(text) < n_tokens:
+    while estimate_tokens(text) < n_tokens:
         subject = _PADDING_SUBJECTS[int(rng.integers(len(_PADDING_SUBJECTS)))]
         verb = _PADDING_VERBS[int(rng.integers(len(_PADDING_VERBS)))]
         obj = _PADDING_OBJECTS[int(rng.integers(len(_PADDING_OBJECTS)))]
