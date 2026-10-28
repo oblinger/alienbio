@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import platform
 import subprocess
 from dataclasses import asdict
@@ -34,21 +35,58 @@ from .spec import ExperimentSpec, agent_kinds_in_play, estimate_cost, spec_to_di
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+#: The one spelling of a non-finite float in the store: a JSON string, so
+#: every line is strict JSON (``_canonical_json`` dumps with
+#: ``allow_nan=False``) and a strict reader never meets ``NaN``/``Infinity``.
+_NONFINITE: dict[str, float] = {"inf": float("inf"), "-inf": float("-inf"), "nan": float("nan")}
+
+
 def _encode_float(value: float) -> Any:
-    """``inf``/``-inf`` as the JSON string ``"inf"``/``"-inf"``; else the float verbatim."""
-    if value == float("inf"):
-        return "inf"
-    if value == float("-inf"):
-        return "-inf"
+    """A non-finite float as the JSON string ``"inf"``/``"-inf"``/``"nan"``; else the float verbatim."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return "nan" if math.isnan(value) else ("inf" if value > 0 else "-inf")
     return value
 
 
 def _decode_float(value: Any) -> float:
-    if value == "inf":
-        return float("inf")
-    if value == "-inf":
-        return float("-inf")
+    if isinstance(value, str) and value in _NONFINITE:
+        return _NONFINITE[value]
     return float(value)
+
+
+def _encode_nonfinite(value: Any) -> Any:
+    """``value`` with every non-finite float, at any depth, through :func:`_encode_float`.
+
+    Dict/list/tuple recurse (each keeps its type); every other leaf passes
+    through. A finite tree comes back equal, so its dumped bytes are
+    unchanged.
+    """
+    if isinstance(value, float):
+        return _encode_float(value)
+    if isinstance(value, dict):
+        return {k: _encode_nonfinite(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_encode_nonfinite(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_encode_nonfinite(v) for v in value)
+    return value
+
+
+def _decode_nonfinite(value: Any) -> Any:
+    """The inverse of :func:`_encode_nonfinite` over a numeric-bearing tree.
+
+    Applied only where the store writes numbers (scores, ``final_state``, an
+    action's ``value``/``delta``, the oracle, condition levels, usage and the
+    per-feature mappings) — never to ``answer``, ``name_map`` or prose, where
+    the string ``"nan"`` may be meant literally.
+    """
+    if isinstance(value, str) and value in _NONFINITE:
+        return _NONFINITE[value]
+    if isinstance(value, dict):
+        return {k: _decode_nonfinite(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_decode_nonfinite(v) for v in value]
+    return value
 
 
 def _json_safe(value: Any) -> Any:
@@ -162,7 +200,7 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
     final_time = times[-1] if times else None
     final_state = dict(record.final_state) or (_final_state_dict(cast(WorldStateImpl, states[-1])) if states else {})
 
-    return {
+    return _encode_nonfinite({
         "label": label,
         "index": index,
         "task_id": record.task_id,
@@ -237,7 +275,7 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
             if record.readout_series is not None
             else {}
         ),
-    }
+    })
 
 
 def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
@@ -249,7 +287,7 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
     always empty; only the final time survives (``final_state`` is not
     reattached to ``final_timeline`` — it has no ``WorldState`` to become).
     """
-    condition_key = tuple((name, value) for name, value in d["condition_key"])
+    condition_key = tuple((name, _decode_nonfinite(value)) for name, value in d["condition_key"])
     action_log = tuple(
         ActionRecord(
             kind=a["kind"],
@@ -257,8 +295,8 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
             accepted=a["accepted"],
             reason=a["reason"],
             target=a.get("target", ""),
-            value=a.get("value"),
-            delta=a.get("delta"),
+            value=_decode_nonfinite(a.get("value")),
+            delta=_decode_nonfinite(a.get("delta")),
         )
         for a in d["action_log"]
     )
@@ -280,20 +318,20 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         final_timeline=final_timeline,
         deliberation_trace=trace,
         action_log=action_log,
-        objective_score=d["objective_score"],
+        objective_score=_decode_nonfinite(d["objective_score"]),
         terminal_reason=d["terminal_reason"],
         budget=_decode_float(d["budget"]),
-        spent=d["spent"],
+        spent=_decode_nonfinite(d["spent"]),
         remaining=_decode_float(d["remaining"]),
         illegal_actions=d["illegal_actions"],
         taint_hits=tuple(d.get("taint_hits", ())),
         turns=d["turns"],
         brief=brief,
         error=d["error"],
-        usage=d.get("usage"),
+        usage=_decode_nonfinite(d.get("usage")),
         wall_time_s=d.get("wall_time_s", 0.0),
-        oracle=dict(d.get("oracle") or {}),
-        final_state=dict(d.get("final_state") or {}),
+        oracle=_decode_nonfinite(dict(d.get("oracle") or {})),
+        final_state=_decode_nonfinite(dict(d.get("final_state") or {})),
         name_map=dict(d.get("name_map") or {}),
         answer=d.get("answer"),
         probes=tuple(
@@ -304,9 +342,9 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
             for pr in d.get("probes") or ()
         ),
         certainty_schedule=tuple(bool(x) for x in d.get("certainty_schedule") or ()),
-        compaction=d.get("compaction"),
-        forgetting=d.get("forgetting"),
-        monitor=d.get("monitor"),
+        compaction=_decode_nonfinite(d.get("compaction")),
+        forgetting=_decode_nonfinite(d.get("forgetting")),
+        monitor=_decode_nonfinite(d.get("monitor")),
         readout_series=(
             {rid: tuple(_decode_float(v) for v in vals) for rid, vals in d["readout_series"].items()}
             if d.get("readout_series") is not None
@@ -352,7 +390,12 @@ def _git_info(repo_root: Path) -> tuple[str, bool]:
 
 
 def _canonical_json(payload: Any) -> str:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=repr)
+    """Sorted-key compact strict JSON: every non-finite float is spelled by
+    :func:`_encode_nonfinite`, and ``allow_nan=False`` refuses any that
+    slipped past (a ``default=repr`` leaf cannot be one)."""
+    return json.dumps(
+        _encode_nonfinite(payload), sort_keys=True, separators=(",", ":"), default=repr, allow_nan=False
+    )
 
 
 def _model_axis_levels(spec: ExperimentSpec) -> list[str]:
