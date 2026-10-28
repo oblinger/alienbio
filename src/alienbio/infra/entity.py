@@ -253,22 +253,33 @@ class Entity:
         Updates _top for this entity and all descendants.
 
         If parent is None, reparents to orphan root (entities are never invalid).
-        """
-        # Remove from old parent's children
-        if self._parent is not None:
-            self._parent._children.pop(self._local_name, None)
 
+        Every refusal happens before anything moves, so a refused call leaves
+        the entity where it was: a parent already holding another child of
+        this name, and a parent that is this entity or one of its descendants
+        (the move would close a loop), both raise ``ValueError``.
+        """
         # If parent is None, reparent to orphan root instead
         if parent is None:
             parent = _bio_io().orphan_root
 
-        self._parent = parent
-
-        # Add to new parent's children and update _top
-        if self._local_name in parent._children:
+        if parent is self or any(a is self for a in parent.ancestors()):
+            raise ValueError(
+                f"cannot make {parent._local_name!r} the parent of "
+                f"{self._local_name!r}: it is that entity or one of its "
+                "descendants"
+            )
+        held = parent._children.get(self._local_name)
+        if held is not None and held is not self:
             raise ValueError(
                 f"Parent already has child named {self._local_name!r}"
             )
+
+        # Remove from old parent's children
+        if self._parent is not None:
+            self._parent._children.pop(self._local_name, None)
+
+        self._parent = parent
         parent._children[self._local_name] = self
         # Update _top for this subtree to point to new root
         self._update_top(parent.root())
@@ -445,16 +456,19 @@ class Entity:
     def __str__(self) -> str:
         """Short display form using PREFIX:path if IO available.
 
-        Falls back to full_name if no IO or prefix matches.
+        Falls back to ``full_name`` only when no IO is attached (and to
+        ``<Entity:name>`` when that cannot be built); an error inside an
+        attached IO's ``ref`` propagates rather than printing a name that
+        hides it.
         """
         try:
-            return _bio_io().ref(self)
-        except Exception:
-            # Fall back to full_name if context not available
+            io = _bio_io()
+        except RuntimeError:
             try:
                 return self.full_name
             except ValueError:
                 return f"<Entity:{self._local_name}>"
+        return io.ref(self)
 
 
 class MockDat:
