@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-mean">
+    <rect id="n-mean-box" x="20" y="40" width="200" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mean-name" x="120" y="64" font-size="17" font-weight="600" text-anchor="middle">sample_mean</text>
+    <text id="n-mean-kind" x="120" y="84" font-size="13" text-anchor="middle">(fn) sum / n</text>
+  </g>
+  <g id="n-var">
+    <rect id="n-var-box" x="20" y="130" width="200" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-var-name" x="120" y="154" font-size="17" font-weight="600" text-anchor="middle">sample_variance</text>
+    <text id="n-var-kind" x="120" y="174" font-size="13" text-anchor="middle">(fn) n − 1 denominator</text>
+  </g>
+  <g id="n-std">
+    <rect id="n-std-box" x="20" y="220" width="200" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-std-name" x="120" y="244" font-size="17" font-weight="600" text-anchor="middle">sample_std</text>
+    <text id="n-std-kind" x="120" y="264" font-size="13" text-anchor="middle">(fn) sqrt of variance</text>
+  </g>
+  <g id="n-se">
+    <rect id="n-se-box" x="20" y="310" width="200" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-se-name" x="120" y="334" font-size="17" font-weight="600" text-anchor="middle">standard_error</text>
+    <text id="n-se-kind" x="120" y="354" font-size="13" text-anchor="middle">(fn) std / √n</text>
+  </g>
+  <line id="e-var-mean" x1="120" y1="130" x2="120" y2="96" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-std-var" x1="120" y1="220" x2="120" y2="186" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-se-std" x1="120" y1="310" x2="120" y2="276" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-ci">
+    <rect id="n-ci-box" x="300" y="220" width="260" height="96" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ci-name" x="430" y="246" font-size="17" font-weight="600" text-anchor="middle">mean_confidence_interval</text>
+    <text id="n-ci-k1" x="430" y="268" font-size="13" text-anchor="middle">(fn) mean ± z · se,</text>
+    <text id="n-ci-k2" x="430" y="286" font-size="13" text-anchor="middle">z = 1.96 always ‡</text>
+    <text id="n-ci-k3" x="430" y="304" font-size="13" text-anchor="middle">covers 81 % at n = 3</text>
+  </g>
+  <line id="e-ci-se" x1="300" y1="300" x2="220" y2="330" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-ci-mean" x1="330" y1="220" x2="220" y2="80" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-md">
+    <rect id="n-md-box" x="20" y="430" width="200" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-md-name" x="120" y="454" font-size="17" font-weight="600" text-anchor="middle">mean_difference</text>
+    <text id="n-md-kind" x="120" y="474" font-size="13" text-anchor="middle">(fn) no caller</text>
+  </g>
+  <g id="n-d">
+    <rect id="n-d-box" x="300" y="420" width="260" height="76" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-d-name" x="430" y="446" font-size="17" font-weight="600" text-anchor="middle">cohens_d</text>
+    <text id="n-d-k1" x="430" y="466" font-size="13" text-anchor="middle">(fn) diff / pooled SD;</text>
+    <text id="n-d-k2" x="430" y="484" font-size="13" text-anchor="middle">raises at zero variance</text>
+  </g>
+  <g id="n-t">
+    <rect id="n-t-box" x="300" y="520" width="260" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-t-name" x="430" y="546" font-size="17" font-weight="600" text-anchor="middle">welch_t</text>
+    <text id="n-t-k1" x="430" y="566" font-size="13" text-anchor="middle">(fn) statistic only, no p</text>
+  </g>
+
+  <g id="n-mt">
+    <rect id="n-mt-box" x="680" y="150" width="250" height="76" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mt-name" x="805" y="176" font-size="17" font-weight="600" text-anchor="middle">mass_trial</text>
+    <text id="n-mt-k1" x="805" y="196" font-size="13" text-anchor="middle">cell CIs; 2x2 contrasts</text>
+    <text id="n-mt-k2" x="805" y="214" font-size="13" text-anchor="middle">(ValueError → no contrast)</text>
+  </g>
+  <g id="n-census">
+    <rect id="n-census-box" x="680" y="270" width="250" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-census-name" x="805" y="294" font-size="17" font-weight="600" text-anchor="middle">census</text>
+    <text id="n-census-k1" x="805" y="314" font-size="13" text-anchor="middle">side-product CI</text>
+  </g>
+  <g id="n-plots">
+    <rect id="n-plots-box" x="680" y="350" width="250" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-plots-name" x="805" y="374" font-size="17" font-weight="600" text-anchor="middle">plots.plot_dose</text>
+    <text id="n-plots-k1" x="805" y="394" font-size="13" text-anchor="middle">error bars</text>
+  </g>
+  <g id="n-rt">
+    <rect id="n-rt-box" x="680" y="470" width="250" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rt-name" x="805" y="494" font-size="17" font-weight="600" text-anchor="middle">report_text</text>
+    <text id="n-rt-k1" x="805" y="514" font-size="13" text-anchor="middle">primary contrast</text>
+  </g>
+  <line id="e-mt-ci" x1="680" y1="200" x2="560" y2="250" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-census-ci" x1="680" y1="298" x2="560" y2="280" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-plots-ci" x1="680" y1="378" x2="560" y2="305" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-mt-d" x1="720" y1="226" x2="540" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-rt-d" x1="680" y1="490" x2="560" y2="465" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-rt-t" x1="680" y1="510" x2="560" y2="550" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-out">
+    <rect id="n-out-box" x="990" y="290" width="190" height="100" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-out-name" x="1085" y="316" font-size="17" font-weight="600" text-anchor="middle">report.txt,</text>
+    <text id="n-out-k1" x="1085" y="338" font-size="13" text-anchor="middle">key.png:</text>
+    <text id="n-out-k2" x="1085" y="356" font-size="13" text-anchor="middle">every printed</text>
+    <text id="n-out-k3" x="1085" y="374" font-size="13" text-anchor="middle">interval and d</text>
+  </g>
+  <line id="e-mt-out" x1="930" y1="200" x2="1040" y2="290" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-census-out" x1="930" y1="298" x2="990" y2="320" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-plots-out" x1="930" y1="378" x2="990" y2="365" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-rt-out" x1="930" y1="498" x2="1040" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ the normal z at 3 trials per condition: a nominal 95 % interval covers 81 %</text>
+  </g>
+</svg>
