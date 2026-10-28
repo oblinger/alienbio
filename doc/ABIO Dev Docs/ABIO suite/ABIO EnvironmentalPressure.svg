@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-ladders">
+    <rect id="n-ladders-box" x="20" y="40" width="260" height="100" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ladders-name" x="150" y="66" font-size="17" font-weight="600" text-anchor="middle">the three ladders</text>
+    <text id="n-ladders-k1" x="150" y="88" font-size="13" text-anchor="middle">NAMED_PRESSURES → coef</text>
+    <text id="n-ladders-k2" x="150" y="106" font-size="13" text-anchor="middle">INTENSITY_LEVELS → plateau</text>
+    <text id="n-ladders-k3" x="150" y="124" font-size="13" text-anchor="middle">PERSISTENCE_LEVELS → keep</text>
+  </g>
+  <g id="n-make">
+    <rect id="n-make-box" x="360" y="58" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-make-name" x="470" y="84" font-size="18" font-weight="600" text-anchor="middle">make_pressure</text>
+    <text id="n-make-kind" x="470" y="106" font-size="14" text-anchor="middle">(fn) resolve, refuse</text>
+  </g>
+  <line id="e-ladders-make" x1="280" y1="90" x2="360" y2="90" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-ep">
+    <rect id="n-ep-box" x="660" y="40" width="260" height="100" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ep-name" x="790" y="66" font-size="17" font-weight="600" text-anchor="middle">EnvironmentalPressure</text>
+    <text id="n-ep-k1" x="790" y="88" font-size="13" text-anchor="middle">(dataclass) name, coef,</text>
+    <text id="n-ep-k2" x="790" y="106" font-size="13" text-anchor="middle">intensity, persistence,</text>
+    <text id="n-ep-k3" x="790" y="124" font-size="13" text-anchor="middle">remove_at, jitter</text>
+  </g>
+  <line id="e-make-ep" x1="580" y1="90" x2="660" y2="90" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-ov">
+    <rect id="n-ov-box" x="660" y="210" width="260" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ov-name" x="790" y="236" font-size="18" font-weight="600" text-anchor="middle">overlay(steps, seed)</text>
+    <text id="n-ov-kind" x="790" y="258" font-size="13" text-anchor="middle">p ← p·keep + drive·(1 − keep)</text>
+    <text id="n-ov-kind2" x="790" y="276" font-size="13" text-anchor="middle">drive 0 after remove_at</text>
+  </g>
+  <line id="e-ep-ov" x1="790" y1="140" x2="790" y2="210" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-world">
+    <rect id="n-world-box" x="20" y="360" width="200" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-world-name" x="120" y="386" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
+    <text id="n-world-kind" x="120" y="408" font-size="13" text-anchor="middle">(bio) unchanged</text>
+  </g>
+  <g id="n-int">
+    <rect id="n-int-box" x="300" y="360" width="260" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-int-name" x="430" y="386" font-size="17" font-weight="600" text-anchor="middle">simulator.run</text>
+    <text id="n-int-kind" x="430" y="408" font-size="13" text-anchor="middle">natural trajectory, as without</text>
+  </g>
+  <line id="e-world-int" x1="220" y1="392" x2="300" y2="392" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-scale">
+    <rect id="n-scale-box" x="660" y="352" width="260" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-scale-name" x="790" y="378" font-size="17" font-weight="600" text-anchor="middle">verify.simulate step 7</text>
+    <text id="n-scale-kind" x="790" y="400" font-size="13" text-anchor="middle">each sampled state ×</text>
+    <text id="n-scale-kind2" x="790" y="418" font-size="13" text-anchor="middle">exp(coef · p_step), all pools ‡</text>
+  </g>
+  <line id="e-int-scale" x1="560" y1="392" x2="660" y2="392" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-int-scale" x="610" y="382" font-size="13" fill="#1971c2" font-style="italic" text-anchor="middle">states</text>
+  <line id="e-ov-scale" x1="790" y1="290" x2="790" y2="352" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-ov-scale" x="800" y="326" font-size="13" fill="#1971c2" font-style="italic">p_t</text>
+  <g id="n-tl">
+    <rect id="n-tl-box" x="990" y="352" width="190" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tl-name" x="1085" y="378" font-size="17" font-weight="600" text-anchor="middle">Timeline</text>
+    <text id="n-tl-kind" x="1085" y="400" font-size="13" text-anchor="middle">ratios between pools</text>
+    <text id="n-tl-kind2" x="1085" y="418" font-size="13" text-anchor="middle">unchanged</text>
+  </g>
+  <line id="e-scale-tl" x1="920" y1="392" x2="990" y2="392" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-tests">
+    <rect id="n-tests-box" x="300" y="490" width="380" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-tests-name" x="490" y="516" font-size="17" font-weight="600" text-anchor="middle">the only callers: tests</text>
+    <text id="n-tests-kind" x="490" y="538" font-size="13" text-anchor="middle">test_pressure, B10 capability</text>
+    <text id="n-tests-kind2" x="490" y="556" font-size="13" text-anchor="middle">("the world recovers")</text>
+  </g>
+  <line id="e-tests-scale" x1="680" y1="510" x2="740" y2="432" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-tests-scale" x="720" y="490" font-size="13" fill="#1971c2" font-style="italic">pressure=</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ applied after integration: one factor for every pool, no reaction sees it</text>
+  </g>
+</svg>
