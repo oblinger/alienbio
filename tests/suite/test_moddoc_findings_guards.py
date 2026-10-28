@@ -122,3 +122,27 @@ def test_a_non_list_axis_level_is_a_surface_refusal():
 
 def test_an_empty_surface_is_the_do_nothing_arm():
     assert declared_surface_violation(_w1({"levers": []})) is None
+
+
+# C ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("text", ["{not json", json.dumps({"started_at": "x"}), json.dumps([1, 2])])
+def test_an_unreadable_or_specless_manifest_refuses_the_resume(text, tmp_path):
+    out = tmp_path / "run"
+    out.mkdir()
+    (out / "manifest.json").write_text(text)
+    (out / "records.jsonl").write_text("")
+    flight = preflight(_w1(), out_dir=str(out), resume=True)
+    why = dict(flight.checks)["resume"]
+    assert why is not None and "manifest.json" in why
+    assert not flight.ok
+
+
+def test_a_readable_manifest_with_the_same_spec_resumes(tmp_path):
+    spec = _w1()
+    out = tmp_path / "run"
+    out.mkdir()
+    (out / "manifest.json").write_text(json.dumps({"spec": spec_to_dict(spec)}))
+    (out / "records.jsonl").write_text("")
+    assert dict(preflight(spec, out_dir=str(out), resume=True).checks)["resume"] is None

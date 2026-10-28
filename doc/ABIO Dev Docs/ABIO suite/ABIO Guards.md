@@ -150,12 +150,12 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | `agent` | `agent_construction_violation` | each condition's agent dials | the agent kind or config refuses | T066 |
 | `price` | `estimate_cost` | model levels, price table, turns, memory | a live model level has no price | T051 box 4 |
 | `draft` | `draft_violation` | one drafted world and brief per condition | the drafter or `build_brief` refuses the condition | T066; round 4/5; T084 |
-| `resume` | `_resume_spec_drift` | `manifest.json` under `out_dir` | `resume=True` and the spec drifted | T051 box 4; round 5 |
+| `resume` | `_resume_spec_drift` | `manifest.json` under `out_dir` | `resume=True` and the manifest is unreadable, spec-less, or the spec drifted | T051 box 4; round 5; T084 |
 | `out_dir` | inline | `records.jsonl` under `out_dir` | records exist and `resume` is false | M46 |
 
 The condition-wise checks (`brief-dials`, `certainty-windows`, `score-window`, `inert-arm`, `agent`, `draft`) iterate the same units: one merged dial vector `{**fixed_dials, **condition}` per grid cell, paired with `base_seed.child(f"{label}/0")`, where `label` drops `WORLD_INVARIANT_DIALS` and `spec.matched_dials` exactly as `MassTrialRunner` does. Except `draft`, they stop at the first refusing condition.
 
-`resume` refuses any changed spec field except two widenings: more `trials_per_condition`, and added levels on an existing axis. `expected_turns` counts as unchanged when both sides hold their derived value (the largest `max_turns`), so widening a `max_turns` axis resumes. An unreadable manifest reads as no prior spec and admits the resume.
+`resume` refuses any changed spec field except two widenings: more `trials_per_condition`, and added levels on an existing axis. `expected_turns` counts as unchanged when both sides hold their derived value (the largest `max_turns`), so widening a `max_turns` axis resumes. An unreadable `manifest.json`, or one carrying no `spec`, refuses the resume, naming the file: only a readable manifest with a spec is compared (it used to read as no prior spec and admit the resume). A resume directory with no manifest at all has nothing to compare and passes.
 
 
 

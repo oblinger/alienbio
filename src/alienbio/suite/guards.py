@@ -807,11 +807,25 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     def _resume() -> None:
         if not (resume and manifest_path.exists()):
             return
+        # T084 finding C: an unreadable manifest used to read as ``{}``, so
+        # there was no prior spec to compare and a drifted spec resumed
+        # unchecked. Only a readable manifest carrying a spec is compared.
         try:
             prior_manifest = json.loads(manifest_path.read_text())
-        except (OSError, ValueError):
-            prior_manifest = {}
-        drift = _resume_spec_drift(prior_manifest.get("spec"), spec)
+        except (OSError, ValueError) as exc:
+            raise ValueError(
+                f"run_experiment: resume=True but {manifest_path} is unreadable ({exc}) — the resume "
+                "cannot be checked against the spec the records were drawn under; restore the manifest "
+                "or start a new out_dir"
+            ) from exc
+        prior_spec = prior_manifest.get("spec") if isinstance(prior_manifest, Mapping) else None
+        if not isinstance(prior_spec, Mapping):
+            raise ValueError(
+                f"run_experiment: resume=True but {manifest_path} carries no spec — the resume cannot be "
+                "checked against the spec the records were drawn under; restore the manifest or start a "
+                "new out_dir"
+            )
+        drift = _resume_spec_drift(prior_spec, spec)
         if drift:
             raise ValueError(
                 f"run_experiment: resume=True but the spec differs from the run's manifest on {drift} — "
