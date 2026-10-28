@@ -1015,9 +1015,17 @@ class LLMAgent:
         prompt_text = compact_system + "\n" + canonical(context)
         self._prompt_hashes.append(hashlib.sha256(prompt_text.encode("utf-8")).hexdigest())
         self._prompt_texts.append(prompt_text)
+        # The bound the compact-turn ceiling pre-check assumes: the
+        # summarizer's ``max_tokens`` rides the T059 output-budget seam (added
+        # AFTER the prompt was recorded; the provider fn pops it), so
+        # ``compact_budget`` caps the reply rather than only being text the
+        # model reads under ``budget_tokens``.
+        call_context: dict[str, Any] = (
+            {**context, OUTPUT_BUDGET_KEY: self.compact_budget} if self.compact_budget is not None else context
+        )
         before = self.meter.snapshot()
         try:
-            raw = self.llm_fn(compact_system, context, self.seed.child("compact"))
+            raw = self.llm_fn(compact_system, call_context, self.seed.child("compact"))
         finally:
             after = self.meter.snapshot()
             self._turn_usage.append(
