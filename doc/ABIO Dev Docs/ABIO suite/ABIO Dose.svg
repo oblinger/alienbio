@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-gen">
+    <rect id="n-gen-box" x="20" y="40" width="240" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gen-name" x="140" y="66" font-size="18" font-weight="600" text-anchor="middle">pressure drafter</text>
+    <text id="n-gen-kind" x="140" y="88" font-size="14" text-anchor="middle">(PressureGen) stamps oracle</text>
+  </g>
+  <g id="n-rec">
+    <rect id="n-rec-box" x="20" y="200" width="240" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="140" y="226" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-rec-kind" x="140" y="248" font-size="14" text-anchor="middle">(trial) oracle["pressure"],</text>
+    <text id="n-rec-kind2" x="140" y="268" font-size="14" text-anchor="middle">final_state, bucket_key</text>
+  </g>
+  <line id="e-gen-rec" x1="140" y1="104" x2="140" y2="200" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-gen-rec" x="150" y="157" font-size="14" fill="#1971c2" font-style="italic">ids, passive reach, v_target</text>
+
+  <g id="n-fv">
+    <rect id="n-fv-box" x="330" y="60" width="220" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fv-name" x="440" y="84" font-size="17" font-weight="600" text-anchor="middle">_final_value</text>
+    <text id="n-fv-kind" x="440" y="105" font-size="14" text-anchor="middle">(tradeoff) sum over cells</text>
+  </g>
+  <g id="n-ps">
+    <rect id="n-ps-box" x="330" y="208" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ps-name" x="440" y="234" font-size="18" font-weight="600" text-anchor="middle">pressure_summary</text>
+    <text id="n-ps-kind" x="440" y="256" font-size="14" text-anchor="middle">(fn) bucket minus pi</text>
+  </g>
+  <line id="e-rec-ps" x1="260" y1="240" x2="330" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-ps-fv" x1="440" y1="208" x2="440" y2="116" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-ps-fv" x="450" y="167" font-size="14" fill="#1971c2" font-style="italic">T, side-product</text>
+
+  <g id="n-cell">
+    <rect id="n-cell-box" x="620" y="200" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cell-name" x="740" y="226" font-size="18" font-weight="600" text-anchor="middle">DoseCell</text>
+    <text id="n-cell-kind" x="740" y="248" font-size="14" text-anchor="middle">(dataclass) one pi level:</text>
+    <text id="n-cell-kind2" x="740" y="268" font-size="14" text-anchor="middle">means + passive + v_target</text>
+  </g>
+  <line id="e-ps-cell" x1="550" y1="240" x2="620" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-ps-cell" x="585" y="230" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">ladder</text>
+
+  <g id="n-dp">
+    <rect id="n-dp-box" x="620" y="380" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dp-name" x="740" y="406" font-size="18" font-weight="600" text-anchor="middle">dose_profile</text>
+    <text id="n-dp-kind" x="740" y="428" font-size="14" text-anchor="middle">(fn) one ladder</text>
+  </g>
+  <line id="e-cell-dp" x1="740" y1="280" x2="740" y2="380" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cell-dp" x="750" y="335" font-size="14" fill="#1971c2" font-style="italic">sorted by pi</text>
+
+  <g id="n-prof">
+    <rect id="n-prof-box" x="620" y="500" width="240" height="90" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-prof-name" x="740" y="526" font-size="18" font-weight="600" text-anchor="middle">DoseProfile</text>
+    <text id="n-prof-kind" x="740" y="548" font-size="14" text-anchor="middle">swing · by pi 0.2 · max step</text>
+    <text id="n-prof-kind2" x="740" y="568" font-size="14" text-anchor="middle">monotone · passive clears ‡</text>
+  </g>
+  <line id="e-dp-prof" x1="740" y1="444" x2="740" y2="500" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-rep">
+    <rect id="n-rep-box" x="940" y="380" width="240" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rep-name" x="1060" y="406" font-size="18" font-weight="600" text-anchor="middle">report_text</text>
+    <text id="n-rep-kind" x="1060" y="428" font-size="14" text-anchor="middle">(report) dose-response section</text>
+  </g>
+  <line id="e-prof-rep" x1="860" y1="530" x2="960" y2="444" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-cell-rep" x1="860" y1="260" x2="1000" y2="380" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-cell-rep" x="945" y="300" font-size="14" fill="#1971c2" font-style="italic">rows</text>
+  <g id="n-plot">
+    <rect id="n-plot-box" x="940" y="200" width="240" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-plot-name" x="1060" y="226" font-size="18" font-weight="600" text-anchor="middle">plot_dose</text>
+    <text id="n-plot-kind" x="1060" y="248" font-size="14" text-anchor="middle">(plots) key figure, CIs</text>
+  </g>
+  <line id="e-cell-plot" x1="860" y1="225" x2="940" y2="225" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">reads, calls</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ passive only on the idle arm's ladder; continuity is vacuous with no level ≤ 0.2 above the first</text>
+  </g>
+</svg>
