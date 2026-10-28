@@ -80,3 +80,14 @@ dev = [
     "pyright>=1.1.407",
     "pytest>=9.0.2",
 ]
+
+[tool.pytest.ini_options]
+# A bare `pytest` / `uv run pytest` from anywhere in the repo collects what
+# `pytest tests/` does. mkdocs_roamlinks_plugin installs a top-level `tests`
+# package into site-packages that shadowed ours at collection
+# (`ModuleNotFoundError: tests.capabilities`); importlib mode stops pytest
+# resolving test modules through `sys.path`, and `pythonpath` puts the repo
+# root first for the one `from tests.… import` a test module makes.
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+pythonpath = ["."]
