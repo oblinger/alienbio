@@ -40,7 +40,7 @@ A slotted class holding a parent list, a children dict, a name list and the root
     Appends a parentless compartment and records it as the root; raises `ValueError("Root already exists")` on a second call. Returns its id, which is 0 on a fresh tree. ^add-root
 
 **add_child**`(parent: CompartmentId, name: str = "") -> CompartmentId`
-    Appends a compartment under `parent` and returns its id; an empty `name` becomes `compartment_<id>`. Raises `ValueError` when `parent` is at or past the end. A negative `parent` is not caught by that check: the new id is appended to the parent and name lists before the children lookup raises `KeyError`, leaving a half-added compartment behind (§ [Construction is not transactional](#construction-is-not-transactional)). ^add-child
+    Appends a compartment under `parent` and returns its id; an empty `name` becomes `compartment_<id>`. Raises `ValueError` when `parent` is at or past the end. A negative `parent` is not caught by that check: the new id is appended to the parent list and given a child list before the parent's lookup raises `KeyError`, leaving a half-added, nameless compartment behind (§ [Construction is not transactional](#construction-is-not-transactional)). ^add-child
 
 **num_compartments**`: int`
     The number of ids, root included. The one member the simulators and the state read. ^num-compartments
@@ -89,7 +89,7 @@ Across `src/` the tree is built through `add_root` and `add_child` and read thro
 
 
 ## Construction is not transactional
-`add_child` appends to `_parents` and `_names` and creates the new id's child list before it looks up the parent's list. A `parent` the bounds check misses (any negative id) fails at that last step with a `KeyError`, after the new compartment is already counted: a five-compartment tree reads `num_compartments == 6` afterwards. `build_tree` only ever passes ids it has just been handed, so no world reaches this.
+`add_child` appends to `_parents` and creates the new id's child list before it looks up the parent's list, and appends the name only after. A `parent` the bounds check misses (any negative id) fails at that last step with a `KeyError`, after the new compartment is already counted: a five-compartment tree reads `num_compartments == 6` afterwards. `build_tree` only ever passes ids it has just been handed, so no world reaches this.
 
 
 
