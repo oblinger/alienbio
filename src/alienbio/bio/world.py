@@ -143,9 +143,19 @@ def build_tree(
     topological order (a parent is always added before its children).
 
     Raises:
-        ValueError: if there is not exactly one root, or the parent links do not
-            form a tree rooted at that node (unreachable or cyclic compartments).
+        ValueError: if two compartments share an id, there is not exactly one
+            root, or the parent links do not form a tree rooted at that node
+            (unreachable or cyclic compartments).
     """
+    # A repeated id was overwritten in the id map below and surfaced later as
+    # ``KeyError: 1`` building the world's compartment axis (module-doc
+    # finding, 2026-10); refuse it here, naming it.
+    seen: set[NodeId] = set()
+    for c in compartments:
+        if c.id in seen:
+            raise ValueError(f"duplicate compartment id {c.id!r}")
+        seen.add(c.id)
+
     roots = [c for c in compartments if c.parent is None]
     if len(roots) != 1:
         raise ValueError(

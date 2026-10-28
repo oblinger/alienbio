@@ -234,7 +234,7 @@ The module's free names besides the six classes. Nothing here is re-exported by 
 ## The compartment tree
 `build_tree` turns the flat records into integer ids in rounds. The root is added first, as 0. Each round then walks the remaining records in their given order and adds every one whose parent already has an id — including a parent added earlier in the same round — and a round that adds nothing raises `ValueError`. So a list that names every parent before its children gets ids in list order in a single round; any other order still succeeds, with ids following the rounds. The integers are the state's compartment rows and every resolved flow's and law's compartment ids.
 
-Ids are not checked for uniqueness. A second record with an existing id overwrites the map entry and leaves one tree node with no id pointing to it, so the next line of `__init__` (`world.py:214`, inverting the map) raises `KeyError` with that node's integer — `KeyError: 1` for two children both named `"c"`, `KeyError: 0` for a child named like the root. `kind` is never read; `volume` and the initial values are applied after the tree is built.
+Ids must be unique: `build_tree` raises `ValueError` naming a repeated id before building anything. Until 2026-10 a second record with an existing id overwrote the map entry and surfaced as `KeyError: 1` (two children both named `"c"`) or `KeyError: 0` (a child named like the root) in `__init__`. `kind` is never read; `volume` and the initial values are applied after the tree is built.
 
 
 
