@@ -1,7 +1,7 @@
 ---
 description: "cross-cutting and light — Entity and the mk pegboard every bio object stands on, and the Protocols that keep the substrate's surface declared (checked by pyright since T057). Source: infra/, protocols/, 1.9k LOC."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO-Infra](ha://p/ABIO-Infra) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO-Infra](ha://p/ABIO-Infra) 
 # ABIO-Infra
 Two mutually independent packages: `infra` is what the entities are made of, `protocols` is what they promise and, since T057, what `pyright src/` checks (`protocols/_conformance.py`; the `viz` leftover went with T056).
 
