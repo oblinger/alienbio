@@ -65,8 +65,9 @@ observable). An agent that also implements
 
 **Cost/budget -> graded time-pressure dial (F023, M32.1).** Each action
 carries an opaque cost — ``Measure`` cheap, ``Intervene`` dearer,
-``Commit``/``Wait`` free by default (:data:`~alienbio.suite.brief.DEFAULT_ACTION_COSTS`;
-a ``params["cost"]`` entry overrides it per call; a rejected action charges
+``Commit``/``Wait`` free by default (:data:`~alienbio.suite.brief.DEFAULT_ACTION_COSTS`,
+the runner's table: an agent-supplied ``params["cost"]`` is ignored and noted
+on the action's ``reason``; a rejected action charges
 ``illegal_action_cost`` when set, else its normal verb cost). Spend
 accumulates every turn; once it reaches the dialed :class:`Budget`'s
 ``total`` the trial stops with reason ``"budget_exhausted"``. A trial that
@@ -212,11 +213,24 @@ def _mock_dat(path: str) -> Any:
 
 
 def _action_cost(action: Action) -> float:
-    """The opaque spend one fired ``action`` costs (default per verb, or override)."""
-    override = action.params.get("cost")
-    if override is not None:
-        return float(override)
+    """The opaque spend one fired ``action`` costs: the runner's per-verb table.
+
+    The cost table is the runner's, never the agent's: a ``cost`` key in an
+    agent-supplied ``action.params`` is ignored for budgeting (the loop notes
+    it on the ``ActionRecord.reason``, see :func:`_ignored_cost_note`). An
+    ``LLMAgent`` passes the model's ``params`` through, so honouring it let a
+    model buy back its budget with ``cost: 0`` or a negative cost, and a
+    non-numeric one raised inside the loop. No scripted agent or test sets it.
+    """
     return DEFAULT_ACTION_COSTS[type(action).__name__.lower()]
+
+
+def _ignored_cost_note(action: Action) -> str:
+    """The ``reason`` note for an agent-supplied ``params["cost"]``, else ``""``."""
+    params = getattr(action, "params", None)
+    if not isinstance(params, Mapping) or "cost" not in params:
+        return ""
+    return f"params cost {params['cost']!r} ignored (the cost table is the runner's)"
 
 
 def _resolve_int_dial(dials: Mapping[str, Any], name: str, default: int) -> int:
@@ -815,6 +829,9 @@ def run(
             else:
                 raise ValueError(f"unknown action type: {type(action).__name__}")
 
+            cost_note = _ignored_cost_note(action)
+            if cost_note:
+                reject_reason = f"{reject_reason}; {cost_note}" if reject_reason else cost_note
             if isinstance(action, Measure):
                 target = action.probe
             elif isinstance(action, Intervene):

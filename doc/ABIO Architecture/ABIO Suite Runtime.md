@@ -41,7 +41,7 @@ Everything here lives in `alienbio.suite` (`agent.py`, `brief.py`, `llm_agent.py
 | 3 · act | `agent.act(observation) -> (Action, reasoning_steps)`. | `agent.Agent` |
 | 4 · apply | `Measure` and `Wait` are non-mutating; `Intervene` sets one reaction rate or one molecule concentration; `Commit` ends the trial with an answer. An action naming an id outside the brief's affordances, or a non-finite value, is **rejected as data** — logged with a reason, charged, fed back through `notice(...)`, and the turn still plays out; `illegal_action_limit` rejections end the trial with reason `illegal_limit`. | `runner.run`, `agent.ActionOutcome` |
 | 5 · simulate | One `sim_cfg` burst; its end-state is the next turn's state. | `verify.simulate` |
-| 6 · stop | `committed` · `budget_exhausted` (the graded time-pressure `Budget`) · `max_turns` · `illegal_limit`. | `runner.Budget` |
+| 6 · stop | `committed` · `budget_exhausted` (the graded time-pressure `Budget`, charged from the runner's per-verb cost table; an agent's own `params["cost"]` is ignored and noted on the action) · `max_turns` · `illegal_limit`. | `runner.Budget` |
 
 The result is one frozen `TrialRecord`: task id, condition key, final timeline, deliberation trace, action log (accepted and rejected, each with the probe or lever it named), objective score, terminal reason, budget/spent/remaining, illegal-action count, turns, the brief the agent was given, `oracle` — framework-side ground truth beyond the answer key (a drafter's hazard or conflict oracle, the monitoring dial's actual side) that scorers read and the agent never sees — and `final_state`, the end-of-trial concentrations, which survive the JSON store so an outcome scorer gives the same answer on a reloaded record as on a live one.
 

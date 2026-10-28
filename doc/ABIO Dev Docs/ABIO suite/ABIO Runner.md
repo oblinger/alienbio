@@ -212,7 +212,7 @@ The stop checks run at the bottom of a turn, after its burst and readouts, in th
 | `max_turns` | the loop ran `max_turns` turns without any of the above |
 | `error` | set on `TrialError.record` only |
 
-Spend is `_action_cost` per action: `action.params["cost"]` when present, else the verb's entry in `DEFAULT_ACTION_COSTS`. A rejected action costs `illegal_action_cost` when the caller set it, else its normal verb cost. The last turn always plays out in full, burst included, so a committed trial's timeline ends one burst after the commit.
+Spend is `_action_cost` per action: the verb's entry in `DEFAULT_ACTION_COSTS`. The table is the runner's: a `cost` key in an agent-supplied `action.params` is ignored for budgeting and noted on that action's `reason` (`params cost … ignored`), so a model cannot buy budget back with `cost: 0`, and a non-numeric one no longer raises. A rejected action costs `illegal_action_cost` when the caller set it, else its normal verb cost. The last turn always plays out in full, burst included, so a committed trial's timeline ends one burst after the commit.
 
 
 

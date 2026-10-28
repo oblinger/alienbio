@@ -5,13 +5,18 @@ Each section pins one finding: it failed before its fix and passes after.
 A. ``compact_budget`` reached the summarizer only as model-visible text
    (``budget_tokens``); the provider fn's ``max_tokens`` seam never saw it,
    so the bound the compact-turn ceiling pre-check assumes was not enforced.
+B. ``_action_cost`` honoured an agent-supplied ``params["cost"]``: a model
+   emitting ``cost: 0`` (or negative) beat the budget, and a non-numeric one
+   raised inside the loop as a ``TrialError``.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from alienbio.suite.dist import Seed
+from alienbio.suite.agent import Measure, ReasoningStep, ScriptedAgent
+from alienbio.suite.archetypes import identify_pathway
+from alienbio.suite.dist import Constant, Seed
 from alienbio.suite.drafters import DRAFTERS
 from alienbio.suite.llm_agent import (
     OUTPUT_BUDGET_KEY,
@@ -19,7 +24,9 @@ from alienbio.suite.llm_agent import (
     is_compact_context,
     pop_output_budget,
 )
+from alienbio.suite.pipeline import build_suite
 from alienbio.suite.runner import run
+from alienbio.suite.types import SuiteSpec
 
 
 P1_LEVERS = ["root/uptake_route_in", "root/uptake_neutral_in"]
@@ -58,3 +65,41 @@ def test_compact_budget_rides_the_output_budget_seam(max_tokens):
     assert main and all(b == max_tokens for b in main)
     # The model-facing prompt never carries the seam key.
     assert not any(f'"{OUTPUT_BUDGET_KEY}"' in t for t in agent.prompt_texts)
+
+
+# B ---------------------------------------------------------------------------
+
+
+def _pathway_world():
+    spec = SuiteSpec(archetype_mix=Constant(identify_pathway(pathway_length=3)))
+    suite = build_suite(spec, Seed(1), n_tasks=1, distractor_count=1)
+    return suite.worlds[0], suite.tasks[0]
+
+
+@pytest.mark.parametrize("cost", [0, -100.0, 0.25, "free", None])
+def test_agent_supplied_cost_does_not_buy_budget(cost):
+    world, task = _pathway_world()
+    mol = next(iter(world.chemistry.molecules))
+
+    def policy(observation, seed):
+        del observation, seed
+        return Measure(probe=mol, params={"cost": cost}), (ReasoningStep(kind="policy", content="m"),)
+
+    record = run(world, task, ScriptedAgent(policy, seed=Seed(0)), {"budget": 3.0}, Seed(5), max_turns=20)
+    assert record.terminal_reason == "budget_exhausted"
+    assert record.spent == 3.0
+    assert len(record.action_log) == 3
+    assert all(a.accepted for a in record.action_log)
+    assert all("cost" in a.reason and "ignored" in a.reason for a in record.action_log)
+
+
+def test_no_cost_key_leaves_the_reason_empty():
+    world, task = _pathway_world()
+    mol = next(iter(world.chemistry.molecules))
+
+    def policy(observation, seed):
+        del observation, seed
+        return Measure(probe=mol), ()
+
+    record = run(world, task, ScriptedAgent(policy, seed=Seed(0)), {"budget": 2.0}, Seed(5), max_turns=20)
+    assert [a.reason for a in record.action_log] == ["", ""]

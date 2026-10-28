@@ -52,7 +52,8 @@ if TYPE_CHECKING:
 #: ``runner.py`` can read one shared table without a circular import —
 #: ``runner._action_cost`` reads this directly). ``Measure`` cheap,
 #: ``Intervene`` dearer, ``Commit``/``Wait`` free by default;
-#: ``action.params["cost"]`` overrides this per call.
+#: an agent-supplied ``action.params["cost"]`` is ignored (noted on the
+#: action's ``reason``) — the budget is never the agent's to set.
 DEFAULT_ACTION_COSTS: Mapping[str, float] = {
     "measure": 1.0,
     "intervene": 5.0,

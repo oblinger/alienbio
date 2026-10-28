@@ -95,7 +95,7 @@ A frozen dataclass with no methods: every field is set once by `build_brief` and
     `budget.unit`. ^budget-unit
 
 **action_costs**`: Mapping[str, float]`
-    A fresh `dict(DEFAULT_ACTION_COSTS)`. A per-call `action.params["cost"]` override is not reflected here. ^action-costs
+    A fresh `dict(DEFAULT_ACTION_COSTS)`. An agent-supplied `action.params["cost"]` is ignored by the runner, so this table is the whole cost model. ^action-costs
 
 **max_turns**`: int`
     The resolved turn limit (`dials["max_turns"]` or the runner's default). ^max-turns
