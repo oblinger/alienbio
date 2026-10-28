@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-makers">
+    <rect id="n-makers-box" x="20" y="50" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-makers-name" x="145" y="78" font-size="18" font-weight="600" text-anchor="middle">bio/makers.py</text>
+    <text id="n-makers-kind" x="145" y="102" font-size="14" text-anchor="middle">(bio) M, R, C at import</text>
+  </g>
+  <g id="n-register">
+    <rect id="n-register-box" x="330" y="50" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-register-name" x="445" y="78" font-size="18" font-weight="600" text-anchor="middle">register</text>
+    <text id="n-register-kind" x="445" y="102" font-size="14" text-anchor="middle">(method) same build or refuse</text>
+  </g>
+  <g id="n-registry">
+    <rect id="n-registry-box" x="620" y="50" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-registry-name" x="735" y="78" font-size="18" font-weight="600" text-anchor="middle">_registry</text>
+    <text id="n-registry-kind" x="735" y="102" font-size="14" text-anchor="middle">(dict) key → prefix, build</text>
+  </g>
+  <g id="n-anchor">
+    <rect id="n-anchor-box" x="930" y="50" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-anchor-name" x="1055" y="78" font-size="18" font-weight="600" text-anchor="middle">mk.anchor</text>
+    <text id="n-anchor-kind" x="1055" y="102" font-size="14" text-anchor="middle">(context) tests only</text>
+  </g>
+  <g id="n-caller">
+    <rect id="n-caller-box" x="20" y="250" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-caller-name" x="145" y="278" font-size="18" font-weight="600" text-anchor="middle">generators</text>
+    <text id="n-caller-kind" x="145" y="302" font-size="14" text-anchor="middle">(suite) mk.M("A"), no anchor</text>
+  </g>
+  <g id="n-getattr">
+    <rect id="n-getattr-box" x="330" y="250" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-getattr-name" x="445" y="278" font-size="18" font-weight="600" text-anchor="middle">__getattr__</text>
+    <text id="n-getattr-kind" x="445" y="302" font-size="14" text-anchor="middle">(method) key → a new closure</text>
+  </g>
+  <g id="n-make">
+    <rect id="n-make-box" x="620" y="250" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-make-name" x="735" y="278" font-size="18" font-weight="600" text-anchor="middle">make</text>
+    <text id="n-make-kind" x="735" y="302" font-size="14" text-anchor="middle">(closure) picks one anchor</text>
+  </g>
+  <g id="n-stack">
+    <rect id="n-stack-box" x="930" y="250" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-stack-name" x="1055" y="278" font-size="18" font-weight="600" text-anchor="middle">_anchor_stack</text>
+    <text id="n-stack-kind" x="1055" y="302" font-size="14" text-anchor="middle">(list) per instance, not per thread</text>
+  </g>
+  <g id="n-mock">
+    <rect id="n-mock-box" x="330" y="450" width="230" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mock-name" x="445" y="478" font-size="18" font-weight="600" text-anchor="middle">MockDat</text>
+    <text id="n-mock-kind" x="445" y="502" font-size="14" text-anchor="middle">(infra.entity) "mol/A"</text>
+  </g>
+  <g id="n-build">
+    <rect id="n-build-box" x="620" y="450" width="230" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-build-name" x="735" y="478" font-size="18" font-weight="600" text-anchor="middle">build</text>
+    <text id="n-build-kind" x="735" y="502" font-size="14" text-anchor="middle">(Maker) name, anchor, args</text>
+  </g>
+  <g id="n-ent">
+    <rect id="n-ent-box" x="930" y="450" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ent-name" x="1055" y="478" font-size="18" font-weight="600" text-anchor="middle">MoleculeImpl …</text>
+    <text id="n-ent-kind" x="1055" y="502" font-size="14" text-anchor="middle">(bio) the anchored entity</text>
+  </g>
+  <line id="e-makers-register" x1="270" y1="85" x2="330" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-register-registry" x1="560" y1="85" x2="620" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-register-registry" x="590" y="75" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">store</text>
+  <line id="e-caller-getattr" x1="270" y1="285" x2="330" y2="285" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-caller-getattr" x="300" y="275" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">mk.M</text>
+  <line id="e-getattr-registry" x1="500" y1="250" x2="660" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-getattr-registry" x="598" y="190" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">look up key</text>
+  <line id="e-getattr-make" x1="560" y1="285" x2="620" y2="285" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-getattr-make" x="590" y="275" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">returns</text>
+  <line id="e-anchor-stack" x1="1055" y1="120" x2="1055" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-anchor-stack" x="1065" y="190" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">push, pop</text>
+  <line id="e-stack-make" x1="930" y1="285" x2="850" y2="285" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-stack-make" x="890" y="275" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">top</text>
+  <line id="e-make-mock" x1="660" y1="320" x2="520" y2="450" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-make-mock" x="575" y="390" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">no anchor</text>
+  <line id="e-make-build" x1="735" y1="320" x2="735" y2="450" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-make-build" x="745" y="390" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">call</text>
+  <line id="e-mock-build" x1="560" y1="485" x2="620" y2="485" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-mock-build" x="590" y="475" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">dat</text>
+  <line id="e-build-ent" x1="850" y1="485" x2="930" y2="485" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-build-ent" x="890" y="475" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">new</text>
+  <text id="t-legend" x="20" y="600" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call, read, write · dotted: returns, passes · anchor order: explicit dat=, explicit parent=, top of the stack, a minted MockDat</text>
+  <text id="t-legend2" x="20" y="620" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">dat= with parent= drops the parent; the same build re-registered takes the new prefix</text>
+</svg>
