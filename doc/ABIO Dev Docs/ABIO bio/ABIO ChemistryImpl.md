@@ -30,7 +30,7 @@ The `Chemistry` Protocol's implementation (`protocols/bio.py`, held to it by `pr
 | [[#^attributes\|attributes]] | The chemistry as a plain dict |
 
 **ChemistryImpl**`(name: str, *, atoms: Optional[Dict[str, AtomImpl]] = None, molecules: Optional[Dict[str, MoleculeImpl]] = None, reactions: Optional[Dict[str, ReactionImpl]] = None, parent: Optional[Entity] = None, dat: Optional[DatLike] = None, description: str = "") -> None`
-    Initialize the `Entity` (`ValueError` without a `parent` or `dat`, or with a space in `name`), store a shallow copy of each dict (an absent one is `{}`), then refuse any key present in both `molecules` and `reactions` with `ValueError` naming the sorted shared ids — see [[#Ids and the shared-id refusal]]. Checks nothing else: a reaction naming a molecule outside the dict, or a molecule whose atoms are not in `atoms`, is accepted and reported only by `validate`. ^chemistryimpl
+    Initialize the `Entity` (`ValueError` without a `parent` or `dat`, or with a space in `name`), store a shallow copy of each dict (an absent one is `{}`), refuse a molecule or reaction key that differs from its entity's `name`, then refuse any key present in both `molecules` and `reactions` with `ValueError` naming the sorted shared ids — see [[#Ids and the shared-id refusal]]. Checks nothing else: a reaction naming a molecule outside the dict, or a molecule whose atoms are not in `atoms`, is accepted and reported only by `validate`. ^chemistryimpl
 
 **atoms**`: Dict[str, AtomImpl]`
     Atoms keyed by element symbol (`"C"`, `"Na"`). Neither conservation nor the simulators read this dict — they read each molecule's own `atoms` — so it is a declaration that `validate` checks molecules against; see [[#What the three dicts hold]]. ^atoms
@@ -83,7 +83,7 @@ A reaction holds its molecules as `{MoleculeImpl: coefficient}` for reactants an
 
 
 ## Keys and names
-Three identifiers can differ: the dict key, the entity's `local_name`, and its `name`. A reaction's `name` is its `local_name`; a molecule's `name` defaults to its `local_name` but `MoleculeImpl(..., name=…)` can set a display name. The graph queries, `subgraph`'s re-keying and `from_chemistry`'s lookup all use `name`, while `WorldImpl`, the name map and the runner use dict keys — so the chemistry is only coherent when every key equals its entity's `name`. Every builder in the tree keeps them equal (`mk.C` keys by `local_name`; `hydrate` passes the key as `local_name`), and nothing checks it.
+Three identifiers can differ: the dict key, the entity's `local_name`, and its `name`. A reaction's `name` is its `local_name`; a molecule's `name` defaults to its `local_name` but `MoleculeImpl(..., name=…)` can set a display name. The graph queries, `subgraph`'s re-keying and `from_chemistry`'s lookup all use `name`, while `WorldImpl`, the name map and the runner use dict keys — so the chemistry is only coherent when every key equals its entity's `name`. Every builder in the tree keeps them equal (`mk.C` keys by `local_name`; `hydrate` passes the key as `local_name`), and since 2026-10 the constructor refuses a key that differs from its entity's `name` with `ValueError`, so the two keyings cannot diverge (a display name differing from the key is therefore refused inside a chemistry).
 
 
 

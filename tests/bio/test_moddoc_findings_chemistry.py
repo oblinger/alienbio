@@ -140,3 +140,16 @@ def test_validate_reports_a_modifier_missing_from_the_molecules() -> None:
     )
     chem = ChemistryImpl("c", molecules=mols, reactions={"r": rxn}, dat=MockDat("chem/c"))
     assert chem.validate() == ["Reaction r: modifier E not in chemistry"]
+
+
+# ── E3: a dict key must equal its entity's name ──────────────────────────────
+
+
+def test_a_key_that_differs_from_its_entitys_name_refuses() -> None:
+    glucose = MoleculeImpl("glucose", name="Glucose", dat=MockDat("mol/glucose"))
+    with pytest.raises(ValueError, match="'glucose' differs from its entity's name 'Glucose'"):
+        ChemistryImpl("c", molecules={"glucose": glucose}, dat=MockDat("chem/c"))
+    a = MoleculeImpl("A", dat=MockDat("mol/A"))
+    r = ReactionImpl("r1", reactants={a: 1}, products={}, dat=MockDat("rxn/r1"))
+    with pytest.raises(ValueError, match="reaction key 'r2'"):
+        ChemistryImpl("c", molecules={"A": a}, reactions={"r2": r}, dat=MockDat("chem/c"))

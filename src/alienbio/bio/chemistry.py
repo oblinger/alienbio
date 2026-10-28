@@ -123,6 +123,17 @@ class ChemistryImpl(Entity, head="Chemistry"):
         # reaction won its surface name, the molecule got none, and the runner
         # then resolved that one token as the reaction for Intervene and the
         # molecule for Measure (T051 box 4 / T054 #1).
+        # A dict key is the id WorldImpl, the name map and the runner use; the
+        # graph view, subgraph and from_chemistry key on the entity's ``name``.
+        # Refuse a key that differs from its entity's name so the two keyings
+        # cannot diverge (module-doc finding, 2026-10).
+        for kind, table in (("molecule", self.molecules), ("reaction", self.reactions)):
+            for key, entity in table.items():
+                if key != entity.name:
+                    raise ValueError(
+                        f"chemistry {name!r}: {kind} key {key!r} differs from its "
+                        f"entity's name {entity.name!r}; key every {kind} by its name"
+                    )
         shared = self.molecules.keys() & self.reactions.keys()
         if shared:
             raise ValueError(

@@ -47,8 +47,10 @@ def _build_real_chem() -> ChemistryImpl:
         "r1", reactants={glucose: 1}, products={water: 2},
         rate=0.3, dat=MockDat("rxn/r1"),
     )
+    # Keyed by each molecule's name: a chemistry refuses a key that differs
+    # from its entity's name (the graph view and from_chemistry key on name).
     return ChemistryImpl(
-        "cell", molecules={"glucose": glucose, "water": water},
+        "cell", molecules={"Glucose": glucose, "Water": water},
         reactions={"r1": rxn}, dat=MockDat("chem/cell"),
     )
 
@@ -66,14 +68,14 @@ def test_chemistry_molecule_and_reaction_fields_golden():
     """
     chem = _build_real_chem()
 
-    assert set(chem.molecules.keys()) == {"glucose", "water"}
-    glucose = chem.molecules["glucose"]
+    assert set(chem.molecules.keys()) == {"Glucose", "Water"}
+    glucose = chem.molecules["Glucose"]
     assert glucose.name == "Glucose"
     assert glucose.symbol == "C6H12O6"
     assert glucose.bdepth == 2
     assert glucose.molecular_weight == 180.156
 
-    water = chem.molecules["water"]
+    water = chem.molecules["Water"]
     assert water.name == "Water"
     assert water.symbol == "H2O"
     assert water.bdepth == 0
