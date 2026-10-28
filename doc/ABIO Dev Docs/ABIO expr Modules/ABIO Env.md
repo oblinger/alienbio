@@ -6,7 +6,7 @@ description: "`env`: the Expr environment — `Env` (a scope chain of bindings, 
 The page for what every Expr evaluation runs in: the bindings a name resolves against, the head a call name resolves to, the seed and path each node draws under, the caps that refuse a runaway spec, and how a YAML file becomes a scope of lazily evaluated keys.
 
 ![ABIO Env](ABIO%20Env.svg) 
-*Seeds and paths* is the topic behind the `child(key)` edge (one step extends the path and derives the seed); *The meter* governs the dotted `charge` edge, which is cumulative per `Limits` object (‡), not per evaluation.
+*Seeds and paths* is the topic behind the `child(key)` edge (one step extends the path and derives the seed); *The meter* governs the dotted `charge` edge, cumulative across one environment's evaluation.
 
 `env.py` holds the state; the walk that consumes it is [ABIO Interp](ABIO%20Interp.md), the head table `Env.head` falls back to is [ABIO Registry](ABIO%20Registry.md), the YAML reader `Env.load` calls is [ABIO YamlTags](ABIO%20YamlTags.md), and the include and `!py` resolution it runs before binding anything is [ABIO Include](ABIO%20Include.md). The scope chain underneath `Env.bindings` is `spec_lang.scope.Scope`; the seed is `suite.dist.Seed`, the one upward import `expr/` makes. `Env.standard` is the only place the suite-side heads ([ABIO ExprHeads](../ABIO%20suite/ABIO%20ExprHeads.md), [ABIO ExprExperiment](../ABIO%20suite/ABIO%20ExprExperiment.md)) get registered. The subsystem view is [ABIO-Expr](../../ABIO%20Architecture/ABIO-Expr.md).
 
@@ -54,7 +54,7 @@ Bindings, heads and context, immutable in spirit: every `child`, `bind`, `scope`
     Incremented by `child` (and by a template body or an expander's output in the interpreter); `bind`, `scope` and `with_*` keep it. ^depth
 
 **standard**`(seed: int | Seed = 0, *, trusted=False, registry=None, limits=None, bindings=None) -> Env` (classmethod)
-    Imports `expr.heads`, `suite.expr_heads` and `suite.expr_experiment` so every builtin and suite head is registered, then builds a root scope named `root` from `bindings` under `Ctx(seed, trusted, limits or Limits())`. An untrusted env (the default) refuses `.py` includes and `!py`. ^standard
+    Imports `expr.heads`, `suite.expr_heads` and `suite.expr_experiment` so every builtin and suite head is registered, then builds a root scope named `root` from `bindings` under `Ctx(seed, trusted, limits)`; a passed `limits` is copied with a fresh `Meter`, so two environments never share a running total. An untrusted env (the default) refuses `.py` includes and `!py`. ^standard
 
 **child**`(label: str) -> Env`
     The env for a named sub-node: the same scope, `ctx.child(label)` (path extended, seed derived) and depth plus one. Every mapping key, list index and argument the interpreter evaluates goes through it. ^child
@@ -123,7 +123,7 @@ A frozen dataclass carried by every `Env`. `child` is the only way the seed move
     Read by `load` and `hydrate` and passed to the include resolver. ^trusted
 
 **limits**`: Limits`
-    A fresh `Limits()` per `Env.standard` unless one is passed in. ^limits
+    A fresh `Limits()` per `Env.standard`, or a copy of the passed one with its own meter. ^limits
 
 **instances**`: dict[str, str]`
     The template instance names claimed in this load, each with the document path that claimed it. `dataclasses.replace` copies the reference, so every child context of one root shares the one dict. ^instances
@@ -157,7 +157,7 @@ A frozen dataclass of caps. Exceeding one raises `ExprError`; nothing is ever tr
     `on_fail: retry` attempts and `on_fail: prune` rounds. ^attempts
 
 **meter**`: Meter`
-    The cumulative count; created per `Limits` object, excluded from equality and repr. ^meter
+    The cumulative count; created per `Limits` object (and replaced by `Env.standard` on a passed one), excluded from equality and repr. ^meter
 
 **charge**`(n: int, path: str, what: str) -> None`
     Refuses when `n` alone exceeds `entities`, otherwise adds `n` to the meter and refuses when the running total does. ^charge
@@ -181,7 +181,7 @@ A top-level binding of a loaded document, evaluated on first lookup so a key may
     The env `load` returned; the form evaluates under `env.child(key)`. ^lazy-env
 
 **state**`: str`
-    Moves `pending` → `evaluating` → `done`; a lookup that finds `evaluating` raises `cyclic definition`. ^state
+    Moves `pending` → `evaluating` → `done`, back to `pending` when evaluation raises; a lookup that finds `evaluating` raises `cyclic definition`. ^state
 
 **value**`: Any`
     Set when evaluation completes; returned on every later lookup. ^value
@@ -233,9 +233,9 @@ Two reserved binding names a template instance carries, and the module's one hel
 
 
 ## Head lookup
-`head(name)` reads only the first dotted segment against the scope chain. A binding there wins over the registry when it is a head already (an evaluated `!template`), a `Lazy` whose pending form is a `template` call (forced on the spot), a `Lazy` holding a resolved `!py` object or `.py` function, or any other callable value; a callable becomes a function head with `ctx` / `env` injection read off its signature. Any other binding — a document key that merely shares a head's name, such as `world: !world {...}` — is not forced and does not shadow, so evaluating that key does not report a false cycle. Otherwise the full name goes to the registry.
+`head(name)` with an undotted name checks the scope chain first. A binding there wins over the registry when it is a head already (an evaluated `!template`), a `Lazy` whose pending form is a `template` call (forced on the spot), a `Lazy` holding a resolved `!py` object or `.py` function, or any other callable value; a callable becomes a function head with `ctx` / `env` injection read off its signature. Any other binding — a document key that merely shares a head's name, such as `world: !world {...}` — is not forced and does not shadow, so evaluating that key does not report a false cycle. Otherwise the full name goes to the registry.
 
-The first-segment rule means `!t.anything {}` calls template `t`: the rest of a dotted head name is ignored when the first segment is bound to a head.
+A dotted name whose first segment is bound resolves its whole path through the scope (`lookup`): a head at the end of it is returned, a callable becomes a function head, and anything else — an unresolvable path included — falls to the registry. So `!t.anything {}` is `unknown head` unless the registry has `t.anything`, where it once called template `t`.
 
 
 
@@ -250,15 +250,16 @@ Inside a template instance, `pool(name)` returns the caller's spelling for a str
 
 
 ## Lazy bindings and cycles
-`_force` marks a `Lazy` `evaluating` before evaluating its form and `done` after. A lookup that meets `evaluating` is a cycle. The state is not reset when evaluation raises, so a binding whose first evaluation failed reports `cyclic definition` on every later lookup, hiding the original error. A `RecursionError` during forcing is converted to an `ExprError` at the binding.
+`_force` marks a `Lazy` `evaluating` before evaluating its form and `done` after. A lookup that meets `evaluating` is a cycle. When evaluation raises, the state returns to `pending`, so the next lookup re-evaluates and raises the binding's own error rather than `cyclic definition`. A `RecursionError` during forcing is converted to an `ExprError` at the binding.
 
 
 
 ## The meter
-Every sized producer (`each`, `range`, `list`, `sorted`, `zip`, `sum`, `add`, `mul`, `flatten`, `fstr`) calls `limits.charge`, which refuses both a single producer over `entities` and a running total over it, so a spec that is cheap per step and ruinous in total is stopped before the memory is gone. The total lives on the `Limits` object, not on the evaluation: `Env.standard` makes a fresh one each time, but a caller that passes one `Limits` to several environments shares one meter across all of them (‡).
+Every sized producer (`each`, `range`, `list`, `sorted`, `zip`, `sum`, `add`, `mul`, `flatten`, `fstr`, and the text builders `op:mod`, `op:fmt` and `op:method`, charged a bound before they build) calls `limits.charge`, which refuses both a single producer over `entities` and a running total over it, so a spec that is cheap per step and ruinous in total is stopped before the memory is gone. The total lives on the `Limits` object, and `Env.standard` gives every environment its own: a fresh `Limits()`, or the passed one copied with a new `Meter`, so one `Limits` handed to several environments no longer sums their allocations.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `!t.anything {}` evaluates template `t`; one `Limits(entities=1000)` passed to three `Env.standard` calls refuses the third `range(400)` at a running total of 1200; a lazy key whose evaluation raised reports `cyclic definition` on the second lookup. No caller in `src/` passes `limits=` today, so the shared meter is latent. Findings filed on T088.
+- 2026-10-28 — refreshed against `0eb23e5`: `Env.standard` gives a passed `Limits` its own meter, a failed lazy binding returns to pending and re-raises its own error, a dotted head resolves its whole path, the meter list gains the text builders (`e2efa89`, `c90ce0d`).

@@ -41,7 +41,7 @@ A dataclass: one entry of the table.
     The decorator's extra keywords; `describe` reads `summary`. ^meta
 
 **guarded**`: bool = False`
-    Metadata only: the interpreter never reads it. The suite's no-peeking guard reads `guarded_drafters()` off the table to know which drafters may not host a live model without a registration. ^guarded
+    Metadata only, by design: the interpreter never reads it, so a guarded head evaluates normally in any env. The suite's no-peeking guard reads `guarded_drafters()` off the table to know which drafters may not host a live model without a registration. ^guarded
 
 **guarded_params**`: frozenset[str]`
     The dials of a guarded drafter that the same guard checks. ^guarded-params
@@ -73,7 +73,7 @@ A name → `Head` table. A view is the same table filtered to some kinds.
 | [describe](#^describe) | Name, kind, signature, summary per head |
 
 **register**`(head: Head, *, replace: bool = False) -> Head`
-    Refuses on a view. Refuses when the name is taken by a different callable that is not the same definition (§ [Collisions and replace](#collisions-and-replace)), naming the existing head's kind and `module.qualname`; with `replace=True` the new head wins. ^register
+    Refuses on a view. Refuses when the name is taken by a different callable that is not the same definition (§ [Collisions and replace](#collisions-and-replace)), naming the existing head's kind and `module.qualname`; refuses a same-definition re-registration whose `kind`, `guarded` or `guarded_params` differ, naming the fields; with `replace=True` the new head wins either way. ^register
 
 **get**`(name: str) -> Head`
     Raises `KeyError` for an absent name, or on a view for a head whose kind the view hides (special forms always show). ^get
@@ -157,9 +157,9 @@ The function kinds differ only as tags: `dist` for draws, `math` and `op` for th
 
 
 ## Collisions and replace
-A second registration of a name refuses unless the callable is the same object or the same definition: equal `module.qualname` and either the same file and first line, or equal source text with leading `@` lines dropped. The case it exists for is one `helpers.py` copied verbatim across catalog examples, each executed by a trusted `.py` include under the module name `alienbio_include_helpers`. Before T054 #6 every decorator passed `replace=True`, so a trusted include naming a function `max` shadowed the builtin for the rest of the process.
+A second registration of a name refuses unless the callable is the same object or the same definition: equal `module.qualname` and either the same file and first line, or an equal definition — the function's AST dump with its `decorator_list` emptied. The case it exists for is one `helpers.py` copied verbatim across catalog examples, each executed by a trusted `.py` include under the module name `alienbio_include_helpers`. Before T054 #6 every decorator passed `replace=True`, so a trusted include naming a function `max` shadowed the builtin for the rest of the process.
 
-Only lines that begin with `@` are dropped, so a decorator call spread over several lines leaves its continuation lines in the compared text (‡): two copies of a helper that differ only in a multi-line decorator's `summary=` refuse, where the same pair written on one decorator line is accepted. When the same definition does re-register, the later `Head` (with its metadata) replaces the earlier one.
+Decorators are dropped from the AST, not by line, so two copies of a helper that differ only in a decorator's `summary=` are the same definition however the decorator is laid out. When the same definition re-registers, the later `Head` replaces the earlier one, unless its `kind`, `guarded` or `guarded_params` differ: that refuses (‡) without `replace=True`, so a second import cannot quietly unguard a drafter for the pre-flight. The free-text metadata (`summary`) may differ.
 
 
 
@@ -176,3 +176,4 @@ Nothing is registered until a module that decorates into the table is imported: 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: two `.py` files under one stem whose `@fn` differs only in `summary=` register both when the decorator is one line and refuse the second when it spans four. Findings filed on T088.
+- 2026-10-28 — refreshed against `0eb23e5`: the same-definition check compares AST dumps with decorators dropped, and a same-definition re-registration changing `kind`/`guarded`/`guarded_params` refuses (`c90ce0d`).

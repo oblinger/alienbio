@@ -6,7 +6,7 @@ description: "`yaml_tags`: the structural spelling of Expr — `ExprLoader`, a `
 The page for how YAML text becomes Expr forms and back: what each tag constructs, how a tag's node shape (mapping, sequence, scalar) decides the call's arguments, which tags are reserved or retired, and where the writer does not reproduce what the reader reads.
 
 ![ABIO YamlTags](ABIO%20YamlTags.svg) 
-*Tags to forms* is the topic behind the five constructors; *Round trip* governs the dotted return edge, which loses a lone non-string argument (‡).
+*Tags to forms* is the topic behind the five constructors; *Round trip* governs the dotted return edge, which refuses a keyword named `args` (‡).
 
 `yaml_tags.py` sits at the bottom of the load: `Env.load` calls `load_text` before it resolves includes ([ABIO Env](ABIO%20Env.md), [ABIO Include](ABIO%20Include.md)), the `!x` and `!q` scalars are parsed by [ABIO Parse](ABIO%20Parse.md), and every node it builds is one of [ABIO Form](ABIO%20Form.md)'s shapes. Nothing here evaluates or checks that a head exists; that is [ABIO Interp](ABIO%20Interp.md) and [ABIO Registry](ABIO%20Registry.md). `X.load` and `X.dump(style="structural")` are the Python entry points. The experiment file's own writer, `spec_to_text`, is separate ([ABIO ExprExperiment](../ABIO%20suite/ABIO%20ExprExperiment.md)). The spelling as a user writes it is [ABIO Expr Spec](../../ABIO%20Guides/ABIO%20Expr%20Spec.md).
 
@@ -95,20 +95,18 @@ Mapping keyword names must be identifiers. Keys and values inside a tagged node 
 
 
 ## Round trip
-`dump_structural` promises text that loads back to an equal form. It does for names, quotes of inline-expressible forms, calls with keyword arguments, calls with several positionals, calls whose lone positional is a string, and plain data. It does not (‡):
+`dump_structural` promises text that loads back to an equal form. It does for names, calls with keyword arguments, calls with several positionals, calls with a lone positional of any type, and plain data; a quote round-trips whenever its form is one `dump` writes back as inline text ([ABIO Parse](ABIO%20Parse.md) § What dump can write back), comprehensions and set literals included. The exceptions (‡):
 
 | Form | Written | Read back |
 | --- | --- | --- |
-| `Call("poisson", (3,))` | `!poisson '3'` | `poisson('3')`, which then fails to evaluate |
-| `Call("h", (0.5,))`, `(1e20,)`, `(True,)` | `!h '0.5'`, `'1e+20'`, `'True'` | the same value as a string |
-| `Call("h", ("",))` | `!h ""` | `h()`, the argument gone |
-| `Call("h", (), {"args": [1]})` | `!h {args: [1]}` | `h(1)`, a keyword turned positional |
-| a `Quoted` comprehension or set | `!q "each(over=xs, as='x', …)"` | refused at load ([ABIO Parse](ABIO%20Parse.md)) |
+| `Call("h", (), {"args": [1]})` | nothing: `ExprError` | — the mapping form reads `args` as the positionals |
+| a `Quoted` hand-built `each(as=…)` or bare `op:flatten` | `!q "each(over=xs, as='x', …)"` | refused at load |
 
-The first two rows are the representer writing `str(value)` with no style under a custom tag; the emitter then single-quotes it, and the loader reads any quoted scalar as a string.
+A lone non-empty string positional is written as a double-quoted tagged scalar (`!h "a"`); any other lone positional — a number, a bool, `""` — as a one-element flow sequence (`!poisson [3]`), so it reads back with its type, where a tagged scalar would come back a string or, empty, as no argument.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: every row of the round-trip table was dumped and reloaded, and `evaluate` of the reloaded `poisson('3')` raised `must be real number, not str`; `!ev 1` refuses naming `!x`. Not determined: whether any production path calls `dump_structural` (the experiment writer `spec_to_text` does not; `X.dump` does). Findings filed on T088.
+- 2026-10-28 — refreshed against `0eb23e5`: a lone non-string or empty-string positional dumps as a one-element flow sequence and round-trips, a keyword named `args` refuses to dump, and quoted comprehensions survive (`c90ce0d`); round-trip table and figure ‡ note rewritten.

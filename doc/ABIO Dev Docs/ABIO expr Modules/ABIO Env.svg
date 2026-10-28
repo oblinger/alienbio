@@ -82,7 +82,7 @@
     <rect id="n-lim-box" x="580" y="420" width="250" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-lim-name" x="705" y="446" font-size="18" font-weight="600" text-anchor="middle">Limits + Meter</text>
     <text id="n-lim-kind" x="705" y="468" font-size="14" text-anchor="middle">(dataclass) entities · depth</text>
-    <text id="n-lim-kind2" x="705" y="488" font-size="14" text-anchor="middle">attempts · running total ‡</text>
+    <text id="n-lim-kind2" x="705" y="488" font-size="14" text-anchor="middle">attempts · running total</text>
   </g>
   <line id="e-ctx-lim" x1="510" y1="460" x2="580" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="l-ctx-lim" x="545" y="450" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">carries</text>
@@ -103,6 +103,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">load and evaluation flow</text>
     <line id="legend-dotted" x1="280" y1="641" x2="330" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="340" y="646" font-size="14">reads, derives, charges</text>
-    <text id="legend-dagger" x="530" y="646" font-size="14">‡ the total lives on the Limits object: one passed to several envs is shared</text>
+    <text id="legend-dagger" x="530" y="646" font-size="14">each Env.standard gets its own meter, even on a passed Limits</text>
   </g>
 </svg>

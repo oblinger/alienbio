@@ -100,6 +100,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">read, write</text>
     <line id="legend-dotted" x1="210" y1="641" x2="260" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="270" y="646" font-size="14">delegates, refuses, round trip</text>
-    <text id="legend-dagger" x="490" y="646" font-size="14">‡ a lone non-string positional is written quoted and reads back as a string</text>
+    <text id="legend-dagger" x="490" y="646" font-size="14">‡ a keyword named args refuses; a lone non-string positional dumps as [x]</text>
   </g>
 </svg>

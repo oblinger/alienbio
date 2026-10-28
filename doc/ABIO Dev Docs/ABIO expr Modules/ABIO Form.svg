@@ -36,7 +36,7 @@
     <rect id="n-call-box" x="390" y="180" width="270" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-call-name" x="525" y="206" font-size="18" font-weight="600" text-anchor="middle">Call ‡</text>
     <text id="n-call-kind" x="525" y="228" font-size="14" text-anchor="middle">(dataclass) head · args tuple</text>
-    <text id="n-call-kind2" x="525" y="248" font-size="14" text-anchor="middle">kwargs dict</text>
+    <text id="n-call-kind2" x="525" y="248" font-size="14" text-anchor="middle">kwargs FrozenKwargs</text>
   </g>
   <g id="n-quoted">
     <rect id="n-quoted-box" x="390" y="296" width="270" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
@@ -87,6 +87,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">builds, consumes</text>
     <line id="legend-dotted" x1="240" y1="641" x2="290" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="300" y="646" font-size="14">reads</text>
-    <text id="legend-dagger" x="380" y="646" font-size="14">‡ frozen but unhashable, and its kwargs dict is mutable in place; the other four hash</text>
+    <text id="legend-dagger" x="380" y="646" font-size="14">‡ read-only kwargs; hashes when its arguments do, as the other four always hash</text>
   </g>
 </svg>

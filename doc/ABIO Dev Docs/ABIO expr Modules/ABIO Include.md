@@ -6,7 +6,7 @@ description: "`include`: load-time resolution of `!include` and `!py`, before an
 The page for what happens to `!include` and `!py` between reading a spec and evaluating it: which files an untrusted spec may pull in, what each file kind becomes, how the `_includes_` list merges, and how a Python reference is found.
 
 ![ABIO Include](ABIO%20Include.svg) 
-*Trust* is the topic behind the gate every path passes (`resolve_path`); *The `_includes_` list* governs the merge into the file's scope, which happens at the top level of the loaded file only (‡).
+*Trust* is the topic behind the gate every path passes (`resolve_path`); *The `_includes_` list* governs the merge into the file's scope, at the loaded file's top level and again inside every included `.yaml` (‡).
 
 `include.py` runs inside `Env.load` and `Env.hydrate` ([ABIO Env](ABIO%20Env.md)), after the YAML loader has turned the tags into `Include` and `PyRef` nodes ([ABIO YamlTags](ABIO%20YamlTags.md), [ABIO Form](ABIO%20Form.md)) and before the interpreter sees the tree ([ABIO Interp](ABIO%20Interp.md) raises if one survives). A `.py` include matters because executing it fires its `@fn` / `@expander` / `@guard` decorators into [ABIO Registry](ABIO%20Registry.md). Which loads are trusted is decided by the caller: `suite/spec.load_spec` trusts a file whose resolved path is under the repository's `catalog/` and nothing else ([ABIO ExperimentSpec](../ABIO%20suite/ABIO%20ExperimentSpec.md)), then hands it to `load_experiment` ([ABIO ExprExperiment](../ABIO%20suite/ABIO%20ExprExperiment.md)). The design of the Python escapes is [ABIO Expr Python Escapes](../../ABIO%20Design/ABIO%20Expr/ABIO%20Expr%20Python%20Escapes.md); the sandbox seams are on [ABIO-Expr](../../ABIO%20Architecture/ABIO-Expr.md).
 
@@ -29,7 +29,7 @@ Six functions, three suffix sets and one exception.
 | [include_bindings](#^include-bindings) | The `_includes_` list to bindings and modules |
 
 **UnsafeSpecError** (exception)
-    Raised for a `.py` include or a `!py` on an untrusted load, an absolute include path, and a path that resolves outside its base. Not an `ExprError`: a caller that catches only `ExprError` sees it raw. ^unsafespecerror
+    Raised for a `.py` include or a `!py` on an untrusted load, an absolute include path, and a path that resolves outside its base. A subclass of `ExprError` (and so of `ValueError`), so a caller reporting a bad spec catches it with every other refusal. ^unsafespecerror
 
 **YAML_SUFFIXES**` = {".yaml", ".yml"}`
     Spliced as forms, their own includes resolved relative to their own directory. ^yaml-suffixes
@@ -44,10 +44,10 @@ Six functions, three suffix sets and one exception.
     Trusted: `base / path` (or the absolute path), resolved, anywhere. Untrusted: refuses an absolute path, resolves `base / path` with symlinks followed, and refuses a result that is neither `base` nor under it. § [Trust](#trust). ^resolve-path
 
 **load_include**`(path: str, base: Path, *, trusted: bool, seen=frozenset()) -> tuple[str, Any]`
-    Resolves the path; refuses one already in `seen` (a cycle) and a missing file; returns `("yaml", hydrated forms)`, `("text", str)` or `("py", namespace)` by suffix, refusing any other suffix and an untrusted `.py`. ^load-include
+    Resolves the path; refuses one already in `seen` (a cycle) and a missing file; returns `("yaml", hydrated forms)` — a mapping's own `_includes_` resolved first, relative to that file, its own keys winning — `("text", str)` or `("py", namespace)` by suffix, refusing any other suffix and an untrusted `.py`. ^load-include
 
 **run_python_file**`(target: Path) -> dict[str, Any]`
-    `runpy.run_path` under the module name `alienbio_include_<stem>`, returning every name not starting with `__`. Executes the file on every call; nothing is cached. ^run-python-file
+    `runpy.run_path` under the module name `alienbio_include_<stem>`, returning every name not starting with `__`. Executes the file on every call; nothing is cached, by design (a cache would break the registry snapshot/restore the spec-example tests rely on), so its decorators re-register as the same definition and any other module-level side effect repeats per load. ^run-python-file
 
 **resolve_py**`(path: str, *, trusted: bool, modules=None) -> Any`
     Refuses untrusted. Requires at least `module.attr`, all identifiers. Looks the first segment up among the `modules` executed by `_includes_` (by file stem) and steps through keys or attributes; otherwise imports the longest importable prefix and steps through attributes. Raises `ExprError` when nothing resolves. ^resolve-py
@@ -56,7 +56,7 @@ Six functions, three suffix sets and one exception.
     Returns a copy of the tree with every `Include` replaced by its loaded value and every `PyRef` by its object, descending dicts, lists, call arguments and quoted forms; anything else is returned as is. ^hydrate
 
 **include_bindings**`(entries, base: Path, *, trusted: bool, seen=frozenset()) -> tuple[dict, dict]`
-    For a `_includes_:` list of path strings: each `.yaml` must be a mapping and contributes its top-level keys (a later entry wins); each `.py` is executed and its namespace kept under its stem; a text file refuses (it has no key to bind to). Returns `(bindings, modules)`; the caller lets the file's own keys win. ^include-bindings
+    For a `_includes_:` list of path strings: each `.yaml` must be a mapping and contributes its top-level keys (a later entry wins); each `.py` is executed and its namespace kept under its stem, a second `.py` with the same stem refusing (`!py stem.…` would be ambiguous); a text file refuses (it has no key to bind to). Returns `(bindings, modules)`; the caller lets the file's own keys win. ^include-bindings
 
 
 
@@ -76,7 +76,7 @@ Six functions, three suffix sets and one exception.
 
 
 ## The `_includes_` list
-`Env.load` pops `_includes_` from the top level of the file it loads and passes it to `include_bindings` before hydrating the rest, so a `.py` listed there has run (and its heads are registered, and its namespace answers `!py stem.attr`) before any other key is resolved. A `.yaml` listed there contributes its top-level keys under the file's own. The pop happens only at that top level: an included `.yaml` that carries its own `_includes_:` is spliced as data, so its list is never loaded and appears as an ordinary key named `_includes_` (‡) — through `_includes_` it becomes a binding in the including file's scope, through `!include` a key of the spliced mapping.
+`Env.load` pops `_includes_` from the top level of the file it loads and passes it to `include_bindings` before hydrating the rest, so a `.py` listed there has run (and its heads are registered, and its namespace answers `!py stem.attr`) before any other key is resolved. A `.yaml` listed there contributes its top-level keys under the file's own. An included `.yaml` mapping — through `_includes_` or `!include` — has its own `_includes_:` popped and resolved the same way by `load_include`, relative to that file, its own keys winning over what it includes (‡), so a chain `a → b → c` binds `c`'s keys and runs any `.py` listed in `b`.
 
 
 
@@ -88,3 +88,4 @@ Six functions, three suffix sets and one exception.
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `a.yaml` listing `b.yaml` in `_includes_`, where `b.yaml` lists `c.yaml`, binds `main`, `from_b` and a key `_includes_: [c.yaml]`, and `from_c` is never loaded; `x: !include b.yaml` gives `x` the same stray key. Findings filed on T088.
+- 2026-10-28 — refreshed against `0eb23e5`: an included `.yaml`'s own `_includes_` loads, `UnsafeSpecError` is an `ExprError`, two `.py` entries sharing a stem refuse, `run_python_file`'s re-execution documented as deliberate (`c90ce0d`); figure's ‡ notes updated.

@@ -40,7 +40,7 @@ A frozen dataclass: a head applied to positional and keyword argument forms. Whe
     Coerced to a tuple on construction. ^args
 
 **kwargs**`: Mapping[str, Any]`
-    Copied into a plain `dict` on construction. The dataclass is frozen, but this dict is not: it can be mutated in place, and it makes every `Call` unhashable. ^kwargs
+    Copied into a `FrozenKwargs` on construction: a `dict` that refuses every mutation, so a `Call` is frozen through its keywords too. ^kwargs
 
 
 
@@ -89,6 +89,7 @@ The module-level helpers.
 | [is_form](#^is-form) | One of the three tagged shapes |
 | [contains_form](#^contains-form) | A tagged shape anywhere inside |
 | [walk](#^walk) | Pre-order walk over a form tree |
+| [FrozenKwargs](#^frozen-kwargs) | A `Call`'s read-only keyword mapping |
 
 **Form**` = Any`
     `Name | Call | Quoted | list | dict | scalar`, written as `Any`. ^form-alias
@@ -101,6 +102,9 @@ The module-level helpers.
 
 **walk**`(value) -> Iterator[Any]`
     Yields every node pre-order: a call's positional then keyword arguments, a quote's form, a dict's values (not its keys), a list's or tuple's items. ^walk
+
+**FrozenKwargs** (class, a `dict` subclass)
+    `__setitem__`, `__delitem__`, `clear`, `pop`, `popitem`, `setdefault`, `update` and `|=` raise `TypeError` (`a Call's kwargs are read-only; build a new Call`); hashes by its sorted items; pickles and deep-copies as itself, which a `mappingproxy` would refuse. ^frozen-kwargs
 
 
 
@@ -159,10 +163,11 @@ Untagged YAML and plain Python lists, dicts and scalars are data in every spelli
 
 
 ## Equality and hashing
-The forms compare by value, so a test can assert on a parsed or loaded tree directly. `Name`, `Quoted`, `Include` and `PyRef` hash; `Call` does not, because its `kwargs` field is a `dict` (‡), and an `args` tuple holding a list would not either. A `Call` can therefore not key a mapping or sit in a set, and since the dataclass's `frozen=True` covers only rebinding the field, `call.kwargs["k"] = 3` changes a call in place. The interpreter copies `kwargs` before stripping `guards:`, so it never mutates a form it was given.
+The forms compare by value, so a test can assert on a parsed or loaded tree directly. `Name`, `Quoted`, `Include` and `PyRef` hash; a `Call` hashes on `(head, args, kwargs)` whenever its arguments do (‡) — one nesting a `list` or `dict` of data does not, since that data is mutable. Its `kwargs` is a `FrozenKwargs`, so `call.kwargs["k"] = 3` raises `TypeError` instead of editing every tree that shares the call. The interpreter copies `kwargs` before stripping `guards:`.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `hash(X.f(1, k=2))` raises `unhashable type: 'dict'` and `c.kwargs["k"] = 3` mutates the call; `X._x` raises `AttributeError`. No caller in `expr/` hashes a `Call`. Findings filed on T088.
+- 2026-10-28 — refreshed against `0eb23e5`: `Call.kwargs` is a read-only `FrozenKwargs` (new member block) and a `Call` hashes when its arguments do (`c90ce0d`); figure's `Call` box and ‡ note updated.

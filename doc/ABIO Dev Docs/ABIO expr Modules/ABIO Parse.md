@@ -50,7 +50,7 @@ Two functions.
 | `-a`, `+a`, `not a` | `op:neg`, `op:pos`, `op:not` |
 | `a and b`, `a or b` | `op:and(a, b)`, `op:or(a, b)` (special, short-circuit) |
 | `a < b`, `==`, `in`, `is`, … | `op:lt(a, b)`, `eq`, `in`, `is`, … |
-| `a < b < c` | `op:and(op:lt(a, b), op:lt(b, c))` |
+| `a < b < c` | `op:and(op:lt(a, b), op:lt(b, c))` when `b` is a name or literal; else `let(bindings={__cmp0: b}, body=op:and(…))` |
 | `t if c else e` | `if(cond=c, then=t, else=e)` |
 | `f"…{x:spec!r}…"` | `op:fstr("…", op:fmt(x, "spec", "r"), "…")` |
 | `x[i]`, `x[a:b]` | `op:item(x, i)`, `op:item(x, op:slice(a, b, None))` |
@@ -59,22 +59,22 @@ Two functions.
 | `a.b(x)` | `op:method(Name("a"), "b", x)` |
 | a comprehension | `each(...)`; § [Comprehensions](#comprehensions) |
 
-A chained comparison repeats its middle operand as a form, not as a value: `0 < f() < 2` evaluates `f()` twice, each under its own child seed, so a draw in the middle (`0 < normal(0, 1) < 1`) compares two different samples. A method-shaped call always becomes `op:method`, so the inline spelling cannot call a head whose name is dotted.
+A chained comparison evaluates each operand once, as Python does: a shared operand that is a name or a literal is repeated (a name is a cached lookup), any other is bound once by a `let` to `__cmp<depth>` scoping the rest of the chain, so `0 < normal(0, 1) < 1` compares one draw and `op:and` still short-circuits the tail. A method-shaped call always becomes `op:method`, so the inline spelling cannot call a head whose name is dotted (the structural `!a.b` tag or `X.call` can).
 
 
 
 ## Comprehensions
-Each generator becomes one `each(over=, as=, body=)`, innermost wrapping the element; several `if` clauses on one generator are joined with `op:and` into `where=`. With more than one generator the outer `each` calls are wrapped in `op:flatten`, so a nested list comprehension is one flat list as in Python. A set comprehension is wrapped in `op:set`. A dict comprehension puts `key=` on the innermost `each` only and adds no flatten, so `{a*10+b: 1 for a in [1, 2] for b in [3, 4]}` evaluates to `[{13: 1, 14: 1}, {23: 1, 24: 1}]`, a list of dicts, where Python builds one dict. Targets must be a single name; tuple unpacking is refused.
+Each generator becomes one `each(over=, as=, body=)`, innermost wrapping the element; several `if` clauses on one generator are joined with `op:and` into `where=`. With more than one generator the outer `each` calls are wrapped in `op:flatten`, so a nested list comprehension is one flat list as in Python. A set comprehension is wrapped in `op:set`. A dict comprehension takes one generator and puts `key=` on its `each`; one with several `for`s refuses (`a dict comprehension takes one 'for'`) rather than inventing a merge rule — `each(key=)` refuses a duplicate key where Python overwrites. Targets must be a single name; tuple unpacking is refused.
 
 
 
 ## What dump can write back
-`dump` re-parses to an equal form for names, data, quotes, infix and prefix operators, attribute, item and slice access, method calls, f-strings, conditionals and calls of plain-identifier heads. It does not for the forms whose head the inline spelling cannot type (‡ in the figure):
+`dump` re-parses to an equal form for names, data, quotes, infix and prefix operators, attribute, item and slice access, method calls, f-strings, conditionals, calls of plain-identifier heads, and the shapes `_comprehension` emits (`[… for …]`, `{… for …}`, `{k: v for …}`) and a non-empty set literal, both written back as comprehension or set text. It does not for the forms whose head the inline spelling cannot type (‡ in the figure):
 
 | Form | `dump` writes | Why it does not parse |
 | --- | --- | --- |
-| `each(...)` from a comprehension | `each(over=xs, as='x', body=…)` | `as` is a Python keyword |
-| `op:set`, `op:flatten`, `op:fmt` outside an f-string | `op:set([1, 2])` | `:` is not an identifier character |
+| a hand-built keyword `each(...)` the parser would not emit | `each(over=xs, as='x', body=…)` | `as` is a Python keyword |
+| an empty `op:set`, an `op:flatten` outside a comprehension, `op:fmt` outside an f-string | `op:set([])` | `:` is not an identifier character |
 | a call of a dotted head | `a.b(...)` | it parses back as `op:method` |
 
 A slice dumps with a trailing colon (`a[1:2:]`), which parses back to the same form.
@@ -84,3 +84,4 @@ A slice dumps with a trailing colon (`a[1:2:]`), which parses back to the same f
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `dump(parse(t))` re-parses equal for slices, f-strings, methods, `-1`, conditionals and chained comparisons, and fails for a list comprehension and a set literal; a counting head in the middle of `0 < f() < 2` ran twice; the nested dict comprehension above returned a list of two dicts. Findings filed on T088.
+- 2026-10-28 — refreshed against `0eb23e5`: a chained comparison binds a non-trivial shared operand once (`let __cmp0`), a multi-`for` dict comprehension refuses, `dump` writes comprehensions and set literals back as text that re-parses (`c90ce0d`); the figure's ‡ note narrowed.

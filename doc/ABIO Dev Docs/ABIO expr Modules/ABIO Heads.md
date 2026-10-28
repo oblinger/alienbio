@@ -1,12 +1,12 @@
 ---
-description: "`heads`: the Expr builtin heads registered at import — the seven distribution draws and `constant`, the plain math and conversion builtins, the metered sized builtins (`range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min`), the `op:*` heads the inline parser emits (with the metered `add`, `mul`, `pow`, `flatten`, `fstr`), and the two generic guards `nonempty` and `max_size`. Source: `src/alienbio/expr/heads.py`, draws from `src/alienbio/spec_lang/builtins.py`."
+description: "`heads`: the Expr builtin heads registered at import — the seven distribution draws and `constant`, the plain math and conversion builtins, the metered sized builtins (`range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min`), the `op:*` heads the inline parser emits (with the metered `add`, `mul`, `pow`, `mod`, `flatten`, `method`, `fstr`, `fmt`), and the two generic guards `nonempty` and `max_size`. Source: `src/alienbio/expr/heads.py`, draws from `src/alienbio/spec_lang/builtins.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO expr Modules](ABIO%20expr%20Modules.md) → [ABIO Heads](ha://p/ABIO%20Heads) 
 # ABIO Heads
-The page for every head a spec can call without registering anything: what each family returns, which ones charge the allocation meter before they build, and which ones do not.
+The page for every head a spec can call without registering anything: what each family returns, which ones charge the allocation meter before they build, and which ones need no charge.
 
 ![ABIO Heads](ABIO%20Heads.svg) 
-*The meter's coverage* is the topic behind the split between the metered and unmetered columns (‡ marks the heads that build unbounded output with no charge); *Draws* governs the dotted `ctx.rng` edge.
+*The meter's coverage* is the topic behind the split between the metered and unmetered columns (‡ marks the heads that charge nothing because they build no more than an input already charged); *Draws* governs the dotted `ctx.rng` edge.
 
 `heads.py` only registers; the table is [ABIO Registry](ABIO%20Registry.md), the meter and its caps are `Limits` in [ABIO Env](ABIO%20Env.md), and the `op:*` names are what [ABIO Parse](ABIO%20Parse.md) emits for operators, subscripts, attributes, method calls and f-strings. `op:and`, `op:or` and the other special forms are not here; they are the interpreter's ([ABIO Interp](ABIO%20Interp.md)). The draw functions themselves live in `spec_lang/builtins.py`. The rate compiler sees this module's `math`, `op` and `dist` heads through a registry view ([ABIO RateLaw](../ABIO%20suite/ABIO%20RateLaw.md)). The head catalog as a user reads it is in [ABIO Expr Spec](../../ABIO%20Guides/ABIO%20Expr%20Spec.md).
 
@@ -58,7 +58,7 @@ Kind `math`. Thin registrations of Python builtins; arguments arrive evaluated.
 | Math heads | |
 | --- | --- |
 | [abs, round, sqrt, exp, log, len, int, float, str, bool, dict, all, any](#^plain-math) | The Python builtins of those names |
-| [pow](#^pow) | Python's `pow`, unmetered ‡ |
+| [pow](#^pow) | `op:pow`'s capped function by name |
 | [range](#^range) | A list, charged by length |
 | [list](#^list) | A list, charged by length |
 | [sorted](#^sorted) | Sorted list, charged |
@@ -71,8 +71,8 @@ Kind `math`. Thin registrations of Python builtins; arguments arrive evaluated.
 **abs, round, sqrt, exp, log, len, int, float, str, bool, dict, all, any**
     The builtins (and `math.sqrt`, `math.exp`, `math.log`) registered under their names. A `TypeError` they raise becomes an `ExprError`; any other exception (`exp(1000)`'s `OverflowError`, `log(0)`'s `ValueError`) propagates as raised. ^plain-math
 
-**pow**`(base, exp, mod=None)`
-    The builtin, registered under `pow` with no bound: `pow(3, 2000000)` builds a 3.2-million-bit integer where `3 ** 2000000` refuses (§ [The meter's coverage](#the-meters-coverage)). ^pow
+**pow**`(base, exp, mod=None, *, ctx)`
+    Without `mod`, `op:pow` itself, so `pow(3, 2000000)` refuses exactly as `3 ** 2000000` does; with `mod`, Python's three-argument `pow`, whose result is bounded by `mod`. ^pow
 
 **range**`(*a, ctx) -> list`
     `list(range(*a))`, charged by its length before the list is built. ^range
@@ -108,7 +108,8 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
 | [op:add](#^op-add) | `a + b`, charged by sized operands |
 | [op:mul](#^op-mul) | `a * b`, a repeated sequence charged |
 | [op:pow](#^op-pow) | `a ** b`, exponent and result bounded |
-| [op:sub, op:div, op:floordiv, op:mod](#^op-arith) | The other arithmetic, unmetered ‡ |
+| [op:sub, op:div, op:floordiv](#^op-arith) | The other arithmetic |
+| [op:mod](#^op-mod) | `a % b`, a %-format charged its bound |
 | [op:neg, op:pos, op:not](#^op-unary) | Prefix operators |
 | [op:eq … op:isnot](#^op-cmp) | The ten comparisons |
 | [op:set](#^op-set) | `set(xs)` |
@@ -116,9 +117,9 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
 | [op:slice](#^op-slice) | A `slice` object |
 | [op:item](#^op-item) | `obj[index]` |
 | [op:attr](#^op-attr) | A checked attribute or mapping key |
-| [op:method](#^op-method) | A checked method call, unmetered ‡ |
+| [op:method](#^op-method) | A checked, non-mutating method call, charged |
 | [op:fstr](#^op-fstr) | Concatenate f-string parts, charged |
-| [op:fmt](#^op-fmt) | One formatted field |
+| [op:fmt](#^op-fmt) | One formatted field, its width charged |
 
 **op:add**`(a, b, *, ctx)`
     Charges the summed length of string, list and tuple operands before adding. ^op-add
@@ -129,8 +130,11 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
 **op:pow**`(a, b, *, ctx)`
     Refuses an integer exponent above `MAX_INT_EXPONENT` in magnitude (unless the base is 0, 1, -1 or a bool), and an integer result estimated over `MAX_POW_RESULT_BITS` (`a.bit_length() * b`); converts a float `OverflowError` to `ExprError`. ^op-pow
 
-**op:sub, op:div, op:floordiv, op:mod**`(a, b)`
-    Plain lambdas. `op:mod` on a string is printf formatting, so `'%050000000d' % 1` builds a 50-million-character string with no charge. ^op-arith
+**op:sub, op:div, op:floordiv**`(a, b)`
+    Plain lambdas; none can build more than its operands. ^op-arith
+
+**op:mod**`(a, b, *, ctx)`
+    On a `str` or `bytes` left operand (printf formatting), first charges the format's length, every digit run in it read as a width or precision, a `*` width's integer argument, and the text of every interpolated argument, so `'%050000000d' % 1` refuses; a number is plain `%`. ^op-mod
 
 **op:neg, op:pos, op:not**`(a)`
     `-a`, `+a`, `not a`. ^op-unary
@@ -142,7 +146,7 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     `set(xs)`, not charged. ^op-set
 
 **op:flatten**`(xss, *, ctx) -> list`
-    Flattens one level, then charges the result's length (after it is built). ^op-flatten
+    Charges the summed length of the sized rows, then flattens one level; an unsized row is charged by its count once materialized. ^op-flatten
 
 **op:slice**`(lo=None, hi=None, step=None) -> slice`
     Used inside `op:item`. ^op-slice
@@ -154,13 +158,13 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     Refuses a name the sandbox denies (dunders, `format`, `format_map`, `mro`, `subclasses`, frame and code prefixes); a mapping holding the key returns the value, else `getattr`. ^op-attr
 
 **op:method**`(obj, name: str, *args, env, **kwargs)`
-    `op:attr`, then refuses a non-callable, then calls it. Nothing is charged and nothing restricts which methods: `'a'.ljust(50000000)` builds 50 million characters, and `a.clear()` empties the mapping bound at `a` for every later reader. ^op-method
+    Refuses an in-place method (`append`, `extend`, `insert`, `remove`, `pop`, `clear`, `sort`, `reverse`, `update`, `setdefault`, `popitem`, `add`, `discard`, the `*_update` set methods) on a list, dict, set or bytearray, since a binding is shared by every node naming it; then `op:attr`, refuses a non-callable, and charges a bound before calling: on text, the padding target for `ljust`/`rjust`/`center`/`zfill`, `len × tabsize` for `expandtabs`, the joined length for `join`, the worst case for `replace`, else the receiver plus its text arguments; on a container, its length. ^op-method
 
 **op:fstr**`(*parts, ctx) -> str`
-    Joins `str(p)` for each part, then charges the result's length. ^op-fstr
+    Charges the summed length of `str(p)` for each part, then joins. ^op-fstr
 
-**op:fmt**`(value, spec="", conv="") -> str`
-    Applies the `!r`/`!s`/`!a` conversion, then `format(value, spec)`; a width in `spec` is built before `op:fstr` charges the joined string. ^op-fmt
+**op:fmt**`(value, spec="", conv="", *, ctx) -> str`
+    Charges every digit run in `spec` as a width, then applies the `!r`/`!s`/`!a` conversion and `format(value, spec)`; `op:fstr` charges the joined text. ^op-fmt
 
 
 
@@ -204,7 +208,7 @@ The module's exports beyond its registrations.
 # Heads Semantics
 
 ## Draws
-A distribution head declares `ctx` and so receives the node's context; `ctx.rng` builds a fresh generator from the node's seed on every read. Two draws at different paths are independent and two draws at one path are equal, which is why a chained comparison that repeats a draw ([ABIO Parse](ABIO%20Parse.md)) compares two different samples: the copies sit at different paths.
+A distribution head declares `ctx` and so receives the node's context; `ctx.rng` builds a fresh generator from the node's seed on every read. Two draws at different paths are independent and two draws at one path are equal; a chained comparison binds a drawn middle operand once ([ABIO Parse](ABIO%20Parse.md)), so both comparisons read one sample.
 
 
 
@@ -213,15 +217,15 @@ A distribution head declares `ctx` and so receives the node's context; `ctx.rng`
 
 | Behaviour | Heads |
 | --- | --- |
-| Charged before building | `range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min` (sized inputs), `op:add`, `op:mul` |
-| Charged after building | `op:flatten`, `op:fstr` (and so every `op:fmt` field inside it) |
-| Bounded otherwise | `op:pow` (exponent and result bits) |
-| Not charged (‡) | `pow`, `op:mod` on a string, `op:method`, `op:fmt` widths, `op:set`, `str`, `int`, `dict` |
+| Charged before building | `range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min` (sized inputs), `op:add`, `op:mul`, `op:flatten`, `op:fstr`, `op:fmt` widths, `op:mod` on text, `op:method` |
+| Bounded otherwise | `op:pow` and `pow` by name (exponent and result bits) |
+| Not charged (‡) | `op:set`, `str`, `int`, `dict` |
 
-The first row is what M48.5 and T051 box 4 closed; the last row is what an untrusted spec can still use to build an unbounded value. `pow` is the same operation `op:pow` bounds, reached by name.
+M48.5 and T051 box 4 closed the first rows' original members; T088 (`c90ce0d`) added `pow` by name, `op:mod`, `op:method` and the `op:fmt` width, and moved `op:flatten`/`op:fstr` ahead of the build. The last row builds no more than an input that was already charged.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `pow(3, 2000000)` returned a 3,169,926-bit integer in 0.26 s where `3 ** 2000000` refused; `'%050000000d' % 1` and `'a'.ljust(50000000)` each returned 50 million characters under the default cap; `b: !x a.clear()` emptied the mapping bound at `a`. Not run: the large `op:fmt` width (the order is read from the code). Findings filed on T088.
+- 2026-10-28 — refreshed against `0eb23e5`: `pow` by name is `op:pow`'s capped function, `op:mod` on text, `op:fmt` widths and `op:method` charge a bound before they build, in-place methods refuse, `op:flatten`/`op:fstr` charge before the join (`c90ce0d`); new `op:mod` block, the meter table and the figure's unmetered box rewritten.

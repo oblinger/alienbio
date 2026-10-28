@@ -94,6 +94,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">registration, lookup</text>
     <line id="legend-dotted" x1="260" y1="641" x2="310" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="320" y="646" font-size="14">reads, derives</text>
-    <text id="legend-dagger" x="470" y="646" font-size="14">‡ a multi-line decorator keeps its continuation lines in the compared source</text>
+    <text id="legend-dagger" x="470" y="646" font-size="14">‡ same AST body; refuses if kind, guarded or guarded_params change</text>
   </g>
 </svg>

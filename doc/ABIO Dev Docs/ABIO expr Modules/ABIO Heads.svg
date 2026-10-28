@@ -37,14 +37,14 @@
   <g id="n-unm">
     <rect id="n-unm-box" x="300" y="320" width="280" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-unm-name" x="440" y="346" font-size="18" font-weight="600" text-anchor="middle">unmetered ‡</text>
-    <text id="n-unm-kind" x="440" y="368" font-size="14" text-anchor="middle">pow · op:mod on str · op:method</text>
-    <text id="n-unm-kind2" x="440" y="388" font-size="14" text-anchor="middle">op:fmt width · op:set</text>
+    <text id="n-unm-kind" x="440" y="368" font-size="14" text-anchor="middle">op:set · str · int · dict</text>
+    <text id="n-unm-kind2" x="440" y="388" font-size="14" text-anchor="middle">no larger than a charged input</text>
   </g>
   <g id="n-opm">
     <rect id="n-opm-box" x="600" y="320" width="280" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-opm-name" x="740" y="346" font-size="18" font-weight="600" text-anchor="middle">metered operators</text>
-    <text id="n-opm-kind" x="740" y="368" font-size="14" text-anchor="middle">(op) add · mul · flatten · fstr</text>
-    <text id="n-opm-kind2" x="740" y="388" font-size="14" text-anchor="middle">pow: exponent and result bits</text>
+    <text id="n-opm-kind" x="740" y="368" font-size="14" text-anchor="middle">(op) add · mul · flatten · fstr · mod</text>
+    <text id="n-opm-kind2" x="740" y="388" font-size="14" text-anchor="middle">fmt · method; pow capped by name too</text>
   </g>
   <g id="n-guards">
     <rect id="n-guards-box" x="600" y="460" width="280" height="70" rx="10" fill="#e6fcf5" stroke="#1e1e1e" stroke-width="2"/>
@@ -102,6 +102,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">emits, charges, calls</text>
     <line id="legend-dotted" x1="260" y1="641" x2="310" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="320" y="646" font-size="14">reads</text>
-    <text id="legend-dagger" x="400" y="646" font-size="14">‡ builds an unbounded value with no charge: pow(3, 2000000) where 3 ** 2000000 refuses</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ charges nothing: builds no more than an input already charged</text>
   </g>
 </svg>

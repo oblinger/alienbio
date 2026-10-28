@@ -112,6 +112,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">evaluation flow</text>
     <line id="legend-dotted" x1="220" y1="641" x2="270" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="280" y="646" font-size="14">reads, makes, claims</text>
-    <text id="legend-dagger" x="450" y="646" font-size="14">‡ a second document path claiming one instance name refuses; a retry renames it retry1</text>
+    <text id="legend-dagger" x="450" y="646" font-size="14">‡ a second document path claiming one instance name refuses; a retry keeps the name</text>
   </g>
 </svg>

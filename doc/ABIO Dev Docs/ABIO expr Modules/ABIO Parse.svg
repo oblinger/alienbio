@@ -87,6 +87,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">conversion</text>
     <line id="legend-dotted" x1="210" y1="641" x2="260" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="270" y="646" font-size="14">checks, names, round trip</text>
-    <text id="legend-dagger" x="470" y="646" font-size="14">‡ except each from a comprehension, op:set / op:flatten, and dotted heads</text>
+    <text id="legend-dagger" x="470" y="646" font-size="14">‡ except a hand-built each, a bare op:set / op:flatten, and dotted heads</text>
   </g>
 </svg>

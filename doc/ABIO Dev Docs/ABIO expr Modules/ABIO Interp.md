@@ -88,7 +88,7 @@ A `Head` of kind `template`, made by the `template` special form: the parameter 
     `None` (every template written before T054 #5): every string argument, and every string inside a list argument, keeps the caller's spelling. A tuple: only those parameters' strings do. § [Template instances and pool names](#template-instances-and-pool-names). ^pools
 
 **expand**`(args, kwargs, env: Env) -> Any`
-    Evaluates each argument form in the caller's environment under `env.child(name)`, raising on too many positionals, a missing positional or an unknown keyword; evaluates the missing defaults; records which argument strings are pool names (`__passed__`); claims the instance name (`__instance__`); evaluates the body one level deeper. A keyword naming a positional parameter that was also passed positionally is skipped without a word. ^expand
+    Evaluates each argument form in the caller's environment under `env.child(name)`, raising on too many positionals, a missing positional or an unknown keyword; evaluates the missing defaults; records which argument strings are pool names (`__passed__`); claims the instance name (`__instance__`); evaluates the body one level deeper. A keyword naming a positional parameter that was also passed positionally refuses (`argument 'a' is bound twice`). ^expand
 
 
 
@@ -110,12 +110,12 @@ A `Head` of kind `template`, made by the `template` special form: the parameter 
 | `expander` | the argument forms and `env` | its returned form is evaluated one level deeper, under the call's seed |
 | every function kind (`fn`, `dist`, `math`, `op`, `guard`, `constructor`, `drafter`, `agent`, `experiment`, …) | evaluated arguments; `ctx` / `env` injected when the callable declares them | its return is the value |
 
-A function's positional arguments evaluate under `env.child("0")`, `env.child("1")`, …, its keywords under `env.child(name)`. A `TypeError` from the callable becomes an `ExprError` naming the head; any other exception (an `OverflowError` from `exp(1000)`, a `ValueError` from `log(0)`) propagates as Python raised it.
+A function's positional arguments evaluate under `env.child("0")`, `env.child("1")`, …, its keywords under `env.child(name)`. A `TypeError`, `ValueError` or `ArithmeticError` from the callable becomes an `ExprError` naming the head and the node path, the exception class prefixed for the latter two (`exp: OverflowError: math range error`); anything else propagates as Python raised it.
 
 
 
 ## Seeds and paths
-`Env.child(label)` extends the path and derives the seed `parent.child(label)` in one step, and `evaluate` calls it for every mapping key, list index and argument. A node's draws therefore depend only on the root seed and its path: editing one key never re-rolls a sibling, and the same form under a different key draws differently. `bind` and `scope` add bindings without moving the seed. A guard retry evaluates attempt `n` under `env.child(f"retry{n}")`; that changes the path as well as the seed.
+`Env.child(label)` extends the path and derives the seed `parent.child(label)` in one step, and `evaluate` calls it for every mapping key, list index and argument. A node's draws therefore depend only on the root seed and its path: editing one key never re-rolls a sibling, and the same form under a different key draws differently. `bind` and `scope` add bindings without moving the seed. A guard retry evaluates attempt `n` under `env.with_seed(seed.child(f"retry{n}"))`: a new seed at the same path.
 
 
 
@@ -153,7 +153,7 @@ Each refuses an unknown keyword; surplus positional arguments are not checked.
 ## Template instances and pool names
 A template call names its instance by the last segment of the call's path (the key it is bound to, or the list index), nested under the enclosing instance: `krel`, and `c1.krel` inside instance `c1`. The name is claimed in `ctx.instances`, shared by every child context of one load, against the call's document path; a second path claiming the same name refuses (‡ in the figure), so two `cell:` keys under different non-template parents must be renamed apart. Inside the body, `Env.pool(name)` returns the caller's spelling for a string that arrived as a pool argument and `instance.name` for any other; [ABIO Env](ABIO%20Env.md) § Pool names.
 
-A retried call evaluates under `….retry1`, so its instance on the second attempt is named `retry1`, not by its key, and every pool it namespaces moves with it.
+A retried call keeps its path, so its instance on every attempt is named by its key and two retried templates under one parent do not collide; only the seed moves.
 
 
 
@@ -165,3 +165,4 @@ A retried call evaluates under `….retry1`, so its instance on the second attem
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`, a concurrent worker editing `src/`). Run against an export of that tree: the retried template instance comes out `retry1.P` where the unretried one is `plain.P`; `t(1, a=2)` with `a` positional returns 1; `exp(1000)` raises a bare `OverflowError`. Not determined: whether any caller dedups on `QuotedForm` equality (it ignores the closure). Findings filed on T088.
+- 2026-10-28 — refreshed against `0eb23e5`: a retry re-draws on a child seed at the same path (the instance keeps its key), a keyword rebinding a bound positional refuses, `ValueError`/`ArithmeticError` from a callable become `ExprError` (`e2efa89`).
