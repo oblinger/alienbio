@@ -18,6 +18,7 @@ except ImportError:
 from . import jax_core
 from .flow import apply_flows
 from .population import PopulationLaw, apply_population_laws
+from .world_simulator import check_reaction_compartments
 
 if TYPE_CHECKING:
     from .compartment_tree import CompartmentTreeImpl
@@ -66,6 +67,7 @@ class JaxWorldSimulator:
     ) -> None:
         if not HAS_JAX:
             raise ImportError("JAX is required: pip install jax jaxlib")
+        check_reaction_compartments(reactions, tree.num_compartments)
 
         self._tree = tree
         self._reactions = reactions

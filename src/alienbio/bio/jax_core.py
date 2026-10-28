@@ -15,7 +15,7 @@ Design notes
   into a single tensor update.  Every reaction's desired extent is computed
   from the SAME frozen start-of-step state; competition for shared reactants
   is resolved by single-pass proportional min-ratio scaling (identical to the
-  scalar ``ReferenceSimulatorImpl`` / ``WorldSimulatorImpl``); the net stoich
+  scalar ``WorldSimulatorImpl``); the net stoich
   update is applied in one ``extentᵀ · (P - R)`` matmul.  This is
   order-independent, provably non-negative, mass-conserving, and reduces to
   the C1 clamp when reactions do not compete -- so it matches the scalar
@@ -173,7 +173,8 @@ def modulation_factors(S: Array, mod_mol: Array, mod_kind: Array, mod_params: Ar
     p2 = mod_params[:, None, :, 2]
     one = jnp.ones_like(m)
     activator = 1.0 + p0 * m
-    inhibitor = 1.0 / (1.0 + m / _where(kind == 2, p0, 1.0))
+    # ``rate_expr.inhibitor_ratio``'s Ki = 0 limit: no inhibitor, no effect.
+    inhibitor = 1.0 / (1.0 + _where(m == 0.0, 0.0, m / _where(kind == 2, p0, 1.0)))
     denom_mm = p0 + m
     michaelis = _where(denom_mm > 0.0, p1 * m / _where(denom_mm > 0.0, denom_mm, 1.0), 0.0)
     m_n = m ** p2
@@ -233,7 +234,10 @@ def apply_reactions(
     Non-negativity: for any (c, m),
       Σ_r extent[r, c] R[r, m] = Σ_r desired[r, c] scale[r, c] R[r, m]
                               ≤ ratio[c, m] · demand[c, m] ≤ S[c, m],
-    since scale[r, c] ≤ ratio[c, m] for every reactant m of r.
+    since scale[r, c] ≤ ratio[c, m] for every reactant m of r. The argument
+    assumes ``S ≥ 0`` on entry (a pool below ``-ROUNDING_FLOOR`` makes
+    ``ratio`` negative and runs its reactions backwards, on both backends);
+    every pass keeps the state non-negative, so that holds between steps.
     """
     rn = r_stoich.shape[0]
     net = p_stoich - r_stoich  # [Rn, M]

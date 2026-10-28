@@ -18,6 +18,7 @@ from .rate_expr import (
     ROUNDING_FLOOR,
     eval_rate,
     ieee_div,
+    inhibitor_ratio,
     ieee_pow,
     implicit_mass_action,
     map_species,
@@ -94,6 +95,32 @@ class ReactionSpec:
         )
 
 
+def check_reaction_compartments(
+    reactions: Sequence["ReactionSpec"], num_compartments: int
+) -> None:
+    """Refuse a ``ReactionSpec`` naming a compartment the tree does not have.
+
+    The reference asks ``comp in reaction.compartments`` over the tree's ids
+    and so ignored a bad id, while the JAX kernel indexes its mask by Python
+    list position, so ``[-1]`` ran the reaction in the last compartment and
+    ``[5]`` raised ``IndexError`` (T088 jax_core 1). Both simulators call
+    this at construction, so a bad id is one refusal on either backend.
+    """
+    for reaction in reactions:
+        if reaction.compartments is None:
+            continue
+        for comp in reaction.compartments:
+            if (
+                not isinstance(comp, int)
+                or isinstance(comp, bool)
+                or not 0 <= comp < num_compartments
+            ):
+                raise ValueError(
+                    f"reaction {reaction.name!r}: compartment {comp!r} is not one of "
+                    f"the tree's {num_compartments} compartment ids (0..{num_compartments - 1})"
+                )
+
+
 class WorldSimulatorImpl:
     """Implementation: Multi-compartment simulator with reactions and flows.
 
@@ -160,6 +187,7 @@ class WorldSimulatorImpl:
                 ``step`` skips the population pass entirely, so an existing world is
                 byte-identical.
         """
+        check_reaction_compartments(reactions, tree.num_compartments)
         self._tree = tree
         self._reactions = reactions
         self._flows = flows
@@ -324,7 +352,7 @@ class WorldSimulatorImpl:
             if modulation.kind == "activator" and modulation.a is not None:
                 numerator *= 1.0 + modulation.a * conc
             elif modulation.kind == "inhibitor" and modulation.Ki is not None:
-                denominator *= 1.0 + ieee_div(conc, modulation.Ki)
+                denominator *= 1.0 + inhibitor_ratio(conc, modulation.Ki)
             elif (
                 modulation.kind == "michaelis"
                 and modulation.Vmax is not None
@@ -356,7 +384,8 @@ class WorldSimulatorImpl:
 
         Desired extents are read from the FROZEN start-of-step state; shared
         reactants are rationed by single-pass proportional min-ratio scaling
-        (see ReferenceSimulatorImpl for the non-negativity proof); the final
+        (the non-negativity argument is in :func:`bio.jax_core.apply_reactions`'
+        docstring); the final
         extents are applied together to ``new_state``. This is order-independent
         and reduces to the C1 clamp when reactions do not compete.
         """

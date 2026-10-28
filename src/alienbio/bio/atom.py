@@ -54,13 +54,22 @@ class AtomImpl:
         return self._atomic_weight
 
     def __eq__(self, other: object) -> bool:
-        """Atoms are equal if they have the same symbol."""
+        """Atoms are equal when symbol and atomic weight both match.
+
+        Equal by symbol alone, a reweighted or isotope ``C`` merged with the
+        common one as a composition key and ``molecular_weight`` used
+        whichever object was the key (T088 bio/molecule 2). A chemistry
+        refuses two different atoms under one symbol.
+        """
         if not isinstance(other, AtomImpl):
             return NotImplemented
-        return self._symbol == other._symbol
+        return (
+            self._symbol == other._symbol
+            and self._atomic_weight == other._atomic_weight
+        )
 
     def __hash__(self) -> int:
-        """Hash by symbol for use as dict key."""
+        """Hash by symbol for use as dict key (equal atoms share a symbol)."""
         return hash(self._symbol)
 
     def __repr__(self) -> str:

@@ -47,6 +47,13 @@ class Modulation:
     K: Optional[float] = None
     n: Optional[float] = None
 
+    def __post_init__(self) -> None:
+        # ``Ki`` is the modifier concentration that halves the rate: zero is
+        # the perfect-inhibitor limit (``rate_expr.inhibitor_ratio``), a
+        # negative or NaN one has no reading (``m = -Ki`` divides by zero).
+        if self.Ki is not None and not (self.Ki >= 0.0):
+            raise ValueError(f"Modulation: Ki must be >= 0, got {self.Ki!r}")
+
     @classmethod
     def from_value(cls, value: "Union[Modulation, str]") -> "Modulation":
         """Coerce a bare ``str`` role tag into a label-only, rate-inert ``Modulation``.

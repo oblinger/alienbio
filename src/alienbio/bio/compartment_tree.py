@@ -51,8 +51,8 @@ class CompartmentTreeImpl:
         return self._parents[child]
 
     def children(self, parent: CompartmentId) -> List[CompartmentId]:
-        """Get children of a compartment."""
-        return self._children.get(parent, [])
+        """Get children of a compartment (a copy: appending to it adds nothing)."""
+        return list(self._children.get(parent, []))
 
     def root(self) -> CompartmentId:
         """Get the root compartment."""
@@ -101,8 +101,14 @@ class CompartmentTreeImpl:
 
         Returns:
             The new compartment ID
+
+        Raises:
+            ValueError: If ``parent`` is not an existing compartment id (a
+                negative id included); the tree is left unchanged.
         """
-        if parent >= len(self._parents):
+        if not isinstance(parent, int) or isinstance(parent, bool) or not (
+            0 <= parent < len(self._parents)
+        ):
             raise ValueError(f"Parent {parent} does not exist")
 
         compartment_id = len(self._parents)
@@ -152,20 +158,49 @@ class CompartmentTreeImpl:
 
     @classmethod
     def from_dict(cls, data: Dict) -> CompartmentTreeImpl:
-        """Deserialize tree structure."""
-        tree = cls()
-        tree._parents = data["parents"]
-        tree._names = data["names"]
+        """Deserialize tree structure.
 
-        # Rebuild children dict and find root
-        for child, parent in enumerate(tree._parents):
-            tree._children[child] = []
+        Copies the lists it is given (the rebuilt tree never aliases the
+        caller's dict) and refuses a structure ``add_root``/``add_child``
+        could not have built: names and parents of different lengths, no root
+        or more than one, a parent id out of range, or a cycle.
+        """
+        parents = list(data["parents"])
+        names = list(data["names"])
+        if len(parents) != len(names):
+            raise ValueError(
+                f"tree dict has {len(parents)} parents but {len(names)} names"
+            )
+        roots = [i for i, p in enumerate(parents) if p is None]
+        if len(roots) != 1 and parents:
+            raise ValueError(f"tree dict must have exactly one root, found {len(roots)}")
+        for child, parent in enumerate(parents):
             if parent is None:
-                tree._root = child
+                continue
+            if not isinstance(parent, int) or isinstance(parent, bool) or not (
+                0 <= parent < len(parents)
+            ) or parent == child:
+                raise ValueError(f"compartment {child}: parent {parent!r} does not exist")
+        tree = cls()
+        tree._parents = parents
+        tree._names = names
+        tree._root = roots[0] if roots else None
 
-        for child, parent in enumerate(tree._parents):
+        for child in range(len(parents)):
+            tree._children[child] = []
+        for child, parent in enumerate(parents):
             if parent is not None:
                 tree._children[parent].append(child)
+
+        # Every compartment must reach the root; a cycle never does.
+        for start in range(len(parents)):
+            seen = set()
+            current: Optional[CompartmentId] = start
+            while current is not None:
+                if current in seen:
+                    raise ValueError(f"tree dict: compartment {start} sits on a parent cycle")
+                seen.add(current)
+                current = parents[current]
 
         return tree
 
@@ -180,16 +215,14 @@ class CompartmentTreeImpl:
 
         lines = []
 
-        def _format(comp: CompartmentId, indent: str = "") -> None:
-            lines.append(f"{indent}{self._names[comp]} ({comp})")
+        def _children_of(comp: CompartmentId, indent: str) -> None:
             children = self._children.get(comp, [])
             for i, child in enumerate(children):
                 is_last = i == len(children) - 1
                 prefix = "└── " if is_last else "├── "
-                next_indent = indent + ("    " if is_last else "│   ")
                 lines.append(f"{indent}{prefix}{self._names[child]} ({child})")
-                for grandchild in self._children.get(child, []):
-                    _format(grandchild, next_indent)
+                _children_of(child, indent + ("    " if is_last else "│   "))
 
-        _format(self._root)
+        lines.append(f"{self._names[self._root]} ({self._root})")
+        _children_of(self._root, "")
         return "\n".join(lines)

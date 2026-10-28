@@ -144,13 +144,25 @@ def implicit_mass_action(node: RateNode, reactants: Iterable[Any]) -> bool:
     return not (species_of(node) & set(reactants))
 
 
+def inhibitor_ratio(m: float, Ki: float) -> float:
+    """``m / Ki`` for an inhibitor's ``1 / (1 + m/Ki)``, with ``Ki = 0`` read
+    as its limit: a perfect inhibitor — no inhibitor present (``m == 0``)
+    leaves the rate alone (ratio 0, factor 1), any inhibitor stops it (ratio
+    inf, factor 0). ``0 / 0`` would otherwise be NaN, which is no reaction,
+    so ``Ki = 0`` stopped the reaction with no inhibitor present (T088
+    jax_core 2). ``Modulation`` refuses a negative ``Ki``."""
+    if m == 0.0:
+        return 0.0
+    return ieee_div(m, Ki)
+
+
 def modulation_factor(kind: str, m: float, p: Mapping[str, float]) -> float:
     """One modulation's factor at modifier concentration ``m`` — the reference
     simulator's arithmetic, including its zero-denominator conventions."""
     if kind == "activator":
         return 1.0 + p["a"] * m
     if kind == "inhibitor":
-        return ieee_div(1.0, 1.0 + ieee_div(m, p["Ki"]))
+        return ieee_div(1.0, 1.0 + inhibitor_ratio(m, p["Ki"]))
     if kind == "michaelis":
         denom = p["K"] + m
         return (p.get("Vmax", 1.0) * m / denom) if denom > 0.0 else 0.0
@@ -242,7 +254,8 @@ def _lower_modulation(kind: str, m: Any, p: Mapping[str, float], jnp: Any) -> An
     if kind == "activator":
         return 1.0 + p["a"] * m
     if kind == "inhibitor":
-        return 1.0 / (1.0 + m / p["Ki"])
+        # ``inhibitor_ratio``'s Ki = 0 limit: no inhibitor, no effect.
+        return 1.0 / (1.0 + jnp.where(m == 0.0, 0.0, m / p["Ki"]))
     if kind == "michaelis":
         denom = p["K"] + m
         return jnp.where(denom > 0.0, p.get("Vmax", 1.0) * m / jnp.where(denom > 0.0, denom, 1.0), 0.0)

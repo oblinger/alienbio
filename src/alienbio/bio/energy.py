@@ -110,12 +110,20 @@ def check_energy(
     return violations
 
 
-def validate_energy(chemistry: "ChemistryImpl", **kwargs) -> None:
+def validate_energy(
+    chemistry: "ChemistryImpl", *, spontaneity: bool = True, exempt_boundary: bool = True
+) -> None:
     """Raise ``EnergyError`` if any reaction violates the energy check; else return None.
 
-    Thin fail-visibly wrapper over ``check_energy`` (same keyword arguments).
+    Fail-visibly wrapper over ``check_energy`` (same keyword arguments), with
+    ``spontaneity`` defaulting to **True**: spontaneity is the only check the
+    module has, so under ``check_energy``'s ``False`` default the wrapper could
+    never raise — the opposite of ``validate_conservation``, whose defaults
+    check (T088 bio/energy 2). Pass ``spontaneity=False`` for the no-op.
     """
-    violations = check_energy(chemistry, **kwargs)
+    violations = check_energy(
+        chemistry, spontaneity=spontaneity, exempt_boundary=exempt_boundary
+    )
     if violations:
         detail = "; ".join(f"{v.reaction} ({v.reason}: ΔG={v.delta_g})" for v in violations)
         raise EnergyError(f"{len(violations)} reaction(s) violate energy accounting: {detail}")
@@ -125,14 +133,24 @@ def total_free_energy(
     state: "WorldStateImpl",
     per_index_formation: List[float],
 ) -> float:
-    """Total free energy across a whole world state — the energy *canary*.
+    """Total free energy held by the molecules of a world state — the *system* side only.
 
     Extensive sum over compartments of ``Σ_molecule amount · formation_energy``, where
     ``amount`` is the volume-aware count ``multiplicity · volume · concentration``
     (``WorldState.amount``), paralleling ``conservation.total_quantity``.
     ``per_index_formation[j]`` is the formation energy for molecule index ``j`` (``0.0`` for
-    an energy-neutral molecule). For a closed, balanced system this total is invariant across
-    simulation steps; a per-step drift is a leak and should fail loudly.
+    an energy-neutral molecule).
+
+    **What it measures, and what it cannot.** The heat-sink reservoir is implicit and
+    never recorded, so this is not a conserved total. Between two states of a closed
+    world, ``before − after`` *is* the heat the step released: each reaction run to
+    extent ``ξ`` lowers it by ``ξ·|ΔG|`` when downhill (a single ``A → B`` with formation
+    energies 2 and 1 goes 2.0 → 1.349 in ten steps of ``WorldSimulatorImpl``) and raises
+    it when uphill. It is invariant only when every reaction that runs has ``ΔG = 0``. So
+    a drift here never by itself separates legitimate dissipation from a leak — on every
+    chemistry the spontaneity check accepts, it drifts. A mass leak shows on the atom
+    canary (``conservation.total_quantity``) instead; a ledger that books the reservoir
+    needs the simulator to report reaction extents, which it does not (T088 bio/energy 1).
     """
     total = 0.0
     num_molecules = state.num_molecules

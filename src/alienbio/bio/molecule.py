@@ -60,6 +60,14 @@ class MoleculeImpl(Entity, head="Molecule"):
         """
         super().__init__(local_name, parent=parent, dat=dat, description=description)
         self._atoms: Dict[AtomImpl, int] = atoms.copy() if atoms else {}
+        # Conservation keys a composition by symbol (``molecule_quantity``), so
+        # two atoms sharing a symbol would merge there and not here.
+        symbols = [atom.symbol for atom in self._atoms]
+        if len(symbols) != len(set(symbols)):
+            raise ValueError(
+                f"molecule {local_name!r}: two different atoms share a symbol in "
+                f"{sorted(symbols)!r}"
+            )
         self._bdepth = bdepth
         self._name = name if name is not None else local_name
         self._formation_energy = formation_energy
@@ -150,7 +158,9 @@ class MoleculeImpl(Entity, head="Molecule"):
     def symbol(self) -> str:
         """Chemical formula derived from atoms: 'C6H12O6', 'H2O'.
 
-        Atoms are ordered by Hill system: C first, then H, then alphabetically.
+        Atoms are ordered by the Hill system: with carbon present, C first,
+        then H, then the rest alphabetically; without carbon, every symbol
+        alphabetically (``HCl`` prints ``ClH``).
         """
         if not self._atoms:
             return ""
@@ -159,15 +169,15 @@ class MoleculeImpl(Entity, head="Molecule"):
         parts = []
         symbols_counts = [(atom.symbol, count) for atom, count in self._atoms.items()]
 
-        # Sort: C first, H second, rest alphabetically
+        has_carbon = any(sym == "C" for sym, _ in symbols_counts)
+
         def sort_key(item: tuple) -> tuple:
             sym = item[0]
-            if sym == "C":
+            if has_carbon and sym == "C":
                 return (0, sym)
-            elif sym == "H":
+            if has_carbon and sym == "H":
                 return (1, sym)
-            else:
-                return (2, sym)
+            return (2, sym)
 
         symbols_counts.sort(key=sort_key)
 

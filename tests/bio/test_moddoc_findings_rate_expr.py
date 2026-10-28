@@ -7,7 +7,9 @@ Repro (before the fix): ``eval_rate`` raised ``ZeroDivisionError`` on
 ``0.0 ** -1.0`` where ``lower_jax`` gave inf; ``(-1e-13) ** 0.5`` came back
 complex and failed later at ``max(0.0, rate)``; a hill modulation with
 ``n < 0`` at ``[m] = 0`` and an inhibitor with ``Ki = 0`` raised in Python
-and read NaN -> 0 under JAX.
+and read NaN -> 0 under JAX. Since T088 jax_core 2 ``Ki = 0`` reads its limit
+on both (factor 1 with no inhibitor, 0 with any) and a negative ``Ki`` is
+refused at ``Modulation``.
 """
 
 from __future__ import annotations
@@ -34,7 +36,9 @@ def _pow(a: float, b: float):
         (_pow(10.0, 400.0), math.inf),
         (_pow(-10.0, 401.0), -math.inf),
         (("exp", rx.const(1000.0)), math.inf),
-        (("mod", "inhibitor", "M", {"Ki": 0.0}), math.nan),
+        # Ki = 0 is the perfect-inhibitor limit: no inhibitor, factor 1
+        # (T088 jax_core 2; it read 0/0 = NaN, no reaction).
+        (("mod", "inhibitor", "M", {"Ki": 0.0}), 1.0),
         (("mod", "hill", "M", {"K": 0.5, "n": -2.0}), math.nan),
         (_pow(-1e-13, 0.5), math.nan),
     ],
@@ -67,7 +71,7 @@ CASES = [
     (("mod", "inhibitor", 2, {"Ki": 0.0}), None, 1.0),           # 1/(1+inf) = 0
     (None, {2: Modulation(kind="hill", Vmax=1.0, K=0.5, n=-2.0)}, 0.0),
     (None, {2: Modulation(kind="inhibitor", Ki=0.0)}, 0.0),
-    (None, {2: Modulation(kind="inhibitor", Ki=-1.0)}, 1.0),     # 1/(1+m/Ki) = 1/0
+    (None, {2: Modulation(kind="inhibitor", Ki=0.0)}, 1.0),      # limit: present -> 0
 ]
 
 

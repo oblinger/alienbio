@@ -123,6 +123,53 @@ def check_conservation(
     return violations
 
 
+#: ``conservation_outcome`` verdicts. ``"vacuous: no atoms"`` is the one a
+#: clean ``check_conservation`` hides: no internal reaction had a participant
+#: carrying a conserved quantity, so the balance was ``{}`` by construction and
+#: proved nothing (T088 bio/conservation 1).
+BALANCED = "balanced"
+VACUOUS = "vacuous: no atoms"
+
+
+def conservation_outcome(
+    chemistry: "ChemistryImpl",
+    *,
+    quantity: Callable[["MoleculeImpl"], ConservedVector] = molecule_quantity,
+    exempt_boundary: bool = True,
+) -> str:
+    """What a default ``check_conservation`` pass actually established.
+
+    ``"violated: N reaction(s)"`` when the check finds an imbalance;
+    :data:`VACUOUS` when no checked internal reaction has any participant
+    carrying a conserved quantity (every skeleton-minted world today: its pools
+    carry no atoms, so ``X → Y`` and ``X → 2Y`` both net to ``{}``);
+    ``"partial: K of N internal reactions carry no atoms"`` when only some do;
+    :data:`BALANCED` when every checked reaction was balanced over real
+    quantities. A chemistry with no internal reaction is :data:`BALANCED`
+    (nothing to conserve).
+    """
+    violations = check_conservation(
+        chemistry, quantity=quantity, exempt_boundary=exempt_boundary
+    )
+    if violations:
+        return f"violated: {len(violations)} reaction(s)"
+    internal = [
+        r
+        for r in chemistry.reactions.values()
+        if not (exempt_boundary and is_boundary_reaction(r))
+    ]
+    empty = [
+        r
+        for r in internal
+        if not any(quantity(m) for m in list(r.reactants) + list(r.products))
+    ]
+    if internal and len(empty) == len(internal):
+        return VACUOUS
+    if empty:
+        return f"partial: {len(empty)} of {len(internal)} internal reactions carry no atoms"
+    return BALANCED
+
+
 def validate_conservation(chemistry: "ChemistryImpl", **kwargs) -> None:
     """Raise ``ConservationError`` if any reaction is not conserved; else return None.
 
@@ -144,7 +191,10 @@ def total_quantity(
     the volume-aware count ``multiplicity · volume · concentration`` (``WorldState.amount``).
     ``per_index_quantity[j]`` is the conserved vector for molecule index ``j``. For a world
     whose internal reactions are balanced and whose flows conserve, this total is invariant
-    across simulation steps; a per-step drift is a leak and should fail loudly.
+    across simulation steps — but only there: a boundary reaction (a Source or Sink, exempt
+    from the check and present in every generated world) and a population law (births and
+    deaths change the count, ``population.py``) move it legitimately, so on such a world a
+    drift is not by itself a leak. Nothing in ``src/`` calls it today.
     """
     total: ConservedVector = {}
     num_molecules = state.num_molecules

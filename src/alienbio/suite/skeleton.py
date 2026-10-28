@@ -65,7 +65,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Mapping, Optional, cast
 
 from ..bio.chemistry import ChemistryImpl
-from ..bio.conservation import ConservationError, validate_conservation
+from ..bio.conservation import ConservationError, conservation_outcome, validate_conservation
 from ..bio.molecule import MoleculeImpl
 from ..bio.reaction import ReactionImpl
 from ..bio.world import Compartment, NodeId, PopulationLawSpec, Transport, WorldImpl
@@ -605,6 +605,11 @@ class Skeleton:
     chemistry: Optional[ChemistryImpl] = None
     control_surface: tuple[PortRef, ...] = ()
     crux: BlockRef = ""
+    #: What :meth:`validate`'s atom-balance gate established, set by it:
+    #: ``conservation.conservation_outcome``'s verdict — ``"vacuous: no atoms"``
+    #: on every skeleton-minted chemistry today, since minted pools carry no
+    #: atoms. ``None`` before ``validate`` runs.
+    conservation: Optional[str] = field(default=None, compare=False)
 
     def materialize(self, seed: Seed) -> WorldImpl:
         """Recursively realize ``root`` into one ``ChemistryImpl`` + a default
@@ -653,7 +658,9 @@ class Skeleton:
         on. Namespace-collision-freedom is enforced *by construction* —
         :meth:`materialize` already raised if two blocks collided — so it is
         not re-checked here. Internal reactions are atom-balanced via the F012
-        gate (:func:`alienbio.bio.conservation.validate_conservation`).
+        gate (:func:`alienbio.bio.conservation.validate_conservation`); since
+        skeleton-minted pools carry no atoms that gate passes vacuously, and
+        :attr:`conservation` records which verdict it was.
         """
         if self.chemistry is None:
             raise SkeletonError("validate() requires materialize() to run first")
@@ -682,6 +689,9 @@ class Skeleton:
             validate_conservation(self.chemistry)
         except ConservationError as exc:
             errors.append(str(exc))
+        # A clean pass over atom-free pools proved nothing; say so where a
+        # caller (or a test) can read it instead of letting it read as a pass.
+        object.__setattr__(self, "conservation", conservation_outcome(self.chemistry))
 
         if errors:
             return SkeletonError("; ".join(errors))

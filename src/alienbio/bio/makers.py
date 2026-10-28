@@ -24,6 +24,11 @@ def _named_dict(items: Any) -> dict[str, Any]:
     ``None`` -> ``{}``; a ``Mapping`` passes through (copied); an iterable of
     entities becomes ``{entity.local_name: entity}`` — the derivation that lets
     ``mk.C("world", [a, b], [r])`` drop the ``{"A": a, ...}`` boilerplate.
+
+    Two *different* entities sharing a local name refuse: keeping the last
+    would drop the first silently, and every reaction naming it would point
+    at a molecule the chemistry does not hold. The same object listed twice
+    is one entity and is kept once.
     """
     if items is None:
         return {}
@@ -35,6 +40,12 @@ def _named_dict(items: Any) -> dict[str, Any]:
             if not isinstance(entity, Entity):
                 raise TypeError(
                     f"mk.C list entries must be entities with a local_name; got {entity!r}"
+                )
+            prior = result.get(entity.local_name)
+            if prior is not None and prior is not entity:
+                raise ValueError(
+                    f"mk.C: two different entities share the local name "
+                    f"{entity.local_name!r}; names must be unique within a chemistry"
                 )
             result[entity.local_name] = entity
         return result

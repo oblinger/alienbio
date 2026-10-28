@@ -134,6 +134,21 @@ class ChemistryImpl(Entity, head="Chemistry"):
                         f"chemistry {name!r}: {kind} key {key!r} differs from its "
                         f"entity's name {entity.name!r}; key every {kind} by its name"
                     )
+        # One symbol, one atom: conservation keys compositions by symbol, so
+        # two different atoms under one symbol would balance as one element
+        # while weighing as two (T088 bio/molecule 2).
+        by_symbol: Dict[str, AtomImpl] = {}
+        for owner, atom in [(f"atoms[{s!r}]", a) for s, a in self.atoms.items()] + [
+            (f"molecule {mol_name!r}", a)
+            for mol_name, mol in self.molecules.items()
+            for a in mol.atoms
+        ]:
+            prior = by_symbol.setdefault(atom.symbol, atom)
+            if prior != atom:
+                raise ValueError(
+                    f"chemistry {name!r}: {owner} carries {atom!r}, a different atom "
+                    f"under the symbol {atom.symbol!r} than {prior!r}"
+                )
         shared = self.molecules.keys() & self.reactions.keys()
         if shared:
             raise ValueError(
