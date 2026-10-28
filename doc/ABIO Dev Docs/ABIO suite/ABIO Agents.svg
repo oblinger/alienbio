@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-spec">
+    <rect id="n-spec-box" x="20" y="40" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="145" y="66" font-size="18" font-weight="600" text-anchor="middle">ExperimentSpec</text>
+    <text id="n-spec-kind" x="145" y="88" font-size="14" text-anchor="middle">(ExperimentSpec) agent, model,</text>
+    <text id="n-spec-kind2" x="145" y="108" font-size="14" text-anchor="middle">temperature, token_ceiling …</text>
+  </g>
+  <g id="n-for">
+    <rect id="n-for-box" x="340" y="40" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-for-name" x="465" y="66" font-size="18" font-weight="600" text-anchor="middle">_agent_factory_for</text>
+    <text id="n-for-kind" x="465" y="88" font-size="14" text-anchor="middle">(fn) kind = dials[agent]</text>
+    <text id="n-for-kind2" x="465" y="108" font-size="14" text-anchor="middle">or spec.agent, per trial</text>
+  </g>
+  <line id="e-spec-for" x1="270" y1="80" x2="340" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-mtr">
+    <rect id="n-mtr-box" x="710" y="40" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mtr-name" x="835" y="66" font-size="18" font-weight="600" text-anchor="middle">MassTrialRunner</text>
+    <text id="n-mtr-kind" x="835" y="88" font-size="14" text-anchor="middle">(runner) one agent per trial,</text>
+    <text id="n-mtr-kind2" x="835" y="108" font-size="14" text-anchor="middle">world seeds shared</text>
+  </g>
+  <line id="e-mtr-for" x1="710" y1="80" x2="590" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-mtr-for" x="650" y="70" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">seed, dials</text>
+
+  <g id="n-agents">
+    <rect id="n-agents-box" x="340" y="220" width="250" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-agents-name" x="465" y="246" font-size="18" font-weight="600" text-anchor="middle">AGENTS</text>
+    <text id="n-agents-kind" x="465" y="268" font-size="14" text-anchor="middle">(Mapping) name → builder,</text>
+    <text id="n-agents-kind2" x="465" y="288" font-size="14" text-anchor="middle">resolved once per kind</text>
+  </g>
+  <line id="e-for-agents" x1="465" y1="120" x2="465" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-for-agents" x="475" y="175" font-size="14" fill="#1971c2" font-style="italic">kind</text>
+
+  <g id="n-scripted">
+    <rect id="n-scripted-box" x="20" y="390" width="300" height="100" rx="10" fill="#e6fcf5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-scripted-name" x="170" y="416" font-size="18" font-weight="600" text-anchor="middle">scripted controls</text>
+    <text id="n-scripted-kind" x="170" y="438" font-size="14" text-anchor="middle">(ScriptedAgent + classes) idle ·</text>
+    <text id="n-scripted-kind2" x="170" y="458" font-size="14" text-anchor="middle">measure · survey · heuristic · knockout</text>
+    <text id="n-scripted-kind3" x="170" y="478" font-size="14" text-anchor="middle">act · assay · pursue-target</text>
+  </g>
+  <line id="e-agents-scripted" x1="400" y1="300" x2="240" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-agents-scripted" x="300" y="335" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">spec ignored</text>
+  <g id="n-llmf">
+    <rect id="n-llmf-box" x="580" y="390" width="270" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-llmf-name" x="715" y="416" font-size="18" font-weight="600" text-anchor="middle">llm_agent_factory</text>
+    <text id="n-llmf-kind" x="715" y="438" font-size="14" text-anchor="middle">(fn) pinned model, one</text>
+    <text id="n-llmf-kind2" x="715" y="458" font-size="14" text-anchor="middle">UsageMeter; trial dials win</text>
+    <text id="n-llmf-kind3" x="715" y="478" font-size="14" text-anchor="middle">over spec fields</text>
+  </g>
+  <line id="e-agents-llmf" x1="530" y1="300" x2="660" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-agents-llmf" x="610" y="335" font-size="14" fill="#1971c2" font-style="italic">llm</text>
+  <g id="n-head">
+    <rect id="n-head-box" x="930" y="220" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="1055" y="246" font-size="18" font-weight="600" text-anchor="middle">Expr llm head</text>
+    <text id="n-head-kind" x="1055" y="268" font-size="14" text-anchor="middle">(ExprExperiment) model,</text>
+    <text id="n-head-kind2" x="1055" y="288" font-size="14" text-anchor="middle">memory, token_ceiling</text>
+  </g>
+  <line id="e-head-llmf" x1="990" y1="300" x2="800" y2="390" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-head-llmf" x="935" y="352" font-size="14" fill="#1971c2" font-style="italic">same factory</text>
+  <g id="n-llm">
+    <rect id="n-llm-box" x="930" y="390" width="250" height="100" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-llm-name" x="1055" y="416" font-size="18" font-weight="600" text-anchor="middle">LLMAgent</text>
+    <text id="n-llm-kind" x="1055" y="438" font-size="14" text-anchor="middle">(LLMAgent) memory,</text>
+    <text id="n-llm-kind2" x="1055" y="458" font-size="14" text-anchor="middle">forgetting, output budget</text>
+    <text id="n-llm-kind3" x="1055" y="478" font-size="14" text-anchor="middle">imported lazily</text>
+  </g>
+  <line id="e-llmf-llm" x1="850" y1="440" x2="930" y2="440" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-llmf-llm" x="890" y="430" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">trial</text>
+
+  <g id="n-runner">
+    <rect id="n-runner-box" x="460" y="540" width="270" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-runner-name" x="595" y="565" font-size="18" font-weight="600" text-anchor="middle">runner.run</text>
+    <text id="n-runner-kind" x="595" y="586" font-size="14" text-anchor="middle">(Runner) begin · act · notice</text>
+  </g>
+  <line id="e-runner-scripted" x1="460" y1="560" x2="270" y2="490" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-runner-llm" x1="730" y1="560" x2="1000" y2="490" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">resolves, builds</text>
+    <line id="legend-dotted" x1="240" y1="641" x2="290" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="300" y="646" font-size="14">calls</text>
+    <text id="legend-note" x="380" y="646" font-size="14">agent and model sweep as axes; every arm draws the same worlds</text>
+  </g>
+</svg>
