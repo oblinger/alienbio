@@ -497,15 +497,7 @@ class WorldSimulatorImpl:
                     )
                 modulators[mol_id] = Modulation.from_value(mod_value)
 
-            rate = reaction.rate
-            if not isinstance(rate, (int, float)) or isinstance(rate, bool):
-                # A callable rate was the M1 single-compartment simulator's; it
-                # used to be DOWNGRADED to mass-action 1.0 with a warning, i.e. a
-                # silently wrong world. Refuse instead (T056).
-                raise ValueError(
-                    f"reaction {reaction.local_name!r}: rate must be a number (got "
-                    f"{type(rate).__name__}); a rate law is `rate_law`, compiled by rate_expr"
-                )
+            rate = reaction.rate  # numeric: ReactionImpl refuses anything else
 
             rate_law = None
             if reaction.rate_law is not None:

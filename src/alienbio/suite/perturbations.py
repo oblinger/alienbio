@@ -57,9 +57,6 @@ def perturb_rate(world: WorldImpl, reaction_id: str, factor: float) -> WorldImpl
 
     Raises:
         KeyError: if ``reaction_id`` is not a reaction of ``world``.
-        TypeError: if that reaction carries a callable (formula) rate rather than a
-            constant mass-action rate constant — scaling a rate law is undefined
-            here (and the simulator only integrates constant rates anyway).
     """
     chem = world.chemistry
     if reaction_id not in chem.reactions:
@@ -68,12 +65,7 @@ def perturb_rate(world: WorldImpl, reaction_id: str, factor: float) -> WorldImpl
             f"reactions are {sorted(chem.reactions)}"
         )
     old = chem.reactions[reaction_id]
-    rate = old.rate
-    if not isinstance(rate, (int, float)):
-        raise TypeError(
-            f"perturb_rate: reaction {reaction_id!r} has a callable rate; only "
-            f"constant mass-action rates can be scaled"
-        )
+    rate = old.rate  # numeric: ReactionImpl refuses anything else (2026-10)
 
     new_reactions = dict(chem.reactions)
     new_reactions[reaction_id] = ReactionImpl(

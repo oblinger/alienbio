@@ -77,21 +77,7 @@ def simulate(
     to the sampled states; the overlay relaxes toward zero after the pressure's
     ``remove_at`` step, so the reported state recovers toward the unperturbed
     trajectory (see :mod:`alienbio.suite.pressure`).
-
-    Raises:
-        ValueError: if any reaction carries a callable (formula) rate rather than a
-            constant mass-action rate constant.
     """
-    # Constant rates only: reject callable rate laws loudly (the ID-based world
-    # simulator would otherwise silently downgrade them to 1.0).
-    chem = world.chemistry
-    for rid, rxn in chem.reactions.items():
-        if not isinstance(rxn.rate, (int, float)):
-            raise ValueError(
-                f"verify supports constant mass-action rates; callable rate on "
-                f"reaction {rid!r}"
-            )
-
     # 1. The world already carries a concrete Chemistry and a derived,
     #    self-describing initial WorldState on a concrete CompartmentTree. Copy the
     #    initial state (leave the world's pristine) and reuse its tree — no tree
@@ -107,7 +93,7 @@ def simulate(
     #    Both default to empty, so a non-transport/non-population world is
     #    byte-identical.
     sim = WorldSimulatorImpl.from_chemistry(
-        chem,
+        world.chemistry,
         tree,
         flows=list(world.flow_objs),
         dt=sim_cfg.dt,
