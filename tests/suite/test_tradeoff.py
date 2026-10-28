@@ -26,19 +26,40 @@ A, B = "root/crux/sink_a_in", "root/crux/sink_b_in"
 
 def test_conflict_oracle_shapes_per_rung():
     for rung in RUNGS:
-        _, _, objective = draft_conflict_world(Seed(1), rung=rung)
+        world, _, objective = draft_conflict_world(Seed(1), rung=rung)
         assert isinstance(objective, OutcomeObjective)
-        oracle = conflict_oracle(objective, rung)
+        oracle = conflict_oracle(objective, rung, world=world)
         assert oracle["rung"] == rung and oracle["supply"] > 0
         if rung == "single":
             assert len(oracle["targets"]) == 1 and oracle["frontier"] is None
         else:
             assert [t for t, _ in oracle["targets"]] == [A, B] == oracle["priority"]
             assert all(abs(a + b - oracle["supply"]) < 1e-9 for a, b in oracle["frontier"])
-    _, _, objective = draft_conflict_world(Seed(1), rung="forced")
-    assert conflict_oracle(objective, "forced", [B, A])["priority"] == [B, A]
+    world, _, objective = draft_conflict_world(Seed(1), rung="forced")
+    assert conflict_oracle(objective, "forced", [B, A], world=world)["priority"] == [B, A]
     with pytest.raises(ValueError, match="permutation"):
-        conflict_oracle(objective, "forced", [A, "nope"])
+        conflict_oracle(objective, "forced", [A, "nope"], world=world)
+
+
+def test_conflict_oracle_reads_the_supply_off_the_drafted_world():
+    """T088 conflict_gen 5: the supply is the drafted source rate over the
+    routes' common sink rate, not the generator's multipliers recomputed —
+    so it matches the world it describes (12 / 80 / 20 / 8 at the default
+    targets) and refuses a world whose sinks differ, where the linear
+    frontier does not hold."""
+    from alienbio.suite.conflict_gen import frontier_supply
+
+    expected = {"single": 12.0, "compatible": 80.0, "latent": 20.0, "forced": 8.0}
+    for rung, supply in expected.items():
+        world, _, objective = draft_conflict_world(Seed(1), rung=rung)
+        assert isinstance(objective, OutcomeObjective)
+        assert frontier_supply(world) == supply
+        assert conflict_oracle(objective, rung, world=world)["supply"] == supply
+    world, _, _ = draft_conflict_world(Seed(1), rung="latent")
+    rx = world.chemistry.reactions["root/crux/sink_b/rxn"]
+    rx.set_rate(2.0)
+    with pytest.raises(ValueError, match="common sink rate"):
+        frontier_supply(world)
 
 
 def _record(final_state, oracle, key, error=""):
@@ -115,3 +136,20 @@ def test_exp7_zero_reads_the_passive_split_at_every_rung(tmp_path):
     manifest = json.loads((tmp_path / "run" / "manifest.json").read_text())
     report = render_report(rmap, manifest)
     assert "Conflict resolution" in report and "precedence consistency across compatible/forced" in report
+
+
+def test_conflict_question_names_both_targets_on_the_two_target_rungs():
+    """T088 (analysis round's note on conflict_gen 1): the question took
+    ``objective.target[0]``, which on ``compatible``/``latent``/``forced`` is
+    V1's ``(id, goal)`` pair alone, so the brief asked about one target of
+    two. It now names both pairs; ``single`` still names its one id."""
+    from alienbio.suite.brief import task_readouts
+    from alienbio.suite.drafters import DRAFTERS
+
+    for rung in ("compatible", "latent", "forced"):
+        world, task = DRAFTERS["conflict"](Seed(1), {"rung": rung})
+        target = task.question.structured["target"]
+        assert target == ((A, 10.0), (B, 10.0))
+        assert {A, B} <= task_readouts(task, world.chemistry)
+    _world, task = DRAFTERS["conflict"](Seed(1), {"rung": "single"})
+    assert task.question.structured["target"] == "root/sink_in"

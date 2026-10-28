@@ -55,7 +55,11 @@ exp08 re-pinned 2026-10-28 (T088 Q4 = A): ``source_b``'s sink drains at
 at every time; only ``final_state`` moved (``source_b_out`` on all twelve
 lines, ``route_drive_out`` on the six W_mismatch lines) — every score,
 action and answer is byte-identical, and the other fifteen were
-byte-unchanged.
+byte-unchanged. exp07 re-pinned the same day: the conflict question on
+the two-target rungs names both ``(id, goal)`` pairs (it named V1's
+alone); ``brief.question.target`` on all 36 lines is the only field that
+moved — the oracle's supply, now read off the drafted world, is
+byte-identical.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -84,7 +88,7 @@ GOLDEN: dict[str, str] = {
     "exp04-zero": "d07da8100b6e215c",
     "exp05": "ce142336a1e2f1d1",
     "exp06": "ffa26959c383e674",
-    "exp07": "1797d1821cc178af",
+    "exp07": "fcba846f9a5bf0ab",
     "exp08": "d63c1077400826a2",
     "exp09": "e13e13884a057228",
     "exp11": "5133aeda0c2af22c",

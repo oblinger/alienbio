@@ -206,3 +206,46 @@ def test_scripted_agent_runs_conflict_world_through_scenario_runner(rung: str) -
         assert record.objective_score > 0.9
     if rung == "forced":
         assert record.objective_score < 1.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# T088 conflict_gen 2–3: the default split and the gate's clock
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_latent_default_split_sits_on_the_boundary_for_unequal_targets() -> None:
+    """conflict_gen 2: with ``v1 != v2`` a balanced ``kA == kB`` split sent
+    S/2 to each route and missed the larger target outright (8 vs 12 → the
+    min-of-components score 1/5). The default now splits in the targets'
+    ratio, so both products approach their goals from just below, as on
+    the equal-target ladder."""
+    world, _skeleton, objective = draft_conflict_world(Seed(3), rung="latent", v1_target=8.0, v2_target=12.0)
+    timeline = simulate(world, SimConfig(dt=0.05, steps=800, sample_every=100))
+    assert objective.scorer(timeline) > 0.999
+    world_eq, _, objective_eq = draft_conflict_world(Seed(3), rung="latent")
+    rx = world_eq.chemistry.reactions
+    assert rx["root/crux/route_a/rxn"].rate == 1.0 == rx["root/crux/route_b/rxn"].rate
+
+
+def test_forced_gate_runs_on_the_callers_clock(monkeypatch) -> None:
+    """conflict_gen 3: ``sim_cfg`` was accepted and never read — the gate
+    always simulated on the module's 20 s clock."""
+    import alienbio.suite.conflict_gen as cg
+
+    seen: list[SimConfig] = []
+    original = cg.sweep_conflict_frontier
+
+    def recording(build, seed, points, sim_cfg):  # type: ignore[no-untyped-def]
+        seen.append(sim_cfg)
+        return original(build, seed, points, sim_cfg)
+
+    monkeypatch.setattr(cg, "sweep_conflict_frontier", recording)
+    clock = SimConfig(dt=0.1, steps=50, sample_every=10)
+    draft_conflict_world(Seed(4), rung="forced", sim_cfg=clock)
+    assert seen == [clock]
+
+
+@pytest.mark.parametrize("kwargs", [{"v1_target": 0.0}, {"v2_target": -1.0}, {"v1_target": float("nan")}])
+def test_draft_refuses_a_non_positive_target(kwargs) -> None:
+    with pytest.raises(ValueError, match=next(iter(kwargs))):
+        draft_conflict_world(Seed(5), rung="latent", **kwargs)

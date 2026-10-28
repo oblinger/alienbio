@@ -31,21 +31,29 @@ from .score_conflict import dominant_objective, favors, pareto_distance, precede
 from .types import OutcomeObjective
 
 if TYPE_CHECKING:
+    from ..bio.world import WorldImpl
     from .trial import TrialRecord
 
 ConditionKey = tuple[tuple[str, Any], ...]
 
 
-def conflict_oracle(objective: OutcomeObjective, rung: str, priority: Optional[Sequence[str]] = None) -> dict[str, Any]:
+def conflict_oracle(
+    objective: OutcomeObjective,
+    rung: str,
+    priority: Optional[Sequence[str]] = None,
+    *,
+    world: "WorldImpl",
+) -> dict[str, Any]:
     """The conflict oracle for a drafted rung — see the module docstring.
 
     ``objective.target`` is ``(id, goal)`` for a one-target rung or a tuple
-    of such pairs; the supply is the sum of the goals scaled by the rung's
-    multiplier (:data:`~alienbio.suite.conflict_gen._S_MULTIPLIER`, the
-    generator's own design invariant), and the frontier is the line
-    ``V1 + V2 == supply`` for two-target rungs, absent for one.
+    of such pairs; the supply is read off the drafted ``world``
+    (:func:`~alienbio.suite.conflict_gen.frontier_supply`: the source rate
+    over the routes' common sink rate — T088 conflict_gen 5, it was
+    recomputed from the generator's private multipliers), and the frontier
+    is the line ``V1 + V2 == supply`` for two-target rungs, absent for one.
     """
-    from .conflict_gen import _S_MULTIPLIER, _SINGLE_MARGIN
+    from .conflict_gen import frontier_supply
 
     raw = objective.target
     if isinstance(raw[0], str):
@@ -59,11 +67,9 @@ def conflict_oracle(objective: OutcomeObjective, rung: str, priority: Optional[S
             raise ValueError(f"conflict_oracle: priority {order} must be a permutation of the targets {ids}")
     else:
         order = ids
-    if len(targets) == 1:
-        supply = _SINGLE_MARGIN * targets[0][1]
-        frontier: Optional[list[list[float]]] = None
-    else:
-        supply = _S_MULTIPLIER[rung] * sum(goal for _, goal in targets)
+    supply = frontier_supply(world)
+    frontier: Optional[list[list[float]]] = None
+    if len(targets) > 1:
         frontier = [list(pt) for pt in closed_form_frontier(supply)]
     return {"rung": rung, "targets": [[tid, goal] for tid, goal in targets], "supply": supply, "frontier": frontier, "priority": order}
 

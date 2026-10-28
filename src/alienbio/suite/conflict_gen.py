@@ -12,10 +12,15 @@ raise targets ``V1``/``V2``. One coupling knob — the source's supply rate
   the task genuinely has one live objective, no tradeoff.
 - ``compatible`` — ``S`` set generously above ``v1_target + v2_target``; both
   targets clear comfortably at the default balanced split (``kA == kB``).
-- ``latent`` — ``S == v1_target + v2_target`` exactly: the balanced default
-  split hits both targets right at the boundary (looks conflict-free), but any
-  asymmetric reallocation trades one target off against the other — the
-  tension is real but hidden from a policy that never perturbs the split.
+- ``latent`` — ``S == v1_target + v2_target`` exactly: the default split
+  (``kA : kB == v1_target : v2_target``, balanced for equal targets) hits both
+  targets right at the boundary (looks conflict-free), but any asymmetric
+  reallocation trades one target off against the other — the tension is real
+  but hidden from a policy that never perturbs the split. The products
+  approach their steady share from below, so at a finite horizon the
+  min-of-components score reads just under 1.0 (``0.99999998`` at the 20 s
+  draft, ``0.999997`` on exp07's 15-turn episode) — "at the boundary" means
+  that, not a clean 1.0.
 - ``forced`` — ``S`` set below ``v1_target + v2_target``: the analytic
   steady-state invariant ``prodA_ss + prodB_ss == S`` (both routes drain their
   own product through the SAME unit sink rate, so the shared-precursor
@@ -26,7 +31,10 @@ raise targets ``V1``/``V2``. One coupling knob — the source's supply rate
   (:func:`_assert_forced_gate`, Q2=C) sweeps several ``(kA, kB)`` allocations
   through the real assembled world and fails loudly if any of them manages to
   satisfy both targets — the same taint-free canary posture as the F012
-  homeostasis simulate-and-check sibling.
+  homeostasis simulate-and-check sibling. On today's topology it cannot
+  fire (every achieved sum is at most ``S < v1_target + v2_target``); it
+  guards a future crux change, at five materialize+simulate passes per
+  ``forced`` draft.
 
 The crux's own :meth:`~alienbio.suite.blocks.ConflictCruxBlock.ground_truth`
 already returns the achieved ``(prodA, prodB)`` point (F014); the closed-form
@@ -42,6 +50,7 @@ requires BOTH components to clear their target, not just their average.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -70,8 +79,10 @@ RUNGS = ("single", "compatible", "latent", "forced")
 #: character comes entirely from ``S``, not from asymmetric targets).
 DEFAULT_TARGET = 10.0
 
-#: The default, "naive" route-rate split every rung materializes with —
-#: ``latent``'s whole point is that THIS default looks conflict-free.
+#: The default, "naive" route-rate total every rung materializes with,
+#: split ``kA : kB == v1_target : v2_target`` (``1.0`` each for equal targets)
+#: — ``latent``'s whole point is that THIS default looks conflict-free, which
+#: a balanced split would not for unequal targets (T088 conflict_gen 2).
 DEFAULT_KA = 1.0
 DEFAULT_KB = 1.0
 
@@ -227,8 +238,38 @@ def closed_form_frontier(
     )
 
 
+def frontier_supply(world: WorldImpl) -> float:
+    """The steady-state product total a drafted conflict world can reach —
+    the ``S`` of :func:`closed_form_frontier`, read off the drafted rates
+    rather than recomputed from this module's multipliers (T088
+    conflict_gen 5): the source's supply rate over the routes' common sink
+    rate (``1.0`` as :class:`~alienbio.suite.blocks.ConflictCruxBlock` and the
+    ``single`` shape build them).
+
+    Raises:
+        ValueError: the two routes' sinks drain at different rates — the
+            linear frontier ``V1 + V2 == S`` holds only for a common rate.
+    """
+    rx = world.chemistry.reactions
+    source = float(rx["root/source/rxn"].rate)
+    if "root/crux/sink_a/rxn" in rx:
+        k_a = float(rx["root/crux/sink_a/rxn"].rate)
+        k_b = float(rx["root/crux/sink_b/rxn"].rate)
+        if k_a != k_b:
+            raise ValueError(
+                f"frontier_supply: the routes' sinks drain at {k_a!r} and {k_b!r}; "
+                "the closed-form frontier needs a common sink rate"
+            )
+        return source / k_a
+    return source / float(rx["root/sink/rxn"].rate)
+
+
 def _assert_forced_gate(
-    seed: Seed, source_rate: float, v1_target: float, v2_target: float
+    seed: Seed,
+    source_rate: float,
+    v1_target: float,
+    v2_target: float,
+    sim_cfg: SimConfig = _SIM_CFG,
 ) -> None:
     """Q2=C simulate-and-check acceptance gate: materialize + simulate several
     ``(kA, kB)`` allocations and confirm NONE of them satisfies both targets.
@@ -249,7 +290,7 @@ def _assert_forced_gate(
     def build(kA: Dist[float], kB: Dist[float]) -> Skeleton:
         return build_conflict_skeleton(source_rate=source_rate, kA=kA, kB=kB)
 
-    achieved = sweep_conflict_frontier(build, seed.child("forced-gate"), points, _SIM_CFG)
+    achieved = sweep_conflict_frontier(build, seed.child("forced-gate"), points, sim_cfg)
     for (kA, kB), (a, b) in zip(points, achieved):
         if a >= v1_target and b >= v2_target:
             raise SkeletonError(
@@ -281,13 +322,20 @@ def draft_conflict_world(
     two-component :class:`~alienbio.suite.types.OutcomeObjective`
     (one-component for ``single``).
 
+    ``sim_cfg`` is the clock the ``forced`` gate simulates on (T088
+    conflict_gen 3: it was accepted and never read). Without ``kA``/``kB``
+    the routes split :data:`DEFAULT_KA` ``+`` :data:`DEFAULT_KB` in the
+    targets' ratio, so ``latent``'s default sits on the boundary for any
+    pair of targets (T088 conflict_gen 2).
+
     Deterministic in ``seed``: the block library's own seed-derived rate
     sampling is a no-op here since ``kA``/``kB`` default to ``Constant``
     (and any caller-supplied ``Dist`` is still sampled from the same ``seed``
     every call).
 
     Raises:
-        ValueError: ``rung`` is not one of :data:`RUNGS`.
+        ValueError: ``rung`` is not one of :data:`RUNGS`, or a target is not
+            a positive finite number.
         SkeletonError: the ``forced`` rung fails its simulate-and-check
             acceptance gate (Q2=C) — an indirection/nonlinearity escape hatch
             let some allocation satisfy both targets at once.
@@ -295,12 +343,15 @@ def draft_conflict_world(
     if rung not in RUNGS:
         raise ValueError(f"rung must be one of {RUNGS}, got {rung!r}")
 
-    resolved_kA = kA if kA is not None else Constant(DEFAULT_KA)
-    resolved_kB = kB if kB is not None else Constant(DEFAULT_KB)
+    for name, value in (("v1_target", v1_target), ("v2_target", v2_target)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} must be a positive finite number, got {value!r}")
 
     if rung == "single":
         source_rate = _SINGLE_MARGIN * v1_target
-        skeleton = _build_single_skeleton(source_rate=source_rate, kA=resolved_kA)
+        skeleton = _build_single_skeleton(
+            source_rate=source_rate, kA=kA if kA is not None else Constant(DEFAULT_KA)
+        )
         world = skeleton.materialize(seed)
 
         route = skeleton.root.children[1]
@@ -310,6 +361,9 @@ def draft_conflict_world(
         )
         return world, skeleton, objective
 
+    total = DEFAULT_KA + DEFAULT_KB
+    resolved_kA = kA if kA is not None else Constant(total * v1_target / (v1_target + v2_target))
+    resolved_kB = kB if kB is not None else Constant(total * v2_target / (v1_target + v2_target))
     source_rate = _S_MULTIPLIER[rung] * (v1_target + v2_target)
     skeleton = build_conflict_skeleton(
         source_rate=source_rate, kA=resolved_kA, kB=resolved_kB
@@ -317,7 +371,7 @@ def draft_conflict_world(
     world = skeleton.materialize(seed)
 
     if rung == "forced":
-        _assert_forced_gate(seed, source_rate, v1_target, v2_target)
+        _assert_forced_gate(seed, source_rate, v1_target, v2_target, sim_cfg)
 
     crux = skeleton.root.children[1]
     route_a = next(c for c in crux.children if c.name == "route_a")

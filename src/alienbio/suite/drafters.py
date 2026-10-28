@@ -985,7 +985,11 @@ def conflict(*, rung: str, priority: Any = None, env: Any, **generator: Any) -> 
     :func:`pressure`; the oracle carries the M36.4 conflict frontier."""
     world, _skeleton, objective = draft_conflict_world(env.ctx.seed, rung=rung, **generator)
     assert isinstance(objective, OutcomeObjective)
-    t_id = objective.target[0]
+    # ``single`` targets one ``(id, goal)`` — the question names the id; the
+    # two-target rungs target ``((v1_id, v1), (v2_id, v2))`` — the question
+    # names both pairs (it named V1's pair alone until T088).
+    first = objective.target[0]
+    t_id: Any = first if isinstance(first, str) else tuple(tuple(pair) for pair in objective.target)
     # M36.4 — EXP-7's conflict oracle: the targets, the supply that bounds
     # them, the closed-form (V1, V2) frontier and the priority under test.
     from .tradeoff import conflict_oracle
@@ -996,7 +1000,7 @@ def conflict(*, rung: str, priority: Any = None, env: Any, **generator: Any) -> 
         skeleton=_no_carve(),
         objective=objective,
         question=Question(structured={"kind": "outcome", "target": t_id}, kind="json"),
-        setup={"oracle": {"conflict": conflict_oracle(objective, rung, priority)}},
+        setup={"oracle": {"conflict": conflict_oracle(objective, rung, priority, world=world)}},
     )
     return Draft(world, task)
 

@@ -372,7 +372,9 @@ def task_readouts(task: TaskInstance, chemistry: "ChemistryImpl") -> frozenset[s
     readout writes the answer into the measurement. The readouts are:
 
     - a structured question's ``target`` / ``tracked`` (the pressure and
-      phase-1 objectives, an outcome example's ``{kind, target}``) and every
+      phase-1 objectives, an outcome example's ``{kind, target}``; a
+      collection of entries — the conflict rungs' two ``(id, goal)`` pairs —
+      names each entry's id) and every
       id in an ``OutcomeObjective``'s tuple ``target`` — a bare id (the harm
       pool rides third there, T051 box 4) or the id of an ``(id, goal)``
       pair (the conflict rungs) — each as named and as the molecule(s) it
@@ -387,10 +389,17 @@ def task_readouts(task: TaskInstance, chemistry: "ChemistryImpl") -> frozenset[s
     structured = task.question.structured
     if isinstance(structured, Mapping):
         for key in ("target", "tracked"):
-            named = _target_id(structured.get(key))
-            if named is not None:
-                readouts.add(named)
-                readouts |= _resolve_molecules(named, molecules)
+            entry = structured.get(key)
+            named = _target_id(entry)
+            # A collection of target entries (the conflict question's two
+            # ``(id, goal)`` pairs) names every entry's id.
+            entries = [named] if named is not None else (
+                [_target_id(item) for item in entry] if isinstance(entry, (list, tuple)) else []
+            )
+            for one in entries:
+                if one is not None:
+                    readouts.add(one)
+                    readouts |= _resolve_molecules(one, molecules)
     elif isinstance(structured, (list, tuple, set, frozenset)):
         objective = task.objective
         answer_is_node = isinstance(objective, AnswerObjective) and any(
