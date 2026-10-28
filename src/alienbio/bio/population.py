@@ -19,10 +19,11 @@ laws, matching the F012/S6 posture):
   reactant side). Bilinear in population size and resource concentration, so growth
   self-limits as the resource pool draws down — logistic boundedness from nutrient
   limitation, no arbitrary cap (F012 D-f). Q4=A (born-full): new instances are created
-  at the parent's per-instance concentrations (nothing here touches concentrations
-  directly), so ``stoich`` must be declared to fund the FULL biomass of each new
-  instance or the F012 amount-canary (:func:`alienbio.bio.conservation.total_quantity`)
-  fires — matter created from nothing.
+  at the parent's per-instance concentrations (except a resource drawn from the
+  growing compartment itself, which the newborns share rather than copy), so
+  ``stoich`` must be declared to fund the FULL biomass of each new instance or the
+  F012 amount-canary (:func:`alienbio.bio.conservation.total_quantity`) fires —
+  matter created from nothing.
 - :class:`PerCapitaDeath` — ``extent = k · N · dt``; optionally releases biomass back
   to a named pool (the reverse of growth's draw).
 - :class:`CountFlow` — the size-class transition primitive (Q2=A): an inter-compartment
@@ -33,17 +34,19 @@ laws, matching the F012/S6 posture):
   enters ``dest``.
 
 Every law's :meth:`PopulationLaw.contribute` reads ONLY the frozen start-of-step state
-(order-independent, H4-flavored) and ACCUMULATES its multiplicity/molecule deltas into
-caller-supplied dicts rather than mutating state directly — so several laws can affect
-the same compartment/pool in one step without one clobbering another's read of the frozen
-baseline (:meth:`WorldSimulatorImpl._population_pass` applies the accumulated totals once,
-after every law has contributed).
+(order-independent, H4-flavored) and ACCUMULATES its multiplicity deltas, molecule AMOUNT
+deltas and content :class:`Carry` records into caller-supplied containers rather than
+mutating state directly — so several laws can affect the same compartment/pool in one step
+without one clobbering another's read of the frozen baseline
+(:func:`apply_population_laws` applies the accumulated totals once, after every law has
+contributed, conserving amount wherever a law moves content).
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Sequence, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Any, Dict, FrozenSet, List, Optional, Sequence, TYPE_CHECKING
 
 from .rate_expr import ROUNDING_FLOOR
 
@@ -58,9 +61,36 @@ CompartmentId = int
 #: :meth:`PopulationLaw.contribute`, applied once by the population pass.
 MultDelta = Dict[CompartmentId, float]
 
-#: Accumulator for Δconcentration, keyed by ``(compartment, molecule)`` — the resource
-#: draw/release side of growth/death, applied once alongside ``MultDelta``.
+#: Accumulator for Δamount (``multiplicity · volume · concentration``, NOT a
+#: concentration), keyed by ``(compartment, molecule)`` — the resource draw/release side
+#: of growth/death, applied once alongside ``MultDelta``.
 MolDelta = Dict[tuple[CompartmentId, MoleculeId], float]
+
+
+@dataclass(frozen=True)
+class Carry:
+    """``count`` instances' contents, read per instance off ``src`` in the state the
+    pass writes (``volume · concentration``, after the reaction and flow passes).
+
+    - ``removes``: the contents leave ``src`` (a death, or a :class:`CountFlow`
+      departure); otherwise they are copied (a birth: born-full).
+    - ``dst``: where the contents land; ``None`` means they leave the world (death).
+    - ``skip``: molecules NOT copied by a birth — a growth law's own resource when it
+      draws from its own compartment: the newborns share the pool they are funded from,
+      so the drawn resource is not also replicated (module-doc finding, 2026-10).
+
+    A carry scales with its law's ration like every other delta.
+    """
+
+    src: CompartmentId
+    dst: Optional[CompartmentId]
+    count: float
+    removes: bool
+    skip: FrozenSet[MoleculeId] = frozenset()
+
+
+#: Accumulator for :class:`Carry` records.
+Carries = List[Carry]
 
 
 class PopulationLaw(ABC):
@@ -89,12 +119,14 @@ class PopulationLaw(ABC):
         dt: float,
         mult_delta: MultDelta,
         mol_delta: MolDelta,
+        carries: Carries,
     ) -> None:
         """Read ``frozen`` (start-of-step state) and ACCUMULATE this law's
-        Δmultiplicity / Δconcentration into the shared caller-supplied dicts.
+        Δmultiplicity, Δamount and content :class:`Carry` records into the
+        caller-supplied containers.
 
-        Never mutates ``frozen``, and never reads the dicts back — every law is a
-        pure function of the frozen state, so order among laws does not matter.
+        Never mutates ``frozen``, and never reads the containers back — every law
+        is a pure function of the frozen state, so order among laws does not matter.
         """
         ...
 
@@ -192,6 +224,7 @@ class PerCapitaGrowth(PopulationLaw):
         dt: float,
         mult_delta: MultDelta,
         mol_delta: MolDelta,
+        carries: Carries,
     ) -> None:
         raw = self.compute_extent(frozen) * dt
         if raw <= 0.0:
@@ -208,14 +241,26 @@ class PerCapitaGrowth(PopulationLaw):
 
         mult_delta[self._compartment] = mult_delta.get(self._compartment, 0.0) + raw
 
-        if self._stoich > 0.0:
-            drawn = self._stoich * raw
-            scale = frozen.get_multiplicity(self._resource_compartment) * frozen.get_volume(
-                self._resource_compartment
+        # Born-full: the newborns copy the compartment's per-instance contents —
+        # except, when the resource is drawn from this same compartment, the
+        # resource itself: the newborns share the pool that funds them, so
+        # N = 2, [R] = 1, stoich = 1 growing by 0.2 ends at R amount 1.8 (it was
+        # 1.98: the draw was a concentration on the old count, and the newborns
+        # then held the post-draw concentration).
+        self_draw = self._stoich > 0.0 and self._resource_compartment == self._compartment
+        carries.append(
+            Carry(
+                src=self._compartment,
+                dst=self._compartment,
+                count=raw,
+                removes=False,
+                skip=frozenset({self._resource}) if self_draw else frozenset(),
             )
-            if scale > 0.0:
-                key = (self._resource_compartment, self._resource)
-                mol_delta[key] = mol_delta.get(key, 0.0) - drawn / scale
+        )
+
+        if self._stoich > 0.0:
+            key = (self._resource_compartment, self._resource)
+            mol_delta[key] = mol_delta.get(key, 0.0) - self._stoich * raw
 
     def attributes(self) -> Dict[str, Any]:
         """Semantic content for serialization."""
@@ -325,6 +370,7 @@ class PerCapitaDeath(PopulationLaw):
         dt: float,
         mult_delta: MultDelta,
         mol_delta: MolDelta,
+        carries: Carries,
     ) -> None:
         raw = self.compute_extent(frozen) * dt
         n = frozen.get_multiplicity(self._compartment)
@@ -333,19 +379,22 @@ class PerCapitaDeath(PopulationLaw):
             return
 
         mult_delta[self._compartment] = mult_delta.get(self._compartment, 0.0) - raw
+        # The dead take their contents out of the world (die-full).
+        carries.append(Carry(src=self._compartment, dst=None, count=raw, removes=True))
 
         if (
             self._release_compartment is not None
             and self._release_resource is not None
             and self._release_stoich > 0.0
         ):
-            scale = frozen.get_multiplicity(self._release_compartment) * frozen.get_volume(
-                self._release_compartment
-            )
-            if scale > 0.0:
-                key = (self._release_compartment, self._release_resource)
-                released = self._release_stoich * raw
-                mol_delta[key] = mol_delta.get(key, 0.0) + released / scale
+            # A release compartment of multiplicity × volume 0 cannot hold an
+            # amount; the release stays in the dying compartment rather than
+            # being dropped (module-doc finding, 2026-10).
+            target = self._release_compartment
+            if frozen.get_multiplicity(target) * frozen.get_volume(target) <= 0.0:
+                target = self._compartment
+            key = (target, self._release_resource)
+            mol_delta[key] = mol_delta.get(key, 0.0) + self._release_stoich * raw
 
     def attributes(self) -> Dict[str, Any]:
         """Semantic content for serialization."""
@@ -427,6 +476,7 @@ class CountFlow(PopulationLaw):
         dt: float,
         mult_delta: MultDelta,
         mol_delta: MolDelta,
+        carries: Carries,
     ) -> None:
         raw = self.compute_extent(frozen) * dt
         n = frozen.get_multiplicity(self._origin)
@@ -436,6 +486,10 @@ class CountFlow(PopulationLaw):
 
         mult_delta[self._origin] = mult_delta.get(self._origin, 0.0) - raw
         mult_delta[self._dest] = mult_delta.get(self._dest, 0.0) + raw
+        # The movers take their own contents with them; ``dest`` ends at the
+        # amount-weighted mix (they used to take on dest's concentration: ten
+        # instances at [X] = 2 moving one into an empty class went 20 -> 18).
+        carries.append(Carry(src=self._origin, dst=self._dest, count=raw, removes=True))
 
     def attributes(self) -> Dict[str, Any]:
         """Semantic content for serialization."""
@@ -467,8 +521,9 @@ def apply_population_laws(
     frozen: "WorldStateImpl",
     dt: float,
 ) -> None:
-    """Apply every law's Δmultiplicity/Δconcentration together, rationing the
-    SUMMED demand on each drained key (T051 box 4 / T053).
+    """Apply every law's deltas together, rationing the SUMMED demand on each
+    drained key (T051 box 4 / T053) and conserving molecule amount wherever a
+    law moves content (module-doc finding, 2026-10).
 
     Each law is asked for its deltas against the frozen start-of-step state, so
     order among laws does not matter. A law's ``contribute`` already limits its
@@ -484,50 +539,81 @@ def apply_population_laws(
     together, so a growth law whose resource draw is cut grows by the same
     fraction less.
 
-    When no key is over-drawn every ratio is exactly ``1.0`` and each delta is
-    multiplied by ``1.0``, which is bit-exact: worlds that never compete
-    integrate byte-identically to before this pass existed.
+    Multiplicity is rationed first; a molecule draw is then rationed against
+    the pool LESS what the (multiplicity-rationed) deaths and departures carry
+    out of it, so a draw and a death on one pool cannot together over-draw it.
+
+    Molecule changes are AMOUNTS. A key whose amount no law touches explicitly,
+    in a compartment that receives no movers and whose births copy it, keeps
+    its concentration (born-full / die-full: the count changes, the
+    per-instance contents do not). Every other key is accounted as an amount —
+    the pool before the pass, plus what births copy, minus what deaths and
+    departures carry out, plus what arrivals carry in, plus the draws and
+    releases — and divided by the compartment's new ``multiplicity · volume``.
+    A compartment left at size 0 holds no amount, so anything landing there is
+    lost; a death releasing into a size-0 compartment sends it to the dying
+    one instead.
     """
-    per_law: list[tuple[MultDelta, MolDelta]] = []
+    per_law: list[tuple[MultDelta, MolDelta, Carries]] = []
     for law in laws:
         mult: MultDelta = {}
         mol: MolDelta = {}
-        law.contribute(frozen, dt, mult, mol)
-        per_law.append((mult, mol))
+        carries: Carries = []
+        law.contribute(frozen, dt, mult, mol, carries)
+        per_law.append((mult, mol, carries))
 
+    # Phase 1 — multiplicity. Demands come off the frozen state; the ration is
+    # against the pool as the reaction and flow passes LEFT it in
+    # ``new_state``, so the three passes together never over-draw a pool.
     mult_demand: MultDelta = {}
-    mol_demand: MolDelta = {}
-    for mult, mol in per_law:
+    for mult, _, _ in per_law:
         for comp, delta in mult.items():
             if delta < 0.0:
                 mult_demand[comp] = mult_demand.get(comp, 0.0) - delta
-        for key, delta in mol.items():
-            if delta < 0.0:
-                mol_demand[key] = mol_demand.get(key, 0.0) - delta
-
-    # Demands come off the frozen state; the ration is against the pool as
-    # the reaction and flow passes LEFT it in ``new_state``, so the three
-    # passes together never over-draw a pool (module-doc finding, 2026-10).
     mult_ratio = {
         comp: (
             min(1.0, max(0.0, new_state.get_multiplicity(comp)) / dem) if dem > 0.0 else 1.0
         )
         for comp, dem in mult_demand.items()
     }
-    mol_ratio = {
-        (comp, mol_id): (
-            min(1.0, max(0.0, new_state.get(comp, mol_id)) / dem) if dem > 0.0 else 1.0
-        )
-        for (comp, mol_id), dem in mol_demand.items()
-    }
-
-    mult_delta: MultDelta = {}
-    mol_delta: MolDelta = {}
-    for mult, mol in per_law:
+    mult_scale: list[float] = []
+    for mult, _, _ in per_law:
         scale = 1.0
         for comp, delta in mult.items():
             if delta < 0.0:
                 scale = min(scale, mult_ratio[comp])
+        mult_scale.append(scale)
+
+    num_molecules = new_state.num_molecules
+
+    def per_instance(comp: CompartmentId, mol_id: MoleculeId) -> float:
+        return new_state.get_volume(comp) * new_state.get(comp, mol_id)
+
+    # Phase 2 — molecule draws, against the pool less what leaves with the
+    # dead and the departing (an upper bound on it: a law's final scale is at
+    # most its multiplicity scale).
+    outflow: Dict[CompartmentId, float] = {}
+    for (_, _, carries), scale in zip(per_law, mult_scale):
+        for carry in carries:
+            if carry.removes:
+                outflow[carry.src] = outflow.get(carry.src, 0.0) + carry.count * scale
+    mol_demand: MolDelta = {}
+    for _, mol, _ in per_law:
+        for key, delta in mol.items():
+            if delta < 0.0:
+                mol_demand[key] = mol_demand.get(key, 0.0) - delta
+    mol_ratio: Dict[tuple[CompartmentId, MoleculeId], float] = {}
+    for (comp, mol_id), dem in mol_demand.items():
+        avail = new_state.amount(comp, mol_id) - outflow.get(comp, 0.0) * per_instance(
+            comp, mol_id
+        )
+        mol_ratio[(comp, mol_id)] = min(1.0, max(0.0, avail) / dem) if dem > 0.0 else 1.0
+
+    # Accumulate the scaled deltas.
+    mult_delta: MultDelta = {}
+    mol_delta: MolDelta = {}
+    scaled_carries: list[Carry] = []
+    for (mult, mol, carries), scale in zip(per_law, mult_scale):
         for key, delta in mol.items():
             if delta < 0.0:
                 scale = min(scale, mol_ratio[key])
@@ -535,17 +621,50 @@ def apply_population_laws(
             mult_delta[comp] = mult_delta.get(comp, 0.0) + delta * scale
         for key, delta in mol.items():
             mol_delta[key] = mol_delta.get(key, 0.0) + delta * scale
+        for carry in carries:
+            if scale != 1.0:
+                carry = Carry(carry.src, carry.dst, carry.count * scale, carry.removes, carry.skip)
+            scaled_carries.append(carry)
+
+    # Which keys need amount accounting: explicit deltas, every molecule of a
+    # compartment receiving movers, and a birth's skipped molecules.
+    accounted: set[tuple[CompartmentId, MoleculeId]] = set(mol_delta)
+    for carry in scaled_carries:
+        if carry.dst is not None and carry.dst != carry.src:
+            accounted.update((carry.dst, m) for m in range(num_molecules))
+        if not carry.removes:
+            accounted.update((carry.src, m) for m in carry.skip)
+
+    amounts: Dict[tuple[CompartmentId, MoleculeId], float] = {}
+    if accounted:
+        # Read everything off the pre-pass state before writing anything.
+        amounts = {key: new_state.amount(*key) for key in accounted}
+        for carry in scaled_carries:
+            for m in range(num_molecules):
+                q = carry.count * per_instance(carry.src, m)
+                if carry.removes:
+                    if (carry.src, m) in amounts:
+                        amounts[(carry.src, m)] -= q
+                    if carry.dst is not None and (carry.dst, m) in amounts:
+                        amounts[(carry.dst, m)] += q
+                elif m not in carry.skip and (carry.src, m) in amounts:
+                    amounts[(carry.src, m)] += q
+        for key, delta in mol_delta.items():
+            amounts[key] += delta
 
     for comp, delta in mult_delta.items():
         value = new_state.get_multiplicity(comp) + delta
         if -ROUNDING_FLOOR < value < 0.0:
             value = 0.0
         new_state.set_multiplicity(comp, value)
-    for (comp, mol_id), delta in mol_delta.items():
-        value = new_state.get(comp, mol_id) + delta
-        # The draw is rationed like a reactant, so exact arithmetic never goes
-        # below zero; float rounding can leave -1e-16 — snap it, as the reaction
-        # pass does (found by `bio report`, 2026-08-30).
+    for (comp, mol_id), amount in amounts.items():
+        size = new_state.get_multiplicity(comp) * new_state.get_volume(comp)
+        if size <= 0.0:
+            continue  # holds no amount; its concentration is moot
+        value = amount / size
+        # Every draw is rationed, so exact arithmetic never goes below zero;
+        # float rounding can leave -1e-16 — snap it, as the reaction pass does
+        # (found by `bio report`, 2026-08-30).
         if -ROUNDING_FLOOR < value < 0.0:
             value = 0.0
         new_state.set(comp, mol_id, value)
