@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <rect id="g-proto" x="10" y="30" width="320" height="490" rx="14" fill="none" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text id="g-proto-label" x="20" y="22" font-size="14" fill="#495057" text-anchor="start">protocols/bio.py — declared</text>
+  <rect id="g-impl" x="870" y="30" width="320" height="490" rx="14" fill="none" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text id="g-impl-label" x="880" y="22" font-size="14" fill="#495057" text-anchor="start">bio/ — implemented</text>
+  <g id="n-p1">
+    <rect id="n-p1-box" x="20" y="40" width="300" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-p1-name" x="170" y="68" font-size="18" font-weight="600" text-anchor="middle">Atom · Molecule · Reaction</text>
+    <text id="n-p1-kind" x="170" y="92" font-size="14" text-anchor="middle">(Protocol) properties only</text>
+  </g>
+  <g id="n-p2">
+    <rect id="n-p2-box" x="20" y="140" width="300" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-p2-name" x="170" y="168" font-size="18" font-weight="600" text-anchor="middle">Flow · GeneralFlow</text>
+    <text id="n-p2-kind" x="170" y="192" font-size="14" text-anchor="middle">(Protocol) compute_flux, apply</text>
+  </g>
+  <g id="n-p3">
+    <rect id="n-p3-box" x="20" y="240" width="300" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-p3-name" x="170" y="268" font-size="18" font-weight="600" text-anchor="middle">Chemistry · CompartmentTree</text>
+    <text id="n-p3-kind" x="170" y="292" font-size="14" text-anchor="middle">(Protocol) containers, graph queries</text>
+  </g>
+  <g id="n-p4">
+    <rect id="n-p4-box" x="20" y="340" width="300" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-p4-name" x="170" y="368" font-size="18" font-weight="600" text-anchor="middle">WorldState</text>
+    <text id="n-p4-kind" x="170" y="392" font-size="14" text-anchor="middle">(Protocol) dense array, multiplicity</text>
+  </g>
+  <g id="n-p5">
+    <rect id="n-p5-box" x="20" y="440" width="300" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-p5-name" x="170" y="468" font-size="18" font-weight="600" text-anchor="middle">Simulator</text>
+    <text id="n-p5-kind" x="170" y="492" font-size="14" text-anchor="middle">(Protocol) not runtime_checkable</text>
+  </g>
+  <g id="n-i1">
+    <rect id="n-i1-box" x="880" y="40" width="300" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-i1-name" x="1030" y="68" font-size="18" font-weight="600" text-anchor="middle">AtomImpl · MoleculeImpl</text>
+    <text id="n-i1-kind" x="1030" y="92" font-size="14" text-anchor="middle">(bio) and ReactionImpl</text>
+  </g>
+  <g id="n-i2">
+    <rect id="n-i2-box" x="880" y="140" width="300" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-i2-name" x="1030" y="168" font-size="18" font-weight="600" text-anchor="middle">TransportFlux · GeneralFlow</text>
+    <text id="n-i2-kind" x="1030" y="192" font-size="14" text-anchor="middle">(bio.flow) under the Flow ABC</text>
+  </g>
+  <g id="n-i3">
+    <rect id="n-i3-box" x="880" y="240" width="300" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-i3-name" x="1030" y="268" font-size="18" font-weight="600" text-anchor="middle">ChemistryImpl</text>
+    <text id="n-i3-kind" x="1030" y="292" font-size="14" text-anchor="middle">(bio) and CompartmentTreeImpl</text>
+  </g>
+  <g id="n-i4">
+    <rect id="n-i4-box" x="880" y="340" width="300" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-i4-name" x="1030" y="368" font-size="18" font-weight="600" text-anchor="middle">WorldStateImpl</text>
+    <text id="n-i4-kind" x="1030" y="392" font-size="14" text-anchor="middle">(bio) the one state class</text>
+  </g>
+  <g id="n-i5">
+    <rect id="n-i5-box" x="880" y="440" width="300" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-i5-name" x="1030" y="468" font-size="18" font-weight="600" text-anchor="middle">WorldSimulatorImpl</text>
+    <text id="n-i5-kind" x="1030" y="492" font-size="14" text-anchor="middle">(bio) and JaxWorldSimulator</text>
+  </g>
+  <g id="n-pyright">
+    <rect id="n-pyright-box" x="450" y="50" width="300" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pyright-name" x="600" y="78" font-size="18" font-weight="600" text-anchor="middle">pyright src/</text>
+    <text id="n-pyright-kind" x="600" y="102" font-size="14" text-anchor="middle">(CI gate) never runs the code</text>
+  </g>
+  <g id="n-conf">
+    <rect id="n-conf-box" x="450" y="220" width="300" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-conf-name" x="600" y="248" font-size="18" font-weight="600" text-anchor="middle">_conformance._conforms</text>
+    <text id="n-conf-kind" x="600" y="272" font-size="14" text-anchor="middle">(TYPE_CHECKING) ten assignments</text>
+    <text id="n-conf-kind2" x="600" y="290" font-size="14" text-anchor="middle">_m: Molecule = molecule</text>
+  </g>
+  <g id="n-init">
+    <rect id="n-init-box" x="450" y="410" width="300" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-init-name" x="600" y="438" font-size="18" font-weight="600" text-anchor="middle">bio/__init__.py</text>
+    <text id="n-init-kind" x="600" y="462" font-size="14" text-anchor="middle">(bio) seven Protocols, two aliases;</text>
+    <text id="n-init-kind2" x="600" y="480" font-size="14" text-anchor="middle">Flow there is the ABC</text>
+  </g>
+  <g id="n-users">
+    <rect id="n-users-box" x="450" y="550" width="300" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-users-name" x="600" y="578" font-size="18" font-weight="600" text-anchor="middle">annotations, isinstance</text>
+    <text id="n-users-kind" x="600" y="602" font-size="14" text-anchor="middle">(suite) WorldState only; (tests)</text>
+  </g>
+  <line id="e-pyright-conf" x1="600" y1="120" x2="600" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-pyright-conf" x="610" y="175" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">checks</text>
+  <line id="e-impl-conf" x1="870" y1="260" x2="750" y2="260" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-impl-conf" x="810" y="250" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">typed as</text>
+  <line id="e-conf-proto" x1="450" y1="260" x2="330" y2="260" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-conf-proto" x="390" y="250" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">assigned to</text>
+  <line id="e-init-proto" x1="450" y1="450" x2="330" y2="450" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-init-proto" x="390" y="440" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">re-exports</text>
+  <line id="e-init-impl" x1="750" y1="450" x2="870" y2="450" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-init-impl" x="810" y="440" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">re-exports</text>
+  <line id="e-users-proto" x1="450" y1="580" x2="250" y2="520" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-users-proto" x="350" y="575" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">use</text>
+  <text id="t-legend" x="20" y="655" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: check, typing, use · dotted: assignment, re-export · Flow, GeneralFlow and Simulator name WorldStateImpl / CompartmentTreeImpl</text>
+  <text id="t-legend2" x="20" y="673" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">a runtime isinstance sees member names only; the type check is pyright's</text>
+</svg>
