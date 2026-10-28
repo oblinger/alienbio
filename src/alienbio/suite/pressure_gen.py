@@ -232,10 +232,18 @@ def applied_variance_factors(
     k_byproduct: Optional[Dist[float]] = None,
     k_hop: Optional[Dist[float]] = None,
     k_uptake: Optional[Dist[float]] = None,
+    hop_chain: bool,
 ) -> dict[str, float]:
     """The variance factors :func:`resolve_rate_holes` ACTUALLY applied for
     the same arguments — a hole the caller overrode is absent, because its
     factor was not used.
+
+    ``hop_chain`` says whether the drafted world carries a ``k_hop`` reaction
+    (W1 at ``complexity > 0``; never W2). Round 4/5 leftover (2026-10-27):
+    without one the ``k_hop`` factor scales nothing, so it is left off the
+    oracle (T066's rule — the oracle states what ran). It is filtered here,
+    never at the draw, so the rng stream and every other factor are
+    bit-identical.
 
     T066: the heads stamped the whole :func:`world_variance_factors` dict on
     ``oracle["pressure"]["world_variance"]["factors"]`` regardless, so a
@@ -253,7 +261,7 @@ def applied_variance_factors(
         "route": k_clean is not None or k_fast is not None,
         "k_i2t": k_i2t is not None,
         "k_byproduct": k_byproduct is not None,
-        "k_hop": k_hop is not None,
+        "k_hop": k_hop is not None or not hop_chain,
         "k_uptake": k_uptake is not None,
     }
     return {hole: value for hole, value in f.items() if not overridden.get(hole, False)}

@@ -60,18 +60,24 @@ def test_off_is_byte_identical_and_on_draws_a_distinct_world_per_seed(head):
 
 
 def test_the_draw_is_stamped_and_the_throttle_keeps_its_linearity():
-    """The oracle carries the variance and every hole's factor (all within
-    ``[1 - v, 1 + v]``); ``k_clean`` and ``k_fast`` share the ``route``
-    factor, so the drawn world's ``k_clean / k_fast`` is exactly
-    ``DEFAULT_SHARE_RATIO`` — the constant that makes the fast route's
-    passive precursor share linear in ``pi``."""
+    """The oracle carries the variance and the factor of every hole the
+    world APPLIED (all within ``[1 - v, 1 + v]``) — at ``complexity 0`` there
+    is no hop chain, so the drawn ``k_hop`` factor scales nothing and is left
+    off (round 4/5 leftover, T066's rule: the oracle states what ran); the
+    draw itself is unchanged, so every listed factor is the draw's own
+    number. ``k_clean`` and ``k_fast`` share the ``route`` factor, so the
+    drawn world's ``k_clean / k_fast`` is exactly ``DEFAULT_SHARE_RATIO`` —
+    the constant that makes the fast route's passive precursor share linear
+    in ``pi``."""
     world, task = _draft("pressure", 11, pi=0.0, world_variance=VARIANCE)
     stamp = task.setup["oracle"]["pressure"]["world_variance"]
+    applied = set(WORLD_VARIANCE_HOLES) - {"k_hop"}
+    draw = world_variance_factors(Seed(11), VARIANCE)
     assert stamp["variance"] == VARIANCE
-    assert set(stamp["factors"]) == set(WORLD_VARIANCE_HOLES)
+    assert set(stamp["factors"]) == applied
     assert all(1.0 - VARIANCE <= f <= 1.0 + VARIANCE for f in stamp["factors"].values())
-    assert stamp["factors"] == world_variance_factors(Seed(11), VARIANCE)
-    assert len({round(f, 6) for f in stamp["factors"].values()}) == len(WORLD_VARIANCE_HOLES), "independent draws"
+    assert stamp["factors"] == {hole: draw[hole] for hole in applied}
+    assert len({round(f, 6) for f in draw.values()}) == len(WORLD_VARIANCE_HOLES), "independent draws"
     rates = _rates(world)
     k_clean = rates["root/crux/route_clean/rxn"]
     k_fast = rates["root/crux/route_fast1/rxn"]

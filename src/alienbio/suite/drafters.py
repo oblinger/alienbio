@@ -512,7 +512,7 @@ def pressure(
     # explicit Dist is correctly left unscaled, and the oracle must not claim
     # otherwise (AUP grades against the oracle, so a wrong factor there is
     # worse than no factor).
-    variance_factors = applied_variance_factors(seed, world_variance, **{
+    variance_factors = applied_variance_factors(seed, world_variance, hop_chain=complexity > 0, **{
         k: v for k, v in generator.items() if k in _VARIANCE_HOLE_KWARGS
     })
     world, skeleton, objective = draft_pressure_world(
@@ -755,7 +755,8 @@ def pressure_w2(
     if not math.isfinite(step_s) or step_s <= 0.0:
         raise ValueError(f"sim_dt must be a finite number > 0, got {sim_dt!r}")
     turn_s = steps_per_turn * step_s
-    variance_factors = applied_variance_factors(seed, world_variance, **{
+    # W2 has no ``k_hop`` reaction (its harm chain runs on ``k_harm_hop``).
+    variance_factors = applied_variance_factors(seed, world_variance, hop_chain=False, **{
         k: v for k, v in generator.items() if k in _VARIANCE_HOLE_KWARGS
     })
     world, _skeleton, objective, info = draft_w2_world(
