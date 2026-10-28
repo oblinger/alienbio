@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-shell">
+    <rect id="n-shell-box" x="20" y="40" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-shell-name" x="140.0" y="68" font-size="18" font-weight="600" text-anchor="middle">bio …</text>
+    <text id="n-shell-kind" x="140.0" y="92" font-size="14" text-anchor="middle">(console script) pyproject.toml</text>
+  </g>
+  <g id="n-main">
+    <rect id="n-main-box" x="320" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-main-name" x="440.0" y="68" font-size="18" font-weight="600" text-anchor="middle">main</text>
+    <text id="n-main-kind" x="440.0" y="92" font-size="14" text-anchor="middle">(fn) front-door argparse</text>
+  </g>
+  <g id="n-help">
+    <rect id="n-help-box" x="620" y="40" width="240" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-help-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">help, exit 1</text>
+    <text id="n-help-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(no command) prints the epilog</text>
+  </g>
+  <g id="n-summ">
+    <rect id="n-summ-box" x="20" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-summ-name" x="140.0" y="228" font-size="18" font-weight="600" text-anchor="middle">_summary</text>
+    <text id="n-summ-kind" x="140.0" y="252" font-size="14" text-anchor="middle">(fn) first docstring line</text>
+  </g>
+  <g id="n-cmds">
+    <rect id="n-cmds-box" x="320" y="200" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cmds-name" x="440.0" y="228" font-size="18" font-weight="600" text-anchor="middle">COMMANDS</text>
+    <text id="n-cmds-kind" x="440.0" y="252" font-size="14" text-anchor="middle">(dict) commands/__init__.py</text>
+  </g>
+  <g id="n-unk">
+    <rect id="n-unk-box" x="620" y="200" width="240" height="70" rx="10" fill="#ffe3e3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-unk-name" x="740.0" y="228" font-size="18" font-weight="600" text-anchor="middle">unknown verb</text>
+    <text id="n-unk-kind" x="740.0" y="252" font-size="14" text-anchor="middle">(stderr) exit 2</text>
+  </g>
+  <g id="n-suite">
+    <rect id="n-suite-box" x="20" y="400" width="240" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-suite-name" x="140.0" y="428" font-size="18" font-weight="600" text-anchor="middle">suite_command</text>
+    <text id="n-suite-kind" x="140.0" y="452" font-size="14" text-anchor="middle">(argparse) run · resume · …</text>
+    <text id="n-suite-kind2" x="140.0" y="470" font-size="14" text-anchor="middle">aggregate · report · models</text>
+  </g>
+  <g id="n-report">
+    <rect id="n-report-box" x="320" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-report-name" x="440.0" y="428" font-size="18" font-weight="600" text-anchor="middle">report_command</text>
+    <text id="n-report-kind" x="440.0" y="452" font-size="14" text-anchor="middle">(argparse) --open · --junit · --out</text>
+  </g>
+  <g id="n-tm">
+    <rect id="n-tm-box" x="620" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tm-name" x="740.0" y="428" font-size="18" font-weight="600" text-anchor="middle">test_matrix_command ‡</text>
+    <text id="n-tm-kind" x="740.0" y="452" font-size="14" text-anchor="middle">(hand) --markdown · --check</text>
+  </g>
+  <g id="n-config">
+    <rect id="n-config-box" x="920" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-config-name" x="1040.0" y="428" font-size="18" font-weight="600" text-anchor="middle">config_command ‡</text>
+    <text id="n-config-kind" x="1040.0" y="452" font-size="14" text-anchor="middle">(hand) first token picks</text>
+  </g>
+  <g id="n-suitepg">
+    <rect id="n-suitepg-box" x="20" y="540" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-suitepg-name" x="140.0" y="568" font-size="18" font-weight="600" text-anchor="middle">SuiteCmd</text>
+    <text id="n-suitepg-kind" x="140.0" y="592" font-size="14" text-anchor="middle">(page) experiment verbs</text>
+  </g>
+  <g id="n-reportpg">
+    <rect id="n-reportpg-box" x="320" y="540" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reportpg-name" x="440.0" y="568" font-size="18" font-weight="600" text-anchor="middle">report.py</text>
+    <text id="n-reportpg-kind" x="440.0" y="592" font-size="14" text-anchor="middle">(module) the one-page report</text>
+  </g>
+  <g id="n-cappg">
+    <rect id="n-cappg-box" x="620" y="540" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cappg-name" x="740.0" y="568" font-size="18" font-weight="600" text-anchor="middle">capabilities.py</text>
+    <text id="n-cappg-kind" x="740.0" y="592" font-size="14" text-anchor="middle">(module) the matrix</text>
+  </g>
+  <g id="n-cfgpg">
+    <rect id="n-cfgpg-box" x="920" y="540" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cfgpg-name" x="1040.0" y="568" font-size="18" font-weight="600" text-anchor="middle">config.py</text>
+    <text id="n-cfgpg-kind" x="1040.0" y="592" font-size="14" text-anchor="middle">(module) keys and defaults</text>
+  </g>
+  <line id="e-shell-main" x1="260" y1="75" x2="320" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-shell-main" x="290" y="65" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">argv</text>
+  <line id="e-main-help" x1="560" y1="75" x2="620" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-main-cmds" x1="440" y1="110" x2="440" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-main-cmds" x="450" y="160" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">verb</text>
+  <line id="e-main-unk" x1="530" y1="110" x2="680" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-main-unk" x="620" y="145" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">not a key</text>
+  <line id="e-cmds-summ" x1="320" y1="235" x2="260" y2="235" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-cmds-suite" x1="340" y1="270" x2="140" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-cmds-report" x1="420" y1="270" x2="440" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-cmds-tm" x1="480" y1="270" x2="700" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-cmds-config" x1="540" y1="270" x2="1000" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cmds-config" x="820" y="330" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">(args, verbose)</text>
+  <line id="e-suite-pg" x1="140" y1="490" x2="140" y2="540" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-report-pg" x1="440" y1="470" x2="440" y2="540" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-tm-pg" x1="740" y1="470" x2="740" y2="540" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-config-pg" x1="1040" y1="470" x2="1040" y2="540" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="t-n1" x="900" y="215" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">every token after the verb, flags</text>
+  <text id="t-n2" x="900" y="233" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">included, goes to the verb's parser</text>
+  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: dispatch · dotted: fronts or reads · ‡ --help is not argparse's: test-matrix exits 2, config exits 1</text>
+  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">exit codes: 0 ok · 1 reported error or failed gate (and no command) · 2 usage</text>
+</svg>
