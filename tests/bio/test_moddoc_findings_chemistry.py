@@ -106,3 +106,23 @@ def test_a_side_entry_of_the_wrong_type_refuses() -> None:
     mols = {n: MoleculeImpl(n, dat=MockDat(f"mol/{n}")) for n in "AB"}
     with pytest.raises(TypeError, match="reactant"):
         ReactionImpl.hydrate({"reactants": [3], "products": ["B"]}, molecules=mols)
+
+
+# ── E1: subgraph keeps modifiers and the rate law ────────────────────────────
+
+
+def test_subgraph_keeps_each_reactions_modifiers_and_rate_law() -> None:
+    mols = {n: MoleculeImpl(n, dat=MockDat(f"mol/{n}")) for n in ("S", "P", "E")}
+    law = ("div", ("species", "S"), ("add", ("const", 0.5), ("species", "S")))
+    rxn = ReactionImpl(
+        "mm", reactants={mols["S"]: 1}, products={mols["P"]: 1},
+        modifiers={mols["E"]: Modulation(kind="activator", a=2.0)},
+        rate=0.3, rate_law=law, dat=MockDat("rxn/mm"),
+    )
+    chem = ChemistryImpl("c", molecules=mols, reactions={"mm": rxn}, dat=MockDat("chem/c"))
+    sub = chem.subgraph(["S", "P", "E", "mm"])
+    kept = sub.reactions["mm"]
+    assert {m.name: r for m, r in kept.modifiers.items()} == {"E": Modulation(kind="activator", a=2.0)}
+    assert kept.rate_law == rxn.rate_law
+    # a modifier outside the kept nodes is dropped, like a reactant would be
+    assert sub.reactions["mm"].modifiers and not chem.subgraph(["S", "P", "mm"]).reactions["mm"].modifiers

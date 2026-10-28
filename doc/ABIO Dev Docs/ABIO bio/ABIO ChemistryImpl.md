@@ -54,7 +54,7 @@ The `Chemistry` Protocol's implementation (`protocols/bio.py`, held to it by `pr
     Every simple path from `a` to `b` of at most `max_len` edges, alternating molecule and reaction ids, found depth-first over sorted neighbours. `[[a]]` when `a == b`, whether or not `a` is a node. ^paths
 
 **subgraph**`(nodes: Iterable[str]) -> "ChemistryImpl"`
-    A new chemistry named `"subgraph"` (on `MockDat("chem/subgraph")`) holding the kept molecules by identity and every atom, with each kept reaction rebuilt with its reactants and products filtered to the kept molecules and its `rate` carried through. The rebuilt reactions drop their modifiers, `rate_law` and description, and both dicts are re-keyed by `name` ([[#The graph view]]). ^subgraph
+    A new chemistry named `"subgraph"` (on `MockDat("chem/subgraph")`) holding the kept molecules by identity and every atom, with each kept reaction rebuilt with its reactants, products and modifiers filtered to the kept molecules and its `rate` and `rate_law` carried through (until 2026-10 modifiers and `rate_law` were dropped). The rebuilt reactions drop their description, and both dicts are re-keyed by `name` ([[#The graph view]]). ^subgraph
 
 **match**`(pattern: "ChemistryImpl") -> List[Dict[str, str]]`
     Every injective embedding of `pattern`'s graph into this one as `{pattern_id: host_id}`, `[]` when none. A molecule matches only a molecule with equal `(name, symbol, bdepth, molecular_weight)` — the name is part of the key, so species match by name; a reaction matches any reaction, and every pattern edge must exist between the mapped nodes. ^match
@@ -103,7 +103,7 @@ So `attributes()` followed by `hydrate()` keeps both the `atoms` dict and every 
 
 
 ## The graph view
-Every query rebuilds a `GraphView` from scratch (no cache): species ids are molecule `name`s and reaction ids reaction `name`s, each in dict order; a reaction's incidence is its reactants, products and modifiers; a species' match key is `(name, symbol, bdepth, molecular_weight)`. Modifiers are first-class edges (F008) for `neighbors`, `paths` and `match`, but `subgraph` keeps the modifier edge in the selection and drops it from the rebuilt reaction.
+Every query rebuilds a `GraphView` from scratch (no cache): species ids are molecule `name`s and reaction ids reaction `name`s, each in dict order; a reaction's incidence is its reactants, products and modifiers; a species' match key is `(name, symbol, bdepth, molecular_weight)`. Modifiers are first-class edges (F008) for `neighbors`, `paths` and `match`, and `subgraph` keeps a kept modifier on the rebuilt reaction.
 
 
 

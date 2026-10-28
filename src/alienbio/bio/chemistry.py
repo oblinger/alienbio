@@ -284,8 +284,8 @@ class ChemistryImpl(Entity, head="Chemistry"):
         """The induced sub-chemistry over ``nodes`` (edges to dropped nodes removed).
 
         Reuses the surviving molecule objects; rebuilds each surviving reaction
-        with its reactant/product entries filtered to the kept molecules (rate is
-        carried through by identity). All atoms are retained (they are not graph
+        with its reactant/product/modifier entries filtered to the kept molecules
+        (rate and rate law carried through by identity). All atoms are retained (they are not graph
         nodes).
         """
         node_set = set(nodes)
@@ -309,7 +309,14 @@ class ChemistryImpl(Entity, head="Chemistry"):
                 products={
                     m: c for m, c in rxn.products.items() if m.name in node_set
                 },
+                # Modifiers are graph edges like the two sides; until 2026-10
+                # they and the rate law were dropped, so a modulated or
+                # rate-law reaction came back plain mass action.
+                modifiers={
+                    m: r for m, r in rxn.modifiers.items() if m.name in node_set
+                },
                 rate=rxn.rate,
+                rate_law=rxn.rate_law,
                 dat=_mock_dat(f"rxn/{rname}"),
             )
         return ChemistryImpl(
