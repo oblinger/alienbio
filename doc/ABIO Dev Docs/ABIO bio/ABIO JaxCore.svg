@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-run">
+    <rect id="n-run-box" x="620" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-run-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">make_run_fn</text>
+    <text id="n-run-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(fn) jit · fori_loop · steps static</text>
+  </g>
+  <g id="n-brt">
+    <rect id="n-brt-box" x="320" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-brt-name" x="440.0" y="68" font-size="18" font-weight="600" text-anchor="middle">build_reaction_tensors ‡</text>
+    <text id="n-brt-kind" x="440.0" y="92" font-size="14" text-anchor="middle">(fn) R · P · k · comp_mask</text>
+  </g>
+  <g id="n-bmt">
+    <rect id="n-bmt-box" x="320" y="160" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bmt-name" x="440.0" y="188" font-size="18" font-weight="600" text-anchor="middle">build_modulation_tensors</text>
+    <text id="n-bmt-kind" x="440.0" y="212" font-size="14" text-anchor="middle">(fn) slots [Rn, Mn] or None</text>
+  </g>
+  <g id="n-brl">
+    <rect id="n-brl-box" x="320" y="280" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-brl-name" x="440.0" y="308" font-size="18" font-weight="600" text-anchor="middle">build_rate_laws</text>
+    <text id="n-brl-kind" x="440.0" y="332" font-size="14" text-anchor="middle">(fn) one LawFn per rate_law</text>
+  </g>
+  <g id="n-jax">
+    <rect id="n-jax-box" x="20" y="160" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-jax-name" x="140.0" y="188" font-size="18" font-weight="600" text-anchor="middle">JaxWorldSimulator</text>
+    <text id="n-jax-kind" x="140.0" y="212" font-size="14" text-anchor="middle">(caller) bio/jax_simulator.py</text>
+  </g>
+  <g id="n-step">
+    <rect id="n-step-box" x="620" y="160" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-step-name" x="740.0" y="188" font-size="18" font-weight="600" text-anchor="middle">make_step_fn</text>
+    <text id="n-step-kind" x="740.0" y="212" font-size="14" text-anchor="middle">(fn) pure S → S closure</text>
+  </g>
+  <g id="n-nf">
+    <rect id="n-nf-box" x="920" y="160" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-nf-name" x="1040.0" y="188" font-size="18" font-weight="600" text-anchor="middle">apply_native_flows</text>
+    <text id="n-nf-kind" x="1040.0" y="212" font-size="14" text-anchor="middle">(fn) list order, ≤ whole pool</text>
+  </g>
+  <g id="n-re">
+    <rect id="n-re-box" x="320" y="420" width="240" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-re-name" x="440.0" y="448" font-size="18" font-weight="600" text-anchor="middle">rate_expr</text>
+    <text id="n-re-kind" x="440.0" y="472" font-size="14" text-anchor="middle">(module) lower_jax · RATE_CAP</text>
+    <text id="n-re-kind2" x="440.0" y="490" font-size="14" text-anchor="middle">ROUNDING_FLOOR</text>
+  </g>
+  <g id="n-ar">
+    <rect id="n-ar-box" x="620" y="400" width="240" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ar-name" x="740.0" y="428" font-size="18" font-weight="600" text-anchor="middle">apply_reactions</text>
+    <text id="n-ar-kind" x="740.0" y="452" font-size="14" text-anchor="middle">(fn) desired → ration → extent</text>
+    <text id="n-ar-kind2" x="740.0" y="470" font-size="14" text-anchor="middle">one matmul, then the snap</text>
+  </g>
+  <g id="n-mf">
+    <rect id="n-mf-box" x="920" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mf-name" x="1040.0" y="428" font-size="18" font-weight="600" text-anchor="middle">modulation_factors</text>
+    <text id="n-mf-kind" x="1040.0" y="452" font-size="14" text-anchor="middle">(fn) [Rn, C] product of terms</text>
+  </g>
+  <line id="e-jax-brt" x1="260" y1="175" x2="320" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-jax-brt" x="285" y="120" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">reactions</text>
+  <line id="e-jax-bmt" x1="260" y1="195" x2="320" y2="195" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-jax-brl" x1="260" y1="215" x2="320" y2="305" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-brt-step" x1="560" y1="85" x2="640" y2="160" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-bmt-step" x1="560" y1="195" x2="620" y2="195" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-brl-step" x1="560" y1="315" x2="640" y2="230" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-step-run" x1="740" y1="160" x2="740" y2="110" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-step-run" x="750" y="140" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">body</text>
+  <line id="e-step-nf" x1="860" y1="195" x2="920" y2="195" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-step-nf" x="890" y="185" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">2nd</text>
+  <line id="e-step-ar" x1="740" y1="230" x2="740" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-step-ar" x="750" y="320" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">1st</text>
+  <line id="e-ar-mf" x1="860" y1="445" x2="920" y2="445" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-ar-mf" x="890" y="435" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">×</text>
+  <line id="e-brl-re" x1="440" y1="350" x2="440" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-brl-re" x="450" y="390" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">lower_jax</text>
+  <line id="e-ar-re" x1="620" y1="465" x2="560" y2="465" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-ar-re" x="590" y="455" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">caps</text>
+  <text id="t-f1" x="20" y="560" font-size="14" fill="#1e1e1e" text-anchor="start" xml:space="preserve">desired = max(min(k · Π S^R · law · mod · dt, RATE_CAP), 0) · comp_mask   |   demand = Σ desired · R</text>
+  <text id="t-f2" x="20" y="582" font-size="14" fill="#1e1e1e" text-anchor="start" xml:space="preserve">ratio = min(1, S / demand)   |   scale = min over r's reactants   |   S' = S + (desired · scale)ᵀ (P − R)   |   snap (−1e-12, 0) → 0</text>
+  <text id="t-brt-note" x="20" y="320" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">‡ compartment ids index a list:</text>
+  <text id="t-brt-note2" x="20" y="338" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">−1 runs in the last compartment,</text>
+  <text id="t-brt-note3" x="20" y="356" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">the reference in none</text>
+  <text id="t-legend" x="20" y="655" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: build or call · dotted: wraps, lowers, imports · lilac: outside caller or module · every function is pure over S [C, M]</text>
+</svg>
