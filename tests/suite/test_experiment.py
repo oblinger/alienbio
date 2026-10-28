@@ -428,17 +428,20 @@ def test_resume_retries_error_records(tmp_path, monkeypatch):
     now retries error lines: fresh trials replace them in records.jsonl,
     the originals survive in records.retried.jsonl, and the retry count is
     announced through progress."""
-    import alienbio.suite.experiment as experiment_mod
+    import alienbio.suite.mass_trial as mass_trial_mod
 
-    original = experiment_mod.DRAFTERS["conflict"]
+    # The failure is injected in the trial, where a provider failure arises:
+    # a drafter that raises is a generator fault the draft preflight refuses
+    # before spend (T084 finding D).
+    original = mass_trial_mod.run_trial
     fail = {"on": True}
 
-    def flaky(seed, dials, **kwargs):
+    def flaky(world, task, agent, dials, seed, **kwargs):
         if fail["on"] and dials.get("rung") == "forced":
             raise RuntimeError("credit balance is too low")
-        return original(seed, dials, **kwargs)
+        return original(world, task, agent, dials, seed, **kwargs)
 
-    monkeypatch.setitem(experiment_mod.DRAFTERS, "conflict", flaky)
+    monkeypatch.setattr(mass_trial_mod, "run_trial", flaky)
 
     out_dir = tmp_path / "retry_run"
     spec = _conflict_idle_spec("retry", trials_per_condition=2)

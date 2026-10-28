@@ -146,3 +146,27 @@ def test_a_readable_manifest_with_the_same_spec_resumes(tmp_path):
     (out / "manifest.json").write_text(json.dumps({"spec": spec_to_dict(spec)}))
     (out / "records.jsonl").write_text("")
     assert dict(preflight(spec, out_dir=str(out), resume=True).checks)["resume"] is None
+
+
+# D ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("exc", [RuntimeError("boom"), TypeError("bad arg"), KeyError("k")])
+def test_a_generator_fault_is_a_draft_error_not_a_config_refusal(exc, monkeypatch):
+    def broken(seed, dials, **kw):
+        raise exc
+
+    monkeypatch.setattr(guards, "DRAFTERS", {"pressure": broken})
+    why = draft_violation(_w1())
+    assert why is not None
+    assert type(exc).__name__ in why and "generator error" in why and "'certainty': 1.0" in why
+    assert "drafts no world" not in why
+
+
+def test_a_value_error_is_still_a_config_refusal(monkeypatch):
+    def refusing(seed, dials, **kw):
+        raise ValueError("pi is not draftable here")
+
+    monkeypatch.setattr(guards, "DRAFTERS", {"pressure": refusing})
+    why = draft_violation(_w1())
+    assert why is not None and "drafts no world" in why and "generator error" not in why

@@ -251,4 +251,8 @@ def test_a_transient_failure_does_not_hide_a_later_config_refusal(monkeypatch):
     monkeypatch.setattr(guards, "DRAFTERS", {"pressure": flaky})
     why = draft_violation(_w1_spec({"pi": [0.2, 0.4]}))
     assert why is not None and "pi 0.4 is not draftable" in why
-    assert "0.2" not in why.split("—")[0], "the transient condition is not a config verdict"
+    # T084 finding D: the RuntimeError is named as a generator fault (a
+    # drafter is pure, so the run would crash on it too), never as config.
+    fault, config = why.split("; ")
+    assert "0.2" in fault and "generator error RuntimeError" in fault and "drafts no world" not in fault
+    assert "0.4" in config and "drafts no world" in config

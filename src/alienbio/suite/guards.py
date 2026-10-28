@@ -416,12 +416,12 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
 
     Every condition is drafted and every refusing one is named, joined with
     ``; `` (round 4/5 leftover, 2026-10-27: it returned on the first refusal,
-    and returned ``None`` on the first NON-config exception — so one
-    transient failure hid every later condition's config refusal). A
-    non-config exception skips only its own condition.
+    and returned ``None`` on the first NON-config exception). A
+    ``ValueError`` is a config refusal (``drafts no world`` / ``builds no
+    brief``); any other exception from the drafter is a generator fault,
+    named with its class (``generator error``), and refuses too, since the
+    run would crash on the same draft (T084 finding D).
     """
-    from .dist import Seed
-
     try:
         # `DRAFTERS.__missing__` resolves a head an experiment file's
         # `_includes_` registered after import (the catalog examples), so the
@@ -435,17 +435,22 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
         cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
         try:
             world, task = drafter(trial_seed.child("draft"), dials, **kwargs)
-        except (ValueError, TypeError, KeyError) as exc:
-            # A CONFIG error only. `ValueError` (and `SkeletonError`, which
-            # derives from it) is how every generator refuses a dial vector
-            # it cannot draft; `TypeError` is a missing required dial;
-            # `KeyError` is a declared readout that names no molecule. Any
-            # other exception — a provider or IO failure raised through a
-            # drafter — is left to the run, where it becomes an error record
-            # a resume retries rather than a refusal that kills the grid.
+        except ValueError as exc:
+            # A CONFIG refusal: ``ValueError`` (and ``SkeletonError``, which
+            # derives from it) is how every generator deliberately refuses a
+            # dial vector it cannot draft.
             refusals.append(f"{spec.drafter}: condition {cond} drafts no world — {exc}")
             continue
-        except Exception:  # noqa: BLE001 — transient, not a config verdict
+        except Exception as exc:  # noqa: BLE001 — a fault is still a refusal to spend
+            # T084 finding D: anything else is a generator FAULT, not a config
+            # verdict. A drafter is a pure function of (seed, dials) — it makes
+            # no provider or network call — so the run would raise the same
+            # thing on this condition's first trial. It used to read as config
+            # (``TypeError``/``KeyError``) or be skipped as transient (the rest).
+            refusals.append(
+                f"{spec.drafter}: condition {cond} — generator error {type(exc).__name__}: {exc} "
+                "(a drafter fault, not a config refusal: the run would crash on this draft)"
+            )
             continue
         # The brief, built exactly as the run builds it before turn 0: every
         # brief-side refusal that reads the drafted world (``assays`` naming
@@ -457,6 +462,11 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
             _first_brief(world, task, dials, trial_seed)
         except ValueError as exc:
             refusals.append(f"{spec.drafter}: condition {cond} builds no brief — {exc}")
+        except Exception as exc:  # noqa: BLE001 — as for the draft: a fault, still no spend
+            refusals.append(
+                f"{spec.drafter}: condition {cond} — brief error {type(exc).__name__}: {exc} "
+                "(a fault, not a config refusal: the run would crash building this brief)"
+            )
     return "; ".join(refusals) if refusals else None
 
 

@@ -283,10 +283,12 @@ def test_a_certainty_level_below_a_drawn_worlds_floor_refuses_before_spend():
     assert problem is not None and "floor" in problem
 
 
-def test_a_transient_failure_in_a_draft_is_not_a_refusal(monkeypatch):
-    """A config error is a refusal; a provider or IO failure raised through a
-    drafter is data the run records and a resume retries. Refusing the whole
-    grid on one would be worse than the bug."""
+def test_a_non_config_failure_in_a_draft_is_a_generator_error(monkeypatch):
+    """A config error is a refusal; any other exception from a drafter is a
+    generator fault, named as one and refused too (T084 finding D, reversing
+    this test's earlier "transient, left to the run" reading): a drafter is a
+    pure function of (seed, dials) with no provider call, so the run would
+    crash on the same draft."""
     from alienbio.suite import drafters as drafters_mod
 
     spec = spec_from_dict(
@@ -305,4 +307,5 @@ def test_a_transient_failure_in_a_draft_is_not_a_refusal(monkeypatch):
         raise RuntimeError("credit balance is too low")
 
     monkeypatch.setitem(drafters_mod.DRAFTERS, "pressure", flaky)
-    assert draft_violation(spec) is None
+    why = draft_violation(spec)
+    assert why is not None and "generator error RuntimeError" in why and "drafts no world" not in why
