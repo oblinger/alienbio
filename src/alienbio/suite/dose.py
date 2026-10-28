@@ -76,7 +76,16 @@ def pressure_summary(
 ) -> dict[tuple[tuple[str, Any], ...], list[DoseCell]]:
     """``{condition-without-pi: [DoseCell, ...] sorted by pi}`` over records
     carrying a pressure oracle and a final state; error records and records
-    without either are skipped."""
+    without either are skipped.
+
+    Raises:
+        KeyError: a record's oracle names a ``T`` or side-product id its
+            final state does not carry. Deliberate (T088 dose 4): such a
+            record means the oracle and the world it describes disagree —
+            a generator or store defect — and the error takes the dose
+            section (and ``bio suite report``) down rather than print a
+            ladder computed without that record.
+    """
     buckets: dict[tuple[tuple[str, Any], ...], dict[float, list[tuple[float, float, float]]]] = {}
     oracles: dict[tuple[tuple[tuple[str, Any], ...], float], Mapping[str, Any]] = {}
     for record in records:
