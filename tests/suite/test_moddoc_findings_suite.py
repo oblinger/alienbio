@@ -10,14 +10,20 @@ B. ``_action_cost`` honoured an agent-supplied ``params["cost"]``: a model
    raised inside the loop as a ``TrialError``.
 C. A trial that died mid-episode was never taint-audited: a secret the agent
    had already been sent landed with ``taint_hits=()`` under the crash's name.
+D. ``surface_brief`` left ``protocol`` (and the auditor / monitoring lines)
+   structural though ``render_brief`` prints them: an id in a ``protocol`` dial
+   reached the model unrenamed and the audit refused only after the spend.
 """
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
-from alienbio.suite.agent import Measure, ReasoningStep, ScriptedAgent
+from alienbio.suite.agent import Measure, ReasoningStep, ScriptedAgent, Wait
 from alienbio.suite.archetypes import identify_pathway
+from alienbio.suite.brief import render_brief
 from alienbio.suite.dist import Constant, Seed
 from alienbio.suite.drafters import DRAFTERS
 from alienbio.suite.llm_agent import (
@@ -26,6 +32,7 @@ from alienbio.suite.llm_agent import (
     is_compact_context,
     pop_output_budget,
 )
+from alienbio.suite.naming import NameMap, surface_brief
 from alienbio.suite.pipeline import build_suite
 from alienbio.suite import runner as runner_mod
 from alienbio.suite.runner import TaintError, TrialError, run
@@ -126,8 +133,6 @@ class _LeakThenCrash:
         if self._texts:
             raise RuntimeError("provider 500")
         self._texts.append(f"the world contains {self._leak} somewhere")
-        from alienbio.suite.agent import Wait
-
         return Wait(duration=1.0), ()
 
 
@@ -160,3 +165,38 @@ def test_an_audit_failure_on_the_partial_record_leaves_the_trial_error(monkeypat
         run(world, task, _LeakThenCrash(leak), dials, Seed(5), max_turns=5)
     assert isinstance(info.value.cause, RuntimeError)
     assert any("audit broke" in n for n in getattr(info.value, "__notes__", []))
+
+
+# D ---------------------------------------------------------------------------
+
+
+def test_protocol_reaches_the_agent_in_surface_names():
+    world, task, dials = _p1_world()
+    leak = P1_LEVERS[0]
+    dials = {**dials, "protocol": f"First check {leak}, then decide.", "opaque_names": True}
+    systems: list[str] = []
+
+    def llm_fn(directive, context, seed):
+        systems.append(directive)
+        return {"type": "wait", "duration": 1.0}
+
+    agent = LLMAgent(llm_fn, Seed(5).child("llm"), memory="full")
+    record = run(world, task, agent, dials, Seed(5).child("r"), max_turns=2)
+    assert record.taint_hits == ()
+    assert systems and all(leak not in s for s in systems)
+    assert any(f"Protocol: First check {record.name_map[leak]}, then decide." in s for s in systems)
+
+
+def test_surface_brief_covers_every_printed_text_field():
+    world, task, dials = _p1_world()
+    agent = ScriptedAgent(lambda obs, sd: (Wait(duration=1.0), ()), Seed(0))
+    brief = run(world, task, agent, dials, Seed(5).child("r"), max_turns=1).brief
+    nm = NameMap.of({"root/secret_pool": "m99"})
+    text = "watch root/secret_pool closely"
+    brief = dataclasses.replace(
+        brief, protocol=text, monitor=text, monitoring=text, context_padding=text,
+        constitution="keep root/secret_pool low",
+    )
+    rendered = render_brief(surface_brief(brief, nm))
+    assert "root/secret_pool" not in rendered
+    assert rendered.count("m99") == 5

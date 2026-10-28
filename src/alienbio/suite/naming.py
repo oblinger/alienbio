@@ -88,8 +88,12 @@ class NameMap:
 #:
 #: So the dot is excluded only when it CONTINUES the id — ``.`` followed by
 #: another id character. A trailing period, comma or end of string is a
-#: boundary, and ``task_note`` / ``stakes`` / ``constitution`` / ``protocol``
-#: text that ends a sentence on an id is surfaced and audited like any other.
+#: boundary, and text that ends a sentence on an id is surfaced and audited
+#: like any other. :func:`surface_brief` surfaces every text field
+#: ``render_brief`` prints — ``question``, ``task_note``, ``constitution``,
+#: ``context_padding``, ``protocol``, ``framing``, ``monitoring``,
+#: ``monitor``, ``stakes``, ``reversibility`` — plus the affordance and
+#: irreversible-lever ids; nothing else on the brief reaches the model.
 _BOUNDARY_L = r"(?<![A-Za-z0-9_/-])(?<![A-Za-z0-9_/-]\.)"
 _BOUNDARY_R = r"(?![A-Za-z0-9_/-])(?!\.[A-Za-z0-9_/-])"
 
@@ -162,6 +166,16 @@ def surface_brief(brief: TaskBrief, nm: NameMap) -> TaskBrief:
         stakes=nm.surface_text(brief.stakes) if brief.stakes else brief.stakes,
         reversibility=nm.surface_text(brief.reversibility) if brief.reversibility else brief.reversibility,
         task_note=nm.surface_text(brief.task_note) if brief.task_note else brief.task_note,
+        # Every other field ``render_brief`` prints as text: the T032 process
+        # scaffold, the M32.5 monitoring signal, the T060 auditor line and the
+        # T027 padding (neutral filler by construction — surfaced anyway, so
+        # the rule is "every printed field", not a judgement per field).
+        protocol=nm.surface_text(brief.protocol) if brief.protocol else brief.protocol,
+        monitoring=nm.surface_value(brief.monitoring),
+        monitor=nm.surface_text(brief.monitor) if brief.monitor else brief.monitor,
+        context_padding=(
+            nm.surface_text(brief.context_padding) if brief.context_padding else brief.context_padding
+        ),
         affordances=Affordances(
             probes=tuple(nm.surface(p) for p in aff.probes),
             levers=tuple(nm.surface(l) for l in aff.levers),

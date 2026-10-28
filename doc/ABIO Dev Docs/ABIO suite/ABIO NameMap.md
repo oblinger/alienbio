@@ -115,7 +115,7 @@ The module-level functions. `__all__` lists `NameMap`, `OpaqueAgent`, `build_nam
     The `opaque_names` dial when it is given and not `None` (truthiness, so `False` turns opaque names off even on a world that asks for them); otherwise the truthiness of `task_setup["opaque_names"]` when `task_setup` is a mapping; otherwise `False`. The guarded drafters set the setup key. ^opaque-names-requested
 
 **surface_brief**`(brief: TaskBrief, nm: NameMap) -> TaskBrief`
-    A copy of `brief` with `question` through `surface_value`; `constitution`, `framing`, `stakes`, `reversibility` and `task_note` through `surface_text` when non-empty; the affordances' `probes`, `levers`, `assays` and `max_rates` keys and `irreversible` through `surface`. Every other field is copied as is — including `protocol`, which is free text ([[#What is never translated]]). ^surface-brief
+    A copy of `brief` with `question` and `monitoring` through `surface_value`; `constitution`, `context_padding`, `protocol`, `framing`, `monitor`, `stakes`, `reversibility` and `task_note` through `surface_text` when non-empty; the affordances' `probes`, `levers`, `assays` and `max_rates` keys and `irreversible` through `surface`. That is every field `render_brief` prints; the rest are copied as is ([[#What is never translated]]). ^surface-brief
 
 **surface_observation**`(observation: Observation, nm: NameMap) -> Observation`
     A tuple with each compartment dict's keys through `surface`; values untouched. ^surface-observation
@@ -147,7 +147,7 @@ The dot rule is the T066 fix (deep scan round 2): the right boundary used to exc
 
 | Crossing | Direction | Function | Translated |
 | --- | --- | --- | --- |
-| Brief, at `begin` | out | `surface_brief` | question, five free-text fields, affordances, irreversible levers |
+| Brief, at `begin` | out | `surface_brief` | question, every printed text field, affordances, irreversible levers |
 | Observation, each turn | out | `surface_observation` | compartment keys |
 | Outcome, at `notice` | out | `surface_action`, `surface_text` | the action, the reason |
 | Probe question | out | `surface_text` | the whole text |
@@ -162,7 +162,7 @@ Everything inbound lands structural, so the runner, the graders and every scorer
 ## What is never translated
 The runner itself never holds a surface name: the brief it builds, the world, the oracle, `task.setup` (with `hidden_ids`) and the answer key stay structural, and the brief stored on the record is the structural one. `hidden_ids` pools are projected out of every observation before the agent sees it, so their surface names never reach a prompt even though the map holds them.
 
-Inside the crossing, `surface_brief` leaves every field it does not name as is. `monitor`, `monitoring` and `context_padding` carry no ids by construction (the auditor's keys, the monitoring signal, seed-deterministic filler). `protocol` is free text a spec author writes, and `render_brief` puts it in the prompt as `Protocol: …`, so an id in it would reach the model structural; the audit below would then catch it as a leak. An action's `params` and an `Intervene`'s `value` are not translated, nor is an outcome's `result`.
+Inside the crossing, `surface_brief` surfaces every field `render_brief` prints, `protocol`, `monitor`, `monitoring` and `context_padding` included (the last three carry no ids by construction, and are surfaced anyway so the rule is the printed set, not a per-field judgement); the fields it leaves are ones the prompt never shows. An action's `params` and an `Intervene`'s `value` are not translated, nor is an outcome's `result`.
 
 
 
