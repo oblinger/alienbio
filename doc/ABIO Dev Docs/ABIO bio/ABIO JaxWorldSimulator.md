@@ -111,7 +111,7 @@ The modulation math in the kernel goes through `jax_core._where`, a typed three-
 | `run_fast` | device | refuses | refuses | final state |
 | `run_batch` | device | refuses | refuses | B final states |
 
-Inside a step the order is: reactions (simultaneous, rationed), native flows, then the flow pass, then the population pass — the reference's order, with native flows added after reactions. The two host passes read the input `state` as frozen, not the post-reaction state, matching the reference. Every returned state is a `copy()` of its input with the concentrations replaced, so multiplicity changes only through the population pass; on the device paths it comes back as it went in. Refusing rather than skipping is the F8 lesson: the JAX path once dropped flows in silence, and until T053 a world with population laws ran a different model here (microcosm juveniles 172 against 20).
+Inside a step the order is: reactions (simultaneous, rationed), native flows, then the flow pass, then the population pass — the reference's order, with native flows added after reactions. The two host passes read their demand off the input `state` as frozen, not the post-reaction state, and ration against the pool as it stands in the post-reaction `new_state`, matching the reference. Every returned state is a `copy()` of its input with the concentrations replaced, so multiplicity changes only through the population pass; on the device paths it comes back as it went in. Refusing rather than skipping is the F8 lesson: the JAX path once dropped flows in silence, and until T053 a world with population laws ran a different model here (microcosm juveniles 172 against 20).
 
 
 

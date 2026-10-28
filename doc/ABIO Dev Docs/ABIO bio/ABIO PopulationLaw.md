@@ -213,7 +213,7 @@ The pass itself and the module's type aliases. `alienbio.bio` exports the four c
 Each law caps its own draw at the frozen pool, but before T053 two laws drawing one key each saw the whole pool: two deaths on a compartment of 10 took it to −10 in a step, and the shipped microcosm's two growth laws both draw `pond/food`. Now, per drained key (a compartment's multiplicity, or a `(compartment, molecule)` concentration):
 
 1. demand = the sum of the negative deltas all laws put on that key;
-2. ratio = `min(1, frozen value / demand)`;
+2. ratio = `min(1, value in new_state / demand)` — the pool the earlier passes left, floored at 0;
 3. each law's scale = the smallest ratio over every key it drew, 1 if it drew none;
 4. all of that law's deltas — draws and gains alike — are multiplied by its scale.
 
@@ -238,7 +238,7 @@ The `PerCapitaGrowth.__init__` docstring permits `resource_compartment == compar
 
 
 ## The cross-pass over-draw
-The ration covers the population pass only. Its ratios read `frozen`, not `new_state`, so a pool the reaction or flow pass already drew this step is rationed again against its full frozen value. One compartment with `[A] = 1`, a fast reaction A → B and a growth law with `stoich = 1` drawing A: the step ends at `[A] = −1.0`, B = 1 and one new instance — the same A spent twice. Only results in `(−ROUNDING_FLOOR, 0)` are snapped. Multiplicity cannot be over-drawn this way, because no other pass writes it. [[ABIO WorldSimulatorImpl]] § The min-ratio ration records the same gap between reactions and flows.
+The ratios read `new_state`, not `frozen`: a pool the reaction or flow pass already drew this step is rationed against what they left (floored at 0). Until 2026-10 they read `frozen`, so one compartment with `[A] = 1`, a fast reaction A → B and a growth law with `stoich = 1` drawing A ended the step at `[A] = −1.0`, B = 1 and one new instance — the same A spent twice. Each law's own `contribute` cap still reads the frozen pool; that is its demand. Multiplicity ratios read `new_state` too, which equals `frozen` here because no earlier pass writes multiplicity.
 
 
 

@@ -1,7 +1,7 @@
 ---
 description: "`WorldSimulatorImpl` + `ReactionSpec`: the reference stepper — reaction, flow and population passes off a frozen state. Source: `src/alienbio/bio/world_simulator.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO WorldSimulatorImpl](ha://p/ABIO%20WorldSimulatorImpl) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO WorldSimulatorImpl](ha://p/ABIO%20WorldSimulatorImpl) 
 # ABIO WorldSimulatorImpl
 The reference simulator: advances a multi-compartment `WorldStateImpl` one `dt` at a time through a reaction pass, a flow pass and a population pass, each read off the frozen start-of-step state.
 
@@ -144,7 +144,7 @@ A `GeneralFlow` is the exception to the frozen rule: `apply_flows` runs it after
 ## The min-ratio ration
 Each pass resolves competition for a pool in one shot, without iterating. For the reaction pass, within one compartment: every active reaction's desired extent is computed from the frozen state; demand on each molecule is the sum of `extent × stoichiometry` over reactions with a positive extent and a positive stoichiometry; each molecule's ratio is `min(1, available / demand)`; each reaction is scaled by the tightest ratio over its reactants; and all scaled extents are applied together. The result is independent of the order of `reactions` (H4, `tests/unit/test_h4_simultaneous.py`), never takes a pool below zero within the pass, and reduces to a plain clamp when nothing competes. `apply_flows` (amounts, per `(compartment, molecule)`) and `apply_population_laws` (multiplicity and pools) run the same scheme in their own modules.
 
-The three passes ration independently, each against the full frozen pool. A pool drawn by a reaction and by a flux in the same step can be over-drawn in sum: one compartment holding 1.0 of A, a reaction A → B and a `TransportFlux` moving A out, both fast, ends the step at A = −1.0 (total mass conserved). Nothing after the passes clamps.
+Every pass reads its demand off the frozen state; the flow pass rations against what the reaction pass left in `new_state`, and the population pass against what the flow pass left, so the passes together never over-draw a pool. Until 2026-10 each rationed against the full frozen pool: one compartment holding 1.0 of A, a reaction A → B and a `TransportFlux` moving A out, both fast, ended the step at A = −1.0 (total mass conserved). Pinned by `tests/bio/test_moddoc_findings_world_simulator.py`.
 
 
 

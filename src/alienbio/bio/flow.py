@@ -13,6 +13,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Optional, Sequence, TYPE_CHECKING
 
+from .rate_expr import ROUNDING_FLOOR
+
 if TYPE_CHECKING:
     from .world_state import WorldStateImpl
     from .compartment_tree import CompartmentTreeImpl
@@ -402,9 +404,12 @@ class TransportFlux(Flow):
         for mol, count in self._stoichiometry.items():
             delta_n = event_count * count
             if origin_scale > 0:
-                state.set(
-                    self._origin, mol, state.get(self._origin, mol) - delta_n / origin_scale
-                )
+                remaining = state.get(self._origin, mol) - delta_n / origin_scale
+                # A draw rationed to the whole pool can leave -1e-17 of
+                # rounding; snap it, as the reaction pass does (M48.6).
+                if -ROUNDING_FLOOR < remaining < 0.0:
+                    remaining = 0.0
+                state.set(self._origin, mol, remaining)
             if dest_scale > 0:
                 state.set(self._dest, mol, state.get(self._dest, mol) + delta_n / dest_scale)
 
@@ -490,7 +495,12 @@ def apply_flows(
             others.append(flow)
     ratio: Dict[tuple[CompartmentId, int], float] = {}
     for (comp, mol), dem in demand.items():
-        avail = frozen.amount(comp, mol)
+        # Demand is read off the frozen state, but the pool it draws is what
+        # the reaction pass LEFT in ``new_state``: rationing against the frozen
+        # pool let the two passes together take A = 1.0 to -1.0 (module-doc
+        # finding, 2026-10). Multiplicity and volume are unchanged before the
+        # population pass, so this amount is on the frozen scale.
+        avail = max(0.0, new_state.amount(comp, mol))
         ratio[(comp, mol)] = min(1.0, avail / dem) if dem > 0.0 else 1.0
     for flow, events, draws in fluxes:
         scale = 1.0

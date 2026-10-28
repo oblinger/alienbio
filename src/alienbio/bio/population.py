@@ -505,12 +505,19 @@ def apply_population_laws(
             if delta < 0.0:
                 mol_demand[key] = mol_demand.get(key, 0.0) - delta
 
+    # Demands come off the frozen state; the ration is against the pool as
+    # the reaction and flow passes LEFT it in ``new_state``, so the three
+    # passes together never over-draw a pool (module-doc finding, 2026-10).
     mult_ratio = {
-        comp: (min(1.0, frozen.get_multiplicity(comp) / dem) if dem > 0.0 else 1.0)
+        comp: (
+            min(1.0, max(0.0, new_state.get_multiplicity(comp)) / dem) if dem > 0.0 else 1.0
+        )
         for comp, dem in mult_demand.items()
     }
     mol_ratio = {
-        (comp, mol_id): (min(1.0, frozen.get(comp, mol_id) / dem) if dem > 0.0 else 1.0)
+        (comp, mol_id): (
+            min(1.0, max(0.0, new_state.get(comp, mol_id)) / dem) if dem > 0.0 else 1.0
+        )
         for (comp, mol_id), dem in mol_demand.items()
     }
 

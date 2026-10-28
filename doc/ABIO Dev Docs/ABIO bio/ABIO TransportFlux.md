@@ -1,12 +1,12 @@
 ---
 description: "`TransportFlux`, `GeneralFlow`, `Flow` and `apply_flows`: amount-conserving transport between compartments and the flow pass both simulators run. Source: `src/alienbio/bio/flow.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO TransportFlux](ha://p/ABIO%20TransportFlux) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO TransportFlux](ha://p/ABIO%20TransportFlux) 
 # ABIO TransportFlux
 The flow layer: `TransportFlux` moves a conserved amount of one or more species from one compartment to another, `GeneralFlow` is an arbitrary edit, and `apply_flows` runs every flow of a world as pass 2 of each simulator step.
 
 ![[ABIO TransportFlux.svg|2400]] 
-*The simultaneous flow pass* is the topic that governs everything inside the `apply_flows` frame (demand off the frozen state, summed per pool, one ration, applied at once); *Cross-pass over-draw* governs the `available` edge, which counts only this pass's draws.
+*The simultaneous flow pass* is the topic that governs everything inside the `apply_flows` frame (demand off the frozen state, summed per pool, one ration, applied at once); *Cross-pass over-draw* governs the `available` edge, which reads the pool the reaction pass left.
 
 A world declares transport as string-id `Transport` specs authored by blocks; `WorldImpl` resolves each into a `TransportFlux`, and [[ABIO WorldSimulatorImpl]] and [[ABIO JaxWorldSimulator]] hand the whole list to `apply_flows` between the reaction pass and the population pass. This page covers the three classes and the pass. The step that sequences the passes, and the reaction pass's own ration, are on [[ABIO WorldSimulatorImpl]]; the population pass is `apply_population_laws` in `bio/population.py`; the state store is `bio/world_state.py`; the subsystem view is [[ABIO-Bio-Engine]].
 
@@ -157,7 +157,7 @@ The abstract base both flows subclass (`abc.ABC`); `alienbio.bio` exports it und
 | [[#^compartmentid\|CompartmentId]] | Alias for a compartment's integer id |
 
 **apply_flows**`(flows: Sequence[Flow], new_state: WorldStateImpl, frozen: WorldStateImpl, tree: CompartmentTreeImpl, dt: float) -> None`
-    The flow pass. Every `TransportFlux` states its `demand` off `frozen`; the draws are summed per losing `(compartment, molecule)`; each pool's ratio is `min(1, available / demand)` with `available` read off `frozen`; each flux's event count is scaled by the tightest ratio over the pools it draws and moved by `apply_events` into `new_state`, reading scales off `frozen`. Every other flow then runs `flow.apply(new_state, tree, dt)` in list order ([[#The simultaneous flow pass]]). Mutates `new_state` only; returns nothing; raises nothing of its own. ^apply-flows
+    The flow pass. Every `TransportFlux` states its `demand` off `frozen`; the draws are summed per losing `(compartment, molecule)`; each pool's ratio is `min(1, available / demand)` with `available` the pool as the reaction pass left it in `new_state` (floored at 0); each flux's event count is scaled by the tightest ratio over the pools it draws and moved by `apply_events` into `new_state`, reading scales off `frozen`. Every other flow then runs `flow.apply(new_state, tree, dt)` in list order ([[#The simultaneous flow pass]]). Mutates `new_state` only; returns nothing; raises nothing of its own. ^apply-flows
 
 **CompartmentId**`= int`
     A compartment's index in the tree. `alienbio.bio` re-exports the alias of the same name from `protocols.bio`, not this one. ^compartmentid
@@ -174,12 +174,12 @@ Before T053 the pass applied each flow in turn, so a flux read its predecessors'
 | --- | --- | --- |
 | 1. Demand | `frozen` concentrations of each flux's driver | events and draws per flux |
 | 2. Sum | the draws | demand per losing `(compartment, molecule)` |
-| 3. Ration | `frozen.amount` of each pool | `min(1, available / demand)`<br>`1.0` when demand is zero |
+| 3. Ration | `new_state.amount` of each pool (what the reaction pass left) | `min(1, available / demand)`<br>`1.0` when demand is zero |
 | 4. Scale | the ratios over each flux's own draws | events × the smallest ratio |
 | 5. Apply | `frozen` multiplicity × volume | concentration writes into `new_state`, all fluxes |
 | 6. General flows | `new_state` as it now stands | arbitrary edits, in list order |
 
-The split is independent of list order, and the pass never draws more than the frozen pool holds. With no pool over-drawn every ratio is exactly `1.0`, and the move equals `TransportFlux.apply` on the frozen state bit for bit (`tests/suite/test_transport.py`, `test_a_non_competing_flux_moves_exactly_what_it_did_before`); the one behaviour change for non-competing worlds is that a flux reads the frozen state rather than its predecessors' writes. A pool already below zero gives a negative ratio, which scales every flux that draws it to a non-positive count, and `apply_events` then moves nothing. The ratio is per flux, not per species: a co-transported group is throttled by its scarcest species, all members together.
+The split is independent of list order, and the pass never draws more than the reaction pass left. With no pool over-drawn every ratio is exactly `1.0`, and the move equals `TransportFlux.apply` on the frozen state bit for bit (`tests/suite/test_transport.py`, `test_a_non_competing_flux_moves_exactly_what_it_did_before`); the one behaviour change for non-competing worlds is that a flux reads the frozen state rather than its predecessors' writes. A pool already below zero is read as empty, so every flux that draws it moves nothing. A losing pool drawn to exactly its amount snaps a `(−ROUNDING_FLOOR, 0)` residue to 0, as the reaction pass does. The ratio is per flux, not per species: a co-transported group is throttled by its scarcest species, all members together.
 
 
 
@@ -200,7 +200,7 @@ A flux moves amount (`multiplicity × volume × concentration`, `WorldStateImpl.
 Two places where the invariant does not hold, both in `apply_events` (flow.py 404–409):
 
 - **A gaining side with zero scale** — a compartment whose multiplicity or volume is zero is skipped. The losing side still pays, so the amount vanishes. A positive-count flux into a compartment whose population has died out loses its whole transfer; reproduced against HEAD with an antiport into a zero-volume compartment (total `1.0 → 0.0`). A losing side with zero scale holds zero amount, so the ration already stops it.
-- **The cross-pass over-draw** — the ration covers this pass only ([[#Cross-pass over-draw]]).
+- **The cross-pass over-draw** — closed 2026-10 ([[#Cross-pass over-draw]]).
 
 
 
@@ -239,7 +239,7 @@ Flows are authored with names, resolved to ids once per world, and carried acros
 
 
 ## Cross-pass over-draw
-`step` runs the reaction pass, then `apply_flows`, both reading the same frozen state and writing one `new_state`. Each rations against the whole frozen pool and knows nothing of the other's draw (`world_simulator.py` 213–225; flow.py 491–499). A pool consumed by a reaction and drained by a flux in the same step can therefore go negative: one compartment holding 1.0 of A, a reaction A → B with `k = 10` and a first-order flux of A out with `k = 10`, `dt = 1`, ends the step at A = −1.0 with B = 1.0 in place and A = 1.0 moved (total conserved; reproduced at HEAD 84f8190). The population pass is a third independent ration on the same frozen state. Nothing after the passes clamps; the reaction pass's `ROUNDING_FLOOR` snap covers only its own subtraction. A negative pool then blocks every flux that draws it on the next step ([[#The simultaneous flow pass]]).
+`step` runs the reaction pass, then `apply_flows`, then the population pass, all reading demand off the same frozen state and writing one `new_state`. Until 2026-10 each rationed against the whole frozen pool, so one compartment holding 1.0 of A, a reaction A → B with `k = 10` and a first-order flux of A out with `k = 10`, `dt = 1`, ended the step at A = −1.0 (reproduced at HEAD 84f8190). Now each later pass rations against the pool as the earlier passes left it in `new_state`: in that world the reaction takes the whole pool and the flux moves nothing. Demand stays a frozen-state quantity, so order inside a pass still does not matter; only the ration's denominator moved. `JaxWorldSimulator.step` runs the same host passes on the post-reaction state and inherits the rule. Its device `native_flows` move a clamped fraction of the post-reaction pool, so they cannot over-draw either, but they compute that fraction off the post-reaction pool, not the frozen one. Pinned by `tests/bio/test_moddoc_findings_world_simulator.py`.
 
 
 
