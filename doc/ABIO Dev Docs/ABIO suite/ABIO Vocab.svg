@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-world">
+    <rect id="n-world-box" x="20" y="200" width="220" height="100" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-world-name" x="130" y="226" font-size="18" font-weight="600" text-anchor="middle">tokens</text>
+    <text id="n-world-k1" x="130" y="248" font-size="13" text-anchor="middle">molecule ids, reaction ids,</text>
+    <text id="n-world-k2" x="130" y="266" font-size="13" text-anchor="middle">extra_answer_tokens;</text>
+    <text id="n-world-k3" x="130" y="284" font-size="13" text-anchor="middle">sorted</text>
+  </g>
+  <g id="n-bv">
+    <rect id="n-bv-box" x="320" y="200" width="250" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bv-name" x="445" y="226" font-size="18" font-weight="600" text-anchor="middle">build_vocabulary</text>
+    <text id="n-bv-k1" x="445" y="248" font-size="13" text-anchor="middle">per token: seed.child(token);</text>
+    <text id="n-bv-k2" x="445" y="266" font-size="13" text-anchor="middle">collision → child(token#bump)</text>
+    <text id="n-bv-k3" x="445" y="284" font-size="13" text-anchor="middle">≤ 64, then "-index"</text>
+  </g>
+  <line id="e-world-bv" x1="240" y1="250" x2="320" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-gen">
+    <rect id="n-gen-box" x="320" y="40" width="250" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gen-name" x="445" y="66" font-size="18" font-weight="600" text-anchor="middle">generate_alien_name</text>
+    <text id="n-gen-k1" x="445" y="88" font-size="13" text-anchor="middle">random.Random(seed):</text>
+    <text id="n-gen-k2" x="445" y="106" font-size="13" text-anchor="middle">16 prefixes × 4 connectors</text>
+    <text id="n-gen-k3" x="445" y="124" font-size="13" text-anchor="middle">× 16 suffixes = 1024 ‡</text>
+  </g>
+  <line id="e-bv-gen" x1="445" y1="200" x2="445" y2="140" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-v">
+    <rect id="n-v-box" x="650" y="200" width="240" height="100" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-v-name" x="770" y="226" font-size="18" font-weight="600" text-anchor="middle">Vocabulary</text>
+    <text id="n-v-k1" x="770" y="248" font-size="13" text-anchor="middle">(render) token → phrase,</text>
+    <text id="n-v-k2" x="770" y="266" font-size="13" text-anchor="middle">injectivity re-checked</text>
+    <text id="n-v-k3" x="770" y="284" font-size="13" text-anchor="middle">e.g. m1 → "zor-ax"</text>
+  </g>
+  <line id="e-bv-v" x1="570" y1="250" x2="650" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-guard">
+    <rect id="n-guard-box" x="960" y="200" width="220" height="100" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-guard-name" x="1070" y="226" font-size="16" font-weight="600" text-anchor="middle">build_suite guard</text>
+    <text id="n-guard-k1" x="1070" y="248" font-size="13" text-anchor="middle">parse(render(x)) == x,</text>
+    <text id="n-guard-k2" x="1070" y="266" font-size="13" text-anchor="middle">then the vocabulary</text>
+    <text id="n-guard-k3" x="1070" y="284" font-size="13" text-anchor="middle">is discarded</text>
+  </g>
+  <line id="e-v-guard" x1="890" y1="250" x2="960" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-pipe">
+    <rect id="n-pipe-box" x="20" y="40" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pipe-name" x="130" y="66" font-size="16" font-weight="600" text-anchor="middle">pipeline.build_suite</text>
+    <text id="n-pipe-k1" x="130" y="88" font-size="13" text-anchor="middle">one per task,</text>
+    <text id="n-pipe-k2" x="130" y="106" font-size="13" text-anchor="middle">seed.child("vocab/i")</text>
+  </g>
+  <line id="e-pipe-world" x1="130" y1="120" x2="130" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-nm">
+    <rect id="n-nm-box" x="650" y="400" width="530" height="60" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="n-nm-k1" x="915" y="426" font-size="13" text-anchor="middle">the agent never sees these phrases: its surface names</text>
+    <text id="n-nm-k2" x="915" y="444" font-size="13" text-anchor="middle">(m01, r01) come from NameMap at the runner boundary</text>
+  </g>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ near 1024 tokens names gain a "-index" suffix; no generated name holds a digit</text>
+  </g>
+</svg>
