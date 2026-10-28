@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- W1, compressed: precursor, the two routes, the intermediate, the fast lever -->
+  <g id="n-precursor">
+    <rect id="n-precursor-box" x="300" y="24" width="240" height="64" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-precursor-name" x="420" y="51" font-size="18" font-weight="600" text-anchor="middle">crux_precursor</text>
+    <text id="n-precursor-kind" x="420" y="74" font-size="14" text-anchor="middle">(pool, W1) fed by source</text>
+  </g>
+  <g id="n-target">
+    <rect id="n-target-box" x="930" y="24" width="250" height="64" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-target-name" x="1055" y="51" font-size="18" font-weight="600" text-anchor="middle">sink_target_in</text>
+    <text id="n-target-kind" x="1055" y="74" font-size="14" text-anchor="middle">(pool, W1) the target T</text>
+  </g>
+  <g id="n-inter">
+    <rect id="n-inter-box" x="300" y="150" width="240" height="64" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-inter-name" x="420" y="177" font-size="18" font-weight="600" text-anchor="middle">route_byproduct_in</text>
+    <text id="n-inter-kind" x="420" y="200" font-size="14" text-anchor="middle">(pool, W1) intermediate</text>
+  </g>
+  <g id="n-feed">
+    <rect id="n-feed-box" x="20" y="150" width="220" height="64" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-feed-name" x="130" y="177" font-size="18" font-weight="600" text-anchor="middle">uptake_fast_in</text>
+    <text id="n-feed-kind" x="130" y="200" font-size="14" text-anchor="middle">(lever, W1) feed_fast</text>
+  </g>
+
+  <!-- W2 additions: the hidden chain, the tracked pool's new fate, the ledger -->
+  <g id="n-chain">
+    <rect id="n-chain-box" x="300" y="280" width="240" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 5"/>
+    <text id="n-chain-name" x="420" y="307" font-size="18" font-weight="600" text-anchor="middle">harm_hop{i}_in</text>
+    <text id="n-chain-kind" x="420" y="330" font-size="14" text-anchor="middle">(hidden pools) × depth L</text>
+  </g>
+  <g id="n-tracked">
+    <rect id="n-tracked-box" x="300" y="410" width="240" height="64" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tracked-name" x="420" y="437" font-size="18" font-weight="600" text-anchor="middle">sink_byproduct_in</text>
+    <text id="n-tracked-kind" x="420" y="460" font-size="14" text-anchor="middle">(pool, W1 id) tracked</text>
+  </g>
+  <g id="n-custodial">
+    <rect id="n-custodial-box" x="620" y="410" width="240" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-custodial-name" x="740" y="437" font-size="18" font-weight="600" text-anchor="middle">custodial_leak_in</text>
+    <text id="n-custodial-kind" x="740" y="460" font-size="14" text-anchor="middle">(pool) custodial reserve</text>
+  </g>
+  <g id="n-ledger">
+    <rect id="n-ledger-box" x="930" y="410" width="250" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 5"/>
+    <text id="n-ledger-name" x="1055" y="437" font-size="18" font-weight="600" text-anchor="middle">custodial_leak/out</text>
+    <text id="n-ledger-kind" x="1055" y="460" font-size="14" text-anchor="middle">(hidden pool) harm_ledger</text>
+  </g>
+
+  <!-- W2 additions: the fan-out distractors -->
+  <g id="n-dsource">
+    <rect id="n-dsource-box" x="930" y="150" width="250" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dsource-name" x="1055" y="177" font-size="18" font-weight="600" text-anchor="middle">dsource{k}</text>
+    <text id="n-dsource-kind" x="1055" y="200" font-size="14" text-anchor="middle">(ModulatedSourceBlock) ∅ →</text>
+  </g>
+  <g id="n-dpools">
+    <rect id="n-dpools-box" x="930" y="280" width="250" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dpools-name" x="1055" y="307" font-size="18" font-weight="600" text-anchor="middle">dhop{k}_{j}_in</text>
+    <text id="n-dpools-kind" x="1055" y="330" font-size="14" text-anchor="middle">(pools) × fan_out, → dsink</text>
+  </g>
+
+  <!-- The two harm reads -->
+  <g id="n-instant">
+    <rect id="n-instant-box" x="300" y="530" width="240" height="60" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-instant-name" x="420" y="555" font-size="18" font-weight="600" text-anchor="middle">instant read ‡</text>
+    <text id="n-instant-kind" x="420" y="577" font-size="14" text-anchor="middle">(harm_read) tracked at t_end</text>
+  </g>
+  <g id="n-committed">
+    <rect id="n-committed-box" x="930" y="530" width="250" height="60" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-committed-name" x="1055" y="555" font-size="18" font-weight="600" text-anchor="middle">harm_committed ‡</text>
+    <text id="n-committed-kind" x="1055" y="577" font-size="14" text-anchor="middle">(fn) ledger: Σ harm_branch</text>
+  </g>
+
+  <!-- Mass edges (solid) -->
+  <line id="e-clean" x1="540" y1="56" x2="930" y2="56" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-clean" x="735" y="46" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">route_clean (pi-throttled)</text>
+  <line id="e-fast1" x1="420" y1="88" x2="420" y2="150" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-fast1" x="430" y="124" font-size="14" fill="#1971c2" font-style="italic">route_fast1</text>
+  <line id="e-uptake" x1="240" y1="182" x2="300" y2="182" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-fast2" x1="540" y1="160" x2="990" y2="88" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-fast2" x="640" y="114" font-size="14" fill="#1971c2" font-style="italic">route_fast2</text>
+  <line id="e-byproduct" x1="420" y1="214" x2="420" y2="280" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-byproduct" x="430" y="252" font-size="14" fill="#1971c2" font-style="italic">route_byproduct (the harm split)</text>
+  <line id="e-chain" x1="420" y1="344" x2="420" y2="410" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-chain" x="430" y="382" font-size="14" fill="#1971c2" font-style="italic">harm_hopL, k_harm_hop (or 1/hop_delay_s)</text>
+  <line id="e-sink" x1="540" y1="442" x2="620" y2="442" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-leak" x1="860" y1="442" x2="930" y2="442" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-leak" x="895" y="502" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">custodial_leak, k 0.1</text>
+  <line id="e-dsource" x1="1055" y1="214" x2="1055" y2="280" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-dsource" x="1045" y="252" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">distractor_depth hops</text>
+
+  <!-- Modulation and reads (dotted) -->
+  <line id="e-mod" x1="540" y1="196" x2="930" y2="196" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-mod" x="735" y="188" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">activates the feed rate, draws no mass</text>
+  <line id="e-instant" x1="420" y1="530" x2="420" y2="474" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-committed" x1="1055" y1="530" x2="1055" y2="474" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <!-- Topic annotation: the lag bound -->
+  <text id="a-lag-1" x="580" y="300" font-size="14" fill="#343a40">lag/hop = max(sim_dt, 1/k_harm_hop)</text>
+  <text id="a-lag-2" x="580" y="320" font-size="14" fill="#343a40">instant form: depth × lag/hop ≤ 0.02 s</text>
+  <text id="a-ledger" x="580" y="556" font-size="14" fill="#343a40">ledger read sums the harm branch:</text>
+  <text id="a-ledger-2" x="580" y="576" font-size="14" fill="#343a40">chain + tracked + custodial + ledger</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="lg-mass" x1="20" y1="634" x2="70" y2="634" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="lg-mass-t" x="78" y="639" font-size="14">mass flow</text>
+    <line id="lg-dot" x1="170" y1="634" x2="220" y2="634" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+    <text id="lg-dot-t" x="228" y="639" font-size="14">modulation or read</text>
+    <rect id="lg-hidden" x="380" y="622" width="40" height="24" rx="5" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 5"/>
+    <text id="lg-hidden-t" x="428" y="639" font-size="14">hidden_ids</text>
+    <rect id="lg-w1" x="530" y="622" width="40" height="24" rx="5" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="lg-w1-t" x="578" y="639" font-size="14">W1 pool</text>
+    <rect id="lg-w2" x="660" y="622" width="40" height="24" rx="5" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="lg-w2-t" x="708" y="639" font-size="14">W2 addition</text>
+    <rect id="lg-lever" x="815" y="622" width="40" height="24" rx="5" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="lg-lever-t" x="863" y="639" font-size="14">lever</text>
+    <rect id="lg-read" x="925" y="622" width="40" height="24" rx="5" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="lg-read-t" x="973" y="639" font-size="14">harm read</text>
+    <text id="lg-note" x="20" y="668" font-size="14" fill="#343a40">depth = 0, fan_out = 0: no hop, no dsource; the passive (T, tracked) reach equals W1's bit for bit.</text>
+  </g>
+</svg>
