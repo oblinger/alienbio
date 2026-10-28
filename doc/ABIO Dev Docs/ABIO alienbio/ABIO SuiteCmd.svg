@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-cli">
+    <rect id="n-cli-box" x="20" y="40" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cli-name" x="140.0" y="68" font-size="18" font-weight="600" text-anchor="middle">bio suite …</text>
+    <text id="n-cli-kind" x="140.0" y="92" font-size="14" text-anchor="middle">(front door) cli.main</text>
+  </g>
+  <g id="n-sc">
+    <rect id="n-sc-box" x="20" y="250" width="240" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sc-name" x="140.0" y="278" font-size="18" font-weight="600" text-anchor="middle">suite_command</text>
+    <text id="n-sc-kind" x="140.0" y="302" font-size="14" text-anchor="middle">(fn) parse · dispatch</text>
+    <text id="n-sc-kind2" x="140.0" y="320" font-size="14" text-anchor="middle">catches three error types</text>
+  </g>
+  <g id="n-err">
+    <rect id="n-err-box" x="20" y="460" width="240" height="70" rx="10" fill="#ffe3e3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-err-name" x="140.0" y="488" font-size="18" font-weight="600" text-anchor="middle">Error: …, exit 1</text>
+    <text id="n-err-kind" x="140.0" y="512" font-size="14" text-anchor="middle">(stderr) FNF · Exists · Value</text>
+  </g>
+  <g id="n-run">
+    <rect id="n-run-box" x="320" y="20" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-run-name" x="440.0" y="48" font-size="18" font-weight="600" text-anchor="middle">_run ‡</text>
+    <text id="n-run-kind" x="440.0" y="72" font-size="14" text-anchor="middle">(handler) load_spec, then …</text>
+  </g>
+  <g id="n-res">
+    <rect id="n-res-box" x="320" y="140" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-res-name" x="440.0" y="168" font-size="18" font-weight="600" text-anchor="middle">_resume</text>
+    <text id="n-res-kind" x="440.0" y="192" font-size="14" text-anchor="middle">(handler) spec from manifest.json</text>
+  </g>
+  <g id="n-agg">
+    <rect id="n-agg-box" x="320" y="260" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-agg-name" x="440.0" y="288" font-size="18" font-weight="600" text-anchor="middle">_aggregate_cmd</text>
+    <text id="n-agg-kind" x="440.0" y="312" font-size="14" text-anchor="middle">(handler) writes map.json · .csv</text>
+  </g>
+  <g id="n-rep">
+    <rect id="n-rep-box" x="320" y="380" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rep-name" x="440.0" y="408" font-size="18" font-weight="600" text-anchor="middle">_report_cmd</text>
+    <text id="n-rep-kind" x="440.0" y="432" font-size="14" text-anchor="middle">(handler) writes report.txt</text>
+  </g>
+  <g id="n-mod">
+    <rect id="n-mod-box" x="320" y="500" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mod-name" x="440.0" y="528" font-size="18" font-weight="600" text-anchor="middle">_models_cmd</text>
+    <text id="n-mod-kind" x="440.0" y="552" font-size="14" text-anchor="middle">(handler) the model-id list</text>
+  </g>
+  <g id="n-pf">
+    <rect id="n-pf-box" x="620" y="20" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pf-name" x="740.0" y="48" font-size="18" font-weight="600" text-anchor="middle">preflight</text>
+    <text id="n-pf-kind" x="740.0" y="72" font-size="14" text-anchor="middle">(suite.guards) every check</text>
+  </g>
+  <g id="n-rx">
+    <rect id="n-rx-box" x="620" y="140" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rx-name" x="740.0" y="168" font-size="18" font-weight="600" text-anchor="middle">run_experiment</text>
+    <text id="n-rx-kind" x="740.0" y="192" font-size="14" text-anchor="middle">(suite.experiment) the grid</text>
+  </g>
+  <g id="n-man">
+    <rect id="n-man-box" x="920" y="140" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-man-name" x="1040.0" y="168" font-size="18" font-weight="600" text-anchor="middle">run directory</text>
+    <text id="n-man-kind" x="1040.0" y="192" font-size="14" text-anchor="middle">(files) manifest · records · report</text>
+  </g>
+  <g id="n-aggfn">
+    <rect id="n-aggfn-box" x="620" y="260" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-aggfn-name" x="740.0" y="288" font-size="18" font-weight="600" text-anchor="middle">aggregate</text>
+    <text id="n-aggfn-kind" x="740.0" y="312" font-size="14" text-anchor="middle">(suite.experiment) records → map</text>
+  </g>
+  <g id="n-rr">
+    <rect id="n-rr-box" x="620" y="380" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rr-name" x="740.0" y="408" font-size="18" font-weight="600" text-anchor="middle">render_report · plots</text>
+    <text id="n-rr-kind" x="740.0" y="432" font-size="14" text-anchor="middle">(suite) text and key.png</text>
+  </g>
+  <g id="n-fetch">
+    <rect id="n-fetch-box" x="620" y="500" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fetch-name" x="740.0" y="528" font-size="18" font-weight="600" text-anchor="middle">fetch_models_snapshot</text>
+    <text id="n-fetch-kind" x="740.0" y="552" font-size="14" text-anchor="middle">(llm_agent) provider list, no tokens</text>
+  </g>
+  <g id="n-snap">
+    <rect id="n-snap-box" x="920" y="500" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-snap-name" x="1040.0" y="528" font-size="18" font-weight="600" text-anchor="middle">models_snapshot.json</text>
+    <text id="n-snap-kind" x="1040.0" y="552" font-size="14" text-anchor="middle">(file) inside the package</text>
+  </g>
+  <line id="e-cli-sc" x1="140" y1="110" x2="140" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cli-sc" x="150" y="185" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">args</text>
+  <line id="e-sc-err" x1="140" y1="340" x2="140" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-sc-err" x="150" y="405" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">raised</text>
+  <line id="e-sc-run" x1="260" y1="260" x2="320" y2="55" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-sc-res" x1="260" y1="275" x2="320" y2="175" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-sc-agg" x1="260" y1="295" x2="320" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-sc-rep" x1="260" y1="315" x2="320" y2="415" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-sc-mod" x1="260" y1="330" x2="320" y2="535" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-run-pf" x1="560" y1="55" x2="620" y2="55" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-run-pf" x="590" y="45" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">--dry</text>
+  <line id="e-run-rx" x1="540" y1="90" x2="660" y2="140" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-res-rx" x1="560" y1="175" x2="620" y2="175" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-rx-pf" x1="740" y1="140" x2="740" y2="90" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-rx-pf" x="750" y="120" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">raises first</text>
+  <line id="e-rx-man" x1="860" y1="175" x2="920" y2="175" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-agg-fn" x1="560" y1="295" x2="620" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-rep-agg" x1="500" y1="380" x2="680" y2="330" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-rep-rr" x1="560" y1="415" x2="620" y2="415" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-mod-fetch" x1="560" y1="535" x2="620" y2="535" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-fetch-snap" x1="860" y1="535" x2="920" y2="535" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="t-n-run" x="905" y="55" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">--dry prints every verdict, exits 1 on a refusal</text>
+  <text id="t-n-run2" x="905" y="73" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">without it: run_experiment, resume=False</text>
+  <text id="t-n-res" x="905" y="240" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">resume reruns error lines;</text>
+  <text id="t-n-res2" x="905" y="258" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">the spec cannot drift</text>
+  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call or write · dotted: raises · lilac: suite/ modules · ‡ without -v a run prints nothing and exits 0, even when the cost ceiling</text>
+  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">stopped the grid · any exception but the three caught types (a missing API key on models) is a traceback</text>
+</svg>
