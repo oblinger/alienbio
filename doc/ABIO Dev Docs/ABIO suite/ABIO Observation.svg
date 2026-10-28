@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-state">
+    <rect id="n-state-box" x="20" y="200" width="200" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-state-name" x="120" y="226" font-size="18" font-weight="600" text-anchor="middle">WorldState</text>
+    <text id="n-state-kind" x="120" y="248" font-size="14" text-anchor="middle">(bio) ground truth,</text>
+    <text id="n-state-kind2" x="120" y="268" font-size="14" text-anchor="middle">self-describing</text>
+  </g>
+  <g id="n-full">
+    <rect id="n-full-box" x="270" y="208" width="200" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-full-name" x="370" y="234" font-size="17" font-weight="600" text-anchor="middle">full_observation</text>
+    <text id="n-full-kind" x="370" y="256" font-size="14" text-anchor="middle">(fn) every value</text>
+  </g>
+  <line id="e-state-full" x1="220" y1="240" x2="270" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-choose">
+    <rect id="n-choose-box" x="520" y="60" width="220" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-choose-name" x="630" y="86" font-size="17" font-weight="600" text-anchor="middle">choose_hidden</text>
+    <text id="n-choose-kind" x="630" y="108" font-size="14" text-anchor="middle">(fn) round((1−obs)·n)</text>
+    <text id="n-choose-kind2" x="630" y="128" font-size="14" text-anchor="middle">ids, no replacement</text>
+  </g>
+  <g id="n-proj">
+    <rect id="n-proj-box" x="520" y="208" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-proj-name" x="630" y="234" font-size="17" font-weight="600" text-anchor="middle">project_observation</text>
+    <text id="n-proj-kind" x="630" y="256" font-size="14" text-anchor="middle">(fn) drop hidden ids</text>
+  </g>
+  <line id="e-full-proj" x1="470" y1="240" x2="520" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-choose-proj" x1="630" y1="140" x2="630" y2="208" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-choose-proj" x="640" y="180" font-size="14" fill="#1971c2" font-style="italic">hidden set</text>
+
+  <g id="n-noise">
+    <rect id="n-noise-box" x="790" y="200" width="220" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-noise-name" x="900" y="226" font-size="16" font-weight="600" text-anchor="middle">add_measurement_noise</text>
+    <text id="n-noise-kind" x="900" y="248" font-size="14" text-anchor="middle">(fn) v · max(0, 1 + N)</text>
+    <text id="n-noise-kind2" x="900" y="268" font-size="14" text-anchor="middle">biased up at large σ ‡</text>
+  </g>
+  <line id="e-proj-noise" x1="740" y1="240" x2="790" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-obs">
+    <rect id="n-obs-box" x="1050" y="200" width="130" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-obs-name" x="1115" y="226" font-size="16" font-weight="600" text-anchor="middle">Observation</text>
+    <text id="n-obs-kind" x="1115" y="248" font-size="13" text-anchor="middle">(type) dict per</text>
+    <text id="n-obs-kind2" x="1115" y="268" font-size="13" text-anchor="middle">compartment</text>
+  </g>
+  <line id="e-noise-obs" x1="1010" y1="240" x2="1050" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-narrow">
+    <rect id="n-narrow-box" x="270" y="360" width="740" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-narrow-name" x="640" y="386" font-size="18" font-weight="600" text-anchor="middle">narrow_observation</text>
+    <text id="n-narrow-kind" x="640" y="408" font-size="14" text-anchor="middle">(fn) composes the three steps above under dials observability and observation_noise</text>
+  </g>
+  <line id="e-narrow-full" x1="370" y1="360" x2="370" y2="272" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-narrow-noise" x1="900" y1="360" x2="900" y2="280" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-narrow-noise" x="910" y="325" font-size="14" fill="#1971c2" font-style="italic">noise_seed.child("noise")</text>
+  <path id="e-narrow-choose" d="M 760 360 L 760 100 L 740 100" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-narrow-choose" x="770" y="150" font-size="14" fill="#1971c2" font-style="italic">seed.child("observability")</text>
+
+  <g id="n-runner">
+    <rect id="n-runner-box" x="270" y="490" width="360" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-runner-name" x="450" y="516" font-size="18" font-weight="600" text-anchor="middle">runner.run, each turn</text>
+    <text id="n-runner-kind" x="450" y="538" font-size="14" text-anchor="middle">seed = turn/0/observe (hidden set fixed)</text>
+    <text id="n-runner-kind2" x="450" y="558" font-size="14" text-anchor="middle">noise_seed = turn/t/observe</text>
+  </g>
+  <line id="e-runner-narrow" x1="450" y1="490" x2="450" y2="424" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-after">
+    <rect id="n-after-box" x="700" y="490" width="480" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-after-name" x="940" y="516" font-size="17" font-weight="600" text-anchor="middle">then, in the runner</text>
+    <text id="n-after-kind" x="940" y="538" font-size="14" text-anchor="middle">project_observation(setup hidden_ids)</text>
+    <text id="n-after-kind2" x="940" y="558" font-size="14" text-anchor="middle">+ auditor block under the monitor → agent.act</text>
+  </g>
+  <path id="e-obs-after" d="M 1115 280 L 1115 490" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, seeds</text>
+    <text id="legend-dagger" x="380" y="646" font-size="14">‡ mean multiplier 1.083 and 15.7 % zeros at σ = 1 (20 000 draws)</text>
+  </g>
+</svg>
