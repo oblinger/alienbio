@@ -1,7 +1,7 @@
 ---
 description: "`rate_expr`: the compiled rate-law tree both simulators run — node builders, `eval_rate`, `lower_jax`, serialization, `ROUNDING_FLOOR` / `RATE_CAP`. Source: `src/alienbio/bio/rate_expr.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO RateExpr](ha://p/ABIO%20RateExpr) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO RateExpr](ha://p/ABIO%20RateExpr) 
 # ABIO RateExpr
 The compiled form of a rate law: a small tree of tuples, built once from the rate grammar, that the reference simulator evaluates in Python and the JAX core lowers to array ops, so both read one law identically.
 
@@ -59,10 +59,10 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
     `True` when the tree reads none of `reactants` — mass action over the reactants is then implicit and the law multiplies it; `False` when the law is the whole rate ([[#Implicit mass action]]). The names in `node` and `reactants` must be in the same space (both ids, as `ReactionSpec` calls it). ^implicit-mass-action
 
 **modulation_factor**`(kind: str, m: float, p: Mapping[str, float]) -> float`
-    The factor one modulation contributes at modifier concentration `m`, with parameters `p`, per the table in [[#Modulation factors]]. `michaelis` and `hill` return 0.0 instead of dividing when their denominator is not positive. `KeyError` for a missing required parameter; `ZeroDivisionError` for `inhibitor` with `Ki = 0`, and for `hill` with `n < 0` at `m = 0` (`0.0 ** n` raises in Python); `ValueError` for an unknown kind. ^modulation-factor
+    The factor one modulation contributes at modifier concentration `m`, with parameters `p`, per the table in [[#Modulation factors]]. `michaelis` and `hill` return 0.0 instead of dividing when their denominator is not positive. `KeyError` for a missing required parameter; `ValueError` for an unknown kind. `inhibitor` with `Ki = 0` and `hill` with `n < 0` at `m = 0` read as JAX reads them (inf or NaN, via `ieee_div`/`ieee_pow`); until 2026-10 both raised `ZeroDivisionError`. ^modulation-factor
 
 **eval_rate**`(node: RateNode, conc: Callable[[Any], float]) -> float`
-    Evaluate the tree, calling `conc(name)` for each `species` leaf and `mod` pool. Recursive; the per-node rules, including `log` of a non-positive value giving `-inf`, `sqrt` giving 0 and `div` by anything smaller than `ROUNDING_FLOOR` giving 0, are in [[#The node grammar]]. `pow` is raw Python `**`: a zero base with a negative exponent raises `ZeroDivisionError`, and a negative base with a fractional exponent returns a `complex` ([[#One tree, two evaluators]]). Returns the law's value unclamped; the caller applies `dt`, mass action and `RATE_CAP`. ^eval-rate
+    Evaluate the tree, calling `conc(name)` for each `species` leaf and `mod` pool. Recursive; the per-node rules, including `log` of a non-positive value giving `-inf`, `sqrt` giving 0 and `div` by anything smaller than `ROUNDING_FLOOR` giving 0, are in [[#The node grammar]]. `pow` is `ieee_pow` and `exp` is `ieee_exp`: a zero base with a negative exponent or an overflow is inf, a negative base with a fractional exponent is NaN, as under JAX ([[#One tree, two evaluators]]); until 2026-10 they raised or returned a `complex`. Returns the law's value unclamped; the caller applies `dt`, mass action and `RATE_CAP`. ^eval-rate
 
 **lower_jax**`(node: RateNode, S: Any, column: Callable[[Any], int]) -> Any`
     The same law as `jax.numpy` ops over a state array `S` of shape `[C, M]`, returning one rate per compartment, shape `[C]`; `column(name)` gives the molecule axis index. Meant to be traced once under `jit`: `jax_core.build_rate_laws` wraps each reaction's tree in a closure that calls it. Constants broadcast to `[C]` in `S.dtype`. `log`, `sqrt` and `div` mask their unsafe inputs with a second `where` so the untaken branch never produces `inf` or `nan`; modulations go through the private `_lower_modulation`, the same arithmetic as [[#^modulation-factor|modulation_factor]]. `ImportError` when JAX is not installed. ^lower-jax
@@ -100,7 +100,7 @@ A tree is built from five shapes. It carries only numbers, species and operators
 | `sqrt` | `("sqrt", a)` | `sqrt(a)`, 0 when `a ≤ 0` | same |
 | `add`, `sub`, `mul` | `(tag, a, b)` | `a + b`, `a − b`, `a · b` | same |
 | `div` | `("div", a, b)` | `a / b`, 0 when `\|b\| < ROUNDING_FLOOR` | same |
-| `pow` | `("pow", a, b)` | `a ** b`, unguarded | `a ** b`, unguarded |
+| `pow` | `("pow", a, b)` | `ieee_pow(a, b)`: inf / NaN where Python refuses | `a ** b`, unguarded |
 
 Both evaluators recurse on the tag. Binary children are evaluated before the operator is matched, so a malformed node with an unknown tag raises `ValueError` only when it has at least two children; a shorter one fails earlier on indexing.
 
@@ -154,16 +154,16 @@ The floor lives here because the two backends once carried their own copies, and
 
 
 ## One tree, two evaluators
-`eval_rate` and `lower_jax` walk the same tags with the same arithmetic, and `_lower_modulation` duplicates `modulation_factor` line for line, so for every finite, positive input the two agree to float64 rounding. They part where Python and JAX treat an undefined operation differently:
+`eval_rate` and `lower_jax` walk the same tags with the same arithmetic, and `_lower_modulation` duplicates `modulation_factor` line for line, so for every finite, positive input the two agree to float64 rounding. Python refuses operations JAX reads as inf or NaN; `ieee_pow`, `ieee_div` and `ieee_exp` are the one place the reference reads them as JAX does (returning Python's own result wherever Python accepts the input), and both steppers then clamp alike. Until 2026-10 they parted:
 
-| Input | `eval_rate` | `lower_jax`, then `jax_core` |
+| Input | `eval_rate` before 2026-10 | both now, after the clamps |
 | --- | --- | --- |
 | `pow`, base 0, exponent < 0 | `ZeroDivisionError` | `inf`, capped to `RATE_CAP` |
 | `pow`, base < 0, fractional exponent | a `complex`, then `TypeError` in `_desired_extent` | `nan`, read as 0 |
 | `hill` with `n < 0` at `m = 0` | `ZeroDivisionError` | `nan` (`inf / inf`), read as 0 |
 | `inhibitor` with `Ki = 0` | `ZeroDivisionError` | `0` or `nan` |
 
-The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_reference_on_modulations_and_expression_laws` (a Michaelis–Menten quotient, a `sqrt`·`exp` sum and every modulation kind, to 1e-9) and `tests/capabilities/test_simulator_conformance.py`, whose generated laws use `add`, `mul`, `div`, `sqrt`, `exp` and `michaelis` — never `pow`, `log` or `sub` — plus one pinned `1/[x]` case on an exhausted species.
+The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_reference_on_modulations_and_expression_laws` (a Michaelis–Menten quotient, a `sqrt`·`exp` sum and every modulation kind, to 1e-9) and `tests/capabilities/test_simulator_conformance.py`, whose generated laws use every operator — `add`, `sub`, `mul`, `div`, `pow` (exponents −1, 0.5, 1.5, 2, 3, over a species or a `sub` that can go negative), `sqrt`, `exp`, `log` — and `michaelis`, plus one pinned `1/[x]` case on an exhausted species; `tests/bio/test_moddoc_findings_rate_expr.py` pins each row of the table above.
 
 
 

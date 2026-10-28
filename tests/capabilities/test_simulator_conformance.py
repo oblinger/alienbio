@@ -35,6 +35,7 @@ needs_jax = pytest.mark.skipif(not HAS_JAX, reason="JAX not installed")
 
 positive = st.floats(min_value=0.01, max_value=2.0, allow_nan=False, allow_infinity=False)
 conc = st.floats(min_value=0.0, max_value=5.0, allow_nan=False, allow_infinity=False)
+POW_EXPONENTS = [-1.0, 0.5, 1.5, 2.0, 3.0]
 
 
 @st.composite
@@ -54,16 +55,25 @@ def modulation(draw):
 @st.composite
 def rate_law(draw, n_mol):
     """A small random rate expression over molecule ids: constants, species,
-    the four operators, exp / sqrt, a modulation."""
+    the five operators, exp / log / sqrt, a modulation. ``pow`` draws its
+    exponent from values that make Python refuse where JAX does not — a
+    negative exponent over a pool that ran out (inf), a fractional one over
+    a ``sub`` that went negative (complex in Python, NaN in JAX) — which
+    the reference now reads as JAX does (module-doc finding, 2026-10)."""
     def leaf():
         return draw(st.one_of(st.builds(lambda c: ("const", c), positive), st.builds(lambda i: ("species", i), st.integers(0, n_mol - 1))))
 
     a, b = leaf(), leaf()
-    op = draw(st.sampled_from(["add", "mul", "div", "sqrt", "exp", "mod"]))
+    op = draw(st.sampled_from(["add", "sub", "mul", "div", "pow", "sqrt", "exp", "log", "mod"]))
     if op == "sqrt":
         return ("sqrt", a)
     if op == "exp":
         return ("exp", ("neg", a))
+    if op == "log":
+        return ("log", a)
+    if op == "pow":
+        base = ("sub", a, b) if draw(st.booleans()) else a
+        return ("pow", base, ("const", draw(st.sampled_from(POW_EXPONENTS))))
     if op == "mod":
         return ("mul", a, ("mod", "michaelis", draw(st.integers(0, n_mol - 1)), {"K": draw(positive), "Vmax": draw(positive)}))
     return (op, a, b)

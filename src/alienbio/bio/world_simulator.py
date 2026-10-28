@@ -13,7 +13,15 @@ from .compartment_tree import CompartmentTreeImpl
 from .flow import Flow, apply_flows
 from .population import PopulationLaw, apply_population_laws
 from .reaction import Modulation
-from .rate_expr import RATE_CAP, ROUNDING_FLOOR, eval_rate, implicit_mass_action, map_species
+from .rate_expr import (
+    RATE_CAP,
+    ROUNDING_FLOOR,
+    eval_rate,
+    ieee_div,
+    ieee_pow,
+    implicit_mass_action,
+    map_species,
+)
 
 if TYPE_CHECKING:
     from .chemistry import ChemistryImpl
@@ -313,7 +321,7 @@ class WorldSimulatorImpl:
             if modulation.kind == "activator" and modulation.a is not None:
                 numerator *= 1.0 + modulation.a * conc
             elif modulation.kind == "inhibitor" and modulation.Ki is not None:
-                denominator *= 1.0 + conc / modulation.Ki
+                denominator *= 1.0 + ieee_div(conc, modulation.Ki)
             elif (
                 modulation.kind == "michaelis"
                 and modulation.Vmax is not None
@@ -327,10 +335,12 @@ class WorldSimulatorImpl:
                 and modulation.K is not None
                 and modulation.n is not None
             ):
-                conc_n = conc ** modulation.n
-                denom = modulation.K ** modulation.n + conc_n
+                conc_n = ieee_pow(conc, modulation.n)
+                denom = ieee_pow(modulation.K, modulation.n) + conc_n
                 saturable *= (modulation.Vmax * conc_n / denom) if denom > 0.0 else 0.0
-        return saturable * numerator / denominator
+        # Python refuses a zero quotient / power JAX reads as inf or NaN; the
+        # ieee_* helpers read them as JAX does (module-doc finding, 2026-10).
+        return ieee_div(saturable * numerator, denominator)
 
     def _apply_reactions(
         self,

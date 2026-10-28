@@ -43,6 +43,54 @@ RATE_CAP = 1e150
 
 RateNode = tuple  # see the module docstring
 
+
+# IEEE-754 arithmetic for the reference path. Python refuses where XLA does not:
+# ``0.0 ** -1.0`` raises ZeroDivisionError, ``10.0 ** 400`` and ``math.exp(1000)``
+# raise OverflowError, ``(-1e-13) ** 0.5`` returns a COMPLEX, and ``m / 0.0``
+# raises. JAX reads each as inf or NaN, and both steppers then clamp the
+# same way (inf -> RATE_CAP, NaN -> no reaction). These three helpers are the
+# one place the reference reads them as JAX does; on every input Python does
+# accept they return Python's own result bit for bit (module-doc finding,
+# 2026-10).
+
+
+def _odd_integer(b: float) -> bool:
+    return b == b and math.isfinite(b) and b == int(b) and int(b) % 2 == 1
+
+
+def ieee_pow(a: float, b: float) -> float:
+    """``a ** b`` as IEEE-754 / ``jnp.power`` reads it: inf on a zero base with
+    a negative exponent or an overflow (signed for a negative base under an
+    odd integer exponent), NaN where the real result does not exist."""
+    try:
+        result = a**b
+    except (ZeroDivisionError, OverflowError):
+        negative = math.copysign(1.0, a) < 0.0 and _odd_integer(b)
+        return -math.inf if negative else math.inf
+    if isinstance(result, complex):
+        return math.nan
+    return result
+
+
+def ieee_div(a: float, b: float) -> float:
+    """``a / b`` as IEEE-754 reads it: a zero divisor gives a signed inf, or
+    NaN when the numerator is zero or NaN. (A rate law's ``div`` node keeps
+    its own rule — a divisor below ``ROUNDING_FLOOR`` is zero; this is the
+    plain quotient the modulation arithmetic uses.)"""
+    if b == 0.0:
+        if a == 0.0 or a != a:
+            return math.nan
+        return math.copysign(math.inf, a) * math.copysign(1.0, b)
+    return a / b
+
+
+def ieee_exp(x: float) -> float:
+    """``math.exp`` with overflow read as inf, as ``jnp.exp`` reads it."""
+    try:
+        return math.exp(x)
+    except OverflowError:
+        return math.inf
+
 _BINARY = ("add", "sub", "mul", "div", "pow")
 _UNARY = ("neg", "exp", "log", "sqrt")
 MODULATION_KINDS = ("activator", "inhibitor", "michaelis", "hill")
@@ -102,14 +150,14 @@ def modulation_factor(kind: str, m: float, p: Mapping[str, float]) -> float:
     if kind == "activator":
         return 1.0 + p["a"] * m
     if kind == "inhibitor":
-        return 1.0 / (1.0 + m / p["Ki"])
+        return ieee_div(1.0, 1.0 + ieee_div(m, p["Ki"]))
     if kind == "michaelis":
         denom = p["K"] + m
         return (p.get("Vmax", 1.0) * m / denom) if denom > 0.0 else 0.0
     if kind == "hill":
         n = p.get("n", 2.0)
-        m_n = m**n
-        denom = p["K"] ** n + m_n
+        m_n = ieee_pow(m, n)
+        denom = ieee_pow(p["K"], n) + m_n
         return (p.get("Vmax", 1.0) * m_n / denom) if denom > 0.0 else 0.0
     raise ValueError(f"unknown modulation kind {kind!r}")
 
@@ -126,7 +174,7 @@ def eval_rate(node: RateNode, conc: Callable[[Any], float]) -> float:
     if tag == "neg":
         return -eval_rate(node[1], conc)
     if tag == "exp":
-        return math.exp(eval_rate(node[1], conc))
+        return ieee_exp(eval_rate(node[1], conc))
     if tag == "log":
         x = eval_rate(node[1], conc)
         return math.log(x) if x > 0.0 else float("-inf")
@@ -143,7 +191,7 @@ def eval_rate(node: RateNode, conc: Callable[[Any], float]) -> float:
     if tag == "div":
         return a / b if abs(b) >= ROUNDING_FLOOR else 0.0
     if tag == "pow":
-        return a**b
+        return ieee_pow(a, b)
     raise ValueError(f"unknown rate node {tag!r}")
 
 

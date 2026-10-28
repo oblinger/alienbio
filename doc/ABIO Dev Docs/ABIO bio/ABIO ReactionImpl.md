@@ -97,7 +97,7 @@ A frozen dataclass carrying one modifier's effect on its reaction's rate: a `kin
     The activator gain: the factor is `1 + a·[modifier]`. ^a
 
 **Ki**`: Optional[float] = None`
-    The inhibitor constant: the factor is `1 / (1 + [modifier]/Ki)`. `Ki = 0` is not guarded and divides by zero in the simulator. ^ki
+    The inhibitor constant: the factor is `1 / (1 + [modifier]/Ki)`. `Ki = 0` reads as IEEE division does — inf, so a factor of 0, at `[modifier] > 0`; NaN, so no reaction, at 0 — on both simulators. ^ki
 
 **Vmax**`: Optional[float] = None`
     The ceiling of the two saturable kinds. Required by both in the simulators — no default is applied here ([[#Modulation kinds and defaults]]). ^vmax
