@@ -8,7 +8,7 @@ The agent turn loop: `run` plays one agent against one drafted world, turn by tu
 ![[ABIO Runner.svg|2400]] 
 *Rejection as data* is the topic that governs the validate-action node (reject, clamp, negative setpoint); *The taint audit* governs `audit_prompts` and `TaintError`.
 
-`suite/runner.py` has no primary class: its export is `run`, plus the spend cap `Budget`, the two exceptions a trial can end in, and the prompt scanner `audit_prompts`. This page covers the loop and those four. The brief the agent is handed is built in `suite/brief.py` (`build_brief`, `TaskBrief`, `Affordances`), the surface-name boundary in `suite/naming.py` (`NameMap`, `OpaqueAgent`, `token_pattern`), the record in `suite/trial.py`, the agent protocols and action types in `suite/agent.py`, the live model in `suite/llm_agent.py`, and the grid driver that calls `run` per trial in `suite/mass_trial.py`. Each turn's physics is one `verify.simulate` burst over [[ABIO WorldSimulatorImpl]], reading and writing [[ABIO WorldStateImpl]] snapshots of an [[ABIO WorldImpl]]. The subsystem view is [[ABIO-Runtime]]; the operator's description is ~~[[ABIO Suite Runtime]]~~.
+`suite/runner.py` has no primary class: its export is `run`, plus the spend cap `Budget`, the two exceptions a trial can end in, and the prompt scanner `audit_prompts`. This page covers the loop and those four. The brief the agent is handed is built in `suite/brief.py` (`build_brief`, `TaskBrief`, `Affordances`), the surface-name boundary in `suite/naming.py` (`NameMap`, `OpaqueAgent`, `token_pattern`), the record in `suite/trial.py`, the agent protocols and action types in `suite/agent.py`, the live model in `suite/llm_agent.py`, and the grid driver that calls `run` per trial in `suite/mass_trial.py`. Each turn's physics is one `verify.simulate` burst over [[ABIO WorldSimulatorImpl]], reading and writing [[ABIO WorldStateImpl]] snapshots of an [[ABIO WorldImpl]]. The subsystem view is [[ABIO-Runtime]]; the operator's description is [[ABIO Suite Runtime]].
 
 
 
@@ -41,7 +41,7 @@ A frozen dataclass: the cumulative spend cap `run` compares its per-action cost 
 
 
 ## TrialError Interface
-The exception `run` raises when anything other than a `TaintError` escapes the turn loop: a provider failure on turn 3, a simulator `ValueError`, an action of an unknown type. It carries the partial record built from the loop's locals at the moment of failure, so `MassTrialRunner(on_error="record")` lands what the paid trial did before it died, under the cause's own type name ([[#Errors and the partial record]]). Raised `from` the cause.
+The exception `run` raises when an exception escapes the turn loop and the partial record audits clean: a provider failure on turn 3, a simulator `ValueError`, an action of an unknown type. It carries the partial record built from the loop's locals at the moment of failure, so `MassTrialRunner(on_error="record")` lands what the paid trial did before it died, under the cause's own type name ([[#Errors and the partial record]]). Raised `from` the cause.
 
 | TrialError | |
 | --- | --- |
@@ -49,7 +49,7 @@ The exception `run` raises when anything other than a `TaintError` escapes the t
 | [[#^cause\|cause]] | The original exception |
 
 **record**`: TrialRecord`
-    Built from everything the loop reached: completed turns' timeline, action log and deliberation trace, the brief, probes, surface-name map, usage, readout series and certainty schedule; `terminal_reason="error"`, `objective_score=0.0`, `turns` the count of turns completed, not attempted. No taint audit is run on it. ^record
+    Built from everything the loop reached: completed turns' timeline, action log and deliberation trace, the brief, probes, surface-name map, usage, readout series and certainty schedule; `terminal_reason="error"`, `objective_score=0.0`, `turns` the count of turns completed, not attempted. It is taint-audited before the raise: a hit raises `TaintError` instead; an audit that itself fails leaves this `TrialError` standing with a note (`__notes__`) naming the audit failure. ^record
 
 **cause**`: BaseException`
     The exception that escaped the loop; the message is `"{type(cause).__name__}: {cause}"`, and `mass_trial.py` writes that same string to the record's `error`. ^cause
@@ -57,14 +57,14 @@ The exception `run` raises when anything other than a `TaintError` escapes the t
 
 
 ## TaintError Interface
-The exception `run` raises after building a complete record whose `taint_hits` is non-empty: a prompt actually sent to the model named one of the trial's secrets ([[#The taint audit]]). It carries the full record, so a sweep lands it as a visible error trial rather than keeping a tainted number or crashing.
+The exception `run` raises when a record's `taint_hits` is non-empty, complete or partial: a prompt actually sent to the model named one of the trial's secrets ([[#The taint audit]]). It carries the full record, so a sweep lands it as a visible error trial rather than keeping a tainted number or crashing.
 
 | TaintError | |
 | --- | --- |
 | [[#^tainterror-record\|record]] | The complete record, `taint_hits` naming the tokens |
 
 **record**`: TrialRecord`
-    The finished record, score and all; the message lists `record.taint_hits`. `run` re-raises a `TaintError` that reaches the loop's handler unchanged rather than wrapping it in `TrialError`. ^tainterror-record
+    The finished record, score and all, or the partial record of a trial that died after sending a tainted prompt (`terminal_reason="error"`, raised `from` the crash); the message lists `record.taint_hits`. ^tainterror-record
 
 
 
@@ -217,7 +217,7 @@ Spend is `_action_cost` per action: the verb's entry in `DEFAULT_ACTION_COSTS`. 
 
 
 ## Errors and the partial record
-Configuration errors raise plain `ValueError` before turn 0, outside the error handler. Inside the loop, any exception except `TaintError` is caught and re-raised as `TrialError` carrying the partial record; `TaintError` itself is raised after the loop, so the handler's `except TaintError: raise` guards only against one raised from inside the agent or simulator. The partial record's `turns` counts completed turns, so `readout_series` has `turns + 1` entries and `certainty_schedule` the matching count, the same invariant a finished record keeps.
+Configuration errors raise plain `ValueError` before turn 0, outside the error handler. Inside the loop, any exception is caught; the partial record is taint-audited, then re-raised as `TaintError` on a hit, else as `TrialError`, either way carrying the partial record. Nothing inside the loop raises `TaintError`; the finished trial's audit runs after it. The partial record's `turns` counts completed turns, so `readout_series` has `turns + 1` entries and `certainty_schedule` the matching count, the same invariant a finished record keeps.
 
 
 

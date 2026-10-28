@@ -8,6 +8,8 @@ A. ``compact_budget`` reached the summarizer only as model-visible text
 B. ``_action_cost`` honoured an agent-supplied ``params["cost"]``: a model
    emitting ``cost: 0`` (or negative) beat the budget, and a non-numeric one
    raised inside the loop as a ``TrialError``.
+C. A trial that died mid-episode was never taint-audited: a secret the agent
+   had already been sent landed with ``taint_hits=()`` under the crash's name.
 """
 
 from __future__ import annotations
@@ -25,7 +27,8 @@ from alienbio.suite.llm_agent import (
     pop_output_budget,
 )
 from alienbio.suite.pipeline import build_suite
-from alienbio.suite.runner import run
+from alienbio.suite import runner as runner_mod
+from alienbio.suite.runner import TaintError, TrialError, run
 from alienbio.suite.types import SuiteSpec
 
 
@@ -103,3 +106,57 @@ def test_no_cost_key_leaves_the_reason_empty():
 
     record = run(world, task, ScriptedAgent(policy, seed=Seed(0)), {"budget": 2.0}, Seed(5), max_turns=20)
     assert [a.reason for a in record.action_log] == ["", ""]
+
+
+# C ---------------------------------------------------------------------------
+
+
+class _LeakThenCrash:
+    """Sends a prompt naming a hidden reaction id on turn 0, crashes on turn 1."""
+
+    def __init__(self, leak: str) -> None:
+        self._leak = leak
+        self._texts: list[str] = []
+
+    @property
+    def prompt_texts(self):
+        return tuple(self._texts)
+
+    def act(self, observation):
+        if self._texts:
+            raise RuntimeError("provider 500")
+        self._texts.append(f"the world contains {self._leak} somewhere")
+        from alienbio.suite.agent import Wait
+
+        return Wait(duration=1.0), ()
+
+
+def test_a_crashed_trial_is_still_taint_audited():
+    world, task, dials = _p1_world()
+    leak = next(r for r in world.chemistry.reactions if r not in P1_LEVERS)
+    with pytest.raises(TaintError) as info:
+        run(world, task, _LeakThenCrash(leak), dials, Seed(5), max_turns=5)
+    assert info.value.record.taint_hits == (leak,)
+    assert info.value.record.terminal_reason == "error"
+    assert isinstance(info.value.__cause__, RuntimeError)
+
+
+def test_a_clean_crashed_trial_stays_a_trial_error():
+    world, task = _pathway_world()
+    with pytest.raises(TrialError) as info:
+        run(world, task, _LeakThenCrash("nothing-secret-here"), {}, Seed(5), max_turns=5)
+    assert info.value.record.taint_hits == ()
+
+
+def test_an_audit_failure_on_the_partial_record_leaves_the_trial_error(monkeypatch):
+    world, task, dials = _p1_world()
+    leak = next(r for r in world.chemistry.reactions if r not in P1_LEVERS)
+
+    def broken(*a, **k):
+        raise ValueError("audit broke")
+
+    monkeypatch.setattr(runner_mod, "audit_prompts", broken)
+    with pytest.raises(TrialError) as info:
+        run(world, task, _LeakThenCrash(leak), dials, Seed(5), max_turns=5)
+    assert isinstance(info.value.cause, RuntimeError)
+    assert any("audit broke" in n for n in getattr(info.value, "__notes__", []))

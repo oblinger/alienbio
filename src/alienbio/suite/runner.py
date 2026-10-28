@@ -83,7 +83,6 @@ from __future__ import annotations
 
 import dataclasses
 import math
-import re
 import time
 from typing import Any, Collection, Mapping, Optional, cast
 
@@ -975,8 +974,6 @@ def run(
                 break
         else:
             reason = "max_turns"
-    except TaintError:
-        raise
     except Exception as exc:
         # T051 box 4 — a mid-trial failure (a provider 500 on turn 3, say)
         # used to leave the sweep a bare error record: usage kept, but the
@@ -1021,6 +1018,24 @@ def run(
             monitor=_monitor_record(),
             readout_series=_readout_record(),
         )
+        # The prompts the agent sent before it died were really sent, so the
+        # partial record is audited like a finished one: a hit raises
+        # TaintError carrying the partial record (chained to the crash), the
+        # same verdict a completed trial gets. An audit that itself raises
+        # cannot hide the crash: the TrialError stands and carries a note.
+        try:
+            partial_hits = audit_prompts(
+                agent, brief, chemistry, task, name_map,
+                probe_texts=tuple(text for _timing, text in probe_decls),
+            )
+        except Exception as audit_exc:
+            err = TrialError(partial, exc)
+            err.add_note(
+                f"taint audit of the partial record also failed: {type(audit_exc).__name__}: {audit_exc}"
+            )
+            raise err from exc
+        if partial_hits:
+            raise TaintError(dataclasses.replace(partial, taint_hits=partial_hits)) from exc
         raise TrialError(partial, exc) from exc
 
     final_timeline = Timeline(times=tuple(turn_times), states=tuple(turn_states))
