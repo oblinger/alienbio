@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-host">
+    <rect id="n-host-box" x="20" y="60" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-host-name" x="130" y="86" font-size="18" font-weight="600" text-anchor="middle">host</text>
+    <text id="n-host-kind" x="130" y="108" font-size="14" text-anchor="middle">(ChemistryImpl) bipartite</text>
+    <text id="n-host-kind2" x="130" y="128" font-size="14" text-anchor="middle">molecules + reactions</text>
+  </g>
+  <g id="n-motif">
+    <rect id="n-motif-box" x="20" y="200" width="220" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-motif-name" x="130" y="226" font-size="18" font-weight="600" text-anchor="middle">Motif</text>
+    <text id="n-motif-kind" x="130" y="248" font-size="14" text-anchor="middle">roles + predicates,</text>
+    <text id="n-motif-kind2" x="130" y="268" font-size="14" text-anchor="middle">edges (a, b, relation)</text>
+  </g>
+  <g id="n-carve">
+    <rect id="n-carve-box" x="320" y="120" width="250" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-carve-name" x="445" y="146" font-size="18" font-weight="600" text-anchor="middle">carve</text>
+    <text id="n-carve-k1" x="445" y="168" font-size="13" text-anchor="middle">(fn) backtrack, collect every</text>
+    <text id="n-carve-k2" x="445" y="186" font-size="13" text-anchor="middle">binding; max reuse;</text>
+    <text id="n-carve-k3" x="445" y="204" font-size="13" text-anchor="middle">seed.value % ties</text>
+  </g>
+  <line id="e-host-carve" x1="240" y1="110" x2="320" y2="150" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-motif-carve" x1="240" y1="240" x2="320" y2="195" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-adj">
+    <rect id="n-adj-box" x="320" y="320" width="250" height="100" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-adj-name" x="445" y="346" font-size="18" font-weight="600" text-anchor="middle">_adjacent(u, v)</text>
+    <text id="n-adj-k1" x="445" y="368" font-size="13" text-anchor="middle">bipartite neighbour, or one</text>
+    <text id="n-adj-k2" x="445" y="386" font-size="13" text-anchor="middle">reaction u → v (directed);</text>
+    <text id="n-adj-k3" x="445" y="404" font-size="13" text-anchor="middle">relation ignored ‡</text>
+  </g>
+  <line id="e-carve-adj" x1="445" y1="220" x2="445" y2="320" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-carve-adj" x="455" y="275" font-size="13" fill="#1971c2" font-style="italic">edge_ok</text>
+
+  <g id="n-res">
+    <rect id="n-res-box" x="650" y="60" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-res-name" x="770" y="86" font-size="18" font-weight="600" text-anchor="middle">CarveResult</text>
+    <text id="n-res-kind" x="770" y="108" font-size="13" text-anchor="middle">binding, added ("R#new"),</text>
+    <text id="n-res-kind2" x="770" y="128" font-size="13" text-anchor="middle">removed = ()</text>
+  </g>
+  <g id="n-fail">
+    <rect id="n-fail-box" x="650" y="180" width="240" height="56" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fail-name" x="770" y="204" font-size="17" font-weight="600" text-anchor="middle">CarveFail</text>
+    <text id="n-fail-kind" x="770" y="224" font-size="13" text-anchor="middle">(dataclass) reason</text>
+  </g>
+  <line id="e-carve-res" x1="570" y1="140" x2="650" y2="105" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-carve-fail" x1="570" y1="190" x2="650" y2="205" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-splice">
+    <rect id="n-splice-box" x="650" y="320" width="260" height="120" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-splice-name" x="780" y="346" font-size="18" font-weight="600" text-anchor="middle">splice</text>
+    <text id="n-splice-k1" x="780" y="368" font-size="13" text-anchor="middle">(fn) synth molecules; per edge</text>
+    <text id="n-splice-k2" x="780" y="386" font-size="13" text-anchor="middle">not adjacent: modifier / product /</text>
+    <text id="n-splice-k3" x="780" y="404" font-size="13" text-anchor="middle">reactant / rxn::u->v; rebuilt</text>
+    <text id="n-splice-k4" x="780" y="422" font-size="13" text-anchor="middle">reactions lose rate_law ‡</text>
+  </g>
+  <line id="e-res-splice" x1="830" y1="140" x2="830" y2="320" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-splice-adj" x1="650" y1="370" x2="570" y2="370" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-splice-adj" x="610" y="360" font-size="13" fill="#1971c2" font-style="italic" text-anchor="middle">skip if</text>
+  <path id="e-host-splice" d="M 20 100 L 8 100 L 8 470 L 700 470 L 700 440" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-host-splice" x="400" y="462" font-size="13" fill="#1971c2" font-style="italic" text-anchor="middle">host copy</text>
+
+  <g id="n-out">
+    <rect id="n-out-box" x="980" y="340" width="200" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-out-name" x="1080" y="366" font-size="17" font-weight="600" text-anchor="middle">ChemistryImpl</text>
+    <text id="n-out-kind" x="1080" y="388" font-size="13" text-anchor="middle">named "splice"</text>
+  </g>
+  <line id="e-splice-out" x1="910" y1="380" x2="980" y2="380" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-pipe">
+    <rect id="n-pipe-box" x="960" y="60" width="220" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pipe-name" x="1070" y="86" font-size="17" font-weight="600" text-anchor="middle">build_suite</text>
+    <text id="n-pipe-k1" x="1070" y="108" font-size="13" text-anchor="middle">carved branch; refuses</text>
+    <text id="n-pipe-k2" x="1070" y="126" font-size="13" text-anchor="middle">a carve that synthesized</text>
+  </g>
+  <line id="e-res-pipe" x1="890" y1="100" x2="960" y2="100" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-cost">
+    <rect id="n-cost-box" x="20" y="520" width="560" height="60" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="n-cost-k1" x="300" y="546" font-size="13" text-anchor="middle">4 unconstrained roles over 30 molecules: ~657 000 bindings,</text>
+    <text id="n-cost-k2" x="300" y="566" font-size="13" text-anchor="middle">1.9 s; each extra role multiplies by the host size</text>
+  </g>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ a "catalyzes" edge binds onto a consumed reactant; a spliced reaction runs mass action</text>
+  </g>
+</svg>
