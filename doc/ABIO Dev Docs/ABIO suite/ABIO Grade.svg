@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-run">
+    <rect id="n-run-box" x="20" y="240" width="220" height="100" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-run-name" x="130" y="266" font-size="18" font-weight="600" text-anchor="middle">runner.run</text>
+    <text id="n-run-k1" x="130" y="288" font-size="13" text-anchor="middle">end of trial; a None</text>
+    <text id="n-run-k2" x="130" y="306" font-size="13" text-anchor="middle">answer scores 0 ungraded;</text>
+    <text id="n-run-k3" x="130" y="324" font-size="13" text-anchor="middle">outside the trial's try</text>
+  </g>
+  <g id="n-ans">
+    <rect id="n-ans-box" x="320" y="120" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ans-name" x="440" y="146" font-size="18" font-weight="600" text-anchor="middle">grade_answer</text>
+    <text id="n-ans-kind" x="440" y="168" font-size="13" text-anchor="middle">(fn) dispatch on spec.kind;</text>
+    <text id="n-ans-kind2" x="440" y="188" font-size="13" text-anchor="middle">unknown kind raises</text>
+  </g>
+  <g id="n-out">
+    <rect id="n-out-box" x="320" y="400" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-out-name" x="440" y="426" font-size="18" font-weight="600" text-anchor="middle">grade_outcome</text>
+    <text id="n-out-kind" x="440" y="448" font-size="13" text-anchor="middle">(fn) float(scorer(trace));</text>
+    <text id="n-out-kind2" x="440" y="468" font-size="13" text-anchor="middle">not clamped</text>
+  </g>
+  <line id="e-run-ans" x1="200" y1="240" x2="340" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-run-ans" x="215" y="188" font-size="13" fill="#1971c2" font-style="italic">commit, key, spec</text>
+  <line id="e-run-out" x1="200" y1="340" x2="340" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-run-out" x="210" y="392" font-size="13" fill="#1971c2" font-style="italic">timeline, scorer</text>
+
+  <g id="n-ns">
+    <rect id="n-ns-box" x="640" y="30" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ns-name" x="765" y="54" font-size="16" font-weight="600" text-anchor="middle">node_set</text>
+    <text id="n-ns-kind" x="765" y="74" font-size="13" text-anchor="middle">Jaccard on set(value) ‡</text>
+  </g>
+  <g id="n-op">
+    <rect id="n-op-box" x="640" y="96" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-op-name" x="765" y="120" font-size="16" font-weight="600" text-anchor="middle">ordered_path</text>
+    <text id="n-op-kind" x="765" y="140" font-size="13" text-anchor="middle">equal, or prefix credit; list() ‡</text>
+  </g>
+  <g id="n-ni">
+    <rect id="n-ni-box" x="640" y="162" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ni-name" x="765" y="186" font-size="16" font-weight="600" text-anchor="middle">node_id</text>
+    <text id="n-ni-kind" x="765" y="206" font-size="13" text-anchor="middle">answer == key</text>
+  </g>
+  <g id="n-sc">
+    <rect id="n-sc-box" x="640" y="228" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sc-name" x="765" y="252" font-size="16" font-weight="600" text-anchor="middle">scalar</text>
+    <text id="n-sc-kind" x="765" y="272" font-size="13" text-anchor="middle">|a − k| ≤ tol; float() ‡</text>
+  </g>
+  <g id="n-js">
+    <rect id="n-js-box" x="640" y="294" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-js-name" x="765" y="318" font-size="16" font-weight="600" text-anchor="middle">json</text>
+    <text id="n-js-kind" x="765" y="338" font-size="13" text-anchor="middle">Python ==: True == 1</text>
+  </g>
+  <line id="e-ans-ns" x1="560" y1="130" x2="640" y2="60" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-ans-op" x1="560" y1="145" x2="640" y2="124" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-ans-ni" x1="560" y1="165" x2="640" y2="190" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-ans-sc" x1="560" y1="180" x2="640" y2="256" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-ans-js" x1="540" y1="200" x2="660" y2="300" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-score">
+    <rect id="n-score-box" x="960" y="200" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-score-name" x="1070" y="226" font-size="17" font-weight="600" text-anchor="middle">objective_score</text>
+    <text id="n-score-kind" x="1070" y="248" font-size="13" text-anchor="middle">(TrialRecord) into the</text>
+    <text id="n-score-kind2" x="1070" y="266" font-size="13" text-anchor="middle">reliability cells</text>
+  </g>
+  <line id="e-sc-score" x1="890" y1="250" x2="960" y2="245" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <path id="e-out-score" d="M 560 440 L 1070 440 L 1070 280" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-err">
+    <rect id="n-err-box" x="960" y="40" width="220" height="100" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-err-name" x="1070" y="66" font-size="16" font-weight="600" text-anchor="middle">TypeError / ValueError</text>
+    <text id="n-err-k1" x="1070" y="88" font-size="13" text-anchor="middle">out of runner.run: an</text>
+    <text id="n-err-k2" x="1070" y="106" font-size="13" text-anchor="middle">error record, excluded</text>
+    <text id="n-err-k3" x="1070" y="124" font-size="13" text-anchor="middle">from every cell</text>
+  </g>
+  <line id="e-op-err" x1="890" y1="115" x2="960" y2="100" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-op-err" x="925" y="150" font-size="12" fill="#1971c2" font-style="italic" text-anchor="middle">answer 7</text>
+
+  <g id="n-pipe">
+    <rect id="n-pipe-box" x="20" y="520" width="300" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pipe-name" x="170" y="544" font-size="15" font-weight="600" text-anchor="middle">pipeline.build_suite</text>
+    <text id="n-pipe-kind" x="170" y="564" font-size="13" text-anchor="middle">grades each key against itself</text>
+  </g>
+  <line id="e-pipe-ans" x1="300" y1="520" x2="380" y2="200" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, raises</text>
+    <text id="legend-dagger" x="380" y="646" font-size="14">‡ the value's type is trusted: "m0" splits into {"m", "0"}; 7 raises</text>
+  </g>
+</svg>
