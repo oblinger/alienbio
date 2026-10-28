@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-seed">
+    <rect id="n-seed-box" x="20" y="260" width="160" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-seed-name" x="100" y="286" font-size="17" font-weight="600" text-anchor="middle">Seed</text>
+    <text id="n-seed-kind" x="100" y="308" font-size="13" text-anchor="middle">from build_suite</text>
+  </g>
+
+  <g id="n-dd">
+    <rect id="n-dd-box" x="240" y="40" width="270" height="110" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dd-name" x="375" y="66" font-size="16" font-weight="600" text-anchor="middle">draft_diagnosis_world</text>
+    <text id="n-dd-k1" x="375" y="88" font-size="13" text-anchor="middle">chain at rate 1.0, inert d_i,</text>
+    <text id="n-dd-k2" x="375" y="106" font-size="13" text-anchor="middle">target drawn per seed;</text>
+    <text id="n-dd-k3" x="375" y="124" font-size="13" text-anchor="middle">perturbation? hazard rh → hz</text>
+  </g>
+  <g id="n-dp">
+    <rect id="n-dp-box" x="240" y="240" width="270" height="110" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dp-name" x="375" y="266" font-size="16" font-weight="600" text-anchor="middle">draft_prediction_world</text>
+    <text id="n-dp-k1" x="375" y="288" font-size="13" text-anchor="middle">seeded rates; lever m0_m1,</text>
+    <text id="n-dp-k2" x="375" y="306" font-size="13" text-anchor="middle">target m(n−1) always;</text>
+    <text id="n-dp-k3" x="375" y="324" font-size="13" text-anchor="middle">ill_posed: m1_m2 rate 0</text>
+  </g>
+  <g id="n-di">
+    <rect id="n-di-box" x="240" y="440" width="270" height="110" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-di-name" x="375" y="466" font-size="16" font-weight="600" text-anchor="middle">draft_intervention_world</text>
+    <text id="n-di-k1" x="375" y="488" font-size="13" text-anchor="middle">seeded rates; target m(n−1);</text>
+    <text id="n-di-k2" x="375" y="506" font-size="13" text-anchor="middle">goal = sink at sim_cfg end</text>
+    <text id="n-di-k3" x="375" y="524" font-size="13" text-anchor="middle">(20 s default)</text>
+  </g>
+  <line id="e-seed-dd" x1="180" y1="280" x2="260" y2="150" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-seed-dp" x1="180" y1="295" x2="240" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-seed-di" x1="180" y1="310" x2="260" y2="440" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-rd">
+    <rect id="n-rd-box" x="580" y="55" width="270" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rd-name" x="715" y="81" font-size="15" font-weight="600" text-anchor="middle">DiagnosePerturbationRecipe</text>
+    <text id="n-rd-k1" x="715" y="103" font-size="13" text-anchor="middle">candidates → node_id</text>
+    <text id="n-rd-k2" x="715" y="121" font-size="13" text-anchor="middle">key = binding["target"]</text>
+  </g>
+  <g id="n-rp">
+    <rect id="n-rp-box" x="580" y="255" width="270" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rp-name" x="715" y="281" font-size="15" font-weight="600" text-anchor="middle">PredictResponseRecipe</text>
+    <text id="n-rp-k1" x="715" y="303" font-size="13" text-anchor="middle">key = predicted_response:</text>
+    <text id="n-rp-k2" x="715" y="321" font-size="13" text-anchor="middle">simulate world and twin</text>
+  </g>
+  <g id="n-ri">
+    <rect id="n-ri-box" x="580" y="455" width="270" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ri-name" x="715" y="481" font-size="15" font-weight="600" text-anchor="middle">DesignInterventionRecipe</text>
+    <text id="n-ri-k1" x="715" y="503" font-size="13" text-anchor="middle">outcome: 1 / (1 + |final − goal|)</text>
+    <text id="n-ri-k2" x="715" y="521" font-size="13" text-anchor="middle">absolute units</text>
+  </g>
+  <line id="e-dd-rd" x1="510" y1="95" x2="580" y2="95" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-dp-rp" x1="510" y1="295" x2="580" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-di-ri" x1="510" y1="495" x2="580" y2="495" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-kd">
+    <rect id="n-kd-box" x="920" y="40" width="260" height="110" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-kd-name" x="1050" y="66" font-size="15" font-weight="600" text-anchor="middle">diagnose key</text>
+    <text id="n-kd-k1" x="1050" y="88" font-size="13" text-anchor="middle">a label: without perturbation</text>
+    <text id="n-kd-k2" x="1050" y="106" font-size="13" text-anchor="middle">every seed is one world ‡</text>
+    <text id="n-kd-k3" x="1050" y="124" font-size="13" text-anchor="middle">exp04, exp05: chance</text>
+  </g>
+  <g id="n-kp">
+    <rect id="n-kp-box" x="920" y="240" width="260" height="110" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-kp-name" x="1050" y="266" font-size="15" font-weight="600" text-anchor="middle">predict key</text>
+    <text id="n-kp-k1" x="1050" y="288" font-size="13" text-anchor="middle">"up" on 40 of 40 seeds;</text>
+    <text id="n-kp-k2" x="1050" y="306" font-size="13" text-anchor="middle">ill_posed: "same" 40 of 40 ‡</text>
+    <text id="n-kp-k3" x="1050" y="324" font-size="13" text-anchor="middle">exp06</text>
+  </g>
+  <g id="n-ki">
+    <rect id="n-ki-box" x="920" y="440" width="260" height="110" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-ki-name" x="1050" y="466" font-size="15" font-weight="600" text-anchor="middle">intervene score</text>
+    <text id="n-ki-k1" x="1050" y="488" font-size="13" text-anchor="middle">10 off a goal of 100: 0.09;</text>
+    <text id="n-ki-k2" x="1050" y="506" font-size="13" text-anchor="middle">0 against 0.5: 0.67</text>
+    <text id="n-ki-k3" x="1050" y="524" font-size="13" text-anchor="middle">exp09</text>
+  </g>
+  <line id="e-rd-kd" x1="850" y1="95" x2="920" y2="95" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-rp-kp" x1="850" y1="295" x2="920" y2="295" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-ri-ki" x1="850" y1="495" x2="920" y2="495" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">yields</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ a key that does not vary with the world: unobservable, or answerable without looking</text>
+  </g>
+</svg>
