@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Entry and builder -->
+  <g id="n-draft">
+    <rect id="n-draft-box" x="20" y="40" width="230" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-draft-name" x="135" y="66" font-size="18" font-weight="600" text-anchor="middle">draft_delta_pair</text>
+    <text id="n-draft-kind" x="135" y="88" font-size="14" text-anchor="middle">(fn) r_a &gt; r_b, one seed</text>
+  </g>
+  <g id="n-build">
+    <rect id="n-build-box" x="20" y="180" width="230" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-build-name" x="135" y="204" font-size="17" font-weight="600" text-anchor="middle">build_delta_skeleton</text>
+    <text id="n-build-kind" x="135" y="225" font-size="14" text-anchor="middle">(fn) one side</text>
+  </g>
+  <line id="e-draft-build" x1="135" y1="104" x2="135" y2="180" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-draft-build" x="145" y="147" font-size="14" fill="#1971c2" font-style="italic">invert = F, T</text>
+
+  <!-- The crux network -->
+  <g id="n-crux">
+    <rect id="n-crux-box" x="300" y="20" width="520" height="320" rx="12" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-crux-name" x="315" y="43" font-size="16" font-weight="600" fill="#343a40">_DeltaCruxBlock · six children</text>
+  </g>
+  <line id="e-build-crux" x1="250" y1="208" x2="300" y2="208" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-sa">
+    <rect id="n-sa-box" x="320" y="65" width="150" height="50" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sa-name" x="395" y="86" font-size="16" font-weight="600" text-anchor="middle">source_a</text>
+    <text id="n-sa-kind" x="395" y="105" font-size="13" text-anchor="middle">(Source) r_a = 5</text>
+  </g>
+  <g id="n-sb">
+    <rect id="n-sb-box" x="650" y="65" width="150" height="50" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sb-name" x="725" y="86" font-size="16" font-weight="600" text-anchor="middle">source_b</text>
+    <text id="n-sb-kind" x="725" y="105" font-size="13" text-anchor="middle">(Source) r_b = 1</text>
+  </g>
+  <g id="n-rd">
+    <rect id="n-rd-box" x="485" y="170" width="150" height="50" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rd-name" x="560" y="191" font-size="16" font-weight="600" text-anchor="middle">route_drive</text>
+    <text id="n-rd-kind" x="560" y="210" font-size="13" text-anchor="middle">(Reaction) k = 2</text>
+  </g>
+  <g id="n-ska">
+    <rect id="n-ska-box" x="320" y="270" width="150" height="50" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ska-name" x="395" y="291" font-size="16" font-weight="600" text-anchor="middle">sink_a</text>
+    <text id="n-ska-kind" x="395" y="310" font-size="13" text-anchor="middle">(Sink) 0.05</text>
+  </g>
+  <g id="n-st">
+    <rect id="n-st-box" x="485" y="270" width="150" height="50" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-st-name" x="560" y="291" font-size="16" font-weight="600" text-anchor="middle">sink_t</text>
+    <text id="n-st-kind" x="560" y="310" font-size="13" text-anchor="middle">(Sink) 1</text>
+  </g>
+  <g id="n-skb">
+    <rect id="n-skb-box" x="650" y="270" width="150" height="50" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-skb-name" x="725" y="291" font-size="16" font-weight="600" text-anchor="middle">sink_b</text>
+    <text id="n-skb-kind" x="725" y="310" font-size="13" text-anchor="middle">(Sink) 0.05</text>
+  </g>
+  <line id="e-sa-ska" x1="395" y1="115" x2="395" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-sb-skb" x1="725" y1="115" x2="725" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-rd-st" x1="560" y1="220" x2="560" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-rd-st" x="568" y="250" font-size="14" fill="#1971c2" font-style="italic">T</text>
+  <line id="e-sa-rd" x1="470" y1="105" x2="515" y2="170" stroke="#2f9e44" stroke-width="2.5" stroke-dasharray="7 4" marker-end="url(#arrowhead)"/>
+  <text id="l-sa-rd" x="415" y="150" font-size="14" fill="#2f9e44" font-style="italic">match</text>
+  <line id="e-sb-rd" x1="650" y1="105" x2="605" y2="170" stroke="#e8590c" stroke-width="2.5" stroke-dasharray="7 4" marker-end="url(#arrowhead)"/>
+  <text id="l-sb-rd" x="648" y="150" font-size="14" fill="#e8590c" font-style="italic">mismatch</text>
+
+  <!-- End levels annotation -->
+  <g id="n-levels">
+    <rect id="n-levels-box" x="860" y="60" width="320" height="140" rx="8" fill="#fff9db" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-levels-name" x="875" y="84" font-size="15" font-weight="600" fill="#343a40">levels at 20 s (defaults)</text>
+    <text id="n-levels-1" x="875" y="112" font-size="14">match: driver a 2.44 · decoy b 12.66</text>
+    <text id="n-levels-2" x="875" y="138" font-size="14">mismatch: driver b 0.49 · decoy a 63.3</text>
+    <text id="n-levels-3" x="875" y="166" font-size="14">the decoy reads larger in both;</text>
+    <text id="n-levels-4" x="875" y="186" font-size="14">match crosses at about 2.6 s</text>
+  </g>
+
+  <!-- The pair -->
+  <g id="n-pair">
+    <rect id="n-pair-box" x="300" y="400" width="520" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pair-name" x="560" y="426" font-size="18" font-weight="600" text-anchor="middle">(W_match, W_mismatch)</text>
+    <text id="n-pair-kind" x="560" y="448" font-size="14" text-anchor="middle">(world, skeleton, AnswerObjective) ×2 · key = driver id</text>
+  </g>
+  <line id="e-crux-pair" x1="560" y1="340" x2="560" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-crux-pair" x="570" y="376" font-size="14" fill="#1971c2" font-style="italic">materialize, same seed</text>
+
+  <!-- Consumers -->
+  <g id="n-head">
+    <rect id="n-head-box" x="20" y="400" width="230" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="135" y="426" font-size="18" font-weight="600" text-anchor="middle">delta drafter</text>
+    <text id="n-head-kind" x="135" y="448" font-size="14" text-anchor="middle">(drafters) node_id task</text>
+  </g>
+  <line id="e-pair-head" x1="300" y1="432" x2="250" y2="432" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-pair-head" x="275" y="422" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">arm</text>
+  <g id="n-dsum">
+    <rect id="n-dsum-box" x="20" y="530" width="230" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dsum-name" x="135" y="554" font-size="17" font-weight="600" text-anchor="middle">delta_summary</text>
+    <text id="n-dsum-kind" x="135" y="575" font-size="14" text-anchor="middle">(delta) pairs the twins</text>
+  </g>
+  <line id="e-head-dsum" x1="135" y1="464" x2="135" y2="530" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-head-dsum" x="145" y="502" font-size="14" fill="#1971c2" font-style="italic">records</text>
+
+  <!-- Gate -->
+  <g id="n-gate">
+    <rect id="n-gate-box" x="880" y="400" width="300" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gate-name" x="1030" y="426" font-size="18" font-weight="600" text-anchor="middle">_assert_delta_gate</text>
+    <text id="n-gate-kind" x="1030" y="448" font-size="14" text-anchor="middle">(fn) keys differ, T ≥ 0.5 both</text>
+  </g>
+  <line id="e-pair-gate" x1="820" y1="432" x2="880" y2="432" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-dcut">
+    <rect id="n-dcut-box" x="880" y="530" width="140" height="56" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dcut-name" x="950" y="554" font-size="16" font-weight="600" text-anchor="middle">driver cut</text>
+    <text id="n-dcut-kind" x="950" y="575" font-size="14" text-anchor="middle">T &lt; 0.5</text>
+  </g>
+  <g id="n-ycut">
+    <rect id="n-ycut-box" x="1040" y="530" width="140" height="56" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ycut-name" x="1110" y="554" font-size="16" font-weight="600" text-anchor="middle">decoy cut</text>
+    <text id="n-ycut-kind" x="1110" y="575" font-size="14" text-anchor="middle">ΔT ≤ 1e-3</text>
+  </g>
+  <line id="e-gate-dcut" x1="950" y1="464" x2="950" y2="530" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-gate-ycut" x1="1110" y1="464" x2="1110" y2="530" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-gate-cut" x="1030" y="502" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">rebuild, oracle</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">draft flow, reactions</text>
+    <line id="legend-dotted" x1="270" y1="641" x2="320" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="330" y="646" font-size="14">calls, reads</text>
+    <line id="legend-flip" x1="470" y1="641" x2="520" y2="641" stroke="#2f9e44" stroke-width="2.5" stroke-dasharray="7 4"/>
+    <text id="legend-flip-text" x="530" y="646" font-size="14">the one flipped binding: green in W_match, orange in W_mismatch</text>
+  </g>
+</svg>
