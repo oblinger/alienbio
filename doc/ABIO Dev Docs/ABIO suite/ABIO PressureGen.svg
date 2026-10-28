@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Generator path, left column -->
+  <g id="n-head">
+    <rect id="n-head-box" x="12" y="16" width="240" height="60" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="132" y="41" font-size="18" font-weight="600" text-anchor="middle">pressure</text>
+    <text id="n-head-kind" x="132" y="63" font-size="14" text-anchor="middle">(drafter head) guarded dials</text>
+  </g>
+  <g id="n-draft">
+    <rect id="n-draft-box" x="12" y="129" width="240" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-draft-name" x="132" y="154" font-size="18" font-weight="600" text-anchor="middle">draft_pressure_world</text>
+    <text id="n-draft-kind" x="132" y="176" font-size="14" text-anchor="middle">(fn) validate, resolve holes</text>
+  </g>
+  <g id="n-passive">
+    <rect id="n-passive-box" x="12" y="242" width="240" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-passive-name" x="132" y="267" font-size="18" font-weight="600" text-anchor="middle">passive_reach †</text>
+    <text id="n-passive-kind" x="132" y="289" font-size="14" text-anchor="middle">(fn) derive_target, both gates</text>
+  </g>
+  <g id="n-build">
+    <rect id="n-build-box" x="12" y="355" width="240" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-build-name" x="132" y="380" font-size="18" font-weight="600" text-anchor="middle">build_pressure_skeleton</text>
+    <text id="n-build-kind" x="132" y="402" font-size="14" text-anchor="middle">(fn) source + _PressureCruxBlock</text>
+  </g>
+  <g id="n-mat">
+    <rect id="n-mat-box" x="12" y="468" width="240" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mat-name" x="132" y="493" font-size="18" font-weight="600" text-anchor="middle">Skeleton.materialize</text>
+    <text id="n-mat-kind" x="132" y="515" font-size="14" text-anchor="middle">(method) seed → WorldImpl</text>
+  </g>
+  <g id="n-oracle">
+    <rect id="n-oracle-box" x="12" y="581" width="240" height="60" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-oracle-name" x="132" y="606" font-size="18" font-weight="600" text-anchor="middle">oracle · setup</text>
+    <text id="n-oracle-kind" x="132" y="628" font-size="14" text-anchor="middle">(dict) caps, ids, truth</text>
+  </g>
+
+  <!-- Build path edges -->
+  <line id="e-head-draft" x1="132" y1="76" x2="132" y2="129" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-head-draft" x="142" y="107" font-size="14" fill="#1971c2" font-style="italic">dials, kwargs</text>
+  <line id="e-draft-passive" x1="132" y1="189" x2="132" y2="242" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-draft-passive" x="142" y="220" font-size="14" fill="#1971c2" font-style="italic">resolved rate holes</text>
+  <line id="e-passive-build" x1="132" y1="302" x2="132" y2="355" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-passive-build" x="142" y="333" font-size="14" fill="#1971c2" font-style="italic">v_target, gate</text>
+  <line id="e-build-mat" x1="132" y1="415" x2="132" y2="468" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-build-mat" x="142" y="446" font-size="14" fill="#1971c2" font-style="italic">Skeleton</text>
+  <line id="e-mat-world" x1="252" y1="498" x2="306" y2="498" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-mat-oracle" x1="132" y1="528" x2="132" y2="581" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-mat-oracle" x="142" y="559" font-size="14" fill="#1971c2" font-style="italic">control_surface</text>
+
+  <!-- The world -->
+  <g id="n-world">
+    <rect id="n-world-box" x="306" y="16" width="882" height="530" rx="12" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-world-name" x="322" y="40" font-size="16" font-weight="600" fill="#343a40">world · WorldImpl — the pools of root/crux</text>
+  </g>
+  <g id="n-source">
+    <rect id="n-source-box" x="324" y="64" width="190" height="64" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-source-name" x="419" y="90" font-size="18" font-weight="600" text-anchor="middle">source</text>
+    <text id="n-source-kind" x="419" y="112" font-size="14" text-anchor="middle">(SourceBlock) supply</text>
+  </g>
+  <g id="n-precursor">
+    <rect id="n-precursor-box" x="324" y="250" width="190" height="64" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-precursor-name" x="419" y="276" font-size="18" font-weight="600" text-anchor="middle">crux_precursor</text>
+    <text id="n-precursor-kind" x="419" y="298" font-size="14" text-anchor="middle">(pool) shared by both</text>
+  </g>
+  <g id="n-feedfast">
+    <rect id="n-feedfast-box" x="324" y="362" width="190" height="64" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-feedfast-name" x="419" y="388" font-size="18" font-weight="600" text-anchor="middle">uptake_fast_in</text>
+    <text id="n-feedfast-kind" x="419" y="410" font-size="14" text-anchor="middle">(lever pool) feed_fast</text>
+  </g>
+  <g id="n-waste">
+    <rect id="n-waste-box" x="600" y="64" width="180" height="64" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-waste-name" x="690" y="90" font-size="18" font-weight="600" text-anchor="middle">sink_waste_in</text>
+    <text id="n-waste-kind" x="690" y="112" font-size="14" text-anchor="middle">(pool) waste</text>
+  </g>
+  <g id="n-feedclean">
+    <rect id="n-feedclean-box" x="960" y="64" width="200" height="64" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-feedclean-name" x="1060" y="90" font-size="18" font-weight="600" text-anchor="middle">uptake_waste_in</text>
+    <text id="n-feedclean-kind" x="1060" y="112" font-size="14" text-anchor="middle">(lever pool) feed_clean</text>
+  </g>
+  <g id="n-target">
+    <rect id="n-target-box" x="960" y="250" width="200" height="64" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-target-name" x="1060" y="276" font-size="18" font-weight="600" text-anchor="middle">sink_target_in</text>
+    <text id="n-target-kind" x="1060" y="298" font-size="14" text-anchor="middle">(pool) T, the target</text>
+  </g>
+  <g id="n-inter">
+    <rect id="n-inter-box" x="640" y="362" width="200" height="64" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-inter-name" x="740" y="388" font-size="18" font-weight="600" text-anchor="middle">route_byproduct_in</text>
+    <text id="n-inter-kind" x="740" y="410" font-size="14" text-anchor="middle">(pool) intermediate, split</text>
+  </g>
+  <g id="n-byproduct">
+    <rect id="n-byproduct-box" x="640" y="478" width="200" height="64" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-byproduct-name" x="740" y="504" font-size="18" font-weight="600" text-anchor="middle">sink_byproduct_in</text>
+    <text id="n-byproduct-kind" x="740" y="526" font-size="14" text-anchor="middle">(pool) marked side-product</text>
+  </g>
+
+  <!-- Mass flow: one arrow per reaction -->
+  <line id="e-source" x1="419" y1="128" x2="419" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-source" x="429" y="160" font-size="14" fill="#1971c2" font-style="italic">source_rate</text>
+  <line id="e-clean" x1="514" y1="282" x2="960" y2="282" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-clean" x="737" y="302" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">route_clean · the π throttle</text>
+  <path id="e-cleanhop" d="M494,250 C534,195 950,195 990,250" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-cleanhop" x="742" y="190" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">+ clean_hop1..N (complexity)</text>
+  <line id="e-fast1" x1="514" y1="305" x2="660" y2="362" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-fast1" x="604" y="330" font-size="14" fill="#1971c2" font-style="italic">route_fast1</text>
+  <line id="e-uptakefast" x1="514" y1="394" x2="640" y2="394" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-uptakefast" x="577" y="386" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">uptake_fast</text>
+  <line id="e-fast2" x1="840" y1="374" x2="980" y2="314" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-fast2" x="888" y="336" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">route_fast2</text>
+  <path id="e-fasthop" d="M840,410 C1000,410 1070,375 1070,314" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-fasthop" x="960" y="430" font-size="14" fill="#1971c2" font-style="italic">+ fast_hop1..N</text>
+  <line id="e-harm" x1="740" y1="426" x2="740" y2="478" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-harm" x="750" y="457" font-size="14" fill="#1971c2" font-style="italic">route_byproduct · harm</text>
+  <line id="e-uptakeclean" x1="1060" y1="128" x2="1060" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-uptakeclean" x="1052" y="196" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">uptake_clean · 1−π</text>
+  <line id="e-uptakewaste" x1="960" y1="96" x2="780" y2="96" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-uptakewaste" x="870" y="88" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">uptake_waste · π</text>
+
+  <!-- The objective reads T -->
+  <g id="n-objective">
+    <rect id="n-objective-box" x="900" y="561" width="288" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-objective-name" x="1044" y="593" font-size="18" font-weight="600" text-anchor="middle">OutcomeObjective</text>
+    <text id="n-objective-kind" x="1044" y="617" font-size="14" text-anchor="middle">(objective) v_target on T</text>
+  </g>
+  <path id="e-target-objective" d="M1160,290 L1176,290 L1176,561" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-target-objective" x="1166" y="520" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">target_read</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <rect id="legend-box" x="306" y="561" width="574" height="80" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1.5"/>
+    <text id="legend-title" x="322" y="584" font-size="16" font-weight="600" fill="#343a40">Legend</text>
+    <line id="legend-solid" x1="322" y1="606" x2="372" y2="606" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    <text id="legend-solid-text" x="382" y="611" font-size="14">reaction or build step</text>
+    <line id="legend-dotted" x1="322" y1="628" x2="372" y2="628" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+    <text id="legend-dotted-text" x="382" y="633" font-size="14">read, stamp, hop chain</text>
+    <rect id="legend-pool" x="584" y="574" width="16" height="16" fill="#fff9db" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-pool-text" x="606" y="587" font-size="14">pool</text>
+    <rect id="legend-lever" x="680" y="574" width="16" height="16" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-lever-text" x="702" y="587" font-size="14">lever pool</text>
+    <rect id="legend-head" x="790" y="574" width="16" height="16" fill="#fff3f3" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-head-text" x="812" y="587" font-size="14">input</text>
+    <rect id="legend-fn" x="584" y="608" width="16" height="16" fill="#bac8ff" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-fn-text" x="606" y="621" font-size="14">function</text>
+    <rect id="legend-truth" x="680" y="608" width="16" height="16" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="legend-truth-text" x="702" y="621" font-size="14">truth</text>
+    <text id="legend-dagger" x="790" y="621" font-size="14">† gates</text>
+  </g>
+</svg>
