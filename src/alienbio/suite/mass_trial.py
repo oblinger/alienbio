@@ -1,6 +1,6 @@
 """Mass-trial runner + reliability map (F024, M34): the Phase-2 end-state.
 
-A thin, SEQUENTIAL orchestrator over already-shipped, already-tested parts —
+A thin orchestrator over already-shipped, already-tested parts —
 this module introduces NO new scoring or statistics. It composes dial axes
 into an orthogonal condition grid, runs ``trials_per_condition`` seeded
 :class:`~alienbio.suite.trial.TrialRecord`\\ s per cell through the real
@@ -15,15 +15,15 @@ an immutable :class:`ReliabilityMap`.
   exact shape :func:`~alienbio.suite.trial.condition_key` normalises to and
   :func:`~alienbio.suite.reliability_grid.aggregate_cells` bins on, no
   adapter.
-- :class:`MassTrialRunner` — SEQUENTIAL (single-process) driver: for every
-  cell x trial, derives an independent child :class:`~alienbio.suite.dist.Seed`
+- :class:`MassTrialRunner` — single-process driver: for every cell x trial,
+  derives an independent child :class:`~alienbio.suite.dist.Seed`
   (``base_seed.child(f"{condition_label}/{i}")``), calls the caller-supplied
   ``drafter``/``agent_factory`` to build one world/task/agent under that
   cell's dials, and folds it through :func:`~alienbio.suite.runner.run`.
   Every ``(cell, trial)`` unit is a pure, independent function of its own
-  derived seed — a process pool is a safe, purely-additive future upgrade
-  (swap the inner ``for`` loop for a pool ``map`` over the same per-trial
-  seeds); it is not built here (RAM: thousands of parallel simulator
+  derived seed, so ``concurrency > 1`` (M45.6) runs units on a thread pool
+  with records landing in submission order — byte-identical to a serial
+  run. There is no process pool (RAM: thousands of parallel simulator
   processes would exhaust it). ``on_error="record"`` (the default, M46.3)
   ISOLATES each trial: a drafter/agent/runner exception is caught and folded
   into an error ``TrialRecord`` (``terminal_reason="error"``) instead of
@@ -434,15 +434,14 @@ def _aggregate(
 
 
 class MassTrialRunner:
-    """SEQUENTIAL (Q3 override) driver: condition grid x trials -> :class:`ReliabilityMap`.
+    """Driver: condition grid x trials -> :class:`ReliabilityMap`.
 
     Single-process by design (RAM: a process pool of simulator processes
-    would exhaust it) but parallel-READY: every ``(condition, trial)`` unit
-    derives its own independent child seed
-    (``base_seed.child(f"{condition_label}/{i}")``) up front, so the inner
-    loop body is a pure function of that seed alone and could be handed to a
-    process/thread pool's ``map`` unchanged — that swap is a safe, purely
-    additive future layer, not built here.
+    would exhaust it); ``run(concurrency=n)`` runs up to ``n`` units on a
+    thread pool (M45.6). Every ``(condition, trial)`` unit derives its own
+    independent child seed (``base_seed.child(f"{condition_label}/{i}")``),
+    so a unit is a pure function of that seed alone and records land in
+    submission order — the map is byte-identical for any ``concurrency``.
     """
 
     def run(
@@ -468,8 +467,9 @@ class MassTrialRunner:
         byte-identical to a serial run; the win is wall time for live-model
         trials, which are I/O-bound (the simulator is CPU-bound Python, so
         ``concurrency > 1`` buys little for scripted sweeps). The ``stop``
-        hook is checked at submission, so a stop can overshoot by up to
-        ``concurrency`` in-flight trials.
+        hook is checked at submission (after every finished unit at the head
+        of the queue has landed) and by each worker as it starts, so a stop
+        overshoots by at most the units genuinely running when it tripped.
 
         ``matched_dials`` (M46.8) names swept dials that must NOT enter the
         per-trial seed label — e.g. ``("agent", "model")`` — so cells that
@@ -511,8 +511,8 @@ class MassTrialRunner:
         that record is used as-is — nothing is drafted, no agent is built,
         :func:`~alienbio.suite.runner.run` is never called — and it is
         counted in ``records``/``on_trial`` exactly like a fresh one (folded
-        into the returned statistics unless its ``terminal_reason ==
-        "error"``, and into ``Provenance.failed_trials`` if it is). This is
+        into the returned statistics unless ``TrialRecord.is_error``, and
+        into ``Provenance.failed_trials`` if it is). This is
         the resume seam: a caller backs ``skip`` by an on-disk record store
         keyed by ``(label, i)`` so a crashed run only redoes the trials it
         never finished.
