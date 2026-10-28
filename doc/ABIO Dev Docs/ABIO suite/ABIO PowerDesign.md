@@ -1,7 +1,7 @@
 ---
 description: "`power`: M46.9's statistical design fixed before the spend — `PowerDesign` (target d, alpha, power, primary contrast, multiple-comparison policy) with `required_trials_per_condition` from the normal-approximation `trials_for_effect`; `detectable_effect` inverts it; `bonferroni_alpha` divides alpha. Source: `src/alienbio/suite/power.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO PowerDesign](ha://p/ABIO%20PowerDesign) 
 # ABIO PowerDesign
 The power arithmetic a spec commits to before any trial runs: how many trials per condition detect a stated Cohen's d at a stated alpha and power, and the design record the manifest carries.
 

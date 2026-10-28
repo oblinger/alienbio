@@ -1,7 +1,7 @@
 ---
 description: "`validity`: M27.3's two world-validity gates — `non_obvious_causal` returns a verify predicate that passes when a perturbation moves the trajectory by more than an absolute L2 threshold, `is_shortcut_resistant` fails a world whose answer set equals a degree or two-hop top-k. Source: `src/alienbio/suite/validity.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Validity](ha://p/ABIO%20Validity) 
 # ABIO Validity
 Two predicates meant to reject worlds whose answer is readable without reasoning: one asks that a perturbation visibly move the trajectory, the other that no cheap centrality ranking reproduce the answer.
 

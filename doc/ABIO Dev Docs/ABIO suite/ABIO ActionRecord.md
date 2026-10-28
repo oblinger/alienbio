@@ -1,7 +1,7 @@
 ---
 description: "`info_seeking`: the `ActionRecord` every trial logs per action (kind, destructive, accepted, reason, target, value, delta) and five closed-form metrics over a log — `info_seeking_count`/`_ratio`, `destructive_count`/`_rate`, `actions_before_commit`. The record is on every run path; the metrics reach none. Source: `src/alienbio/suite/info_seeking.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO ActionRecord](ha://p/ABIO%20ActionRecord) 
 # ABIO ActionRecord
 The one-line log entry the runner writes for every action an agent takes, and five generic counts over a log of them.
 

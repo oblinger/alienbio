@@ -1,7 +1,7 @@
 ---
 description: "`ops`: the FT07 scripted/LLM seam — `LLMOp` calls an injected `LLMFn`, schema-validates the output, retries invalid replies on child seeds and caches by `(directive, canonical(context), seed)`; `canonical` is the stable JSON key, `estimate_tokens` the suite's `len // 4` yardstick. Source: `src/alienbio/suite/ops.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO LLMOp](ha://p/ABIO%20LLMOp) 
 # ABIO LLMOp
 The seam through which every model decision passes: one callable that never makes a call itself, validates what the injected model function returns, and caches the answer.
 

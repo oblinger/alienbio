@@ -1,7 +1,7 @@
 ---
 description: "`pipeline`: M27.4's `build_suite` — sample archetypes from a `SuiteSpec`, cover their feature requirements, then per task either draft a host and carve the motif (carved) or call the archetype's drafter (generated), build the objective, reject-sample on an optional validity gate, check render round-trip and self-grading, and package a `Suite`; `draft_world` is the generic host drafter. Source: `src/alienbio/suite/pipeline.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Pipeline](ha://p/ABIO%20Pipeline) 
 # ABIO Pipeline
 The assembly line that turns a suite spec into worlds and task instances, composing the M26 engines (cover, carve, verify, grade, render) around each archetype's recipe.
 
