@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-run">
+    <rect id="n-run-box" x="20" y="60" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-run-name" x="140" y="86" font-size="18" font-weight="600" text-anchor="middle">runner.run</text>
+    <text id="n-run-kind" x="140" y="108" font-size="14" text-anchor="middle">one per agent action;</text>
+    <text id="n-run-kind2" x="140" y="128" font-size="14" text-anchor="middle">destructive only if accepted</text>
+  </g>
+  <g id="n-ar">
+    <rect id="n-ar-box" x="340" y="40" width="260" height="120" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ar-name" x="470" y="66" font-size="18" font-weight="600" text-anchor="middle">ActionRecord</text>
+    <text id="n-ar-k1" x="470" y="88" font-size="14" text-anchor="middle">(dataclass) kind, destructive,</text>
+    <text id="n-ar-k2" x="470" y="108" font-size="14" text-anchor="middle">accepted, reason, target,</text>
+    <text id="n-ar-k3" x="470" y="128" font-size="14" text-anchor="middle">value, delta</text>
+  </g>
+  <line id="e-run-ar" x1="260" y1="100" x2="340" y2="100" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-tr">
+    <rect id="n-tr-box" x="680" y="60" width="240" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tr-name" x="800" y="86" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-tr-kind" x="800" y="108" font-size="14" text-anchor="middle">(trial) action_log,</text>
+    <text id="n-tr-kind2" x="800" y="128" font-size="14" text-anchor="middle">legal and illegal</text>
+  </g>
+  <line id="e-ar-tr" x1="600" y1="100" x2="680" y2="100" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-store">
+    <rect id="n-store-box" x="980" y="68" width="200" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-store-name" x="1080" y="94" font-size="17" font-weight="600" text-anchor="middle">records.jsonl</text>
+    <text id="n-store-kind" x="1080" y="116" font-size="14" text-anchor="middle">(store) round trip</text>
+  </g>
+  <line id="e-tr-store" x1="920" y1="100" x2="980" y2="100" stroke="#1e1e1e" stroke-width="3" marker-start="url(#arrowhead)" marker-end="url(#arrowhead)"/>
+
+  <g id="n-fam">
+    <rect id="n-fam-box" x="680" y="250" width="500" height="100" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fam-name" x="930" y="276" font-size="18" font-weight="600" text-anchor="middle">analysis families (live readers)</text>
+    <text id="n-fam-k1" x="930" y="300" font-size="14" text-anchor="middle">caution · hazard · census · degradation · faking · realism</text>
+    <text id="n-fam-k2" x="930" y="322" font-size="14" text-anchor="middle">each reads action_log with its own rule,</text>
+    <text id="n-fam-k3" x="930" y="342" font-size="14" text-anchor="middle">counting accepted actions</text>
+  </g>
+  <line id="e-tr-fam" x1="800" y1="140" x2="800" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-tr-fam" x="810" y="200" font-size="14" fill="#1971c2" font-style="italic">action_log</text>
+
+  <g id="n-metrics">
+    <rect id="n-metrics-box" x="20" y="300" width="300" height="160" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-metrics-name" x="170" y="326" font-size="18" font-weight="600" text-anchor="middle">the five metrics</text>
+    <text id="n-metrics-k1" x="170" y="352" font-size="14" text-anchor="middle">info_seeking_count / _ratio</text>
+    <text id="n-metrics-k2" x="170" y="374" font-size="14" text-anchor="middle">destructive_count / _rate</text>
+    <text id="n-metrics-k3" x="170" y="396" font-size="14" text-anchor="middle">actions_before_commit</text>
+    <text id="n-metrics-k4" x="170" y="426" font-size="14" text-anchor="middle">read kind, destructive;</text>
+    <text id="n-metrics-k5" x="170" y="446" font-size="14" text-anchor="middle">rejected ones count ‡</text>
+  </g>
+  <line id="e-ar-metrics" x1="420" y1="160" x2="250" y2="300" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-ar-metrics" x="345" y="245" font-size="14" fill="#1971c2" font-style="italic">log</text>
+
+  <g id="n-meth">
+    <rect id="n-meth-box" x="400" y="340" width="220" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-meth-name" x="510" y="366" font-size="16" font-weight="600" text-anchor="middle">TrialRecord methods</text>
+    <text id="n-meth-kind" x="510" y="388" font-size="14" text-anchor="middle">three wrappers;</text>
+    <text id="n-meth-kind2" x="510" y="408" font-size="14" text-anchor="middle">no caller in src/</text>
+  </g>
+  <line id="e-meth-metrics" x1="400" y1="380" x2="320" y2="380" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-tests">
+    <rect id="n-tests-box" x="20" y="520" width="300" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tests-name" x="170" y="554" font-size="16" font-weight="600" text-anchor="middle">tests/suite/test_info_seeking</text>
+  </g>
+  <line id="e-tests-metrics" x1="170" y1="520" x2="170" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dashed" x="340" y="646" font-size="14">dashed box: unreached from a run</text>
+    <text id="legend-dagger" x="600" y="646" font-size="14">‡ an illegal Measure counts as investigation</text>
+  </g>
+</svg>
