@@ -11,7 +11,6 @@ and analysis modules in T056 — there is one runtime and one physics.
 
 from dvc_dat import Dat
 
-from .infra import imports  # noqa: F401 - ensures do-referenced modules are loaded
 from .infra.entity import Entity
 from .infra.io import IO
 from .infra.mk import mk, Pegboard
