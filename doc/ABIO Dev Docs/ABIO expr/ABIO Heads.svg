@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-panel">
+    <rect id="n-panel-box" x="280" y="20" width="620" height="575" rx="14" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-panel-name" x="590" y="44" font-size="16" font-weight="600" text-anchor="middle">heads.py registers into the registry at import</text>
+  </g>
+  <g id="n-math">
+    <rect id="n-math-box" x="300" y="60" width="280" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-math-name" x="440" y="86" font-size="18" font-weight="600" text-anchor="middle">plain math</text>
+    <text id="n-math-kind" x="440" y="108" font-size="14" text-anchor="middle">(math) abs · round · sqrt · exp · log</text>
+    <text id="n-math-kind2" x="440" y="128" font-size="14" text-anchor="middle">len · int · float · str · dict · …</text>
+  </g>
+  <g id="n-dist">
+    <rect id="n-dist-box" x="600" y="60" width="280" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dist-name" x="740" y="86" font-size="18" font-weight="600" text-anchor="middle">distributions</text>
+    <text id="n-dist-kind" x="740" y="108" font-size="14" text-anchor="middle">(dist) normal · uniform · lognormal</text>
+    <text id="n-dist-kind2" x="740" y="128" font-size="14" text-anchor="middle">poisson · exponential · choice · …</text>
+  </g>
+  <g id="n-ops">
+    <rect id="n-ops-box" x="300" y="190" width="280" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ops-name" x="440" y="216" font-size="18" font-weight="600" text-anchor="middle">other operators</text>
+    <text id="n-ops-kind" x="440" y="238" font-size="14" text-anchor="middle">(op) sub · div · neg · eq … isnot</text>
+    <text id="n-ops-kind2" x="440" y="258" font-size="14" text-anchor="middle">item · attr (checked) · slice</text>
+  </g>
+  <g id="n-sized">
+    <rect id="n-sized-box" x="600" y="190" width="280" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sized-name" x="740" y="216" font-size="18" font-weight="600" text-anchor="middle">sized builtins</text>
+    <text id="n-sized-kind" x="740" y="238" font-size="14" text-anchor="middle">(math) range · list · sorted · zip</text>
+    <text id="n-sized-kind2" x="740" y="258" font-size="14" text-anchor="middle">reversed · sum · max · min</text>
+  </g>
+  <g id="n-unm">
+    <rect id="n-unm-box" x="300" y="320" width="280" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-unm-name" x="440" y="346" font-size="18" font-weight="600" text-anchor="middle">unmetered ‡</text>
+    <text id="n-unm-kind" x="440" y="368" font-size="14" text-anchor="middle">pow · op:mod on str · op:method</text>
+    <text id="n-unm-kind2" x="440" y="388" font-size="14" text-anchor="middle">op:fmt width · op:set</text>
+  </g>
+  <g id="n-opm">
+    <rect id="n-opm-box" x="600" y="320" width="280" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-opm-name" x="740" y="346" font-size="18" font-weight="600" text-anchor="middle">metered operators</text>
+    <text id="n-opm-kind" x="740" y="368" font-size="14" text-anchor="middle">(op) add · mul · flatten · fstr</text>
+    <text id="n-opm-kind2" x="740" y="388" font-size="14" text-anchor="middle">pow: exponent and result bits</text>
+  </g>
+  <g id="n-guards">
+    <rect id="n-guards-box" x="600" y="460" width="280" height="70" rx="10" fill="#e6fcf5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-guards-name" x="740" y="488" font-size="18" font-weight="600" text-anchor="middle">guards</text>
+    <text id="n-guards-kind" x="740" y="512" font-size="14" text-anchor="middle">(guard) nonempty · max_size</text>
+  </g>
+  <g id="n-consts">
+    <rect id="n-consts-box" x="300" y="460" width="280" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-consts-name" x="440" y="486" font-size="18" font-weight="600" text-anchor="middle">pow caps</text>
+    <text id="n-consts-kind" x="440" y="508" font-size="14" text-anchor="middle">(const) MAX_INT_EXPONENT 10 000</text>
+    <text id="n-consts-kind2" x="440" y="528" font-size="14" text-anchor="middle">MAX_POW_RESULT_BITS 2^24</text>
+  </g>
+  <line id="e-consts-opm" x1="580" y1="480" x2="650" y2="400" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-consts-opm" x="598" y="440" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">bound</text>
+
+  <g id="n-parse">
+    <rect id="n-parse-box" x="20" y="190" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-parse-name" x="130" y="216" font-size="18" font-weight="600" text-anchor="middle">parse</text>
+    <text id="n-parse-kind" x="130" y="238" font-size="14" text-anchor="middle">(Parse) operators, methods,</text>
+    <text id="n-parse-kind2" x="130" y="258" font-size="14" text-anchor="middle">f-strings → op:*</text>
+  </g>
+  <line id="e-parse-ops" x1="240" y1="230" x2="300" y2="230" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <polyline id="e-parse-unm" points="130,270 130,360 300,360" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-parse-unm" x="140" y="350" font-size="14" fill="#1971c2" font-style="italic">op:*</text>
+
+  <g id="n-rng">
+    <rect id="n-rng-box" x="960" y="60" width="220" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rng-name" x="1070" y="86" font-size="18" font-weight="600" text-anchor="middle">ctx.rng</text>
+    <text id="n-rng-kind" x="1070" y="108" font-size="14" text-anchor="middle">(Env) a generator from</text>
+    <text id="n-rng-kind2" x="1070" y="128" font-size="14" text-anchor="middle">this node's seed</text>
+  </g>
+  <line id="e-dist-rng" x1="880" y1="100" x2="960" y2="100" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-dist-rng" x="932" y="90" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">draw</text>
+  <g id="n-charge">
+    <rect id="n-charge-box" x="960" y="190" width="220" height="210" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-charge-name" x="1070" y="280" font-size="18" font-weight="600" text-anchor="middle">Limits.charge</text>
+    <text id="n-charge-kind" x="1070" y="302" font-size="14" text-anchor="middle">(Env) one producer and</text>
+    <text id="n-charge-kind2" x="1070" y="322" font-size="14" text-anchor="middle">the running total</text>
+  </g>
+  <line id="e-sized-charge" x1="880" y1="230" x2="960" y2="230" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-sized-charge" x="932" y="220" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">before</text>
+  <line id="e-opm-charge" x1="880" y1="360" x2="960" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-opm-charge" x="932" y="350" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">charge</text>
+  <g id="n-gc">
+    <rect id="n-gc-box" x="960" y="460" width="220" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gc-name" x="1070" y="488" font-size="18" font-weight="600" text-anchor="middle">_guarded_call</text>
+    <text id="n-gc-kind" x="1070" y="512" font-size="14" text-anchor="middle">(Interp) guards: list</text>
+  </g>
+  <line id="e-gc-guards" x1="960" y1="495" x2="880" y2="495" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-gc-guards" x="932" y="485" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">calls</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">emits, charges, calls</text>
+    <line id="legend-dotted" x1="260" y1="641" x2="310" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="320" y="646" font-size="14">reads</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ builds an unbounded value with no charge: pow(3, 2000000) where 3 ** 2000000 refuses</text>
+  </g>
+</svg>
