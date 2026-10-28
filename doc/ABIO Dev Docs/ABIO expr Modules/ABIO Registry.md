@@ -1,7 +1,7 @@
 ---
 description: "`registry`: the Expr head table — `Head` (name, kind, callable, injection), `Registry` (register with collision refusal, kind-filtered views), the process-wide `registry`, and the decorators `fn`, `expander`, `guard` and `special` through which Python enters the language; `GuardViolation`. Source: `src/alienbio/expr/registry.py`."
 ---
-:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO expr](../../ABIO%20Design/ABIO%20Expr/ABIO%20Expr.md) → [ABIO Registry](ha://p/ABIO%20Registry) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO expr Modules](ABIO%20expr%20Modules.md) → [ABIO Registry](ha://p/ABIO%20Registry) 
 # ABIO Registry
 The page for the one table a spec can reach Python through: what a head is, the kinds that decide how its arguments arrive, how a decorator puts a function into the table, when a second registration of a name refuses, and the narrowed views the rate compiler sees.
 

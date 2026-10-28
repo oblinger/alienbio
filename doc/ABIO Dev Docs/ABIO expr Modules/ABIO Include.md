@@ -1,7 +1,7 @@
 ---
 description: "`include`: load-time resolution of `!include` and `!py`, before anything evaluates — the trust gate (an untrusted load may include only `.yaml`/`.md`/`.txt` by a contained relative path; `.py` and `!py` need a trusted load), `hydrate` over a form tree, the `_includes_` list form, `resolve_py`, `UnsafeSpecError`. Source: `src/alienbio/expr/include.py`."
 ---
-:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO expr](../../ABIO%20Design/ABIO%20Expr/ABIO%20Expr.md) → [ABIO Include](ha://p/ABIO%20Include) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO expr Modules](ABIO%20expr%20Modules.md) → [ABIO Include](ha://p/ABIO%20Include) 
 # ABIO Include
 The page for what happens to `!include` and `!py` between reading a spec and evaluating it: which files an untrusted spec may pull in, what each file kind becomes, how the `_includes_` list merges, and how a Python reference is found.
 

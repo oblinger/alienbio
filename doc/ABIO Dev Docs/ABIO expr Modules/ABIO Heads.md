@@ -1,7 +1,7 @@
 ---
 description: "`heads`: the Expr builtin heads registered at import — the seven distribution draws and `constant`, the plain math and conversion builtins, the metered sized builtins (`range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min`), the `op:*` heads the inline parser emits (with the metered `add`, `mul`, `pow`, `flatten`, `fstr`), and the two generic guards `nonempty` and `max_size`. Source: `src/alienbio/expr/heads.py`, draws from `src/alienbio/spec_lang/builtins.py`."
 ---
-:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO expr](../../ABIO%20Design/ABIO%20Expr/ABIO%20Expr.md) → [ABIO Heads](ha://p/ABIO%20Heads) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO expr Modules](ABIO%20expr%20Modules.md) → [ABIO Heads](ha://p/ABIO%20Heads) 
 # ABIO Heads
 The page for every head a spec can call without registering anything: what each family returns, which ones charge the allocation meter before they build, and which ones do not.
 
