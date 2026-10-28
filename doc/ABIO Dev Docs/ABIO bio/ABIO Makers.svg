@@ -98,6 +98,6 @@
   <line id="e-bc-chem" x1="740" y1="470" x2="740" y2="560" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="t-anchor-note" x="590" y="210" font-size="14" fill="#1971c2" text-anchor="middle" font-style="italic">anchor kwargs</text>
   <text id="t-nd-note" x="920" y="500" font-size="13" fill="#495057" text-anchor="start">‡ two entities with one local_name:</text>
-  <text id="t-nd-note2" x="920" y="518" font-size="13" fill="#495057" text-anchor="start">the last is kept, without a word</text>
+  <text id="t-nd-note2" x="920" y="518" font-size="13" fill="#495057" text-anchor="start">refused (the same one twice: kept once)</text>
   <text id="t-legend" x="20" y="655" font-size="13" fill="#495057" text-anchor="start">solid: call or build · dotted: reads, passes · lilac: outside caller or class</text>
 </svg>

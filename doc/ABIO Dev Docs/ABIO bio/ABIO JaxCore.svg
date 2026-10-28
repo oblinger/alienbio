@@ -79,7 +79,7 @@
   <text id="t-f1" x="20" y="560" font-size="14" fill="#1e1e1e" text-anchor="start" xml:space="preserve">desired = max(min(k · Π S^R · law · mod · dt, RATE_CAP), 0) · comp_mask   |   demand = Σ desired · R</text>
   <text id="t-f2" x="20" y="582" font-size="14" fill="#1e1e1e" text-anchor="start" xml:space="preserve">ratio = min(1, S / demand)   |   scale = min over r's reactants   |   S' = S + (desired · scale)ᵀ (P − R)   |   snap (−1e-12, 0) → 0</text>
   <text id="t-brt-note" x="20" y="320" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">‡ compartment ids index a list:</text>
-  <text id="t-brt-note2" x="20" y="338" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">−1 runs in the last compartment,</text>
-  <text id="t-brt-note3" x="20" y="356" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">the reference in none</text>
+  <text id="t-brt-note2" x="20" y="338" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">both simulators range-check</text>
+  <text id="t-brt-note3" x="20" y="356" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">them first at construction</text>
   <text id="t-legend" x="20" y="655" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: build or call · dotted: wraps, lowers, imports · lilac: outside caller or module · every function is pure over S [C, M]</text>
 </svg>

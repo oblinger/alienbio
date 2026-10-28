@@ -32,7 +32,7 @@ Three maker keys and the helper behind `mk.C`. Each accessor is `make(local_name
     `ChemistryImpl(local_name, molecules=_named_dict(molecules), reactions=_named_dict(reactions), **anchor, **kwargs)`: either collection may be a list of entities, a mapping (copied as is) or `None`. Prefix `chem`. ^mk-c
 
 **_named_dict**`(items) -> dict[str, Any]`
-    `None` → `{}`; a `Mapping` → a shallow copy with its own keys; any other iterable → `{entity.local_name: entity}`, raising `TypeError` on an element that is not an `Entity`, and on anything that is not iterable. Two entities with one local name keep the last without a word (§ [Name-keyed collections](#name-keyed-collections)). ^named-dict
+    `None` → `{}`; a `Mapping` → a shallow copy with its own keys; any other iterable → `{entity.local_name: entity}`, raising `TypeError` on an element that is not an `Entity`, and on anything that is not iterable. Two different entities with one local name raise `ValueError`; the same object listed twice is kept once (§ [Name-keyed collections](#name-keyed-collections)). ^named-dict
 
 
 
@@ -45,7 +45,7 @@ Every root entity needs a `dat` or a `parent`; the pegboard supplies one. In ord
 
 
 ## Name-keyed collections
-A chemistry holds its molecules and reactions in dicts keyed by name. Passing a list to `mk.C` keys each element by its `local_name`, which is what lets a generator write `mk.C("host", molecules + distractors, reactions)`. The derivation does not check for repeats: `mk.C("w", [mk.M("A"), mk.M("A", description="second")], [])` builds a one-molecule chemistry holding the second `A`. A mapping is taken as given, so its keys need not equal the entities' local names; that is the caller's contract.
+A chemistry holds its molecules and reactions in dicts keyed by name. Passing a list to `mk.C` keys each element by its `local_name`, which is what lets a generator write `mk.C("host", molecules + distractors, reactions)`. Since `40c5c09` the derivation refuses a repeat: `mk.C("w", [mk.M("A"), mk.M("A", description="second")], [])` raises `ValueError` naming `'A'`, where it used to build a one-molecule chemistry holding the second `A` and leave any reaction naming the first pointing outside it. The same object listed twice is one entity and is kept once. No shipped generator relied on the overwrite. A mapping is copied as given; a key that differs from its entity's name is refused by `ChemistryImpl` itself.
 
 
 
@@ -58,3 +58,4 @@ The three `mk.register` calls run once, at import. The pegboard accepts a re-reg
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with `infra/mk.py` read for the accessor and anchor rules this module depends on. Checked locally against the export: the duplicate-name collapse in `mk.C`. Production callers found by grep over `src/`. The pegboard itself is documented here only as far as the makers rely on it; its own page belongs to the `infra/` pass. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `mk.C` refuses two different entities sharing a local name (the same object twice is kept once); no shipped generator relied on the overwrite (suite green). A mapping keyed off its entity's name was already refused by `ChemistryImpl` (E3).
+- 2026-10-28 — refreshed against 0eb23e5: `_named_dict` and *Name-keyed collections* state the duplicate-name refusal and the mapping key check in `ChemistryImpl`; figure's ‡ note rewritten.

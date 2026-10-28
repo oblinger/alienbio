@@ -77,7 +77,7 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
 
 
 ## Modulation Interface
-A frozen dataclass carrying one modifier's effect on its reaction's rate: a `kind` and the parameters that kind reads. It has no behaviour of its own — the arithmetic lives in `WorldSimulatorImpl._modulation_factor` and `jax_core.modulation_factors`, evaluated from the frozen start-of-step state. Every parameter defaults to `None`, and a kind whose required parameters are not all set contributes a factor of exactly `1.0`, as does any kind outside the four ([[#Modulation kinds and defaults]]). Built by `ModulationSpec.sample` in `suite/rate_law.py`, by `w2_gen` and the drafters directly, and by `ReactionImpl.hydrate` from a dict.
+A frozen dataclass carrying one modifier's effect on its reaction's rate: a `kind` and the parameters that kind reads. Its one behaviour is a construction check (`__post_init__` refuses a negative or NaN `Ki` with `ValueError`, since `40c5c09`); the arithmetic lives in `WorldSimulatorImpl._modulation_factor` and `jax_core.modulation_factors`, evaluated from the frozen start-of-step state. Every parameter defaults to `None`, and a kind whose required parameters are not all set contributes a factor of exactly `1.0`, as does any kind outside the four ([[#Modulation kinds and defaults]]). Built by `ModulationSpec.sample` in `suite/rate_law.py`, by `w2_gen` and the drafters directly, and by `ReactionImpl.hydrate` from a dict.
 
 | Modulation | |
 | --- | --- |
@@ -97,7 +97,7 @@ A frozen dataclass carrying one modifier's effect on its reaction's rate: a `kin
     The activator gain: the factor is `1 + a·[modifier]`. ^a
 
 **Ki**`: Optional[float] = None`
-    The inhibitor constant: the factor is `1 / (1 + [modifier]/Ki)`. `Ki = 0` reads as IEEE division does — inf, so a factor of 0, at `[modifier] > 0`; NaN, so no reaction, at 0 — on both simulators. ^ki
+    The inhibitor constant: the factor is `1 / (1 + [modifier]/Ki)`. Must be `≥ 0`; a negative or NaN value raises `ValueError` at construction. `Ki = 0` is the perfect-inhibitor limit — factor 0 at `[modifier] > 0`, factor 1 at 0 — on both simulators (`rate_expr.inhibitor_ratio`, since `40c5c09`; before, `0/0` was NaN and stopped the reaction with no inhibitor present). ^ki
 
 **Vmax**`: Optional[float] = None`
     The ceiling of the two saturable kinds. Required by both in the simulators — no default is applied here ([[#Modulation kinds and defaults]]). ^vmax
@@ -166,12 +166,12 @@ When `rate_law` is set, `_desired_extent` evaluates it and ignores `rate`: the t
 | kind | Needs | Factor | Missing parameter here | In a `rate_expr` `mod` node |
 | --- | --- | --- | --- | --- |
 | `activator` | `a` | `1 + a·m` | inert, 1.0 | `KeyError` |
-| `inhibitor` | `Ki` | `1 / (1 + m/Ki)` | inert, 1.0 | `KeyError` |
+| `inhibitor` | `Ki` (`≥ 0`) | `1 / (1 + m/Ki)`; with `Ki = 0`, 1 at `m = 0` and 0 otherwise | inert, 1.0 | `KeyError` |
 | `michaelis` | `Vmax`, `K` | `Vmax·m / (K + m)`; 0 when `K + m ≤ 0` | inert, 1.0 | `Vmax = 1.0` |
 | `hill` | `Vmax`, `K`, `n` | `Vmax·mⁿ / (Kⁿ + mⁿ)`; 0 when the denominator ≤ 0 | inert, 1.0 | `Vmax = 1.0`, `n = 2.0` |
 | anything else | — | 1.0 | — | refused by `rate_expr.modulation` |
 
-This module stores only what it is given: every parameter defaults to `None`, and both simulators (`world_simulator.py:317–332`, `jax_core.py:140–149`) skip a modulator whose required fields are not all set. The same incomplete modulation written as a `mod` node in a rate tree is not inert — `rate_expr.modulation_factor` defaults `Vmax` and `n`. Compiled worlds never meet the difference, because `rate_law._MODULATION_DEFAULTS` fills `Vmax = 1.0` (and `n = 2.0` for `hill`) before `ModulationSpec.sample` builds the `Modulation`; a hand-built `Modulation(kind="hill", K=0.5)` is inert. Factors from several modulators multiply: activators into a numerator, inhibitors into a denominator, saturable kinds as a separate product.
+This module stores only what it is given: every parameter defaults to `None`, and both simulators (`WorldSimulatorImpl._modulation_factor`, `jax_core.build_modulation_tensors`) skip a modulator whose required fields are not all set. The same incomplete modulation written as a `mod` node in a rate tree is not inert — `rate_expr.modulation_factor` defaults `Vmax` and `n`. Compiled worlds never meet the difference, because `rate_law._MODULATION_DEFAULTS` fills `Vmax = 1.0` (and `n = 2.0` for `hill`) before `ModulationSpec.sample` builds the `Modulation`; a hand-built `Modulation(kind="hill", K=0.5)` is inert. Factors from several modulators multiply: activators into a numerator, inhibitors into a denominator, saturable kinds as a separate product.
 
 
 
@@ -200,3 +200,4 @@ A reaction's `name` is its `local_name`, and `ChemistryImpl` keys reactions by i
 
 # BRIEF
 - 2026-10-18 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member traced to `bio/reaction.py`, readers to `world_simulator.py`, `jax_core.py`, `conservation.py`, `energy.py`, `suite/rate_law.py` and `suite/expr_heads.py`. The coefficient loss in § Serialization, the multi-key modifier drop, the unchecked `rate` and the pass-through of a malformed tuple `rate_law` were reproduced against the venv, not fixed. Left out: `__repr__` (a debug string; it prints a `Modulation` as its full dataclass repr), the members inherited unchanged from `Entity`, and the published page `ABIO Reaction`, a separate older page this doc does not link. Drift noted, not fixed: the docstrings at `reaction.py:93`, `131`, `242` and `275` and the `Reaction` Protocol's `rate: Union[float, Callable]` (`protocols/bio.py:154`) still describe a callable rate; the Protocol has no `rate_law`; `Callable` is imported and unused. The constructor block id is `^reactionimpl`, matching [[ABIO ChemistryImpl]].
+- 2026-10-28 — refreshed against 0eb23e5: `Modulation` refuses a negative or NaN `Ki` and `Ki = 0` is the perfect-inhibitor limit (`40c5c09`), in the class intro, the `Ki` block and the kinds table; the simulator line references named by function. The `rate` docstrings now say numeric (`2e9cd6a`), as the page already did. Figure: the hub note says a non-number rate is refused at construction, not downstream.

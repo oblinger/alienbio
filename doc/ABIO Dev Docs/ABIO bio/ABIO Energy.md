@@ -13,7 +13,7 @@ The page for `bio/energy.py`: how a reaction's free-energy change is booked from
 
 
 ## energy Interface
-Module-level functions over a `ChemistryImpl` and one over a `WorldStateImpl`. Energy is booked, not constrained, until a caller opts into `spontaneity`.
+Module-level functions over a `ChemistryImpl` and one over a `WorldStateImpl`. Energy is booked, not constrained, until a caller opts into `spontaneity` — which `check_energy` leaves off and `validate_energy` turns on by default.
 
 | energy | |
 | --- | --- |
@@ -29,8 +29,8 @@ Module-level functions over a `ChemistryImpl` and one over a `WorldStateImpl`. E
 **check_energy**`(chemistry, *, spontaneity=False, exempt_boundary=True) -> List[EnergyViolation]`
     With the default `spontaneity=False`, returns `[]` without looking at a reaction. With `spontaneity=True`, one `EnergyViolation` per reaction whose ΔG exceeds `_TOL` (1e-9), skipping boundary reactions (`conservation.is_boundary_reaction`) unless `exempt_boundary` is off. Never raises for content. ^check-energy
 
-**validate_energy**`(chemistry, **kwargs) -> None`
-    `check_energy` with the same keywords; raises `EnergyError` naming every violation and its ΔG. Called with no keywords it can never raise, because the default applies no constraint; a misspelled `spontaneity` is a `TypeError` from the inner call. ^validate-energy
+**validate_energy**`(chemistry, *, spontaneity=True, exempt_boundary=True) -> None`
+    `check_energy` with those keywords; raises `EnergyError` naming every violation and its ΔG. `spontaneity` defaults to `True` here (since `40c5c09`), so a bare call refuses an uphill internal reaction, as `validate_conservation`'s defaults check; pass `spontaneity=False` for the no-op. Any other keyword is a `TypeError`. ^validate-energy
 
 **total_free_energy**`(state: WorldStateImpl, per_index_formation: List[float]) -> float`
     `Σ state.amount(c, j) · per_index_formation[j]` over every compartment and molecule index, skipping zero amounts. The caller builds the list in molecule-index order with `0.0` for an energy-neutral molecule. § [The canary](#the-canary). ^total-free-energy
@@ -74,7 +74,7 @@ A source (`∅ → X`) or sink (`X → ∅`) exchanges with the environment and 
 
 
 ## The canary
-`total_free_energy` is the extensive free energy of a state. Its docstring calls it invariant across steps for a closed, balanced system; that holds only when every reaction has ΔG = 0, which is what the module's own test builds. Under the heat-sink form a downhill reaction lowers the total by `extent · |ΔG|` each step, correctly: a single `A → B` with formation energies 2 and 1 took the total from 2.0 to 1.349 in ten steps at `038c399`. With no reservoir term to add back, the canary cannot tell that loss from a leak, so on any chemistry the spontaneity check would accept it reports drift.
+`total_free_energy` is the extensive free energy held by a state's molecules, the system side only; since `40c5c09` its docstring says so, and that `before − after` between two states of a closed world is the heat released. It is invariant only when every reaction that runs has ΔG = 0, which is what the module's own test builds. Under the heat-sink form a downhill reaction lowers the total by `extent · |ΔG|` each step, correctly: a single `A → B` with formation energies 2 and 1 took the total from 2.0 to 1.349 in ten steps at `038c399`. With no reservoir term to add back, the canary cannot tell that loss from a leak, so on any chemistry the spontaneity check would accept it reports drift; a mass leak shows on the atom canary (`conservation.total_quantity`), and a reservoir ledger would need the simulators to report reaction extents, which they do not.
 
 
 
@@ -87,3 +87,4 @@ The docstring sketches the extension: an energy-carrier species (an ATP analogue
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`). Checked locally against the export: the default returning `[]` on an uphill reaction, the uphill violation under `spontaneity=True`, a misspelled keyword raising `TypeError`, and the canary's drift on a downhill `A → B` run through `WorldSimulatorImpl`. Callers found by grep over `src/` and `tests/`. Not determined: whether F018's coupling step is still planned. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `validate_energy` defaults `spontaneity=True` (it could never raise); `total_free_energy`'s docstring says it is the system side only — its drop between two states is the heat released, so it cannot tell heat from a leak; a reservoir ledger needs reaction extents the simulator does not report (left for the Pilot).
+- 2026-10-28 — refreshed against 0eb23e5: `validate_energy`'s block gives its explicit keywords and the `spontaneity=True` default; *The canary* says the docstring now scopes it to the system side and points leaks at the atom canary. Figure still true.

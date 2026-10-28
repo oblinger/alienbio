@@ -13,7 +13,7 @@ The compiled form of a rate law: a small tree of tuples, built once from the rat
 
 
 ## rate_expr Interface
-Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and the twelve functions (the two constants since 2026-10); the constants are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers are module-level but not exported.
+Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and the twelve functions (the two constants since 2026-10); the constants are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers and `inhibitor_ratio` are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` by name.
 
 | rate_expr | |
 | --- | --- |
@@ -25,6 +25,7 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 | [[#^species-of\|species_of]] | Every species a tree reads |
 | [[#^map-species\|map_species]] | The same tree over renamed species |
 | [[#^implicit-mass-action\|implicit_mass_action]] | Whether mass action multiplies the law |
+| [[#^inhibitor-ratio\|inhibitor_ratio]] | `m/Ki` with the `Ki = 0` limit |
 | [[#^modulation-factor\|modulation_factor]] | One modulation's factor at a concentration |
 | [[#^eval-rate\|eval_rate]] | Evaluate a tree to a float |
 | [[#^lower-jax\|lower_jax]] | Lower a tree to JAX ops over a state array |
@@ -58,8 +59,11 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 **implicit_mass_action**`(node: RateNode, reactants: Iterable[Any]) -> bool`
     `True` when the tree reads none of `reactants` — mass action over the reactants is then implicit and the law multiplies it; `False` when the law is the whole rate ([[#Implicit mass action]]). The names in `node` and `reactants` must be in the same space (both ids, as `ReactionSpec` calls it). ^implicit-mass-action
 
+**inhibitor_ratio**`(m: float, Ki: float) -> float`
+    `m / Ki` for the inhibitor's `1 / (1 + m/Ki)`, returning 0 when `m == 0` before dividing, so `Ki = 0` is the perfect-inhibitor limit: factor 1 with no inhibitor present, 0 with any (`ieee_div` gives inf). Without it `0/0` was NaN, which is no reaction, so `Ki = 0` stopped a reaction with no inhibitor present. Called by `modulation_factor` and the reference's product-form inhibitor; `_lower_modulation` and `jax_core.modulation_factors` do the same with `where`. Since `40c5c09`. ^inhibitor-ratio
+
 **modulation_factor**`(kind: str, m: float, p: Mapping[str, float]) -> float`
-    The factor one modulation contributes at modifier concentration `m`, with parameters `p`, per the table in [[#Modulation factors]]. `michaelis` and `hill` return 0.0 instead of dividing when their denominator is not positive. `KeyError` for a missing required parameter; `ValueError` for an unknown kind. `inhibitor` with `Ki = 0` and `hill` with `n < 0` at `m = 0` read as JAX reads them (inf or NaN, via `ieee_div`/`ieee_pow`); until 2026-10 both raised `ZeroDivisionError`. ^modulation-factor
+    The factor one modulation contributes at modifier concentration `m`, with parameters `p`, per the table in [[#Modulation factors]]. `michaelis` and `hill` return 0.0 instead of dividing when their denominator is not positive. `KeyError` for a missing required parameter; `ValueError` for an unknown kind. `inhibitor` with `Ki = 0` is the perfect-inhibitor limit ([[#^inhibitor-ratio|inhibitor_ratio]]) and `hill` with `n < 0` at `m = 0` reads as JAX reads it (NaN, via `ieee_pow`); until 2026-10 both raised `ZeroDivisionError`. ^modulation-factor
 
 **eval_rate**`(node: RateNode, conc: Callable[[Any], float]) -> float`
     Evaluate the tree, calling `conc(name)` for each `species` leaf and `mod` pool. Recursive; the per-node rules, including `log` of a non-positive value giving `-inf`, `sqrt` giving 0 and `div` by anything smaller than `ROUNDING_FLOOR` giving 0, are in [[#The node grammar]]. `pow` is `ieee_pow` and `exp` is `ieee_exp`: a zero base with a negative exponent or an overflow is inf, a negative base with a fractional exponent is NaN, as under JAX ([[#One tree, two evaluators]]); until 2026-10 they raised or returned a `complex`. Returns the law's value unclamped; the caller applies `dt`, mass action and `RATE_CAP`. ^eval-rate
@@ -132,7 +136,7 @@ A law that names a reactant is the whole rate (`Vmax * S / (Km + S)` over substr
 | Kind | Needs | Factor at `m` | Default |
 | --- | --- | --- | --- |
 | `activator` | `a` | `1 + a·m` | — |
-| `inhibitor` | `Ki` | `1 / (1 + m/Ki)` | — |
+| `inhibitor` | `Ki` | `1 / (1 + m/Ki)`; 1 at `m = 0`, 0 for `m > 0` when `Ki = 0` | — |
 | `michaelis` | `K` | `Vmax·m / (K + m)`; 0 when `K + m ≤ 0` | `Vmax = 1.0` |
 | `hill` | `K` | `Vmax·mⁿ / (Kⁿ + mⁿ)`; 0 when the denominator ≤ 0 | `Vmax = 1.0`, `n = 2.0` |
 
@@ -161,7 +165,7 @@ The floor lives here because the two backends once carried their own copies, and
 | `pow`, base 0, exponent < 0 | `ZeroDivisionError` | `inf`, capped to `RATE_CAP` |
 | `pow`, base < 0, fractional exponent | a `complex`, then `TypeError` in `_desired_extent` | `nan`, read as 0 |
 | `hill` with `n < 0` at `m = 0` | `ZeroDivisionError` | `nan` (`inf / inf`), read as 0 |
-| `inhibitor` with `Ki = 0` | `ZeroDivisionError` | `0` or `nan` |
+| `inhibitor` with `Ki = 0` | `ZeroDivisionError` | factor 1 at `m = 0`, 0 otherwise (since `40c5c09`; it was `nan` at `m = 0`) |
 
 The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_reference_on_modulations_and_expression_laws` (a Michaelis–Menten quotient, a `sqrt`·`exp` sum and every modulation kind, to 1e-9) and `tests/capabilities/test_simulator_conformance.py`, whose generated laws use every operator — `add`, `sub`, `mul`, `div`, `pow` (exponents −1, 0.5, 1.5, 2, 3, over a species or a `sub` that can go negative), `sqrt`, `exp`, `log` — and `michaelis`, plus one pinned `1/[x]` case on an exhausted species; `tests/bio/test_moddoc_findings_rate_expr.py` pins each row of the table above.
 
@@ -171,3 +175,4 @@ The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_referenc
 # BRIEF
 - 2026-10-18 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `bio/rate_expr.py`, `suite/rate_law.py`, `suite/expr_heads.py`, `bio/reaction.py`, `bio/world_simulator.py`, `bio/jax_core.py` and the two parity tests. The node grammar has no class, so it is a Semantics section and the page has one Interface section. Left out: the private `_lower_modulation`, `_BINARY` and `_UNARY`, named in prose only. The edge cases in § One tree, two evaluators were reproduced against HEAD for `eval_rate` (`0.0 ** -1.0` raises, `(-1e-13) ** 0.5` is complex, `hill` with `n = -1` at 0 raises), not fixed; the JAX column is read from the code, not run. The module docstring's "the modulation math is exactly `WorldSimulatorImpl._modulation_factor`'s" holds for the arithmetic but not for a missing parameter: this module defaults `Vmax = 1.0`, `n = 2.0` (`rate_expr.py:108,110,113`) where the modulator path treats a missing field as inert (`world_simulator.py:317–332`); unreachable from compiled worlds because `rate_law._MODULATION_DEFAULTS` fills both. `suite/rate_law.py`'s numeric `hill`/`michaelis` heads guard with `if (K or m)` rather than this module's `denom > 0`, so they differ on a negative denominator.
 - 2026-10-27 — the findings above fixed: `ieee_pow`/`ieee_div`/`ieee_exp` (the reference reads an undefined operation as JAX does), `from_json` checks a tuple tree, every walker refuses an unknown tag with `ValueError`, and `suite/rate_law.py`'s numeric `hill`/`michaelis` heads guard on `denom > 0` like this module.
+- 2026-10-28 — refreshed against 0eb23e5: `inhibitor_ratio` (`40c5c09`, the `Ki = 0` perfect-inhibitor limit) given a block and index row; `modulation_factor`, the factor table and the parity table follow. Figure still true.

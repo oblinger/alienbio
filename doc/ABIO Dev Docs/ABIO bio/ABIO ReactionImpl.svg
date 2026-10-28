@@ -25,7 +25,7 @@
   <text id="law-1" x="600" y="348" font-size="16" font-weight="600" text-anchor="middle">one rate grammar</text>
   <text id="law-2" x="600" y="370" font-size="14" text-anchor="middle">rate_law set: the numeric rate is unused;</text>
   <text id="law-3" x="600" y="389" font-size="14" text-anchor="middle">Modulation modifiers still multiply in;</text>
-  <text id="law-4" x="600" y="408" font-size="14" text-anchor="middle">a non-number rate is refused downstream</text>
+  <text id="law-4" x="600" y="408" font-size="14" text-anchor="middle">a non-number rate is refused at construction</text>
 
   <!-- derives from -->
   <line id="e-derives" x1="600" y1="110" x2="600" y2="56" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>

@@ -39,7 +39,7 @@
   <g id="n-dict">
     <rect id="n-dict-box" x="920" y="220" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-dict-name" x="1040.0" y="248" font-size="18" font-weight="600" text-anchor="middle">to_dict / from_dict</text>
-    <text id="n-dict-kind" x="1040.0" y="272" font-size="14" text-anchor="middle">(methods) lists, no checks</text>
+    <text id="n-dict-kind" x="1040.0" y="272" font-size="14" text-anchor="middle">(methods) lists, copied, checked</text>
   </g>
   <g id="n-ref">
     <rect id="n-ref-box" x="20" y="400" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
@@ -59,7 +59,7 @@
   </g>
   <g id="n-str">
     <rect id="n-str-box" x="920" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-str-name" x="1040.0" y="428" font-size="18" font-weight="600" text-anchor="middle">__str__ ‡</text>
+    <text id="n-str-name" x="1040.0" y="428" font-size="18" font-weight="600" text-anchor="middle">__str__</text>
     <text id="n-str-kind" x="1040.0" y="452" font-size="14" text-anchor="middle">(method) indented text</text>
   </g>
   <line id="e-comp-bt" x1="260" y1="75" x2="320" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
@@ -78,6 +78,6 @@
   <line id="e-tree-read" x1="740" y1="300" x2="740" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-tree-str" x1="840" y1="300" x2="980" y2="400" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="t-note1" x="20" y="530" font-size="14" fill="#495057" text-anchor="start">No step, flow or population pass calls parent or children: the simulators and the state read num_compartments only,</text>
-  <text id="t-note2" x="20" y="550" font-size="14" fill="#495057" text-anchor="start">so which compartment is whose parent changes nothing a step does. ‡ grandchildren print without a connector.</text>
+  <text id="t-note2" x="20" y="550" font-size="14" fill="#495057" text-anchor="start">so which compartment is whose parent changes nothing a step does.</text>
   <text id="t-legend" x="20" y="655" font-size="13" fill="#495057" text-anchor="start">solid: build · dotted: reads, carries, conforms · lilac: outside caller or contract</text>
 </svg>

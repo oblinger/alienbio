@@ -32,7 +32,7 @@ An immutable bundle of topology, reaction specs, flows, population laws and step
     The production constructor. Molecule ids are the positions of `chemistry.molecules`' keys, in insertion order — the order `bio/world.py` and `suite/verify.py` rely on when they read a state back by name. Each reaction becomes a `ReactionSpec` active in every compartment (`compartments=None`), its modifiers coerced by `Modulation.from_value` (a bare role string is rate-inert) and its `rate_law` re-keyed name → id by `map_species`. `KeyError` when a reactant, product, modifier or rate-law species is not in `chemistry.molecules`. It does not check `reaction.rate`: `ReactionImpl` refuses a non-number at construction and in `set_rate` (2026-10), so its own guard, unreachable since, was removed. `num_molecules` is `len(chemistry.molecules)`. ^from-chemistry
 
 **__init__**`(tree: CompartmentTreeImpl, reactions: List[ReactionSpec], flows: Sequence[Flow], num_molecules: int, dt: float = 1.0, population_laws: Optional[Sequence[PopulationLaw]] = None) -> None`
-    Store the arguments as given; nothing is validated or copied — not that every molecule id in `reactions` is below `num_molecules`, nor that ids fit the states later passed in. `flows` is required (pass `[]`); `population_laws=None` becomes `[]`, the fast path on which `step` skips the population pass entirely. ^init
+    Refuse a `ReactionSpec` whose `compartments` names an id outside `0..tree.num_compartments-1` (`check_reaction_compartments`, since `40c5c09`), then store the arguments as given; nothing else is validated or copied — not that every molecule id in `reactions` is below `num_molecules`, nor that ids fit the states later passed in. `flows` is required (pass `[]`); `population_laws=None` becomes `[]`, the fast path on which `step` skips the population pass entirely. ^init
 
 **step**`(state: WorldStateImpl) -> WorldStateImpl`
     One time step: flush subnormal concentrations to zero, copy, then the reaction pass per compartment, the flow pass when `flows` is non-empty and the population pass when `population_laws` is non-empty, every pass reading the flushed input and writing the copy ([[#One step, in order]]). Returns the copy; the input is never mutated. Raises nothing of its own. A molecule id at or beyond the state's `num_molecules` is not caught: the state indexes a flat list (`compartment × num_molecules + molecule`), so it reads and writes the next compartment's slot, and raises `IndexError` only past the last one. ^step
@@ -91,7 +91,7 @@ One reaction in the id-indexed form the simulators run: molecule ids instead of 
     The mass-action `k`. Ignored whenever `rate_law` is set — a law that should scale by `k` carries it as a constant ([[#Rate laws and modulation]]). ^rate-constant
 
 **compartments**`: Optional[List[CompartmentId]]`
-    The compartments the reaction runs in; `None` means all. `from_chemistry` always writes `None`. ^compartments
+    The compartments the reaction runs in; `None` means all. `from_chemistry` always writes `None`; any other value must hold tree ids, which both simulators check at construction. ^compartments
 
 **modulators**`: Dict[MoleculeId, Modulation]`
     Modifier species that scale the rate without being consumed (F015 S2); `{}` is the fast path. ^modulators
@@ -110,11 +110,15 @@ One reaction in the id-indexed form the simulators run: molecule ids instead of 
 | world_simulator | |
 | --- | --- |
 | [[#^subnormal-floor\|SUBNORMAL_FLOOR]] | Below this magnitude a concentration is zero |
+| [[#^check-reaction-compartments\|check_reaction_compartments]] | Refuse a compartment id outside the tree |
 | [[#^moleculeid\|MoleculeId]] | Alias for a molecule's integer id |
 | [[#^compartmentid\|CompartmentId]] | Alias for a compartment's integer id |
 
 **SUBNORMAL_FLOOR**`: float = sys.float_info.min`
     The smallest normal float, about 2.2e-308. `step` reads any concentration whose magnitude is above zero and below this as zero ([[#Rounding floor, rate cap and subnormals]]). ^subnormal-floor
+
+**check_reaction_compartments**`(reactions: Sequence[ReactionSpec], num_compartments: int) -> None`
+    `ValueError` naming the reaction when any `compartments` entry is not an int (a bool included) in `0..num_compartments-1`; `None` passes. Called by this class's and `JaxWorldSimulator`'s constructors, so a bad id is one refusal on either backend where the reference ignored it and the JAX mask indexed it by position (since `40c5c09`). ^check-reaction-compartments
 
 **MoleculeId**`= int`
     A column of the state: the molecule's position in the vocabulary. ^moleculeid
@@ -161,7 +165,7 @@ Every pass reads its demand off the frozen state; the flow pass rations against 
 | `Modulation.kind` | Needs | Term |
 | --- | --- | --- |
 | `activator` | `a` | numerator × `(1 + a·m)` |
-| `inhibitor` | `Ki` | denominator × `(1 + m/Ki)` |
+| `inhibitor` | `Ki` | denominator × `(1 + m/Ki)`; `m/Ki` is 0 at `m = 0`, so `Ki = 0` is a perfect inhibitor (`rate_expr.inhibitor_ratio`) |
 | `michaelis` | `Vmax`, `K` | × `Vmax·m / (K + m)`, 0 when `K + m ≤ 0` |
 | `hill` | `Vmax`, `K`, `n` | × `Vmax·mⁿ / (Kⁿ + mⁿ)`, 0 when the denominator ≤ 0 |
 | anything else, or a needed field `None` | — | inert, factor 1 |
@@ -206,3 +210,4 @@ The subnormal flush copies XLA's denormals-are-zero, which the JAX core already 
 - 2026-10-18 — written as the first ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `bio/world_simulator.py`, `flow.py`, `population.py`, `rate_expr.py`, `world_state.py`, `jax_simulator.py` and the conformance tests. Left out: the private passes (`_desired_extent`, `_modulation_factor`, `_apply_reactions`, `_apply_population_laws`, `_flush_subnormals`), which appear in the figure and Semantics but get no member block, and `__repr__`. Constructor block ids are `^init` and `^reactionspec-init`, not the literal `--init--`. The cross-pass over-draw (§ The min-ratio ration) was reproduced against HEAD, not fixed; the class docstring's example (`GeneralFlow(child=…, molecule=…, rate_constant=…)`) and its pointer to the deleted `ReferenceSimulatorImpl` are stale in the source.
 - 2026-10-28 — § Rate laws and modulation: the mass-action powers go through `ieee_pow` (a negative base under a fractional stoichiometry raised `TypeError` on the reference, read 0 on JAX).
 - 2026-10-28 — `from_chemistry`'s non-numeric-rate guard removed (unreachable since `ReactionImpl` refuses one), with the matching dead guards in `suite/verify.simulate` and `suite/perturbations.perturb_rate`.
+- 2026-10-28 — refreshed against 0eb23e5: `check_reaction_compartments` (`40c5c09`) given a block and index row, the constructor and `ReactionSpec.compartments` blocks name it; the inhibitor term gives the `Ki = 0` limit. Figure still true.

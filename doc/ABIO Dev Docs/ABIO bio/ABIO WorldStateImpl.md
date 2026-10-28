@@ -6,7 +6,7 @@ description: "`WorldStateImpl`: the dense multi-compartment store of concentrati
 The world's state at one instant: a flat list of concentrations indexed compartment × molecule, plus a multiplicity and a volume per compartment, optionally labelled with real compartment and molecule ids.
 
 ![[ABIO WorldStateImpl.svg|2400]] 
-*Storage layout and indexing* is the topic that governs the flat `_concentrations` row and its unchecked overflow arc; *Copies across a step* governs the frozen-input / written-copy pair along the top.
+*Storage layout and indexing* is the topic that governs the flat `_concentrations` row and the red note on the ids it refuses; *Copies across a step* governs the frozen-input / written-copy pair along the top.
 
 The value every simulator passes around: [[ABIO WorldImpl]] builds the initial one, [[ABIO WorldSimulatorImpl]] and [[ABIO JaxWorldSimulator]] read a frozen state and return a written copy, and the trial runner reads observations, readouts and the final record off it and writes `Intervene` setpoints into it. This page covers the store and the contract its readers and writers rely on; what each pass computes is on the simulator pages, [[ABIO TransportFlux]] and [[ABIO PopulationLaw]]; the topology it is indexed by is `bio/compartment_tree.py`; the subsystem view, with its seams, is [[ABIO-Bio-Engine]].
 
@@ -201,3 +201,4 @@ How `suite/` reads and writes a state, as far as this module is involved:
 
 # BRIEF
 - 2026-10-18 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `bio/world_state.py` and its readers and writers (`world.py`, `world_simulator.py`, `jax_simulator.py`, `flow.py`, `population.py`, `suite/runner.py`, `suite/trial.py`, `suite/observation.py`, `suite/verify.py`, `protocols/bio.py`). The unchecked-index table, the negative wrap, the `get_compartment` empty list, the copy-not-view `as_array`, the shape-blind `from_array`, the unchecked id-axis lengths and the grown-tree desync were each reproduced against HEAD, not fixed. Left out: `_index` (in Semantics, no block), `__repr__` and `__str__` (`__str__` counts only positive concentrations as nonzero). Constructor block id is `^init`. Drift recorded, not fixed: the "view" in `as_array`'s docstring, the "immutable" tree in the class docstring and `copy()`, and `readout_values`' "amount" docstring.
+- 2026-10-28 — refreshed against 0eb23e5: the body already stated `8c24bd5`'s bounds checks; the figure did not — its overflow arc, "wraps from the end" note and red legend line are replaced by the refusal (`IndexError`), and the caption sentence follows.

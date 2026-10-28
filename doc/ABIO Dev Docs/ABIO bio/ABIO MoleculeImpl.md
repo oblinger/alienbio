@@ -28,13 +28,13 @@ A slotted `Entity` subclass registered under the head `Molecule` and the biotype
 | [attributes](#^attributes) | The dict `hydrate` reads back |
 
 **MoleculeImpl**`(local_name, *, parent=None, dat=None, description="", atoms=None, bdepth=0, name=None, formation_energy=None)`
-    The `Entity` constructor first, which raises `ValueError` unless `dat` or `parent` is given. `atoms` is copied; `name` defaults to `local_name`. No field is validated: a negative `bdepth`, a zero or fractional atom count, or a non-numeric `formation_energy` is stored as given. ^moleculeimpl
+    The `Entity` constructor first, which raises `ValueError` unless `dat` or `parent` is given. `atoms` is copied; `name` defaults to `local_name`. Raises `ValueError` when two different atoms in `atoms` share a symbol (since `40c5c09`: conservation keys a composition by symbol, so they would balance as one element and weigh as two). No other field is validated: a negative `bdepth`, a zero or fractional atom count, or a non-numeric `formation_energy` is stored as given. ^moleculeimpl
 
 **hydrate**`(data, *, dat=None, parent=None, local_name=None, atoms=None) -> MoleculeImpl` (classmethod)
     Reads the keys `attributes` writes: `name` (the local name, unless `local_name` overrides; `"molecule"` when both are missing), `description`, `atoms` as `{symbol: count}`, `bdepth`, `display_name`, `formation_energy`. Each atom symbol resolves against the `atoms` registry; a composition with no registry raises `ValueError` and an unknown symbol `KeyError`, so a composition is never dropped. With neither `dat` nor `parent`, mints `MockDat(f"mol/{name}")`. ^hydrate
 
 **atoms**`: Dict[AtomImpl, int]`
-    A copy of the composition. Keys compare by symbol (§ [AtomImpl Interface](#atomimpl-interface)). Read by `conservation.molecule_quantity`. ^atoms
+    A copy of the composition, at most one atom per symbol. Keys compare by symbol and weight (§ [AtomImpl Interface](#atomimpl-interface)). Read by `conservation.molecule_quantity`. ^atoms
 
 **bdepth**`: int`
     Biosynthetic depth, 0 for a primitive. Carried and serialized; nothing in `src/` reads it. ^bdepth
@@ -46,7 +46,7 @@ A slotted `Entity` subclass registered under the head `Molecule` and the biotype
     An opaque assigned scalar (F018), never derived from the atoms; `None` books nothing in the energy check. Read by `energy.reaction_delta_g`. ^formation-energy
 
 **symbol**`: str`
-    The formula: each atom's symbol, followed by its count when the count is not 1, carbon first, hydrogen second, the rest alphabetical; `""` with no atoms. § [Formula order](#formula-order). ^symbol
+    The formula: each atom's symbol, followed by its count when the count is not 1, in Hill order — with carbon present, carbon first, hydrogen second, the rest alphabetical; without carbon, every symbol alphabetical; `""` with no atoms. § [Formula order](#formula-order). ^symbol
 
 **molecular_weight**`: float`
     `Σ atomic_weight · count`; `0.0` with no atoms. ^molecular-weight
@@ -65,7 +65,7 @@ A slotted `Entity` subclass registered under the head `Molecule` and the biotype
 | [symbol](#^atom-symbol) | One or two letters |
 | [atom name](#^atom-name) | English name |
 | [atomic_weight](#^atomic-weight) | Atomic mass in u |
-| [__eq__](#^eq) | Equal by symbol |
+| [__eq__](#^eq) | Equal by symbol and weight |
 | [COMMON_ATOMS](#^common-atoms) | The fourteen-element table |
 | [get_atom](#^get-atom) | Look one up by symbol |
 
@@ -82,7 +82,7 @@ A slotted `Entity` subclass registered under the head `Molecule` and the biotype
     Mass in atomic mass units; the only number `molecular_weight` reads. ^atomic-weight
 
 **__eq__**`(other) -> bool`
-    True for another `AtomImpl` with the same symbol, whatever its name or weight; `__hash__` is `hash(symbol)`. Two atoms that differ only in weight are one dict key. ^eq
+    True for another `AtomImpl` with the same symbol and the same atomic weight, whatever its name (since `40c5c09`; it was symbol alone); `__hash__` stays `hash(symbol)`. Two atoms that differ only in weight are two dict keys, which a molecule and a chemistry then refuse. ^eq
 
 **COMMON_ATOMS**`: Dict[str, AtomImpl]`
     H, C, N, O, P, S, Na, K, Ca, Mg, Cl, Fe, Zn, Cu by symbol, built once at import. ^common-atoms
@@ -101,12 +101,12 @@ Of the fields, two are read outside this file and both by opt-in checks: `atoms`
 
 
 ## Formula order
-`symbol` sorts carbon first, hydrogen second, and every other element alphabetically, whether or not the molecule has carbon. The Hill system the docstring names puts hydrogen second only when carbon is present and sorts everything alphabetically otherwise, so a carbon-free molecule differs: hydrogen chloride prints `HCl` here and `ClH` under Hill, water `H2O` under both. A zero count is kept and printed (`C0O2`).
+`symbol` follows the Hill system its docstring names: with carbon present, carbon first, hydrogen second and every other element alphabetically; without carbon, every element alphabetically. Hydrogen chloride prints `ClH`, water `H2O`, glucose `C6H12O6`. Before `40c5c09` hydrogen went second whether or not carbon was present, so `HCl` printed `HCl`. A zero count is kept and printed (`C0O2`).
 
 
 
 ## Hydration and the atom registry
-A composition travels as `{symbol: count}` and is resolved against a registry the caller passes, so two chemistries can carry different atom tables. `ChemistryImpl.hydrate` passes its own; the only table in `src/` is `COMMON_ATOMS`. Because atoms compare by symbol, a registry whose `"C"` has a different weight still matches a molecule built with the common carbon, and the molecule's weight is computed from whichever object is the dict key.
+A composition travels as `{symbol: count}` and is resolved against a registry the caller passes, so two chemistries can carry different atom tables. `ChemistryImpl.hydrate` passes its own; the only table in `src/` is `COMMON_ATOMS`. Atoms compare by symbol and weight, so a registry whose `"C"` has a different weight is a different atom from the common carbon: a molecule carrying both, or a chemistry whose atoms dict and molecules between them carry both, raises `ValueError` at construction rather than merging the two under one composition key.
 
 
 
@@ -114,3 +114,4 @@ A composition travels as `{symbol: count}` and is resolved against a registry th
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`). `atom.py` is folded in because it is one value class and a table; a page of its own would repeat the composition story. Checked locally against the export: `HCl` and `C0O2` as printed, atom equality across different weights. Readers of each field found by grep over `src/`. Not determined: whether `bdepth` has a planned reader. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `symbol` is Hill order (carbon-free formulas fully alphabetical: `HCl` → `ClH`); atoms are equal by symbol and weight; a molecule or chemistry carrying two different atoms under one symbol refuses.
+- 2026-10-28 — refreshed against 0eb23e5: `symbol` and *Formula order* give the Hill order; `AtomImpl.__eq__` is symbol and weight; the constructor and *Hydration and the atom registry* state the one-atom-per-symbol refusal (molecule and chemistry). Figure still true.

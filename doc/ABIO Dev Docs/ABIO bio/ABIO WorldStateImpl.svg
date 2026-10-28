@@ -70,9 +70,8 @@
     <text id="text-c1m2" x="705" y="305" font-size="16" text-anchor="middle" fill="#1e1e1e">c1·m2</text>
   </g>
   <text id="index-formula" x="760" y="297" font-size="14" fill="#1e1e1e">index = comp × num_molecules + mol</text>
-  <text id="index-negative" x="760" y="317" font-size="14" fill="#c92a2a">a negative id wraps from the end</text>
-  <path id="edge-overflow" d="M495,322 C505,352 555,352 565,324" fill="none" stroke="#c92a2a" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowhead-red)"/>
-  <text id="label-overflow" x="530" y="368" font-size="14" fill="#c92a2a" text-anchor="middle">get(0, 3) lands in c1·m0, unchecked</text>
+  <text id="index-negative" x="760" y="317" font-size="14" fill="#c92a2a">each axis range-checked first</text>
+  <text id="label-overflow" x="530" y="368" font-size="14" fill="#c92a2a" text-anchor="middle">get(0, 3), get(0, −1): IndexError</text>
 
   <text id="mult-label" x="320" y="406" font-size="14" fill="#1e1e1e">_multiplicities</text>
   <rect id="cell-mult0" x="320" y="414" width="70" height="40" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
@@ -153,7 +152,6 @@
     <text id="legend-solid-text" x="80" y="660" font-size="14" fill="#1e1e1e">builds / writes</text>
     <line id="legend-dotted" x1="200" y1="655" x2="250" y2="655" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
     <text id="legend-dotted-text" x="260" y="660" font-size="14" fill="#1e1e1e">reads / holds / copies</text>
-    <line id="legend-red" x1="440" y1="655" x2="490" y2="655" stroke="#c92a2a" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowhead-red)"/>
-    <text id="legend-red-text" x="500" y="660" font-size="14" fill="#c92a2a">unchecked index (Storage layout and indexing)</text>
+    <text id="legend-red-text" x="440" y="660" font-size="14" fill="#c92a2a">red: refused index (Storage layout and indexing)</text>
   </g>
 </svg>
