@@ -13,6 +13,8 @@ C. A trial that died mid-episode was never taint-audited: a secret the agent
 D. ``surface_brief`` left ``protocol`` (and the auditor / monitoring lines)
    structural though ``render_brief`` prints them: an id in a ``protocol`` dial
    reached the model unrenamed and the audit refused only after the spend.
+E. An id followed by ``.word`` (``root/x_in.rate``) was not a whole token, so
+   ``surface_text`` left it structural AND the taint audit missed it.
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ from alienbio.suite.llm_agent import (
     is_compact_context,
     pop_output_budget,
 )
-from alienbio.suite.naming import NameMap, surface_brief
+from alienbio.suite.naming import NameMap, surface_brief, token_pattern
 from alienbio.suite.pipeline import build_suite
 from alienbio.suite import runner as runner_mod
 from alienbio.suite.runner import TaintError, TrialError, run
@@ -200,3 +202,33 @@ def test_surface_brief_covers_every_printed_text_field():
     rendered = render_brief(surface_brief(brief, nm))
     assert "root/secret_pool" not in rendered
     assert rendered.count("m99") == 5
+
+
+# E ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text, surfaced",
+    [
+        ("raise root/x_in.rate now", "raise m01.rate now"),
+        ("see rate.root/x_in", "see rate.m01"),
+        ("root/x_in.", "m01."),
+    ],
+)
+def test_an_id_beside_a_dotted_word_is_surfaced(text, surfaced):
+    assert NameMap.of({"root/x_in": "m01"}).surface_text(text) == surfaced
+
+
+def test_an_id_beside_a_dotted_word_is_audited():
+    assert token_pattern("root/x_in").search("raise root/x_in.rate now")
+    assert token_pattern("root/x_in").search("see rate.root/x_in")
+    assert not token_pattern("root/x_in").search("root/x_in_b")
+    assert not token_pattern("m01").search("xm01")
+
+
+def test_a_dotted_leak_in_a_prompt_is_a_taint_hit():
+    world, task, dials = _p1_world()
+    leak = next(r for r in world.chemistry.reactions if r not in P1_LEVERS)
+    with pytest.raises(TaintError) as info:
+        run(world, task, _LeakThenCrash(f"{leak}.rate"), dials, Seed(5), max_turns=5)
+    assert leak in info.value.record.taint_hits

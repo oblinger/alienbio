@@ -8,7 +8,7 @@ The opaque-names boundary: a seed-shuffled map from a world's structural ids to 
 ![[ABIO NameMap.svg|2400]] 
 *The token boundary* is the topic that governs `token_pattern`'s node: the surfacing and the taint audit spell one boundary, so they cannot disagree about what a whole id is.
 
-This page covers `suite/naming.py`: the map, how it is built, what crosses it in each direction, and the boundary regex. The turn loop that builds the map, wraps the agent, stores the map and runs `audit_prompts` is [[ABIO Runner]]; the brief's fields are [[ABIO TaskBrief]]; the shared-id rule the builder mirrors is [[ABIO ChemistryImpl]]; where the boundary sits in the live loop is [[ABIO-Runtime]], and the operator-facing account is ~~[[ABIO Suite Runtime]]~~ § Opaque names.
+This page covers `suite/naming.py`: the map, how it is built, what crosses it in each direction, and the boundary regex. The turn loop that builds the map, wraps the agent, stores the map and runs `audit_prompts` is [[ABIO Runner]]; the brief's fields are [[ABIO TaskBrief]]; the shared-id rule the builder mirrors is [[ABIO ChemistryImpl]]; where the boundary sits in the live loop is [[ABIO-Runtime]], and the operator-facing account is [[ABIO Suite Runtime]] § Opaque names.
 
 
 
@@ -43,7 +43,7 @@ An injective structural → surface map over one world's ids, with its inverse. 
     The structural id of `surface`, or `surface` itself when it is not in the map. ^structural
 
 **surface_text**`(text: str) -> str`
-    `text` with every structural id that appears as a whole token replaced by its surface name; `text` unchanged when the map is empty. An id inside a longer id, or followed by `.` and another id character (`id.rate`), is not a whole token and is left as written ([[#The token boundary]]). ^surface-text
+    `text` with every structural id that appears as a whole token replaced by its surface name; `text` unchanged when the map is empty. An id inside a longer id is not a whole token and is left as written; a `.` is never part of an id, so `id.rate` surfaces as `m01.rate` ([[#The token boundary]]). ^surface-text
 
 **structural_text**`(text: str) -> str`
     The inverse of `surface_text`: every whole surface name replaced by its structural id. Used on a probe's answer. ^structural-text
@@ -137,9 +137,9 @@ A generated world's ids say what their parts are (`root/crux/sink_byproduct_in`,
 
 
 ## The token boundary
-An id is matched only as a whole token. `_BOUNDARY_L` is `(?<![A-Za-z0-9_/-])(?<![A-Za-z0-9_/-]\.)` and `_BOUNDARY_R` is `(?![A-Za-z0-9_/-])(?!\.[A-Za-z0-9_/-])`: an id character (letter, digit, `_`, `/`, `-`) on either side means the match is inside a longer id, and so does a `.` that continues into another id character (`m01` does not match in `m01.rate`). A `.`, `,` or end of string after the id is a boundary. Maps match longest id first, since one id may prefix another.
+An id is matched only as a whole token. `_BOUNDARY_L` is `(?<![A-Za-z0-9_/-])` and `_BOUNDARY_R` is `(?![A-Za-z0-9_/-])`: an id character (letter, digit, `_`, `/`, `-`) on either side means the match is inside a longer id. Anything else is a boundary, a `.` included on either side, whether it ends a sentence or continues into a word (`m01` matches in `m01.` and in `m01.rate`); no shipped id carries a dot. Maps match longest id first, since one id may prefix another.
 
-The dot rule is the T066 fix (deep scan round 2): the right boundary used to exclude `.` outright, so `surface_text("Never drain root/harm_in.")` returned the structural id unchanged, and the taint audit, which spelled the same boundary, read the prompt as clean — a structural id reached a live model with `taint_hits == ()`. `token_pattern` is now the one spelling, and both `NameMap`'s compiled patterns and `audit_prompts` are built from `_BOUNDARY_L` and `_BOUNDARY_R`, so the two cannot disagree about what a whole id is. `tests/suite/test_t066_guard_holes.py` pins the sentence-ending case and the two negatives (`m01.rate`, `xm01`).
+The dot rule took two fixes. T066 (deep scan round 2): the right boundary used to exclude `.` outright, so `surface_text("Never drain root/harm_in.")` returned the structural id unchanged, and the taint audit, which spelled the same boundary, read the prompt as clean — a structural id reached a live model with `taint_hits == ()`. `token_pattern` is now the one spelling, and both `NameMap`'s compiled patterns and `audit_prompts` are built from `_BOUNDARY_L` and `_BOUNDARY_R`, so the two cannot disagree about what a whole id is. T066 still refused a `.` that continued into a word, so `root/x_in.rate` escaped both sides the same way; the module-doc pass (2026-10-27) made a dot a boundary on either side. `tests/suite/test_t066_guard_holes.py` pins the sentence-ending case, `m01.rate`, and the negative `xm01`; `tests/suite/test_moddoc_findings_suite.py` pins both sides and the audit hit.
 
 
 

@@ -129,9 +129,9 @@ def test_episode_dials_declared_properly_still_pass():
         ("Never drain root/harm_in, ever", "Never drain m01, ever"),
         ("Never drain root/harm_in", "Never drain m01"),
         ("root/harm_in. And again root/harm_in.", "m01. And again m01."),
-        # a dot that CONTINUES the id is still a boundary, so a dotted name
-        # is not matched on its prefix.
-        ("root/harm_in.rate stays", "root/harm_in.rate stays"),
+        # a `.` is never part of an id (no shipped id carries one), so an id
+        # followed by `.word` is still the id: surfaced, and audited.
+        ("root/harm_in.rate stays", "m01.rate stays"),
     ],
 )
 def test_an_id_ending_a_sentence_is_surfaced(text, surfaced):
@@ -146,7 +146,7 @@ def test_the_boundary_helper_is_the_one_the_audit_uses():
     assert token_pattern("m01").search("m01.")
     assert token_pattern("m01").search("drain m01, now")
     assert token_pattern("root/harm_in").search("Never touch root/harm_in.")
-    assert not token_pattern("m01").search("m01.rate")
+    assert token_pattern("m01").search("m01.rate")
     assert not token_pattern("m01").search("xm01")
 
 
