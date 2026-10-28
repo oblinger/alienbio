@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-rec">
+    <rect id="n-rec-box" x="20" y="250" width="240" height="104" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="140" y="276" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-rec-kind" x="140" y="298" font-size="14" text-anchor="middle">(trial) action_log, turns,</text>
+    <text id="n-rec-kind2" x="140" y="318" font-size="14" text-anchor="middle">trace, illegal_actions,</text>
+    <text id="n-rec-kind3" x="140" y="338" font-size="14" text-anchor="middle">oracle, final_state</text>
+  </g>
+
+  <g id="n-cs">
+    <rect id="n-cs-box" x="340" y="100" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cs-name" x="460" y="126" font-size="18" font-weight="600" text-anchor="middle">census_summary</text>
+    <text id="n-cs-kind" x="460" y="148" font-size="14" text-anchor="middle">(fn) per condition</text>
+  </g>
+  <line id="e-rec-cs" x1="260" y1="270" x2="380" y2="164" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-cc">
+    <rect id="n-cc-box" x="660" y="80" width="260" height="104" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cc-name" x="790" y="106" font-size="18" font-weight="600" text-anchor="middle">CensusCell</text>
+    <text id="n-cc-kind" x="790" y="128" font-size="14" text-anchor="middle">intervenes, disengaged ‡,</text>
+    <text id="n-cc-kind2" x="790" y="148" font-size="14" text-anchor="middle">turns, trace steps,</text>
+    <text id="n-cc-kind3" x="790" y="168" font-size="14" text-anchor="middle">illegal actions</text>
+  </g>
+  <line id="e-cs-cc" x1="580" y1="132" x2="660" y2="132" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-pb">
+    <rect id="n-pb-box" x="340" y="420" width="240" height="84" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pb-name" x="460" y="446" font-size="18" font-weight="600" text-anchor="middle">pressure_byproduct</text>
+    <text id="n-pb-kind" x="460" y="468" font-size="14" text-anchor="middle">(fn) default read: first</text>
+    <text id="n-pb-kind2" x="460" y="488" font-size="14" text-anchor="middle">compartment carrying it</text>
+  </g>
+  <g id="n-od">
+    <rect id="n-od-box" x="340" y="290" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-od-name" x="460" y="316" font-size="18" font-weight="600" text-anchor="middle">outcome_distribution</text>
+    <text id="n-od-kind" x="460" y="338" font-size="14" text-anchor="middle">(fn) read(record) per cond.</text>
+  </g>
+  <line id="e-rec-od" x1="260" y1="322" x2="340" y2="322" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-od-pb" x1="460" y1="354" x2="460" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-od-pb" x="470" y="392" font-size="14" fill="#1971c2" font-style="italic">read</text>
+
+  <g id="n-dist">
+    <rect id="n-dist-box" x="660" y="270" width="260" height="104" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dist-name" x="790" y="296" font-size="18" font-weight="600" text-anchor="middle">OutcomeDistribution</text>
+    <text id="n-dist-kind" x="790" y="318" font-size="14" text-anchor="middle">mean, std, quantiles,</text>
+    <text id="n-dist-kind2" x="790" y="338" font-size="14" text-anchor="middle">CI, idle_delta</text>
+  </g>
+  <line id="e-od-dist" x1="580" y1="322" x2="660" y2="322" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-twin">
+    <rect id="n-twin-box" x="660" y="430" width="260" height="84" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-twin-name" x="790" y="456" font-size="18" font-weight="600" text-anchor="middle">idle twin</text>
+    <text id="n-twin-kind" x="790" y="478" font-size="14" text-anchor="middle">same dials, agent = idle</text>
+    <text id="n-twin-kind2" x="790" y="498" font-size="14" text-anchor="middle">(idle_baseline arm)</text>
+  </g>
+  <line id="e-twin-dist" x1="790" y1="430" x2="790" y2="374" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-twin-dist" x="800" y="408" font-size="14" fill="#1971c2" font-style="italic">mean subtracted</text>
+  <g id="n-ci">
+    <rect id="n-ci-box" x="980" y="270" width="200" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ci-name" x="1080" y="296" font-size="16" font-weight="600" text-anchor="middle">mean_confidence_</text>
+    <text id="n-ci-name2" x="1080" y="316" font-size="16" font-weight="600" text-anchor="middle">interval</text>
+  </g>
+  <line id="e-dist-ci" x1="920" y1="302" x2="980" y2="302" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-rep">
+    <rect id="n-rep-box" x="980" y="100" width="200" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rep-name" x="1080" y="126" font-size="18" font-weight="600" text-anchor="middle">report_text</text>
+    <text id="n-rep-kind" x="1080" y="148" font-size="14" text-anchor="middle">(report) every run</text>
+  </g>
+  <line id="e-cc-rep" x1="920" y1="132" x2="980" y2="132" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-dist-rep" x1="920" y1="285" x2="1010" y2="164" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">reads, calls</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ on an answer task with no levers every trial is disengaged by construction</text>
+  </g>
+</svg>
