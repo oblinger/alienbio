@@ -383,6 +383,17 @@ def run_experiment(
 
     trials_planned = _trials_planned(spec)
     manifest = _build_manifest(spec, trials_planned, started_at)
+    # T084 (ABIO Store) — every landed line, keyed (label, index) -> is_error,
+    # so the manifest's counts describe the store on disk at every write: a
+    # resume starts from the lines it kept, not from 0, and a run that dies
+    # mid-grid still says how many trials landed.
+    landed: dict[tuple[str, int], bool] = {key: bool(r.error) for key, r in existing_by_key.items()}
+
+    def _count_landed() -> None:
+        manifest["trials_completed"] = len(landed)
+        manifest["failed_trials"] = sum(landed.values())
+
+    _count_landed()
     _write_manifest(manifest_path, manifest)
 
     def drafter(seed: Seed, dials: Mapping[str, Any]) -> tuple[WorldImpl, TaskInstance]:
@@ -439,26 +450,37 @@ def run_experiment(
                 cache_read_tokens=record.usage.get("cache_read_tokens", 0),
                 cache_write_tokens=record.usage.get("cache_write_tokens", 0),
             )
+        landed[(label, i)] = bool(record.error)
         if progress is not None:
             progress(f"{label}#{i} {record.terminal_reason} score={record.objective_score}")
 
     def stop() -> bool:
         return spec.cost_ceiling_usd is not None and spent_state["usd"] >= spec.cost_ceiling_usd
 
-    rmap = MassTrialRunner().run(
-        list(spec.axes),
-        drafter,
-        agent_factory,
-        spec.trials_per_condition,
-        Seed(spec.base_seed),
-        on_error=on_error,
-        extra_dials=spec.fixed_dials,
-        on_trial=on_trial,
-        skip=skip,
-        matched_dials=tuple(WORLD_INVARIANT_DIALS) + tuple(spec.matched_dials),
-        concurrency=spec.concurrency,
-        stop=stop,
-    )
+    try:
+        rmap = MassTrialRunner().run(
+            list(spec.axes),
+            drafter,
+            agent_factory,
+            spec.trials_per_condition,
+            Seed(spec.base_seed),
+            on_error=on_error,
+            extra_dials=spec.fixed_dials,
+            on_trial=on_trial,
+            skip=skip,
+            matched_dials=tuple(WORLD_INVARIANT_DIALS) + tuple(spec.matched_dials),
+            concurrency=spec.concurrency,
+            stop=stop,
+        )
+    except BaseException:
+        # The grid died (a raised trial, a kill, Ctrl-C): record what landed
+        # and the spend so far; ``finished_at`` stays null — the run did not
+        # finish, and ``bio suite resume`` continues it.
+        _count_landed()
+        manifest["cost_usd_spent"] = spent_state["usd"]
+        manifest["cost_usd_retried"] = retried_usd
+        _write_manifest(manifest_path, manifest)
+        raise
 
     (resolved_out / "map.json").write_text(rmap.to_json())
     (resolved_out / "map.csv").write_text(rmap.to_csv())

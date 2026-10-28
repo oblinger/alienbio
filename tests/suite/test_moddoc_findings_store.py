@@ -6,6 +6,8 @@ A — a non-finite float anywhere on a record line wrote a bare ``NaN`` /
 B — ``manifest.json`` was written in place, so a crash mid-dump tore it; a
 resume appended retried lines before replacing ``records.jsonl``, so a crash
 between the two duplicated them on the next resume.
+C — a resumed run that crashed left ``trials_completed: 0`` beside a store
+full of landed lines.
 """
 
 from __future__ import annotations
@@ -156,3 +158,48 @@ def test_a_torn_manifest_dump_leaves_the_old_manifest_intact(tmp_path, monkeypat
     assert manifest_path.read_text() == before
     json.loads(manifest_path.read_text())
     assert not (out / "manifest.json.tmp").exists()
+
+
+# ── C. a resumed run that crashes ───────────────────────────────────────────
+
+
+def test_a_resume_that_crashes_counts_what_landed(tmp_path, monkeypatch):
+    import alienbio.suite.mass_trial as mass_trial_mod
+
+    out = tmp_path / "run"
+    run_experiment(_spec("crashcount", trials_per_condition=1), out_dir=str(out))  # 2 kept
+
+    original = mass_trial_mod.run_trial
+    fresh = {"n": 0}
+
+    def dies_on_the_second(world, task, agent, dials, seed, **kwargs):
+        fresh["n"] += 1
+        if fresh["n"] == 2:
+            raise KeyboardInterrupt("killed mid-grid")
+        return original(world, task, agent, dials, seed, **kwargs)
+
+    monkeypatch.setattr(mass_trial_mod, "run_trial", dies_on_the_second)
+    with pytest.raises(KeyboardInterrupt):
+        run_experiment(_spec("crashcount", trials_per_condition=2), out_dir=str(out), resume=True)
+
+    manifest = json.loads((out / "manifest.json").read_text())
+    lines = (out / "records.jsonl").read_text().strip().splitlines()
+    assert len(lines) == 3
+    assert manifest["trials_completed"] == 3  # kept 2 + the one that landed
+    assert manifest["failed_trials"] == 0
+    assert manifest["finished_at"] is None
+
+
+def test_a_resume_starts_its_manifest_from_the_kept_lines(tmp_path, monkeypatch):
+    import alienbio.suite.experiment as experiment_mod
+
+    out = tmp_path / "run"
+    run_experiment(_spec("startcount", trials_per_condition=1), out_dir=str(out))
+    written: list[dict] = []
+    real = experiment_mod._write_manifest
+    monkeypatch.setattr(
+        experiment_mod, "_write_manifest", lambda path, m: (written.append(dict(m)), real(path, m))
+    )
+    run_experiment(_spec("startcount", trials_per_condition=2), out_dir=str(out), resume=True)
+    assert written[0]["trials_completed"] == 2 and written[0]["finished_at"] is None
+    assert written[-1]["trials_completed"] == 4
