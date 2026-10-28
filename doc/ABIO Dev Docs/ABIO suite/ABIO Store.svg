@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- The run directory: one node per file -->
+  <g id="n-dir">
+    <rect id="n-dir-box" x="298" y="12" width="462" height="516" rx="12" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-dir-name" x="318" y="38" font-size="16" font-weight="600" fill="#343a40">out_dir — the run directory</text>
+  </g>
+  <g id="n-manifest">
+    <rect id="n-manifest-box" x="318" y="56" width="422" height="62" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-manifest-name" x="529" y="83" font-size="20" font-weight="600" text-anchor="middle">manifest.json</text>
+    <text id="n-manifest-kind" x="529" y="106" font-size="14" text-anchor="middle">(file) spec + hash, model, licence, spend</text>
+  </g>
+  <g id="n-records">
+    <rect id="n-records-box" x="318" y="134" width="422" height="62" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-records-name" x="529" y="161" font-size="20" font-weight="600" text-anchor="middle">records.jsonl †</text>
+    <text id="n-records-kind" x="529" y="184" font-size="14" text-anchor="middle">(file) one record per line, as each lands</text>
+  </g>
+  <g id="n-retried">
+    <rect id="n-retried-box" x="318" y="212" width="422" height="62" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-retried-name" x="529" y="239" font-size="20" font-weight="600" text-anchor="middle">records.retried.jsonl</text>
+    <text id="n-retried-kind" x="529" y="262" font-size="14" text-anchor="middle">(file) error lines a resume moved out</text>
+  </g>
+  <g id="n-map">
+    <rect id="n-map-box" x="318" y="290" width="422" height="62" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-map-name" x="529" y="317" font-size="20" font-weight="600" text-anchor="middle">map.json · map.csv</text>
+    <text id="n-map-kind" x="529" y="340" font-size="14" text-anchor="middle">(file) cells, CIs, contrasts, provenance</text>
+  </g>
+  <g id="n-report">
+    <rect id="n-report-box" x="318" y="368" width="422" height="62" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-report-name" x="529" y="395" font-size="20" font-weight="600" text-anchor="middle">report.txt</text>
+    <text id="n-report-kind" x="529" y="418" font-size="14" text-anchor="middle">(file) the text report, sections in fixed order</text>
+  </g>
+  <g id="n-key">
+    <rect id="n-key-box" x="318" y="446" width="422" height="62" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-key-name" x="529" y="473" font-size="20" font-weight="600" text-anchor="middle">key.png · key.json</text>
+    <text id="n-key-kind" x="529" y="496" font-size="14" text-anchor="middle">(file) the one key figure + its caption</text>
+  </g>
+
+  <!-- Writers, left -->
+  <g id="n-run">
+    <rect id="n-run-box" x="20" y="56" width="200" height="140" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-run-name" x="120" y="114" font-size="20" font-weight="600" text-anchor="middle">run_experiment</text>
+    <text id="n-run-kind" x="120" y="138" font-size="14" text-anchor="middle">(fn) suite.experiment</text>
+  </g>
+  <g id="n-golden">
+    <rect id="n-golden-box" x="20" y="212" width="200" height="62" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-golden-name" x="120" y="239" font-size="20" font-weight="600" text-anchor="middle">golden hash</text>
+    <text id="n-golden-kind" x="120" y="262" font-size="14" text-anchor="middle">(test) 15 catalog zeros</text>
+  </g>
+  <g id="n-rmap">
+    <rect id="n-rmap-box" x="20" y="290" width="200" height="62" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rmap-name" x="120" y="317" font-size="20" font-weight="600" text-anchor="middle">ReliabilityMap</text>
+    <text id="n-rmap-kind" x="120" y="340" font-size="14" text-anchor="middle">(class) suite.mass_trial</text>
+  </g>
+  <g id="n-render">
+    <rect id="n-render-box" x="20" y="368" width="200" height="62" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-render-name" x="120" y="395" font-size="20" font-weight="600" text-anchor="middle">render_report</text>
+    <text id="n-render-kind" x="120" y="418" font-size="14" text-anchor="middle">(fn) suite.report_text</text>
+  </g>
+  <g id="n-plots">
+    <rect id="n-plots-box" x="20" y="446" width="200" height="62" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-plots-name" x="120" y="473" font-size="20" font-weight="600" text-anchor="middle">write_key_figure</text>
+    <text id="n-plots-kind" x="120" y="496" font-size="14" text-anchor="middle">(fn) suite.plots</text>
+  </g>
+
+  <!-- Readers, right -->
+  <g id="n-preflight">
+    <rect id="n-preflight-box" x="900" y="56" width="280" height="62" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-preflight-name" x="1040" y="83" font-size="20" font-weight="600" text-anchor="middle">preflight · resume</text>
+    <text id="n-preflight-kind" x="1040" y="106" font-size="14" text-anchor="middle">(check) suite.guards</text>
+  </g>
+  <g id="n-aggregate">
+    <rect id="n-aggregate-box" x="900" y="134" width="280" height="62" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-aggregate-name" x="1040" y="161" font-size="20" font-weight="600" text-anchor="middle">aggregate</text>
+    <text id="n-aggregate-kind" x="1040" y="184" font-size="14" text-anchor="middle">(fn) store alone → ReliabilityMap</text>
+  </g>
+  <g id="n-resume">
+    <rect id="n-resume-box" x="900" y="212" width="280" height="62" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-resume-name" x="1040" y="239" font-size="20" font-weight="600" text-anchor="middle">resume</text>
+    <text id="n-resume-kind" x="1040" y="262" font-size="14" text-anchor="middle">(run_experiment, resume=True)</text>
+  </g>
+  <g id="n-verbs-note">
+    <text id="note-1" x="900" y="318" font-size="14" fill="#343a40">bio suite aggregate rewrites map.json</text>
+    <text id="note-2" x="900" y="338" font-size="14" fill="#343a40">and map.csv; bio suite report rewrites</text>
+    <text id="note-3" x="900" y="358" font-size="14" fill="#343a40">report.txt and key.png · key.json —</text>
+    <text id="note-4" x="900" y="378" font-size="14" fill="#343a40">both through aggregate, no re-run</text>
+  </g>
+
+  <!-- Writes (solid) -->
+  <line id="e-run-manifest" x1="220" y1="87" x2="318" y2="87" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-run-manifest-label" x="259" y="78" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">start/end</text>
+  <line id="e-run-records" x1="220" y1="165" x2="318" y2="165" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-run-records-label" x="258" y="156" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">append</text>
+  <line id="e-rmap-map" x1="220" y1="321" x2="318" y2="321" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-rmap-map-label" x="258" y="312" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">to_json</text>
+  <line id="e-render-report" x1="220" y1="399" x2="318" y2="399" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-render-report-label" x="258" y="390" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">text</text>
+  <line id="e-plots-key" x1="220" y1="477" x2="318" y2="477" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-plots-key-label" x="258" y="468" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">savefig</text>
+  <line id="e-resume-retried" x1="900" y1="243" x2="740" y2="243" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-resume-retried-label" x="820" y="262" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">originals</text>
+
+  <!-- Reads (dotted) -->
+  <line id="e-manifest-preflight" x1="740" y1="87" x2="900" y2="87" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+  <text id="e-manifest-preflight-label" x="820" y="78" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">spec drift</text>
+  <line id="e-manifest-aggregate" x1="740" y1="108" x2="900" y2="146" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+  <text id="e-manifest-aggregate-label" x="846" y="118" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">spec</text>
+  <line id="e-records-aggregate" x1="740" y1="172" x2="900" y2="172" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+  <text id="e-records-aggregate-label" x="820" y="164" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">lines</text>
+  <line id="e-records-resume" x1="740" y1="188" x2="900" y2="224" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+  <text id="e-records-resume-label" x="796" y="222" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">errors</text>
+  <line id="e-records-golden" x1="318" y1="188" x2="220" y2="230" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+  <text id="e-records-golden-label" x="250" y="232" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle" transform="rotate(-25 250 232)">sha256</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <rect id="legend-box" x="20" y="560" width="1160" height="104" rx="8" fill="#ffffff" stroke="#adb5bd" stroke-width="1"/>
+    <line id="legend-write" x1="44" y1="592" x2="104" y2="592" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+    <text id="legend-write-label" x="116" y="597" font-size="14">writes</text>
+    <line id="legend-read" x1="44" y1="630" x2="104" y2="630" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowhead)"/>
+    <text id="legend-read-label" x="116" y="635" font-size="14">reads</text>
+    <rect id="legend-writer" x="220" y="580" width="26" height="22" rx="4" fill="#fff3f3" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="legend-writer-label" x="256" y="597" font-size="14">writer (code)</text>
+    <rect id="legend-file" x="220" y="618" width="26" height="22" rx="4" fill="#fff9db" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="legend-file-label" x="256" y="635" font-size="14">file in out_dir</text>
+    <rect id="legend-reader" x="400" y="580" width="26" height="22" rx="4" fill="#ebfbee" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="legend-reader-label" x="436" y="597" font-size="14">reader (code or test)</text>
+    <text id="legend-dagger" x="400" y="635" font-size="14">† only-when-set keys: an undeclared field leaves no key, so goldens stay byte-identical</text>
+  </g>
+</svg>
