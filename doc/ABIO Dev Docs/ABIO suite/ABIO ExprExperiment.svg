@@ -87,12 +87,12 @@
     <text id="n-task-kind2" x="185" y="448" font-size="14" text-anchor="middle">from an objective pair</text>
   </g>
   <line id="e-obj-task" x1="185" y1="300" x2="185" y2="380" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
-  <text id="l-obj-task" x="195" y="345" font-size="14" fill="#1971c2" font-style="italic">question, objective</text>
+  <text id="l-obj-task" x="195" y="350" font-size="14" fill="#1971c2" font-style="italic">question, objective</text>
   <g id="n-suite">
-    <rect id="n-suite-box" x="345" y="300" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-suite-name" x="465" y="326" font-size="18" font-weight="600" text-anchor="middle">suite heads</text>
-    <text id="n-suite-kind" x="465" y="348" font-size="14" text-anchor="middle">(fn) suite · cover</text>
-    <text id="n-suite-kind2" x="465" y="368" font-size="14" text-anchor="middle">vocabulary (layer 5, standalone)</text>
+    <rect id="n-suite-box" x="370" y="300" width="230" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-suite-name" x="485" y="326" font-size="18" font-weight="600" text-anchor="middle">suite heads</text>
+    <text id="n-suite-kind" x="485" y="348" font-size="14" text-anchor="middle">(fn) suite · cover</text>
+    <text id="n-suite-kind2" x="485" y="368" font-size="14" text-anchor="middle">vocabulary (standalone)</text>
   </g>
 
   <g id="legend">
