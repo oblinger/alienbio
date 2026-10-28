@@ -203,8 +203,10 @@ class Fragment:
         collision-free by construction). A compartment id present in both
         sides is fine **iff** the two ``Compartment`` records are equal (two
         blocks independently declaring the SAME shared container, e.g.
-        neighboring ``TransportBlock``s in a lattice chain) — a differing
-        record for the same id is a real collision.
+        neighboring ``TransportBlock``s in a lattice chain), or differ only
+        in that one leaves ``parent`` unset (a root declaration places
+        nothing; the placed one wins) — any other difference for the same id
+        is a real collision.
         """
         for name in set(self.molecules) & set(other.molecules):
             if self.molecules[name] is not other.molecules[name]:
@@ -223,12 +225,23 @@ class Fragment:
             if existing is None:
                 by_id[comp.id] = comp
                 merged_compartments.append(comp)
-            elif existing != comp:
+            elif existing == comp:
+                continue  # identical declaration of a shared container — keep one copy
+            elif existing.parent is None and replace(existing, parent=comp.parent) == comp:
+                # A parentless declaration makes no claim about placement: a
+                # TransportBlock declares its origin as a root because it
+                # cannot know the origin's parent, so in a chain A -> B,
+                # B -> C the second block's root B is the first's child B
+                # (T088 blocks 1). The placed declaration wins.
+                by_id[comp.id] = comp
+                merged_compartments[merged_compartments.index(existing)] = comp
+            elif comp.parent is None and replace(comp, parent=existing.parent) == existing:
+                continue  # same, the placed declaration came first
+            else:
                 raise SkeletonError(
                     f"compartment id {comp.id!r} collides across blocks with two "
                     f"different specs"
                 )
-            # else: identical declaration of a shared container — keep one copy
 
         return Fragment(
             molecules={**self.molecules, **other.molecules},

@@ -57,6 +57,7 @@ realize body:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Optional, Sequence, cast
 
@@ -92,6 +93,27 @@ def _container_of(ports: tuple[Port, ...]) -> NodeId:
     return _DEFAULT_CONTAINER
 
 
+def _sides(
+    ports: tuple[Port, ...], bound: Mapping[str, MoleculeImpl], stoich: Mapping[str, float], ns: str
+) -> tuple[dict[MoleculeImpl, float], dict[MoleculeImpl, float]]:
+    """``(reactants, products)`` for one reaction's ports: each ``IN`` port a
+    reactant, each ``OUT`` port a product, at ``stoich[port]`` (default 1).
+    Two ports bound to one pool SUM their coefficients (``A + A -> B`` is
+    ``2 A``; assigning kept only the last port's, T088 blocks 2), and a
+    ``stoich`` key naming no port is refused rather than ignored."""
+    names = {p.name for p in ports}
+    stray = sorted(set(stoich) - names)
+    if stray:
+        raise SkeletonError(f"{ns}: stoich names no port of this block: {stray} (ports: {sorted(names)})")
+    reactants: dict[MoleculeImpl, float] = {}
+    products: dict[MoleculeImpl, float] = {}
+    for port in ports:
+        molecule = bound[port.name]
+        side = reactants if port.direction is PortDir.IN else products
+        side[molecule] = side.get(molecule, 0.0) + stoich.get(port.name, 1.0)
+    return reactants, products
+
+
 @dataclass(frozen=True)
 class ReactionBlock(SkeletonBlock):
     """The reaction primitive (Q4=A): every ``IN`` port -> reactant, every
@@ -112,15 +134,7 @@ class ReactionBlock(SkeletonBlock):
     stoich: Mapping[str, float] = field(default_factory=dict)
 
     def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
-        reactants: dict[MoleculeImpl, float] = {}
-        products: dict[MoleculeImpl, float] = {}
-        for port in self.ports:
-            molecule = bound[port.name]
-            coef = self.stoich.get(port.name, 1.0)
-            if port.direction is PortDir.IN:
-                reactants[molecule] = coef
-            else:
-                products[molecule] = coef
+        reactants, products = _sides(self.ports, bound, self.stoich, ns)
 
         rate = self.rate.sample(seed.child("rate"))
         rxn_id = f"{ns}/rxn"
@@ -299,6 +313,13 @@ class PoissonSchedule:
     lam: float
     horizon: float
 
+    def __post_init__(self) -> None:
+        # lam = 0 divided by zero at realize (T088 blocks 4).
+        if not (isinstance(self.lam, (int, float)) and math.isfinite(self.lam) and self.lam > 0):
+            raise SkeletonError(f"PoissonSchedule lam must be a positive finite rate, got {self.lam!r}")
+        if not (isinstance(self.horizon, (int, float)) and math.isfinite(self.horizon) and self.horizon >= 0):
+            raise SkeletonError(f"PoissonSchedule horizon must be a finite number >= 0, got {self.horizon!r}")
+
 
 def _draw_poisson_times(seed: Seed, schedule: PoissonSchedule) -> tuple[float, ...]:
     """Reproducible discrete insult times: exponential inter-arrivals summed to
@@ -385,17 +406,7 @@ def _modulator_fragment(
     added to ``reactants``/``products`` (so it never enters the F012 balance
     gate, per ``bio.conservation``).
     """
-    reactants: dict[MoleculeImpl, float] = {}
-    products: dict[MoleculeImpl, float] = {}
-    for port in ports:
-        if port.name == modifier_port:
-            continue
-        molecule = bound[port.name]
-        coef = stoich.get(port.name, 1.0)
-        if port.direction is PortDir.IN:
-            reactants[molecule] = coef
-        else:
-            products[molecule] = coef
+    reactants, products = _sides(tuple(p for p in ports if p.name != modifier_port), bound, stoich, ns)
 
     modifier_mol = bound[modifier_port]
     rxn_id = f"{ns}/rxn"
@@ -464,8 +475,10 @@ class SignalingBlock(SkeletonBlock):
         rate = self.rate.sample(seed.child("rate"))
         if self.kind == "activator":
             modulation = Modulation(kind="activator", a=self.a.sample(seed.child("a")))
-        else:
+        elif self.kind == "inhibitor":
             modulation = Modulation(kind="inhibitor", Ki=self.Ki.sample(seed.child("Ki")))
+        else:  # a directly constructed block skips make's check (T088 blocks 5)
+            raise SkeletonError(f"SignalingBlock kind must be 'activator' or 'inhibitor', got {self.kind!r}")
         return _modulator_fragment(self.ports, self.modifier_port, bound, {}, rate, modulation, ns)
 
 
@@ -744,6 +757,18 @@ class SpatialLatticeBlock(SkeletonBlock):
     diffusion: Dist[float] = field(default_factory=lambda: Constant(1.0))
     volume: float = 1.0
     initial: Mapping[int, float] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Checked at construction, not only in make: a negative index used to
+        # wrap onto a cell from the end and one >= k raised a bare IndexError
+        # at realize (T088 blocks 3).
+        if not isinstance(self.k, int) or isinstance(self.k, bool) or self.k < 2:
+            raise SkeletonError(f"SpatialLatticeBlock requires k >= 2, got {self.k!r}")
+        bad = sorted(
+            (i for i in self.initial if not isinstance(i, int) or isinstance(i, bool) or not 0 <= i < self.k), key=repr
+        )
+        if bad:
+            raise SkeletonError(f"SpatialLatticeBlock initial indices must lie in 0..{self.k - 1}, got {bad}")
 
     @classmethod
     def make(
