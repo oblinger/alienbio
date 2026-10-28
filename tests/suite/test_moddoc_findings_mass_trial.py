@@ -12,6 +12,12 @@ B. ``experiment.aggregate`` rebuilt the map with ``stopped_early`` at its
    default, so ``bio suite aggregate`` rewrote a ceiling-stopped run's
    ``map.json`` with ``stopped_early: false``; it now reads the manifest's
    ``stopped_reason`` back into ``Provenance``.
+C. ``_condition_label`` renders levels through ``str``, so ``1`` and ``"1"``
+   on one axis shared a seed label and a resume key ``(label, i)`` — a
+   resume replayed one cell's records as the other's. Re-rendering would
+   move every stored seed, so a colliding grid is refused instead: by
+   ``MassTrialRunner.run`` before any trial, and by preflight's ``labels``
+   check before spend. Every existing label is unchanged.
 """
 
 from __future__ import annotations
@@ -118,3 +124,64 @@ def test_a_complete_run_reloads_not_stopped(tmp_path):
     out_dir = tmp_path / "run"
     run_experiment(spec, out_dir=str(out_dir))
     assert aggregate(out_dir).provenance.stopped_early is False
+
+
+# C ---------------------------------------------------------------------------
+
+
+def test_the_runner_refuses_levels_that_share_a_label():
+    from tests.suite.test_experiment import _tiny_agent_factory, _tiny_drafter
+
+    from alienbio.suite.mass_trial import MassTrialRunner, label_collision
+
+    drafted: list[int] = []
+
+    def drafter(seed, dials):
+        drafted.append(1)
+        return _tiny_drafter(seed, dials)
+
+    axes = [("rung", (1, "1"))]
+    assert "'rung' levels 1 and '1'" in (label_collision(axes) or "")
+    with pytest.raises(ValueError, match="same condition label 'rung=1'"):
+        MassTrialRunner().run(axes, drafter, _tiny_agent_factory, trials_per_condition=1, base_seed=Seed(1))
+    assert drafted == []
+
+
+def test_a_level_carrying_the_separator_collides_too():
+    from alienbio.suite.mass_trial import label_collision
+
+    assert label_collision([("a", ("x&b=y", "x")), ("b", ("z", "y&b=z"))]) is not None
+    assert label_collision([("a", (1, 2)), ("b", ("x", "y"))]) is None
+    assert label_collision([("levers", (["f"], ["f", "g"])), ("pi", (0.0, 1.0))]) is None
+
+
+def test_preflight_refuses_a_colliding_axis_before_spend(tmp_path):
+    from alienbio.suite.experiment import ExperimentSpec, preflight
+
+    spec = ExperimentSpec(
+        name="collide", axes=(("max_turns", (2, "2")),), drafter="conflict", agent="idle",
+        trials_per_condition=1, base_seed=1, fixed_dials={"levers": [], "rung": "single"},
+    )
+    flight = preflight(spec, out_dir=str(tmp_path / "o"))
+    why = dict(flight.checks)["labels"]
+    assert why is not None and "same condition label 'max_turns=2'" in why
+
+
+def test_every_catalog_spec_passes_the_label_check():
+    """The refusal route keeps every existing label: no shipped spec collides."""
+    from pathlib import Path
+
+    from alienbio.suite.experiment import load_spec
+    from alienbio.suite.guards import label_collision_violation
+
+    root = Path(__file__).resolve().parents[2] / "catalog"
+    paths = sorted(root.glob("experiments/*.yaml")) + sorted(root.glob("examples/*/*.yaml"))
+    checked = 0
+    for path in paths:
+        try:
+            spec = load_spec(path)
+        except Exception:  # noqa: BLE001 — include fragments are not specs
+            continue
+        assert label_collision_violation(spec) is None, path
+        checked += 1
+    assert checked >= 15

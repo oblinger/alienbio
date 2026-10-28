@@ -100,8 +100,34 @@ def condition_grid(axes: Sequence[Axis]) -> list[ConditionKey]:
 
 
 def _condition_label(key: ConditionKey) -> str:
-    """A deterministic, human-readable label for a condition key's seed derivation."""
+    """A deterministic, human-readable label for a condition key's seed derivation.
+
+    Levels render through ``str``, so two distinct levels can share a label
+    (``1`` and ``"1"``, or a level containing ``&b=``); :func:`label_collision`
+    refuses such a grid before any trial runs rather than changing this
+    rendering, which every stored seed and resume key is drawn from.
+    """
     return "&".join(f"{name}={value}" for name, value in key)
+
+
+def label_collision(axes: Sequence[Axis]) -> Optional[str]:
+    """The problem when two distinct cells of ``axes`` render the same
+    :func:`_condition_label`, else ``None`` (T084 C). Such cells would draw
+    one world seed and share one resume key ``(label, index)``, so a resume
+    would replay one cell's records as the other's. Exact duplicate levels
+    (equal ``repr``) are one cell and pass."""
+    seen: dict[str, ConditionKey] = {}
+    for key in condition_grid(axes):
+        label = _condition_label(key)
+        prior = seen.setdefault(label, key)
+        if prior is not key and repr(prior) != repr(key):
+            pairs = [(name, a, b) for (name, a), (_, b) in zip(prior, key) if repr(a) != repr(b)]
+            levels = "; ".join(f"axis {name!r} levels {a!r} and {b!r}" for name, a, b in pairs)
+            return (
+                f"{levels} render the same condition label {label!r} — the two cells would share "
+                "one world seed and one resume key; make the levels distinct as text"
+            )
+    return None
 
 
 @dataclass(frozen=True)
@@ -518,7 +544,9 @@ class MassTrialRunner:
         returns ``True`` once it reaches a cap.
 
         Raises:
-            ValueError: ``on_error`` is neither ``"record"`` nor ``"raise"``.
+            ValueError: ``on_error`` is neither ``"record"`` nor ``"raise"``;
+                ``concurrency`` is not an int >= 1; or two cells share a
+                condition label (:func:`label_collision`).
 
         Reproducible: identical ``(axes, drafter, agent_factory,
         trials_per_condition, base_seed)`` always yields byte-identical cell
@@ -531,6 +559,9 @@ class MassTrialRunner:
             raise ValueError(f"MassTrialRunner.run: unknown on_error {on_error!r}; expected 'record' or 'raise'")
 
         axes_tuple = tuple((name, tuple(levels)) for name, levels in axes)
+        collision = label_collision(axes_tuple)
+        if collision is not None:
+            raise ValueError(f"MassTrialRunner.run: {collision}")
         keys = sorted(condition_grid(axes_tuple), key=lambda k: str(k))
 
         records: list[TrialRecord] = []

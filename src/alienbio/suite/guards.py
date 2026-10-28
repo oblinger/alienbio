@@ -1,4 +1,4 @@
-"""Every refusal a run makes before spend — ``preflight`` and its sixteen ordered checks (:data:`PREFLIGHT_CHECKS`), one ``*_violation`` function per check (T058; split out of ``experiment.py``)."""
+"""Every refusal a run makes before spend — ``preflight`` and its seventeen ordered checks (:data:`PREFLIGHT_CHECKS`), one ``*_violation`` function per check (T058; split out of ``experiment.py``)."""
 
 from __future__ import annotations
 
@@ -727,8 +727,18 @@ class Preflight:
         return out
 
 
+def label_collision_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Two distinct cells of ``spec.axes`` that render one condition label
+    (``1`` and ``"1"`` on one axis): they would draw one world seed and share
+    one resume key. Refused rather than re-rendered, so every existing
+    label — and every stored seed and resume key — is unchanged (T084 C)."""
+    from .mass_trial import label_collision
+
+    return label_collision(tuple((name, tuple(levels)) for name, levels in spec.axes))
+
+
 PREFLIGHT_CHECKS: tuple[str, ...] = (
-    "registration", "no-peeking", "dials", "episode-dials", "surface", "sampling", "w2-lag",
+    "registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag",
     "brief-dials", "certainty-windows", "score-window", "inert-arm", "agent", "price", "draft",
     "resume", "out_dir",
 )
@@ -745,7 +755,8 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     Order (:data:`PREFLIGHT_CHECKS`): ``registration`` (the claim
     resolves), ``no-peeking`` (a live model on a guarded drafter, variant or
     dial, unlicensed), ``dials`` (a name nothing reads; a factory dial in
-    ``fixed_dials``), ``episode-dials`` (a clock dial in ``drafter_kwargs``),
+    ``fixed_dials``), ``labels`` (two axis levels that render one seed
+    label and resume key, T084 C), ``episode-dials`` (a clock dial in ``drafter_kwargs``),
     ``surface`` (a guarded drafter's ``levers`` undeclared or not a list),
     ``sampling`` (a live arm with no ``temperature``), ``w2-lag`` (the W2
     chain lag bound), ``brief-dials`` (the in-world monitor arm),
@@ -800,6 +811,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     check("no-peeking", lambda: _raise_if(no_peeking_violation(spec), "no-peeking"))
     check("dials", lambda: (_raise_if(unknown_dials_violation(spec), "dials"),
                             _raise_if(fixed_factory_dials_violation(spec), "dials")))
+    check("labels", lambda: _raise_if(label_collision_violation(spec), "labels"))
     check("episode-dials", lambda: _raise_if(misplaced_episode_dials_violation(spec), "episode-dials"))
     check("surface", lambda: _raise_if(declared_surface_violation(spec), "surface"))
     check("sampling", lambda: _raise_if(sampling_violation(spec), "sampling"))
