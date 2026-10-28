@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Entry point and its rung table -->
+  <g id="n-draft">
+    <rect id="n-draft-box" x="20" y="300" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-draft-name" x="130" y="326" font-size="17" font-weight="600" text-anchor="middle">draft_conflict_world</text>
+    <text id="n-draft-kind" x="130" y="348" font-size="14" text-anchor="middle">(fn) rung → supply S</text>
+  </g>
+  <g id="n-rungs">
+    <rect id="n-rungs-box" x="20" y="420" width="220" height="120" rx="8" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-rungs-name" x="32" y="442" font-size="14" font-weight="600" fill="#343a40">the ladder</text>
+    <text id="n-rungs-1" x="32" y="465" font-size="14">single      S = 1.2 · V1</text>
+    <text id="n-rungs-2" x="32" y="486" font-size="14">compatible  S = 4 · (V1+V2)</text>
+    <text id="n-rungs-3" x="32" y="507" font-size="14">latent      S = 1 · (V1+V2)</text>
+    <text id="n-rungs-4" x="32" y="528" font-size="14">forced      S = 0.4 · (V1+V2)</text>
+  </g>
+  <line id="e-draft-rungs" x1="130" y1="364" x2="130" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+
+  <!-- Forced gate loop -->
+  <g id="n-gate">
+    <rect id="n-gate-box" x="20" y="160" width="200" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gate-name" x="120" y="184" font-size="17" font-weight="600" text-anchor="middle">_assert_forced_gate</text>
+    <text id="n-gate-kind" x="120" y="205" font-size="14" text-anchor="middle">(fn) 5 allocations</text>
+  </g>
+  <line id="e-draft-gate" x1="110" y1="300" x2="110" y2="216" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-draft-gate" x="30" y="262" font-size="14" fill="#1971c2" font-style="italic">forced only</text>
+  <g id="n-sweep">
+    <rect id="n-sweep-box" x="300" y="160" width="230" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sweep-name" x="415" y="184" font-size="17" font-weight="600" text-anchor="middle">sweep_conflict_frontier</text>
+    <text id="n-sweep-kind" x="415" y="205" font-size="14" text-anchor="middle">(blocks) oracle per point</text>
+  </g>
+  <line id="e-gate-sweep" x1="220" y1="188" x2="300" y2="188" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <!-- Two-route builder -->
+  <g id="n-build">
+    <rect id="n-build-box" x="300" y="40" width="250" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-build-name" x="425" y="64" font-size="17" font-weight="600" text-anchor="middle">build_conflict_skeleton</text>
+    <text id="n-build-kind" x="425" y="85" font-size="14" text-anchor="middle">(fn) S, kA, kB</text>
+  </g>
+  <line id="e-sweep-build" x1="470" y1="160" x2="470" y2="96" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-sweep-build" x="460" y="134" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">per (kA, kB)</text>
+  <line id="e-draft-build" x1="200" y1="300" x2="300" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-draft-build" x="236" y="130" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">3 rungs</text>
+  <g id="n-pair">
+    <rect id="n-pair-box" x="640" y="40" width="300" height="56" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pair-name" x="790" y="64" font-size="17" font-weight="600" text-anchor="middle">SourceBlock → ConflictCruxBlock</text>
+    <text id="n-pair-kind" x="790" y="85" font-size="14" text-anchor="middle">(blocks) 2 routes, 2 unit sinks</text>
+  </g>
+  <line id="e-build-pair" x1="550" y1="68" x2="640" y2="68" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-build-pair" x="595" y="58" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">children</text>
+
+  <!-- Single-route builder -->
+  <g id="n-single">
+    <rect id="n-single-box" x="300" y="440" width="250" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-single-name" x="425" y="464" font-size="17" font-weight="600" text-anchor="middle">_build_single_skeleton</text>
+    <text id="n-single-kind" x="425" y="485" font-size="14" text-anchor="middle">(fn) S, kA</text>
+  </g>
+  <line id="e-draft-single" x1="200" y1="364" x2="300" y2="455" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-draft-single" x="262" y="395" font-size="14" fill="#1971c2" font-style="italic">single</text>
+  <g id="n-route">
+    <rect id="n-route-box" x="300" y="550" width="250" height="56" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-route-name" x="425" y="574" font-size="17" font-weight="600" text-anchor="middle">_SingleRouteCrux</text>
+    <text id="n-route-kind" x="425" y="595" font-size="14" text-anchor="middle">(class) one route, 1-tuple</text>
+  </g>
+  <line id="e-single-route" x1="425" y1="496" x2="425" y2="550" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-single-route" x="435" y="528" font-size="14" fill="#1971c2" font-style="italic">children</text>
+
+  <!-- Skeleton, world, objective -->
+  <g id="n-skel">
+    <rect id="n-skel-box" x="640" y="290" width="200" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-skel-name" x="740" y="316" font-size="18" font-weight="600" text-anchor="middle">Skeleton</text>
+    <text id="n-skel-kind" x="740" y="338" font-size="14" text-anchor="middle">(skeleton) materialized</text>
+  </g>
+  <line id="e-build-skel" x1="500" y1="96" x2="690" y2="290" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-build-skel" x="612" y="200" font-size="14" fill="#1971c2" font-style="italic">returns</text>
+  <line id="e-single-skel" x1="520" y1="440" x2="680" y2="354" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-world">
+    <rect id="n-world-box" x="930" y="200" width="250" height="56" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-world-name" x="1055" y="224" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
+    <text id="n-world-kind" x="1055" y="245" font-size="14" text-anchor="middle">(bio) the drafted world</text>
+  </g>
+  <line id="e-skel-world" x1="840" y1="305" x2="930" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-skel-world" x="868" y="302" font-size="14" fill="#1971c2" font-style="italic">materialize</text>
+  <g id="n-obj">
+    <rect id="n-obj-box" x="930" y="330" width="250" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-obj-name" x="1055" y="356" font-size="18" font-weight="600" text-anchor="middle">OutcomeObjective</text>
+    <text id="n-obj-kind" x="1055" y="378" font-size="14" text-anchor="middle">(types) min of components</text>
+  </g>
+  <line id="e-skel-obj" x1="840" y1="335" x2="930" y2="355" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-skel-obj" x="885" y="380" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">out ids</text>
+
+  <!-- Consumers -->
+  <g id="n-head">
+    <rect id="n-head-box" x="930" y="460" width="250" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="1055" y="484" font-size="18" font-weight="600" text-anchor="middle">conflict drafter</text>
+    <text id="n-head-kind" x="1055" y="505" font-size="14" text-anchor="middle">(drafters) TaskInstance</text>
+  </g>
+  <line id="e-obj-head" x1="1055" y1="394" x2="1055" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-obj-head" x="1065" y="432" font-size="14" fill="#1971c2" font-style="italic">target, scorer</text>
+  <g id="n-cff">
+    <rect id="n-cff-box" x="640" y="550" width="220" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cff-name" x="750" y="574" font-size="17" font-weight="600" text-anchor="middle">closed_form_frontier</text>
+    <text id="n-cff-kind" x="750" y="595" font-size="14" text-anchor="middle">(fn) line V1 + V2 = S</text>
+  </g>
+  <line id="e-cff-head" x1="860" y1="570" x2="930" y2="505" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-cff-head" x="905" y="582" font-size="14" fill="#1971c2" font-style="italic">conflict_oracle</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <rect id="legend-box" x="15" y="620" width="1170" height="48" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="644" x2="85" y2="644" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="649" font-size="14">draft flow: rung → skeleton → world + objective</text>
+    <line id="legend-dotted" x1="470" y1="644" x2="520" y2="644" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="530" y="649" font-size="14">calls, contains, reads</text>
+  </g>
+</svg>
