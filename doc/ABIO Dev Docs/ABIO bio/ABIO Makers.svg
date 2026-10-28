@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-callers">
+    <rect id="n-callers-box" x="20" y="40" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-callers-name" x="140.0" y="68" font-size="18" font-weight="600" text-anchor="middle">callers</text>
+    <text id="n-callers-kind" x="140.0" y="92" font-size="14" text-anchor="middle">(ext) skeleton · pipeline · arch_*</text>
+  </g>
+  <g id="n-mk">
+    <rect id="n-mk-box" x="320" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mk-name" x="440.0" y="68" font-size="18" font-weight="600" text-anchor="middle">mk (Pegboard)</text>
+    <text id="n-mk-kind" x="440.0" y="92" font-size="14" text-anchor="middle">(singleton) infra/mk.py</text>
+  </g>
+  <g id="n-stack">
+    <rect id="n-stack-box" x="620" y="40" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-stack-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">anchor stack</text>
+    <text id="n-stack-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(list) with mk.anchor(target)</text>
+  </g>
+  <g id="n-mock">
+    <rect id="n-mock-box" x="920" y="40" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mock-name" x="1040.0" y="68" font-size="18" font-weight="600" text-anchor="middle">MockDat</text>
+    <text id="n-mock-kind" x="1040.0" y="92" font-size="14" text-anchor="middle">(class) '&lt;prefix&gt;/&lt;name&gt;'</text>
+  </g>
+  <g id="n-init">
+    <rect id="n-init-box" x="20" y="220" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-init-name" x="140.0" y="248" font-size="18" font-weight="600" text-anchor="middle">bio/__init__.py</text>
+    <text id="n-init-kind" x="140.0" y="272" font-size="14" text-anchor="middle">(import) loads makers</text>
+  </g>
+  <g id="n-reg">
+    <rect id="n-reg-box" x="320" y="220" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reg-name" x="440.0" y="248" font-size="18" font-weight="600" text-anchor="middle">registrations</text>
+    <text id="n-reg-kind" x="440.0" y="272" font-size="14" text-anchor="middle">(dict) M→mol · R→rxn · C→chem</text>
+  </g>
+  <g id="n-af">
+    <rect id="n-af-box" x="620" y="220" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-af-name" x="740.0" y="248" font-size="18" font-weight="600" text-anchor="middle">_anchor_for</text>
+    <text id="n-af-kind" x="740.0" y="272" font-size="14" text-anchor="middle">(method) dat · parent · stack · mint</text>
+  </g>
+  <g id="n-bm">
+    <rect id="n-bm-box" x="20" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bm-name" x="140.0" y="428" font-size="18" font-weight="600" text-anchor="middle">_build_molecule</text>
+    <text id="n-bm-kind" x="140.0" y="452" font-size="14" text-anchor="middle">(fn) key M</text>
+  </g>
+  <g id="n-br">
+    <rect id="n-br-box" x="320" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-br-name" x="440.0" y="428" font-size="18" font-weight="600" text-anchor="middle">_build_reaction</text>
+    <text id="n-br-kind" x="440.0" y="452" font-size="14" text-anchor="middle">(fn) key R</text>
+  </g>
+  <g id="n-bc">
+    <rect id="n-bc-box" x="620" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bc-name" x="740.0" y="428" font-size="18" font-weight="600" text-anchor="middle">_build_chemistry</text>
+    <text id="n-bc-kind" x="740.0" y="452" font-size="14" text-anchor="middle">(fn) key C</text>
+  </g>
+  <g id="n-nd">
+    <rect id="n-nd-box" x="920" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-nd-name" x="1040.0" y="428" font-size="18" font-weight="600" text-anchor="middle">_named_dict ‡</text>
+    <text id="n-nd-kind" x="1040.0" y="452" font-size="14" text-anchor="middle">(fn) list → {local_name: e}</text>
+  </g>
+  <g id="n-mol">
+    <rect id="n-mol-box" x="20" y="560" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mol-name" x="140.0" y="588" font-size="18" font-weight="600" text-anchor="middle">MoleculeImpl</text>
+    <text id="n-mol-kind" x="140.0" y="612" font-size="14" text-anchor="middle">(class) bio/molecule.py</text>
+  </g>
+  <g id="n-rxn">
+    <rect id="n-rxn-box" x="320" y="560" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rxn-name" x="440.0" y="588" font-size="18" font-weight="600" text-anchor="middle">ReactionImpl</text>
+    <text id="n-rxn-kind" x="440.0" y="612" font-size="14" text-anchor="middle">(class) bio/reaction.py</text>
+  </g>
+  <g id="n-chem">
+    <rect id="n-chem-box" x="620" y="560" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chem-name" x="740.0" y="588" font-size="18" font-weight="600" text-anchor="middle">ChemistryImpl</text>
+    <text id="n-chem-kind" x="740.0" y="612" font-size="14" text-anchor="middle">(class) bio/chemistry.py</text>
+  </g>
+  <line id="e-callers-mk" x1="260" y1="75" x2="320" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-callers-mk" x="290" y="65" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">mk.M</text>
+  <line id="e-init-reg" x1="260" y1="255" x2="320" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-init-reg" x="290" y="245" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">register</text>
+  <line id="e-mk-reg" x1="440" y1="110" x2="440" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-mk-reg" x="450" y="170" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">key lookup</text>
+  <line id="e-af-stack" x1="740" y1="220" x2="740" y2="110" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-af-stack" x="750" y="170" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">innermost</text>
+  <line id="e-af-mock" x1="860" y1="230" x2="1000" y2="110" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-af-mock" x="950" y="190" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">none: mint</text>
+  <line id="e-af-reg" x1="620" y1="255" x2="560" y2="255" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-reg-bm" x1="380" y1="290" x2="140" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-reg-bm" x="250" y="335" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">M</text>
+  <line id="e-reg-br" x1="440" y1="290" x2="440" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-reg-br" x="450" y="350" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">R</text>
+  <line id="e-reg-bc" x1="500" y1="290" x2="700" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-reg-bc" x="610" y="335" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">C</text>
+  <line id="e-bc-nd" x1="860" y1="435" x2="920" y2="435" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-bm-mol" x1="140" y1="470" x2="140" y2="560" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-br-rxn" x1="440" y1="470" x2="440" y2="560" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-bc-chem" x1="740" y1="470" x2="740" y2="560" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="t-anchor-note" x="590" y="210" font-size="14" fill="#1971c2" text-anchor="middle" font-style="italic">anchor kwargs</text>
+  <text id="t-nd-note" x="920" y="500" font-size="13" fill="#495057" text-anchor="start">‡ two entities with one local_name:</text>
+  <text id="t-nd-note2" x="920" y="518" font-size="13" fill="#495057" text-anchor="start">the last is kept, without a word</text>
+  <text id="t-legend" x="20" y="655" font-size="13" fill="#495057" text-anchor="start">solid: call or build · dotted: reads, passes · lilac: outside caller or class</text>
+</svg>
