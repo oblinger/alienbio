@@ -8,6 +8,7 @@ import pytest
 
 from alienbio.suite.stats_summary import (
     mean_confidence_interval,
+    t_critical,
     sample_mean,
     sample_std,
     sample_variance,
@@ -115,7 +116,8 @@ def test_standard_error_single_element_raises():
 # ═══════════════════════════════════════════════════════════════════════════
 
 def test_mean_confidence_interval_hand_computed_default_z():
-    default_z = 1.959963984540054
+    # T088 stats 1: the default is the 95 % t quantile at n - 1 df, not 1.96.
+    default_z = t_critical(len(HAND_VALUES) - 1)
     lo, hi = mean_confidence_interval(HAND_VALUES)
     expected_half_width = default_z * HAND_SE
     assert lo == pytest.approx(HAND_MEAN - expected_half_width)

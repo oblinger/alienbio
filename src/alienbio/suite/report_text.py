@@ -365,15 +365,21 @@ def idle_baseline_comparison(rmap: ReliabilityMap) -> list[tuple[str, str, float
 def primary_contrast_result(rmap: ReliabilityMap, contrast: Mapping[str, Any]) -> Optional[dict[str, Any]]:
     """Cohen's d / Welch t for the declared primary contrast, pooling every
     scored record at ``axis == low`` against every one at ``axis == high``
-    (all other swept dials pooled). ``None`` when a side has fewer than two
-    scored records or the pooled standard deviation is zero."""
+    (all other swept dials pooled). The idle twin is excluded from both
+    sides unless the contrast's axis IS ``agent`` (T088 report_text 1: it
+    pooled onto both sides and shrank the live arm's d from 12.7 to 1.15).
+    ``None`` when a side has fewer than two scored records or the pooled
+    standard deviation is zero."""
     axis, low, high = contrast["axis"], contrast["low"], contrast["high"]
     low_scores: list[float] = []
     high_scores: list[float] = []
     for record in rmap.records:
         if record.is_error:
             continue
-        level = dict(record.bucket_key).get(axis)
+        key = dict(record.bucket_key)
+        if axis != "agent" and key.get("agent") == "idle":
+            continue
+        level = key.get(axis)
         if level == low:
             low_scores.append(record.objective_score)
         elif level == high:
