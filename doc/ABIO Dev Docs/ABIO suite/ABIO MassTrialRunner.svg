@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Top row: spec -> grid -> run -> runner.run -->
+  <g id="n-spec">
+    <rect id="n-spec-box" x="20" y="50" width="200" height="80" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="120" y="80" font-size="18" font-weight="600" text-anchor="middle">ExperimentSpec</text>
+    <text id="n-spec-kind" x="120" y="100" font-size="14" text-anchor="middle">(dataclass, spec.py)</text>
+    <text id="n-spec-sub" x="120" y="118" font-size="14" text-anchor="middle">axes · fixed · matched</text>
+  </g>
+
+  <g id="n-grid">
+    <rect id="n-grid-box" x="270" y="50" width="220" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-grid-name" x="380" y="80" font-size="18" font-weight="600" text-anchor="middle">condition_grid</text>
+    <text id="n-grid-kind" x="380" y="100" font-size="14" text-anchor="middle">(function)</text>
+    <text id="n-grid-sub" x="380" y="118" font-size="14" text-anchor="middle">product of axis levels</text>
+  </g>
+
+  <g id="n-run">
+    <rect id="n-run-box" x="540" y="40" width="300" height="160" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-run-name" x="690" y="68" font-size="18" font-weight="600" text-anchor="middle">MassTrialRunner.run</text>
+    <text id="n-run-kind" x="690" y="88" font-size="14" text-anchor="middle">(method)</text>
+    <text id="n-run-l1" x="690" y="116" font-size="14" text-anchor="middle">cells × trials, sorted key order</text>
+    <text id="n-run-l2" x="690" y="136" font-size="14" text-anchor="middle">seed = base.child("label/i")</text>
+    <text id="n-run-l3" x="690" y="156" font-size="14" text-anchor="middle">≤ concurrency worker threads</text>
+    <text id="n-run-l4" x="690" y="176" font-size="14" text-anchor="middle">on_error = "record"</text>
+  </g>
+
+  <g id="n-trial">
+    <rect id="n-trial-box" x="940" y="50" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-trial-name" x="1060" y="80" font-size="18" font-weight="600" text-anchor="middle">runner.run</text>
+    <text id="n-trial-kind" x="1060" y="100" font-size="14" text-anchor="middle">(function, runner.py)</text>
+    <text id="n-trial-sub" x="1060" y="118" font-size="14" text-anchor="middle">drafter, agent, one episode</text>
+  </g>
+
+  <!-- Middle row -->
+  <g id="n-stop">
+    <rect id="n-stop-box" x="270" y="250" width="220" height="80" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-stop-name" x="380" y="280" font-size="18" font-weight="600" text-anchor="middle">stop()</text>
+    <text id="n-stop-kind" x="380" y="300" font-size="14" text-anchor="middle">(hook, run_experiment)</text>
+    <text id="n-stop-sub" x="380" y="318" font-size="14" text-anchor="middle">spent ≥ cost_ceiling_usd</text>
+  </g>
+
+  <g id="n-store">
+    <rect id="n-store-box" x="560" y="250" width="280" height="80" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-store-name" x="700" y="280" font-size="18" font-weight="600" text-anchor="middle">records.jsonl</text>
+    <text id="n-store-kind" x="700" y="300" font-size="14" text-anchor="middle">(file, record_to_json)</text>
+    <text id="n-store-sub" x="700" y="318" font-size="14" text-anchor="middle">one line per (label, index)</text>
+  </g>
+
+  <g id="n-record">
+    <rect id="n-record-box" x="940" y="250" width="240" height="80" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-record-name" x="1060" y="280" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-record-kind" x="1060" y="300" font-size="14" text-anchor="middle">(frozen dataclass)</text>
+    <text id="n-record-sub" x="1060" y="318" font-size="14" text-anchor="middle">an error record if it raised</text>
+  </g>
+
+  <g id="n-retried">
+    <rect id="n-retried-box" x="20" y="365" width="230" height="70" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-retried-name" x="135" y="394" font-size="18" font-weight="600" text-anchor="middle">records.retried.jsonl</text>
+    <text id="n-retried-kind" x="135" y="416" font-size="14" text-anchor="middle">(file, resume only)</text>
+  </g>
+
+  <g id="n-reload">
+    <rect id="n-reload-box" x="620" y="385" width="220" height="60" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reload-name" x="730" y="410" font-size="18" font-weight="600" text-anchor="middle">aggregate(out_dir)</text>
+    <text id="n-reload-kind" x="730" y="432" font-size="14" text-anchor="middle">(function, experiment.py)</text>
+  </g>
+
+  <!-- Bottom row -->
+  <g id="n-reduce">
+    <rect id="n-reduce-box" x="900" y="470" width="280" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reduce-name" x="1040" y="498" font-size="18" font-weight="600" text-anchor="middle">_aggregate</text>
+    <text id="n-reduce-kind" x="1040" y="518" font-size="14" text-anchor="middle">(reducer)</text>
+    <text id="n-reduce-l1" x="1040" y="538" font-size="14" text-anchor="middle">skips is_error records</text>
+    <text id="n-reduce-l2" x="1040" y="556" font-size="14" text-anchor="middle">failed_trials = their count</text>
+  </g>
+
+  <g id="n-map">
+    <rect id="n-map-box" x="290" y="460" width="540" height="150" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-map-name" x="560" y="486" font-size="18" font-weight="600" text-anchor="middle">ReliabilityMap</text>
+    <text id="n-map-kind" x="560" y="506" font-size="14" text-anchor="middle">(frozen dataclass) · records = every record, run order</text>
+    <rect id="n-cell-box" x="305" y="520" width="160" height="75" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="n-cell-name" x="385" y="548" font-size="18" font-weight="600" text-anchor="middle">CellSummary</text>
+    <text id="n-cell-sub" x="385" y="572" font-size="14" text-anchor="middle">cells: n, mean, CI</text>
+    <rect id="n-contrast-box" x="480" y="520" width="160" height="75" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="n-contrast-name" x="560" y="548" font-size="18" font-weight="600" text-anchor="middle">ContrastResult</text>
+    <text id="n-contrast-sub" x="560" y="572" font-size="14" text-anchor="middle">2×2 pairs: d, t</text>
+    <rect id="n-prov-box" x="655" y="520" width="160" height="75" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text id="n-prov-name" x="735" y="548" font-size="18" font-weight="600" text-anchor="middle">Provenance</text>
+    <text id="n-prov-sub" x="735" y="572" font-size="14" text-anchor="middle">seed, failed, stopped</text>
+  </g>
+
+  <g id="n-out">
+    <rect id="n-out-box" x="20" y="490" width="200" height="80" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-out-name" x="120" y="520" font-size="18" font-weight="600" text-anchor="middle">report.txt</text>
+    <text id="n-out-kind" x="120" y="540" font-size="14" text-anchor="middle">(files)</text>
+    <text id="n-out-sub" x="120" y="558" font-size="14" text-anchor="middle">map.json · map.csv</text>
+  </g>
+
+  <!-- Primary flow (solid) -->
+  <line id="e-spec-grid" x1="220" y1="90" x2="270" y2="90" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-spec-grid-label" x="245" y="80" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">axes</text>
+
+  <line id="e-grid-run" x1="490" y1="90" x2="540" y2="90" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-grid-run-label" x="515" y="80" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">keys</text>
+
+  <line id="e-run-trial" x1="840" y1="90" x2="940" y2="90" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-run-trial-label" x="890" y="80" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">one unit</text>
+
+  <line id="e-trial-record" x1="1060" y1="130" x2="1060" y2="250" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-trial-record-label" x="1070" y="195" font-size="14" fill="#1864ab" font-style="italic">returns</text>
+
+  <line id="e-record-store" x1="940" y1="290" x2="840" y2="290" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-record-store-label" x="890" y="280" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">on_trial</text>
+
+  <line id="e-record-reduce" x1="1100" y1="330" x2="1100" y2="470" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-record-reduce-label" x="1110" y="400" font-size="14" fill="#1864ab" font-style="italic">live</text>
+
+  <line id="e-reduce-map" x1="900" y1="535" x2="830" y2="535" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-reduce-map-label" x="865" y="525" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">builds</text>
+
+  <line id="e-map-out" x1="290" y1="530" x2="220" y2="530" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="e-map-out-label" x="255" y="520" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">writes</text>
+
+  <!-- Secondary (dotted): the ceiling, resume, reload -->
+  <line id="e-store-stop" x1="560" y1="290" x2="490" y2="290" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-store-stop-label" x="525" y="280" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">spend</text>
+
+  <line id="e-stop-run" x1="440" y1="250" x2="540" y2="185" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-stop-run-label" x="440" y="210" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">each unit</text>
+
+  <line id="e-store-skip" x1="700" y1="250" x2="700" y2="200" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-store-skip-label" x="710" y="230" font-size="14" fill="#1864ab" font-style="italic">skip(label, i)</text>
+
+  <path id="e-store-retried" d="M 580 330 L 580 400 L 250 400" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-store-retried-label" x="415" y="390" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">resume moves error lines</text>
+
+  <line id="e-store-reload" x1="760" y1="330" x2="760" y2="385" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-store-reload-label" x="770" y="362" font-size="14" fill="#1864ab" font-style="italic">reads</text>
+
+  <path id="e-reload-reduce" d="M 840 415 L 990 415 L 990 470" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+  <text id="e-reload-reduce-label" x="915" y="405" font-size="14" fill="#1864ab" font-style="italic" text-anchor="middle">reloaded</text>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="legend-solid" x1="20" y1="650" x2="70" y2="650" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+    <text id="legend-solid-text" x="80" y="655" font-size="14">primary flow: a record into the map</text>
+    <line id="legend-dotted" x1="440" y1="650" x2="490" y2="650" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowhead)"/>
+    <text id="legend-dotted-text" x="500" y="655" font-size="14">secondary: ceiling check, resume, reload</text>
+    <text id="legend-fill-text" x="900" y="655" font-size="14">fill repeats the kind label</text>
+  </g>
+</svg>
