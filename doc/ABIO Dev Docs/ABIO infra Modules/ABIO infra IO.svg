@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-ent">
+    <rect id="n-ent-box" x="20" y="50" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ent-name" x="145" y="78" font-size="18" font-weight="600" text-anchor="middle">Entity tree</text>
+    <text id="n-ent-kind" x="145" y="102" font-size="14" text-anchor="middle">(infra.entity) via bio.io</text>
+  </g>
+  <g id="n-ref">
+    <rect id="n-ref-box" x="330" y="50" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ref-name" x="445" y="78" font-size="18" font-weight="600" text-anchor="middle">ref</text>
+    <text id="n-ref-kind" x="445" y="102" font-size="14" text-anchor="middle">(method) shortest prefix wins</text>
+  </g>
+  <g id="n-text">
+    <rect id="n-text-box" x="620" y="50" width="230" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-text-name" x="735" y="78" font-size="18" font-weight="600" text-anchor="middle">reference text</text>
+    <text id="n-text-kind" x="735" y="102" font-size="14" text-anchor="middle">W:a.b  or  &lt;/runs/exp1.a.b&gt;</text>
+  </g>
+  <g id="n-lookup">
+    <rect id="n-lookup-box" x="930" y="50" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-lookup-name" x="1055" y="78" font-size="18" font-weight="600" text-anchor="middle">lookup</text>
+    <text id="n-lookup-kind" x="1055" y="102" font-size="14" text-anchor="middle">(method) splits at first ':' or '.'</text>
+  </g>
+  <g id="n-imp">
+    <rect id="n-imp-box" x="20" y="250" width="250" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-imp-name" x="145" y="278" font-size="18" font-weight="600" text-anchor="middle">imports</text>
+    <text id="n-imp-kind" x="145" y="302" font-size="14" text-anchor="middle">(module) tests.fixtures, optional</text>
+  </g>
+  <g id="n-pre">
+    <rect id="n-pre-box" x="330" y="250" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pre-name" x="445" y="278" font-size="18" font-weight="600" text-anchor="middle">_prefixes</text>
+    <text id="n-pre-kind" x="445" y="302" font-size="14" text-anchor="middle">(dict) prefix → entity or path</text>
+  </g>
+  <g id="n-orph">
+    <rect id="n-orph-box" x="620" y="250" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-orph-name" x="735" y="278" font-size="18" font-weight="600" text-anchor="middle">orphan_root</text>
+    <text id="n-orph-kind" x="735" y="302" font-size="14" text-anchor="middle">(Entity) on an _OrphanDat</text>
+  </g>
+  <g id="n-root">
+    <rect id="n-root-box" x="930" y="250" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-root-name" x="1055" y="278" font-size="18" font-weight="600" text-anchor="middle">_RootEntity</text>
+    <text id="n-root-kind" x="1055" y="302" font-size="14" text-anchor="middle">(virtual) no children, ever</text>
+  </g>
+  <g id="n-pc">
+    <rect id="n-pc-box" x="20" y="450" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pc-name" x="145" y="478" font-size="18" font-weight="600" text-anchor="middle">_path_entity_cache</text>
+    <text id="n-pc-kind" x="145" y="502" font-size="14" text-anchor="middle">(dict) a bare Entity per path</text>
+  </g>
+  <g id="n-dat">
+    <rect id="n-dat-box" x="330" y="450" width="230" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dat-name" x="445" y="478" font-size="18" font-weight="600" text-anchor="middle">Dat.load</text>
+    <text id="n-dat-kind" x="445" y="502" font-size="14" text-anchor="middle">(dvc-dat 3.0) by path name</text>
+  </g>
+  <g id="n-dc">
+    <rect id="n-dc-box" x="620" y="450" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dc-name" x="735" y="478" font-size="18" font-weight="600" text-anchor="middle">_dat_entity_cache</text>
+    <text id="n-dc-kind" x="735" y="502" font-size="14" text-anchor="middle">(dict) a loaded tree per path</text>
+  </g>
+  <g id="n-load">
+    <rect id="n-load-box" x="930" y="450" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-load-name" x="1055" y="478" font-size="18" font-weight="600" text-anchor="middle">_create_entity_from_dict</text>
+    <text id="n-load-kind" x="1055" y="502" font-size="14" text-anchor="middle">(method) head, name, description</text>
+  </g>
+  <line id="e-ent-ref" x1="270" y1="85" x2="330" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-ref-text" x1="560" y1="85" x2="620" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-text-lookup" x1="850" y1="85" x2="930" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <polyline id="e-lookup-ent" points="1055,50 1055,24 145,24 145,50" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-lookup-ent" x="600" y="18" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">the entity found</text>
+  <line id="e-ref-pre" x1="445" y1="120" x2="445" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-ref-pre" x="455" y="190" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">resolve every binding</text>
+  <line id="e-lookup-root" x1="1120" y1="120" x2="1120" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-lookup-root" x="1130" y="190" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">D:</text>
+  <line id="e-orph-pre" x1="620" y1="285" x2="560" y2="285" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-orph-pre" x="590" y="340" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">ORPHAN</text>
+  <line id="e-pre-pc" x1="380" y1="320" x2="210" y2="450" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-pre-pc" x="285" y="400" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">string binding</text>
+  <line id="e-pc-dat" x1="270" y1="485" x2="330" y2="485" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-dc-dat" x1="620" y1="485" x2="560" y2="485" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-lookup-dc" x1="990" y1="120" x2="800" y2="450" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-lookup-dc" x="852" y="384" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">&lt;/…&gt;</text>
+  <line id="e-dc-load" x1="850" y1="485" x2="930" y2="485" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-dc-load" x="890" y="475" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">yaml</text>
+  <text id="t-legend" x="20" y="600" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call or read · dotted: binding, return · nothing in src/ builds an IO; tests attach one as alienbio.bio.io</text>
+  <text id="t-legend2" x="20" y="620" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">the two caches hold different objects for one dat; D: matches nothing in either direction; a dat path with a '.' does not read back</text>
+</svg>
