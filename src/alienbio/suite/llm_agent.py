@@ -946,19 +946,23 @@ class LLMAgent:
             return None
         return raw if isinstance(raw, str) else canonical(raw)
 
-    def _history_window(self) -> Optional[list[dict[str, Any]]]:
+    def _history_window(self, history: Optional[list[dict[str, Any]]] = None) -> Optional[list[dict[str, Any]]]:
         """The ``_history`` slice this turn's context should carry, or ``None``
         for ``memory="none"`` (no ``"history"`` key at all). T049: a
         ``history_token_limit`` then keeps the NEWEST entries whose cumulative
         estimated volume (the suite's chars/4 yardstick) fits the limit —
-        forgetting triggered by fill, not by a fixed turn count."""
+        forgetting triggered by fill, not by a fixed turn count.
+
+        ``history`` windows a hypothetical history instead of ``_history``
+        (the compaction turn's ceiling pre-check)."""
         if self.memory == "none":
             return None
+        source = self._history if history is None else history
         if self.memory == "full":
-            window = self._history
+            window = source
         else:
             k = cast(int, self.memory)
-            window = self._history[-k:] if k > 0 else []
+            window = source[-k:] if k > 0 else []
         if self.history_token_limit is None:
             return window
         kept: list[dict[str, Any]] = []
@@ -972,6 +976,28 @@ class LLMAgent:
         kept.reverse()
         return kept
 
+    def _pending_compaction(self) -> Optional[tuple[list[dict[str, Any]], str, dict[str, Any]]]:
+        """This turn's compaction call as ``(displaced, system, context)``,
+        or ``None`` when no compaction fires this turn."""
+        if self.compact_at is None or self.compaction is not None or self._turn != self.compact_at:
+            return None
+        displaced = [e for e in self._history if e["turn"] < self.compact_at]
+        if not displaced:
+            return None
+        context: dict[str, Any] = {"compact": displaced, "turn": self._turn}
+        if self.compact_budget is not None:
+            context["budget_tokens"] = self.compact_budget
+        # "compact" must stay the marker key (is_compact_context).
+        compact_system = self._system + "\n\n" + COMPACT_OVERRIDE_DIRECTIVE
+        return displaced, compact_system, context
+
+    def _compacted_history(self, displaced: list[dict[str, Any]], summary: str) -> list[dict[str, Any]]:
+        """The history after compaction: one summary entry, then the kept turns."""
+        assert self.compact_at is not None
+        kept = [e for e in self._history if e["turn"] >= self.compact_at]
+        entry: dict[str, Any] = {"turn": displaced[-1]["turn"], "summary": summary, "compacted_turns": len(displaced)}
+        return [entry] + kept
+
     def _maybe_compact(self) -> None:
         """T049 — compaction displacement: at turn ``compact_at``, replace
         every history entry with ``turn < compact_at`` (the T029 constitution
@@ -981,16 +1007,10 @@ class LLMAgent:
         its prompt joins ``prompt_texts`` for the taint audit. A reply that
         is not non-empty text records ``summary: None`` and the displacement
         still happens — deterministic forgetting, visible failure."""
-        if self.compact_at is None or self.compaction is not None or self._turn != self.compact_at:
+        pending = self._pending_compaction()
+        if pending is None:
             return
-        displaced = [e for e in self._history if e["turn"] < self.compact_at]
-        if not displaced:
-            return
-        context: dict[str, Any] = {"compact": displaced, "turn": self._turn}
-        if self.compact_budget is not None:
-            context["budget_tokens"] = self.compact_budget
-        # "compact" must stay the marker key (is_compact_context).
-        compact_system = self._system + "\n\n" + COMPACT_OVERRIDE_DIRECTIVE
+        displaced, compact_system, context = pending
         self._tokens_spent += _estimate_tokens(compact_system, context)
         prompt_text = compact_system + "\n" + canonical(context)
         self._prompt_hashes.append(hashlib.sha256(prompt_text.encode("utf-8")).hexdigest())
@@ -1004,13 +1024,9 @@ class LLMAgent:
                 {"turn": self._turn, "compaction": True, **{k: after[k] - before[k] for k in after}}
             )
         summary = raw.strip() if isinstance(raw, str) and raw.strip() else None
-        kept = [e for e in self._history if e["turn"] >= self.compact_at]
-        entry: dict[str, Any] = {
-            "turn": displaced[-1]["turn"],
-            "summary": summary if summary is not None else "(summarizer reply unusable; prior turns discarded)",
-            "compacted_turns": len(displaced),
-        }
-        self._history = [entry] + kept
+        self._history = self._compacted_history(
+            displaced, summary if summary is not None else "(summarizer reply unusable; prior turns discarded)"
+        )
         self.compaction = {
             "turn": self.compact_at,
             "budget": self.compact_budget,
@@ -1068,18 +1084,42 @@ class LLMAgent:
         # overshoots by up to concurrency". The ceiling test needs no
         # context, so it is hoisted whole; the compaction then happens only
         # on a turn the trial is allowed to spend on.
-        # The estimate of this turn as it stands BEFORE compaction. Displacing
-        # history can only make the turn's own prompt smaller, so this reads
-        # high — the conservative direction for a cost guard, and the only way
-        # to test the ceiling before the summarizer call without circularity
-        # (the post-compaction estimate depends on the call being made).
+        # The estimate of this turn as it stands BEFORE compaction.
         pre_window = self._history_window()
         pre_context = (
             render_observation(observation, self._turn)
             if pre_window is None
             else render_context(observation, self._turn, pre_window)
         )
-        abort = self._ceiling_abort(observation, estimate=_estimate_tokens(self._system, pre_context))
+        pre_estimate = _estimate_tokens(self._system, pre_context)
+        # Round 4/5 leftover (2026-10-27): on the compaction turn the turn
+        # costs the summarizer's prompt PLUS the post-compaction prompt, and
+        # both are known before the call: the summarizer's context is the
+        # displaced history, and the post-compaction prompt is at least the
+        # kept turns behind an EMPTY summary entry (the real summary only
+        # adds; compaction and fill truncation are one-per-arm, so the window
+        # is count-based), plus ``compact_budget`` tokens for the summary when
+        # set — the summarizer's ``max_tokens``, so it bounds the summary.
+        # The old pre-check read the pre-compaction prompt alone, which is
+        # smaller than that sum (the summarizer reads the displaced history
+        # and the system prompt again), so a turn the summarizer call put over
+        # the ceiling passed, paid, then aborted on the post-check. Still
+        # tested BEFORE the call (T066), never after; never below the old
+        # read, so no arm is less guarded than it was. With no
+        # ``compact_budget`` the summary is unbounded and a long one can
+        # still cross the ceiling on the post-check.
+        pending = self._pending_compaction()
+        if pending is not None:
+            displaced, compact_system, compact_context = pending
+            floor_window = self._history_window(self._compacted_history(displaced, ""))
+            assert floor_window is not None  # compaction requires turn memory
+            with_compaction = (
+                _estimate_tokens(compact_system, compact_context)
+                + _estimate_tokens(self._system, render_context(observation, self._turn, floor_window))
+                + (self.compact_budget or 0)
+            )
+            pre_estimate = max(pre_estimate, with_compaction)
+        abort = self._ceiling_abort(observation, estimate=pre_estimate)
         if abort is not None:
             return abort
         self._maybe_compact()
