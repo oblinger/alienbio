@@ -210,9 +210,12 @@ class ProbeAgent(Protocol):
     :class:`~alienbio.suite.trial.ProbeRecord` for an agent that does not
     implement this Protocol at all — e.g. :class:`ScriptedAgent`).
     Declared per run via ``dials["probes"]`` (see ``suite.runner.run``).
+    ``observation`` is the turn's :data:`Observation` — the one ``act`` is
+    about to see (``every_turn``) or just saw (``after_action`` /
+    ``at_commit``) — so a probe can be asked in the act's own context.
     """
 
-    def probe(self, text: str) -> "Optional[str]": ...
+    def probe(self, text: str, observation: "Optional[Observation]" = None) -> "Optional[str]": ...
 
 
 # ═══════════════════════════════════════════════════════════════════════════

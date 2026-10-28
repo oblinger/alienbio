@@ -284,15 +284,15 @@ def run_rows() -> list[RunRow]:
         manifest = folder / "manifest.json"
         if not manifest.exists():
             continue
-        m = json.loads(manifest.read_text())
-        from .suite.store import manifest_model_label
+        from .suite.store import manifest_model_label, read_manifest
 
+        m = read_manifest(manifest)
         model = manifest_model_label(m)
-        spend = None
-        report = folder / "report.txt"
-        if report.exists():
-            hit = re.search(r"spent \$([0-9.]+)", report.read_text())
-            spend = float(hit.group(1)) if hit else None
+        # The spend is the manifest's own number (written at every landed
+        # unit), not a regex over report.txt — a run with no report yet, or
+        # a report format change, read as no spend at all.
+        spent = m.get("cost_usd_spent")
+        spend = float(spent) if isinstance(spent, (int, float)) and not isinstance(spent, bool) else None
         figure, readout, caption = None, "", ""
         if (folder / "key.png").exists():
             figure = folder / "key.png"

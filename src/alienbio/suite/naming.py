@@ -239,7 +239,7 @@ class OpaqueAgent:
                 )
             )
 
-    def probe(self, text: str) -> Optional[str]:
+    def probe(self, text: str, observation: Optional[Observation] = None) -> Optional[str]:
         """T026 — a discarded-branch probe, translated at the boundary like
         everything else: the agent is asked in surface names and its answer
         comes back in structural ids (so the record and every scorer read
@@ -249,7 +249,8 @@ class OpaqueAgent:
         inner_probe = getattr(self.inner, "probe", None)
         if inner_probe is None:
             return None
-        answer = inner_probe(nm.surface_text(text))
+        surfaced = surface_observation(observation, nm) if observation is not None else None
+        answer = inner_probe(nm.surface_text(text), surfaced)
         return nm.structural_text(answer) if isinstance(answer, str) else answer
 
     def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:

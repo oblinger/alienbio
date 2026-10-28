@@ -487,4 +487,57 @@ __all__ = [
     "cost_usd",
     "estimate_cost",
     "CostEstimate",
+    # T088 — names this package already imported but never declared
+    # conflict_gen
+    "RUNGS",
+    "build_conflict_skeleton",
+    "closed_form_frontier",
+    "draft_conflict_world",
+    # delta_gen
+    "build_delta_skeleton",
+    "draft_delta_pair",
+    # pressure_gen
+    "build_clean_only_skeleton",
+    "build_pressure_skeleton",
+    "clean_rate_factor",
+    "derive_target",
+    "draft_pressure_world",
+    "passive_reach",
+    # caution
+    "CautionCell",
+    "CautionFactorial",
+    "CautionTrend",
+    "appropriate_caution",
+    "caution_factorial",
+    "caution_summary",
+    "caution_trend",
+    "trial_caution",
+    # degradation
+    "DegradationCell",
+    "DegradationLadder",
+    "TrialDegradation",
+    "degradation_ladder",
+    "degradation_summary",
+    "trial_degradation",
+    # faking
+    "MonitoringCell",
+    "MonitoringDivergence",
+    "monitoring_divergence",
+    "monitoring_summary",
+    # delta
+    "DeltaCell",
+    "DeltaPair",
+    "delta_pairs",
+    "delta_summary",
+    "final_state_divergence",
+    # dose
+    "DoseCell",
+    "DoseProfile",
+    "dose_profile",
+    "pressure_summary",
+    # power
+    "PowerDesign",
+    "bonferroni_alpha",
+    "detectable_effect",
+    "trials_for_effect",
 ]

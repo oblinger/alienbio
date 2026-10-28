@@ -15,7 +15,7 @@ an immutable :class:`ReliabilityMap`.
   exact shape :func:`~alienbio.suite.trial.condition_key` normalises to and
   :func:`~alienbio.suite.reliability_grid.aggregate_cells` bins on, no
   adapter.
-- :class:`MassTrialRunner` — single-process driver: for every cell x trial,
+- :class:`MassTrialRunner` — in-process driver (no process pool; a thread pool at ``concurrency > 1``): for every cell x trial,
   derives an independent child :class:`~alienbio.suite.dist.Seed`
   (``base_seed.child(f"{condition_label}/{i}")``), calls the caller-supplied
   ``drafter``/``agent_factory`` to build one world/task/agent under that
@@ -108,6 +108,14 @@ def _condition_label(key: ConditionKey) -> str:
     rendering, which every stored seed and resume key is drawn from.
     """
     return "&".join(f"{name}={value}" for name, value in key)
+
+
+def grid_positions(axes: Sequence[Axis]) -> dict[str, int]:
+    """Each condition label's position in the order :meth:`MassTrialRunner.run`
+    enumerates (and lands) its units — the grid's keys sorted by ``str``.
+    What a reload sorts by so its records follow run order (T088)."""
+    keys = sorted(condition_grid(tuple((name, tuple(levels)) for name, levels in axes)), key=lambda k: str(k))
+    return {_condition_label(key): pos for pos, key in enumerate(keys)}
 
 
 def label_collision(axes: Sequence[Axis]) -> Optional[str]:
@@ -671,26 +679,46 @@ class MassTrialRunner:
                         pending.pop(0)
                         land(label0, i0, rec0 if fut0 is None else fut0.result())
 
-                for key, label, i in units:
-                    if skip is not None:
-                        existing = skip(label, i)
-                        if existing is not None:
-                            pending.append((label, i, None, existing))
-                            drain(False)
-                            continue
-                    drain(False)
-                    # Everything finished has landed; what can still overshoot
-                    # is the (at most `concurrency`) units genuinely running,
-                    # and each of those re-checks the hook as it starts.
-                    if stop is not None and stop():
-                        stopped_early = True
-                        break
-                    pending.append((label, i, pool.submit(run_one, key, label, i), None))
-                    while len([p for p in pending if p[2] is not None and not p[2].done()]) >= concurrency:
-                        label0, i0, fut0, rec0 = pending.pop(0)
-                        land(label0, i0, rec0 if fut0 is None else fut0.result())
+                try:
+                    for key, label, i in units:
+                        if skip is not None:
+                            existing = skip(label, i)
+                            if existing is not None:
+                                pending.append((label, i, None, existing))
+                                drain(False)
+                                continue
                         drain(False)
-                drain(True)
+                        # Everything finished has landed; what can still overshoot
+                        # is the (at most `concurrency`) units genuinely running,
+                        # and each of those re-checks the hook as it starts.
+                        if stop is not None and stop():
+                            stopped_early = True
+                            break
+                        pending.append((label, i, pool.submit(run_one, key, label, i), None))
+                        while len([p for p in pending if p[2] is not None and not p[2].done()]) >= concurrency:
+                            label0, i0, fut0, rec0 = pending.pop(0)
+                            land(label0, i0, rec0 if fut0 is None else fut0.result())
+                            drain(False)
+                    drain(True)
+                except BaseException:
+                    # T088 (mass_trial 4): an exception out of ``land`` (an
+                    # ``on_trial`` that raised — persistence, spend accounting)
+                    # or a ``run_one`` under ``on_error="raise"`` used to leave
+                    # the pool's ``with`` exit waiting on in-flight units whose
+                    # records — paid for — never landed. Every unit still
+                    # pending is landed first (a unit not yet started is
+                    # cancelled: it has spent nothing), each through
+                    # ``on_trial``; a second failure there does not hide the
+                    # first, which then propagates.
+                    for label0, i0, fut0, rec0 in pending:
+                        if fut0 is not None and fut0.cancel():
+                            continue
+                        try:
+                            land(label0, i0, rec0 if fut0 is None else fut0.result())
+                        except BaseException:  # noqa: BLE001 — the first failure is the one raised
+                            pass
+                    pending.clear()
+                    raise
 
         rmap = _aggregate(records, axes_tuple, base_seed, trials_per_condition)
         return replace(rmap, provenance=replace(rmap.provenance, stopped_early=stopped_early))

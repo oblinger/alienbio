@@ -54,7 +54,7 @@ from typing import Any, Callable, Mapping, Optional, Union
 from ..bio.world import WorldImpl
 from .dist import Seed
 from .llm_agent import PINNED_MODEL, cost_usd, price_for
-from .mass_trial import MassTrialRunner, ReliabilityMap, aggregate_records
+from .mass_trial import MassTrialRunner, ReliabilityMap, aggregate_records, grid_positions
 from .trial import TrialRecord
 from .types import TaskInstance
 from .spec import REPO_ROOT as _REPO_ROOT  # noqa: F401 — the old name
@@ -167,6 +167,7 @@ from .store import (  # noqa: F401
     _trials_planned,
     _utc_now_iso,
     _write_manifest,
+    read_manifest,
     read_records,
     record_from_json,
     record_to_json,
@@ -320,7 +321,7 @@ def run_experiment(
     if resume and manifest_path.exists():
         # Preflight already refused an unreadable, spec-less or drifted
         # manifest; only the start time is carried.
-        started_at = json.loads(manifest_path.read_text()).get("started_at", started_at)
+        started_at = read_manifest(manifest_path).get("started_at", started_at)
 
     trials_planned = _trials_planned(spec)
     manifest = _build_manifest(spec, trials_planned, started_at)
@@ -461,11 +462,25 @@ def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
     manifest_path = base / "manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"aggregate: no manifest.json in {base}")
-    manifest = json.loads(manifest_path.read_text())
+    manifest = read_manifest(manifest_path)
     spec = spec_from_dict(manifest["spec"])
 
     records_path = base / "records.jsonl"
-    records = [record for _line, _d, record in read_records(records_path)] if records_path.exists() else []
+    rows = [(d, record) for _line, d, record in read_records(records_path)] if records_path.exists() else []
+    # T088 (mass_trial 4): a resume keeps the lines it reuses and appends the
+    # re-run ones, so file order is not run order; the live map aggregates in
+    # run order (grid position, then trial index). Sort back to it, so a
+    # reloaded cell's float sums are taken in the same order as the live one's.
+    # Stable: a line whose label the spec does not know keeps its file place
+    # after every known one.
+    positions = grid_positions(spec.axes)
+
+    def run_order(row: tuple[dict[str, Any], TrialRecord]) -> tuple[int, int]:
+        pos = positions.get(str(row[0].get("label")))
+        return (len(positions), 0) if pos is None else (pos, int(row[0].get("index", 0)))
+
+    rows.sort(key=run_order)
+    records = [record for _d, record in rows]
 
     rmap = aggregate_records(records, spec.axes, Seed(spec.base_seed), spec.trials_per_condition)
     # The early stop is a fact about the run, not the records: the manifest

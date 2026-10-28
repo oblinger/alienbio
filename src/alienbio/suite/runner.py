@@ -552,6 +552,18 @@ def trial_preamble(
     )
 
 
+
+def _agent_abort_fields(agent: Any) -> dict[str, Any]:
+    """T088 — the LLM agent's ``parse_failures`` count and ``aborted`` tag for
+    the record, read only when they have the agent's own types (a scripted
+    agent has neither; a test double's auto-attributes are ignored)."""
+    failures = getattr(agent, "parse_failures", 0)
+    aborted = getattr(agent, "aborted", None)
+    return {
+        "parse_failures": failures if isinstance(failures, int) and not isinstance(failures, bool) else 0,
+        "aborted": aborted if isinstance(aborted, str) else None,
+    }
+
 def run(
     world: WorldImpl,
     task: TaskInstance,
@@ -743,7 +755,7 @@ def run(
     monitor_logged: list[dict[str, Any]] = []
     monitor_shown: list[int] = []
 
-    def _fire_probes(turn: int, timing: str) -> None:
+    def _fire_probes(turn: int, timing: str, observation: Observation) -> None:
         for decl_timing, text in probe_decls:
             if decl_timing != timing:
                 continue
@@ -751,7 +763,7 @@ def run(
             error = ""
             if isinstance(agent, ProbeAgent):
                 try:
-                    answer = agent.probe(text)
+                    answer = agent.probe(text, observation)
                 except Exception as exc:  # noqa: BLE001 — probe failure is data
                     error = f"{type(exc).__name__}: {exc}"
             probe_records.append(ProbeRecord(turn=turn, timing=timing, text=text, answer=answer, error=error))
@@ -816,15 +828,15 @@ def run(
             if monitor_cfg is not None and shows_turn(monitor_cfg, seed, turn):
                 observation = observation + (auditor_block(monitor_cfg, monitor_ledger),)
                 monitor_shown.append(turn)
-            _fire_probes(turn, "every_turn")
+            _fire_probes(turn, "every_turn", observation)
             action, reasoning_steps = agent.act(observation)
             trace = thread_reasoning_steps(trace, turn, action, reasoning_steps)
             # T026 — "after the action is selected, before it executes": the fork
             # point measures 3/4 probe at; ``at_commit`` is the same point gated
             # on the selected action being a Commit.
-            _fire_probes(turn, "after_action")
+            _fire_probes(turn, "after_action", observation)
             if isinstance(action, Commit):
-                _fire_probes(turn, "at_commit")
+                _fire_probes(turn, "at_commit", observation)
 
             accepted = True
             reject_reason = ""
@@ -1109,6 +1121,7 @@ def run(
             monitor=_monitor_record(),
             readout_series=_readout_record(),
             oracle=oracle,
+            **_agent_abort_fields(agent),
         )
         # The prompts the agent sent before it died were really sent, so the
         # partial record is audited like a finished one: a hit raises
@@ -1187,6 +1200,8 @@ def run(
         forgetting=getattr(agent, "forgetting", None),
         monitor=_monitor_record(),
         readout_series=_readout_record(),
+        # T088 — the LLM agent's parse failures and abort reason (only-when-set).
+        **_agent_abort_fields(agent),
     )
     if taint_hits:
         raise TaintError(record)

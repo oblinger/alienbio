@@ -147,16 +147,17 @@ def test_a_torn_manifest_dump_leaves_the_old_manifest_intact(tmp_path, monkeypat
     manifest_path = out / "manifest.json"
     before = manifest_path.read_text()
 
-    real_dump = json.dump
+    # The manifest goes through ``_atomic_write_text`` (T088: strict JSON);
+    # a write that dies before ``os.replace`` must leave the old one standing.
+    real_fsync = store_mod.os.fsync
 
-    def torn_dump(obj, fp, **kwargs):
-        fp.write(json.dumps(obj, **kwargs)[:40])  # half a manifest
+    def torn_fsync(fd):
         raise OSError("disk full")
 
-    monkeypatch.setattr(store_mod.json, "dump", torn_dump)
+    monkeypatch.setattr(store_mod.os, "fsync", torn_fsync)
     with pytest.raises(OSError):
         run_experiment(_spec("torn", trials_per_condition=2), out_dir=str(out), resume=True)
-    monkeypatch.setattr(store_mod.json, "dump", real_dump)
+    monkeypatch.setattr(store_mod.os, "fsync", real_fsync)
 
     assert manifest_path.read_text() == before
     json.loads(manifest_path.read_text())

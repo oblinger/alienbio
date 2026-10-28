@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping, Optional, Protocol
+from typing import Any, Callable, Mapping, Optional, Protocol, Union
 
 
 from .agent import Action, Agent, Commit, Intervene, Measure, ReasoningStep, ScriptedAgent, Wait
@@ -316,12 +316,29 @@ def _heuristic_commit_agent_factory(seed: Seed, dials: Mapping[str, Any]) -> Age
     return _HeuristicCommitAgent(seed)
 
 
-def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
-    """``"llm"`` — a real-model :class:`~alienbio.suite.llm_agent.LLMAgent`.
+def llm_agent_factory(
+    *,
+    model: Optional[str],
+    temperature: Optional[Union[float, str]] = None,
+    top_p: Optional[float] = None,
+    memory: Union[str, int] = "full",
+    token_ceiling: Optional[int] = None,
+    compact_at: Optional[int] = None,
+    compact_budget: Optional[int] = None,
+    history_token_limit: Optional[int] = None,
+    max_tokens: Optional[int] = None,
+    output_schedule: Optional[Mapping[str, int]] = None,
+) -> AgentFactory:
+    """The one real-model :class:`~alienbio.suite.llm_agent.LLMAgent`
+    factory: the ``"llm"`` entry of :data:`AGENTS` (an ``ExperimentSpec``'s
+    fields) and the Expr ``llm`` head (its own arguments) both build through
+    it, so the two paths cannot drift (T088 llm_agent 6: the head built the
+    provider fn with no sampling and ignored memory, compaction and the
+    output budget the trial dials carry).
 
     Importing/constructing ``LLMAgent`` is lazy (inside the returned
-    factory), so a spec naming ``"llm"`` only fails once a trial is actually
-    about to run without a key (``default_anthropic_llm_fn`` raises then).
+    factory), so naming ``"llm"`` only fails once a trial is actually about
+    to run without a key (``default_anthropic_llm_fn`` raises then).
     """
 
     def factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
@@ -329,15 +346,15 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
 
         # M46.8: a ``model`` axis level overrides the spec's model per trial,
         # so two generations run inside one grid under identical world seeds.
-        model = dials.get("model") or spec.model or PINNED_MODEL
-        require_pinned_model(model)
+        chosen = dials.get("model") or model or PINNED_MODEL
+        require_pinned_model(chosen)
         # One meter shared by the provider call and the agent, so the real
         # usage lands on the record and drives the cost ceiling. (The first
         # paid trial, 2026-08-29, reported calls=0 / $0.00 for a 17 s run:
         # the llm_fn was built meterless and the agent metered nothing.)
         meter = UsageMeter()
         return LLMAgent(
-            default_anthropic_llm_fn(model, meter=meter, temperature=spec.temperature, top_p=spec.top_p),
+            default_anthropic_llm_fn(chosen, meter=meter, temperature=temperature, top_p=top_p),
             seed,
             # T066: ``memory`` is in FACTORY_DIALS and WORLD_INVARIANT_DIALS,
             # so a memory axis passes the dial check, becomes a condition key
@@ -345,20 +362,36 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
             # ``dials.get``, unlike every sibling below, so the whole ladder
             # ran at one value and the axis moved nothing. "A typo must never
             # silently become a no-op" cuts the same way for a real sweep.
-            memory=dials.get("memory", spec.memory),
-            token_ceiling=spec.token_ceiling,
+            memory=dials.get("memory", memory),
+            token_ceiling=token_ceiling,
             meter=meter,
             # T049 — a trial dial overrides the spec value, so the forgetting
             # triggers can be swept as axes.
-            compact_at=dials.get("compact_at", spec.compact_at),
-            compact_budget=dials.get("compact_budget", spec.compact_budget),
-            history_token_limit=dials.get("history_token_limit", spec.history_token_limit),
+            compact_at=dials.get("compact_at", compact_at),
+            compact_budget=dials.get("compact_budget", compact_budget),
+            history_token_limit=dials.get("history_token_limit", history_token_limit),
             # T059 — the per-turn output budget, sweepable the same way.
-            max_tokens=dials.get("max_tokens", spec.max_tokens),
-            output_schedule=dials.get("output_schedule", spec.output_schedule),
+            max_tokens=dials.get("max_tokens", max_tokens),
+            output_schedule=dials.get("output_schedule", output_schedule),
         )
 
     return factory
+
+
+def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
+    """``"llm"`` — :func:`llm_agent_factory` over the spec's fields."""
+    return llm_agent_factory(
+        model=spec.model,
+        temperature=spec.temperature,
+        top_p=spec.top_p,
+        memory=spec.memory,
+        token_ceiling=spec.token_ceiling,
+        compact_at=spec.compact_at,
+        compact_budget=spec.compact_budget,
+        history_token_limit=spec.history_token_limit,
+        max_tokens=spec.max_tokens,
+        output_schedule=spec.output_schedule,
+    )
 
 
 #: Registered agent factories, by name — the ``agent`` an :class:`ExperimentSpec` names.

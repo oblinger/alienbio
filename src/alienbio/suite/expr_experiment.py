@@ -61,7 +61,7 @@ from .archetypes import IdentifyPathwayRecipe
 from .carve import CarveFail, carve as _carve
 from .cover import Cover, cover as _cover
 from .dist import Constant, Dist, Seed
-from .agents import AGENTS
+from .agents import AGENTS, llm_agent_factory
 from .drafters import FACTORY_DIALS, GUARDED_BRIEF_DIALS, dial_params
 from .spec import ExperimentSpec, default_expected_turns, require_pinned_model, spec_from_dict, spec_to_dict
 from .mass_trial import AgentFactory
@@ -439,19 +439,15 @@ _scripted_agent_head("pursue_target", "pursue-target", "pull every declared leve
 @fn(kind="agent", summary="a live model over the LLMOp seam", registry_name="llm")
 def llm(model: Optional[str] = None, memory: Union[str, int] = "full", token_ceiling: Optional[int] = None) -> AgentFactory:
     """``llm`` — a real-model :class:`~alienbio.suite.llm_agent.LLMAgent`
-    factory pinned to ``model`` (a dated generation, never an alias)."""
+    factory pinned to ``model`` (a dated generation, never an alias), built
+    by the same :func:`~alienbio.suite.agents.llm_agent_factory` the
+    ``AGENTS`` ``"llm"`` entry uses — so trial dials (``model``, ``memory``,
+    the forgetting triggers, the output budget) reach it exactly as they
+    reach an ``!experiment`` arm. The head takes no sampling arguments: the
+    provider fn sends none."""
     if model is not None:
         require_pinned_model(model)
-
-    def factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
-        from .llm_agent import LLMAgent, PINNED_MODEL, UsageMeter, default_anthropic_llm_fn
-
-        chosen = dials.get("model") or model or PINNED_MODEL
-        require_pinned_model(chosen)
-        meter = UsageMeter()
-        return LLMAgent(default_anthropic_llm_fn(chosen, meter=meter), seed, memory=memory, token_ceiling=token_ceiling, meter=meter)
-
-    return factory
+    return llm_agent_factory(model=model, memory=memory, token_ceiling=token_ceiling)
 
 
 def agent_registry_name(name: Any, env: Optional[Env] = None) -> str:

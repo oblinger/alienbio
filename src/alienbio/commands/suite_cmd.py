@@ -14,7 +14,6 @@ See ``alienbio.suite.experiment`` for the spec format, the ``DRAFTERS``/
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import Optional
@@ -27,7 +26,7 @@ from alienbio.suite.experiment import (
     run_experiment,
     spec_from_dict,
 )
-from alienbio.suite.store import _model_axis_levels, _single_model
+from alienbio.suite.store import _model_axis_levels, _single_model, read_manifest
 
 
 SUITE_USAGE = (
@@ -159,7 +158,7 @@ def _resume(out_dir: str, verbose: bool) -> int:
     if not manifest_path.exists():
         raise FileNotFoundError(f"bio suite resume: no manifest.json in {out_dir}")
 
-    manifest = json.loads(manifest_path.read_text())
+    manifest = read_manifest(manifest_path)
     spec = spec_from_dict(manifest["spec"])
 
     def progress(message: str) -> None:
@@ -184,7 +183,7 @@ def _report_cmd(out_dir: str, verbose: bool) -> int:
     if not manifest_path.exists():
         raise FileNotFoundError(f"bio suite report: no manifest.json in {out_dir}")
 
-    manifest = json.loads(manifest_path.read_text())
+    manifest = read_manifest(manifest_path)
     rmap = aggregate(out_dir)
     text = render_report(rmap, manifest)
     print(text)

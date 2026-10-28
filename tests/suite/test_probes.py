@@ -49,7 +49,7 @@ def _feed_then_commit_policy(n_feeds: int):
 class _AnsweringAgent(ScriptedAgent):
     """A scripted agent that also answers probes (the test's ProbeAgent)."""
 
-    def probe(self, text: str):
+    def probe(self, text: str, observation=None):
         return f"echo: {text[:20]}"
 
 
@@ -117,7 +117,7 @@ def test_probe_failure_is_data_not_a_dead_trial():
     completes normally (the branch is discarded — its failure is too)."""
 
     class _Exploding(ScriptedAgent):
-        def probe(self, text: str):
+        def probe(self, text: str, observation=None):
             raise RuntimeError("probe channel down")
 
     world, task, dials = _draft(probes=[{"text": "x?", "timing": "every_turn"}])
@@ -199,7 +199,7 @@ def test_opaque_boundary_translates_probe_text_and_answer():
     nm = NameMap.of({"root/sink_byproduct_in": "m07"})
 
     class _Echo:
-        def probe(self, text):
+        def probe(self, text, observation=None):
             assert "m07" in text and "root/sink_byproduct_in" not in text
             return f"I see m07 rising"
 

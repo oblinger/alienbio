@@ -269,6 +269,9 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
             if record.monitor is not None
             else {}
         ),
+        # T088 — written only when set, so goldens are byte-unchanged.
+        **({"parse_failures": int(record.parse_failures)} if record.parse_failures else {}),
+        **({"aborted": record.aborted} if record.aborted is not None else {}),
         **(
             # T062 — written only when the drafter declares readouts.
             {"readout_series": {rid: [_encode_float(v) for v in vals] for rid, vals in record.readout_series.items()}}
@@ -345,6 +348,8 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         compaction=_decode_nonfinite(d.get("compaction")),
         forgetting=_decode_nonfinite(d.get("forgetting")),
         monitor=_decode_nonfinite(d.get("monitor")),
+        parse_failures=int(d.get("parse_failures", 0)),
+        aborted=d.get("aborted"),
         readout_series=(
             {rid: tuple(_decode_float(v) for v in vals) for rid, vals in d["readout_series"].items()}
             if d.get("readout_series") is not None
@@ -420,17 +425,49 @@ def _write_manifest(path: Path, manifest: Mapping[str, Any]) -> None:
     to resume from and ``aggregate`` cannot parse — with the spec, the only
     copy of what the records were drawn under, lost. Now the old manifest
     stands until the new one is whole.
+
+    The manifest is strict JSON like every record line (T088 leftovers): a
+    non-finite float anywhere — a spec carrying ``inf`` in a dial, a ceiling
+    or a level — is spelled ``"inf"``/``"-inf"``/``"nan"`` by
+    :func:`_encode_nonfinite`, and :func:`read_manifest` decodes it back. A
+    finite manifest's bytes are unchanged.
     """
-    tmp = path.with_name(path.name + ".tmp")
-    try:
-        with tmp.open("w") as f:
-            json.dump(manifest, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise
+    text = json.dumps(_encode_nonfinite(manifest), indent=2, allow_nan=False)
+    _atomic_write_text(path, text)
+
+
+#: The spec fields that carry numbers (dial trees, ceilings, rates) — the
+#: only spec fields :func:`read_manifest` decodes; prose (``name``,
+#: ``agent``, ``memory``, ``temperature``'s ``"provider-fixed"``) never is.
+_MANIFEST_SPEC_NUMERIC = (
+    "axes", "fixed_dials", "drafter_kwargs", "cost_ceiling_usd",
+    "price_usd_per_mtok", "top_p", "expected_cache_hit_rate",
+)
+#: The manifest's own numeric-bearing keys, decoded the same way.
+_MANIFEST_NUMERIC = ("cost_estimate", "cost_ceiling_usd", "cost_usd_spent", "usage_totals")
+
+
+def read_manifest(path: Path) -> dict[str, Any]:
+    """``manifest.json`` parsed, with the non-finite spellings
+    :func:`_write_manifest` writes decoded back to floats on the
+    numeric-bearing fields — the one reader every resume, aggregate and
+    report goes through, so a spec carrying ``inf`` round-trips equal.
+
+    Raises whatever ``json.loads`` / the read raises (callers that must
+    word an unreadable manifest catch ``OSError``/``ValueError``).
+    """
+    manifest = json.loads(path.read_text())
+    if not isinstance(manifest, dict):
+        return manifest
+    for key in _MANIFEST_NUMERIC:
+        if key in manifest:
+            manifest[key] = _decode_nonfinite(manifest[key])
+    spec = manifest.get("spec")
+    if isinstance(spec, dict):
+        for key in _MANIFEST_SPEC_NUMERIC:
+            if key in spec:
+                spec[key] = _decode_nonfinite(spec[key])
+    return manifest
 
 
 def read_records(path: Path) -> Iterator[tuple[str, dict[str, Any], TrialRecord]]:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import inspect
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
@@ -839,7 +838,9 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
         # there was no prior spec to compare and a drifted spec resumed
         # unchecked. Only a readable manifest carrying a spec is compared.
         try:
-            prior_manifest = json.loads(manifest_path.read_text())
+            from .store import read_manifest  # store imports guards late; resolve late too
+
+            prior_manifest = read_manifest(manifest_path)
         except (OSError, ValueError) as exc:
             raise ValueError(
                 f"run_experiment: resume=True but {manifest_path} is unreadable ({exc}) — the resume "

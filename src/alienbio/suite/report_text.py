@@ -87,12 +87,11 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
             # rate-limit errors — the class the record names.
             klass = record.error_class or "error"
             error_classes[klass] = error_classes.get(klass, 0) + 1
-        for step in record.deliberation_trace.steps:
-            if step.kind != "abort":
-                continue
-            for tag in ("parse_exhausted", "token_ceiling"):
-                if tag in step.content:
-                    abort_counts[tag] = abort_counts.get(tag, 0) + 1
+        # T088: read off the record's ``aborted`` (the agent's own tag) — the
+        # abort step's prose never carried the tag, so this count was empty
+        # on every run.
+        if record.aborted is not None:
+            abort_counts[record.aborted] = abort_counts.get(record.aborted, 0) + 1
     for reason, count in sorted(terminal_counts.items()):
         lines.append(f"  terminal_reason={reason!r}: {count}")
     lines.append(f"  illegal_actions (total): {illegal_total}")

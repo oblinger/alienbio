@@ -45,12 +45,14 @@ with a distinct child seed per attempt, raising ``ValueError`` after
 concern (F021's ``Budget``, identical across ``ScriptedAgent`` and
 ``LLMAgent`` so conditions stay comparable). ``LLMAgent`` additionally
 tracks its own coarse token estimate (chars / 4 over the rendered
-directive+context — ``LLMFn`` has no usage-accounting hook, so this is a
-heuristic runaway-cost guard, not billed usage) and, once ``token_ceiling``
+directive+context) and, since M45.5, the provider-reported usage on the
+shared :class:`UsageMeter` (uncached input + output; cache tokens do not
+count), reading whichever total is larger, and, once ``token_ceiling``
 would be exceeded, short-circuits with a ``Commit`` of a null answer tagged
 ``params={"aborted": "token_ceiling"}`` plus a ``ReasoningStep`` naming the
-abort — ending the trial (recorded as ``"committed"`` with that tag, not a
-new runner-level terminal reason) without ever calling the model again.
+abort — ending the trial (recorded as ``"committed"``, with
+``TrialRecord.aborted`` naming the tag, not a new runner-level terminal
+reason) without ever calling the model again.
 """
 
 from __future__ import annotations
@@ -544,9 +546,9 @@ def render_context(observation: Observation, turn: int, history: Sequence[Mappin
 def _estimate_tokens(directive: Directive, context: Any) -> int:
     """A coarse ~4-chars-per-token proxy over the rendered directive+context.
 
-    ``LLMFn`` has no usage-accounting hook, so this cannot reflect real
-    provider-reported usage; it exists only to size the runaway-cost guard
-    (:data:`LLMAgent.token_ceiling`), not to bill precisely.
+    The pre-call half of the runaway-cost guard (:data:`LLMAgent.token_ceiling`):
+    it sizes a turn BEFORE the call, where the provider-reported usage on the
+    :class:`UsageMeter` only exists after; never used to bill.
     """
     return max(1, estimate_tokens(directive + canonical(context)))
 
@@ -906,23 +908,34 @@ class LLMAgent:
                     entry["outcome"]["result"] = outcome.result
                 return
 
-    def probe(self, text: str) -> Optional[str]:
+    def probe(self, text: str, observation: Optional[Observation] = None) -> Optional[str]:
         """:class:`~alienbio.suite.agent.ProbeAgent` (T026) — answer ``text``
         on a discarded branch.
 
-        The probe context is a COPY of exactly what the next ``act`` would
-        see (the same memory-policy history window, the same system prompt)
-        plus the probe question — sent through ``llm_fn`` directly (free
-        text, no action schema), on an independent child seed. Nothing the
-        main line reads moves: ``_history``, ``_turn``, and
-        ``_tokens_spent`` are untouched, and the metered probe spend is
-        subtracted from the token-ceiling comparison (see ``act``) — the
-        run continues as if the probe never happened. The probe prompt IS
-        appended to ``prompt_texts``/``prompt_hashes`` so the taint audit
+        The probe context is what ``act`` renders — the same system prompt,
+        the same memory-policy history window, and ``observation`` (the
+        runner passes the turn's observation, the one ``act`` sees or saw) as
+        ``compartments`` — plus the probe question, sent through ``llm_fn``
+        directly (free text, no action schema), on an independent child
+        seed. When it fires (T088): an ``every_turn`` probe runs BEFORE this
+        turn's ``act``, so it is exactly that act's context (on the
+        ``compact_at`` turn it sees the pre-compaction window: compaction
+        runs inside ``act``); an ``after_action`` / ``at_commit`` probe runs
+        after ``act`` has SELECTED its action and before the runner executes
+        it, so ``turn`` has already advanced and the history window ends
+        with the selected action (its outcome still ``None``) — the context
+        the next turn would open with, minus the next observation, which
+        does not exist yet. Nothing the main line reads moves: ``_history``,
+        ``_turn``, and ``_tokens_spent`` are untouched, and the metered probe
+        spend is subtracted from the token-ceiling comparison (see ``act``)
+        — the run continues as if the probe never happened. The probe prompt
+        IS appended to ``prompt_texts``/``prompt_hashes`` so the taint audit
         covers it like any other prompt.
         """
         window = self._history_window()
         context: dict[str, Any] = {"probe": text, "turn": self._turn}
+        if observation is not None:
+            context["compartments"] = [dict(c) for c in observation]
         if window is not None:
             context["history"] = list(window)
         # T028 — the probe reply must decode as FREE TEXT: the action-format
@@ -1059,6 +1072,7 @@ class LLMAgent:
         spent_so_far = max(self._tokens_spent + estimate, meter_tokens)
         if spent_so_far <= self.token_ceiling:
             return None
+        self.aborted = "token_ceiling"
         content = (
             f"token ceiling ({self.token_ceiling}) would be exceeded "
             f"at turn {self._turn} (spent~{self._tokens_spent}, "
@@ -1250,9 +1264,11 @@ def default_anthropic_llm_fn(
     and surrounding prose on a text reply, and through ``LLMOp.out_schema``,
     which stays the authority on well-formedness.
 
-    Resolves the key via ``config.get_api_key("anthropic")`` (``os.environ``
-    only — ``ANTHROPIC_API_KEY``, Keychain -> env via ``~/.zshrc``; no
-    ``.env`` is ever read, Q4 = A) and fails loudly if it is absent.
+    Resolves the key via ``config.get_api_key("anthropic")``: the
+    ``ANTHROPIC_API_KEY`` environment variable (Keychain -> env via
+    ``~/.zshrc``), then ``ALIENBIO_ANTHROPIC_API_KEY``, then ``api_keys``
+    in the alienbio config file; no ``.env`` is ever read (Q4 = A). Fails
+    loudly if none is set.
     ``anthropic`` is imported lazily inside this function, so no framework
     test needs the package installed unless this factory is actually called.
 

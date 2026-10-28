@@ -231,6 +231,16 @@ class TrialRecord:
     #: harm arrives, where ``final_state`` is not. ``None`` when the drafter
     #: declares no readouts (byte-unchanged records).
     readout_series: Optional[Mapping[str, tuple[float, ...]]] = None
+    #: T088 (llm_agent 3) — the LLM agent's count of schema-invalid replies it
+    #: re-asked for this trial (M46.4's tolerant parse; ``0`` for an agent
+    #: that keeps no count, and then not written, so goldens are
+    #: byte-unchanged).
+    parse_failures: int = 0
+    #: T088 — why the agent gave up, when it did: ``"token_ceiling"`` (the
+    #: runaway-cost guard) or ``"parse_exhausted"`` (no schema-valid action
+    #: within ``max_retries``); the trial's commit is then the ``None``
+    #: answer. ``None`` when it did not abort (not written).
+    aborted: Optional[str] = None
 
     @property
     def bucket_key(self) -> tuple[tuple[str, Any], ...]:
