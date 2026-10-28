@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-world">
+    <rect id="n-world-box" x="20" y="220" width="220" height="100" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-world-name" x="130" y="246" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
+    <text id="n-world-k1" x="130" y="268" font-size="14" text-anchor="middle">(bio) chemistry,</text>
+    <text id="n-world-k2" x="130" y="288" font-size="14" text-anchor="middle">compartments, flows,</text>
+    <text id="n-world-k3" x="130" y="308" font-size="14" text-anchor="middle">population_laws</text>
+  </g>
+
+  <g id="n-rate">
+    <rect id="n-rate-box" x="320" y="60" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rate-name" x="440" y="86" font-size="18" font-weight="600" text-anchor="middle">perturb_rate</text>
+    <text id="n-rate-kind" x="440" y="108" font-size="14" text-anchor="middle">(fn) new ReactionImpl,</text>
+    <text id="n-rate-kind2" x="440" y="128" font-size="14" text-anchor="middle">rate · factor, no rate_law ‡</text>
+  </g>
+  <g id="n-rm">
+    <rect id="n-rm-box" x="320" y="230" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rm-name" x="440" y="256" font-size="18" font-weight="600" text-anchor="middle">remove_reaction</text>
+    <text id="n-rm-kind" x="440" y="278" font-size="14" text-anchor="middle">(fn) reaction table</text>
+    <text id="n-rm-kind2" x="440" y="298" font-size="14" text-anchor="middle">minus one id</text>
+  </g>
+  <g id="n-spike">
+    <rect id="n-spike-box" x="320" y="400" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spike-name" x="440" y="426" font-size="18" font-weight="600" text-anchor="middle">spike_concentration</text>
+    <text id="n-spike-kind" x="440" y="448" font-size="14" text-anchor="middle">(fn) one compartment only,</text>
+    <text id="n-spike-kind2" x="440" y="468" font-size="14" text-anchor="middle">conc += amount</text>
+  </g>
+  <line id="e-world-rate" x1="240" y1="250" x2="320" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-world-rm" x1="240" y1="270" x2="320" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-world-spike" x1="240" y1="290" x2="320" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-rebuild">
+    <rect id="n-rebuild-box" x="640" y="150" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rebuild-name" x="765" y="176" font-size="18" font-weight="600" text-anchor="middle">_rebuild_world</text>
+    <text id="n-rebuild-kind" x="765" y="198" font-size="14" text-anchor="middle">ChemistryImpl("perturbed"),</text>
+    <text id="n-rebuild-kind2" x="765" y="218" font-size="14" text-anchor="middle">WorldImpl(chem, comps) ‡</text>
+  </g>
+  <line id="e-rate-rebuild" x1="560" y1="110" x2="660" y2="150" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-rm-rebuild" x1="560" y1="260" x2="640" y2="215" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-comp">
+    <rect id="n-comp-box" x="640" y="400" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-comp-name" x="765" y="426" font-size="17" font-weight="600" text-anchor="middle">new Compartment</text>
+    <text id="n-comp-kind" x="765" y="448" font-size="14" text-anchor="middle">WorldImpl(chem, (comp,));</text>
+    <text id="n-comp-kind2" x="765" y="468" font-size="14" text-anchor="middle">chemistry shared ‡</text>
+  </g>
+  <line id="e-spike-comp" x1="560" y1="440" x2="640" y2="440" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-out">
+    <rect id="n-out-box" x="960" y="270" width="220" height="100" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-out-name" x="1070" y="296" font-size="18" font-weight="600" text-anchor="middle">new WorldImpl</text>
+    <text id="n-out-k1" x="1070" y="318" font-size="14" text-anchor="middle">flows and population</text>
+    <text id="n-out-k2" x="1070" y="338" font-size="14" text-anchor="middle">laws empty; input</text>
+    <text id="n-out-k3" x="1070" y="358" font-size="14" text-anchor="middle">never mutated</text>
+  </g>
+  <line id="e-rebuild-out" x1="890" y1="200" x2="980" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-comp-out" x1="890" y1="430" x2="980" y2="370" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-pred">
+    <rect id="n-pred-box" x="640" y="40" width="250" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pred-name" x="765" y="66" font-size="16" font-weight="600" text-anchor="middle">perturbation_response</text>
+    <text id="n-pred-kind" x="765" y="88" font-size="14" text-anchor="middle">(arch_predict) the one caller</text>
+  </g>
+  <line id="e-pred-rate" x1="640" y1="72" x2="560" y2="80" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ not carried over: flows, population laws, the edited reaction's rate_law, the chemistry's name</text>
+  </g>
+</svg>
