@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="background" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Callers -->
+  <rect id="runner-box" x="15" y="60" width="210" height="110" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="runner-name" x="120" y="88" font-size="18" font-weight="600" text-anchor="middle">runner.run</text>
+  <text id="runner-kind" x="120" y="108" font-size="14" text-anchor="middle">(function, suite/runner)</text>
+  <text id="runner-f1" x="120" y="134" font-size="14" text-anchor="middle">begin once, then per turn</text>
+  <text id="runner-f2" x="120" y="154" font-size="14" text-anchor="middle">act · notice · probe</text>
+
+  <rect id="opaque-box" x="15" y="250" width="210" height="110" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="opaque-name" x="120" y="278" font-size="18" font-weight="600" text-anchor="middle">OpaqueAgent</text>
+  <text id="opaque-kind" x="120" y="298" font-size="14" text-anchor="middle">(class, suite/naming)</text>
+  <text id="opaque-f1" x="120" y="324" font-size="14" text-anchor="middle">surface names in,</text>
+  <text id="opaque-f2" x="120" y="344" font-size="14" text-anchor="middle">structural ids out</text>
+
+  <!-- LLMAgent container -->
+  <rect id="agent-box" x="290" y="30" width="610" height="590" rx="14" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="agent-name" x="880" y="606" font-size="20" font-weight="700" text-anchor="end">LLMAgent <tspan id="agent-kind" font-size="14" font-weight="400">(class, suite/llm_agent)</tspan></text>
+
+  <!-- Turn history -->
+  <rect id="history-box" x="330" y="90" width="215" height="250" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="history-name" x="437" y="116" font-size="18" font-weight="600" text-anchor="middle">turn history</text>
+  <text id="history-kind" x="437" y="136" font-size="14" text-anchor="middle">(list, _history)</text>
+  <rect id="row-constitution" x="342" y="150" width="191" height="46" rx="6" fill="#ffe3e3" stroke="#868e96" stroke-width="1"/>
+  <text id="row-constitution-1" x="437" y="169" font-size="14" text-anchor="middle">turn −1 · Constitution</text>
+  <text id="row-constitution-2" x="437" y="188" font-size="14" text-anchor="middle">constitution_in_history</text>
+  <rect id="row-summary" x="342" y="204" width="191" height="46" rx="6" fill="#e5dbff" stroke="#868e96" stroke-width="1"/>
+  <text id="row-summary-1" x="437" y="223" font-size="14" text-anchor="middle">summary entry</text>
+  <text id="row-summary-2" x="437" y="242" font-size="14" text-anchor="middle">compact_at · summarizer</text>
+  <rect id="row-turn" x="342" y="258" width="191" height="46" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+  <text id="row-turn-1" x="437" y="277" font-size="14" text-anchor="middle">turn t · obs · action</text>
+  <text id="row-turn-2" x="437" y="296" font-size="14" text-anchor="middle">outcome from notice</text>
+  <text id="history-window" x="437" y="326" font-size="14" text-anchor="middle">window: memory · fill limit</text>
+
+  <!-- System prompt -->
+  <rect id="system-box" x="330" y="375" width="215" height="95" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="system-name" x="437" y="401" font-size="18" font-weight="600" text-anchor="middle">system prompt</text>
+  <text id="system-kind" x="437" y="421" font-size="14" text-anchor="middle">(str, _system)</text>
+  <text id="system-f1" x="437" y="443" font-size="14" text-anchor="middle">directive + brief</text>
+  <text id="system-f2" x="437" y="461" font-size="14" text-anchor="middle">set by begin</text>
+
+  <!-- Probe -->
+  <rect id="probe-box" x="330" y="515" width="215" height="85" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="probe-name" x="437" y="541" font-size="18" font-weight="600" text-anchor="middle">probe</text>
+  <text id="probe-kind" x="437" y="561" font-size="14" text-anchor="middle">(method, ProbeAgent)</text>
+  <text id="probe-f1" x="437" y="583" font-size="14" text-anchor="middle">prompt + window copy</text>
+
+  <!-- Action -->
+  <rect id="action-box" x="625" y="90" width="240" height="75" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="action-name" x="745" y="116" font-size="18" font-weight="600" text-anchor="middle">Action</text>
+  <text id="action-kind" x="745" y="136" font-size="14" text-anchor="middle">(union, suite/agent)</text>
+  <text id="action-f1" x="745" y="155" font-size="14" text-anchor="middle">+ ReasoningStep, returned</text>
+
+  <!-- Parse -->
+  <rect id="parse-box" x="625" y="210" width="240" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="parse-name" x="745" y="236" font-size="18" font-weight="600" text-anchor="middle">_parse_action</text>
+  <text id="parse-kind" x="745" y="256" font-size="14" text-anchor="middle">(function, private)</text>
+  <text id="parse-f1" x="745" y="280" font-size="14" text-anchor="middle">tolerant · parse_failures</text>
+
+  <!-- LLMOp -->
+  <rect id="op-box" x="625" y="345" width="240" height="95" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="op-name" x="745" y="371" font-size="18" font-weight="600" text-anchor="middle">LLMOp</text>
+  <text id="op-kind" x="745" y="391" font-size="14" text-anchor="middle">(class, suite/ops)</text>
+  <text id="op-f1" x="745" y="412" font-size="14" text-anchor="middle">cache · schema check</text>
+  <text id="op-f2" x="745" y="430" font-size="14" text-anchor="middle">retries on child seeds</text>
+
+  <!-- Provider fn -->
+  <rect id="fn-box" x="945" y="330" width="240" height="150" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="fn-name" x="1065" y="356" font-size="18" font-weight="600" text-anchor="middle">LLMFn</text>
+  <text id="fn-kind" x="1065" y="376" font-size="14" text-anchor="middle">(provider fn, injected)</text>
+  <text id="fn-f1" x="1065" y="400" font-size="14" text-anchor="middle">default_anthropic_llm_fn</text>
+  <text id="fn-f2" x="1065" y="420" font-size="14" text-anchor="middle">forced emit_action tool</text>
+  <text id="fn-f3" x="1065" y="440" font-size="14" text-anchor="middle">transport retry · backoff</text>
+  <text id="fn-f4" x="1065" y="460" font-size="14" text-anchor="middle">pops max_tokens</text>
+
+  <!-- UsageMeter -->
+  <rect id="meter-box" x="945" y="80" width="240" height="105" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="meter-name" x="1065" y="106" font-size="18" font-weight="600" text-anchor="middle">UsageMeter</text>
+  <text id="meter-kind" x="1065" y="126" font-size="14" text-anchor="middle">(dataclass, one per trial)</text>
+  <text id="meter-f1" x="1065" y="150" font-size="14" text-anchor="middle">tokens · cache · events</text>
+  <text id="meter-f2" x="1065" y="170" font-size="14" text-anchor="middle">read back as usage</text>
+
+  <!-- Edges: callers -->
+  <line id="e-wrap" x1="120" y1="170" x2="120" y2="248" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-wrap" x="130" y="214" font-size="14" fill="#1971c2" font-style="italic">wraps if opaque</text>
+  <line id="e-calls" x1="225" y1="305" x2="288" y2="305" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-calls" x="256" y="296" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">calls</text>
+  <line id="e-direct" x1="225" y1="135" x2="288" y2="135" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-direct" x="256" y="126" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">direct</text>
+  <polyline id="e-return" points="745,90 745,72 227,72" fill="none" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-return" x="520" y="64" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">returns (Action, steps)</text>
+
+  <!-- Edges: one turn -->
+  <line id="e-context" x1="545" y1="300" x2="655" y2="343" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-context" x="580" y="293" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle" transform="rotate(21 580 293)">context</text>
+  <line id="e-directive" x1="545" y1="410" x2="623" y2="410" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-directive" x="584" y="401" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">directive</text>
+  <line id="e-call" x1="865" y1="370" x2="943" y2="370" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-call" x="922" y="361" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">call</text>
+  <line id="e-reply" x1="945" y1="420" x2="867" y2="420" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-reply" x="922" y="440" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">reply</text>
+  <line id="e-valid" x1="745" y1="345" x2="745" y2="302" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-valid" x="755" y="328" font-size="14" fill="#1971c2" font-style="italic">valid reply</text>
+  <line id="e-build" x1="745" y1="210" x2="745" y2="167" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="l-build" x="755" y="193" font-size="14" fill="#1971c2" font-style="italic">builds</text>
+  <line id="e-append" x1="625" y1="255" x2="547" y2="255" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-append" x="586" y="246" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">append</text>
+  <line id="e-record" x1="1065" y1="330" x2="1065" y2="187" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-record" x="1075" y="262" font-size="14" fill="#1971c2" font-style="italic">record usage</text>
+
+  <!-- Edges: the probe fork -->
+  <polyline id="e-fork" points="330,320 310,320 310,557 328,557" fill="none" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-fork" x="304" y="440" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle" transform="rotate(-90 304 440)">fork</text>
+  <polyline id="e-probe" points="545,557 1065,557 1065,482" fill="none" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="l-probe" x="760" y="548" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">free-text call, child seed</text>
+
+  <!-- Legend -->
+  <rect id="legend-box" x="945" y="592" width="240" height="76" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+  <line id="legend-solid" x1="960" y1="614" x2="1020" y2="614" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+  <text id="legend-solid-l" x="1030" y="619" font-size="14">call, main line</text>
+  <line id="legend-dot" x1="960" y1="646" x2="1020" y2="646" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowhead)"/>
+  <text id="legend-dot-l" x="1030" y="651" font-size="14">return · fork · meter</text>
+</svg>
