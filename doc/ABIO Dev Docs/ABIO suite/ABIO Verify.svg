@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-world">
+    <rect id="n-world-box" x="20" y="60" width="220" height="100" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-world-name" x="130" y="86" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
+    <text id="n-world-k1" x="130" y="108" font-size="13" text-anchor="middle">chemistry, initial_state,</text>
+    <text id="n-world-k2" x="130" y="126" font-size="13" text-anchor="middle">flow_objs,</text>
+    <text id="n-world-k3" x="130" y="144" font-size="13" text-anchor="middle">population_law_objs</text>
+  </g>
+  <g id="n-cfg">
+    <rect id="n-cfg-box" x="20" y="220" width="220" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cfg-name" x="130" y="246" font-size="18" font-weight="600" text-anchor="middle">SimConfig</text>
+    <text id="n-cfg-kind" x="130" y="268" font-size="13" text-anchor="middle">dt 0.1, steps 200,</text>
+    <text id="n-cfg-kind2" x="130" y="288" font-size="13" text-anchor="middle">sample_every 10 ‡</text>
+  </g>
+  <g id="n-sim">
+    <rect id="n-sim-box" x="320" y="120" width="240" height="120" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sim-name" x="440" y="146" font-size="18" font-weight="600" text-anchor="middle">simulate</text>
+    <text id="n-sim-k1" x="440" y="170" font-size="13" text-anchor="middle">copy initial state;</text>
+    <text id="n-sim-k2" x="440" y="188" font-size="13" text-anchor="middle">run; times = step · dt;</text>
+    <text id="n-sim-k3" x="440" y="206" font-size="13" text-anchor="middle">optional pressure overlay</text>
+  </g>
+  <line id="e-world-sim" x1="240" y1="110" x2="320" y2="150" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-cfg-sim" x1="240" y1="260" x2="320" y2="215" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-ws">
+    <rect id="n-ws-box" x="640" y="60" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ws-name" x="765" y="86" font-size="16" font-weight="600" text-anchor="middle">WorldSimulatorImpl</text>
+    <text id="n-ws-kind" x="765" y="108" font-size="13" text-anchor="middle">from_chemistry(...).run(</text>
+    <text id="n-ws-kind2" x="765" y="126" font-size="13" text-anchor="middle">state, steps, sample_every)</text>
+  </g>
+  <line id="e-sim-ws" x1="560" y1="150" x2="640" y2="110" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-pr">
+    <rect id="n-pr-box" x="640" y="220" width="250" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pr-name" x="765" y="246" font-size="16" font-weight="600" text-anchor="middle">EnvironmentalPressure</text>
+    <text id="n-pr-kind" x="765" y="268" font-size="13" text-anchor="middle">overlay; tests only</text>
+  </g>
+  <line id="e-sim-pr" x1="560" y1="215" x2="640" y2="245" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-tl">
+    <rect id="n-tl-box" x="960" y="140" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tl-name" x="1070" y="166" font-size="18" font-weight="600" text-anchor="middle">Timeline</text>
+    <text id="n-tl-kind" x="1070" y="188" font-size="13" text-anchor="middle">steps 25 / every 10 →</text>
+    <text id="n-tl-kind2" x="1070" y="206" font-size="13" text-anchor="middle">times 0, 1, 2, 2.5</text>
+  </g>
+  <line id="e-ws-tl" x1="890" y1="110" x2="980" y2="140" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-verify">
+    <rect id="n-verify-box" x="320" y="360" width="240" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-verify-name" x="440" y="386" font-size="18" font-weight="600" text-anchor="middle">verify</text>
+    <text id="n-verify-k1" x="440" y="408" font-size="13" text-anchor="middle">baseline + perturbed, one</text>
+    <text id="n-verify-k2" x="440" y="426" font-size="13" text-anchor="middle">seed; no caller in src/</text>
+  </g>
+  <line id="e-verify-sim" x1="440" y1="360" x2="440" y2="240" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-verify-sim" x="450" y="305" font-size="13" fill="#1971c2" font-style="italic">twice</text>
+  <g id="n-vr">
+    <rect id="n-vr-box" x="640" y="370" width="250" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-vr-name" x="765" y="396" font-size="17" font-weight="600" text-anchor="middle">VerifyResult</text>
+    <text id="n-vr-kind" x="765" y="418" font-size="13" text-anchor="middle">passed, discard, both timelines</text>
+  </g>
+  <line id="e-verify-vr" x1="560" y1="405" x2="640" y2="405" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-users">
+    <rect id="n-users-box" x="960" y="300" width="220" height="150" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-users-name" x="1070" y="326" font-size="17" font-weight="600" text-anchor="middle">19 importers</text>
+    <text id="n-users-k1" x="1070" y="350" font-size="13" text-anchor="middle">runner (one burst/turn)</text>
+    <text id="n-users-k2" x="1070" y="370" font-size="13" text-anchor="middle">Skeleton.oracle</text>
+    <text id="n-users-k3" x="1070" y="390" font-size="13" text-anchor="middle">generators' gates</text>
+    <text id="n-users-k4" x="1070" y="410" font-size="13" text-anchor="middle">pipeline reject loop</text>
+    <text id="n-users-k5" x="1070" y="430" font-size="13" text-anchor="middle">archetypes, boundedness</text>
+  </g>
+  <line id="e-tl-users" x1="1070" y1="220" x2="1070" y2="300" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ unvalidated: sample_every 0 raises a bare ZeroDivisionError</text>
+  </g>
+</svg>
