@@ -3,8 +3,8 @@
 The load-bearing seam the whole Phase-2 runtime binds to: a structural
 :class:`Agent` Protocol (``act(observation) -> (action, reasoning_steps)``)
 and a concrete, deterministic :class:`ScriptedAgent` that keeps framework CI
-green with zero LLM calls. ``LLMAgent`` is a deliberate follow-on over the
-existing ``LLMOp`` seam (out of scope here).
+green with zero LLM calls. The real-model agent, ``LLMAgent``, implements the
+same Protocol in ``suite.llm_agent``.
 
 - :class:`Measure` / :class:`Intervene` / :class:`Commit` / :class:`Wait` —
   the closed, neutral :data:`Action` set every world-agnostic scorer pattern
@@ -51,10 +51,14 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class Measure:
-    """Read a probe/observable; non-mutating.
+    """Read a probe/observable; non-mutating unless it is a destructive assay.
 
     ``probe`` names the observable read (opaque to this module); ``params``
     carries any additional opaque configuration a specific world needs.
+    With ``params["assay"]`` truthy the read is the M36.10 destructive assay:
+    ``suite.runner.run`` reveals ``probe``'s reaction rate and scales every
+    concentration in every compartment by ``1 - assay_kill``, so the world
+    changes.
     """
 
     probe: str
@@ -130,9 +134,7 @@ class ReasoningStep:
 class Agent(Protocol):
     """A decision-maker: observation in, action + reasoning out.
 
-    Single method, deliberately diverging from the legacy
-    ``agent.agents.Agent`` (``start``/``decide``/``end``, ``decide`` returns
-    only an action). Here the agent returns both the :data:`Action` to take
+    Single method: the agent returns both the :data:`Action` to take
     **and** the :class:`ReasoningStep`\\ s it produced deciding it; the
     Phase-2 runner threads the steps into the trial's
     :class:`~alienbio.suite.deliberation.DeliberationTrace` and applies the
@@ -154,8 +156,12 @@ class ActionOutcome:
     """What happened to one fired :data:`Action` at the runner (M46.3).
 
     ``accepted`` is ``False`` for an action ``suite.runner.run`` rejected as
-    illegal (unknown probe/lever, non-finite ``Intervene`` value) rather
-    than raising — "rejection as data" — and ``reason`` names why (empty for
+    illegal rather than raising — "rejection as data": an unknown probe,
+    assay or lever, a lever excluded from the surface (the readout, a hidden
+    pool, a rate-law reaction — ``brief.lever_exclusion``), a lever or assay
+    not resolvable in the world, a non-finite or negative ``Intervene``
+    value, or an unknown action type (the ABIO Runner doc, § Rejection as
+    data, gives the order). ``reason`` names why (empty for
     an accepted action, except an accepted ``Intervene`` whose over-cap value
     the runner clamped to its lever's ``max_rate``: the clamp note rides here,
     T023).
@@ -234,9 +240,9 @@ class WaitUntil:
 
 
 #: One step of a :class:`ScriptedAgent` policy: either a directly-fired
-#: :data:`Action` (``Measure`` / ``Intervene`` / ``Commit``) or a
+#: :data:`Action` (``Measure`` / ``Intervene`` / ``Commit`` / ``Wait``) or a
 #: :class:`WaitUntil` conditional-hook guard.
-PolicyStep = Union[Measure, Intervene, Commit, WaitUntil]
+PolicyStep = Union[Measure, Intervene, Commit, Wait, WaitUntil]
 
 #: The declarative form (a step list) or the ``Callable`` escape hatch, which
 #: receives the current observation and the agent's seed and must itself
@@ -251,7 +257,7 @@ class ScriptedAgent:
     """A deterministic, seeded agent driven by a declarative :data:`Policy`.
 
     With a step-list policy, ``act`` walks the list in order: each
-    ``Measure``/``Intervene``/``Commit`` step fires as-is (that literal
+    ``Measure``/``Intervene``/``Commit``/``Wait`` step fires as-is (that literal
     :data:`Action` is returned) and the agent advances past it; each
     ``WaitUntil`` step is a conditional-hook guard (see :class:`WaitUntil`).
     Exactly one synthetic :class:`ReasoningStep` is emitted per fired policy
@@ -265,25 +271,36 @@ class ScriptedAgent:
     own seeded randomness; the step-list path needs none.
 
     Raises:
-        RuntimeError: if ``act`` is called again after the policy's step
-            list is exhausted (i.e. after its terminal ``Commit`` has fired).
+        RuntimeError: if ``act`` is called after the policy's step list is
+            exhausted — after its terminal ``Commit``, or, for a list with no
+            ``Commit``, once ``max_turns`` outlasts the list. The runner
+            surfaces it as a ``TrialError``.
     """
 
     def __init__(self, policy: Policy, seed: Seed) -> None:
         self.policy = policy
         self.seed = seed
         self._pos = 0
+        #: ``act`` calls so far: the runner calls ``act`` once per turn, so
+        #: this is the 0-based turn of the current call.
+        self._turn = -1
 
     def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:
+        self._turn += 1
         if not isinstance(self.policy, tuple):
             return self.policy(observation, self.seed)
 
         steps = self.policy
         while True:
             if self._pos >= len(steps):
+                ended = (
+                    "after its terminal Commit"
+                    if steps and isinstance(steps[-1], Commit)
+                    else "with no Commit to end the trial"
+                )
                 raise RuntimeError(
-                    "ScriptedAgent policy exhausted: no further steps after "
-                    "its terminal Commit"
+                    f"ScriptedAgent policy exhausted: all {len(steps)} steps "
+                    f"fired {ended}; act() called again on turn {self._turn}"
                 )
             step = steps[self._pos]
             if isinstance(step, WaitUntil):

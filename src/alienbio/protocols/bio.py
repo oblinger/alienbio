@@ -17,7 +17,7 @@ Use these for type hints to allow for alternative implementations.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Protocol, Union, runtime_checkable
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Protocol, runtime_checkable
 
 from typing import TYPE_CHECKING, Mapping
 
@@ -151,8 +151,11 @@ class Reaction(Protocol):
         ...
 
     @property
-    def rate(self) -> Union[float, Callable]:
-        """Reaction rate (constant or function of state)."""
+    def rate(self) -> float:
+        """Reaction rate: a real number (the mass-action rate constant).
+
+        A rate that varies with state is a compiled ``rate_law``, never a
+        callable here: ``ReactionImpl`` refuses a non-number (``b86bcd1``)."""
         ...
 
 

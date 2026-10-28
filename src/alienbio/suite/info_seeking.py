@@ -29,9 +29,12 @@ class ActionRecord:
     irreversibly consumes or damages the substrate.
 
     ``accepted``/``reason`` (M46.3) record whether ``suite.runner.run``
-    applied this action or rejected it as illegal (unknown probe/lever,
-    non-finite ``Intervene`` value) — rejection-as-data rather than a raised
-    exception (an ACCEPTED ``Intervene`` may also carry a non-empty
+    applied this action or rejected it as illegal — rejection-as-data rather
+    than a raised exception: an unknown probe, assay or lever, a lever
+    excluded from the surface (readout, hidden pool, rate-law reaction), a
+    lever or assay not resolvable in the world, a non-finite or negative
+    ``Intervene`` value, or an unknown action type (the ABIO Runner doc,
+    § Rejection as data) (an ACCEPTED ``Intervene`` may also carry a non-empty
     ``reason``: the T023 clamp note, when its over-cap value was clamped to
     the lever's ``max_rate``). Both default (``True``/``""``) so every existing hand-built
     fixture constructs unchanged; this module's own metrics still read only

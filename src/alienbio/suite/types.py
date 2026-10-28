@@ -1,7 +1,7 @@
 """Neutral, immutable value types for the ``suite`` subsystem (L0, L2-L6).
 
 This module carries NO domain logic: every piece of domain meaning is an
-opaque :data:`Tags` mapping (``dict[str, str | float]``) that this code never
+opaque :data:`Tags` mapping (``dict[str, str | float | bool]``) that this code never
 inspects or branches on.
 
 All value types are ``@dataclass(frozen=True)`` — collections are stored as
@@ -51,7 +51,11 @@ T_co = TypeVar("T_co", covariant=True)
 # ═══════════════════════════════════════════════════════════════════════════
 
 NodeId = str
-Tags = dict[str, Union[str, float]]
+#: Values a tag bag carries. ``bool`` is spelled out because the runner reads
+#: a boolean ``params["assay"]`` on a ``Measure``; ``LLMAgent`` passes the
+#: model's ``params`` object through unvalidated, so at runtime a value may be
+#: any JSON value — this module still never inspects one.
+Tags = dict[str, Union[str, float, bool]]
 
 # A predicate is an opaque callable over a Species/Reaction — only ever called,
 # never inspected.
