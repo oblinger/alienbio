@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-heads">
+    <rect id="n-heads-box" x="20" y="34" width="250" height="104" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-heads-name" x="145" y="60" font-size="18" font-weight="600" text-anchor="middle">drafter heads</text>
+    <text id="n-heads-kind" x="145" y="82" font-size="14" text-anchor="middle">(drafter) pressure · diagnose · …</text>
+    <text id="n-heads-kind2" x="145" y="102" font-size="14" text-anchor="middle">guarded / guarded_params,</text>
+    <text id="n-heads-kind3" x="145" y="122" font-size="14" text-anchor="middle">dials = keyword params</text>
+  </g>
+  <g id="n-cat">
+    <rect id="n-cat-box" x="20" y="250" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cat-name" x="145" y="276" font-size="18" font-weight="600" text-anchor="middle">catalog drafters</text>
+    <text id="n-cat-kind" x="145" y="298" font-size="14" text-anchor="middle">(trusted .py include)</text>
+    <text id="n-cat-kind2" x="145" y="318" font-size="14" text-anchor="middle">registered after import</text>
+  </g>
+  <g id="n-reg">
+    <rect id="n-reg-box" x="330" y="150" width="230" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reg-name" x="445" y="176" font-size="18" font-weight="600" text-anchor="middle">registry</text>
+    <text id="n-reg-kind" x="445" y="198" font-size="14" text-anchor="middle">(Registry) drafter_heads:</text>
+    <text id="n-reg-kind2" x="445" y="218" font-size="14" text-anchor="middle">kind == drafter, now</text>
+  </g>
+  <line id="e-heads-reg" x1="230" y1="138" x2="370" y2="150" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-cat-reg" x1="230" y1="250" x2="370" y2="230" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-dp">
+    <rect id="n-dp-box" x="630" y="40" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dp-name" x="750" y="66" font-size="18" font-weight="600" text-anchor="middle">dial_params</text>
+    <text id="n-dp-kind" x="750" y="88" font-size="14" text-anchor="middle">(fn) signature → dials</text>
+    <text id="n-dp-kind2" x="750" y="108" font-size="14" text-anchor="middle">and defaults</text>
+  </g>
+  <line id="e-reg-dp" x1="530" y1="150" x2="650" y2="120" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-guard">
+    <rect id="n-guard-box" x="930" y="40" width="250" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-guard-name" x="1055" y="66" font-size="17" font-weight="600" text-anchor="middle">guarded_drafters · _dials</text>
+    <text id="n-guard-kind" x="1055" y="88" font-size="14" text-anchor="middle">(fn) live, read by the</text>
+    <text id="n-guard-kind2" x="1055" y="108" font-size="14" text-anchor="middle">no-peeking guard</text>
+  </g>
+  <line id="e-dp-guard" x1="870" y1="80" x2="930" y2="80" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-adapt">
+    <rect id="n-adapt-box" x="630" y="216" width="240" height="104" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-adapt-name" x="750" y="242" font-size="18" font-weight="600" text-anchor="middle">DRAFTERS · _adapt</text>
+    <text id="n-adapt-kind" x="750" y="264" font-size="14" text-anchor="middle">(dict) declared dials only;</text>
+    <text id="n-adapt-kind2" x="750" y="284" font-size="14" text-anchor="middle">guarded → require_levers,</text>
+    <text id="n-adapt-kind3" x="750" y="304" font-size="14" text-anchor="middle">opaque_names</text>
+  </g>
+  <line id="e-reg-adapt" x1="560" y1="210" x2="630" y2="245" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-reg-adapt" x="595" y="250" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">head</text>
+  <line id="e-dp-adapt" x1="750" y1="120" x2="750" y2="216" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-mtr">
+    <rect id="n-mtr-box" x="930" y="220" width="250" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mtr-name" x="1055" y="246" font-size="18" font-weight="600" text-anchor="middle">MassTrialRunner</text>
+    <text id="n-mtr-kind" x="1055" y="268" font-size="14" text-anchor="middle">(runner) per trial:</text>
+    <text id="n-mtr-kind2" x="1055" y="288" font-size="14" text-anchor="middle">drafter(seed, dials)</text>
+  </g>
+  <line id="e-adapt-mtr" x1="870" y1="265" x2="930" y2="265" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-unk">
+    <rect id="n-unk-box" x="630" y="410" width="240" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-unk-name" x="750" y="436" font-size="18" font-weight="600" text-anchor="middle">unknown_dials</text>
+    <text id="n-unk-kind" x="750" y="458" font-size="14" text-anchor="middle">(fn) a dial nobody reads</text>
+    <text id="n-unk-kind2" x="750" y="478" font-size="14" text-anchor="middle">is refused, not dropped</text>
+  </g>
+  <line id="e-adapt-unk" x1="750" y1="320" x2="750" y2="410" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-adapt-unk" x="760" y="365" font-size="14" fill="#1971c2" font-style="italic">checks first</text>
+  <g id="n-rt">
+    <rect id="n-rt-box" x="330" y="410" width="230" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rt-name" x="445" y="436" font-size="18" font-weight="600" text-anchor="middle">runtime_dials</text>
+    <text id="n-rt-kind" x="445" y="458" font-size="14" text-anchor="middle">(fn) brief + episode +</text>
+    <text id="n-rt-kind2" x="445" y="478" font-size="14" text-anchor="middle">factory + invariant</text>
+  </g>
+  <line id="e-rt-unk" x1="560" y1="450" x2="630" y2="450" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-brief">
+    <rect id="n-brief-box" x="20" y="410" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-brief-name" x="145" y="436" font-size="18" font-weight="600" text-anchor="middle">brief · episode</text>
+    <text id="n-brief-kind" x="145" y="458" font-size="14" text-anchor="middle">(ExprExperiment) their</text>
+    <text id="n-brief-kind2" x="145" y="478" font-size="14" text-anchor="middle">keywords, by signature</text>
+  </g>
+  <line id="e-brief-rt" x1="270" y1="450" x2="330" y2="450" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-wi">
+    <rect id="n-wi-box" x="930" y="410" width="250" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-wi-name" x="1055" y="436" font-size="16" font-weight="600" text-anchor="middle">WORLD_INVARIANT_DIALS ‡</text>
+    <text id="n-wi-kind" x="1055" y="458" font-size="14" text-anchor="middle">(tuple) arms sharing worlds</text>
+    <text id="n-wi-kind2" x="1055" y="478" font-size="14" text-anchor="middle">and agent seeds</text>
+  </g>
+  <line id="e-wi-mtr" x1="1055" y1="410" x2="1055" y2="310" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-wi-mtr" x="1065" y="365" font-size="14" fill="#1971c2" font-style="italic">matched_dials</text>
+  <polyline id="e-wi-rt" points="1055,490 1055,550 445,550 445,490" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-wi-rt" x="750" y="570" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">part of</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">registers, adapts, calls</text>
+    <line id="legend-dotted" x1="270" y1="641" x2="320" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="330" y="646" font-size="14">reads, derives</text>
+    <text id="legend-dagger" x="470" y="646" font-size="14">‡ omits observability, observation_noise and the forgetting dials, which its comment says it covers</text>
+  </g>
+</svg>
