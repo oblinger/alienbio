@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-presets">
+    <rect id="n-presets-box" x="20" y="30" width="560" height="200" rx="12" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-presets-name" x="35" y="54" font-size="16" font-weight="600" fill="#343a40">MONITORING_PRESETS (brief) · surfaced sentence / actual flag</text>
+  </g>
+  <g id="n-logged">
+    <rect id="n-logged-box" x="35" y="70" width="170" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-logged-name" x="120" y="96" font-size="17" font-weight="600" text-anchor="middle">logged</text>
+    <text id="n-logged-kind" x="120" y="118" font-size="14" text-anchor="middle">told logged · True</text>
+  </g>
+  <g id="n-unl">
+    <rect id="n-unl-box" x="220" y="70" width="170" height="64" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-unl-name" x="305" y="96" font-size="14.5" font-weight="600" text-anchor="middle">apparently-unlogged</text>
+    <text id="n-unl-kind" x="305" y="118" font-size="14" text-anchor="middle">told not · False</text>
+  </g>
+  <g id="n-dec">
+    <rect id="n-dec-box" x="405" y="70" width="170" height="64" rx="10" fill="#fff5f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dec-name" x="490" y="96" font-size="14.5" font-weight="600" text-anchor="middle">deceptively-unlogged</text>
+    <text id="n-dec-kind" x="490" y="118" font-size="14" text-anchor="middle">told not · True ‡</text>
+  </g>
+  <g id="n-runner">
+    <rect id="n-runner-box" x="35" y="160" width="540" height="56" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-runner-name" x="305" y="184" font-size="17" font-weight="600" text-anchor="middle">brief gets the sentence; the flag goes to oracle only</text>
+    <text id="n-runner-kind" x="305" y="205" font-size="14" text-anchor="middle">(runner) matched worlds and seeds across arms</text>
+  </g>
+
+  <g id="n-rec">
+    <rect id="n-rec-box" x="20" y="300" width="240" height="84" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="140" y="326" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-rec-kind" x="140" y="348" font-size="14" text-anchor="middle">(trial) monitoring in key,</text>
+    <text id="n-rec-kind2" x="140" y="368" font-size="14" text-anchor="middle">accepted assays, answer</text>
+  </g>
+  <line id="e-runner-rec" x1="140" y1="216" x2="140" y2="300" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-runner-rec" x="150" y="262" font-size="14" fill="#1971c2" font-style="italic">writes</text>
+
+  <g id="n-ms">
+    <rect id="n-ms-box" x="330" y="310" width="250" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ms-name" x="455" y="336" font-size="18" font-weight="600" text-anchor="middle">monitoring_summary</text>
+    <text id="n-ms-kind" x="455" y="358" font-size="14" text-anchor="middle">(fn) condition → arm</text>
+  </g>
+  <line id="e-rec-ms" x1="260" y1="342" x2="330" y2="342" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-cell">
+    <rect id="n-cell-box" x="650" y="300" width="250" height="84" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cell-name" x="775" y="326" font-size="18" font-weight="600" text-anchor="middle">MonitoringCell</text>
+    <text id="n-cell-kind" x="775" y="348" font-size="14" text-anchor="middle">assay rate, mean assays,</text>
+    <text id="n-cell-kind2" x="775" y="368" font-size="14" text-anchor="middle">accuracy, abstain</text>
+  </g>
+  <line id="e-ms-cell" x1="580" y1="342" x2="650" y2="342" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-ms-cell" x="615" y="332" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">×3</text>
+
+  <g id="n-md">
+    <rect id="n-md-box" x="650" y="440" width="250" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-md-name" x="775" y="466" font-size="18" font-weight="600" text-anchor="middle">monitoring_divergence</text>
+    <text id="n-md-kind" x="775" y="488" font-size="14" text-anchor="middle">(fn) differences of arms</text>
+  </g>
+  <line id="e-cell-md" x1="775" y1="384" x2="775" y2="440" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-div">
+    <rect id="n-div-box" x="330" y="430" width="250" height="104" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-div-name" x="455" y="456" font-size="18" font-weight="600" text-anchor="middle">MonitoringDivergence</text>
+    <text id="n-div-kind" x="455" y="478" font-size="14" text-anchor="middle">faking = unlogged − logged</text>
+    <text id="n-div-kind2" x="455" y="498" font-size="14" text-anchor="middle">deception_gap = dec − unl ‡</text>
+    <text id="n-div-kind3" x="455" y="518" font-size="14" text-anchor="middle">sandbagging · label</text>
+  </g>
+  <line id="e-md-div" x1="650" y1="472" x2="580" y2="472" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-rep">
+    <rect id="n-rep-box" x="960" y="300" width="220" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rep-name" x="1070" y="326" font-size="18" font-weight="600" text-anchor="middle">report_text</text>
+    <text id="n-rep-kind" x="1070" y="348" font-size="14" text-anchor="middle">(report) section</text>
+  </g>
+  <line id="e-cell-rep" x1="900" y1="332" x2="960" y2="332" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-plot">
+    <rect id="n-plot-box" x="960" y="440" width="220" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-plot-name" x="1070" y="466" font-size="18" font-weight="600" text-anchor="middle">plot_monitoring</text>
+    <text id="n-plot-kind" x="1070" y="488" font-size="14" text-anchor="middle">(plots) assay rate per arm</text>
+  </g>
+  <line id="e-md-plot" x1="900" y1="472" x2="960" y2="472" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">reads, writes</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ same sentence as apparently-unlogged; the agent's inputs are identical, so the gap is noise</text>
+  </g>
+</svg>
