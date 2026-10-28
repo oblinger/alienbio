@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-load">
+    <rect id="n-load-box" x="20" y="40" width="230" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-load-name" x="135" y="68" font-size="18" font-weight="600" text-anchor="middle">Env.load</text>
+    <text id="n-load-kind" x="135" y="92" font-size="14" text-anchor="middle">(Env) top level only ‡</text>
+  </g>
+  <g id="n-ib">
+    <rect id="n-ib-box" x="330" y="40" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ib-name" x="455" y="68" font-size="18" font-weight="600" text-anchor="middle">include_bindings</text>
+    <text id="n-ib-kind" x="455" y="92" font-size="14" text-anchor="middle">(fn) the _includes_ list</text>
+  </g>
+  <line id="e-load-ib" x1="250" y1="75" x2="330" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-load-ib" x="290" y="65" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">list</text>
+  <g id="n-mod">
+    <rect id="n-mod-box" x="660" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mod-name" x="780" y="68" font-size="18" font-weight="600" text-anchor="middle">modules</text>
+    <text id="n-mod-kind" x="780" y="92" font-size="14" text-anchor="middle">(dict) stem → namespace</text>
+  </g>
+  <line id="e-ib-mod" x1="580" y1="75" x2="660" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-ib-mod" x="620" y="65" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">.py</text>
+  <g id="n-rpy">
+    <rect id="n-rpy-box" x="960" y="40" width="220" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rpy-name" x="1070" y="66" font-size="18" font-weight="600" text-anchor="middle">resolve_py</text>
+    <text id="n-rpy-kind" x="1070" y="88" font-size="14" text-anchor="middle">(fn) modules by stem,</text>
+    <text id="n-rpy-kind2" x="1070" y="108" font-size="14" text-anchor="middle">then importlib</text>
+  </g>
+  <line id="e-mod-rpy" x1="900" y1="75" x2="960" y2="75" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-hyd">
+    <rect id="n-hyd-box" x="20" y="230" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-hyd-name" x="135" y="258" font-size="18" font-weight="600" text-anchor="middle">hydrate</text>
+    <text id="n-hyd-kind" x="135" y="282" font-size="14" text-anchor="middle">(fn) copy, replacing nodes</text>
+  </g>
+  <line id="e-load-hyd" x1="135" y1="110" x2="135" y2="230" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-load-hyd" x="125" y="175" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">every key</text>
+  <polyline id="e-hyd-rpy" points="210,230 210,170 1070,170 1070,120" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-hyd-rpy" x="780" y="160" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">PyRef</text>
+  <g id="n-li">
+    <rect id="n-li-box" x="330" y="230" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-li-name" x="455" y="258" font-size="18" font-weight="600" text-anchor="middle">load_include</text>
+    <text id="n-li-kind" x="455" y="282" font-size="14" text-anchor="middle">(fn) cycle check, by suffix</text>
+  </g>
+  <line id="e-hyd-li" x1="250" y1="250" x2="330" y2="250" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-hyd-li" x="290" y="240" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">Include</text>
+  <line id="e-ib-li" x1="455" y1="110" x2="455" y2="230" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-ib-li" x="465" y="210" font-size="14" fill="#1971c2" font-style="italic">entry</text>
+  <g id="n-rp">
+    <rect id="n-rp-box" x="660" y="230" width="240" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rp-name" x="780" y="256" font-size="18" font-weight="600" text-anchor="middle">resolve_path</text>
+    <text id="n-rp-kind" x="780" y="278" font-size="14" text-anchor="middle">(fn) untrusted: relative,</text>
+    <text id="n-rp-kind2" x="780" y="298" font-size="14" text-anchor="middle">inside base after symlinks</text>
+  </g>
+  <line id="e-li-rp" x1="580" y1="265" x2="660" y2="265" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-li-rp" x="620" y="255" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">path</text>
+  <g id="n-err">
+    <rect id="n-err-box" x="960" y="230" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-err-name" x="1070" y="256" font-size="18" font-weight="600" text-anchor="middle">UnsafeSpecError</text>
+    <text id="n-err-kind" x="1070" y="278" font-size="14" text-anchor="middle">(exception) .py or !py</text>
+    <text id="n-err-kind2" x="1070" y="298" font-size="14" text-anchor="middle">untrusted, or an escape</text>
+  </g>
+  <line id="e-rp-err" x1="900" y1="270" x2="960" y2="270" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-rp-err" x="930" y="260" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">refuse</text>
+
+  <g id="n-text">
+    <rect id="n-text-box" x="20" y="430" width="230" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-text-name" x="135" y="458" font-size="18" font-weight="600" text-anchor="middle">.md / .txt</text>
+    <text id="n-text-kind" x="135" y="482" font-size="14" text-anchor="middle">(str) read as one string</text>
+  </g>
+  <g id="n-yaml">
+    <rect id="n-yaml-box" x="330" y="430" width="250" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-yaml-name" x="455" y="456" font-size="18" font-weight="600" text-anchor="middle">.yaml / .yml</text>
+    <text id="n-yaml-kind" x="455" y="478" font-size="14" text-anchor="middle">(forms) load_text, its own</text>
+    <text id="n-yaml-kind2" x="455" y="498" font-size="14" text-anchor="middle">dir as base; _includes_ inert ‡</text>
+  </g>
+  <g id="n-py">
+    <rect id="n-py-box" x="660" y="430" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-py-name" x="780" y="456" font-size="18" font-weight="600" text-anchor="middle">run_python_file</text>
+    <text id="n-py-kind" x="780" y="478" font-size="14" text-anchor="middle">(fn) runpy, trusted only;</text>
+    <text id="n-py-kind2" x="780" y="498" font-size="14" text-anchor="middle">decorators register heads</text>
+  </g>
+  <line id="e-li-text" x1="380" y1="300" x2="160" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-li-yaml" x1="455" y1="300" x2="455" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-li-py" x1="540" y1="300" x2="720" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <polyline id="e-yaml-hyd" points="400,430 400,390 230,390 230,300" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-yaml-hyd" x="320" y="408" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">nested</text>
+  <g id="n-reg">
+    <rect id="n-reg-box" x="960" y="430" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reg-name" x="1070" y="456" font-size="18" font-weight="600" text-anchor="middle">registry</text>
+    <text id="n-reg-kind" x="1070" y="478" font-size="14" text-anchor="middle">(Registry) a collision</text>
+    <text id="n-reg-kind2" x="1070" y="498" font-size="14" text-anchor="middle">refuses</text>
+  </g>
+  <line id="e-py-reg" x1="900" y1="470" x2="960" y2="470" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">resolution</text>
+    <line id="legend-dotted" x1="210" y1="641" x2="260" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="270" y="646" font-size="14">refuses, registers, recurses</text>
+    <text id="legend-dagger" x="480" y="646" font-size="14">‡ only the loaded file's own _includes_ is read; an included file's list stays a data key</text>
+  </g>
+</svg>

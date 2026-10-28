@@ -6,8 +6,9 @@ description: "module docs for src/alienbio/expr/: the Expr language's forms, int
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Language                      | [Form](ABIO%20Form.md),  [Interp](ABIO%20Interp.md),  [Env](ABIO%20Env.md),                                                                                       |
 | Spellings                     | [Parse](ABIO%20Parse.md),                                                                                                                                         |
-| Heads                         | [Registry](ABIO%20Registry.md),  [Heads](ABIO%20Heads.md),                                                                                                                                 |
-| ...                           | [ABIO Heads](ABIO%20Heads.md),                                                                                                                                    |
+| Heads                         | [Registry](ABIO%20Registry.md),  [Heads](ABIO%20Heads.md),                                                                                                        |
+| Loading                       | [Include](ABIO%20Include.md),  |
+| ...                           | [ABIO Include](ABIO%20Include.md),                                                                                                                                |
 
 # ABIO expr
 Module docs for `src/alienbio/expr/`: the forms a spec is made of, the interpreter that gives them meaning, the environment it runs in, the registry that is the only door into Python, the two text spellings, and the includes resolved before anything evaluates.
