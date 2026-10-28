@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-agent">
+    <rect id="n-agent-box" x="20" y="200" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-agent-name" x="130" y="226" font-size="18" font-weight="600" text-anchor="middle">LLMAgent</text>
+    <text id="n-agent-kind" x="130" y="248" font-size="14" text-anchor="middle">system prompt = directive,</text>
+    <text id="n-agent-kind2" x="130" y="268" font-size="14" text-anchor="middle">rendered observation</text>
+  </g>
+  <g id="n-call">
+    <rect id="n-call-box" x="320" y="200" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-call-name" x="440" y="226" font-size="18" font-weight="600" text-anchor="middle">LLMOp.__call__</text>
+    <text id="n-call-kind" x="440" y="248" font-size="14" text-anchor="middle">(method) directive, schema,</text>
+    <text id="n-call-kind2" x="440" y="268" font-size="14" text-anchor="middle">llm_fn, seed, max_retries</text>
+  </g>
+  <line id="e-agent-call" x1="240" y1="240" x2="320" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-agent-call" x="280" y="230" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">context</text>
+
+  <g id="n-canon">
+    <rect id="n-canon-box" x="320" y="50" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-canon-name" x="440" y="76" font-size="18" font-weight="600" text-anchor="middle">canonical</text>
+    <text id="n-canon-kind" x="440" y="98" font-size="14" text-anchor="middle">(fn) sorted JSON, repr leaves</text>
+  </g>
+  <line id="e-call-canon" x1="440" y1="200" x2="440" y2="114" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-call-canon" x="450" y="160" font-size="14" fill="#1971c2" font-style="italic">key</text>
+
+  <g id="n-cache">
+    <rect id="n-cache-box" x="660" y="50" width="250" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cache-name" x="785" y="76" font-size="18" font-weight="600" text-anchor="middle">_cache</text>
+    <text id="n-cache-kind" x="785" y="98" font-size="14" text-anchor="middle">(dict) per instance, never</text>
+    <text id="n-cache-kind2" x="785" y="118" font-size="14" text-anchor="middle">evicted; returns itself ‡</text>
+  </g>
+  <line id="e-canon-cache" x1="560" y1="82" x2="660" y2="86" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-canon-cache" x="610" y="72" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">lookup</text>
+  <path id="e-cache-hit" d="M 700 130 L 700 180 L 560 220" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-cache-hit" x="600" y="175" font-size="14" fill="#1971c2" font-style="italic">hit: no call</text>
+
+  <g id="n-fn">
+    <rect id="n-fn-box" x="660" y="250" width="250" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fn-name" x="785" y="276" font-size="18" font-weight="600" text-anchor="middle">llm_fn (injected)</text>
+    <text id="n-fn-kind" x="785" y="298" font-size="14" text-anchor="middle">provider fn or a test mock;</text>
+    <text id="n-fn-kind2" x="785" y="318" font-size="14" text-anchor="middle">a raise propagates</text>
+  </g>
+  <line id="e-call-fn" x1="560" y1="260" x2="660" y2="280" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-call-fn" x="525" y="320" font-size="14" fill="#1971c2" font-style="italic">seed, then</text>
+  <text id="l-call-fn2" x="525" y="338" font-size="14" fill="#1971c2" font-style="italic">child(attempt i)</text>
+
+  <g id="n-schema">
+    <rect id="n-schema-box" x="980" y="250" width="200" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-schema-name" x="1080" y="276" font-size="18" font-weight="600" text-anchor="middle">out_schema</text>
+    <text id="n-schema-kind" x="1080" y="298" font-size="14" text-anchor="middle">(Validator) valid?</text>
+    <text id="n-schema-kind2" x="1080" y="318" font-size="14" text-anchor="middle">no: next attempt</text>
+  </g>
+  <line id="e-fn-schema" x1="910" y1="290" x2="980" y2="290" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-fn-schema" x="945" y="280" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">raw</text>
+  <path id="e-schema-cache" d="M 1080 250 L 1080 90 L 910 90" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-schema-cache" x="1090" y="170" font-size="14" fill="#1971c2" font-style="italic">valid: store</text>
+
+  <g id="n-err">
+    <rect id="n-err-box" x="980" y="420" width="200" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-err-name" x="1080" y="446" font-size="17" font-weight="600" text-anchor="middle">ValueError</text>
+    <text id="n-err-kind" x="1080" y="468" font-size="14" text-anchor="middle">after max_retries invalid</text>
+  </g>
+  <line id="e-schema-err" x1="1080" y1="330" x2="1080" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-scripted">
+    <rect id="n-scripted-box" x="20" y="420" width="220" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-scripted-name" x="130" y="446" font-size="18" font-weight="600" text-anchor="middle">ScriptedOp</text>
+    <text id="n-scripted-kind" x="130" y="468" font-size="14" text-anchor="middle">(types) the pure-code</text>
+    <text id="n-scripted-kind2" x="130" y="488" font-size="14" text-anchor="middle">sibling; Op protocol</text>
+  </g>
+  <g id="n-tok">
+    <rect id="n-tok-box" x="320" y="420" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tok-name" x="440" y="446" font-size="18" font-weight="600" text-anchor="middle">estimate_tokens</text>
+    <text id="n-tok-kind" x="440" y="468" font-size="14" text-anchor="middle">(fn) len // 4: ceiling,</text>
+    <text id="n-tok-kind2" x="440" y="488" font-size="14" text-anchor="middle">history window, filler</text>
+  </g>
+  <line id="e-agent-tok" x1="200" y1="280" x2="360" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, returns</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">‡ a hit is the stored object itself; llm_fn and out_schema are not in the key</text>
+  </g>
+</svg>
