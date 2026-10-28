@@ -41,7 +41,7 @@
   <g id="n-words">
     <rect id="n-words-box" x="20" y="230" width="240" height="64" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-words-name" x="140" y="256" font-size="17" font-weight="600" text-anchor="middle">BUDGET_WORDS</text>
-    <text id="n-words-kind" x="140" y="278" font-size="14" text-anchor="middle">budget, remaining, hurry …</text>
+    <text id="n-words-kind" x="140" y="278" font-size="14" text-anchor="middle">budget, turns remaining …</text>
   </g>
   <line id="e-words-td" x1="260" y1="250" x2="360" y2="144" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
 
@@ -97,6 +97,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">reads, calls</text>
-    <text id="legend-dagger" x="420" y="646" font-size="14">‡ flags a measure-then-verify agent, or any "remaining" in its reasoning</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ narrowed: halves over the pre-commit measures; "remaining" only beside turn(s)</text>
   </g>
 </svg>

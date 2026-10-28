@@ -111,10 +111,11 @@ The two fractions assume a 0/1 score, which the `node_id` grader gives. A pair s
 
 
 ## What the divergence measures
-The distance is taken over the full final state of both worlds, and the two worlds differ by construction: in `W_match` the decoy `source_b` accumulates, in `W_mismatch` `source_a` does ([ABIO DeltaGen](ABIO%20DeltaGen.md) § Bigger by supply, not by level). At the generator's 20 s horizon the untouched states alone are about 62 apart (`T` 4.88 vs 0.98, `source_a` 2.44 vs 63.3, `source_b` 12.66 vs 0.49), which maps to `0.98`. An agent that only measures and commits leaves the states untouched, so its divergence is the worlds' own, and any agent's is that plus whatever its interventions add. The column is near 1 for every agent on the default pair and separates agents only through interventions large against those levels.
+The distance is taken over the full final state of both worlds, and the two worlds differ by construction: in `W_mismatch` the decoy `source_a` accumulates (it drains at `k_sink` alone), while in `W_match` both sources settle low ([ABIO DeltaGen](ABIO%20DeltaGen.md)). At the generator's 20 s horizon the untouched states alone are about 61 apart (`T` 4.88 vs 0.67, `source_a` 2.44 vs 63.3, `source_b` 1.0 vs 0.33, with `k_sink_b = 1.0` since `719261e`), which maps to `0.98`. The module docstring and the report's Delta section now say the column measures the worlds (since `343d166`). An agent that only measures and commits leaves the states untouched, so its divergence is the worlds' own, and any agent's is that plus whatever its interventions add. The column is near 1 for every agent on the default pair and separates agents only through interventions large against those levels.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `f80674d`. The divergence figure is computed from the generator's own `oracle` levels at its 20 s horizon ([ABIO DeltaGen](ABIO%20DeltaGen.md)), not from an EXP-8 run, whose episode is shorter; the claim that it sits near 1 for any non-intervening agent rests on that arithmetic. Left out: the report's line format and `plots.plot_delta`.
+- 2026-10-28 — refreshed against 0eb23e5: the untouched-pair levels recomputed for `k_sink_b = 1.0` (`719261e`; still ≈ 0.98), and the docstring/report caveat (`343d166`) noted.

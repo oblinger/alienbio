@@ -6,7 +6,7 @@ description: "`drafters`: the world/task drafters as Expr heads of kind `drafter
 The page for how an experiment names a world and gets one: what makes a head a drafter, how a drafter's keyword parameters are its dials, how `DRAFTERS` adapts each head for the trial runner and refuses a dial nobody reads, and how the no-peeking guard derives its sets from the same declarations.
 
 ![ABIO Drafters](ABIO%20Drafters.svg) 
-*Dials are parameters* is the topic behind `dial_params`, the one reader of a drafter's signature that every other set is derived from; *Seed matching* governs `WORLD_INVARIANT_DIALS`, which omits some brief- and episode-side dials (‡).
+*Dials are parameters* is the topic behind `dial_params`, the one reader of a drafter's signature that every other set is derived from; *Seed matching* governs `WORLD_INVARIANT_DIALS`, which leaves out only the episode clock (‡).
 
 `drafters.py` was split out of `experiment.py` (T058); `experiment` still re-exports every name. The drafters themselves are thin over the generators documented elsewhere: [ABIO PressureGen](ABIO%20PressureGen.md) (`pressure`, `commit_the_link`, `describe_the_world`), [ABIO W2Gen](ABIO%20W2Gen.md) (`pressure_w2`), [ABIO Phase1Gen](ABIO%20Phase1Gen.md) (`phase1_pressure`), [ABIO ConflictGen](ABIO%20ConflictGen.md), [ABIO DeltaGen](ABIO%20DeltaGen.md), and the hazard and perturbation oracles of [ABIO Hazard](ABIO%20Hazard.md). The `task:` call that names a drafter is read in [ABIO ExprExperiment](ABIO%20ExprExperiment.md); the spec that carries the drafter name and dials is [ABIO ExperimentSpec](ABIO%20ExperimentSpec.md); the guard that reads `guarded_drafters()` and `guarded_dials()` is [ABIO Guards](ABIO%20Guards.md); the runner that calls a `DRAFTERS` entry per trial is [ABIO MassTrialRunner](ABIO%20MassTrialRunner.md). The rule the guarded sets enforce is the ABIO Experiment Catalog § The no-peeking rule.
 
@@ -62,10 +62,10 @@ Kind `drafter`, `env` injected (the seed arrives as `env.ctx.seed`), every dial 
     The pressure world with a `node_set` question over every edge. ^describe-the-world
 
 **conflict**`(*, rung, priority=None, **generator)` (guarded)
-    `draft_conflict_world`. ^conflict
+    `draft_conflict_world`; the question names the target id on `single` and both `(id, goal)` pairs on the two-target rungs, and the oracle's supply is read off the drafted world (`conflict_oracle(…, world=)`). ^conflict
 
 **delta**`(*, arm="match", **generator)` (guarded)
-    One arm of `draft_delta_pair`, the pair seed-matched. ^delta
+    One arm of `draft_delta_pair`, the pair seed-matched; the question is the two candidate ids as a sorted tuple. ^delta
 
 **identify_pathway**`(*, pathway_length=3, distractor_count=1, **generator)`
     The neutral `identify_pathway` archetype through `build_suite`. ^identify-pathway
@@ -101,12 +101,12 @@ The adapter, the derived registries and the dial sets.
 | [unknown_spec_dials](#^unknown-spec-dials) | The same over a spec |
 | [WORLD_INVARIANT_DIALS](#^world-invariant-dials) | Dials seed-matched across arms |
 | [EPISTEMIC_DISCLOSURE](#^epistemic-disclosure) | The nested fact sets per level |
-| [GUARDED_DRAFTERS](#^guarded-drafters-const) | Import-time snapshot |
+| [GUARDED_DRAFTERS](#^guarded-drafters-const) | `guarded_drafters()`, on every read |
 | [guarded_drafters](#^guarded-drafters) | Guarded drafters now |
 | [GUARDED_BRIEF_DIALS](#^guarded-brief-dials) | The brief's guarded dials |
 | [EPISODE_DIALS](#^episode-dials) | The episode clock |
 | [guarded_dials](#^guarded-dials) | Every guarded dial now |
-| [GUARDED_DIALS](#^guarded-dials-const) | Import-time snapshot |
+| [GUARDED_DIALS](#^guarded-dials-const) | `guarded_dials()`, on every read |
 | [CONFLICT_FREE_DRAFTERS](#^conflict-free-drafters) | Worlds with nothing to refrain from |
 | [CONFLICT_FREE_ADMITTED_DIALS](#^conflict-free-admitted-dials) | What those admit |
 
@@ -141,7 +141,7 @@ The adapter, the derived registries and the dial sets.
     The fact set each `epistemic_access` level discloses, strictly nested: 0 nothing; 1 co-movement and direction; 2 adds driver and mechanism; 3 adds which lever; 4 adds the other lever's route. Levels 0–3 are frozen under the awareness registration. ^epistemic-disclosure
 
 **GUARDED_DRAFTERS**`: frozenset[str]`
-    The guarded drafters at import; for reading only. ^guarded-drafters-const
+    `guarded_drafters()`, computed on every read by the module `__getattr__` (and the `experiment` facade's), never an import-time snapshot. ^guarded-drafters-const
 
 **guarded_drafters**`() -> frozenset[str]`
     The guarded drafters as registered now; the guards call this, so a guarded drafter a trusted include registers later counts (T054 #6). ^guarded-drafters
@@ -156,7 +156,7 @@ The adapter, the derived registries and the dial sets.
     `GUARDED_BRIEF_DIALS` ∪ every drafter's `guarded_params` ∪ every dial of a guarded drafter except `EPISODE_DIALS`. ^guarded-dials
 
 **GUARDED_DIALS**`: frozenset[str]`
-    `guarded_dials()` at import. ^guarded-dials-const
+    `guarded_dials()`, computed on every read the same way. ^guarded-dials-const
 
 **CONFLICT_FREE_DRAFTERS**` = {"phase1_pressure"}`
     Worlds with nothing to refrain from and no outcome to select on (T025). ^conflict-free-drafters
@@ -180,15 +180,16 @@ A drafter's dials are its keyword parameters: declared once, typed, defaulted in
 
 
 ## Seed matching
-Arms whose dial vectors differ only in `WORLD_INVARIANT_DIALS` draw byte-identical worlds and agent seeds, which is how a belief, framing, agent or budget contrast is paired by construction. The comment beside the tuple says these are exactly the names the `brief` and `episode` heads declare. They are not (‡): `observability`, `observation_noise`, `sim_steps`, `sim_dt` and `sample_every` (declared by `brief` and `episode`) and the forgetting dials `compact_at`, `compact_budget`, `history_token_limit` (factory dials) are absent. An axis over one of them draws a different world per level unless the spec lists it in `matched_dials`. For `sim_steps` and `sim_dt` that is correct on the drafters that read the clock (`phase1_pressure`, `pressure_w2`, `diagnose`); for the observation and forgetting dials it is not.
+Arms whose dial vectors differ only in `WORLD_INVARIANT_DIALS` draw byte-identical worlds and agent seeds, which is how a belief, framing, agent or budget contrast is paired by construction. Every brief- and agent-side dial is in the tuple, the observation dials `observability`, `observation_noise`, `sample_every` and the forgetting dials `compact_at`, `compact_budget`, `history_token_limit` included since `59934bf` (the Pilot's call; exp04-diagnose-zero, which sweeps `observability`, re-pinned). The episode clock `sim_steps` and `sim_dt` is deliberately absent (‡): the drafters that read it (`phase1_pressure`, `pressure_w2`, `diagnose`) draft a different world per level, so an axis over it is paired only when the spec lists it in `matched_dials`.
 
 
 
 ## Guarded and conflict-free sets
-A live model is refused on a guarded drafter outright, and on any drafter when a guarded dial is in play (swept, or fixed to a truthy value), unless a registration licenses exactly those dials on that drafter. The sets are derived live from the registry, so a late registration counts; the module-level constants are import-time snapshots kept for reading. `phase1_pressure` is the one conflict-free drafter: there, `constitution` alone is admitted without a registration, because measuring retention needs the commitment in the brief of a world where nothing couples to the protected quantity.
+A live model is refused on a guarded drafter outright, and on any drafter when a guarded dial is in play (swept, or fixed to a truthy value), unless a registration licenses exactly those dials on that drafter. The sets are derived live from the registry, so a late registration counts; the module-level constants `GUARDED_DRAFTERS` and `GUARDED_DIALS` are computed on every read too (since `64988be`). `phase1_pressure` is the one conflict-free drafter: there, `constitution` alone is admitted without a registration, because measuring retention needs the commitment in the brief of a world where nothing couples to the protected quantity.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `a068f1f` (read with `git show`; `drafters.py` last changed at `01fee6a`). The drafter bodies were read for their signatures, guards and returns only; their worlds are the generator docs'. Run against an export of that tree: the brief, episode and factory dials missing from `WORLD_INVARIANT_DIALS` are `compact_at`, `compact_budget`, `history_token_limit`, `observability`, `observation_noise`, `sample_every`, `sim_dt`, `sim_steps`. Not run: an observability sweep end to end (the world difference follows from `mass_trial.py` 590–594, which derives the trial seed from the label of every unmatched dial). Findings filed on T088.
+- 2026-10-28 — refreshed against 0eb23e5 (`59934bf`, `64988be`, `0cee5f0`, `c2bfa3c`): the observation and forgetting dials joined `WORLD_INVARIANT_DIALS`; `GUARDED_DRAFTERS`/`GUARDED_DIALS` are computed on every read; the `conflict` and `delta` questions; figure note follows.

@@ -25,10 +25,10 @@ The one reaction primitive: every `IN` port becomes a reactant, every `OUT` port
     Sampled once per realize from `seed.child("rate")`, where `seed` is the block's own tree-position seed, so the drawn constant depends on the block's path only. ^rate
 
 **stoich**`: Mapping[str, float] = {}`
-    Port name to coefficient; a port not named gets `1.0`. A key naming no port is ignored silently. ^stoich
+    Port name to coefficient; a port not named gets `1.0`. A key naming no port is refused with `SkeletonError` at realize. ^stoich
 
 **realize**`(seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment`
-    Builds `mk.R(f"{ns}/rxn", reactants, products, rate=…)` over the bound molecules and returns a fragment with those molecules, the one reaction and one `Provenance` attributed to the first declared port container (`cell` when none is). Two ports bound to one pool collapse to one entry: the reactant or product dict is keyed by molecule, so the last port's coefficient wins (§ [One realize path](#one-realize-path)). ^realize
+    Builds `mk.R(f"{ns}/rxn", reactants, products, rate=…)` over the bound molecules and returns a fragment with those molecules, the one reaction and one `Provenance` attributed to the first declared port container (`cell` when none is). Two ports bound to one pool sum their coefficients (§ [One realize path](#one-realize-path)). ^realize
 
 
 
@@ -105,7 +105,7 @@ A frozen config: a Poisson process of rate `lam` over `[0, horizon]`. Only `_dra
 | [horizon](#^horizon) | End of the window |
 
 **lam**`: float`
-    Inter-arrival times are `exponential(1 / lam)`. Not validated: `lam = 0` raises `ZeroDivisionError` at realize. ^lam
+    Inter-arrival times are `exponential(1 / lam)`. Construction refuses a `lam` that is not positive and finite, and a negative or non-finite `horizon`, with `SkeletonError`. ^lam
 
 **horizon**`: float`
     Arrivals are summed until one passes `horizon`; that one is dropped. ^horizon
@@ -129,7 +129,7 @@ A control wire: one `in -> out` reaction whose rate is scaled by a linear modifi
     Sampled from `seed.child("rate")`. ^signalingblock-rate
 
 **kind**`: str = "activator"`
-    Checked only by `make`; on a directly constructed block any value other than `"activator"` realizes as an inhibitor. ^kind
+    Checked by `make`, and by `realize` on a directly constructed block: any value other than `"activator"` or `"inhibitor"` raises `SkeletonError`. ^kind
 
 **a**`: Dist[float] = Constant(1.0)`
     Sampled from `seed.child("a")` when `kind` is `"activator"`. ^a
@@ -234,7 +234,7 @@ A leaf with no ports: a 1-D chain of `k` compartments `f"{ns}/cell0"` … `cell{
 | [realize](#^spatiallatticeblock-realize) | Emit cells, fluxes and `initial` |
 
 **k**`: int = 3`
-    `make` refuses `k < 2` with `SkeletonError`; direct construction does not check. ^k
+    Construction refuses a non-int `k` or `k < 2` with `SkeletonError`, so `make` and a direct build agree. ^k
 
 **molecule**`: str = "x"`
     Minted as `f"{ns}/{molecule}"`; it is not a port, so no other block can bind it. ^molecule
@@ -246,7 +246,7 @@ A leaf with no ports: a 1-D chain of `k` compartments `f"{ns}/cell0"` … `cell{
     Written on every cell. ^volume
 
 **initial**`: Mapping[int, float] = {}`
-    Index `i` stamps `cell{i}`; an absent index starts at 0. Indices are not range-checked: `k` or more raises `IndexError` at realize, and a negative index wraps Python-style onto a cell from the end. ^initial
+    Index `i` stamps `cell{i}`; an absent index starts at 0. Construction refuses an index outside `0..k-1` (or not an int) with `SkeletonError`. ^initial
 
 **make**`(name, *, k=3, molecule="x", diffusion=None, volume=1.0, initial=None, params=None) -> SpatialLatticeBlock` (classmethod)
     Copies `initial` into a fresh dict. ^spatiallatticeblock-make
@@ -332,7 +332,7 @@ The one module-level public function. The private helpers `_container_of`, `_dra
 # Blocks Semantics
 
 ## One realize path
-Source, sink and pressure blocks add no realize logic: a `ReactionBlock` with only `OUT` ports emits `∅ -> products`, one with only `IN` ports emits `reactants -> ∅`, and the subclasses differ only in the ports their `make` builds and the `Role` they carry. All four modifier blocks share the other body, `_modulator_fragment`, which is the same loop with the modifier port skipped. So there are two reaction-emitting code paths in the library, and both key reactants and products by `MoleculeImpl`: two ports of one block bound to the same pool give one stoichiometric entry, the last port's coefficient, not their sum. `2 A -> B` has to be one port with `stoich={"a": 2.0}`.
+Source, sink and pressure blocks add no realize logic: a `ReactionBlock` with only `OUT` ports emits `∅ -> products`, one with only `IN` ports emits `reactants -> ∅`, and the subclasses differ only in the ports their `make` builds and the `Role` they carry. All four modifier blocks share the other body, `_modulator_fragment`, which is the same loop with the modifier port skipped. Both paths build their sides through one helper, `_sides`, keyed by `MoleculeImpl`: two ports of one block bound to the same pool sum their coefficients (`A + A -> B` is `2 A`), and a `stoich` key naming no port raises `SkeletonError`.
 
 The reaction is attributed to `_container_of(ports)`, the first port with a declared container, else `cell`. That attribution reaches only `Provenance`; the reaction runs in every compartment the world has ([ABIO Skeleton](ABIO%20Skeleton.md) § Materialize).
 
@@ -360,9 +360,9 @@ The saturating kinds multiply to zero when the modifier is absent, so an enzyme 
 
 
 ## Compartments a block declares
-Only the transport, lattice and population blocks put `Compartment` records in their fragment; every other block leaves the world's compartment tree to `materialize`'s default `cell`. Each declares every compartment it touches, self-contained, and `Fragment.merge` accepts a compartment id from two blocks only when the two records are equal.
+Only the transport, lattice and population blocks put `Compartment` records in their fragment; every other block leaves the world's compartment tree to `materialize`'s default `cell`. Each declares every compartment it touches, self-contained, and `Fragment.merge` accepts a compartment id from two blocks when the two records are equal, or when they differ only in that one leaves `parent` unset (the placed declaration wins).
 
-That rule makes parallel transport blocks compose (two blocks on the default `cell -> cell2` declare identical records) and makes a chain refuse: `TransportBlock` writes its origin as a root (`parent None`) and its destination as the origin's child, so `A -> B` declares `B` with parent `A` and `B -> C` declares `B` with parent `None`, and the merge raises "compartment id 'B' collides across blocks with two different specs". The block's docstring cites a lattice chain as the case the rule serves; the lattice itself sidesteps it by being one block. The same equality check refuses two transport blocks that state different volumes for one shared container.
+That rule makes parallel transport blocks compose (two blocks on the default `cell -> cell2` declare identical records) and makes a chain build: `TransportBlock` writes its origin as a root (`parent None`) and its destination as the origin's child, so `A -> B` declares `B` with parent `A` and `B -> C` declares `B` with parent `None`; the parentless record yields to the placed one, and `A -> B -> C` nests `B` under `A` and `C` under `B`. The same equality check refuses two transport blocks that state different volumes for one shared container.
 
 
 
@@ -379,3 +379,4 @@ That rule makes parallel transport blocks compose (two blocks on the default `ce
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `7c1db83`. The transport-chain refusal, the lattice index behaviour, the two-ports-one-pool collapse, `lam = 0` and the authored-block write were each reproduced by a local realize or materialize, no spend. One interface section per class, with the four modifier blocks and the three source/sink/pressure configs documented only for what they add over their shared body. Left out: `ModulatedSourceBlock` and `RateLawBlock` (their own modules), the test coverage, and the conflict generator's use of the crux (on [ABIO ConflictGen](ABIO%20ConflictGen.md)).
+- 2026-10-28 — refreshed against 0eb23e5 (`6631831`): two ports on one pool sum, an unknown `stoich` key, `lam ≤ 0`, an unknown `kind` and an out-of-range lattice `k`/index all refuse, and a transport chain builds (`Fragment.merge` lets a parentless declaration yield).

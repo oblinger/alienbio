@@ -6,7 +6,7 @@ description: "`census`: the M45.16 per-condition census B2's pre-registration re
 The analysis family that reports how engaged each arm was and how its outcome was spread, not only its mean: the census B2's pre-registration asks of every experiment.
 
 ![ABIO Census](ABIO%20Census.svg) 
-*Engagement* is the topic behind the dagger on `disengaged_rate` (what "no accepted intervene" means on a task with no levers); *The idle twin* governs the dotted match between an arm and its idle condition.
+*Engagement* is the topic behind the dagger on `disengaged_rate` (only trials offered a lever count); *The idle twin* governs the dotted match between an arm and its idle condition.
 
 `suite/census.py` reads [ABIO TrialRecord](ABIO%20TrialRecord.md)s only, so it reads the same on a reloaded store. The idle twin exists because `ExperimentSpec(idle_baseline=True)` adds an `agent` axis `(agent, "idle")` under matched world seeds ([ABIO ExperimentSpec](ABIO%20ExperimentSpec.md)). The confidence interval is `stats_summary.mean_confidence_interval`. Its one consumer is `report_text.py`, which prints the *Census* and *Outcome distribution* sections of every run's `report.txt`. Nothing here is re-exported from `alienbio.suite`.
 
@@ -28,7 +28,7 @@ Three functions.
     Applies `read` to every non-error record, keeps the values that are not `None`, and summarizes them per condition; a condition with no readable record is absent. The idle twin of a condition is the one with the same dials and `agent == "idle"`. ^outcome-distribution
 
 **pressure_byproduct**`(record: TrialRecord) -> Optional[float]`
-    `None` without `oracle["pressure"]` or a final state; else the side-product's value in the first compartment of `final_state` that carries it. ^pressure-byproduct
+    `None` without `oracle["pressure"]` or a final state; else the side-product's value summed over every compartment of `final_state` that carries it (`tradeoff._final_value`, the reading Dose uses). ^pressure-byproduct
 
 
 
@@ -51,7 +51,7 @@ A frozen dataclass: one condition's engagement.
     Mean count of accepted `intervene` actions over the whole log. ^mean-intervenes
 
 **disengaged_rate**`: float`
-    Share with none. A disengaged trial is its own category, never counted as refraining. § [Engagement](#engagement). ^disengaged-rate
+    Share with none, over the trials whose brief offered a lever; `nan` when none did. A disengaged trial is its own category, never counted as refraining. § [Engagement](#engagement). ^disengaged-rate
 
 **mean_turns**`: float`
     Mean `turns`. ^mean-turns
@@ -100,15 +100,16 @@ A frozen dataclass: one condition's distribution of the read scalar.
 # Census Semantics
 
 ## Engagement
-Engagement is counted in accepted interventions, which fits the pressure family, where the agent's only levers are feeds. On a task with no levers it is meaningless: the `delta`, `diagnose`, `predict` and `discover` drafters ask for an answer, specs such as EXP-8 declare `levers=[]`, and every trial there is disengaged by construction. The census still prints a `diseng` column of `1.00` for those runs.
+Engagement is counted in accepted interventions, which fits the pressure family, where the agent's only levers are feeds. On a task with no levers it would be meaningless: the `delta`, `diagnose`, `predict` and `discover` drafters ask for an answer and specs such as EXP-8 declare `levers=[]`. So `disengaged_rate` counts only trials whose brief offered a lever (a record without a brief counts as offering one), and is `nan` — printed `-` in the census — when no trial in the condition was offered one (since `343d166`).
 
 
 
 ## The idle twin
-`outcome_distribution` keys twins by every swept dial except `agent`, so the match is exact only when the idle arm and the agent share every other dial; `idle_baseline` builds exactly that grid. `pressure_byproduct` reads one compartment, the first that carries the side-product, where [ABIO Dose](ABIO%20Dose.md)'s `_final_value` sums over compartments; on the single-compartment pressure worlds they agree, on a world where the side-product lives in more than one compartment the census reads less than the dose table.
+`outcome_distribution` keys twins by every swept dial except `agent`, so the match is exact only when the idle arm and the agent share every other dial; `idle_baseline` builds exactly that grid. `pressure_byproduct` sums the side-product over compartments, as [ABIO Dose](ABIO%20Dose.md)'s `_final_value` does, so the census and the dose table agree on any world (since `343d166`; it read the first compartment before).
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `6609ed2`, by reading `census.py`, its one caller in `report_text.py` and the idle-arm construction in `spec.py`; nothing was run. Left out: `mean_confidence_interval`'s method (`stats_summary.py`) and the report's line format.
+- 2026-10-28 — refreshed against 0eb23e5 (`343d166`): `disengaged_rate` is over lever-offered trials (`nan` when none), `pressure_byproduct` sums compartments; figure labels follow.

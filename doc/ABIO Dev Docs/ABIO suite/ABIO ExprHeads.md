@@ -6,7 +6,7 @@ description: "`expr_heads`: layers 0–2 of the Expr head catalog — the block 
 The page for the heads a spec uses to build chemistry: how a block head turns pool names into ports, how `block` wires children that name the same pool, how `world` materializes a skeleton under the node's seed, what `verify` redraws, and what each constructor head builds.
 
 ![ABIO ExprHeads](ABIO%20ExprHeads.svg) 
-*Pools as names* is the topic behind the `block` node (children naming one pool share it through one parent port); *Dist slots* governs every `rate`-like argument; *verify's redraws* governs the `attempt` edge (‡ marks the instance name a redraw gives a template).
+*Pools as names* is the topic behind the `block` node (children naming one pool share it through one parent port); *Dist slots* governs every `rate`-like argument; *verify's redraws* governs the `attempt` edge (‡ marks that a redraw keeps a template's instance name).
 
 `expr_heads.py` re-implements nothing generative: every head is a thin registration over a class or function that already exists — the blocks of [ABIO Blocks](ABIO%20Blocks.md), the tree and `materialize` of [ABIO Skeleton](ABIO%20Skeleton.md), the generators of [ABIO PressureGen](ABIO%20PressureGen.md), [ABIO ConflictGen](ABIO%20ConflictGen.md) and [ABIO DeltaGen](ABIO%20DeltaGen.md), the world records of [ABIO WorldImpl](../ABIO%20bio/ABIO%20WorldImpl.md) and the chemistry of [ABIO ChemistryImpl](../ABIO%20bio/ABIO%20ChemistryImpl.md). A `rate:` slot is compiled by [ABIO RateLaw](ABIO%20RateLaw.md). Pool names are namespaced by `Env.pool` ([ABIO Env](../ABIO%20expr%20Modules/ABIO%20Env.md)); the heads register through `fn` and `expander` ([ABIO Registry](../ABIO%20expr%20Modules/ABIO%20Registry.md)) when `Env.standard` imports this module. Layers 3–6 (tasks, briefs, episodes, experiments) are [ABIO ExprExperiment](ABIO%20ExprExperiment.md). The head catalog by layer, with examples, is [ABIO Expr Templates](../../ABIO%20Design/ABIO%20Expr/ABIO%20Expr%20Templates.md).
 
@@ -69,7 +69,7 @@ Layer 1, all kind `fn`, all with `env` injected. Each returns a block; a pool ar
     `PopulationBlock.make` with the two rates as Dist slots and every other keyword passed through. The block owns its resource as a molecule name (`resource_name`), not a port, so it exposes no pool for `block` to wire. ^population
 
 **block**`(children: Mapping[str, SkeletonBlock], role="supply", name=None) -> SkeletonBlock`
-    Renames each child to its key, then gives the parent one port per distinct pool name across the children (`OUT` when any child produces it, the container of the first child that names it) and a `PoolBinding("self.<pool>", "<child>.<pool>")` per child port. Refuses a non-mapping and a child that is not a block. § [Pools as names](#pools-as-names). ^block
+    Renames each child to its key, then gives the parent one port per distinct pool name across the children (`OUT` when any child produces it, the container a child declares for it) and a `PoolBinding("self.<pool>", "<child>.<pool>")` per child port. Refuses a non-mapping, a child that is not a block, and one pool named in two different containers. § [Pools as names](#pools-as-names). ^block
 
 **skeleton**`(root: SkeletonBlock, control_surface=(), crux="") -> Skeleton`
     Wraps a root block; refuses a non-block. ^skeleton
@@ -118,25 +118,25 @@ Layer 2.
     Integration parameters for `verify`. ^sim
 
 **verify** (expander)`(world=, perturb=, valid=, max_redraws=8, sim=)`
-    Keywords only. Evaluates `perturb` and `valid` to callables (a head name resolves to its function), then for each attempt evaluates the `world` form under `env.child("attempt<n>")`, simulates it and `perturb(world)` under seeds `base` and `pert`, and returns the first world for which `valid(baseline, perturbed)` holds; refuses after `max_redraws + 1` attempts. § [verify's redraws](#verifys-redraws). ^verify
+    Keywords only. Evaluates `perturb` and `valid` to callables (a head name resolves to its function), then for each attempt evaluates the `world` form under `env.with_seed(ctx.seed.child("attempt<n>"))`, a child seed at the same path, simulates it and `perturb(world)` under seeds `base` and `pert`, and returns the first world for which `valid(baseline, perturbed)` holds; refuses after `max_redraws + 1` attempts. § [verify's redraws](#verifys-redraws). ^verify
 
 **pressure_world**`(**kwargs) -> {world, skeleton, objective}`
-    `draft_pressure_world(ctx.seed, ...)`, with the rate keywords in `_DIST_KEYS` turned into Dists. Declares `guarded_params={"pi"}`. ^pressure-world
+    `draft_pressure_world(ctx.seed, ...)`, with the rate keywords in `_DIST_KEYS` turned into Dists. ^pressure-world
 
 **conflict_world**`(**kwargs) -> {world, skeleton, objective}`
-    `draft_conflict_world`; declares `guarded_params={"rung"}`. ^conflict-world
+    `draft_conflict_world`. ^conflict-world
 
 **delta_pair**`(**kwargs) -> [match, mismatch]`
     `draft_delta_pair`, each side a `{world, skeleton, objective}`. ^delta-pair
 
 **diagnosis_world**`(**kwargs) -> {world, skeleton}`
-    `draft_diagnosis_world`; declares `guarded_params={"hazard", "perturbation"}`. ^diagnosis-world
+    `draft_diagnosis_world`. ^diagnosis-world
 
 **prediction_world**`(**kwargs) -> {world, skeleton, reaction_id}`
     `draft_prediction_world`. ^prediction-world
 
 **intervention_world**`(**kwargs) -> {world, skeleton, target: {molecule, value}}`
-    `draft_intervention_world`; declares `guarded_params={"target_margin"}`. ^intervention-world
+    `draft_intervention_world`. ^intervention-world
 
 
 
@@ -188,25 +188,26 @@ Kind `constructor`, called by tag (`!Reaction {...}`) or by the untagged `_type:
 # ExprHeads Semantics
 
 ## Pools as names
-A block class takes port names; a block head takes pool names and uses them as the port names, so two heads that name the same pool produce ports of the same name. `block` then binds each child port to a parent port of that name, and `Skeleton.materialize` resolves every binding group to one molecule: `!source {pool: precursor}` and `!crux {precursor: precursor}` share the precursor without a binding table. Inside a template instance a name is namespaced (`inst.precursor`) unless it arrived as a pool argument ([ABIO Env](../ABIO%20expr%20Modules/ABIO%20Env.md) § Pool names). Containers do not split a pool: the parent port takes the first child's container, and every child naming that pool is bound to it whatever container it declared.
+A block class takes port names; a block head takes pool names and uses them as the port names, so two heads that name the same pool produce ports of the same name. `block` then binds each child port to a parent port of that name, and `Skeleton.materialize` resolves every binding group to one molecule: `!source {pool: precursor}` and `!crux {precursor: precursor}` share the precursor without a binding table. Inside a template instance a name is namespaced (`inst.precursor`) unless it arrived as a pool argument ([ABIO Env](../ABIO%20expr%20Modules/ABIO%20Env.md) § Pool names). A pool lives in one compartment: two children naming one pool in two different containers are refused, naming both children (a cross-compartment pool needs a `transport`); since `64988be`. The rule reaches ported blocks only: `population` is a portless leaf that mints its own resource, so a `source` cannot be wired to it by name.
 
 
 
 ## Dist slots
-A numeric slot accepts `None` (the class default applies), a number (`Constant`), or a `Dist` — a quoted form is one, so `rate: !q lognormal(0, 0.3)` is drawn per world at materialize time under the block's seed. A bool refuses. The generator world heads apply the same rule only to the keywords in `_DIST_KEYS` (`k_clean`, `k_fast`, `k_i2t`, `k_byproduct`, `k_hop`, `kA`, `kB`, `k_drive`, `k_sink`, `k_t_sink`); every other keyword reaches the drafter as given.
+A numeric slot accepts `None` (the class default applies), a number (`Constant`), or a `Dist` — a quoted form is one, so `rate: !q lognormal(0, 0.3)` is drawn per world at materialize time under the block's seed. A bool refuses. The generator world heads apply the same rule only to the keywords in `_DIST_KEYS` (`k_clean`, `k_fast`, `k_i2t`, `k_byproduct`, `k_hop`, `kA`, `kB`, `k_drive`, `k_sink`, `k_sink_b`, `k_t_sink`); every other keyword reaches the drafter as given.
 
 
 
 ## verify's redraws
-Each attempt evaluates the world form under `env.child("attempt<n>")`, so attempt `n` draws from its own seed and a world that fails the predicate is never reused. The same path step names any template instance the world form calls: a template bound to `one:` and called inside `verify` namespaces its pools `attempt0.P` rather than `one.P` (‡), and a redraw renames them `attempt1.P`; two `verify` nodes whose worlds call templates under one parent both claim `attempt0`, which refuses.
+Each attempt evaluates the world form on a child seed at the same path (`ctx.seed.child("attempt<n>")`), so attempt `n` draws from its own seed and a world that fails the predicate is never reused, while the path, and so any template instance name, is unchanged (‡): a template bound to `one:` and called inside `verify` namespaces its pools `one.P` on every attempt, and two `verify` nodes under one parent no longer collide (since `64988be`; the path step `attempt<n>` named them `attempt0.P` before). The seeds are the same as before.
 
 
 
 ## Guarded parameters on the world heads
-`pressure_world`, `conflict_world`, `diagnosis_world` and `intervention_world` declare `guarded_params`, but they are kind `fn`, and the no-peeking guard collects guarded dials only from heads of kind `drafter` ([ABIO Drafters](ABIO%20Drafters.md)). The declarations are read by nothing; the guard that applies is carried by the drafter heads an experiment names (`pressure`, `conflict`, `diagnose`, …).
+`pressure_world`, `conflict_world`, `diagnosis_world` and `intervention_world` declare no guard metadata (since `64988be`; the `guarded_params` they carried were read by nothing, since the no-peeking guard collects guarded dials only from heads of kind `drafter`, [ABIO Drafters](ABIO%20Drafters.md)). An agent reaches a world only through a drafter, and the guard that applies is carried by the drafter heads an experiment names (`pressure`, `conflict`, `diagnose`, …).
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `afd519c` (read with `git show`; `expr_heads.py` unchanged since `c67f052`). Run against an export of that tree: a template bound to `one:` and called as `verify`'s world materialized `root/attempt0.P` where the same template bound to `plain:` gave `root/plain.P`; two instances of a template whose body is a `population` block gave identical molecule sets, the block exposing no ports. Not run: the container merge in `block` (read from 293–301). Findings filed on T088.
+- 2026-10-28 — refreshed against 0eb23e5 (`64988be`, `719261e`): `verify` redraws on a child seed at the same path (instance names kept); `block` refuses one pool in two containers; the world heads' unread `guarded_params` removed; `k_sink_b` is a Dist key; the figure's dagger follows.

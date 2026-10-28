@@ -72,7 +72,7 @@
   </g>
   <polyline id="e-spec-text" points="1060,460 1060,555 880,555" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <polyline id="e-text-file" points="630,555 30,555 30,80 50,80" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
-  <text id="l-text-file" x="420" y="545" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">text; raw scalars ‡</text>
+  <text id="l-text-file" x="420" y="545" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">text; scalars quoted ‡</text>
 
   <g id="n-obj">
     <rect id="n-obj-box" x="60" y="220" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -101,6 +101,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">builds</text>
     <line id="legend-dotted" x1="180" y1="641" x2="230" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="240" y="646" font-size="14">reads, writes back</text>
-    <text id="legend-dagger" x="410" y="646" font-size="14">‡ name, key_readout, out_dir written unquoted: a spec named no reloads as False</text>
+    <text id="legend-dagger" x="410" y="646" font-size="14">‡ name, key_readout, out_dir quoted: a spec named no reloads as no; inf as 1e999</text>
   </g>
 </svg>

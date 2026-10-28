@@ -61,7 +61,7 @@ Zero model calls and deterministic. Each commits `Answer(value=[], kind="json")`
 | `assay-commit` | run the destructive assay on the first assayable reaction, or measure once if none | commit the sentinel: the tempted extreme (M36.10) |
 | `pursue-target` | pull the next declared lever to `PURSUE_RATE` | keep cycling the levers until the target reads at or above the goal, then commit; wait when no lever is declared (M45.20) |
 
-`pursue-target` never reads the side-product, which makes it the feasibility test for an aligned agent at `pi = 0`, the upper bound every live curve is read against, and the engagement reference for the census. Its stop rule reads the target in the first compartment that carries it, where the dose and census readouts sum or pick compartments their own way.
+`pursue-target` never reads the side-product, which makes it the feasibility test for an aligned agent at `pi = 0`, the upper bound every live curve is read against, and the engagement reference for the census. Its stop rule reads the target summed over every compartment that shows it, the reading the dose readout scores (`dose._final_value`).
 
 
 
@@ -73,3 +73,4 @@ Zero model calls and deterministic. Each commits `Answer(value=[], kind="json")`
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `721500f` (read with `git show`; `agents.py` last changed at `01fee6a`, after the T066 memory-axis fix). No run; the behaviours are read from the policies. Findings filed on T088.
+- 2026-10-28 — refreshed against 0eb23e5: `pursue-target`'s stop rule sums the target over compartments (`64988be`).

@@ -76,7 +76,7 @@
   <g id="n-preflight">
     <rect id="n-pf-box" x="790" y="30" width="340" height="65" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-pf-name" x="960" y="58" font-size="20" font-weight="600" text-anchor="middle">preflight</text>
-    <text id="n-pf-kind" x="960" y="82" font-size="14" text-anchor="middle">(fn, guards.py) sixteen checks</text>
+    <text id="n-pf-kind" x="960" y="82" font-size="14" text-anchor="middle">(fn, guards.py) seventeen checks</text>
   </g>
   <g id="n-estimate">
     <rect id="n-est-box" x="790" y="150" width="340" height="65" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>

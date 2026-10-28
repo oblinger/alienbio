@@ -34,7 +34,7 @@
   <rect id="probe-box" x="360" y="190" width="200" height="80" rx="12" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
   <text id="probe-name" x="460" y="216" font-size="18" font-weight="700" text-anchor="middle">ProbeAgent</text>
   <text id="probe-kind" x="460" y="236" font-size="14" text-anchor="middle">(Protocol)</text>
-  <text id="probe-m" x="460" y="257" font-size="14" text-anchor="middle">probe(text)</text>
+  <text id="probe-m" x="460" y="257" font-size="13" text-anchor="middle">probe(text, observation)</text>
 
   <rect id="session-box" x="630" y="190" width="200" height="80" rx="12" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
   <text id="session-name" x="730" y="216" font-size="18" font-weight="700" text-anchor="middle">SessionAgent</text>

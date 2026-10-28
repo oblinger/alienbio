@@ -6,7 +6,7 @@ description: "`expr_experiment`: layers 3–6 of the Expr head catalog and the e
 The page for how an experiment file becomes an `ExperimentSpec`: which heads build tasks and objectives by hand, how the `experiment` head reads its quoted calls so that free names are axes and every other keyword is a fixed dial, how a file is loaded, and how a spec is written back.
 
 ![ABIO ExprExperiment](ABIO%20ExprExperiment.svg) 
-*Free names are axes* is the topic behind `_split_call`, the one reader of every quoted call; *Writing a spec back* governs the dotted return edge, which does not quote scalar fields (‡).
+*Free names are axes* is the topic behind `_split_call`, the one reader of every quoted call; *Writing a spec back* governs the dotted return edge, which quotes every scalar field it writes (‡).
 
 The result of this module is the spec of [ABIO ExperimentSpec](ABIO%20ExperimentSpec.md), built by `spec_from_dict`; the drafter heads a `task:` call names, with their declared dials and guards, are [ABIO Drafters](ABIO%20Drafters.md), and the `AGENTS` registry and live-model factory the agent heads wrap are [ABIO Agents](ABIO%20Agents.md). The heads below layer 3 (blocks, worlds, constructors) are [ABIO ExprHeads](ABIO%20ExprHeads.md); the language, loader and registry are [ABIO Interp](../ABIO%20expr%20Modules/ABIO%20Interp.md), [ABIO YamlTags](../ABIO%20expr%20Modules/ABIO%20YamlTags.md) and [ABIO Registry](../ABIO%20expr%20Modules/ABIO%20Registry.md). `suite/spec.load_spec` decides trust (a file under `catalog/` loads trusted) and calls `load_experiment`. The experiment form as a user writes it is in [ABIO Expr Spec](../../ABIO%20Guides/ABIO%20Expr%20Spec.md); the runtime it feeds is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md).
 
@@ -152,15 +152,16 @@ The experiment head and the front end.
 # ExprExperiment Semantics
 
 ## Free names are axes
-`_split_call` reads one quoted call. It refuses positional arguments and a keyword the head does not declare. A keyword whose value is a bare name listed in `axes` is swept, and must be swept under its own name (`monitoring=monitoring`; `monitoring=m` refuses). A bare name not in `axes` is looked up in the quoted form's scope and becomes a fixed dial with that value, so reusable text bound at the top of the file can be named. Any other value must be a literal; a nested call or name inside it refuses. A required parameter of the head that is neither fixed nor swept refuses. Which call a dial appears in is what makes it world-side, brief-side or episode-side; the guard does not consult a list.
+`_split_call` reads one quoted call. It refuses positional arguments and a keyword the head does not declare. A keyword whose value is a bare name listed in `axes` is swept, and must be swept under its own name (`monitoring=monitoring`; `monitoring=m` refuses). A bare name not in `axes` is looked up in the quoted form's scope and becomes a fixed dial with that value, so reusable text bound at the top of the file can be named. Any other value must be a literal; a negated number (`pi=-1.5`, which parses as `op:neg`) is read as the negative literal, and any other nested call or name inside it refuses. A required parameter of the head that is neither fixed nor swept refuses. Which call a dial appears in is what makes it world-side, brief-side or episode-side; the guard does not consult a list.
 
 
 
 ## Writing a spec back
-`spec_to_text` promises `load_experiment(text=spec_to_text(spec)) == spec`. Dials and axes go through `_yaml_literal` and `_yaml_inline`, which quote strings. Four scalar fields are written raw: `name`, `key_readout`, `out_dir` and the agent (a registry key, always safe). A raw scalar is read back by YAML's own rules (‡): a spec named `no` reloads named `False`, `null` reloads as `None`, and a name or path holding `: ` fails to load at all. Catalog names (`exp04`) are unaffected.
+`spec_to_text` promises `load_experiment(text=spec_to_text(spec)) == spec`. Dials and axes go through `_yaml_literal` and `_yaml_inline`, which quote strings, and so do `name`, `key_readout` and `out_dir` since `64988be` (‡): a spec named `no`, `null` or `a: b` reloads under that name. The agent is written raw (a registry key, always safe). An infinite dial is written `1e999` / `-1e999` (`inf` would read back as a name); a NaN dial has no inline spelling and refuses to render.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `0304b1f` (read with `git show`; `expr_experiment.py` last changed at `01fee6a`). Run against an export of that tree: `exp04.yaml` round-trips through `spec_to_text`; the same spec renamed `no`, `null` and `a: b` reloads named `False`, `None`, and refuses with a YAML error. Findings filed on T088.
+- 2026-10-28 — refreshed against 0eb23e5 (`64988be`, `13298f0`): `name`/`key_readout`/`out_dir` are quoted on the way back, infinite dials write `1e999`, NaN refuses, a negative literal dial loads; the figure's dagger follows.

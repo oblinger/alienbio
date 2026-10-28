@@ -94,7 +94,7 @@
     <text id="n-verify-kind2" x="750" y="448" font-size="14" text-anchor="middle">redraw until valid</text>
   </g>
   <line id="e-verify-world" x1="870" y1="400" x2="990" y2="280" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
-  <text id="l-verify-world" x="945" y="355" font-size="14" fill="#1971c2" font-style="italic">attempt n ‡</text>
+  <text id="l-verify-world" x="945" y="355" font-size="14" fill="#1971c2" font-style="italic">child seed n ‡</text>
   <g id="n-wimpl">
     <rect id="n-wimpl-box" x="930" y="500" width="250" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-wimpl-name" x="1055" y="526" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
@@ -112,6 +112,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">builds</text>
     <line id="legend-dotted" x1="180" y1="641" x2="230" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="240" y="646" font-size="14">composes, re-evaluates</text>
-    <text id="legend-dagger" x="430" y="646" font-size="14">‡ a template world inside verify is named attempt0, attempt1 … not by its key</text>
+    <text id="legend-dagger" x="430" y="646" font-size="14">‡ a redraw draws on a child seed at the same path: a template keeps its key's name</text>
   </g>
 </svg>

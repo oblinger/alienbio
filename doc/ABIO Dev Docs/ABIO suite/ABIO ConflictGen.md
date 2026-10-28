@@ -13,7 +13,7 @@ The generator of the conflict ladder: one source feeding two rival routes throug
 
 
 ## conflict_gen Interface
-The public surface is three functions and four constants; everything else is private.
+The public surface is four functions and four constants; everything else is private.
 
 | conflict_gen | |
 | --- | --- |
@@ -24,6 +24,7 @@ The public surface is three functions and four constants; everything else is pri
 | [draft_conflict_world](#^draft-conflict-world) | Draft one rung: world, skeleton, objective |
 | [build_conflict_skeleton](#^build-conflict-skeleton) | The two-route skeleton, unmaterialized |
 | [closed_form_frontier](#^closed-form-frontier) | Points on the line `V1 + V2 = S` |
+| [frontier_supply](#^frontier-supply) | `S`, read off a drafted world |
 
 **RUNGS**` = ("single", "compatible", "latent", "forced")`
     The ladder order; `tradeoff` and `plots` import it to order per-rung summaries. ^rungs
@@ -32,19 +33,22 @@ The public surface is three functions and four constants; everything else is pri
     The default `v1_target` and `v2_target`, equal so a rung's character comes from the supply alone. ^default-target
 
 **DEFAULT_KA**` = 1.0`
-    Route A's default rate, the naive balanced split. ^default-ka
+    Half the default route-rate total `DEFAULT_KA + DEFAULT_KB = 2.0`, which a draft without `kA`/`kB` splits in the targets' ratio (`1.0` each for equal targets). ^default-ka
 
 **DEFAULT_KB**` = 1.0`
-    Route B's; `kA == kB` is what makes `latent` look conflict-free (§ [The ladder](#the-ladder)). ^default-kb
+    Route B's; the target-ratio split of their sum is what makes `latent` look conflict-free (§ [The ladder](#the-ladder)). ^default-kb
 
 **draft_conflict_world**`(seed: Seed = Seed(0), *, rung: str, v1_target: float = 10.0, v2_target: float = 10.0, kA: Optional[Dist[float]] = None, kB: Optional[Dist[float]] = None, sim_cfg: SimConfig = _SIM_CFG) -> tuple[WorldImpl, Skeleton, Objective]`
-    Sizes the supply `S` from the rung and the targets, builds the rung's skeleton, materializes it under `seed`, runs the forced gate on `forced`, then reads the target pool ids off the realized routes and returns the world, the materialized skeleton and an `OutcomeObjective`. Raises `ValueError` for an unknown rung and `SkeletonError` when the forced gate finds an allocation meeting both targets. `single` ignores `v2_target` and `kB`. The `sim_cfg` parameter is accepted and never read: the gate always simulates on `_SIM_CFG`. ^draft-conflict-world
+    Sizes the supply `S` from the rung and the targets, builds the rung's skeleton, materializes it under `seed`, runs the forced gate on `forced`, then reads the target pool ids off the realized routes and returns the world, the materialized skeleton and an `OutcomeObjective`. Raises `ValueError` for an unknown rung or a target that is not a positive finite number, and `SkeletonError` when the forced gate finds an allocation meeting both targets. `single` ignores `v2_target` and `kB`. Without `kA`/`kB` the two routes split `DEFAULT_KA + DEFAULT_KB` in the ratio `v1_target : v2_target`. `sim_cfg` is the clock the forced gate simulates on. ^draft-conflict-world
 
 **build_conflict_skeleton**`(*, source_rate: float, kA: Dist[float], kB: Dist[float]) -> Skeleton`
     `root` with children `source` (`SourceBlock`, `Constant(source_rate)`) and `crux` (`ConflictCruxBlock.make("crux", kA=kA, kB=kB)`), one binding `source.out` to `crux.precursor`; `crux="root/crux"`, `control_surface=("root/source.out",)`. Its `(kA, kB) -> Skeleton` shape is exactly the `build` callable `sweep_conflict_frontier` takes. ^build-conflict-skeleton
 
 **closed_form_frontier**`(source_rate: float, n_points: int = 11) -> tuple[tuple[float, float], ...]`
     `n_points` evenly spaced points from `(0, S)` to `(S, 0)` on the line `a + b = S`. No simulation. Raises `ValueError` for `n_points < 2`. `tradeoff.conflict_oracle` is its caller (§ [The frontier](#the-frontier)). ^closed-form-frontier
+
+**frontier_supply**`(world: WorldImpl) -> float`
+    The `S` of `closed_form_frontier` read off a drafted world: the source reaction's rate over the routes' common sink rate (`root/crux/sink_a/rxn` and `sink_b/rxn`, or `root/sink/rxn` on `single`). Raises `ValueError` when the two route sinks drain at different rates, since the line `V1 + V2 = S` needs a common rate. `tradeoff.conflict_oracle` calls it. ^frontier-supply
 
 
 
@@ -73,9 +77,9 @@ One knob, the source's supply rate `S`, places every two-route rung; `single` is
 | `latent` | `1.0 · (v1 + v2)` | Both targets met only at the boundary; any reallocation trades one for the other |
 | `forced` | `0.4 · (v1 + v2)` | Neither can be met together, whatever the split |
 
-The multipliers live in `_S_MULTIPLIER` and `_SINGLE_MARGIN`; `tradeoff.conflict_oracle` imports both to recompute the supply rather than reading it off the draft, so the oracle and the world agree only because they share those constants.
+The multipliers live in `_S_MULTIPLIER` and `_SINGLE_MARGIN`; `tradeoff.conflict_oracle(…, world=)` reads the supply off the drafted world through `frontier_supply` rather than recomputing it from them (byte-identical on every rung).
 
-`latent` holds its promise only when the targets are equal: the balanced split gives each route `S/2 = (v1 + v2)/2`, which misses the larger target whenever `v1 ≠ v2`. And the boundary is reached from below: a simulated trial on the default 20 s horizon reads `9.99999998` against a goal of `10.0`, so the min-of-components score at the balanced split is `0.99999998`, not `1.0`.
+`latent` holds its promise for any pair of targets: the default split gives each route its target's share of `S = v1 + v2`. The boundary is reached from below: a simulated trial on the default 20 s horizon reads `9.99999998` against a goal of `10.0`, so the min-of-components score at the default split is `0.99999998` (`0.999997` on exp07's 15-turn episode), not `1.0`; the module docstring says so.
 
 Pool ids come from binding order, not from the generator: the two target pools are `root/crux/sink_a_in` and `root/crux/sink_b_in`, the precursor `root/crux_precursor`, and the single rung's target `root/sink_in` ([ABIO Skeleton](ABIO%20Skeleton.md) § Pool ids and binding). The generator reads them off `resolved_ports`; EXP-7's spec spells them literally in its `priority` axis.
 
@@ -87,12 +91,12 @@ Each route drains its product through a sink of rate 1, so at steady state the p
 
 
 ## The forced gate
-`_assert_forced_gate` is the generation-time canary: it sweeps five allocations of a fixed total rate 10 (`kA` fractions 0.01, 0.25, 0.5, 0.75, 0.99) through `sweep_conflict_frontier`, simulating the real assembled world for each under `seed.child("forced-gate")`, and raises `SkeletonError` if any reaches both targets. On this topology it cannot fire: every achieved sum is below `S`, and `S < v1 + v2`. It guards against a future change to the crux (a nonlinearity or extra path) opening an escape the closed form would not show. It ignores the caller's `kA`/`kB`, sweeps on `_SIM_CFG` (`dt 0.05`, 400 steps), and costs five extra materializations and simulations per `forced` draft.
+`_assert_forced_gate` is the generation-time canary: it sweeps five allocations of a fixed total rate 10 (`kA` fractions 0.01, 0.25, 0.5, 0.75, 0.99) through `sweep_conflict_frontier`, simulating the real assembled world for each under `seed.child("forced-gate")`, and raises `SkeletonError` if any reaches both targets. On this topology it cannot fire: every achieved sum is below `S`, and `S < v1 + v2`. It guards against a future change to the crux (a nonlinearity or extra path) opening an escape the closed form would not show. It ignores the caller's `kA`/`kB`, sweeps on the caller's `sim_cfg` (default `_SIM_CFG`, `dt 0.05`, 400 steps), and costs five extra materializations and simulations per `forced` draft; the module docstring states both.
 
 
 
 ## The objective
-An `OutcomeObjective` whose scorer reads each target's final total and maps it through `_component_score`: `1.0` at or above the goal, `1 / (1 + deficit)` below it, so overshoot is free and the falloff is in absolute units. The pair scorer returns the `min` of the two components, a bottleneck: a joint win needs both. `target` is `(id, goal)` on `single` and `((v1_id, v1), (v2_id, v2))` on the other rungs. The `conflict` drafter takes `objective.target[0]` as the question's target, which on a two-route rung is the `(id, goal)` pair, not an id (`drafters.py:991`, `1001`). Neither shape is a string where `brief.task_readouts` looks for one, so on the two-route rungs the readout set is empty and the target pools stay on the default control surface: the agent may set `V1` and `V2` directly.
+An `OutcomeObjective` whose scorer reads each target's final total and maps it through `_component_score`: `1.0` at or above the goal, `1 / (1 + deficit)` below it, so overshoot is free and the falloff is in absolute units. The pair scorer returns the `min` of the two components, a bottleneck: a joint win needs both. `target` is `(id, goal)` on `single` and `((v1_id, v1), (v2_id, v2))` on the other rungs. The `conflict` drafter's question names the target id on `single` and both `(id, goal)` pairs on the two-route rungs (`drafters.py` ~991); `brief.task_readouts` reads the id of every pair, so both target pools are readouts and stay off the control surface — a declared lever on `V1` or `V2` is refused (since `c2bfa3c`/`0cee5f0`).
 
 
 
@@ -104,3 +108,4 @@ With the default `Constant` rates the seed changes nothing: no hole is sampled f
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `09b3509`. The supply table, pool ids, the latent `0.99999998` score, the `compatible` oracle point and the question-target shape were read from local drafts of all four rungs, no spend. Left out: the conflict summary and precedence ladder (`tradeoff.py`, on its own page when written), the drafter head's full task wrapping (`drafters.py`), and the test file `tests/suite/test_conflict_gen.py`.
+- 2026-10-28 — refreshed against 0eb23e5 (`c2bfa3c`, `0cee5f0`): `frontier_supply` added; the default split follows the targets' ratio; `sim_cfg` reaches the forced gate; targets validated; the question names both pairs and both targets are readouts.

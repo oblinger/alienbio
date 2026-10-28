@@ -100,6 +100,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">registers, adapts, calls</text>
     <line id="legend-dotted" x1="270" y1="641" x2="320" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="330" y="646" font-size="14">reads, derives</text>
-    <text id="legend-dagger" x="470" y="646" font-size="14">‡ omits observability, observation_noise and the forgetting dials, which its comment says it covers</text>
+    <text id="legend-dagger" x="470" y="646" font-size="14">‡ every brief- and agent-side dial; the episode clock (sim_steps, sim_dt) left out on purpose</text>
   </g>
 </svg>

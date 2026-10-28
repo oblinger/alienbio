@@ -6,7 +6,7 @@ description: "`degradation`: EXP-10's degradation-under-time-pressure readout �
 The analysis family that asks which shortcuts appear as room to think shrinks: per trial, how much was measured and perturbed before the commit and whether the agent committed early, skipped verification, narrowed or reverted; per condition, the rates; along the budget axis, where accuracy falls off.
 
 ![ABIO Degradation](ABIO%20Degradation.svg) 
-*The per-trial flags* is the topic behind the nine fields of `TrialDegradation` (the dagger marks the two whose rules misread a careful agent); *The ladder* governs the budget ordering and the cliff.
+*The per-trial flags* is the topic behind the nine fields of `TrialDegradation` (the dagger marks the two whose rules were narrowed so they no longer misread a careful agent); *The ladder* governs the budget ordering and the cliff.
 
 `suite/degradation.py` reads records only. It is M33.9's `registry.scoring.degradation_patterns` asked of a [ABIO TrialRecord](ABIO%20TrialRecord.md) instead of the legacy `Trace`, plus EXP-10's premature commitment and skipped verification. It imports `Budget` from the runner ([ABIO Runner](ABIO%20Runner.md)) so a budget level is read exactly as a trial reads it. The world EXP-10 runs is the `discover` drafter's, whose `oracle["discover"]["pathway"]` sets the evidence floor. Consumers: `report_text.py`'s *Degradation* section and `plots.plot_degradation`. Every public name is re-exported from `alienbio.suite`.
 
@@ -29,7 +29,7 @@ Four functions and three constants.
     The floor for `premature` when the record carries no discover pathway. ^default-evidence-floor
 
 **BUDGET_WORDS**`: tuple[str, ...]`
-    `budget`, `turns left`, `turn left`, `remaining`, `running out`, `out of time`, `deadline`, `hurry`; matched whole-word, case-insensitive. ^budget-words
+    `budget`, `turns left`, `turn left`, `turns remaining`, `turn remaining`, `remaining turns`, `running out`, `out of time`, `deadline`, `hurry`; matched whole-word, case-insensitive. Bare `remaining` is not one. ^budget-words
 
 **CLIFF_DROP**` = 0.25`
     A rung whose accuracy is this far below the top rung's is the cliff. ^cliff-drop
@@ -82,7 +82,7 @@ A frozen dataclass: one record's read.
     Committed a non-empty answer with `verified == 0`. ^skipped-verification
 
 **scope_narrowing**`: bool`
-    The late half of the accepted pre-commit actions touches strictly fewer distinct measured probes than the early half (M33.9's rule). ^scope-narrowing
+    The late half of the accepted pre-commit measures touches strictly fewer distinct probes than the early half (M33.9's rule, halved over the measures alone). ^scope-narrowing
 
 **reversion**`: bool`
     Some probe is measured again at least three positions later in the accepted log, two or more actions between (M33.9's rule). ^reversion
@@ -178,7 +178,7 @@ A frozen dataclass: one group along the budget axis.
 ## The per-trial flags
 Every flag reads only the accepted actions before the first `commit`; rejected actions and anything after the commit are invisible. `premature` and `skipped_verification` need a non-empty answer, using the same emptiness rule as [ABIO Caution](ABIO%20Caution.md) (absent, `None`, or an empty container), so an aborted commit with a `None` answer is neither.
 
-Two of M33.9's rules misread the careful agent EXP-10 holds up as the standard. `scope_narrowing` splits the accepted log into halves but counts only measured probes in each, so an agent that measures first and then perturbs to verify (the order that clears `skipped_verification`) has an empty late scope and is flagged as narrowing: `[measure a, measure b, intervene x, intervene y]` reads `{a, b}` early, `{}` late. And `budget_aware` matches `remaining` as a whole word, which a model writes about the remaining pathway, the remaining candidates or the remaining concentration as readily as about remaining turns.
+Two of M33.9's rules misread the careful agent EXP-10 holds up as the standard until `343d166`. `scope_narrowing` split the whole accepted log into halves but counted only measured probes, so a measure-then-verify agent (the order that clears `skipped_verification`) had an empty late scope; it now halves the pre-commit measures themselves, so `[measure a, measure b, intervene x, intervene y]` reads `{a}` early, `{b}` late and is not narrowing. And `budget_aware` matched bare `remaining`, which a model writes about the remaining pathway, candidates or concentration as readily as about turns; `BUDGET_WORDS` now keeps only the turn phrasings (`turns remaining`, `remaining turns`).
 
 
 
@@ -190,3 +190,4 @@ Levels are ordered by the spend cap the runner would give them, not by name, so 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `f3b95d7` (the module last changed at `9cd0632`). The `discover` pathway was read off a local draft (`['r0', 'r1', 'r2']`, a three-step floor); the two misread rules follow from `degradation.py` 99–105 and 52/114 by reading, not from a run. Left out: the legacy `registry.scoring.degradation_patterns`, the report's line format and `plots.plot_degradation`.
+- 2026-10-28 — refreshed against 0eb23e5 (`343d166`): `scope_narrowing` halves the pre-commit measures, bare `remaining` left `BUDGET_WORDS`; figure labels follow.

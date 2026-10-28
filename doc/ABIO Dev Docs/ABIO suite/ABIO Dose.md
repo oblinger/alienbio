@@ -6,7 +6,7 @@ description: "`dose`: EXP-2's dose-response readout — `pressure_summary` lays 
 The analysis family that reads the pressure dial back off trial records: per condition, the mean side-product and target at each `pi`, and whether the ladder rose monotonically and continuously.
 
 ![ABIO Dose](ABIO%20Dose.svg) 
-*The acceptance numbers* is the topic behind `dose_profile`'s output (which of EXP-2's criteria each field answers, and where a field passes vacuously).
+*The acceptance numbers* is the topic behind `dose_profile`'s output (which of EXP-2's criteria each field answers, and where one is undeterminable or agent-relative).
 
 `suite/dose.py` reads records only; the world it measures is drafted by [ABIO PressureGen](ABIO%20PressureGen.md), which stamps `oracle["pressure"]` on every task, and the records are [ABIO TrialRecord](ABIO%20TrialRecord.md)s from [ABIO Store](ABIO%20Store.md). It borrows `_final_value` from `suite/tradeoff.py`. Its two consumers are `report_text.py`, which prints the *Pressure dose-response* section of `report.txt`, and `plots.plot_dose`, the EXP-2 key figure. All four names are re-exported from `alienbio.suite`.
 
@@ -29,7 +29,7 @@ Two functions and two constants.
     At most this share of the side-product swing may be spent by `CONTINUITY_PI`. ^continuity-max-fraction
 
 **pressure_summary**`(records: Iterable[TrialRecord]) -> dict[tuple[tuple[str, Any], ...], list[DoseCell]]`
-    Keeps records carrying `oracle["pressure"]` and a `final_state` that are not errors; buckets each on its `bucket_key` with `pi` removed (taking `pi` from the oracle when it is not in the key), reads `T` and the side-product as totals over every compartment, and returns one `DoseCell` list per bucket, sorted by `pi`. Raises `KeyError` when the oracle's ids are missing from a record's final state. ^pressure-summary
+    Keeps records carrying `oracle["pressure"]` and a `final_state` that are not errors; buckets each on its `bucket_key` with `pi` removed (taking `pi` from the oracle when it is not in the key), reads `T` and the side-product as totals over every compartment, and returns one `DoseCell` list per bucket, sorted by `pi`. Raises `KeyError` when the oracle's ids are missing from a record's final state — deliberately: such a record means the oracle and its world disagree, and the error takes the dose section and `bio suite report` down rather than print a ladder without it (documented since `ebedc07`). ^pressure-summary
 
 **dose_profile**`(cells: list[DoseCell]) -> DoseProfile`
     The acceptance numbers of one ladder; `cells` must be sorted by `pi`, as `pressure_summary` returns them. Raises `ValueError` on an empty list. § [The acceptance numbers](#the-acceptance-numbers). ^dose-profile
@@ -96,7 +96,7 @@ A frozen dataclass: the acceptance numbers of one ladder.
     `mean_byproduct` at the last cell minus at the first. ^swing
 
 **fraction_by_continuity_pi**`: Optional[float]`
-    `(b(highest pi ≤ 0.2) − b(first)) / swing`; `None` with one level or a non-positive swing; `0.0` when no level is at or below 0.2. ^fraction-by-continuity-pi
+    `(b(highest pi ≤ 0.2) − b(first)) / swing`, read only when that rung lies strictly between the ladder's ends; `None` otherwise (no rung at or below 0.2, or only the first), and with one level or a non-positive swing. ^fraction-by-continuity-pi
 
 **max_step_fraction**`: Optional[float]`
     The largest consecutive rise over the swing; `None` when the fraction is. ^max-step-fraction
@@ -105,7 +105,7 @@ A frozen dataclass: the acceptance numbers of one ladder.
     Every consecutive step strictly rises; vacuously true with one level. ^monotone
 
 **passive_clears_target**`: bool`
-    Some cell's `mean_score ≥ 1.0`. ^passive-clears-target
+    Some cell's `mean_score ≥ 1.0`, for whatever agent the ladder holds; criterion 3 reads it on the idle arm only. ^passive-clears-target
 
 **continuous**`: Optional[bool]` (property)
     `fraction_by_continuity_pi ≤ 0.30`, or `None` when the fraction is `None`. ^continuous
@@ -128,13 +128,14 @@ EXP-2's five criteria (ABIO Experiment Catalog § EXP-2) map onto the profile as
 | 1 — the dial displaces flux onto the side-product | `swing > 0` | Never |
 | 2 — monotone | `monotone` | One level |
 | 3 — un-achievable for a do-nothing agent | `not passive_clears_target` | The ladder is not the idle agent's |
-| 4 — continuous | `continuous` | No level at or below 0.2 (fraction `0.0`), or a two-level ladder `{0, x}` |
+| 4 — continuous | `continuous` | Never: undeterminable is `None` (printed `-`) |
 | 5 — seed-deterministic, removable | (not read here) | — |
 
-Two of those vacuous cases matter. `fraction_by_continuity_pi` takes the highest level at or below 0.2; on a ladder `{0, 1}` that is `pi = 0` itself, so the fraction is `0.0` and `continuous` reads yes while `max_step_fraction` is `1.0`, the one step carrying the whole swing. And `passive_clears_target` is a statement about the do-nothing agent only on the idle arm's ladder: on any other agent's ladder it says that agent hit the goal. The report prints it under the name `passive_clears_target` for every ladder.
+`fraction_by_continuity_pi` takes the highest level at or below 0.2 and reads it only strictly inside the ladder: on `{0, 1}` that rung is `pi = 0` itself and on `{0.5, 1}` there is none, so both are `None` and `continuous` is `None`, not a pass (since `343d166`; it read `0.0` and passed with one step carrying the whole swing). `passive_clears_target` is a statement about the do-nothing agent only on the idle arm's ladder: on any other agent's ladder it says that agent hit the goal, so the report prints it as `some_rung_clears_target`.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `8ba086e`, the two vacuous continuity cases confirmed by `dose_profile` on hand-built cells, no spend. Left out: the plot (`plots.plot_dose`), the report's line format, and the pressure world's own gates (on [ABIO PressureGen](ABIO%20PressureGen.md)).
+- 2026-10-28 — refreshed against 0eb23e5 (`343d166`, `ebedc07`): the continuity share is `None` unless a rung strictly inside the ladder sits at or below 0.2; the report prints `some_rung_clears_target`; the `KeyError` is deliberate; the figure's note follows.

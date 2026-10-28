@@ -13,14 +13,15 @@ The generator of EXP-8's matched pair: two worlds identical in every id and rate
 
 
 ## delta_gen Interface
-Two public functions and six constants; the crux block and the gate are private.
+Two public functions and seven constants; the crux block and the gate are private.
 
 | delta_gen | |
 | --- | --- |
 | [DEFAULT_R_A](#^default-r-a) | `source_a`'s supply rate |
 | [DEFAULT_R_B](#^default-r-b) | `source_b`'s supply rate |
 | [DEFAULT_K_DRIVE](#^default-k-drive) | Rate of the driving edge into `T` |
-| [DEFAULT_K_SINK](#^default-k-sink) | Rate of each signal's own sink |
+| [DEFAULT_K_SINK](#^default-k-sink) | Rate of `source_a`'s own sink |
+| [DEFAULT_K_SINK_B](#^default-k-sink-b) | Rate of `source_b`'s own sink |
 | [DEFAULT_K_T_SINK](#^default-k-t-sink) | Rate draining `T` |
 | [DEFAULT_T_TARGET](#^default-t-target) | The floor `T` must clear at baseline |
 | [draft_delta_pair](#^draft-delta-pair) | Draft `(W_match, W_mismatch)` and gate it |
@@ -36,7 +37,10 @@ Two public functions and six constants; the crux block and the gate are private.
     `route_drive`'s rate, `driver -> T`. ^default-k-drive
 
 **DEFAULT_K_SINK**` = 0.05`
-    Each signal's own always-on drain, small so it barely touches the driver; it is what gives the undriven signal a bounded fate. ^default-k-sink
+    `sink_a`'s always-on drain on `source_a`, small so it barely touches the driver on `W_match`; on `W_mismatch` it is the decoy's only drain, so the decoy reads larger there throughout. ^default-k-sink
+
+**DEFAULT_K_SINK_B**` = 1.0`
+    `sink_b`'s drain on `source_b`: large enough that on `W_match` the decoy's steady level `r_b / k_sink_b` (1.0) sits below the driver's `r_a / (k_drive + k_sink)` (≈ 2.44), while on `W_mismatch` `T` still clears the floor (steady ≈ 0.67). ^default-k-sink-b
 
 **DEFAULT_K_T_SINK**` = 1.0`
     `sink_t`'s rate. ^default-k-t-sink
@@ -44,10 +48,10 @@ Two public functions and six constants; the crux block and the gate are private.
 **DEFAULT_T_TARGET**` = 0.5`
     The gate's floor: baseline `T` must reach it and a driver-cut `T` must not. ^default-t-target
 
-**draft_delta_pair**`(seed: Seed = Seed(0), *, r_a: float = 5.0, r_b: float = 1.0, k_drive: Optional[Dist[float]] = None, k_sink: Optional[Dist[float]] = None, k_t_sink: Optional[Dist[float]] = None, t_target: float = 0.5, sim_cfg: SimConfig = _SIM_CFG) -> tuple[tuple[WorldImpl, Skeleton, Objective], tuple[WorldImpl, Skeleton, Objective]]`
-    Raises `ValueError` unless `r_a > r_b`. Drafts `invert=False` then `invert=True` under the same seed, each a `(world, materialized skeleton, AnswerObjective)` triple, runs `_assert_delta_gate` on both and returns `(match, mismatch)`. `r_a` and `r_b` are plain floats (wrapped as `Constant`); the three rates may be any `Dist`. Raises `SkeletonError` when the gate fails. ^draft-delta-pair
+**draft_delta_pair**`(seed: Seed = Seed(0), *, r_a: float = 5.0, r_b: float = 1.0, k_drive: Optional[Dist[float]] = None, k_sink: Optional[Dist[float]] = None, k_sink_b: Optional[Dist[float]] = None, k_t_sink: Optional[Dist[float]] = None, t_target: float = 0.5, sim_cfg: SimConfig = _SIM_CFG) -> tuple[tuple[WorldImpl, Skeleton, Objective], tuple[WorldImpl, Skeleton, Objective]]`
+    Raises `ValueError` unless `r_a`, `r_b` and `t_target` are positive finite numbers and `r_a > r_b`. Drafts `invert=False` then `invert=True` under the same seed, each a `(world, materialized skeleton, AnswerObjective)` triple, runs `_assert_delta_gate` on both and returns `(match, mismatch)`. `r_a` and `r_b` are plain floats (wrapped as `Constant`); the four rates may be any `Dist`. Raises `SkeletonError` when the gate fails. ^draft-delta-pair
 
-**build_delta_skeleton**`(*, invert: bool, r_a: Dist[float], r_b: Dist[float], k_drive: Dist[float], k_sink: Dist[float], k_t_sink: Dist[float]) -> Skeleton`
+**build_delta_skeleton**`(*, invert: bool, r_a: Dist[float], r_b: Dist[float], k_drive: Dist[float], k_sink: Dist[float], k_sink_b: Dist[float], k_t_sink: Dist[float]) -> Skeleton`
     `root` with one child, `_DeltaCruxBlock.make("crux", …)`; `crux="root/crux"`, `control_surface=("root/crux/source_a.out", "root/crux/source_b.out")`. Both signals live inside the crux, so there is no top-level source. The gate rebuilds cut worlds with it. ^build-delta-skeleton
 
 
@@ -60,8 +64,8 @@ A private pattern block with six children and four bindings; only the fourth bin
 | [make](#^make) | Build the six-child crux |
 | [ground_truth](#^ground-truth) | `(T, driver, decoy)` final amounts |
 
-**make**`(name, *, invert: bool, container=None, r_a, r_b, k_drive, k_sink, k_t_sink, params=None) -> _DeltaCruxBlock` (classmethod)
-    Children `source_a`, `source_b` (`SourceBlock`), `sink_a`, `sink_b` (`SinkBlock`, `k_sink`), `route_drive` (`ReactionBlock`, `in -> out` at `k_drive`), `sink_t` (`SinkBlock`, `k_t_sink`). Bindings, sink side first: `sink_a.in`–`source_a.out`, `sink_b.in`–`source_b.out`, `sink_t.in`–`route_drive.out`, and `route_drive.in`–`source_b.out` when `invert` else `source_a.out`. ^make
+**make**`(name, *, invert: bool, container=None, r_a, r_b, k_drive, k_sink, k_sink_b, k_t_sink, params=None) -> _DeltaCruxBlock` (classmethod)
+    Children `source_a`, `source_b` (`SourceBlock`), `sink_a` (`SinkBlock`, `k_sink`), `sink_b` (`SinkBlock`, `k_sink_b`), `route_drive` (`ReactionBlock`, `in -> out` at `k_drive`), `sink_t` (`SinkBlock`, `k_t_sink`). Bindings, sink side first: `sink_a.in`–`source_a.out`, `sink_b.in`–`source_b.out`, `sink_t.in`–`route_drive.out`, and `route_drive.in`–`source_b.out` when `invert` else `source_a.out`. ^make
 
 **ground_truth**`(timeline: Timeline) -> tuple[float, float, float]`
     `final_amount` of `T` (`route_drive`'s `out`), of the true driver's pool and of the decoy's, choosing driver and decoy by `params["invert"]`. Raises `SkeletonError` on an unrealized block. ^ground-truth
@@ -78,20 +82,20 @@ Both worlds are built from the same tree (same names, child order and rates) und
 
 
 
-## Bigger by supply, not by level
-The conventional rule is defined on supply rates, which the agent never sees. What it observes are pool levels, and the always-on drain makes the undriven signal accumulate: the driver drains at `k_drive + k_sink = 2.05`, the decoy only at `0.05`. On the defaults (`Skeleton.oracle`, 20 s):
+## Bigger by supply, and by level
+The conventional rule is defined on supply rates, which the agent never sees; what it observes are pool levels. Since `719261e` (T088 Q4 = A) the two signals drain at their own rates: on `W_match` the driver drains at `k_drive + k_sink = 2.05` and the decoy at `k_sink_b = 1.0`; on `W_mismatch` the driver `source_b` drains at `k_drive + k_sink_b = 3.0` and the decoy `source_a` at `k_sink = 0.05` alone. On the defaults (`Skeleton.oracle`, 20 s):
 
 | Arm | Driver level | Decoy level | `T` |
 | --- | --- | --- | --- |
-| `match` | `source_a` 2.44 | `source_b` 12.66 | 4.88 |
-| `mismatch` | `source_b` 0.49 | `source_a` 63.30 | 0.98 |
+| `match` | `source_a` 2.44 | `source_b` 1.0 | 4.88 |
+| `mismatch` | `source_b` 0.33 | `source_a` 63.30 | 0.67 |
 
-So at the end of the horizon the decoy is the larger reading in both worlds. In `W_match` the levels cross at about 2.6 s (`source_a` rises fast to 2.44, `source_b` climbs about 1 per second), and only a reading taken before the crossing makes the larger level point at the driver. The scripted `heuristic-commit` agent commits the largest value it observed, so its "right on `W_match`" holds for an early read; a model reasoning from levels late in an episode sees the decoy as the bigger signal on both arms.
+Both pools start empty and each level is `r/λ · (1 − e^{−λt})`, so the steady-state order is the order at every `t > 0`: on `W_match` the larger supply is the larger level throughout, on `W_mismatch` the decoy reads larger throughout. A "largest observed level" rule, the scripted `heuristic-commit` agent's, is right on `W_match` and wrong on `W_mismatch` whenever it reads. The gate checks both orders (§ [The gate](#the-gate)).
 
 
 
 ## The objective
-A diagnosis task: `AnswerObjective(grader=GraderSpec(kind="node_id"), key=Answer(value=driver_id, kind="node_id"))`, the key read off the realized driver block's `resolved_ports`, never inferred from the chemistry. The `delta` drafter's question is the Python set `{a_id, b_id}` (`drafters.py:1151`); `render_brief` serializes it with `json.dumps(…, default=repr)`, so the candidates' order in the prompt follows the process's string hash seed (`PYTHONHASHSEED` 1 and 3 give opposite orders).
+A diagnosis task: `AnswerObjective(grader=GraderSpec(kind="node_id"), key=Answer(value=driver_id, kind="node_id"))`, the key read off the realized driver block's `resolved_ports`, never inferred from the chemistry. The `delta` drafter's question is `tuple(sorted([a_id, b_id]))` (`drafters.py` ~1152), so the candidates' order in the prompt is fixed whatever the process's hash seed (it was a set, whose order followed `PYTHONHASHSEED`, until `c2bfa3c`).
 
 
 
@@ -101,14 +105,16 @@ A diagnosis task: `AnswerObjective(grader=GraderSpec(kind="node_id"), key=Answer
 | Check | Simulation |
 | --- | --- |
 | The two keys differ | None |
-| Baseline `T ≥ t_target` in each world | `oracle` on the drafted skeleton |
+| Level order: on `W_match` driver > decoy, on `W_mismatch` decoy > driver, at the closed-form steady state and at every sample after `t = 0` (`_assert_level_order`) | A dense simulation of the drafted world (`sample_every=1`) |
+| Baseline `T ≥ t_target` in each world | The same dense simulation's final `T` |
 | Driver cut to 0: `T < t_target` | A rebuilt skeleton with the driver's supply `Constant(0)` |
 | Decoy cut to 0: `T` within `1e-3` of baseline | A rebuilt skeleton with the decoy's supply `Constant(0)` |
 
-That is six `oracle` calls per pair, each a materialize and a 400-step simulation on `_SIM_CFG` unless `sim_cfg` is given. The baseline check calls `oracle` on the drafted skeleton itself, which re-materializes it and replaces its cached root and chemistry ([ABIO Skeleton](ABIO%20Skeleton.md) § The oracle); the returned world is the first materialization, equal but not the same object. Every cut world is rebuilt with the caller's `k_*` rates, so a `Dist` there is re-sampled at the same tree positions and draws the same values.
+That is two dense simulations of the drafted worlds and four cut-world `oracle` calls per pair, each a 400-step simulation on `_SIM_CFG` unless `sim_cfg` is given. The baseline simulates the drafted world itself rather than calling `oracle` on its skeleton, so the skeletons are not re-materialized and the chemistry and tree cached on them stay the returned worlds' (since `719261e`). Every cut world is rebuilt with the caller's `k_*` rates, so a `Dist` there is re-sampled at the same tree positions and draws the same values.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `66ccd69`. The level table and the crossing time were read from local drafts and `oracle` calls on the defaults; the set-order result from three `DRAFTERS["delta"]` calls under different `PYTHONHASHSEED`s, no spend. Left out: the paired summary (`suite/delta.py`, its own page when written), the `heuristic-commit` agent's code (`agents.py`), and EXP-8's spec beyond its use of the pair.
+- 2026-10-28 — refreshed against 0eb23e5 (`719261e`, `c2bfa3c`): `k_sink_b`/`DEFAULT_K_SINK_B` added, so the driver reads larger on `W_match` at every time (level table recomputed, section renamed); the gate checks the level order on a dense simulation of the drafted worlds; rates validated; the question is a sorted tuple; figure labels follow.

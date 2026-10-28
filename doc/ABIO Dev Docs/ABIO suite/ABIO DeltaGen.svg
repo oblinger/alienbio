@@ -54,7 +54,7 @@
   <g id="n-skb">
     <rect id="n-skb-box" x="650" y="270" width="150" height="50" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-skb-name" x="725" y="291" font-size="16" font-weight="600" text-anchor="middle">sink_b</text>
-    <text id="n-skb-kind" x="725" y="310" font-size="13" text-anchor="middle">(Sink) 0.05</text>
+    <text id="n-skb-kind" x="725" y="310" font-size="13" text-anchor="middle">(Sink) k_sink_b = 1</text>
   </g>
   <line id="e-sa-ska" x1="395" y1="115" x2="395" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-sb-skb" x1="725" y1="115" x2="725" y2="270" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
@@ -69,10 +69,10 @@
   <g id="n-levels">
     <rect id="n-levels-box" x="860" y="60" width="320" height="140" rx="8" fill="#fff9db" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
     <text id="n-levels-name" x="875" y="84" font-size="15" font-weight="600" fill="#343a40">levels at 20 s (defaults)</text>
-    <text id="n-levels-1" x="875" y="112" font-size="14">match: driver a 2.44 · decoy b 12.66</text>
-    <text id="n-levels-2" x="875" y="138" font-size="14">mismatch: driver b 0.49 · decoy a 63.3</text>
-    <text id="n-levels-3" x="875" y="166" font-size="14">the decoy reads larger in both;</text>
-    <text id="n-levels-4" x="875" y="186" font-size="14">match crosses at about 2.6 s</text>
+    <text id="n-levels-1" x="875" y="112" font-size="14">match: driver a 2.44 · decoy b 1.0</text>
+    <text id="n-levels-2" x="875" y="138" font-size="14">mismatch: driver b 0.33 · decoy a 63.3</text>
+    <text id="n-levels-3" x="875" y="166" font-size="14">the arm's name holds at every t:</text>
+    <text id="n-levels-4" x="875" y="186" font-size="14">gated on a dense simulation</text>
   </g>
 
   <!-- The pair -->
@@ -104,7 +104,7 @@
   <g id="n-gate">
     <rect id="n-gate-box" x="880" y="400" width="300" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-gate-name" x="1030" y="426" font-size="18" font-weight="600" text-anchor="middle">_assert_delta_gate</text>
-    <text id="n-gate-kind" x="1030" y="448" font-size="14" text-anchor="middle">(fn) keys differ, T ≥ 0.5 both</text>
+    <text id="n-gate-kind" x="1030" y="448" font-size="14" text-anchor="middle">(fn) keys, level order, T ≥ 0.5</text>
   </g>
   <line id="e-pair-gate" x1="820" y1="432" x2="880" y2="432" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <g id="n-dcut">
