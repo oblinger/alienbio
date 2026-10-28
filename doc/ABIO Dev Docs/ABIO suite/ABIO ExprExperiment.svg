@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-file">
+    <rect id="n-file-box" x="50" y="40" width="230" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-file-name" x="165" y="66" font-size="18" font-weight="600" text-anchor="middle">experiment file</text>
+    <text id="n-file-kind" x="165" y="88" font-size="14" text-anchor="middle">(YAML) !experiment, or a</text>
+    <text id="n-file-kind2" x="165" y="108" font-size="14" text-anchor="middle">mapping holding one</text>
+  </g>
+  <g id="n-load">
+    <rect id="n-load-box" x="340" y="40" width="230" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-load-name" x="455" y="66" font-size="18" font-weight="600" text-anchor="middle">load_experiment</text>
+    <text id="n-load-kind" x="455" y="88" font-size="14" text-anchor="middle">(fn) Env.standard(seed=0),</text>
+    <text id="n-load-kind2" x="455" y="108" font-size="14" text-anchor="middle">trust from the caller</text>
+  </g>
+  <line id="e-file-load" x1="280" y1="80" x2="340" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-exp">
+    <rect id="n-exp-box" x="630" y="40" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-exp-name" x="755" y="66" font-size="18" font-weight="600" text-anchor="middle">experiment</text>
+    <text id="n-exp-kind" x="755" y="88" font-size="14" text-anchor="middle">(experiment head) quoted task,</text>
+    <text id="n-exp-kind2" x="755" y="108" font-size="14" text-anchor="middle">brief, episode + axes</text>
+  </g>
+  <line id="e-load-exp" x1="570" y1="80" x2="630" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-load-exp" x="600" y="70" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">evaluate</text>
+  <g id="n-agent">
+    <rect id="n-agent-box" x="940" y="40" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-agent-name" x="1060" y="66" font-size="18" font-weight="600" text-anchor="middle">agent heads</text>
+    <text id="n-agent-kind" x="1060" y="88" font-size="14" text-anchor="middle">(agent) idle … pursue_target,</text>
+    <text id="n-agent-kind2" x="1060" y="108" font-size="14" text-anchor="middle">llm → AGENTS key</text>
+  </g>
+  <line id="e-exp-agent" x1="880" y1="80" x2="940" y2="80" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-exp-agent" x="910" y="70" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">agent</text>
+
+  <g id="n-split">
+    <rect id="n-split-box" x="630" y="220" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-split-name" x="755" y="246" font-size="18" font-weight="600" text-anchor="middle">_split_call</text>
+    <text id="n-split-kind" x="755" y="268" font-size="14" text-anchor="middle">(fn) free name = axis,</text>
+    <text id="n-split-kind2" x="755" y="288" font-size="14" text-anchor="middle">literal = fixed dial</text>
+  </g>
+  <line id="e-exp-split" x1="755" y1="120" x2="755" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-exp-split" x="765" y="175" font-size="14" fill="#1971c2" font-style="italic">each quoted call</text>
+  <g id="n-decl">
+    <rect id="n-decl-box" x="940" y="220" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-decl-name" x="1060" y="246" font-size="18" font-weight="600" text-anchor="middle">declared dials</text>
+    <text id="n-decl-kind" x="1060" y="268" font-size="14" text-anchor="middle">(Drafters) drafter · brief ·</text>
+    <text id="n-decl-kind2" x="1060" y="288" font-size="14" text-anchor="middle">episode keyword params</text>
+  </g>
+  <line id="e-split-decl" x1="880" y1="260" x2="940" y2="260" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-dials">
+    <rect id="n-dials-box" x="630" y="380" width="250" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dials-name" x="755" y="406" font-size="18" font-weight="600" text-anchor="middle">fixed dials · axes</text>
+    <text id="n-dials-kind" x="755" y="428" font-size="14" text-anchor="middle">(dict) no dial on two calls,</text>
+    <text id="n-dials-kind2" x="755" y="448" font-size="14" text-anchor="middle">no axis unread</text>
+  </g>
+  <line id="e-split-dials" x1="755" y1="300" x2="755" y2="380" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-spec">
+    <rect id="n-spec-box" x="940" y="380" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="1060" y="406" font-size="18" font-weight="600" text-anchor="middle">ExperimentSpec</text>
+    <text id="n-spec-kind" x="1060" y="428" font-size="14" text-anchor="middle">(ExperimentSpec) via</text>
+    <text id="n-spec-kind2" x="1060" y="448" font-size="14" text-anchor="middle">spec_from_dict</text>
+  </g>
+  <line id="e-dials-spec" x1="880" y1="420" x2="940" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-text">
+    <rect id="n-text-box" x="630" y="520" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-text-name" x="755" y="548" font-size="18" font-weight="600" text-anchor="middle">spec_to_text</text>
+    <text id="n-text-kind" x="755" y="572" font-size="14" text-anchor="middle">(fn) dial on its declaring call</text>
+  </g>
+  <polyline id="e-spec-text" points="1060,460 1060,555 880,555" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <polyline id="e-text-file" points="630,555 30,555 30,80 50,80" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-text-file" x="420" y="545" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">text; raw scalars ‡</text>
+
+  <g id="n-obj">
+    <rect id="n-obj-box" x="60" y="220" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-obj-name" x="185" y="246" font-size="18" font-weight="600" text-anchor="middle">objective heads</text>
+    <text id="n-obj-kind" x="185" y="268" font-size="14" text-anchor="middle">(fn) pattern · carve · identify</text>
+    <text id="n-obj-kind2" x="185" y="288" font-size="14" text-anchor="middle">diagnose_q · predict_q …</text>
+  </g>
+  <g id="n-task">
+    <rect id="n-task-box" x="60" y="380" width="250" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-task-name" x="185" y="406" font-size="18" font-weight="600" text-anchor="middle">task</text>
+    <text id="n-task-kind" x="185" y="428" font-size="14" text-anchor="middle">(constructor) TaskInstance</text>
+    <text id="n-task-kind2" x="185" y="448" font-size="14" text-anchor="middle">from an objective pair</text>
+  </g>
+  <line id="e-obj-task" x1="185" y1="300" x2="185" y2="380" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-obj-task" x="195" y="345" font-size="14" fill="#1971c2" font-style="italic">question, objective</text>
+  <g id="n-suite">
+    <rect id="n-suite-box" x="345" y="300" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-suite-name" x="465" y="326" font-size="18" font-weight="600" text-anchor="middle">suite heads</text>
+    <text id="n-suite-kind" x="465" y="348" font-size="14" text-anchor="middle">(fn) suite · cover</text>
+    <text id="n-suite-kind2" x="465" y="368" font-size="14" text-anchor="middle">vocabulary (layer 5, standalone)</text>
+  </g>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">builds</text>
+    <line id="legend-dotted" x1="180" y1="641" x2="230" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="240" y="646" font-size="14">reads, writes back</text>
+    <text id="legend-dagger" x="410" y="646" font-size="14">‡ name, key_readout, out_dir written unquoted: a spec named no reloads as False</text>
+  </g>
+</svg>
