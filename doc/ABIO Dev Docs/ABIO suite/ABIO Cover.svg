@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-items">
+    <rect id="n-items-box" x="20" y="200" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-items-name" x="130" y="226" font-size="18" font-weight="600" text-anchor="middle">items</text>
+    <text id="n-items-kind" x="130" y="248" font-size="14" text-anchor="middle">FeatureSet per task:</text>
+    <text id="n-items-kind2" x="130" y="268" font-size="14" text-anchor="middle">(key, predicate) pairs ‡</text>
+  </g>
+  <g id="n-callers">
+    <rect id="n-callers-box" x="20" y="40" width="220" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-callers-name" x="130" y="66" font-size="17" font-weight="600" text-anchor="middle">callers</text>
+    <text id="n-callers-k1" x="130" y="88" font-size="13" text-anchor="middle">pipeline.build_suite</text>
+    <text id="n-callers-k2" x="130" y="106" font-size="13" text-anchor="middle">Expr cover(...) head</text>
+  </g>
+  <line id="e-callers-items" x1="130" y1="130" x2="130" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-greedy">
+    <rect id="n-greedy-box" x="320" y="200" width="230" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-greedy-name" x="435" y="226" font-size="17" font-weight="600" text-anchor="middle">greedy open-or-place</text>
+    <text id="n-greedy-kind" x="435" y="248" font-size="13" text-anchor="middle">exact feature-set match,</text>
+    <text id="n-greedy-kind2" x="435" y="268" font-size="13" text-anchor="middle">else open (seed priority)</text>
+  </g>
+  <line id="e-items-greedy" x1="240" y1="240" x2="320" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-merge">
+    <rect id="n-merge-box" x="630" y="200" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-merge-name" x="750" y="226" font-size="17" font-weight="600" text-anchor="middle">best-first merges</text>
+    <text id="n-merge-kind" x="750" y="248" font-size="13" text-anchor="middle">max Jaccard; stop when</text>
+    <text id="n-merge-kind2" x="750" y="268" font-size="13" text-anchor="middle">below 1 − aggressiveness</text>
+  </g>
+  <line id="e-greedy-merge" x1="550" y1="240" x2="630" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-move">
+    <rect id="n-move-box" x="950" y="200" width="230" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-move-name" x="1065" y="226" font-size="17" font-weight="600" text-anchor="middle">single-item moves</text>
+    <text id="n-move-kind" x="1065" y="248" font-size="13" text-anchor="middle">strict cost drop; count</text>
+    <text id="n-move-kind2" x="1065" y="268" font-size="13" text-anchor="middle">kept; inert on default cost</text>
+  </g>
+  <line id="e-merge-move" x1="870" y1="240" x2="950" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-adm">
+    <rect id="n-adm-box" x="470" y="60" width="220" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-adm-name" x="580" y="86" font-size="17" font-weight="600" text-anchor="middle">admissible(fs)</text>
+    <text id="n-adm-kind" x="580" y="108" font-size="13" text-anchor="middle">(opaque) capacity oracle</text>
+  </g>
+  <g id="n-cost">
+    <rect id="n-cost-box" x="780" y="60" width="220" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cost-name" x="890" y="86" font-size="17" font-weight="600" text-anchor="middle">cost(Cover)</text>
+    <text id="n-cost-kind" x="890" y="108" font-size="13" text-anchor="middle">(opaque) default: count</text>
+  </g>
+  <line id="e-greedy-adm" x1="480" y1="200" x2="540" y2="124" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-merge-adm" x1="700" y1="200" x2="640" y2="124" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-merge-cost" x1="800" y1="200" x2="860" y2="124" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-move-cost" x1="1040" y1="200" x2="960" y2="124" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-cover">
+    <rect id="n-cover-box" x="630" y="380" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cover-name" x="750" y="406" font-size="18" font-weight="600" text-anchor="middle">Cover</text>
+    <text id="n-cover-kind" x="750" y="428" font-size="13" text-anchor="middle">(dataclass) containers,</text>
+    <text id="n-cover-kind2" x="750" y="448" font-size="13" text-anchor="middle">assignment; ordered by first item</text>
+  </g>
+  <path id="e-move-cover" d="M 1065 280 L 1065 420 L 870 420" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-setup">
+    <rect id="n-setup-box" x="280" y="380" width="270" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-setup-name" x="415" y="406" font-size="16" font-weight="600" text-anchor="middle">setup["container"]</text>
+    <text id="n-setup-kind" x="415" y="428" font-size="13" text-anchor="middle">(build_suite) stamped per task;</text>
+    <text id="n-setup-kind2" x="415" y="448" font-size="13" text-anchor="middle">worlds are not shared by it</text>
+  </g>
+  <line id="e-cover-setup" x1="630" y1="420" x2="550" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cover-setup" x="590" y="410" font-size="13" fill="#1971c2" font-style="italic" text-anchor="middle">assignment</text>
+
+  <g id="n-mono">
+    <rect id="n-mono-box" x="630" y="500" width="240" height="64" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="n-mono-k1" x="750" y="526" font-size="13" text-anchor="middle">aggressiveness 0 / .3 / .5 / .7 / 1</text>
+    <text id="n-mono-k2" x="750" y="546" font-size="13" text-anchor="middle">→ 5 / 5 / 4 / 2 / 2 containers</text>
+  </g>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ a feature includes its predicate object: two lambdas for one key are two features</text>
+  </g>
+</svg>
