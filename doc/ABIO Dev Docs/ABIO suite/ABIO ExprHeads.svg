@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-names">
+    <rect id="n-names-box" x="20" y="40" width="240" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-names-name" x="140" y="66" font-size="18" font-weight="600" text-anchor="middle">pool names</text>
+    <text id="n-names-kind" x="140" y="88" font-size="14" text-anchor="middle">(str) through Env.pool:</text>
+    <text id="n-names-kind2" x="140" y="108" font-size="14" text-anchor="middle">namespaced in a template</text>
+  </g>
+  <g id="n-blocks">
+    <rect id="n-blocks-box" x="320" y="40" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-blocks-name" x="445" y="66" font-size="18" font-weight="600" text-anchor="middle">block heads</text>
+    <text id="n-blocks-kind" x="445" y="88" font-size="14" text-anchor="middle">(fn) source · sink · crux · signal</text>
+    <text id="n-blocks-kind2" x="445" y="108" font-size="14" text-anchor="middle">enzyme · transport · lattice …</text>
+  </g>
+  <line id="e-names-blocks" x1="260" y1="80" x2="320" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-names-blocks" x="290" y="70" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">ports</text>
+  <g id="n-block">
+    <rect id="n-block-box" x="630" y="40" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-block-name" x="750" y="66" font-size="18" font-weight="600" text-anchor="middle">block</text>
+    <text id="n-block-kind" x="750" y="88" font-size="14" text-anchor="middle">(fn) one parent port per</text>
+    <text id="n-block-kind2" x="750" y="108" font-size="14" text-anchor="middle">pool name, bound to each child</text>
+  </g>
+  <line id="e-blocks-block" x1="570" y1="80" x2="630" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-blocks-block" x="600" y="70" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">children</text>
+  <g id="n-skel">
+    <rect id="n-skel-box" x="930" y="40" width="250" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-skel-name" x="1055" y="66" font-size="18" font-weight="600" text-anchor="middle">skeleton</text>
+    <text id="n-skel-kind" x="1055" y="88" font-size="14" text-anchor="middle">(fn) Skeleton: root,</text>
+    <text id="n-skel-kind2" x="1055" y="108" font-size="14" text-anchor="middle">control surface, crux</text>
+  </g>
+  <line id="e-block-skel" x1="870" y1="80" x2="930" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-block-skel" x="900" y="70" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">root</text>
+
+  <g id="n-cr">
+    <rect id="n-cr-box" x="20" y="200" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cr-name" x="140" y="226" font-size="18" font-weight="600" text-anchor="middle">compile_rate</text>
+    <text id="n-cr-kind" x="140" y="248" font-size="14" text-anchor="middle">(RateLaw) k, modulations</text>
+    <text id="n-cr-kind2" x="140" y="268" font-size="14" text-anchor="middle">or an expression</text>
+  </g>
+  <g id="n-rxn">
+    <rect id="n-rxn-box" x="320" y="200" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rxn-name" x="445" y="226" font-size="18" font-weight="600" text-anchor="middle">reaction</text>
+    <text id="n-rxn-kind" x="445" y="248" font-size="14" text-anchor="middle">(fn) reactants, products,</text>
+    <text id="n-rxn-kind2" x="445" y="268" font-size="14" text-anchor="middle">rate slot</text>
+  </g>
+  <line id="e-rxn-cr" x1="320" y1="240" x2="260" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-rxn-cr" x="290" y="230" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">rate</text>
+  <g id="n-rlb">
+    <rect id="n-rlb-box" x="630" y="200" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rlb-name" x="750" y="226" font-size="18" font-weight="600" text-anchor="middle">RateLawBlock</text>
+    <text id="n-rlb-kind" x="750" y="248" font-size="14" text-anchor="middle">(ReactionBlock) extra IN</text>
+    <text id="n-rlb-kind2" x="750" y="268" font-size="14" text-anchor="middle">ports for modifier pools</text>
+  </g>
+  <line id="e-rxn-rlb" x1="570" y1="240" x2="630" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-rxn-rlb" x="600" y="230" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">law</text>
+  <line id="e-rlb-block" x1="750" y1="200" x2="750" y2="120" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-rlb-block" x="760" y="165" font-size="14" fill="#1971c2" font-style="italic">a child</text>
+  <g id="n-world">
+    <rect id="n-world-box" x="930" y="200" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-world-name" x="1055" y="226" font-size="18" font-weight="600" text-anchor="middle">world</text>
+    <text id="n-world-kind" x="1055" y="248" font-size="14" text-anchor="middle">(fn) materialize under the</text>
+    <text id="n-world-kind2" x="1055" y="268" font-size="14" text-anchor="middle">node's seed; initial by pool</text>
+  </g>
+  <line id="e-skel-world" x1="1055" y1="120" x2="1055" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-ctor">
+    <rect id="n-ctor-box" x="20" y="380" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ctor-name" x="140" y="406" font-size="18" font-weight="600" text-anchor="middle">constructor heads</text>
+    <text id="n-ctor-kind" x="140" y="428" font-size="14" text-anchor="middle">(constructor) !Reaction</text>
+    <text id="n-ctor-kind2" x="140" y="448" font-size="14" text-anchor="middle">!Chemistry · !World · records</text>
+  </g>
+  <g id="n-gen">
+    <rect id="n-gen-box" x="320" y="380" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gen-name" x="445" y="406" font-size="18" font-weight="600" text-anchor="middle">generator worlds</text>
+    <text id="n-gen-kind" x="445" y="428" font-size="14" text-anchor="middle">(fn) pressure_world · delta_pair</text>
+    <text id="n-gen-kind2" x="445" y="448" font-size="14" text-anchor="middle">conflict · diagnosis · …</text>
+  </g>
+  <g id="n-draft">
+    <rect id="n-draft-box" x="320" y="510" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-draft-name" x="445" y="538" font-size="18" font-weight="600" text-anchor="middle">draft_* generators</text>
+    <text id="n-draft-kind" x="445" y="562" font-size="14" text-anchor="middle">(PressureGen, ConflictGen, …)</text>
+  </g>
+  <line id="e-gen-draft" x1="445" y1="460" x2="445" y2="510" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-verify">
+    <rect id="n-verify-box" x="630" y="380" width="240" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-verify-name" x="750" y="406" font-size="18" font-weight="600" text-anchor="middle">verify</text>
+    <text id="n-verify-kind" x="750" y="428" font-size="14" text-anchor="middle">(expander) simulate, perturb,</text>
+    <text id="n-verify-kind2" x="750" y="448" font-size="14" text-anchor="middle">redraw until valid</text>
+  </g>
+  <line id="e-verify-world" x1="870" y1="400" x2="990" y2="280" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-verify-world" x="945" y="355" font-size="14" fill="#1971c2" font-style="italic">attempt n ‡</text>
+  <g id="n-wimpl">
+    <rect id="n-wimpl-box" x="930" y="500" width="250" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-wimpl-name" x="1055" y="526" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
+    <text id="n-wimpl-kind" x="1055" y="548" font-size="14" text-anchor="middle">(bio) chemistry, compartments,</text>
+    <text id="n-wimpl-kind2" x="1055" y="568" font-size="14" text-anchor="middle">flows, population laws</text>
+  </g>
+  <line id="e-world-wimpl" x1="1120" y1="280" x2="1120" y2="500" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-draft-wimpl" x1="570" y1="545" x2="930" y2="545" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <polyline id="e-ctor-wimpl" points="140,460 140,600 1055,600 1055,580" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-ctor-wimpl" x="250" y="592" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">!World</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">builds</text>
+    <line id="legend-dotted" x1="180" y1="641" x2="230" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="240" y="646" font-size="14">composes, re-evaluates</text>
+    <text id="legend-dagger" x="430" y="646" font-size="14">‡ a template world inside verify is named attempt0, attempt1 … not by its key</text>
+  </g>
+</svg>
