@@ -325,7 +325,7 @@ def run_experiment(
                     continue
                 d = json.loads(line)
                 record = record_from_json(d)
-                if record.error and record.error.startswith("TaintError") and not retry_taint:
+                if record.error_class == "TaintError" and not retry_taint:
                     # T054 #2: a taint is framework-deterministic (same brief,
                     # same leak), so retrying it re-spends the whole tainted
                     # set on every press and lands the same error again. It

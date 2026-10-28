@@ -21,6 +21,19 @@ def test_budget_total_orders_the_ladder():
     assert budget_total("unlimited") == float("inf") and budget_total("4") == 4.0 and budget_total(7) == 7.0 and budget_total(None) == float("inf")
 
 
+def test_budget_total_reads_a_level_the_way_the_runner_does():
+    # F085 — the degradation reader took "7" as 7.0 where Budget.from_dial
+    # (the trial's reader) refuses it; both now refuse a non-ladder string.
+    from alienbio.suite.runner import Budget
+
+    with pytest.raises(ValueError, match="unknown budget ladder level"):
+        Budget.from_dial("7")
+    with pytest.raises(ValueError, match="unknown budget ladder level"):
+        budget_total("7")
+    for level in ("unlimited", "20", "12", "8", "4", 3.0, 7, None):
+        assert budget_total(level) == Budget.from_dial(level).total
+
+
 def test_trial_degradation_reads_the_patterns_off_the_log():
     world, task = DRAFTERS["discover"](Seed(2), {"pathway_length": 4, "distractor_count": 2, "symbiosis": 0.8})
     path = task.setup["oracle"]["discover"]["pathway"]

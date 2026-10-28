@@ -86,8 +86,8 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
         if record.error:
             error_count += 1
             # T054 #2: the operator could not tell six taints from six
-            # rate-limit errors — the class is the first token of the message.
-            klass = record.error.split(":", 1)[0].strip() or "error"
+            # rate-limit errors — the class the record names.
+            klass = record.error_class or "error"
             error_classes[klass] = error_classes.get(klass, 0) + 1
         for step in record.deliberation_trace.steps:
             if step.kind != "abort":

@@ -160,3 +160,14 @@ def test_info_seeking_and_destructive_rate_lazily_recomputed_over_action_log():
     assert record.info_seeking_ratio({"measure"}) == pytest.approx(2 / 3)
     assert record.destructive_rate() == pytest.approx(1 / 3)
     assert record.actions_before_commit({"commit"}) == 2
+
+
+def test_error_class_is_the_one_read_of_the_error_message():
+    # F085 — the resume's taint test and the report census each parsed
+    # ``error`` text their own way; ``error_class`` is the one read.
+    clean = _record("t", {}, 1.0)
+    assert clean.error_class == ""
+    tainted = dataclasses.replace(clean, error="TaintError: hidden id(s): ('root/x',)")
+    assert tainted.error_class == "TaintError"
+    bare = dataclasses.replace(clean, error="boom")
+    assert bare.error_class == "boom"

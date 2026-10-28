@@ -247,6 +247,16 @@ class TrialRecord:
         (every writer sets both; two families of readers tested one each)."""
         return self.terminal_reason == "error" or bool(self.error)
 
+    @property
+    def error_class(self) -> str:
+        """The exception class an error record names, ``""`` when none.
+
+        Every writer formats ``error`` as ``f"{type(exc).__name__}: {exc}"``
+        (the store keeps only that string), so this is the ONE place the
+        class is read back off it — the resume's taint test and the report
+        census each used to parse the message text their own way."""
+        return self.error.split(":", 1)[0].strip() if self.error else ""
+
     @cached_property
     def deliberation_depth(self) -> int:
         """Lazily-cached step count of ``deliberation_trace`` (PR#155 diagnostic)."""

@@ -36,13 +36,12 @@ unlimited down and names the rung where accuracy falls off a cliff.
 
 from __future__ import annotations
 
-import math
 import re
 import statistics
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
 
-from .runner import BUDGET_LADDER
+from .runner import Budget
 
 if TYPE_CHECKING:  # pragma: no cover
     from .trial import TrialRecord
@@ -173,14 +172,13 @@ def degradation_summary(records: Iterable["TrialRecord"]) -> dict[tuple[tuple[st
 
 
 def budget_total(level: Any) -> float:
-    """The spend cap a ``budget`` dial level names — a ladder name, a number, or ``None`` (unlimited)."""
-    if level is None:
-        return math.inf
-    if isinstance(level, str):
-        if level in BUDGET_LADDER:
-            return BUDGET_LADDER[level]
-        return float(level)
-    return float(level)
+    """The spend cap a ``budget`` dial level names — a ladder name, a number, or ``None`` (unlimited).
+
+    Read by :meth:`~alienbio.suite.runner.Budget.from_dial`, the runner's own
+    reader, so the two never disagree: a string that is not a ladder level
+    (``"7"``) refuses here as it refuses the trial, where this used to read
+    it as ``7.0``."""
+    return Budget.from_dial(level).total
 
 
 @dataclass(frozen=True)
