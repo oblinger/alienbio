@@ -1,7 +1,7 @@
 ---
 description: "`registration`: the T030 registry side of the registration gate — `load_registry` parses and validates `catalog/registrations.yaml`, `resolve_registration` returns the `Registration` a spec's `registration:` claims or refuses, `Registration.to_dict` is the manifest stamp. Source: `src/alienbio/suite/registration.py`."
 ---
-:>> 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Registration](ha://p/ABIO%20Registration) 
 # ABIO Registration
 The parser and resolver for the commit-tracked registry of filed pre-registrations, whose entries license a live model to run otherwise-guarded dials on named drafters.
 
@@ -73,8 +73,8 @@ An entry carries exactly `osf`, `filed`, `dials` and `drafters`; an unknown key 
 | Shape | What happens |
 | --- | --- |
 | Quoted impossible date `'2026-99-99'` | Accepted; only the shape is matched |
-| Unquoted impossible date `2026-13-45` | PyYAML raises "month must be in 1..12", not naming the entry |
-| The same id twice | PyYAML keeps the last; the earlier entry vanishes without a word |
+| Unquoted impossible date `2026-13-45` | A bare PyYAML error naming no entry |
+| The same id twice | PyYAML keeps the last, silently |
 | A dial the build does not know | Accepted; it admits nothing |
 | A repeated name in `dials` | Collapsed by the set |
 

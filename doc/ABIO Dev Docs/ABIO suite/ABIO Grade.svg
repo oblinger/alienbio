@@ -26,7 +26,7 @@
     <text id="n-out-kind2" x="440" y="468" font-size="13" text-anchor="middle">not clamped</text>
   </g>
   <line id="e-run-ans" x1="200" y1="240" x2="340" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
-  <text id="l-run-ans" x="215" y="188" font-size="13" fill="#1971c2" font-style="italic">commit, key, spec</text>
+  <text id="l-run-ans" x="110" y="215" font-size="13" fill="#1971c2" font-style="italic">commit, key, spec</text>
   <line id="e-run-out" x1="200" y1="340" x2="340" y2="400" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="l-run-out" x="210" y="392" font-size="13" fill="#1971c2" font-style="italic">timeline, scorer</text>
 

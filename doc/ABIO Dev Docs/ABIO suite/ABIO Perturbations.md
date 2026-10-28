@@ -1,14 +1,14 @@
 ---
 description: "`perturbations`: three pure `WorldImpl → WorldImpl` edits for the M27 predict/intervene archetypes — `perturb_rate` scales one reaction's rate, `remove_reaction` drops one, `spike_concentration` adds to one molecule's initial concentration; each returns a new world and refuses an unknown id. Source: `src/alienbio/suite/perturbations.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Perturbations](ha://p/ABIO%20Perturbations) 
 # ABIO Perturbations
 Three surgical edits to a runnable world, each returning a new world with one rate, one reaction or one initial concentration changed.
 
 ![ABIO Perturbations](ABIO%20Perturbations.svg) 
 *What the rebuild keeps* is the topic behind the two rebuild paths (‡: flows, population laws, a reaction's `rate_law` and the chemistry's name are not carried over).
 
-`suite/perturbations.py` serves the M27 archetypes. `arch_predict.perturbation_response` is its one caller in `src/`: it simulates a world and its `perturb_rate` twin and reads the target's final concentration as `up`, `down` or `same`. `pipeline.py` types a verify step as `Perturbation = Callable[[WorldImpl], WorldImpl]`, the shape these three have. The world is [ABIO WorldImpl](../ABIO%20bio/ABIO%20WorldImpl.md), the chemistry [ABIO ChemistryImpl](../ABIO%20bio/ABIO%20ChemistryImpl.md), the reaction [ABIO ReactionImpl](../ABIO%20bio/ABIO%20ReactionImpl.md). All three are re-exported from `alienbio.suite`. The subsystem view is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
+`suite/perturbations.py` serves the M27 archetypes. `arch_predict.predicted_response` is its one caller in `src/`: it simulates a world and its `perturb_rate` twin and reads the target's final concentration as `up`, `down` or `same`. `pipeline.py` types a verify step as `Perturbation = Callable[[WorldImpl], WorldImpl]`, the shape these three have. The world is [ABIO WorldImpl](../ABIO%20bio/ABIO%20WorldImpl.md), the chemistry [ABIO ChemistryImpl](../ABIO%20bio/ABIO%20ChemistryImpl.md), the reaction [ABIO ReactionImpl](../ABIO%20bio/ABIO%20ReactionImpl.md). All three are re-exported from `alienbio.suite`. The subsystem view is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
 
 
 
@@ -50,4 +50,4 @@ The `rate_law` loss changes the dynamics, not just the bookkeeping: a reaction w
 
 
 # BRIEF
-- 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the lost `rate_law` and the lost flow confirmed by `perturb_rate` on hand-built worlds from the HEAD export, no spend. Consumer census: `arch_predict.perturbation_response` and the `alienbio.suite` re-exports. Not determined: whether any Expr head routes a rate-law world through `perturb_rate` (T088 § suite/perturbations).
+- 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the lost `rate_law` and the lost flow confirmed by `perturb_rate` on hand-built worlds from the HEAD export, no spend. Consumer census: `arch_predict.predicted_response` and the `alienbio.suite` re-exports. Not determined: whether any Expr head routes a rate-law world through `perturb_rate` (T088 § suite/perturbations).

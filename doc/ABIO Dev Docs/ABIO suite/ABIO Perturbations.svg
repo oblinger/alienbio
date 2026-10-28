@@ -64,7 +64,7 @@
 
   <g id="n-pred">
     <rect id="n-pred-box" x="640" y="40" width="250" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-pred-name" x="765" y="66" font-size="16" font-weight="600" text-anchor="middle">perturbation_response</text>
+    <text id="n-pred-name" x="765" y="66" font-size="16" font-weight="600" text-anchor="middle">predicted_response</text>
     <text id="n-pred-kind" x="765" y="88" font-size="14" text-anchor="middle">(arch_predict) the one caller</text>
   </g>
   <line id="e-pred-rate" x1="640" y1="72" x2="560" y2="80" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>

@@ -1,7 +1,7 @@
 ---
 description: "`grade`: the FT06 graders — `grade_answer` scores an `Answer` against its key by `GraderSpec.kind` (`node_set` Jaccard, `ordered_path` exact or prefix credit, `node_id`, `scalar` tolerance step, `json` equality), `grade_outcome` passes a timeline to an opaque scorer. Source: `src/alienbio/suite/grade.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Grade](ha://p/ABIO%20Grade) 
 # ABIO Grade
 The two functions that turn an agent's commit, or a trial's final timeline, into the trial's `objective_score`.
 
@@ -35,7 +35,7 @@ Two public functions; the three private helpers are the per-kind formulas.
 
 | Kind | Score | Config |
 | --- | --- | --- |
-| `node_set` | Jaccard, size of `A ∩ K` over size of `A ∪ K`; 1.0 for two empty sets | `partial` (default true); false is exact equality |
+| `node_set` | Jaccard; 1.0 for two empty sets | `partial` (default true); false is exact equality |
 | `ordered_path` | 1.0 if equal, else 0.0 | `partial` (default false); true is the common-prefix length over the longer length |
 | `node_id` | `answer == key` | — |
 | `scalar` | 1.0 if `abs(a − k) ≤ tol`, else 0.0 | `tol` (default 0) |
