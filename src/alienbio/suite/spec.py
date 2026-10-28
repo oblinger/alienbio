@@ -60,15 +60,15 @@ class ExperimentSpec:
     fixed_dials: Mapping[str, Any] = field(default_factory=dict)
     out_dir: Optional[str] = None
     #: M45.5 — the cost ceiling + dry-run cost-estimate dials.
-    #: ``expected_turns`` is the dry-run turn count; :func:`spec_from_dict`
-    #: defaults it from a declared ``max_turns`` (fixed dial, or the largest
-    #: swept level) when the spec does not set it, and to the runner's own
-    #: ``max_turns`` default when no budget is declared at all. Set it
-    #: explicitly for a spec whose agent is expected to commit well before
-    #: the budget.
+    #: ``expected_turns`` is the dry-run turn count. Left ``None``, it is
+    #: derived at construction (:meth:`__post_init__`, both forms) from a
+    #: declared ``max_turns`` (the largest of the fixed dial and every swept
+    #: level), else the runner's own ``max_turns`` default — so after
+    #: construction it is always a positive int. Set it explicitly for a
+    #: spec whose agent is expected to commit well before the budget.
     cost_ceiling_usd: Optional[float] = None
     price_usd_per_mtok: Optional[tuple[float, float]] = None
-    expected_turns: int = 8
+    expected_turns: Optional[int] = None
     expected_prompt_tokens: int = 1500
     expected_output_tokens: int = 300
     #: M46.9 — the statistical design the run is committed to (None = undeclared;
@@ -110,6 +110,26 @@ class ExperimentSpec:
     #: (:func:`registration_admission`), refuses visibly on any mismatch,
     #: and the id is stamped on every record line + the manifest.
     registration: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """The one normaliser both forms pass through (T084): the YAML form
+        reaches here via :func:`spec_from_dict`, the Python form AUP's
+        launchers use directly. Idempotent, so a spec rebuilt from
+        :func:`spec_to_dict` equals the original.
+
+        A ``__post_init__`` rather than a ``normalized()`` step every caller
+        must remember: the defect was exactly a derivation one entry point
+        ran and the other did not, and the dataclass is frozen, so the
+        constructor is the only place every spec is guaranteed to pass."""
+        # The 2026-10-28 module-doc finding: a directly built spec kept the
+        # literal ``expected_turns = 8``, so a Python-form 20-turn live spec
+        # was estimated at 8 turns, and ``spec_to_dict`` pinned the 8 through
+        # every reload — the under-price an operator reads before spending.
+        if self.expected_turns is None:
+            turns = _default_expected_turns(self.fixed_dials, self.axes)
+        else:
+            turns = _validate_positive_int("expected_turns", self.expected_turns)
+        object.__setattr__(self, "expected_turns", turns)
 
 
 def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
@@ -200,10 +220,7 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         out_dir=d.get("out_dir"),
         cost_ceiling_usd=_validate_cost_ceiling(d.get("cost_ceiling_usd")),
         price_usd_per_mtok=_validate_price_override(d.get("price_usd_per_mtok")),
-        expected_turns=_validate_positive_int(
-            "expected_turns",
-            d["expected_turns"] if d.get("expected_turns") is not None else _default_expected_turns(d.get("fixed_dials") or {}, axes),
-        ),
+        expected_turns=d.get("expected_turns"),  # None = derived in __post_init__
         expected_prompt_tokens=_validate_positive_int(
             "expected_prompt_tokens", d.get("expected_prompt_tokens", 1500)
         ),
@@ -622,7 +639,7 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
     else:
         llm_trials = 0
 
-    turns = spec.expected_turns
+    turns = cast(int, spec.expected_turns)  # an int after __post_init__
     if llm_trials == 0:
         return CostEstimate(
             llm_trials=0,
