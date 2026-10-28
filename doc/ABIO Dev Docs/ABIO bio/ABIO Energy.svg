@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-mol">
+    <rect id="n-mol-box" x="20" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mol-name" x="140.0" y="68" font-size="18" font-weight="600" text-anchor="middle">MoleculeImpl</text>
+    <text id="n-mol-kind" x="140.0" y="92" font-size="14" text-anchor="middle">(class) formation_energy | None</text>
+  </g>
+  <g id="n-rxn">
+    <rect id="n-rxn-box" x="320" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rxn-name" x="440.0" y="68" font-size="18" font-weight="600" text-anchor="middle">ReactionImpl</text>
+    <text id="n-rxn-kind" x="440.0" y="92" font-size="14" text-anchor="middle">(class) reactants · products</text>
+  </g>
+  <g id="n-chem">
+    <rect id="n-chem-box" x="620" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chem-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">ChemistryImpl</text>
+    <text id="n-chem-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(class) reactions by name</text>
+  </g>
+  <g id="n-bnd">
+    <rect id="n-bnd-box" x="920" y="40" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-bnd-name" x="1040.0" y="68" font-size="18" font-weight="600" text-anchor="middle">is_boundary_reaction</text>
+    <text id="n-bnd-kind" x="1040.0" y="92" font-size="14" text-anchor="middle">(fn) bio/conservation.py</text>
+  </g>
+  <g id="n-dg">
+    <rect id="n-dg-box" x="320" y="220" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dg-name" x="440.0" y="248" font-size="18" font-weight="600" text-anchor="middle">reaction_delta_g</text>
+    <text id="n-dg-kind" x="440.0" y="272" font-size="14" text-anchor="middle">(fn) Σ products − Σ reactants</text>
+  </g>
+  <g id="n-chk">
+    <rect id="n-chk-box" x="620" y="220" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chk-name" x="740.0" y="248" font-size="18" font-weight="600" text-anchor="middle">check_energy</text>
+    <text id="n-chk-kind" x="740.0" y="272" font-size="14" text-anchor="middle">(fn) spontaneity gate, off by default</text>
+  </g>
+  <g id="n-ev">
+    <rect id="n-ev-box" x="920" y="220" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ev-name" x="1040.0" y="248" font-size="18" font-weight="600" text-anchor="middle">EnergyViolation</text>
+    <text id="n-ev-kind" x="1040.0" y="272" font-size="14" text-anchor="middle">(dataclass) name · ΔG · reason</text>
+  </g>
+  <g id="n-test">
+    <rect id="n-test-box" x="20" y="400" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-test-name" x="140.0" y="428" font-size="18" font-weight="600" text-anchor="middle">tests/unit/test_energy.py</text>
+    <text id="n-test-kind" x="140.0" y="452" font-size="14" text-anchor="middle">(caller) the only one</text>
+  </g>
+  <g id="n-val">
+    <rect id="n-val-box" x="620" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-val-name" x="740.0" y="428" font-size="18" font-weight="600" text-anchor="middle">validate_energy</text>
+    <text id="n-val-kind" x="740.0" y="452" font-size="14" text-anchor="middle">(fn) raise on any</text>
+  </g>
+  <g id="n-err">
+    <rect id="n-err-box" x="920" y="400" width="240" height="70" rx="10" fill="#ffe3e3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-err-name" x="1040.0" y="428" font-size="18" font-weight="600" text-anchor="middle">EnergyError</text>
+    <text id="n-err-kind" x="1040.0" y="452" font-size="14" text-anchor="middle">(exception) ValueError</text>
+  </g>
+  <g id="n-ws">
+    <rect id="n-ws-box" x="20" y="540" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ws-name" x="140.0" y="568" font-size="18" font-weight="600" text-anchor="middle">WorldStateImpl</text>
+    <text id="n-ws-kind" x="140.0" y="592" font-size="14" text-anchor="middle">(class) amount(c, j)</text>
+  </g>
+  <g id="n-tfe">
+    <rect id="n-tfe-box" x="320" y="540" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tfe-name" x="440.0" y="568" font-size="18" font-weight="600" text-anchor="middle">total_free_energy ‡</text>
+    <text id="n-tfe-kind" x="440.0" y="592" font-size="14" text-anchor="middle">(fn) Σ amount · energy</text>
+  </g>
+  <g id="n-pif">
+    <rect id="n-pif-box" x="620" y="540" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pif-name" x="740.0" y="568" font-size="18" font-weight="600" text-anchor="middle">per_index_formation</text>
+    <text id="n-pif-kind" x="740.0" y="592" font-size="14" text-anchor="middle">(list) built by the caller</text>
+  </g>
+  <line id="e-mol-dg" x1="230" y1="110" x2="380" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-mol-dg" x="280" y="180" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">formation_energy</text>
+  <line id="e-rxn-dg" x1="440" y1="110" x2="440" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-rxn-dg" x="450" y="170" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">stoich</text>
+  <line id="e-chem-chk" x1="740" y1="110" x2="740" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-chem-chk" x="750" y="170" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">each reaction</text>
+  <line id="e-chk-bnd" x1="860" y1="225" x2="1000" y2="110" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-chk-bnd" x="945" y="185" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">skip ∅ side</text>
+  <line id="e-chk-dg" x1="620" y1="255" x2="560" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-chk-ev" x1="860" y1="255" x2="920" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-val-chk" x1="740" y1="400" x2="740" y2="290" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-val-chk" x="750" y="350" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">calls</text>
+  <line id="e-val-err" x1="860" y1="435" x2="920" y2="435" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-val-err" x="890" y="425" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">raises</text>
+  <line id="e-test-val" x1="260" y1="435" x2="620" y2="435" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-test-val" x="440" y="425" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">spontaneity=True</text>
+  <line id="e-ws-tfe" x1="260" y1="575" x2="320" y2="575" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-pif-tfe" x1="620" y1="575" x2="560" y2="575" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-pif-tfe" x="590" y="565" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">[j]</text>
+  <text id="t-drift" x="880" y="570" font-size="13" fill="#495057" text-anchor="start">‡ falls by extent · |ΔG| per downhill step:</text>
+  <text id="t-drift2" x="880" y="588" font-size="13" fill="#495057" text-anchor="start">no reservoir term, so heat reads as a leak</text>
+  <text id="t-legend" x="20" y="655" font-size="13" fill="#495057" text-anchor="start">solid: call or data · dotted: imports, calls, raises · lilac: outside caller · nothing in src/ imports this module</text>
+</svg>
