@@ -1174,16 +1174,12 @@ def delta(*, arm: str = "match", env: Any, **generator: Any) -> Draft:
 #: deliberation-budget ladder over one world). Passed to
 #: ``MassTrialRunner(matched_dials=...)``. A drafter may still READ these
 #: (the hazard oracle reads ``max_turns`` for its horizon) — what matters is
-#: that the world it drafts does not depend on them. Most of the ``brief``
-#: head's dials are here, not all of them (T088 drafters 1): the observation
-#: dials (``observability``, ``observation_noise``, ``sample_every``), the
-#: forgetting dials (``compact_at``, ``compact_budget``,
-#: ``history_token_limit``) and the episode clock (``sim_steps``, ``sim_dt``,
-#: which some drafters read) are not, so a sweep of one draws a world per
-#: level unless the spec lists it in ``matched_dials``. Adding the
-#: observation and forgetting dials would pair those contrasts by default
-#: and re-seed every spec that sweeps one (exp04-diagnose-zero sweeps
-#: ``observability``) — left as the Pilot's call.
+#: that the world it drafts does not depend on them. Every ``brief`` /
+#: agent-side dial is here (T088 drafters 1, decided by the Pilot
+#: 2026-10-28: the observation and forgetting dials joined, so their
+#: contrasts are paired by default — exp04-diagnose-zero, which sweeps
+#: ``observability``, re-pinned). The episode clock (``sim_steps``,
+#: ``sim_dt``) is deliberately absent: some drafters read it to draft.
 WORLD_INVARIANT_DIALS: tuple[str, ...] = (
     "agent",
     "model",
@@ -1214,6 +1210,14 @@ WORLD_INVARIANT_DIALS: tuple[str, ...] = (
     "monitor_salience",
     # T061 — the B1 wording control: task-statement text, brief-side only.
     "task_note",
+    # T088 drafters 1 — the observation narrowing (runner-side, never the
+    # drafted world) and the LLM agent's forgetting triggers.
+    "observability",
+    "observation_noise",
+    "sample_every",
+    "compact_at",
+    "compact_budget",
+    "history_token_limit",
 )
 
 #: Default danger threshold for an injected hazard (``hazard_threshold``).

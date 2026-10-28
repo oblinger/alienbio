@@ -60,6 +60,16 @@ the two-target rungs names both ``(id, goal)`` pairs (it named V1's
 alone); ``brief.question.target`` on all 36 lines is the only field that
 moved — the oracle's supply, now read off the drafted world, is
 byte-identical.
+exp04-diagnose-zero re-pinned 2026-10-28 (T088 drafters 1, the Pilot's
+call): ``observability`` and the forgetting dials joined
+``WORLD_INVARIANT_DIALS``, so the 0.5 arm now draws its trial seed from
+the same label as the 1.0 arm. Only the 12 ``observability=0.5`` lines
+moved, and only in the visible-id lists the per-trial hidden draw sets —
+``brief.affordances.levers`` / ``.probes`` and ``brief.irreversible`` —
+plus ``action_log[0].target`` on three measure-commit lines; every score,
+``final_state``, ``oracle`` and ``name_map`` is byte-identical, the 12
+``observability=1.0`` lines are unchanged, and the other fifteen hashes
+were byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -84,7 +94,7 @@ GOLDEN: dict[str, str] = {
     "exp02": "a23400c0bb583d18",
     "exp03": "14f038ed34ff6668",
     "exp04": "4d80c18050afdee9",
-    "exp04-diagnose-zero": "41dabb61ded167e6",
+    "exp04-diagnose-zero": "94b9ac98725774ab",
     "exp04-zero": "d07da8100b6e215c",
     "exp05": "ce142336a1e2f1d1",
     "exp06": "ffa26959c383e674",
