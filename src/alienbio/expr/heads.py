@@ -9,6 +9,7 @@ number); quote one to pass it unsampled (``!q lognormal(1, 0.3)`` is a
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Iterable, Mapping
 
 from ..spec_lang import builtins as _b
@@ -34,7 +35,6 @@ def constant(value: Any) -> Any:
 for _name, _f in {
     "abs": abs,
     "round": round,
-    "pow": pow,
     "sqrt": math.sqrt,
     "exp": math.exp,
     "log": math.log,
@@ -140,7 +140,34 @@ def _add(a: Any, b: Any, *, ctx: Any) -> Any:
 _op("sub", lambda a, b: a - b)
 _op("div", lambda a, b: a / b)
 _op("floordiv", lambda a, b: a // b)
-_op("mod", lambda a, b: a % b)
+
+
+_DIGITS = re.compile(r"\d+")
+
+
+def _width_bound(spec: Any) -> int:
+    """An upper bound on the padding a format string or spec can ask for:
+    every digit run in it read as a width or precision (``'%050000000d'``,
+    ``'.50000000f'``). Loose for literal digits, never short."""
+    return sum(int(d) for d in _DIGITS.findall(spec)) if isinstance(spec, str) else 0
+
+
+def _text_len(x: Any) -> int:
+    return len(x) if isinstance(x, (str, bytes, bytearray)) else len(str(x))
+
+
+@fn(kind="op", name="op:mod", summary="operator mod")
+def _mod(a: Any, b: Any, *, ctx: Any) -> Any:
+    # T088 heads 2: `'%050000000d' % 1` built 50M characters under a 1M cap.
+    # A %-format is charged its bound BEFORE it is built: the format's own
+    # length, every width/precision in it, a `*` width's argument, and the
+    # text of every argument it interpolates.
+    if isinstance(a, (str, bytes)):
+        fmt = a if isinstance(a, str) else a.decode("latin-1")
+        items = list(b.values()) if isinstance(b, Mapping) else list(b) if isinstance(b, tuple) else [b]
+        star = sum(max(x, 0) for x in items if isinstance(x, int) and not isinstance(x, bool)) if "*" in fmt else 0
+        ctx.limits.charge(len(fmt) + _width_bound(fmt) + star + sum(_text_len(x) for x in items), ctx.path, "mod")
+    return a % b
 
 
 #: The largest integer exponent an inline expression may raise to (M48.5:
@@ -163,6 +190,8 @@ def _mul(a: Any, b: Any, *, ctx: Any) -> Any:
 
 @fn(kind="op", name="op:pow", summary="operator pow")
 def _pow(a: Any, b: Any, *, ctx: Any) -> Any:
+    """``a ** b`` with the exponent and result-size caps; ``pow`` by name is
+    the same function (T088 heads 1: the builtin under ``pow`` skipped both)."""
     if isinstance(b, int) and not isinstance(b, bool) and abs(b) > MAX_INT_EXPONENT and not isinstance(a, bool) and a not in (0, 1, -1):
         raise ExprError(f"pow: exponent {b} exceeds {MAX_INT_EXPONENT}", ctx.path)
     if isinstance(a, int) and isinstance(b, int) and not isinstance(a, bool) and not isinstance(b, bool) and b > 0:
@@ -173,6 +202,15 @@ def _pow(a: Any, b: Any, *, ctx: Any) -> Any:
         return a**b
     except OverflowError as exc:
         raise ExprError(f"pow: {exc}", ctx.path) from None
+
+
+@fn(kind="math", name="pow", summary="pow")
+def _pow_named(a: Any, b: Any, mod: Any = None, *, ctx: Any) -> Any:
+    if mod is not None:
+        return pow(a, b, mod)  # bounded by mod's size; Python refuses a negative int exponent without one
+    return _pow(a, b, ctx=ctx)
+
+
 _op("neg", lambda a: -a)
 _op("pos", lambda a: +a)
 _op("not", lambda a: not a)
@@ -189,8 +227,14 @@ _op("isnot", lambda a, b: a is not b)
 _op("set", lambda xs: set(xs))
 @fn(kind="op", name="op:flatten", summary="operator flatten")
 def _flatten(xss: Any, *, ctx: Any) -> list:
-    out = [x for xs in xss for x in xs]
-    ctx.limits.charge(len(out), ctx.path, "flatten")
+    rows = list(xss)
+    # T088 heads 4: charged before the result is built (sized rows only;
+    # an unsized row is charged by its count once materialized).
+    ctx.limits.charge(sum(len(xs) for xs in rows if hasattr(xs, "__len__")), ctx.path, "flatten")
+    out = [x for xs in rows for x in xs]
+    unsized = sum(1 for xs in rows if not hasattr(xs, "__len__"))
+    if unsized:
+        ctx.limits.charge(len(out) - sum(len(xs) for xs in rows if hasattr(xs, "__len__")), ctx.path, "flatten")
     return out
 
 
@@ -216,20 +260,69 @@ def _attr(obj: Any, name: str, *, env: Env) -> Any:
     return getattr(obj, name)
 
 
+#: Methods that change their receiver in place (T088 heads 3: ``b: !x
+#: a.clear()`` emptied the mapping bound at ``a`` for every later reader, and
+#: a lazily cached binding is shared by every node naming it). Expr values
+#: are immutable; these refuse — build a new value (``xs + [x]``, ``{**d}``
+#: is not inline, so a mapping update is a new literal or a registered fn).
+_MUTATING_METHODS: frozenset[str] = frozenset({
+    "append", "extend", "insert", "remove", "pop", "clear", "sort", "reverse",
+    "update", "setdefault", "popitem", "add", "discard",
+    "difference_update", "intersection_update", "symmetric_difference_update",
+})
+
+#: str/bytes methods whose result is padded out to an integer argument.
+_PADDING_METHODS: frozenset[str] = frozenset({"ljust", "rjust", "center", "zfill"})
+
+
+def _method_bound(obj: Any, name: str, args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> int:
+    """An upper bound on what a method call can build, charged before it runs
+    (T088 heads 2: ``'a'.ljust(50000000)`` built 50M characters under a 1M
+    cap). Text receivers are bounded per method family; a container's
+    methods return at most a copy of it."""
+    values = list(args) + list(kwargs.values())
+    if isinstance(obj, (str, bytes, bytearray)):
+        n = len(obj)
+        ints = [v for v in values if isinstance(v, int) and not isinstance(v, bool)]
+        texts = [len(v) for v in values if isinstance(v, (str, bytes, bytearray))]
+        if name in _PADDING_METHODS:
+            return max([n] + ints)
+        if name == "expandtabs":
+            return n * max([8] + ints)
+        if name == "join":
+            items = args[0] if args and hasattr(args[0], "__len__") else ()
+            return sum(_text_len(x) for x in items) + n * len(items)
+        if name == "replace":
+            return n + (n + 1) * max([0] + texts)
+        return n + sum(texts)
+    return len(obj) if hasattr(obj, "__len__") else 0
+
+
 def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
+    if name in _MUTATING_METHODS and isinstance(obj, (list, dict, set, bytearray)):
+        raise env.error(
+            f"{name!r} would change the {type(obj).__name__} in place, and Expr values are "
+            "immutable (a binding is shared by every node naming it) — build a new value instead"
+        )
     target = _attr(obj, name, env=env)
     if not callable(target):
         raise env.error(f"{name!r} on {type(obj).__name__} is not callable")
+    env.ctx.limits.charge(_method_bound(obj, name, args, kwargs), env.path, f"method {name}")
     return target(*args, **kwargs)
 
 
 def _fstr(*parts: Any, ctx: Any) -> str:
-    out = "".join(str(p) for p in parts)
-    ctx.limits.charge(len(out), ctx.path, "fstr")
-    return out
+    texts = [p if isinstance(p, str) else str(p) for p in parts]
+    ctx.limits.charge(sum(len(t) for t in texts), ctx.path, "fstr")  # before the join (T088 heads 4)
+    return "".join(texts)
 
 
-def _fmt(value: Any, spec: str = "", conv: str = "") -> str:
+def _fmt(value: Any, spec: str = "", conv: str = "", *, ctx: Any) -> str:
+    # T088 heads 2: a width in the spec (`f"{1:050000000d}"`) is charged
+    # before the value is padded out to it (the text itself is charged by
+    # `op:fstr` when the parts join).
+    if spec:
+        ctx.limits.charge(_width_bound(spec), ctx.path, "fmt")
     if conv == "r":
         value = repr(value)
     elif conv == "s":
@@ -243,7 +336,7 @@ _op("item", _item)
 _op("attr", _attr)
 _op("method", _method)
 fn(_fstr, name="op:fstr", kind="op", summary="operator fstr")
-_op("fmt", _fmt)
+fn(_fmt, name="op:fmt", kind="op", summary="operator fmt")
 
 
 def flatten_iter(xs: Iterable[Iterable[Any]]) -> list[Any]:

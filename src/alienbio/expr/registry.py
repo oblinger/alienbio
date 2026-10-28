@@ -10,7 +10,9 @@ table for consumers that should see less (the rate compiler's math view).
 
 from __future__ import annotations
 
+import ast
 import inspect
+import textwrap
 from dataclasses import dataclass, field
 from typing import Any, Callable, Collection, Iterable, Optional
 
@@ -44,6 +46,11 @@ class Head:
     kind: str
     fn: Callable[..., Any]
     meta: dict[str, Any] = field(default_factory=dict)
+    #: ``guarded`` / ``guarded_params`` are metadata for the suite's no-peeking
+    #: pre-flight (``drafters.guarded_drafters()`` / ``guarded_dials()``); the
+    #: interpreter never reads them, so a guarded head evaluates normally in
+    #: any env — the protection is that ``run_experiment`` refuses a live
+    #: model on one, not that Expr refuses to draft it (T088 registry 3).
     guarded: bool = False
     guarded_params: frozenset[str] = frozenset()
     #: which of ``ctx`` / ``env`` the callable declares (keyword-only) and so
@@ -92,6 +99,15 @@ class Registry:
                 raise ValueError(
                     f"head {head.name!r} is already registered ({existing.kind}, "
                     f"{_where(existing.fn)}); pass replace=True to shadow it on purpose"
+                )
+            changed = _registration_changes(existing, head)
+            if changed:
+                # T088 registry 2: a same-definition re-registration replaced
+                # the Head wholesale, so a second import whose decorator said
+                # guarded=False quietly unguarded the head for the pre-flight.
+                raise ValueError(
+                    f"head {head.name!r} is re-registered from the same definition with "
+                    f"different {', '.join(changed)}; pass replace=True to change them on purpose"
                 )
         self._heads[head.name] = head
         return head
@@ -151,13 +167,28 @@ def _same_definition(a: Callable[..., Any], b: Callable[..., Any]) -> bool:
         return False
 
 
+def _registration_changes(existing: Head, new: Head) -> list[str]:
+    """The registration fields (other than the free-text summary) on which a
+    same-definition re-registration differs."""
+    return [
+        name
+        for name in ("kind", "guarded", "guarded_params")
+        if getattr(existing, name) != getattr(new, name)
+    ]
+
+
 def _body(f: Callable[..., Any]) -> str:
-    """A function's source with its decorator lines dropped — two catalog
-    examples carrying one helper verbatim may differ only in the summary."""
-    lines = inspect.getsource(f).splitlines()
-    while lines and lines[0].lstrip().startswith("@"):
-        lines.pop(0)
-    return "\n".join(lines)
+    """A function's definition with its decorators dropped, as a canonical AST
+    dump — two catalog examples carrying one helper verbatim may differ only
+    in the decorator's arguments (the summary). Dropped by AST, not by line
+    (T088 registry 1: a decorator call spread over several lines kept its
+    ``summary=…,`` / ``)`` lines in the compared text)."""
+    tree = ast.parse(textwrap.dedent(inspect.getsource(f)))
+    node = tree.body[0]
+    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        raise TypeError(f"{_where(f)} is not a plain function definition")
+    node.decorator_list = []
+    return ast.dump(node)
 
 
 #: The one registry.

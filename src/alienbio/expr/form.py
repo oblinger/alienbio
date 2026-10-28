@@ -9,6 +9,10 @@ these; the interpreter (:mod:`.interp`) is the only thing that gives them
 meaning. See ``ABIO Expr`` / ``ABIO Expr Spec`` in the vault.
 
 Forms are frozen and compare by value, so a test can assert on them directly.
+A :class:`Call`'s keyword arguments are a read-only mapping (T088 form 1: a
+plain ``dict`` let ``call.kwargs[k] = v`` edit every tree sharing the call),
+and a call hashes whenever its arguments do — one nesting a ``list`` or
+``dict`` of data does not, as that data is mutable.
 """
 
 from __future__ import annotations
@@ -29,6 +33,24 @@ class Name:
         return f"Name({self.path!r})"
 
 
+class FrozenKwargs(dict):  # type: ignore[type-arg]
+    """A :class:`Call`'s keyword arguments: a ``dict`` that refuses every
+    mutation after construction, hashes by its sorted items, and pickles and
+    deep-copies as itself (``mappingproxy`` would refuse both)."""
+
+    def _refuse(self, *args: Any, **kwargs: Any) -> Any:
+        raise TypeError("a Call's kwargs are read-only; build a new Call")
+
+    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = _refuse  # type: ignore[assignment]
+    __ior__ = _refuse  # type: ignore[assignment]
+
+    def __hash__(self) -> int:  # type: ignore[override]
+        return hash(tuple(sorted(self.items())))
+
+    def __reduce__(self) -> Any:
+        return (FrozenKwargs, (dict(self),))
+
+
 @dataclass(frozen=True)
 class Call:
     """``head(*args, **kwargs)`` as data. ``head`` names a registered function,
@@ -40,7 +62,10 @@ class Call:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "args", tuple(self.args))
-        object.__setattr__(self, "kwargs", dict(self.kwargs))
+        object.__setattr__(self, "kwargs", FrozenKwargs(self.kwargs))
+
+    def __hash__(self) -> int:
+        return hash((self.head, self.args, self.kwargs))
 
     def __repr__(self) -> str:
         parts = [repr(a) for a in self.args] + [f"{k}={v!r}" for k, v in self.kwargs.items()]

@@ -140,6 +140,10 @@ class ExprDumper(yaml.SafeDumper):
 
 def _represent_call(dumper: "ExprDumper", call: Call) -> yaml.Node:
     tag = f"!{call.head}"
+    if "args" in call.kwargs:
+        # T088 yaml_tags 2: the mapping form reads an `args` key as the
+        # positionals, so a keyword of that name has no structural spelling.
+        raise ExprError(f"!{call.head}: a keyword argument named 'args' cannot be written in the structural spelling")
     if call.kwargs or not call.args:
         mapping: dict[str, Any] = {}
         if call.args:
@@ -147,8 +151,11 @@ def _represent_call(dumper: "ExprDumper", call: Call) -> yaml.Node:
         mapping.update(call.kwargs)
         node = dumper.represent_mapping(tag, mapping, flow_style=True)
         return node
-    if len(call.args) == 1 and isinstance(call.args[0], (str, int, float, bool)):
-        return dumper.represent_scalar(tag, str(call.args[0]), style='"' if isinstance(call.args[0], str) else None)
+    if len(call.args) == 1 and isinstance(call.args[0], str) and call.args[0]:
+        return dumper.represent_scalar(tag, call.args[0], style='"')
+    # T088 yaml_tags 1–2: a lone number or bool written as a tagged scalar
+    # came back a string (`!poisson '3'` -> poisson('3')), and a lone "" came
+    # back as no argument; a one-element flow sequence keeps its type.
     return dumper.represent_sequence(tag, list(call.args), flow_style=True)
 
 

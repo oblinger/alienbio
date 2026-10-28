@@ -26,9 +26,12 @@ from .env import ExprError
 from .form import Call, Include, PyRef, Quoted
 
 
-class UnsafeSpecError(Exception):
+class UnsafeSpecError(ExprError):
     """Raised when an untrusted spec asks for code execution (a ``.py``
-    include, ``!py``) or a file outside its own directory."""
+    include, ``!py``) or a file outside its own directory. An
+    :class:`ExprError` (and so a ``ValueError``) like every other refusal of
+    a bad spec — T088 include 2: it escaped callers that catch ``ExprError``
+    to report one."""
 
 
 def _resolve_contained_path(path: str, base: str) -> Path:
@@ -56,7 +59,13 @@ def resolve_path(path: str, base: Path, *, trusted: bool) -> Path:
 
 
 def run_python_file(target: Path) -> dict[str, Any]:
-    """Execute ``target`` (a trusted ``.py`` include); its public names."""
+    """Execute ``target`` (a trusted ``.py`` include); its public names.
+
+    The file executes on every load that names it — nothing is cached, so its
+    decorators re-register (the registry accepts the same definition again)
+    and any other module-level side effect (a counter, a mutated global in a
+    shared helper) repeats per load (T088 include 3). A catalog helper keeps
+    its module level to definitions."""
     namespace = runpy.run_path(str(target), run_name=f"alienbio_include_{target.stem}")
     return {k: v for k, v in namespace.items() if not k.startswith("__")}
 
@@ -73,7 +82,17 @@ def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] 
         from .yaml_tags import load_text
 
         data = load_text(target.read_text())
-        return "yaml", hydrate(data, base=target.parent, trusted=trusted, seen=seen | {target})
+        inner_seen = seen | {target}
+        if isinstance(data, Mapping) and "_includes_" in data:
+            # T088 include 1: only ``Env.load`` popped ``_includes_``, so an
+            # included file's own list was bound as a stray key and never
+            # loaded. Resolved here relative to the included file, its own
+            # keys winning, as ``Env.load`` does for the top file.
+            data = dict(data)
+            included, modules = include_bindings(data.pop("_includes_"), target.parent, trusted=trusted, seen=inner_seen)
+            own = hydrate(data, base=target.parent, trusted=trusted, seen=inner_seen, modules=modules)
+            return "yaml", {**included, **own}
+        return "yaml", hydrate(data, base=target.parent, trusted=trusted, seen=inner_seen)
     if suffix in TEXT_SUFFIXES:
         return "text", target.read_text()
     if suffix in PY_SUFFIXES:
@@ -164,7 +183,12 @@ def include_bindings(
         elif kind == "text":
             raise ExprError(f"_includes_: {entry!r} is text — give it a name with `key: !include {entry}`", str(base))
         else:  # "py": executed for its registrations; the namespace answers !py
-            modules[Path(entry).stem] = value
+            stem = Path(entry).stem
+            if stem in modules:
+                # T088 include 3: a second file with the same stem silently
+                # replaced the first's namespace for `!py stem.attr`.
+                raise ExprError(f"_includes_: {entry!r} has the same stem {stem!r} as an earlier .py entry; `!py {stem}.…` would be ambiguous", str(base))
+            modules[stem] = value
     return merged, modules
 
 

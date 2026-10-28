@@ -14,7 +14,7 @@ becomes ``if``; ``and`` / ``or`` become the short-circuit ``op:and`` /
 from __future__ import annotations
 
 import ast
-from typing import Any
+from typing import Any, Mapping, Optional
 
 from ..spec_lang.safe_eval import UnsafeExpressionError, validate_expression
 from .env import ExprError
@@ -108,16 +108,7 @@ def _convert(node: ast.AST, path: str) -> Any:  # noqa: C901 - one switch, on pu
         head = "op:and" if isinstance(node.op, ast.And) else "op:or"
         return Call(head, tuple(_convert(v, path) for v in node.values))
     if isinstance(node, ast.Compare):
-        left = _convert(node.left, path)
-        terms = []
-        for op, right_node in zip(node.ops, node.comparators):
-            right = _convert(right_node, path)
-            name = _CMP.get(type(op))
-            if name is None:
-                raise ExprError(f"unsupported comparison {type(op).__name__}", path)
-            terms.append(Call(f"op:{name}", (left, right)))
-            left = right
-        return terms[0] if len(terms) == 1 else Call("op:and", tuple(terms))
+        return _compare(_convert(node.left, path), list(zip(node.ops, node.comparators)), path, 0)
     if isinstance(node, ast.IfExp):
         return Call("if", (), {"cond": _convert(node.test, path), "then": _convert(node.body, path), "else": _convert(node.orelse, path)})
     if isinstance(node, ast.JoinedStr):
@@ -145,7 +136,8 @@ def _convert(node: ast.AST, path: str) -> Any:  # noqa: C901 - one switch, on pu
                 return Quoted(args[0])  # `quote(f)` inline IS the Quoted form (one tree, three spellings)
             return Call(node.func.id, args, kwargs)
         if isinstance(node.func, ast.Attribute):
-            # a.b.c(...) — a dotted head only if it names a head; otherwise a method call on a value
+            # a.b.c(...) is always a method call on the value a.b names; no inline
+            # text calls a dotted head (use the structural `!a.b` tag or X.call)
             return Call("op:method", (_convert(node.func.value, path), node.func.attr) + args, kwargs)
         raise ExprError("only a named function or a method may be called", path)
     if isinstance(node, (ast.ListComp, ast.GeneratorExp, ast.SetComp, ast.DictComp)):
@@ -155,8 +147,47 @@ def _convert(node: ast.AST, path: str) -> Any:  # noqa: C901 - one switch, on pu
     raise ExprError(f"unsupported syntax {type(node).__name__}", path)
 
 
+#: The name a chained comparison binds a shared operand to (T088 parse 1);
+#: it scopes only the rest of that chain, and dumps and parses back as text.
+_CMP_TEMP = "__cmp{}"
+
+
+def _compare(left: Any, rest: list[tuple[ast.cmpop, ast.expr]], path: str, depth: int) -> Any:
+    """``a < b < c`` as Python evaluates it: ``b`` once, ``c`` only if
+    ``a < b`` held (T088 parse 1 — the middle operand was emitted twice, so a
+    draw or a counting head ran twice and the two comparisons saw different
+    values). A shared operand that is a literal or a name is safe to repeat
+    (a name is a cached lookup) and keeps the plain ``op:and`` form; any
+    other is bound once by a ``let`` scoping the rest of the chain."""
+    op, right_node = rest[0]
+    name = _CMP.get(type(op))
+    if name is None:
+        raise ExprError(f"unsupported comparison {type(op).__name__}", path)
+    right = _convert(right_node, path)
+    if len(rest) == 1:
+        return Call(f"op:{name}", (left, right))
+    if isinstance(right, (Name, str, int, float, bool)) or right is None:
+        tail = _compare(right, rest[1:], path, depth + 1)
+        terms = tail.args if isinstance(tail, Call) and tail.head == "op:and" else (tail,)
+        return Call("op:and", (Call(f"op:{name}", (left, right)),) + tuple(terms))
+    temp = _CMP_TEMP.format(depth)
+    shared = Name(temp)
+    body = Call("op:and", (Call(f"op:{name}", (left, shared)), _compare(shared, rest[1:], path, depth + 1)))
+    return Call("let", (), {"bindings": {temp: right}, "body": body})
+
+
 def _comprehension(node: ast.AST, path: str) -> Any:
     gens = list(getattr(node, "generators"))
+    if isinstance(node, ast.DictComp) and len(gens) > 1:
+        # T088 parse 2: the key went on the innermost ``each`` and the outer
+        # ones built a LIST of per-row dicts. Refused rather than given a
+        # merge rule the single-``for`` form does not have (``each`` with
+        # ``key=`` refuses a duplicate; Python's comprehension overwrites).
+        raise ExprError(
+            "a dict comprehension takes one 'for' — iterate a flattened list "
+            "of pairs, or nest each(...) explicitly",
+            path,
+        )
     if isinstance(node, ast.DictComp):
         key_form: Any = _convert(node.key, path)
         body: Any = _convert(node.value, path)
@@ -238,11 +269,67 @@ def _dump_call(form: Call) -> str:
             return f"{dump(a[0])}.{a[1]}({', '.join(rest)})"
         if op == "fstr":
             return _dump_fstr(form)
+    comp = _dump_comprehension(form)
+    if comp is not None:
+        return comp
+    if head == "op:set" and len(form.args) == 1 and not form.kwargs and isinstance(form.args[0], list) and form.args[0]:
+        return "{" + ", ".join(dump(x) for x in form.args[0]) + "}"
     if head == "if" and set(form.kwargs) >= {"cond", "then"} and not form.args:
         other = form.kwargs.get("else")
         return f"({dump(form.kwargs['then'])} if {dump(form.kwargs['cond'])} else {dump(other)})"
     parts = [dump(x) for x in form.args] + [f"{k}={dump(v)}" for k, v in form.kwargs.items()]
     return f"{head}({', '.join(parts)})"
+
+
+def _each_clause(form: Any) -> Optional[tuple[str, Mapping[str, Any]]]:
+    """``for x in xs [if c]`` for a keyword-spelled ``each`` call, else ``None``."""
+    if not (isinstance(form, Call) and form.head == "each" and not form.args):
+        return None
+    kw = form.kwargs
+    var = kw.get("as")
+    if not (set(kw) <= {"over", "as", "body", "key", "where"} and {"over", "as", "body"} <= set(kw)):
+        return None
+    if not (isinstance(var, str) and var.isidentifier()):
+        return None
+    clause = f"for {var} in {dump(kw['over'])}"
+    if "where" in kw:
+        clause += f" if {dump(kw['where'])}"
+    return clause, kw
+
+
+def _dump_comprehension(form: Call) -> Optional[str]:
+    """A comprehension's inline text, for exactly the shapes :func:`_comprehension`
+    emits (T088 parse 3: ``dump`` wrote ``each(over=…, as=…)`` — ``as`` is a
+    Python keyword — and ``op:set(...)`` / ``op:flatten(...)``, none of which
+    parse back, so a quoted comprehension did not survive the structural
+    dump). ``None`` for any other shape."""
+    wrap_set = form.head == "op:set" and len(form.args) == 1 and not form.kwargs
+    inner: Any = form.args[0] if wrap_set else form
+    clauses: list[str] = []
+    flattened = isinstance(inner, Call) and inner.head == "op:flatten" and len(inner.args) == 1 and not inner.kwargs
+    cur: Any = inner.args[0] if flattened else inner
+    while True:
+        part = _each_clause(cur)
+        if part is None:
+            return None
+        clause, kw = part
+        clauses.append(clause)
+        body = kw["body"]
+        if not flattened:
+            break
+        if "key" in kw:
+            return None  # a key under a flatten is no shape the parser emits
+        if isinstance(body, Call) and body.head == "op:flatten" and len(body.args) == 1 and not body.kwargs:
+            cur = body.args[0]
+            continue
+        flattened = False
+        cur = body
+    if "key" in kw:
+        if wrap_set or len(clauses) > 1:
+            return None
+        return "{" + f"{dump(kw['key'])}: {dump(body)} " + " ".join(clauses) + "}"
+    text = f"{dump(body)} " + " ".join(clauses)
+    return "{" + text + "}" if wrap_set else "[" + text + "]"
 
 
 def _dump_fstr(form: Call) -> str:
