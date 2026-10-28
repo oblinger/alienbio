@@ -59,29 +59,30 @@ _MODULATION_DEFAULTS: Mapping[str, Mapping[str, float]] = {
 # ---- the rate heads, as real functions (so `!x hill(0.5, 0.5, n=2)` is a number too)
 
 
+# Each numeric head IS ``rate_expr.modulation_factor`` — the arithmetic the
+# compiled law runs on both simulators, zero-denominator conventions
+# included — so `!x inhibitor(1, 0)` reads as the engine does (T088 rate_law
+# 5: it raised a bare ZeroDivisionError where hill/michaelis returned 0).
+
+
 @fn(kind="rate", summary="Hill response of a modifier: Vmax * m**n / (K**n + m**n)")
 def hill(m: float, K: float, n: float = 2.0, Vmax: float = 1.0) -> float:
-    # `denom > 0`, as rate_expr.modulation_factor guards (the compiled law both
-    # simulators run); `(K or m)` divided by zero at K = -m (module-doc finding).
-    m_n = m**n
-    denom = K**n + m_n
-    return Vmax * m_n / denom if denom > 0.0 else 0.0
+    return rx.modulation_factor("hill", m, {"K": K, "n": n, "Vmax": Vmax})
 
 
 @fn(kind="rate", summary="Michaelis-Menten response of a modifier: Vmax * m / (K + m)")
 def michaelis(m: float, K: float, Vmax: float = 1.0) -> float:
-    denom = K + m
-    return Vmax * m / denom if denom > 0.0 else 0.0
+    return rx.modulation_factor("michaelis", m, {"K": K, "Vmax": Vmax})
 
 
 @fn(kind="rate", summary="linear activation: 1 + a * m")
 def activator(m: float, a: float) -> float:
-    return 1.0 + a * m
+    return rx.modulation_factor("activator", m, {"a": a})
 
 
 @fn(kind="rate", summary="linear inhibition: 1 / (1 + m / Ki)")
 def inhibitor(m: float, Ki: float) -> float:
-    return 1.0 / (1.0 + m / Ki)
+    return rx.modulation_factor("inhibitor", m, {"Ki": Ki})
 
 
 # ---- the compiled record ----------------------------------------------------
@@ -121,7 +122,10 @@ class RateLaw:
 
     def realize_expr(self, seed: Seed) -> Any:
         """The expression with every ``Dist`` leaf and parameter drawn under
-        ``seed`` — the tree a ``ReactionImpl`` carries."""
+        ``seed`` — the tree a ``ReactionImpl`` carries. Draws are numbered in
+        walk order (``law1``, ``law2`` …): the tree has no names to seed by,
+        so inserting a term ahead of a draw re-seeds it (any positional
+        scheme would shift too); a reaction's own seed is per path."""
         counter = [0]
 
         def draw(dist: Dist[float]) -> float:
@@ -167,10 +171,17 @@ def _flatten_product(form: Any) -> list[Any]:
     return [form]
 
 
+class _NotProductForm(ExprError):
+    """The law is not the product form; the expression grammar may still
+    take it. Typed, so the fallback no longer matches the message text
+    (T088 rate_law 3)."""
+
+
 def _refuse(env: Env, what: str) -> ExprError:
-    return env.error(
+    return _NotProductForm(
         f"rate law: {what} is outside the engine's compilable subset "
-        "(mass action × modulations by non-consumed pools) — M47.10"
+        "(mass action × modulations by non-consumed pools) — M47.10",
+        env.ctx.path,
     )
 
 
@@ -181,7 +192,12 @@ def _constant(form: Any, env: Env, what: str) -> Dist[float]:
     if isinstance(form, (int, float)):
         return Constant(float(form))
     if isinstance(form, Name):
-        value = env.lookup(form.path)
+        try:
+            value = env.lookup(form.path)
+        except ExprError:
+            # an unbound name in a rate law is a pool — a species factor is
+            # not a constant, so the expression grammar takes the law
+            raise _refuse(env, f"{what} ({form.path!r} names a pool, not a constant)") from None
         if isinstance(value, (int, float)) and not isinstance(value, bool):
             return Constant(float(value))
         if isinstance(value, Dist):
@@ -295,9 +311,8 @@ def _compile_form(form: Any, env: Env, *, reactants: Sequence[str], products: Se
     """The product form when the law has that shape; else the general expression."""
     try:
         return _compile_product(form, env, reactants=reactants, products=products)
-    except ExprError as exc:
-        if "compilable subset" not in str(exc):
-            raise
+    except _NotProductForm:
+        pass
     view_env = env.__class__(env.bindings, env.registry.view(RATE_VIEW_KINDS), env.ctx, env.ns, env.depth)
     expr = _compile_expr(form, view_env, consumed=set(reactants) | set(products))
     return RateLaw(k=Constant(1.0), expr=expr)
@@ -376,8 +391,12 @@ def _compile_product(form: Any, env: Env, *, reactants: Sequence[str], products:
                 )
             modulations.append(spec)
             continue
-        if isinstance(factor, Name) and factor.path in consumed:
-            continue  # mass action over a reactant is implicit — naming it is allowed and inert
+        if isinstance(factor, Name) and view_env.pool(factor.path) in consumed:
+            # mass action over a reactant is implicit — naming it is allowed
+            # and inert. Compared as the pool the name denotes HERE: inside a
+            # template the reactants arrive namespaced (`inst.S`), so the bare
+            # path never matched and the law refused (T088 rate_law 1).
+            continue
         if isinstance(factor, Call) and factor.head.startswith("op:") and factor.head not in ("op:neg", "op:mul"):
             raise _refuse(view_env, f"the operator {factor.head[3:]!r}")
         if isinstance(factor, Call) and factor.head not in ("op:neg", "op:mul"):

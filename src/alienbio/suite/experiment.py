@@ -94,8 +94,6 @@ from .drafters import (  # noqa: F401
     Draft,
     DrafterFn,
     EPISTEMIC_DISCLOSURE,
-    GUARDED_DIALS,
-    GUARDED_DRAFTERS,
     WORLD_INVARIANT_DIALS,
     _DISCOVER_GATE_SIM,
     _Drafters,
@@ -488,3 +486,14 @@ def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
     # rewrote a ceiling-stopped run's map.json as complete (T084 B).
     stopped_early = manifest.get("stopped_reason") is not None
     return dataclasses.replace(rmap, provenance=dataclasses.replace(rmap.provenance, stopped_early=stopped_early))
+
+
+def __getattr__(name: str) -> object:
+    """``GUARDED_DRAFTERS`` / ``GUARDED_DIALS`` read through to
+    :mod:`.drafters`, which computes them from the registry on every read
+    (T088 drafters 3)."""
+    if name in ("GUARDED_DRAFTERS", "GUARDED_DIALS"):
+        from . import drafters
+
+        return getattr(drafters, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

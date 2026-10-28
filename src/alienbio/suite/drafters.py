@@ -1174,8 +1174,16 @@ def delta(*, arm: str = "match", env: Any, **generator: Any) -> Draft:
 #: deliberation-budget ladder over one world). Passed to
 #: ``MassTrialRunner(matched_dials=...)``. A drafter may still READ these
 #: (the hazard oracle reads ``max_turns`` for its horizon) — what matters is
-#: that the world it drafts does not depend on them. In the Expr form these
-#: are exactly the names the ``brief`` / ``episode`` heads declare (M47.4).
+#: that the world it drafts does not depend on them. Most of the ``brief``
+#: head's dials are here, not all of them (T088 drafters 1): the observation
+#: dials (``observability``, ``observation_noise``, ``sample_every``), the
+#: forgetting dials (``compact_at``, ``compact_budget``,
+#: ``history_token_limit``) and the episode clock (``sim_steps``, ``sim_dt``,
+#: which some drafters read) are not, so a sweep of one draws a world per
+#: level unless the spec lists it in ``matched_dials``. Adding the
+#: observation and forgetting dials would pair those contrasts by default
+#: and re-seed every spec that sweeps one (exp04-diagnose-zero sweeps
+#: ``observability``) — left as the Pilot's call.
 WORLD_INVARIANT_DIALS: tuple[str, ...] = (
     "agent",
     "model",
@@ -1504,15 +1512,14 @@ DRAFTERS: dict[str, DrafterFn] = _Drafters({name: _adapt(head) for name, head in
 #: A live model ("agent": "llm") is refused on these outright, whatever the
 #: dials (ABIO Experiment Catalog § The no-peeking rule). Derived from the
 #: heads' ``guarded=True`` metadata (M47.4).
-GUARDED_DRAFTERS: frozenset[str] = frozenset(name for name, head in drafter_heads().items() if head.guarded)
-
-
 def guarded_drafters() -> frozenset[str]:
-    """The guarded drafters as registered NOW. :data:`GUARDED_DRAFTERS` is the
-    import-time snapshot; the guards read this instead, so a drafter a trusted
-    ``_includes_`` file registers later with ``guarded=True`` is refused too
-    (T054 #6 — the snapshot let it pass ``no_peeking_violation`` with a live
-    model)."""
+    """The guarded drafters as registered NOW — what the guards read, so a
+    drafter a trusted ``_includes_`` file registers later with
+    ``guarded=True`` is refused too (T054 #6 — an import-time snapshot let it
+    pass ``no_peeking_violation`` with a live model). ``GUARDED_DRAFTERS``
+    is this, computed on every read (module ``__getattr__``; T088 drafters
+    3: the snapshot kept "for reading" missed late registrations for any
+    reader that took the constant)."""
     return frozenset(name for name, head in drafter_heads().items() if head.guarded)
 
 #: Brief-side dials that put an alignment-bearing arm on an otherwise neutral
@@ -1563,10 +1570,15 @@ def guarded_dials() -> frozenset[str]:
     return frozenset(names)
 
 
-#: The derived guarded-dial set (see :func:`guarded_dials`).
-#: Import-time snapshot of :func:`guarded_dials`, for reading; the guards call
-#: the function so late registrations count (T054 #6).
-GUARDED_DIALS: frozenset[str] = guarded_dials()
+def __getattr__(name: str) -> frozenset[str]:
+    """``GUARDED_DRAFTERS`` / ``GUARDED_DIALS``, computed on every read from
+    the registry as it stands (see :func:`guarded_drafters` /
+    :func:`guarded_dials`), never an import-time snapshot."""
+    if name == "GUARDED_DRAFTERS":
+        return guarded_drafters()
+    if name == "GUARDED_DIALS":
+        return guarded_dials()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 #: T025 (AUP C7, 2026-08-31) — drafters whose worlds are conflict-free BY
 #: CONSTRUCTION (phase 1's charter: nothing to refrain from, no outcome to

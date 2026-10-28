@@ -357,7 +357,11 @@ def brief(
 ) -> dict[str, Any]:
     """The brief-side dial vector: everything here reaches the
     :class:`~alienbio.suite.brief.TaskBrief` or the observation narrowing and
-    never the drafted world (``WORLD_INVARIANT_DIALS``). Evaluated, it is just
+    never the drafted world. ``WORLD_INVARIANT_DIALS`` (the dials a sweep
+    pairs on one world without ``matched_dials``) holds most of them but not
+    ``observability`` / ``observation_noise`` / ``sample_every`` — a sweep of
+    those draws a world per level unless the spec lists the dial in
+    ``matched_dials`` (T088 drafters 1). Evaluated, it is just
     the mapping of the dials given; in an experiment file it is *quoted* and
     its free names are axes. A ``levers`` entry is a lever id or a
     ``{"id": ..., "max_rate": ...}`` mapping declaring that lever's
@@ -503,6 +507,10 @@ def _split_call(
     for key, value in form.kwargs.items():
         if key not in allowed:
             raise env.error(f"experiment.{slot}: {form.head}() has no dial {key!r}; it declares {sorted(allowed)}")
+        if isinstance(value, Call) and value.head == "op:neg" and len(value.args) == 1 and not value.kwargs:
+            inner = value.args[0]
+            if isinstance(inner, (int, float)) and not isinstance(inner, bool):
+                value = -inner  # `-1.5` parses as a negation; a negative literal is a literal
         if isinstance(value, Name):
             if value.path in axes:
                 if value.path != key:
@@ -691,6 +699,10 @@ def _yaml_literal(value: Any) -> str:
         return "True" if value else "False"
     if value is None:
         return "None"
+    if isinstance(value, float) and value != value:
+        raise ValueError("spec_to_text: a NaN dial value has no inline spelling")
+    if isinstance(value, float) and value in (float("inf"), float("-inf")):
+        return "1e999" if value > 0 else "-1e999"  # T088 expr_experiment 2: `inf` read back as a name
     if isinstance(value, (int, float)):
         return repr(value)
     if isinstance(value, str):
@@ -759,7 +771,9 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
     if header:
         out.append(header.rstrip("\n"))
     out.append("!experiment")
-    out.append(f"name: {spec.name}")
+    # T088 expr_experiment 1: `name`, `key_readout` and `out_dir` were raw
+    # YAML scalars — a name `no` reloaded False, `a: b` failed to load.
+    out.append(f"name: {_yaml_inline(spec.name)}")
     out.append("task: !q " + _render_call(spec.drafter, fixed["task"], swept["task"], indent=9))
     for slot in SIDE_HEADS:
         if fixed[slot] or swept[slot]:
@@ -814,7 +828,7 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
     if spec.matched_dials:
         out.append(f"matched_dials: {_yaml_inline(list(spec.matched_dials))}")
     if spec.key_readout:
-        out.append(f"key_readout: {spec.key_readout}")
+        out.append(f"key_readout: {_yaml_inline(spec.key_readout)}")
     out.append(f"trials_per_condition: {spec.trials_per_condition}")
     out.append(f"base_seed: {spec.base_seed}")
     for key in ("expected_turns", "expected_prompt_tokens", "expected_output_tokens", "concurrency"):
@@ -837,7 +851,7 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
         for k, v in fields.items():
             out.append(f"  {k}: {_yaml_inline(v)}")
     if spec.out_dir:
-        out.append(f"out_dir: {spec.out_dir}")
+        out.append(f"out_dir: {_yaml_inline(spec.out_dir)}")
     return "\n".join(out) + "\n"
 
 

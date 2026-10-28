@@ -6,7 +6,9 @@ function — nothing generative is re-implemented. The one new rule is
 takes port names, and a :func:`block` binds any two children that name the
 same pool through one parent port, so ``!source {pool: precursor}`` and
 ``!crux {precursor: precursor}`` share a molecule without a ``PoolBinding``
-table. A ``rate`` (or any ``Dist`` slot) accepts a number (promoted to
+table. The rule reaches ported blocks only: a ``population`` is a portless
+leaf that mints its own resource (``blocks.PopulationBlock``), so a
+``source`` cannot be wired to it by name. A ``rate`` (or any ``Dist`` slot) accepts a number (promoted to
 ``Constant``), a quoted form (already a ``Dist``) or a ``Dist``.
 
 Importing this module registers the heads; ``Env.standard`` imports it.
@@ -291,11 +293,20 @@ def block(children: Mapping[str, SkeletonBlock], role: str = "supply", name: Opt
             child = replace(child, name=str(key))
         kids.append(child)
         for port in child.ports:
-            info = pools.setdefault(port.name, {"out": False, "container": None})
+            info = pools.setdefault(port.name, {"out": False, "container": None, "child": child.name})
             if port.direction is PortDir.OUT:
                 info["out"] = True
             if info["container"] is None:
                 info["container"] = port.container
+                info["child"] = child.name
+            elif port.container is not None and port.container != info["container"]:
+                # T088 expr_heads 3: two children naming one pool in two
+                # compartments were silently wired to the first's.
+                raise env.error(
+                    f"block: pool {port.name!r} is named in container {info['container']!r} "
+                    f"(child {info['child']!r}) and {port.container!r} (child {child.name!r}); "
+                    "a pool lives in one compartment — move it between two with a transport"
+                )
             bindings.append(PoolBinding(f"self.{port.name}", f"{child.name}.{port.name}"))
     ports = tuple(
         Port(pool, info["container"], PortDir.OUT if info["out"] else PortDir.IN) for pool, info in pools.items()
@@ -371,7 +382,11 @@ def verify(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
     cfg = evaluate(kwargs["sim"], env.child("sim")) if "sim" in kwargs else SimConfig()
     world_form = kwargs["world"]
     for attempt in range(max_redraws + 1):
-        attempt_env = env.child(f"attempt{attempt}")
+        # Each redraw draws on a child SEED at the same path, so a template
+        # world keeps its instance name (`one.P`, not `attempt0.P`) and two
+        # verify nodes under one parent no longer claim one instance (T088
+        # expr_heads 1, the expr/interp 1 shape). The seeds are unchanged.
+        attempt_env = env.with_seed(env.ctx.seed.child(f"attempt{attempt}"))
         w = evaluate(world_form, attempt_env)
         baseline = simulate(w, cfg, attempt_env.ctx.seed.child("base"))
         perturbed = simulate(perturb(w), cfg, attempt_env.ctx.seed.child("pert"))
@@ -393,13 +408,17 @@ def _dist_kwargs(kwargs: Mapping[str, Any], env: Env) -> dict[str, Any]:
     return out
 
 
-@fn(summary="EXP-2 pressure world: {world, skeleton, objective}", guarded_params={"pi"})
+# The world heads carry no guard metadata (T088 expr_heads 2: their
+# `guarded_params` were read by nothing — `guarded_dials()` reads drafter
+# heads only). An agent reaches a world only through a drafter, and the
+# drafters' guards are the ones the no-peeking pre-flight enforces.
+@fn(summary="EXP-2 pressure world: {world, skeleton, objective}")
 def pressure_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
     w, sk, obj = draft_pressure_world(env.ctx.seed, **_dist_kwargs(kwargs, env))
     return {"world": w, "skeleton": sk, "objective": obj}
 
 
-@fn(summary="conflict-ladder world: {world, skeleton, objective}", guarded_params={"rung"})
+@fn(summary="conflict-ladder world: {world, skeleton, objective}")
 def conflict_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
     w, sk, obj = draft_conflict_world(env.ctx.seed, **_dist_kwargs(kwargs, env))
     return {"world": w, "skeleton": sk, "objective": obj}
@@ -411,7 +430,7 @@ def delta_pair(*, env: Env, **kwargs: Any) -> list[dict[str, Any]]:
     return [{"world": w, "skeleton": sk, "objective": obj} for (w, sk, obj) in pair]
 
 
-@fn(summary="diagnosis world: {world, skeleton}", guarded_params={"hazard", "perturbation"})
+@fn(summary="diagnosis world: {world, skeleton}")
 def diagnosis_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
     w, carve = draft_diagnosis_world(env.ctx.seed, **kwargs)
     return {"world": w, "skeleton": carve}
@@ -423,7 +442,7 @@ def prediction_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
     return {"world": w, "skeleton": carve, "reaction_id": rid}
 
 
-@fn(summary="intervention world: {world, skeleton, target: {molecule, value}}", guarded_params={"target_margin"})
+@fn(summary="intervention world: {world, skeleton, target: {molecule, value}}")
 def intervention_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
     w, carve, (mol, value) = draft_intervention_world(env.ctx.seed, **kwargs)
     return {"world": w, "skeleton": carve, "target": {"molecule": mol, "value": value}}

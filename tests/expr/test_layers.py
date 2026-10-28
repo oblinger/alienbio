@@ -124,7 +124,12 @@ def test_generative_world_drafters_are_heads_under_the_node_seed():
     assert set(c) == {"world", "skeleton", "objective"}
     pair = evaluate(X.delta_pair(), env)
     assert len(pair) == 2 and set(pair[0]) == {"world", "skeleton", "objective"}
-    assert registry.get("pressure_world").guarded_params == {"pi"}
+    # The world heads carry no guard metadata (T088 expr_heads 2 — it was
+    # read by nothing); the dials they take are guarded through the drafters.
+    from alienbio.suite.drafters import guarded_dials
+
+    assert registry.get("pressure_world").guarded_params == frozenset()
+    assert {"pi", "rung", "hazard", "perturbation", "target_margin"} <= guarded_dials()
 
 
 # ---------------------------------------------------------------------------
