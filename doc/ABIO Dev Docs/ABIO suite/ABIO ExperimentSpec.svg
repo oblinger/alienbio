@@ -20,7 +20,7 @@
   <g id="n-fromdict">
     <rect id="n-fromdict-box" x="20" y="290" width="220" height="70" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-fromdict-name" x="130" y="320" font-size="20" font-weight="600" text-anchor="middle">spec_from_dict</text>
-    <text id="n-fromdict-kind" x="130" y="344" font-size="14" text-anchor="middle">(fn) validators, derivations</text>
+    <text id="n-fromdict-kind" x="130" y="344" font-size="14" text-anchor="middle">(fn) a dict to the constructor</text>
   </g>
   <g id="n-python">
     <rect id="n-python-box" x="20" y="440" width="220" height="70" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
@@ -106,7 +106,7 @@
   <text id="e-head-fromdict-label" x="140" y="267" font-size="14" font-style="italic" fill="#1864ab">a dict</text>
   <line id="e-fromdict-spec" x1="240" y1="325" x2="290" y2="325" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-python-spec" x1="240" y1="475" x2="290" y2="475" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
-  <text id="e-python-note" x="130" y="532" font-size="14" font-style="italic" fill="#c92a2a" text-anchor="middle">no validators run</text>
+  <text id="e-python-note" x="130" y="532" font-size="14" font-style="italic" fill="#1864ab" text-anchor="middle">same validators, at construction</text>
 
   <line id="e-spec-pf" x1="720" y1="62" x2="790" y2="62" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="e-spec-pf-label" x="755" y="53" font-size="14" font-style="italic" fill="#1864ab" text-anchor="middle">checks</text>

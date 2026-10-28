@@ -125,6 +125,34 @@ class ExperimentSpec:
         # arm, so a directly built ``idle_baseline=True`` spec ran none, while
         # ``aggregate`` and ``bio suite resume`` rebuilt it WITH the arm.
         object.__setattr__(self, "axes", _with_idle_arm(self.axes, self.agent, self.idle_baseline))
+        self._validate()
+
+    def _validate(self) -> None:
+        """Every check on the spec's own field values (or two fields
+        together), in the order :func:`spec_from_dict` used to run them, with
+        the same messages — so a Python-built spec is refused exactly where a
+        YAML one is, at construction, before any guard reads it. Each
+        validator also normalises (floats, a plain-dict schedule, a parsed
+        ``PowerDesign``) and is idempotent on its own output."""
+        def put(name: str, value: Any) -> None:
+            object.__setattr__(self, name, value)
+
+        if self.model is not None:
+            _require_pinned_model(self.model)
+        # M46.8: an ``agent`` / ``model`` axis is validated like the scalar fields.
+        from .agents import AGENTS  # agents imports this module; resolve late
+
+        for name, levels in self.axes:
+            if name == "agent":
+                unknown = sorted(str(level) for level in levels if str(level) not in AGENTS)
+                if unknown:
+                    raise ValueError(f"experiment spec: unknown agent axis level(s) {unknown}; expected one of {sorted(AGENTS)}")
+            if name == "model":
+                for level in levels:
+                    _require_pinned_model(level)
+        put("output_schedule", _validate_output_schedule(self.max_tokens, self.output_schedule))
+        put("cost_ceiling_usd", _validate_cost_ceiling(self.cost_ceiling_usd))
+        put("price_usd_per_mtok", _validate_price_override(self.price_usd_per_mtok))
         # The 2026-10-28 module-doc finding: a directly built spec kept the
         # literal ``expected_turns = 8``, so a Python-form 20-turn live spec
         # was estimated at 8 turns, and ``spec_to_dict`` pinned the 8 through
@@ -133,7 +161,20 @@ class ExperimentSpec:
             turns = _default_expected_turns(self.fixed_dials, self.axes)
         else:
             turns = _validate_positive_int("expected_turns", self.expected_turns)
-        object.__setattr__(self, "expected_turns", turns)
+        put("expected_turns", turns)
+        put("expected_prompt_tokens", _validate_positive_int("expected_prompt_tokens", self.expected_prompt_tokens))
+        put("expected_output_tokens", _validate_positive_int("expected_output_tokens", self.expected_output_tokens))
+        put("design", _validate_design(self.design, self.trials_per_condition, self.axes))
+        put("concurrency", _validate_positive_int("concurrency", self.concurrency))
+        put("matched_dials", _validate_matched_dials(self.matched_dials, self.axes))
+        put("key_readout", _validate_key_readout(self.key_readout))
+        put("temperature", _validate_sampling(self.temperature, self.top_p))
+        put("top_p", _validate_unit_float("top_p", self.top_p))
+        put(
+            "expected_cache_hit_rate",
+            _validate_unit_float("expected_cache_hit_rate", self.expected_cache_hit_rate) or 0.0,
+        )
+        put("registration", _validate_registration_id(self.registration))
 
 
 def _with_idle_arm(
@@ -195,30 +236,14 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
 
 def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
     """A dict (as produced by :func:`spec_to_dict`, or a validated YAML load)
-    -> :class:`ExperimentSpec`. Optional keys default exactly as the class does."""
-    axes_raw = d["axes"]
-    axes = tuple((name, tuple(levels)) for name, levels in axes_raw.items())
-    idle_baseline = bool(d.get("idle_baseline", False))
-    # Expanded here too (``__post_init__`` then finds it done) so the axis
-    # checks below and the design / matched_dials validators see the idle arm.
-    axes = _with_idle_arm(axes, d["agent"], idle_baseline)
-    model = d.get("model")
-    if model is not None:
-        _require_pinned_model(model)
-    # M46.8: an ``agent`` / ``model`` axis is validated like the scalar fields.
-    from .agents import AGENTS  # agents imports this module; resolve late
+    -> :class:`ExperimentSpec`. Optional keys default exactly as the class does.
 
-    for name, levels in axes:
-        if name == "agent":
-            unknown = sorted(str(level) for level in levels if str(level) not in AGENTS)
-            if unknown:
-                raise ValueError(f"experiment spec: unknown agent axis level(s) {unknown}; expected one of {sorted(AGENTS)}")
-        if name == "model":
-            for level in levels:
-                _require_pinned_model(level)
+    Only the dict's own shape is handled here (required keys, the ``axes``
+    mapping to tuples, ``None`` for an empty mapping); every value check runs
+    in the constructor (:meth:`ExperimentSpec._validate`), for both forms."""
     return ExperimentSpec(
         name=d["name"],
-        axes=axes,
+        axes=tuple((name, tuple(levels)) for name, levels in d["axes"].items()),
         drafter=d["drafter"],
         agent=d["agent"],
         trials_per_condition=d["trials_per_condition"],
@@ -230,28 +255,24 @@ def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
         compact_budget=d.get("compact_budget"),
         history_token_limit=d.get("history_token_limit"),
         max_tokens=d.get("max_tokens"),
-        output_schedule=_validate_output_schedule(d.get("max_tokens"), d.get("output_schedule")),
+        output_schedule=d.get("output_schedule"),
         token_ceiling=d.get("token_ceiling"),
         fixed_dials=dict(d.get("fixed_dials") or {}),
         out_dir=d.get("out_dir"),
-        cost_ceiling_usd=_validate_cost_ceiling(d.get("cost_ceiling_usd")),
-        price_usd_per_mtok=_validate_price_override(d.get("price_usd_per_mtok")),
+        cost_ceiling_usd=d.get("cost_ceiling_usd"),
+        price_usd_per_mtok=d.get("price_usd_per_mtok"),
         expected_turns=d.get("expected_turns"),  # None = derived in __post_init__
-        expected_prompt_tokens=_validate_positive_int(
-            "expected_prompt_tokens", d.get("expected_prompt_tokens", 1500)
-        ),
-        expected_output_tokens=_validate_positive_int(
-            "expected_output_tokens", d.get("expected_output_tokens", 300)
-        ),
-        design=_validate_design(d.get("design"), d["trials_per_condition"], axes),
-        concurrency=_validate_positive_int("concurrency", d.get("concurrency", 1)),
-        idle_baseline=idle_baseline,
-        matched_dials=_validate_matched_dials(d.get("matched_dials"), axes),
-        key_readout=_validate_key_readout(d.get("key_readout")),
-        temperature=_validate_sampling(d.get("temperature"), d.get("top_p")),
-        top_p=_validate_unit_float("top_p", d.get("top_p")),
-        expected_cache_hit_rate=_validate_unit_float("expected_cache_hit_rate", d.get("expected_cache_hit_rate", 0.0)) or 0.0,
-        registration=_validate_registration_id(d.get("registration")),
+        expected_prompt_tokens=d.get("expected_prompt_tokens", 1500),
+        expected_output_tokens=d.get("expected_output_tokens", 300),
+        design=d.get("design"),
+        concurrency=d.get("concurrency", 1),
+        idle_baseline=bool(d.get("idle_baseline", False)),
+        matched_dials=d.get("matched_dials", ()),
+        key_readout=d.get("key_readout"),
+        temperature=d.get("temperature"),
+        top_p=d.get("top_p"),
+        expected_cache_hit_rate=d.get("expected_cache_hit_rate", 0.0),
+        registration=d.get("registration"),
     )
 
 

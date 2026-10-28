@@ -130,3 +130,67 @@ def test_dry_names_the_pinned_model_on_a_live_spec_with_no_model(tmp_path, capsy
     out = capsys.readouterr().out
     assert f"model: {PINNED_MODEL}\n" in out
     assert "model: None" not in out
+
+
+# D ─ field validators run at construction, for both forms ──────────────────
+
+# Each case is one bad value as the Python form would pass it (keyword
+# arguments to ``ExperimentSpec``), the message both forms must raise, and the
+# validator that owns it. ``axes`` is given as the dataclass tuple; the dict
+# form gets the same value as a mapping.
+_BAD_FIELDS = [
+    ("model-alias", {"model": "claude-sonnet-latest"}, "floating alias"),
+    ("model-axis", {"axes": (("pi", (0.0,)), ("model", ("claude-sonnet-latest",)))}, "floating alias"),
+    ("agent-axis", {"axes": (("pi", (0.0,)), ("agent", ("llm", "nope")))}, "unknown agent axis level"),
+    ("max-tokens", {"max_tokens": 0}, "max_tokens must be a positive int"),
+    ("two-budgets", {"max_tokens": 512, "output_schedule": {"every": 2, "deep": 4096, "shallow": 512}}, "one per arm"),
+    ("schedule-keys", {"output_schedule": {"every": 2}}, "output_schedule must be a mapping"),
+    ("cost-ceiling", {"cost_ceiling_usd": 0}, "cost_ceiling_usd must be > 0"),
+    ("price", {"price_usd_per_mtok": (1.0,)}, "price_usd_per_mtok must be a 2-sequence"),
+    ("expected-turns", {"expected_turns": 0}, "expected_turns must be a positive int"),
+    ("prompt-tokens", {"expected_prompt_tokens": 0}, "expected_prompt_tokens must be a positive int"),
+    ("output-tokens", {"expected_output_tokens": -1}, "expected_output_tokens must be a positive int"),
+    ("design-underpowered", {"design": {"target_effect_d": 0.2}}, "design needs"),
+    ("design-axis", {"design": {"target_effect_d": 5.0, "primary_contrast": {"axis": "nope", "low": 0, "high": 1}}}, "is not a swept axis"),
+    ("concurrency", {"concurrency": 0}, "concurrency must be a positive int"),
+    ("matched-dials", {"matched_dials": ("nope",)}, "are not swept axes"),
+    ("key-readout", {"key_readout": "nope"}, "key_readout must be one of"),
+    ("temperature", {"temperature": 2.0}, "temperature must be a number in"),
+    ("provider-fixed-top-p", {"temperature": "provider-fixed", "top_p": 0.9}, "top_p must be omitted"),
+    ("top-p", {"temperature": 0.5, "top_p": 1.5}, "top_p must be a number in"),
+    ("cache-hit-rate", {"expected_cache_hit_rate": 2.0}, "expected_cache_hit_rate must be a number in"),
+    ("registration", {"registration": "  "}, "registration must be a non-empty string"),
+]
+
+
+def _dict_form(kw):
+    d = spec_to_dict(_live())
+    d.pop("expected_turns")
+    for key, value in kw.items():
+        d[key] = {name: list(levels) for name, levels in value} if key == "axes" else value
+    return d
+
+
+@pytest.mark.parametrize("kw,match", [(kw, m) for _, kw, m in _BAD_FIELDS], ids=[i for i, _, _ in _BAD_FIELDS])
+def test_python_form_validates_each_field_like_the_dict_form(kw, match):
+    with pytest.raises(ValueError, match=match) as py:
+        _live(**kw)
+    with pytest.raises(ValueError, match=match) as yaml_form:
+        spec_from_dict(_dict_form(kw))
+    assert str(py.value) == str(yaml_form.value)
+
+
+def test_python_form_normalises_like_the_dict_form_and_round_trips():
+    from alienbio.suite.power import PowerDesign
+
+    spec = _live(
+        temperature=0, top_p=1, cost_ceiling_usd=2, price_usd_per_mtok=[2, 10],
+        design={"target_effect_d": 5.0}, trials_per_condition=4,
+        output_schedule={"every": 2, "deep": 4096, "shallow": 512},
+    )
+    assert spec.temperature == 0.0 and isinstance(spec.temperature, float)
+    assert spec.price_usd_per_mtok == (2.0, 10.0)
+    assert isinstance(spec.design, PowerDesign)
+    assert spec.matched_dials == ()
+    assert spec_from_dict(spec_to_dict(spec)) == spec
+    assert ExperimentSpec(**{f: getattr(spec, f) for f in spec.__dataclass_fields__}) == spec

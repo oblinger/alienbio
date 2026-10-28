@@ -1,19 +1,19 @@
 ---
-description: "`ExperimentSpec`: one run as data — its 31 fields in six groups, the YAML `!experiment` and Python forms, `spec_from_dict`'s validators, the `__post_init__` normaliser both forms share, where a dial may live, `estimate_cost` and `CostEstimate`, and the spec's view on the manifest. Source: `src/alienbio/suite/spec.py`."
+description: "`ExperimentSpec`: one run as data — its 31 fields in six groups, the YAML `!experiment` and Python forms, the `__post_init__` normaliser and field validators both forms share, where a dial may live, `estimate_cost` and `CostEstimate`, and the spec's view on the manifest. Source: `src/alienbio/suite/spec.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO ExperimentSpec](ha://p/ABIO%20ExperimentSpec) 
 # ABIO ExperimentSpec
 The declared shape of one experiment, a frozen dataclass naming the world to draft, the dials to sweep and hold, the agent and its budget, the run's controls and its price: everything `preflight`, the condition grid and the manifest read, so that a run is a file you can review, diff and re-run.
 
 ![ABIO ExperimentSpec](ABIO%20ExperimentSpec.svg) 
-*Where a dial lives* is the topic that governs the dials group; *Expected turns and the estimate* governs the cost group and the `estimate_cost` reader; *The two forms and the round trip* governs the left column, where only the YAML path passes through `spec_from_dict`.
+*Where a dial lives* is the topic that governs the dials group; *Expected turns and the estimate* governs the cost group and the `estimate_cost` reader; *The two forms and the round trip* governs the left column: only the YAML path passes through `spec_from_dict`, and both reach the same validators in the constructor.
 
 `suite/spec.py` holds the spec, its dict codec and validators, `load_spec`, `agent_kinds_in_play`, and the dry-run `estimate_cost` with the `CostEstimate` it returns (split out of `experiment.py` in T058; `experiment.py` re-exports every name). This page covers those. The `!experiment` head, `load_experiment` and `spec_to_text` live in `suite/expr_experiment.py`; the dial sets (`WORLD_INVARIANT_DIALS`, `EPISODE_DIALS`, `_FACTORY_DIALS`, `runtime_dials()`) in `suite/drafters.py`; the sixteen checks a spec meets before spend are [ABIO Guards](ABIO%20Guards.md); the factory that reads the agent-side fields is in `suite/agents.py`, the agent itself [ABIO LLMAgent](ABIO%20LLMAgent.md); `condition_grid` and the seed matching in `suite/mass_trial.py`; the manifest in `suite/store.py`; each trial's record is [ABIO TrialRecord](ABIO%20TrialRecord.md). The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's view of the experiment file is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md) § Experiments as artifacts.
 
 
 
 ## ExperimentSpec Interface
-A frozen dataclass whose one method is `__post_init__`, the normaliser both forms pass through: it adds the idle arm under `idle_baseline` and derives (or checks) `expected_turns`, idempotently. Every other check lives in [spec_from_dict](#^spec-from-dict), which the YAML path always passes through ([The two forms and the round trip](#the-two-forms-and-the-round-trip)). Six fields are required (`name`, `axes`, `drafter`, `agent`, `trials_per_condition`, `base_seed`); the rest default as listed. Fields are grouped here as the figure groups them, not in source order.
+A frozen dataclass whose methods are `__post_init__` and the `_validate` it calls, the normaliser both forms pass through: it adds the idle arm under `idle_baseline`, derives (or checks) `expected_turns`, and runs every field check ([Refused at load, refused at preflight](#refused-at-load-refused-at-preflight)), normalising as it goes (floats, a plain-dict schedule, a parsed `PowerDesign`), idempotently. [spec_from_dict](#^spec-from-dict) only reshapes a dict into constructor arguments ([The two forms and the round trip](#the-two-forms-and-the-round-trip)). Six fields are required (`name`, `axes`, `drafter`, `agent`, `trials_per_condition`, `base_seed`); the rest default as listed. Fields are grouped here as the figure groups them, not in source order.
 
 | ExperimentSpec | |
 | --- | --- |
@@ -56,7 +56,7 @@ A frozen dataclass whose one method is `__post_init__`, the normaliser both form
     A `DRAFTERS` key. The YAML form takes it from the head of the quoted `task:` call, which must be a drafter head; the Python form checks nothing, and an unknown name refuses at the `draft` check. ^drafter
 
 **trials_per_condition**`: int`
-    Trials per grid cell. `spec_from_dict` checks it only against a declared [design](#^design); a resume may raise it without counting as drift. ^trials-per-condition
+    Trials per grid cell. The constructor checks it only against a declared [design](#^design); a resume may raise it without counting as drift. ^trials-per-condition
 
 **base_seed**`: int`
     Every trial's seed is `Seed(base_seed).child(f"{label}/{i}")`, the label built from the condition key less the matched dials ([The condition grid](#the-condition-grid)). ^base-seed
@@ -74,16 +74,16 @@ A frozen dataclass whose one method is `__post_init__`, the normaliser both form
     Keywords splatted into the drafter head on every draft: generator settings (`feed_max_rate`, `score_read`, `hop_delay_s`, `certainty_windows` …) that no other reader sees. A head dial placed here is applied and counted in play by the guards (T066); an episode dial here is refused. ^drafter-kwargs
 
 **matched_dials**`: tuple[str, ...] = ()`
-    Swept dials, beyond `WORLD_INVARIANT_DIALS`, to keep out of the seed label, so their arms draw the same worlds (M36.3, EXP-6's `ill_posed` trap). `spec_from_dict` refuses a name that is not a swept axis. ^matched-dials
+    Swept dials, beyond `WORLD_INVARIANT_DIALS`, to keep out of the seed label, so their arms draw the same worlds (M36.3, EXP-6's `ill_posed` trap). The constructor refuses a name that is not a swept axis. ^matched-dials
 
 **idle_baseline**`: bool = False`
     Ask for the do-nothing twin of every cell. `__post_init__` appends an `agent` axis `(agent, "idle")` unless `agent` is already `idle` or an `agent` axis exists (M45.7), for both forms; the second condition makes it idempotent, so a reload does not add it twice (`60db002`; before it, only `spec_from_dict` added the axis). ^idle-baseline
 
 **agent**`: str`
-    The `AGENTS` kind (`llm`, `idle`, `survey-commit` …) every cell runs unless an `agent` axis sweeps it. `spec_from_dict` checks `agent` axis levels against `AGENTS` but not this scalar; the YAML head resolves it by name, and the `agent` check catches the rest. ^agent
+    The `AGENTS` kind (`llm`, `idle`, `survey-commit` …) every cell runs unless an `agent` axis sweeps it. The constructor checks `agent` axis levels against `AGENTS` but not this scalar; the YAML head resolves it by name, and the `agent` check catches the rest. ^agent
 
 **model**`: Optional[str] = None`
-    The live model id; `None` means `PINNED_MODEL` (`claude-sonnet-5`) on a live arm. `spec_from_dict` refuses an unpinned id here and on every `model` axis level: a `-latest` alias, or an undated id missing from `models_snapshot.json`. ^model
+    The live model id; `None` means `PINNED_MODEL` (`claude-sonnet-5`) on a live arm. The constructor refuses an unpinned id here and on every `model` axis level: a `-latest` alias, or an undated id missing from `models_snapshot.json`. ^model
 
 **memory**`: Union[str, int] = "full"`
     The live agent's history window: `"full"`, `"none"` or an int k. A `memory` axis overrides it per cell, is priced per level and recorded per line. Validated at the `agent` check, not at load. ^memory
@@ -116,7 +116,7 @@ A frozen dataclass whose one method is `__post_init__`, the normaliser both form
     M45.6: trials in flight at once, a positive int. The ceiling check runs as each unit lands and as each worker starts, so a stop can overshoot by the units already running. ^concurrency
 
 **design**`: Optional[PowerDesign] = None`
-    M46.9: the statistical design. `spec_from_dict` parses a mapping, refuses a `primary_contrast` that is not a swept axis and two of its levels, and refuses `trials_per_condition` below the design's required n, naming the number. ^design
+    M46.9: the statistical design. The constructor parses a mapping (a `PowerDesign` passes as is), refuses a `primary_contrast` that is not a swept axis and two of its levels, and refuses `trials_per_condition` below the design's required n, naming the number. ^design
 
 **key_readout**`: Optional[str] = None`
     The `suite.plots.PLOTTERS` name whose figure becomes `key.png`; `None` takes the first readout the records carry, in report order. Refused at load when not a `PLOTTERS` name. ^key-readout
@@ -185,7 +185,7 @@ A frozen dataclass: the dry-run price of a spec's grid, built only by [estimate_
 
 
 ## spec Interface
-The module-level functions. `spec_from_dict` is the one place a spec's fields are validated (`__post_init__` normalises both forms); the YAML head, `bio suite resume` and `aggregate` all build through it. `experiment.py` re-exports these and the private helpers `_require_pinned_model` (also called by the `llm` agent factory per trial) and `_validate_matched_dials`; `expr_experiment.py` imports `_default_expected_turns` so `spec_to_text` can tell a stated `expected_turns` from a derived one. No `__all__`.
+The module-level functions. A spec's fields are validated in one place, `ExperimentSpec.__post_init__`, for both forms; `spec_from_dict` builds through it, and the YAML head, `bio suite resume` and `aggregate` all build through it. `experiment.py` re-exports these and the private helpers `_require_pinned_model` (also called by the `llm` agent factory per trial) and `_validate_matched_dials`; `expr_experiment.py` imports `_default_expected_turns` so `spec_to_text` can tell a stated `expected_turns` from a derived one. No `__all__`.
 
 | spec | |
 | --- | --- |
@@ -199,7 +199,7 @@ The module-level functions. `spec_from_dict` is the one place a spec's fields ar
     Every field under its own name, `axes` as a `{name: [levels]}` mapping, tuples as lists, `design` through `PowerDesign.to_dict()`. What the manifest stores as `spec` and hashes as `spec_sha256`. Emits `expected_turns` as a number always, so reloading keeps the value rather than re-deriving it; with `__post_init__` deriving it for both forms, `spec_from_dict(spec_to_dict(s)) == s` for a spec built either way. ^spec-to-dict
 
 **spec_from_dict**`(d: Mapping[str, Any]) -> ExperimentSpec`
-    The validator. Expands `idle_baseline` before its axis checks (so they see the idle arm; `__post_init__` then finds it done), checks `agent` axis levels and every model id, passes an unset `expected_turns` as `None` for `__post_init__` to derive, runs the field validators, and raises `ValueError` naming the field (`KeyError` for a missing required key). Optional keys default as the class does ([Refused at load, refused at preflight](#refused-at-load-refused-at-preflight)). ^spec-from-dict
+    The dict codec's inbound half: reads the required keys (`KeyError` for a missing one), turns the `axes` mapping into ordered tuples, `None` for an empty `drafter_kwargs`/`fixed_dials`, coerces `idle_baseline` to bool, passes an unset `expected_turns` as `None`, and hands the rest to the constructor, whose validators raise `ValueError` naming the field. Optional keys default as the class does ([Refused at load, refused at preflight](#refused-at-load-refused-at-preflight)). ^spec-from-dict
 
 **load_spec**`(path: Union[str, Path]) -> ExperimentSpec`
     Hands the file to `expr_experiment.load_experiment`, trusted when it sits under the repo's `catalog/` (it may then `_includes_` Python), untrusted otherwise. Raises `ExprError` for a non-experiment document, the pre-M47.4 flat form, a dial no head declares, an unread axis, or any `spec_from_dict` refusal. ^load-spec
@@ -216,18 +216,19 @@ The module-level functions. `spec_from_dict` is the one place a spec's fields ar
 # ExperimentSpec Semantics
 
 ## The two forms and the round trip
-A spec comes from one of two places, and only one of them validates.
+A spec comes from one of two places; both pass the same field validators at construction, and only the YAML form also checks dial placement.
 
 | | YAML `!experiment` | Python `ExperimentSpec(...)` |
 | --- | --- | --- |
 | entry | `load_spec(path)`, `bio suite run <spec>` | the constructor; launchers and tests |
 | dial placement | which quoted call a keyword sits in: `task:` (drafter dials), `brief:`, `episode:` | the caller fills `axes`, `fixed_dials`, `drafter_kwargs` |
 | axes | free names in a quoted call, each bound to the dial of the same name; factory dials sweep with no binding | whatever the caller lists |
-| refused at build | an undeclared dial, a dial on two calls, an unread axis, a nested expression, every `spec_from_dict` check | an unknown keyword (`TypeError`) only |
+| refused at build | an undeclared dial, a dial on two calls, an unread axis, a nested expression | an unknown keyword (`TypeError`) |
+| field checks | every one, at construction (`ValueError`) | the same, with the same message |
 | `expected_turns` | derived from the declared budget (`__post_init__`) | the same |
 | `idle_baseline` | expanded into an `agent` axis (`__post_init__`) | the same |
 
-The `!experiment` head (`expr_experiment.experiment`) sorts each keyword of a quoted call into a fixed dial or a swept axis with `_split_call`, refuses an axis that no call reads unless it is in `EXPERIMENT_AXES` (`_FACTORY_DIALS` since `d53605e`; it was `{agent, model}`, so a YAML `memory` axis was refused), then passes only the keywords the file set to `spec_from_dict`. Whatever the form, `preflight` runs the same sixteen checks before spend, so most Python-form gaps refuse there; the two that did not, `expected_turns` and `idle_baseline`, are derived by `__post_init__` for both forms since `4b994c2` and `60db002`.
+The `!experiment` head (`expr_experiment.experiment`) sorts each keyword of a quoted call into a fixed dial or a swept axis with `_split_call`, refuses an axis that no call reads unless it is in `EXPERIMENT_AXES` (`_FACTORY_DIALS` since `d53605e`; it was `{agent, model}`, so a YAML `memory` axis was refused), then passes only the keywords the file set to `spec_from_dict`. Whatever the form, `preflight` runs the same sixteen checks before spend, so the dial-placement checks the head makes are caught there for the Python form too. `expected_turns` and `idle_baseline` are derived by `__post_init__` for both forms since `4b994c2` and `60db002`, and every field check moved from `spec_from_dict` into the constructor after them, so a Python-built `concurrency=0` or `temperature=2.0` refuses at construction, not at preflight or mid-run.
 
 `spec_to_dict` and `spec_from_dict` are inverses for a spec built either way. `spec_to_text(spec)` (in `expr_experiment.py`) renders a spec back as an experiment file, with the declared contract `load_experiment(text=spec_to_text(spec)) == spec`: each fixed dial and axis goes on the call whose head declares it, the agent side first (a drafter that also declares `max_turns` only reads it), a dial no head declares raises, an `idle_baseline` axis is left for the load to re-add, and a scalar is written only when it differs from its default. `expected_turns` is written only when it differs from what the derivation gives (T066: the sentinel was the literal 8, so a stated 8 beside a 20-turn episode came back 20); `registration` is written (T066: it was dropped, so a licensed spec round-tripped unlicensed).
 
@@ -291,9 +292,9 @@ The factory-dial refusal exists because the guards and the estimate read the spe
 
 
 ## Refused at load, refused at preflight
-`spec_from_dict` refuses what a field can be wrong about alone; `preflight` refuses what needs the registry, the heads, the agents or a drafted world.
+The constructor refuses what a field can be wrong about alone or beside another field, for both forms; `preflight` refuses what needs the registry, the heads, the agents or a drafted world.
 
-| At load (`spec_from_dict`, YAML path only) | At preflight (both forms) |
+| At construction (both forms) | At preflight (both forms) |
 | --- | --- |
 | unpinned `model` or `model` axis level | unresolvable or non-covering `registration` |
 | unknown `agent` axis level | a live model on a guarded drafter or dial, unlicensed |
@@ -313,3 +314,4 @@ Not validated anywhere in `spec.py`: `trials_per_condition` and `base_seed` (bey
 - 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 866b390 (`spec.py` at `245f79c`, which landed during this work and added probe and summarizer pricing to `estimate_cost` and `calls_per_trial` to `CostEstimate`; the page describes it); every member and claim traced to `suite/spec.py`, with the seams checked against `expr_experiment.py` (`experiment`, `_split_call`, `EXPERIMENT_AXES`, `load_experiment`, `spec_to_text`), `experiment.py` (`run_experiment`, `stop()`, `aggregate`), `guards.py`, `drafters.py` (the dial sets), `agents.py` (the `llm` factory), `store.py` (`_build_manifest`), `mass_trial.py` (`condition_grid`, seed labels), `llm_agent.py` (`price_for`, `cost_usd`, `validate_output_budget`), `commands/suite_cmd.py` (`--dry`, `_resume`) and the experiment, round 4/5 and leftovers tests. `condition_grid` lives in `mass_trial.py`, not `conditions.py` (which is the older sampler, off the run path). Left out as members: the private validators (`_validate_*`, `_expected_output_tokens`, `_default_expected_turns`, `_require_pinned_model`, `_DATED_MODEL_RE`, `_REPO_ROOT`), named in prose where they decide behavior; `spec_to_text` and `load_experiment` are defined in `expr_experiment.py` and described, not given blocks. The figure's six field groups are my grouping, not the source's order.
 - Divergences found, not fixed (reported to the caller): a directly built `ExperimentSpec` keeps `expected_turns = 8` (`spec.py` line 71) and `spec_to_dict` then pins that 8 through every reload, so a Python-form 20-turn live spec is estimated at 8 turns; a directly built spec with `idle_baseline=True` runs no idle arm, while `aggregate` and `bio suite resume` rebuild it through `spec_from_dict` with the extra `agent` axis (verified: `spec_from_dict(spec_to_dict(s)) != s`); `memory: k` with `k ≥ T−1` is priced at about twice `full`'s history term, though it sends the same history (line 645); `--dry` prints `model: None` for a live spec on the pinned default (`suite_cmd.py` line 122) while the estimate and manifest name `claude-sonnet-5`; the `experiment` head's docstring still says the axes are the calls' free names "plus agent / model" (`expr_experiment.py` line 572); `ABIO-Experiment` gives `spec.py` 577 lines and 30 fields (736 and 31 today), and its hypotheses table still lists the fixed `PINNED_MODEL` pricing and literal-8 rows.
 - 2026-10-28 — four of the divergences above fixed (T084 follow-up): `expected_turns` and the idle arm are normalised in `ExperimentSpec.__post_init__` for both forms (`4b994c2`, `60db002`); `--dry` prints the model in force via the manifest's `_single_model` / `_model_axis_levels`, the `experiment` head's docstring names the factory dials, and `ABIO-Experiment`'s counts and hypotheses rows are current (one commit after those). The `memory: k ≥ T−1` over-price stands (it errs high).
+- 2026-10-28 — every field check `spec_from_dict` ran (pinned model and `model`/`agent` axis levels, output budget, cost ceiling, price override, `expected_*` counts, design, `concurrency`, `matched_dials`, `key_readout`, sampling, `expected_cache_hit_rate`, `registration`) moved into `ExperimentSpec._validate`, called from `__post_init__`, so the Python form is refused with the same messages; `spec_from_dict` now only reshapes the dict. Still unvalidated in `spec.py`: `trials_per_condition`/`base_seed` beyond the design, the scalar `agent`, `memory`, `token_ceiling` and the forgetting fields (the `agent` check owns them, per arm).
