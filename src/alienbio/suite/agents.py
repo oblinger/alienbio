@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Protocol
 
 
@@ -17,9 +16,8 @@ from .types import (
 )
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
 
-from .spec import ExperimentSpec, _require_pinned_model
+from .spec import ExperimentSpec, require_pinned_model
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -332,7 +330,7 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
         # M46.8: a ``model`` axis level overrides the spec's model per trial,
         # so two generations run inside one grid under identical world seeds.
         model = dials.get("model") or spec.model or PINNED_MODEL
-        _require_pinned_model(model)
+        require_pinned_model(model)
         # One meter shared by the provider call and the agent, so the real
         # usage lands on the record and drives the cost ceiling. (The first
         # paid trial, 2026-08-29, reported calls=0 / $0.00 for a 17 s run:
@@ -341,7 +339,7 @@ def _llm_agent_factory_builder(spec: ExperimentSpec) -> AgentFactory:
         return LLMAgent(
             default_anthropic_llm_fn(model, meter=meter, temperature=spec.temperature, top_p=spec.top_p),
             seed,
-            # T066: ``memory`` is in _FACTORY_DIALS and WORLD_INVARIANT_DIALS,
+            # T066: ``memory`` is in FACTORY_DIALS and WORLD_INVARIANT_DIALS,
             # so a memory axis passes the dial check, becomes a condition key
             # and is seed-matched — but this read ``spec.memory`` with no
             # ``dials.get``, unlike every sibling below, so the whole ladder

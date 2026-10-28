@@ -85,13 +85,7 @@ from ..bio.reaction import Modulation
 from .blocks import SinkBlock, SourceBlock, _modulator_fragment
 from .dist import Constant, Dist, Seed
 from .pressure_gen import (
-    DEFAULT_K_BYPRODUCT,
-    DEFAULT_K_CLEAN,
-    DEFAULT_K_FAST,
-    DEFAULT_K_I2T,
-    DEFAULT_K_UPTAKE,
     DEFAULT_SHARE_RATIO,
-    DEFAULT_SOURCE_RATE,
     DEFAULT_TARGET_MARGIN,
     SCORE_READS,
     _SIM_CFG,

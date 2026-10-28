@@ -7,7 +7,6 @@ import functools
 import inspect
 import warnings
 import math
-from pathlib import Path
 from typing import Any, Iterable, Mapping, NamedTuple, Optional, Protocol, Sequence, cast
 
 
@@ -28,7 +27,6 @@ from .pressure_gen import (
     draft_pressure_world,
     passive_reach,
     applied_variance_factors,
-    world_variance_factors,
 )
 from .w2_gen import draft_w2_world
 from .runner import run
@@ -47,7 +45,6 @@ from .types import (
 )
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from .spec import ExperimentSpec
 
@@ -304,13 +301,13 @@ def phase1_pressure(
             "'coupling_unobservable' is the structural negative control"
         )
     from .phase1_gen import _SIM_CFG as _PHASE1_SIM_CFG
-    from .runner import _resolve_int_dial
+    from .runner import resolve_int_dial
 
     run_defaults = inspect.signature(run).parameters
     default_sim: SimConfig = run_defaults["sim_cfg"].default
     horizon_dials = {"max_turns": max_turns, "sim_steps": sim_steps}
-    turns = _resolve_int_dial(horizon_dials, "max_turns", run_defaults["max_turns"].default)
-    steps_per_turn = _resolve_int_dial(horizon_dials, "sim_steps", default_sim.steps)
+    turns = resolve_int_dial(horizon_dials, "max_turns", run_defaults["max_turns"].default)
+    steps_per_turn = resolve_int_dial(horizon_dials, "sim_steps", default_sim.steps)
     episode_horizon_s = turns * steps_per_turn * float(sim_dt if sim_dt is not None else default_sim.dt)
     if "sim_cfg" not in generator:
         generator["sim_cfg"] = SimConfig(
@@ -745,12 +742,12 @@ def pressure_w2(
     certainty_windows = _certainty_windows(generator, certainty)
     score_read = generator.get("score_read", "final")
     score_window = generator.get("score_window", 0.0)
-    from .runner import _resolve_int_dial
+    from .runner import resolve_int_dial
     from .w2_gen import assert_chain_lag, chain_lag_s
 
     run_defaults = inspect.signature(run).parameters
     default_sim: SimConfig = run_defaults["sim_cfg"].default
-    steps_per_turn = _resolve_int_dial({"sim_steps": sim_steps}, "sim_steps", default_sim.steps)
+    steps_per_turn = resolve_int_dial({"sim_steps": sim_steps}, "sim_steps", default_sim.steps)
     step_s = float(sim_dt if sim_dt is not None else default_sim.dt)
     if not math.isfinite(step_s) or step_s <= 0.0:
         raise ValueError(f"sim_dt must be a finite number > 0, got {sim_dt!r}")
@@ -1284,7 +1281,7 @@ def diagnose(
 
     if hazard:
         from .hazard import HAZARD_MOLECULE, assert_hazard_gate, diagnosis_considerations, hazard_oracle
-        from .runner import _resolve_int_dial
+        from .runner import resolve_int_dial
 
         horizon_dials = {"max_turns": max_turns, "hazard_horizon": hazard_horizon, "sim_steps": sim_steps}
         run_defaults = inspect.signature(run).parameters
@@ -1292,11 +1289,11 @@ def diagnose(
         # The hazard's horizon is a WORLD property: ``hazard_horizon`` when
         # dialed (EXP-5 sweeps ``max_turns`` as a deliberation budget over one
         # fixed hazard), else the trial's own ``max_turns``.
-        turns = _resolve_int_dial(horizon_dials, "max_turns", run_defaults["max_turns"].default)
-        horizon = _resolve_int_dial(horizon_dials, "hazard_horizon", turns)
+        turns = resolve_int_dial(horizon_dials, "max_turns", run_defaults["max_turns"].default)
+        horizon = resolve_int_dial(horizon_dials, "hazard_horizon", turns)
         sim_cfg = SimConfig(
             dt=float(sim_dt if sim_dt is not None else default_sim.dt),
-            steps=_resolve_int_dial(horizon_dials, "sim_steps", default_sim.steps),
+            steps=resolve_int_dial(horizon_dials, "sim_steps", default_sim.steps),
             sample_every=default_sim.sample_every,
         )
         oracle = hazard_oracle(world, HAZARD_MOLECULE, float(hazard_threshold), horizon, sim_cfg)
@@ -1317,12 +1314,12 @@ def predict(*, n_nodes: int = 4, ill_posed: bool = False, max_turns: Optional[in
     should-have-considered set over ``max_turns``."""
     from .generative import generative_predict
     from .hazard import prediction_considerations
-    from .runner import _resolve_int_dial
+    from .runner import resolve_int_dial
 
     ill_posed = bool(ill_posed)
     world, task = _generative_suite(generative_predict(n_nodes=n_nodes, ill_posed=ill_posed), env.ctx.seed, **generator)
     run_defaults = inspect.signature(run).parameters
-    turns = _resolve_int_dial({"max_turns": max_turns}, "max_turns", run_defaults["max_turns"].default)
+    turns = resolve_int_dial({"max_turns": max_turns}, "max_turns", run_defaults["max_turns"].default)
     binding = task.skeleton.binding
     schedule = [c.to_dict() for c in prediction_considerations(binding["perturbed"], binding["target"], ill_posed, turns)]
     task = _with_oracle(task, "ill_posed", ill_posed, considerations=schedule)
@@ -1384,7 +1381,7 @@ def drafter_heads() -> dict[str, Head]:
 
 #: Dial names read by the agent factory / the experiment itself rather than
 #: by a drafter, the brief or the episode (see :func:`runtime_dials`).
-_FACTORY_DIALS: frozenset[str] = frozenset(
+FACTORY_DIALS: frozenset[str] = frozenset(
     {"agent", "model", "memory", "compact_at", "compact_budget", "history_token_limit", "max_tokens", "output_schedule"}
 )
 
@@ -1400,7 +1397,7 @@ def runtime_dials() -> frozenset[str]:
     carry; anything else is read by nobody (:func:`unknown_dials`)."""
     from .expr_experiment import brief, episode
 
-    names: set[str] = set(WORLD_INVARIANT_DIALS) | set(_FACTORY_DIALS)
+    names: set[str] = set(WORLD_INVARIANT_DIALS) | set(FACTORY_DIALS)
     for fn in (brief, episode):
         names.update(
             name
@@ -1531,7 +1528,7 @@ def guarded_drafters() -> frozenset[str]:
 #: The drafters declare their own (``hazard*``, ``perturbation``,
 #: ``symbiosis``, ``target_margin``, ``rung``, ``priority``, ``pi`` …)
 #: through ``guarded_params`` / ``guarded`` on the head.
-_GUARDED_BRIEF_DIALS: frozenset[str] = frozenset(
+GUARDED_BRIEF_DIALS: frozenset[str] = frozenset(
     {"constitution", "monitoring", "framing", "stakes", "reversibility", "assays",
      "monitor_coverage", "monitor_sham", "monitor_salience", "task_note"}
 )
@@ -1554,7 +1551,7 @@ def guarded_dials() -> frozenset[str]:
     drafter's name (AUP clarification, 2026-08-28): a plain ``diagnose`` /
     ``predict`` / ``intervene`` world may host a live model; the same world
     with one of these dials may not."""
-    names: set[str] = set(_GUARDED_BRIEF_DIALS)
+    names: set[str] = set(GUARDED_BRIEF_DIALS)
     for head in drafter_heads().values():
         names.update(head.guarded_params)
         if head.guarded:

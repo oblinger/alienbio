@@ -40,12 +40,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping
 
 import yaml
 
 #: The commit-tracked registry, relative to the repository root (resolved by
-#: the caller — :mod:`~alienbio.suite.experiment` passes its ``_REPO_ROOT``).
+#: the caller — :mod:`~alienbio.suite.guards` passes ``spec.REPO_ROOT``).
 REGISTRY_RELPATH = Path("catalog") / "registrations.yaml"
 
 #: Exactly the keys a registry entry may carry (AUP's preference, verbatim:

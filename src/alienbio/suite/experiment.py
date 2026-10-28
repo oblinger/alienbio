@@ -47,86 +47,26 @@ import by a catalog file's ``_includes_``).
 from __future__ import annotations
 
 import dataclasses
-import hashlib
-import functools
-import inspect
-import warnings
 import json
-import math
-import platform
-import re
-import statistics
-import subprocess
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, NamedTuple, Optional, Protocol, Sequence, Union, cast
+from typing import Any, Callable, Mapping, Optional, Union
 
-import yaml
-
-from .. import __version__
 from ..bio.world import WorldImpl
-from ..bio.world_state import WorldStateImpl
-from .agent import Action, Agent, Commit, Intervene, Measure, ReasoningStep, ScriptedAgent, Wait
-from ..expr.registry import Head, fn as _head, registry as _registry
-from .archetypes import identify_pathway as identify_pathway_archetype
-from .brief import Affordances, TaskBrief
-from .conflict_gen import draft_conflict_world
-from .delta_gen import draft_delta_pair
-from .delta import delta_summary
-from .deliberation import DeliberationStep, DeliberationTrace
-from .dist import Constant, Seed
-from .info_seeking import ActionRecord
-from .effect_size import cohens_d, welch_t
-from .hazard import DEPTHS, OBJECTIVE_TYPES, blindspot_summary, consideration_summary, hazard_surfacing_summary
-from .tradeoff import conflict_summary, precedence_ladder
-from .dose import dose_profile, pressure_summary
-from .caution import CAUTION_AXES, appropriate_caution, caution_factorial, caution_summary, caution_trend
-from .degradation import degradation_ladder, degradation_summary
-from .faking import monitoring_divergence, monitoring_summary
-from .census import census_summary, outcome_distribution
-from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, load_models_snapshot, model_created_at, price_for
-from .power import PowerDesign, bonferroni_alpha
-from .mass_trial import AgentFactory, MassTrialRunner, ReliabilityMap, aggregate_records
-from .observation import Observation
-from .pipeline import build_suite
-from .phase1_gen import (
-    PHASE1_DOWN_VARIANTS,
-    PHASE1_VARIANTS,
-    draft_phase1_world,
-    phase1_chemistry_note,
-)
-from .pressure_gen import FEED_MAX_RATE, control_surface, draft_pressure_world, passive_reach
-from .runner import run
-from .trial import ProbeRecord, TrialRecord, final_state_dict
-from .verify import SimConfig
-from .types import (
-    Answer,
-    AnswerObjective,
-    CarveResult,
-    GraderSpec,
-    Motif,
-    Objective,
-    OutcomeObjective,
-    Question,
-    SuiteSpec,
-    TaskInstance,
-    Timeline,
-)
-
-from .registration import REGISTRY_RELPATH, Registration, resolve_registration
-
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+from .dist import Seed
+from .llm_agent import PINNED_MODEL, cost_usd, price_for
+from .mass_trial import MassTrialRunner, ReliabilityMap, aggregate_records
+from .trial import TrialRecord
+from .types import TaskInstance
+from .spec import REPO_ROOT as _REPO_ROOT  # noqa: F401 — the old name
 
 # ── T058: the module is the facade over spec / drafters / agents / store / guards / report_text —
 #    every name the old 3.3k-line experiment.py defined is importable from here unchanged.
-# ruff: noqa: F401
 from .spec import (  # noqa: F401
     CostEstimate,
     ExperimentSpec,
     _DATED_MODEL_RE,
-    _default_expected_turns,
-    _require_pinned_model,
+    default_expected_turns as _default_expected_turns,
+    require_pinned_model as _require_pinned_model,
     _validate_cost_ceiling,
     _validate_design,
     _validate_key_readout,
@@ -159,8 +99,8 @@ from .drafters import (  # noqa: F401
     WORLD_INVARIANT_DIALS,
     _DISCOVER_GATE_SIM,
     _Drafters,
-    _FACTORY_DIALS,
-    _GUARDED_BRIEF_DIALS,
+    FACTORY_DIALS as _FACTORY_DIALS,
+    GUARDED_BRIEF_DIALS as _GUARDED_BRIEF_DIALS,
     _adapt,
     _check_epistemic_access,
     _correlational_evidence,

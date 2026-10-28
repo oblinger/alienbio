@@ -18,7 +18,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .dist import Seed
 from .types import (
     Answer,
     FeatureSet,

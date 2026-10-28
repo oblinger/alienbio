@@ -51,7 +51,7 @@ from ..bio.world import WorldImpl
 from ..expr.env import Env, ExprError
 from ..expr.form import Call, Name, contains_form
 from ..expr.interp import QuotedForm
-from ..expr.registry import Head, fn, registry as _registry
+from ..expr.registry import fn, registry as _registry
 from ..expr.yaml_tags import load_text
 from .agent import Agent
 from .arch_diagnose import DiagnosePerturbationRecipe, TARGET_ROLE as DIAGNOSE_TARGET_ROLE
@@ -62,8 +62,8 @@ from .carve import CarveFail, carve as _carve
 from .cover import Cover, cover as _cover
 from .dist import Constant, Dist, Seed
 from .agents import AGENTS
-from .drafters import _FACTORY_DIALS, _GUARDED_BRIEF_DIALS, dial_params, drafter_heads
-from .spec import ExperimentSpec, _default_expected_turns, _require_pinned_model, spec_from_dict, spec_to_dict
+from .drafters import FACTORY_DIALS, GUARDED_BRIEF_DIALS, dial_params
+from .spec import ExperimentSpec, default_expected_turns, require_pinned_model, spec_from_dict, spec_to_dict
 from .mass_trial import AgentFactory
 from .pipeline import build_suite
 from .power import PowerDesign
@@ -324,12 +324,12 @@ def vocabulary(world: WorldImpl, extra_tokens: Sequence[str] = (), *, env: Env) 
 #: ``guarded_params`` of :func:`brief`; the drafters declare theirs).
 #: The ``guarded_params`` of :func:`brief` — the brief-side dials a live
 #: model reaches only through a registration naming them. T066: this was a
-#: second hand-written copy of ``drafters._GUARDED_BRIEF_DIALS``, and only
+#: second hand-written copy of ``drafters.GUARDED_BRIEF_DIALS``, and only
 #: THAT one was enforced by ``guarded_dials()``, so a dial added here alone
 #: would have been admitted unlicensed. It is now the same object: the
 #: declaration lives beside the guard that reads it, and the head that
 #: enforces it takes it from there. The drafters declare their own.
-BRIEF_GUARDED: frozenset[str] = _GUARDED_BRIEF_DIALS
+BRIEF_GUARDED: frozenset[str] = GUARDED_BRIEF_DIALS
 
 
 @fn(guarded_params=BRIEF_GUARDED, summary="what the agent is told and shown: the brief-side dials")
@@ -441,13 +441,13 @@ def llm(model: Optional[str] = None, memory: Union[str, int] = "full", token_cei
     """``llm`` — a real-model :class:`~alienbio.suite.llm_agent.LLMAgent`
     factory pinned to ``model`` (a dated generation, never an alias)."""
     if model is not None:
-        _require_pinned_model(model)
+        require_pinned_model(model)
 
     def factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
         from .llm_agent import LLMAgent, PINNED_MODEL, UsageMeter, default_anthropic_llm_fn
 
         chosen = dials.get("model") or model or PINNED_MODEL
-        _require_pinned_model(chosen)
+        require_pinned_model(chosen)
         meter = UsageMeter()
         return LLMAgent(default_anthropic_llm_fn(chosen, meter=meter), seed, memory=memory, token_ceiling=token_ceiling, meter=meter)
 
@@ -480,7 +480,7 @@ SIDE_HEADS: tuple[str, ...] = ("brief", "episode")
 #: trial's dials, so the Python form sweeps them as plain axes. Round 4/5
 #: leftover (2026-10-27): this was ``{agent, model}`` alone, so a YAML
 #: ``axes: {memory: [2, 6]}`` was refused as "swept but no call reads them".
-EXPERIMENT_AXES: frozenset[str] = _FACTORY_DIALS
+EXPERIMENT_AXES: frozenset[str] = FACTORY_DIALS
 
 
 def _split_call(
@@ -570,7 +570,7 @@ def experiment(
     """Build an :class:`~alienbio.suite.experiment.ExperimentSpec` from the
     experiment form (module docstring). The swept axes are the free names of
     the quoted ``task`` / ``brief`` / ``episode`` calls, plus the factory
-    dials (:data:`EXPERIMENT_AXES` = ``_FACTORY_DIALS``: ``agent``, ``model``,
+    dials (:data:`EXPERIMENT_AXES` = ``FACTORY_DIALS``: ``agent``, ``model``,
     ``memory``, the forgetting and output-budget dials …), which sweep with
     no binding; the other keywords of those calls are the fixed dials."""
     axes = dict(axes or {})
@@ -787,7 +787,7 @@ def spec_to_text(spec: ExperimentSpec, *, header: str = "") -> str:
         # produce for this spec, which is exactly "the author said so".
         "expected_turns": (
             d["expected_turns"]
-            if d["expected_turns"] != _default_expected_turns(spec.fixed_dials, spec.axes)
+            if d["expected_turns"] != default_expected_turns(spec.fixed_dials, spec.axes)
             else None
         ),
         "expected_prompt_tokens": d["expected_prompt_tokens"] if d["expected_prompt_tokens"] != 1500 else None,

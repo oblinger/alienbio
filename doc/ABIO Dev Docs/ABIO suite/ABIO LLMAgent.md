@@ -351,7 +351,7 @@ The key comes from `config.get_api_key("anthropic")`: `ANTHROPIC_API_KEY` in the
 
 
 ## Pinned models and the snapshot
-A run's model must be a pinned generation (T016, `_require_pinned_model` in `suite/spec.py`, called again by the `llm` factory): not ending in `-latest`, and either dated (`-YYYYMMDD`) or present in `models_snapshot.json`. The snapshot is refreshed by `bio suite models` (`fetch_models_snapshot` then `write_models_snapshot`), and `model_created_at` puts the listed release date on the manifest, so two runs naming an undated id such as `claude-sonnet-5` can be shown to be the same generation. A `model` axis level overrides the spec's model per trial; `PINNED_MODEL` applies when neither names one.
+A run's model must be a pinned generation (T016, `require_pinned_model` in `suite/spec.py`, called again by the `llm` factory): not ending in `-latest`, and either dated (`-YYYYMMDD`) or present in `models_snapshot.json`. The snapshot is refreshed by `bio suite models` (`fetch_models_snapshot` then `write_models_snapshot`), and `model_created_at` puts the listed release date on the manifest, so two runs naming an undated id such as `claude-sonnet-5` can be shown to be the same generation. A `model` axis level overrides the spec's model per trial; `PINNED_MODEL` applies when neither names one.
 
 
 

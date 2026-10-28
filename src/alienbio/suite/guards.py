@@ -16,7 +16,6 @@ from .phase1_gen import (
 
 from .registration import REGISTRY_RELPATH, Registration, resolve_registration
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from .drafters import (
     CONFLICT_FREE_ADMITTED_DIALS,
@@ -27,13 +26,14 @@ from .drafters import (
     guarded_dials,
     guarded_drafters,
     unknown_spec_dials,
-    _FACTORY_DIALS,
+    FACTORY_DIALS,
     _unknown_dials_message,
 )
 from .spec import (
+    REPO_ROOT,
     CostEstimate,
     ExperimentSpec,
-    _default_expected_turns,
+    default_expected_turns,
     agent_kinds_in_play,
     estimate_cost,
     spec_to_dict,
@@ -110,7 +110,7 @@ def fixed_factory_dials_violation(spec: ExperimentSpec) -> Optional[str]:
     priced and recorded another. Each has a spec field (held fixed) or an
     axis (swept); one place each keeps the guards and the run agreeing.
     """
-    misplaced = sorted(set(spec.fixed_dials) & _FACTORY_DIALS)
+    misplaced = sorted(set(spec.fixed_dials) & FACTORY_DIALS)
     if not misplaced:
         return None
     return (
@@ -175,7 +175,7 @@ def registration_admission(
     """
     if spec.registration is None:
         return None
-    reg = resolve_registration(spec.registration, registry_path or (_REPO_ROOT / REGISTRY_RELPATH))
+    reg = resolve_registration(spec.registration, registry_path or (REPO_ROOT / REGISTRY_RELPATH))
     unknown = sorted(reg.drafters - set(DRAFTERS))
     if unknown:
         raise ValueError(
@@ -473,7 +473,7 @@ def inert_arm_violation(spec: ExperimentSpec) -> Optional[str]:
     # Round 4: each cell's own ``max_turns``, not the grid's largest — a
     # ``max_turns: [4, 40]`` axis with ``compact_at: 10`` left the 4-turn
     # cells inert while the 40-turn ones cleared the check.
-    grid_turns = _default_expected_turns(spec.fixed_dials, spec.axes)
+    grid_turns = default_expected_turns(spec.fixed_dials, spec.axes)
     for dials in _condition_dial_vectors(spec):
         turns = dials.get("max_turns", grid_turns)
         if isinstance(turns, bool) or not isinstance(turns, int):
@@ -662,7 +662,7 @@ def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
 
     def _derived_turns(d: Mapping[str, Any]) -> int:
         axes = tuple((name, tuple(levels)) for name, levels in dict(d.get("axes") or {}).items())
-        return _default_expected_turns(d.get("fixed_dials") or {}, axes)
+        return default_expected_turns(d.get("fixed_dials") or {}, axes)
 
     # Round 5: ``expected_turns`` is persisted as its DERIVED value when the
     # spec leaves it unset — the largest ``max_turns`` level — so widening a

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import statistics
-from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 
@@ -21,7 +20,6 @@ from .mass_trial import ReliabilityMap
 from .store import manifest_model_label
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 

@@ -26,9 +26,8 @@ from .types import (
 )
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
 
-from .spec import ExperimentSpec, agent_kinds_in_play, estimate_cost, spec_to_dict
+from .spec import REPO_ROOT, ExperimentSpec, agent_kinds_in_play, estimate_cost, spec_to_dict
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -514,7 +513,7 @@ def _single_model(spec: ExperimentSpec) -> Optional[str]:
 def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) -> dict[str, Any]:
     spec_dict = spec_to_dict(spec)
     spec_sha256 = hashlib.sha256(_canonical_json(spec_dict).encode("utf-8")).hexdigest()
-    git_commit, git_dirty = _git_info(_REPO_ROOT)
+    git_commit, git_dirty = _git_info(REPO_ROOT)
     # DEFAULT_DIRECTIVE, not the directive in force: equal today (agents.py never passes another); latent if one becomes a dial.
     directive_sha256 = hashlib.sha256(DEFAULT_DIRECTIVE.encode("utf-8")).hexdigest()
     from .guards import registration_admission  # guards imports this module; resolve late

@@ -13,7 +13,9 @@ from .llm_agent import PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, validate
 from .power import PowerDesign
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+#: The repository root — the one definition; ``catalog/`` and the
+#: registry resolve against it.
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -138,7 +140,7 @@ class ExperimentSpec:
             object.__setattr__(self, name, value)
 
         if self.model is not None:
-            _require_pinned_model(self.model)
+            require_pinned_model(self.model)
         # M46.8: an ``agent`` / ``model`` axis is validated like the scalar fields.
         from .agents import AGENTS  # agents imports this module; resolve late
 
@@ -149,7 +151,7 @@ class ExperimentSpec:
                     raise ValueError(f"experiment spec: unknown agent axis level(s) {unknown}; expected one of {sorted(AGENTS)}")
             if name == "model":
                 for level in levels:
-                    _require_pinned_model(level)
+                    require_pinned_model(level)
         put("output_schedule", _validate_output_schedule(self.max_tokens, self.output_schedule))
         put("cost_ceiling_usd", _validate_cost_ceiling(self.cost_ceiling_usd))
         put("price_usd_per_mtok", _validate_price_override(self.price_usd_per_mtok))
@@ -158,7 +160,7 @@ class ExperimentSpec:
         # was estimated at 8 turns, and ``spec_to_dict`` pinned the 8 through
         # every reload — the under-price an operator reads before spending.
         if self.expected_turns is None:
-            turns = _default_expected_turns(self.fixed_dials, self.axes)
+            turns = default_expected_turns(self.fixed_dials, self.axes)
         else:
             turns = _validate_positive_int("expected_turns", self.expected_turns)
         put("expected_turns", turns)
@@ -325,7 +327,7 @@ def _expected_output_tokens(spec: "ExperimentSpec") -> int:
     return max(declared)
 
 
-def _default_expected_turns(fixed_dials: Mapping[str, Any], axes: Sequence[tuple[str, tuple[Any, ...]]]) -> int:
+def default_expected_turns(fixed_dials: Mapping[str, Any], axes: Sequence[tuple[str, tuple[Any, ...]]]) -> int:
     """The dry-run turn count when the spec does not set ``expected_turns``:
     the declared episode budget, not a constant. A fixed ``max_turns`` dial
     wins; a swept ``max_turns`` axis uses its largest level (the estimate
@@ -497,7 +499,7 @@ def _validate_positive_int(name: str, value: Any) -> int:
 _DATED_MODEL_RE = re.compile(r".*-\d{8}$")
 
 
-def _require_pinned_model(model: Any, snapshot: Optional[Mapping[str, str]] = None) -> None:
+def require_pinned_model(model: Any, snapshot: Optional[Mapping[str, str]] = None) -> None:
     """M45.11 / T016 — a run's model id must be a pinned generation, never a
     floating alias, so two runs that name the same id ran the same model.
     Pinned means: not ``-latest``, and either a dated id (``-YYYYMMDD``) or an
@@ -542,7 +544,7 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
     # The framework's own catalog is trusted (its files may include Python
     # helpers); anything else loads untrusted.
     resolved = Path(path).resolve()
-    trusted = (_REPO_ROOT / "catalog").resolve() in resolved.parents
+    trusted = (REPO_ROOT / "catalog").resolve() in resolved.parents
     return load_experiment(path, trusted=trusted)
 
 

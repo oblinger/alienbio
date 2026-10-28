@@ -37,7 +37,7 @@ from typing import (
     runtime_checkable,
 )
 
-from .dist import Dist, ParamSchema, Seed
+from .dist import Dist, Seed
 
 if TYPE_CHECKING:
     from ..bio.world import WorldImpl

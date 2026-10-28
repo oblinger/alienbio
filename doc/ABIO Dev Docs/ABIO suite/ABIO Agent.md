@@ -288,7 +288,7 @@ The factory signature is `(seed, dials) -> Agent`. `MassTrialRunner` derives eac
 | Scripted, session-shaped | `Agent`, `SessionAgent` | `heuristic-commit`, `knockout-commit`, `act-commit`, `assay-commit`, `pursue-target` | yes: question, irreversible levers, levers, assays, target and goal |
 | Live model | `Agent`, `SessionAgent`, `ProbeAgent` | `llm` (`LLMAgent`) | yes, rendered into the system prompt |
 
-`OpaqueAgent` is not registered: the runner inserts it around whichever agent a trial uses. The kind is `dials["agent"]` when that dial is swept, else the spec's `agent`; `_agent_factory_for` refuses an unknown kind. The factory-read dials (`agent`, `model`, `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens`, `output_schedule`) are `_FACTORY_DIALS` in `suite/drafters.py`; only the `llm` factory reads any beyond `agent`.
+`OpaqueAgent` is not registered: the runner inserts it around whichever agent a trial uses. The kind is `dials["agent"]` when that dial is swept, else the spec's `agent`; `_agent_factory_for` refuses an unknown kind. The factory-read dials (`agent`, `model`, `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens`, `output_schedule`) are `FACTORY_DIALS` in `suite/drafters.py`; only the `llm` factory reads any beyond `agent`.
 
 
 

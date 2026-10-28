@@ -232,7 +232,7 @@ def _ignored_cost_note(action: Action) -> str:
     return f"params cost {params['cost']!r} ignored (the cost table is the runner's)"
 
 
-def _resolve_int_dial(dials: Mapping[str, Any], name: str, default: int) -> int:
+def resolve_int_dial(dials: Mapping[str, Any], name: str, default: int) -> int:
     """``dials[name]`` as a positive int, else ``default`` when absent (M46.6).
 
     A present-but-invalid value (non-int, ``bool``, ``< 1``) raises rather
@@ -513,15 +513,15 @@ def trial_preamble(
     # parameters, not hidden defaults: the keyword arguments are the defaults
     # a condition's dials may override, so a sweep can put either on an axis
     # and every record carries the values in force (via the brief).
-    max_turns = _resolve_int_dial(dials, "max_turns", max_turns)
+    max_turns = resolve_int_dial(dials, "max_turns", max_turns)
     assay_kill = float(dials.get("assay_kill", assay_kill))
     if not (0.0 <= assay_kill <= 1.0):
         raise ValueError(f"dials['assay_kill'] must be in [0, 1], got {assay_kill!r}")
     sim_cfg = dataclasses.replace(
         sim_cfg,
-        steps=_resolve_int_dial(dials, "sim_steps", sim_cfg.steps),
+        steps=resolve_int_dial(dials, "sim_steps", sim_cfg.steps),
         dt=float(dials.get("sim_dt", sim_cfg.dt)),
-        sample_every=_resolve_int_dial(dials, "sample_every", sim_cfg.sample_every),
+        sample_every=resolve_int_dial(dials, "sample_every", sim_cfg.sample_every),
     )
 
     # T025 — ``task.setup["hidden_ids"]``: molecule ids the DRAFTER declares
