@@ -17,12 +17,18 @@ each drain, ALWAYS, into their own dedicated boundedness sink (``sink_a``/
 ``sink_b`` — F012 D-f), regardless of ``invert``; ``source_a``'s supply rate
 is ALWAYS the larger of the two (``r_a > r_b`` — Q1's fixed "conventionally-
 implicated" signal: the larger SUPPLY regardless of which world you are in).
-Larger supply is not a larger observed level: the driver drains at
-``k_drive + k_sink``, the decoy at ``k_sink`` alone, so the decoy's level
-overtakes the driver's early (≈ 2.6 s on ``W_match`` at the defaults) and
-reads larger on both arms at the 20 s horizon (T088 delta_gen 1). A
-"largest observed level" rule is therefore right on ``W_match`` only for an
-early read. On top of that fixed scaffold, exactly ONE
+The larger supply is also the larger observed LEVEL on ``W_match`` at
+every time (T088 Q4 = A): ``source_b``'s own sink drains at ``k_sink_b``,
+large enough that the driver's steady level ``r_a / (k_drive + k_sink)``
+stays above the decoy's ``r_b / k_sink_b``. With both pools starting empty
+and ``r_a > r_b``, that steady-state order is the order at every ``t > 0``
+(each level is ``r/λ · (1 − e^{−λt})``, whose ratio moves monotonically
+from ``r_a/r_b`` to the steady ratio), so a "largest observed level" rule
+is right on ``W_match`` and wrong on ``W_mismatch`` whenever it reads —
+on ``W_mismatch`` the decoy ``source_a`` drains at ``k_sink`` alone and
+reads larger throughout. :func:`_assert_level_order` checks both orders at
+draft time, closed form and on a dense simulation. On top of that fixed
+scaffold, exactly ONE
 additional reaction — ``route_drive`` (``driver_pool -> T``) — is wired to
 whichever source is the TRUE driver: ``source_a`` when ``invert=False``
 (``W_match``, so the conventional heuristic "the bigger signal drives it"
@@ -65,6 +71,9 @@ worlds and asserts, per the taint-free simulate-to-verify posture:
 - the two worlds' true-driver answers actually DIFFER (the switch really
   flipped it, not just a no-op rewire);
 - neither world is unsolvable: baseline ``T`` clears a floor target in both;
+- the levels the agent reads carry the arm's name: on ``W_match`` the
+  driver's level exceeds the decoy's at every sample and at steady state,
+  on ``W_mismatch`` the decoy's exceeds the driver's (:func:`_assert_level_order`);
 - discoverability: rebuilding either world with the TRUE driver's supply cut
   to zero collapses ``T`` back below that floor (perturbing the driver moves
   ``T``), while cutting the DECOY's supply to zero leaves ``T`` unchanged
@@ -77,6 +86,8 @@ of the above fails to hold for a given rate configuration.
 
 from __future__ import annotations
 
+import dataclasses
+import math
 from dataclasses import dataclass
 from typing import Optional
 
@@ -92,9 +103,10 @@ from .skeleton import (
     SkeletonBlock,
     SkeletonError,
     final_amount,
+    state_amount,
 )
 from .types import Answer, AnswerObjective, GraderSpec, Objective, Timeline
-from .verify import SimConfig
+from .verify import SimConfig, simulate
 
 #: Default supply rates: ``source_a`` is ALWAYS the larger/"conventionally-
 #: implicated" signal (Q1's fixed heuristic target) regardless of ``invert``.
@@ -104,11 +116,20 @@ DEFAULT_R_B = 1.0
 #: Default rate for the ``route_drive`` reaction (whichever pool feeds ``T``).
 DEFAULT_K_DRIVE = 2.0
 
-#: Default rate for each signal's OWN, always-on boundedness sink
-#: (``sink_a``/``sink_b``, F012 D-f) — deliberately small relative to
-#: ``DEFAULT_K_DRIVE`` so it barely perturbs the driver's own dynamics; it
-#: exists purely so an un-driven (decoy) signal still has a bounded fate.
+#: Default rate for ``source_a``'s OWN, always-on boundedness sink
+#: (``sink_a``, F012 D-f) — deliberately small relative to
+#: ``DEFAULT_K_DRIVE`` so it barely perturbs the driver's own dynamics on
+#: ``W_match``; on ``W_mismatch`` it is the decoy's only drain, so the decoy
+#: reads larger than the driver throughout.
 DEFAULT_K_SINK = 0.05
+
+#: Default rate for ``source_b``'s own sink (``sink_b``). Large enough that
+#: on ``W_match`` the decoy's steady level ``r_b / k_sink_b`` (1.0) sits below
+#: the driver's ``r_a / (k_drive + k_sink)`` (≈ 2.44) — the bigger supply is
+#: the bigger level at every time (T088 Q4 = A) — while on ``W_mismatch``,
+#: where ``source_b`` drives ``T``, ``T`` still clears ``DEFAULT_T_TARGET``
+#: (steady ``k_drive · r_b / (k_drive + k_sink_b) / k_t_sink`` ≈ 0.67).
+DEFAULT_K_SINK_B = 1.0
 
 #: Default rate draining ``T`` (its bounded fate, F012 D-f).
 DEFAULT_K_T_SINK = 1.0
@@ -156,13 +177,14 @@ class _DeltaCruxBlock(SkeletonBlock):
         r_b: Dist[float],
         k_drive: Dist[float],
         k_sink: Dist[float],
+        k_sink_b: Dist[float],
         k_t_sink: Dist[float],
         params: Optional[dict] = None,
     ) -> "_DeltaCruxBlock":
         source_a = SourceBlock.make("source_a", container=container, rate=r_a)
         source_b = SourceBlock.make("source_b", container=container, rate=r_b)
         sink_a = SinkBlock.make("sink_a", container=container, rate=k_sink)
-        sink_b = SinkBlock.make("sink_b", container=container, rate=k_sink)
+        sink_b = SinkBlock.make("sink_b", container=container, rate=k_sink_b)
         route_drive = ReactionBlock(
             name="route_drive",
             role=Role.CRUX,
@@ -228,6 +250,7 @@ def build_delta_skeleton(
     r_b: Dist[float],
     k_drive: Dist[float],
     k_sink: Dist[float],
+    k_sink_b: Dist[float],
     k_t_sink: Dist[float],
 ) -> Skeleton:
     """The Delta shape: ``root -> _DeltaCruxBlock`` (self-contained, no
@@ -245,6 +268,7 @@ def build_delta_skeleton(
         r_b=r_b,
         k_drive=k_drive,
         k_sink=k_sink,
+        k_sink_b=k_sink_b,
         k_t_sink=k_t_sink,
     )
     root = SkeletonBlock(name="root", role=Role.SUPPLY, children=(crux,))
@@ -267,6 +291,7 @@ def _draft_delta_world(
     r_b: Dist[float],
     k_drive: Dist[float],
     k_sink: Dist[float],
+    k_sink_b: Dist[float],
     k_t_sink: Dist[float],
 ) -> tuple[WorldImpl, Skeleton, Objective]:
     """Draft one side of the Delta pair (``invert=False`` -> ``W_match``,
@@ -277,6 +302,7 @@ def _draft_delta_world(
         r_b=r_b,
         k_drive=k_drive,
         k_sink=k_sink,
+        k_sink_b=k_sink_b,
         k_t_sink=k_t_sink,
     )
     world = skeleton.materialize(seed)
@@ -294,6 +320,69 @@ def _draft_delta_world(
     return world, skeleton, objective
 
 
+def _crux_blocks(skeleton: Skeleton) -> dict[str, SkeletonBlock]:
+    """The crux's children by name (``source_a``, ``source_b``, ``route_drive`` …)."""
+    return {c.name: c for c in skeleton.root.children[0].children}
+
+
+def _reaction_rate(world: WorldImpl, block: str) -> float:
+    """The drafted numeric rate of crux child ``block``'s one reaction."""
+    return float(world.chemistry.reactions[f"root/crux/{block}/rxn"].rate)
+
+
+def _steady_levels(world: WorldImpl, *, invert: bool) -> tuple[float, float]:
+    """Closed-form steady levels ``(driver, decoy)`` of the drafted world: each
+    signal pool is supplied at a constant rate and drained first-order, so its
+    level tends to ``supply / total drain`` — the driver's drain includes
+    ``route_drive``'s, the decoy's is its own sink alone."""
+    r = {name: _reaction_rate(world, name) for name in ("source_a", "source_b", "sink_a", "sink_b", "route_drive")}
+    if invert:
+        return (r["source_b"] / (r["route_drive"] + r["sink_b"]), r["source_a"] / r["sink_a"])
+    return (r["source_a"] / (r["route_drive"] + r["sink_a"]), r["source_b"] / r["sink_b"])
+
+
+def _assert_level_order(
+    side: tuple[WorldImpl, Skeleton, Objective], timeline: Timeline, *, invert: bool
+) -> None:
+    """The arm's name holds in the levels the agent reads (T088 Q4 = A): on
+    ``W_match`` (``invert=False``) the driver's level exceeds the decoy's, on
+    ``W_mismatch`` the decoy's exceeds the driver's — at every sample of the
+    dense ``timeline`` after ``t = 0`` (both pools start empty) and at the
+    closed-form steady state. Both pools start at zero under constant supply
+    and first-order drain, so the steady-state order is the order at every
+    ``t > 0`` whatever the episode's horizon (module docstring); the dense
+    samples check the simulator agrees.
+
+    Raises:
+        SkeletonError: an order fails at some sample or at steady state.
+    """
+    world, skeleton, _objective = side
+    blocks = _crux_blocks(skeleton)
+    driver_id = blocks["source_b" if invert else "source_a"].resolved_ports["out"]
+    decoy_id = blocks["source_a" if invert else "source_b"].resolved_ports["out"]
+    arm = "W_mismatch" if invert else "W_match"
+
+    def ordered(driver: float, decoy: float) -> bool:
+        return decoy > driver if invert else driver > decoy
+
+    steady_driver, steady_decoy = _steady_levels(world, invert=invert)
+    if not ordered(steady_driver, steady_decoy):
+        raise SkeletonError(
+            f"delta gate: {arm} steady levels driver={steady_driver!r}, "
+            f"decoy={steady_decoy!r} — the "
+            + ("decoy must read larger" if invert else "driver must read larger")
+            + " at every time (raise k_sink_b to lower the decoy on W_match)"
+        )
+    for t, state in zip(timeline.times[1:], timeline.states[1:]):
+        driver, decoy = state_amount(state, driver_id), state_amount(state, decoy_id)
+        if not ordered(driver, decoy):
+            raise SkeletonError(
+                f"delta gate: {arm} at t={t!r} reads driver={driver!r}, decoy={decoy!r} — the "
+                + ("decoy must read larger" if invert else "driver must read larger")
+                + " at every sample"
+            )
+
+
 def _assert_delta_gate(
     seed: Seed,
     match: tuple[WorldImpl, Skeleton, Objective],
@@ -303,25 +392,34 @@ def _assert_delta_gate(
     r_b: float,
     k_drive: Dist[float],
     k_sink: Dist[float],
+    k_sink_b: Dist[float],
     k_t_sink: Dist[float],
     t_target: float,
     sim_cfg: SimConfig,
 ) -> None:
-    """Q3=C simulate-both acceptance gate: materialize + simulate BOTH sides
-    of the pair and confirm the invert switch genuinely flipped the answer
-    and that the true driver (and only the true driver) is discoverable —
-    see the module docstring's "simulate-both acceptance gate" section.
+    """Q3=C simulate-both acceptance gate: simulate BOTH sides of the pair
+    and confirm the invert switch genuinely flipped the answer, that each
+    arm's levels carry its name (:func:`_assert_level_order`) and that the
+    true driver (and only the true driver) is discoverable — see the module
+    docstring's "simulate-both acceptance gate" section.
+
+    The baseline is a dense simulation of each DRAFTED world (every step
+    sampled, same ``dt``/``steps`` as ``sim_cfg``, so its final state is
+    ``sim_cfg``'s); the drafted skeletons are not re-materialized, so the
+    chemistry and realized tree cached on them stay the returned worlds'
+    (T088 delta_gen 3). The two cut worlds are fresh skeletons.
 
     Raises:
         SkeletonError: the two worlds' true-driver answers coincide (the
-            switch did not flip anything), a world's baseline ``T`` fails to
-            clear ``t_target`` (unsolvable), cutting the identified true
-            driver's supply fails to collapse ``T`` back below ``t_target``
-            (the identified driver isn't actually load-bearing), or cutting
-            the decoy's supply moves ``T`` (the decoy isn't causally inert).
+            switch did not flip anything), an arm's level order fails, a
+            world's baseline ``T`` fails to clear ``t_target`` (unsolvable),
+            cutting the identified true driver's supply fails to collapse
+            ``T`` back below ``t_target`` (the identified driver isn't
+            actually load-bearing), or cutting the decoy's supply moves ``T``
+            (the decoy isn't causally inert).
     """
-    _world_match, skeleton_match, objective_match = match
-    _world_mismatch, skeleton_mismatch, objective_mismatch = mismatch
+    _world_match, _skeleton_match, objective_match = match
+    _world_mismatch, _skeleton_mismatch, objective_mismatch = mismatch
     assert isinstance(objective_match, AnswerObjective)
     assert isinstance(objective_mismatch, AnswerObjective)
 
@@ -331,8 +429,12 @@ def _assert_delta_gate(
             f"and W_mismatch answer {objective_match.key.value!r}"
         )
 
-    for invert, skeleton in ((False, skeleton_match), (True, skeleton_mismatch)):
-        t_base, _driver_base, _decoy_base = skeleton.oracle(seed, sim_cfg)
+    dense = dataclasses.replace(sim_cfg, sample_every=1)
+    for invert, side in ((False, match), (True, mismatch)):
+        world, skeleton, _objective = side
+        timeline = simulate(world, dense, seed.child("oracle-sim"))
+        _assert_level_order(side, timeline, invert=invert)
+        t_base = final_amount(timeline, _crux_blocks(skeleton)["route_drive"].resolved_ports["out"])
         if t_base < t_target:
             raise SkeletonError(
                 f"delta gate: invert={invert!r} world's T only reached "
@@ -346,6 +448,7 @@ def _assert_delta_gate(
             r_b=Constant(r_b if not invert else 0.0),
             k_drive=k_drive,
             k_sink=k_sink,
+            k_sink_b=k_sink_b,
             k_t_sink=k_t_sink,
         )
         t_driver_cut, *_ = driver_cut.oracle(seed, sim_cfg)
@@ -363,6 +466,7 @@ def _assert_delta_gate(
             r_b=Constant(0.0 if not invert else r_b),
             k_drive=k_drive,
             k_sink=k_sink,
+            k_sink_b=k_sink_b,
             k_t_sink=k_t_sink,
         )
         t_decoy_cut, *_ = decoy_cut.oracle(seed, sim_cfg)
@@ -374,6 +478,11 @@ def _assert_delta_gate(
             )
 
 
+def _require_positive_finite(name: str, value: float) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be a positive finite number, got {value!r}")
+
+
 def draft_delta_pair(
     seed: Seed = Seed(0),
     *,
@@ -381,6 +490,7 @@ def draft_delta_pair(
     r_b: float = DEFAULT_R_B,
     k_drive: Optional[Dist[float]] = None,
     k_sink: Optional[Dist[float]] = None,
+    k_sink_b: Optional[Dist[float]] = None,
     k_t_sink: Optional[Dist[float]] = None,
     t_target: float = DEFAULT_T_TARGET,
     sim_cfg: SimConfig = _SIM_CFG,
@@ -393,22 +503,28 @@ def draft_delta_pair(
     the true driver of ``T``; ``W_mismatch`` rewires ``T``'s one driving edge
     onto ``source_b`` instead, so the same "bigger signal drives it" heuristic
     now answers wrong while the true driver (now the smaller signal) stays
-    fully derivable from the observable dynamics.
+    fully derivable from the observable dynamics. ``k_sink`` drains
+    ``source_a``, ``k_sink_b`` drains ``source_b`` (the decoy on
+    ``W_match``; see :data:`DEFAULT_K_SINK_B`).
 
     Runs :func:`_assert_delta_gate` (Q3=C) before returning: a generation-time
-    simulate-both check that the switch really flipped the answer and that
-    the true driver (and only the true driver) is discoverable in both
-    worlds.
+    simulate-both check that the switch really flipped the answer, that each
+    arm's levels carry its name, and that the true driver (and only the true
+    driver) is discoverable in both worlds.
 
     Deterministic in ``seed``: both sides materialize off the SAME ``seed``
     against the SAME block tree (only ``route_drive``'s own ``PoolBinding``
     differs), so every rate draw lands identically across the pair.
 
     Raises:
-        ValueError: ``r_a`` is not strictly greater than ``r_b``.
+        ValueError: ``r_a``, ``r_b`` or ``t_target`` is not a positive finite
+            number, or ``r_a`` is not strictly greater than ``r_b``.
         SkeletonError: the Q3=C acceptance gate fails (see
             :func:`_assert_delta_gate`).
     """
+    _require_positive_finite("r_a", r_a)
+    _require_positive_finite("r_b", r_b)
+    _require_positive_finite("t_target", t_target)
     if r_a <= r_b:
         raise ValueError(
             "r_a must be strictly greater than r_b (the conventionally-"
@@ -418,26 +534,23 @@ def draft_delta_pair(
 
     resolved_k_drive = k_drive if k_drive is not None else Constant(DEFAULT_K_DRIVE)
     resolved_k_sink = k_sink if k_sink is not None else Constant(DEFAULT_K_SINK)
+    resolved_k_sink_b = k_sink_b if k_sink_b is not None else Constant(DEFAULT_K_SINK_B)
     resolved_k_t_sink = k_t_sink if k_t_sink is not None else Constant(DEFAULT_K_T_SINK)
 
-    match = _draft_delta_world(
-        seed,
-        invert=False,
-        r_a=Constant(r_a),
-        r_b=Constant(r_b),
-        k_drive=resolved_k_drive,
-        k_sink=resolved_k_sink,
-        k_t_sink=resolved_k_t_sink,
+    sides = tuple(
+        _draft_delta_world(
+            seed,
+            invert=invert,
+            r_a=Constant(r_a),
+            r_b=Constant(r_b),
+            k_drive=resolved_k_drive,
+            k_sink=resolved_k_sink,
+            k_sink_b=resolved_k_sink_b,
+            k_t_sink=resolved_k_t_sink,
+        )
+        for invert in (False, True)
     )
-    mismatch = _draft_delta_world(
-        seed,
-        invert=True,
-        r_a=Constant(r_a),
-        r_b=Constant(r_b),
-        k_drive=resolved_k_drive,
-        k_sink=resolved_k_sink,
-        k_t_sink=resolved_k_t_sink,
-    )
+    match, mismatch = sides
 
     _assert_delta_gate(
         seed,
@@ -447,6 +560,7 @@ def draft_delta_pair(
         r_b=r_b,
         k_drive=resolved_k_drive,
         k_sink=resolved_k_sink,
+        k_sink_b=resolved_k_sink_b,
         k_t_sink=resolved_k_t_sink,
         t_target=t_target,
         sim_cfg=sim_cfg,

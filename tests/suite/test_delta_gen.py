@@ -19,6 +19,7 @@ from alienbio.suite.agent import Commit, Measure, ScriptedAgent
 from alienbio.suite.delta_gen import (
     DEFAULT_K_DRIVE,
     DEFAULT_K_SINK,
+    DEFAULT_K_SINK_B,
     DEFAULT_K_T_SINK,
     DEFAULT_R_A,
     DEFAULT_R_B,
@@ -159,6 +160,7 @@ def test_gate_rejects_a_pair_whose_switch_did_not_flip_the_answer() -> None:
             r_b=DEFAULT_R_B,
             k_drive=Constant(DEFAULT_K_DRIVE),
             k_sink=Constant(DEFAULT_K_SINK),
+            k_sink_b=Constant(DEFAULT_K_SINK_B),
             k_t_sink=Constant(DEFAULT_K_T_SINK),
             t_target=DEFAULT_T_TARGET,
             sim_cfg=_SIM_CFG,
@@ -289,3 +291,89 @@ def test_fixed_conventional_heuristic_agent_diverges_across_the_pair() -> None:
     assert record_mismatch.terminal_reason == "committed"
     assert record_match.objective_score == 1.0  # right for the wrong (heuristic) reason
     assert record_mismatch.objective_score == 0.0  # same rule, now wrong
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# T088 Q4 = A: each arm's levels carry its name at every time
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _levels(side, horizon_steps: int = 2000):
+    """Dense driver/decoy levels of a drafted side over 100 s (5x the
+    generator's horizon, so the order is checked well past it)."""
+    from alienbio.suite.verify import simulate
+
+    world, skeleton, objective = side
+    blocks = {c.name: c for c in skeleton.root.children[0].children}
+    a_id = blocks["source_a"].resolved_ports["out"]
+    b_id = blocks["source_b"].resolved_ports["out"]
+    timeline = simulate(world, SimConfig(dt=0.05, steps=horizon_steps, sample_every=1))
+    from alienbio.suite.skeleton import state_amount
+
+    return [
+        (t, state_amount(s, a_id), state_amount(s, b_id), objective.key.value == a_id)
+        for t, s in zip(timeline.times[1:], timeline.states[1:])
+    ]
+
+
+def test_match_driver_reads_larger_and_mismatch_decoy_reads_larger_throughout() -> None:
+    """The analysis round's repro: at the old drains the decoy overtook the
+    driver at about 2.6 s on BOTH arms. Now the bigger supply (``source_a``)
+    is also the bigger level at every sample on both arms — the true driver
+    on ``W_match``, the decoy on ``W_mismatch``."""
+    match, mismatch = draft_delta_pair(Seed(8))
+    for side, a_drives in ((match, True), (mismatch, False)):
+        rows = _levels(side)
+        assert all(row[3] == a_drives for row in rows)
+        assert all(a > b for _t, a, b, _ in rows), next((r for r in rows if not r[1] > r[2]))
+
+
+def test_gate_refuses_a_decoy_drain_that_lets_the_decoy_overtake_on_match() -> None:
+    """The old shape (``sink_b`` at 0.05) is now refused at draft, naming the
+    arm and the order that failed."""
+    with pytest.raises(SkeletonError, match="W_match steady levels"):
+        draft_delta_pair(Seed(8), k_sink_b=Constant(0.05))
+
+
+def test_gate_leaves_the_drafted_skeletons_cache_alone() -> None:
+    """T088 delta_gen 3: the gate's baseline used to re-materialize the
+    drafted skeleton, replacing the realized tree and chemistry cached
+    behind the returned world. They are now the objects ``materialize``
+    built for that world."""
+    from alienbio.suite.skeleton import Skeleton
+
+    seen: list[tuple[int, int]] = []
+    original = Skeleton.materialize
+
+    def recording(self, seed):  # type: ignore[no-untyped-def]
+        world = original(self, seed)
+        seen.append((id(self), id(self.chemistry)))
+        return world
+
+    Skeleton.materialize = recording  # type: ignore[method-assign]
+    try:
+        (world_m, sk_m, _), (world_x, sk_x, _) = draft_delta_pair(Seed(3))
+    finally:
+        Skeleton.materialize = original  # type: ignore[method-assign]
+    for world, sk in ((world_m, sk_m), (world_x, sk_x)):
+        assert [chem for owner, chem in seen if owner == id(sk)] == [id(sk.chemistry)]
+        assert world.chemistry is sk.chemistry
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"r_b": -1.0},
+        {"r_b": 0.0},
+        {"r_a": float("inf")},
+        {"t_target": 0.0},
+        {"t_target": -0.5},
+        {"r_a": True},
+    ],
+)
+def test_draft_refuses_non_positive_or_non_finite_rates(kwargs) -> None:
+    """T088 delta_gen 4: a negative or zero supply, an infinite one, or a
+    non-positive target refuse as a ``ValueError`` naming the argument, not
+    as a gate ``SkeletonError`` (or not at all)."""
+    with pytest.raises(ValueError, match=next(iter(kwargs))):
+        draft_delta_pair(Seed(6), **kwargs)

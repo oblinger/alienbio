@@ -50,6 +50,12 @@ predict and intervene zeros' records list one lever fewer (``m4``, the
 target) in ``brief.affordances.levers`` / ``brief.irreversible``; no
 action, score or other field moved, and the other thirteen were
 byte-unchanged (their surfaces are declared or carry no readout).
+exp08 re-pinned 2026-10-28 (T088 Q4 = A): ``source_b``'s sink drains at
+1.0 (was 0.05), so on W_match the bigger supply is also the bigger level
+at every time; only ``final_state`` moved (``source_b_out`` on all twelve
+lines, ``route_drive_out`` on the six W_mismatch lines) — every score,
+action and answer is byte-identical, and the other fifteen were
+byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -79,7 +85,7 @@ GOLDEN: dict[str, str] = {
     "exp05": "ce142336a1e2f1d1",
     "exp06": "ffa26959c383e674",
     "exp07": "1797d1821cc178af",
-    "exp08": "7186333f0da12b18",
+    "exp08": "d63c1077400826a2",
     "exp09": "e13e13884a057228",
     "exp11": "5133aeda0c2af22c",
     "exp12": "1264a5892e887d4c",

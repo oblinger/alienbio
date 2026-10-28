@@ -382,7 +382,7 @@ def verify(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
 
 # ---- the generative world drafters, as heads over their own signatures -----
 
-_DIST_KEYS = frozenset({"k_clean", "k_fast", "k_i2t", "k_byproduct", "k_hop", "kA", "kB", "k_drive", "k_sink", "k_t_sink"})
+_DIST_KEYS = frozenset({"k_clean", "k_fast", "k_i2t", "k_byproduct", "k_hop", "kA", "kB", "k_drive", "k_sink", "k_sink_b", "k_t_sink"})
 
 
 def _dist_kwargs(kwargs: Mapping[str, Any], env: Env) -> dict[str, Any]:
