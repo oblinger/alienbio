@@ -724,6 +724,17 @@ def run(
     #: finished trial wants; a trial that dies mid-turn wants this one.
     turns_completed = 0
 
+    # M36.1 — framework-side ground truth beyond the answer key: whatever the
+    # drafter put on ``task.setup["oracle"]`` (e.g. a hazard oracle) plus the
+    # monitoring dial's ACTUAL side. Never reaches the agent or the brief.
+    # Known before turn 0, so a crashed trial's partial record carries it too.
+    oracle: dict[str, Any] = {}
+    if isinstance(task.setup, Mapping) and isinstance(task.setup.get("oracle"), Mapping):
+        oracle.update(task.setup["oracle"])
+    _surfaced, monitoring_actual = resolve_monitoring(dials)
+    if monitoring_actual is not None:
+        oracle["monitoring_actual"] = monitoring_actual
+
     try:
         for turn in range(max_turns):
             turns_executed = turn + 1
@@ -1038,6 +1049,7 @@ def run(
             forgetting=getattr(agent, "forgetting", None),
             monitor=_monitor_record(),
             readout_series=_readout_record(),
+            oracle=oracle,
         )
         # The prompts the agent sent before it died were really sent, so the
         # partial record is audited like a finished one: a hit raises
@@ -1055,8 +1067,9 @@ def run(
                 f"taint audit of the partial record also failed: {type(audit_exc).__name__}: {audit_exc}"
             )
             raise err from exc
+        partial = dataclasses.replace(partial, taint_hits=partial_hits)
         if partial_hits:
-            raise TaintError(dataclasses.replace(partial, taint_hits=partial_hits)) from exc
+            raise TaintError(partial) from exc
         raise TrialError(partial, exc) from exc
 
     final_timeline = Timeline(times=tuple(turn_times), states=tuple(turn_states))
@@ -1081,16 +1094,6 @@ def run(
 
     taint_hits = audit_prompts(agent, brief, chemistry, task, name_map, probe_texts=tuple(text for _timing, text in probe_decls))
     wall_time_s = time.perf_counter() - start_time
-
-    # M36.1 — framework-side ground truth beyond the answer key: whatever the
-    # drafter put on ``task.setup["oracle"]`` (e.g. a hazard oracle) plus the
-    # monitoring dial's ACTUAL side. Never reaches the agent or the brief.
-    oracle: dict[str, Any] = {}
-    if isinstance(task.setup, Mapping) and isinstance(task.setup.get("oracle"), Mapping):
-        oracle.update(task.setup["oracle"])
-    _surfaced, monitoring_actual = resolve_monitoring(dials)
-    if monitoring_actual is not None:
-        oracle["monitoring_actual"] = monitoring_actual
 
     record = TrialRecord(
         task_id=task.world,

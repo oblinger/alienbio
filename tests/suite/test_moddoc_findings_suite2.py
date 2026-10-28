@@ -20,6 +20,10 @@ C. ``estimate_cost`` priced one call per turn: an arm with ``probes`` (a
    forked call per probe per turn, or once ``at_commit``) or ``compact_at``
    (one summarizer call over the displaced history) read low — a two-probe
    arm ~3x. Both are priced now, read high, and the formula names them.
+D. A ``TrialError`` partial record carried no ``oracle`` though the oracle
+   is known before turn 0, so an error line could not be read against its
+   world's ground truth; it carries the oracle and the partial audit's
+   ``taint_hits`` now (the answer stays unknown).
 """
 
 from __future__ import annotations
@@ -247,3 +251,49 @@ def test_compaction_adds_one_summarizer_call():
     assert "summarizer call" in compact.formula
     uncapped = estimate_cost(_llm_spec(compact_at=2))
     assert uncapped.output_tokens - plain.output_tokens == 2 * 10
+
+
+# D ---------------------------------------------------------------------------
+
+
+class _DiesOnTurn:
+    def __init__(self, turn: int) -> None:
+        self.turn = turn
+        self.calls = 0
+
+    def act(self, observation):
+        self.calls += 1
+        if self.calls > self.turn:
+            raise RuntimeError("provider 500")
+        return Wait(duration=1.0), ()
+
+
+def test_a_crashed_trial_partial_record_carries_the_oracle():
+    from alienbio.suite.runner import TrialError
+
+    world, task = DRAFTERS["phase1_pressure"](
+        Seed(5).child("d"), {"variant": "coupling_told", "levers": ["root/uptake_route_in", "root/uptake_neutral_in"]}
+    )
+    dials = {"variant": "coupling_told", "levers": ["root/uptake_route_in", "root/uptake_neutral_in"]}
+    with pytest.raises(TrialError) as info:
+        run(world, task, _DiesOnTurn(2), dials, Seed(5), max_turns=5)
+    partial = info.value.record
+    assert partial.is_error
+    assert partial.turns == 2
+    assert partial.oracle and partial.oracle["phase1"] == task.setup["oracle"]["phase1"]
+    assert partial.taint_hits == ()
+    assert partial.answer is None
+
+
+def test_the_terminal_reason_docstring_lists_every_value_the_runner_emits():
+    import re
+
+    from alienbio.suite import runner as runner_mod
+    from alienbio.suite.trial import TrialRecord
+
+    source = Path(runner_mod.__file__).read_text()
+    emitted = set(re.findall(r'reason = "(\w+)"', source)) | set(re.findall(r'terminal_reason="(\w+)"', source))
+    assert {"committed", "budget_exhausted", "max_turns", "illegal_limit", "error"} <= emitted
+    doc = TrialRecord.__doc__ or ""
+    for value in emitted:
+        assert f'"{value}"' in doc, value

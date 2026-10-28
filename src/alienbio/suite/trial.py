@@ -124,9 +124,11 @@ class TrialRecord:
     free from the grader at run time and every ``reliability_grid`` /
     ``effect_size`` aggregation needs it.
 
-    ``terminal_reason`` (F021, Q3 = B) is why the run stopped: ``"committed"``
-    / ``"budget_exhausted"`` / ``"max_turns"`` for a record built by
-    ``suite.runner.run``. It defaults to ``""`` (not recorded) so every
+    ``terminal_reason`` (F021, Q3 = B) is why the run stopped, for a record
+    built by ``suite.runner.run``: ``"committed"`` / ``"budget_exhausted"`` /
+    ``"max_turns"`` / ``"illegal_limit"`` (``illegal_action_limit`` rejected
+    actions, M46.3) / ``"error"`` (the trial died; a partial record carries
+    the completed turns, the brief and the oracle, M46.3 / T051 box 4). It defaults to ``""`` (not recorded) so every
     existing hand-built fixture (this module's own tests included)
     constructs unchanged.
 
