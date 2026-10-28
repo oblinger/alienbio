@@ -387,13 +387,12 @@ class PerCapitaDeath(PopulationLaw):
             and self._release_resource is not None
             and self._release_stoich > 0.0
         ):
-            # A release compartment of multiplicity × volume 0 cannot hold an
-            # amount; the release stays in the dying compartment rather than
-            # being dropped (module-doc finding, 2026-10).
-            target = self._release_compartment
-            if frozen.get_multiplicity(target) * frozen.get_volume(target) <= 0.0:
-                target = self._compartment
-            key = (target, self._release_resource)
+            # Written to the named release compartment. Where that compartment
+            # ends the step at multiplicity × volume 0 (empty at the start, or
+            # emptied by this step's own deaths), :func:`apply_population_laws`
+            # moves the release into the dying compartment — decided against
+            # the post-pass sizes, not this frozen read (T088 leftovers).
+            key = (self._release_compartment, self._release_resource)
             mol_delta[key] = mol_delta.get(key, 0.0) + self._release_stoich * raw
 
     def attributes(self) -> Dict[str, Any]:
@@ -551,8 +550,18 @@ def apply_population_laws(
     departures carry out, plus what arrivals carry in, plus the draws and
     releases — and divided by the compartment's new ``multiplicity · volume``.
     A compartment left at size 0 holds no amount, so anything landing there is
-    lost; a death releasing into a size-0 compartment sends it to the dying
-    one instead.
+    lost; a death releasing into a compartment that ENDS the step at size 0
+    (read off the multiplicities this pass writes, not the frozen state — a
+    release compartment its own deaths empty this step counts) sends it to the
+    dying compartment instead, and when that one ends empty too the release
+    leaves the world with the dead's contents.
+
+    Same-pass gains are not available to same-pass draws (T088 leftovers,
+    deliberate): a draw is rationed against the pool as the earlier passes
+    left it, never against what a death releases or a birth copies in this
+    pass — the reaction pass's rule for its own products. A pool emptied by
+    a draw and refilled by a release in one step ends at the release, and the
+    draw that wanted more gets it next step.
     """
     per_law: list[tuple[MultDelta, MolDelta, Carries]] = []
     for law in laws:
@@ -609,17 +618,45 @@ def apply_population_laws(
         )
         mol_ratio[(comp, mol_id)] = min(1.0, max(0.0, avail) / dem) if dem > 0.0 else 1.0
 
-    # Accumulate the scaled deltas.
-    mult_delta: MultDelta = {}
-    mol_delta: MolDelta = {}
-    scaled_carries: list[Carry] = []
-    for (mult, mol, carries), scale in zip(per_law, mult_scale):
+    # Each law's final scale: its multiplicity scale, tightened by every
+    # molecule key it draws.
+    final_scale: list[float] = []
+    for (_, mol, _), scale in zip(per_law, mult_scale):
         for key, delta in mol.items():
             if delta < 0.0:
                 scale = min(scale, mol_ratio[key])
+        final_scale.append(scale)
+
+    # The multiplicities the pass will write, so a death's release can be
+    # placed against the sizes the step ENDS at.
+    mult_delta: MultDelta = {}
+    for (mult, _, _), scale in zip(per_law, final_scale):
         for comp, delta in mult.items():
             mult_delta[comp] = mult_delta.get(comp, 0.0) + delta * scale
+
+    def _post_mult(comp: CompartmentId) -> float:
+        value = new_state.get_multiplicity(comp) + mult_delta.get(comp, 0.0)
+        return 0.0 if -ROUNDING_FLOOR < value < 0.0 else value
+
+    def _ends_empty(comp: CompartmentId) -> bool:
+        return _post_mult(comp) * new_state.get_volume(comp) <= 0.0
+
+    # Accumulate the scaled deltas.
+    mol_delta: MolDelta = {}
+    scaled_carries: list[Carry] = []
+    for law, (mult, mol, carries), scale in zip(laws, per_law, final_scale):
         for key, delta in mol.items():
+            if (
+                delta > 0.0
+                and isinstance(law, PerCapitaDeath)
+                and key == (law.release_compartment, law.release_resource)
+                and _ends_empty(key[0])
+            ):
+                # A release compartment that ends the step at size 0 cannot
+                # hold an amount: the release stays in the dying compartment.
+                # When that one ends empty too (the population died out this
+                # step) the release leaves the world with the dead's contents.
+                key = (law.compartment, key[1])
             mol_delta[key] = mol_delta.get(key, 0.0) + delta * scale
         for carry in carries:
             if scale != 1.0:

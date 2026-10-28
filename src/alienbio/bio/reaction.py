@@ -148,7 +148,7 @@ class ReactionImpl(Entity, head="Reaction"):
     - modifiers: catalysts/regulators acting on the reaction WITHOUT being
       consumed (enzymes, inhibitors), each mapped to a ``Modulation`` (or a
       bare opaque role-tag ``str``, for backward compat — see ``Modulation``)
-    - rate: constant or function determining reaction speed
+    - rate: a numeric rate constant (a state-dependent rate is a ``rate_law``)
 
     Example:
         # A + 2B -> C, catalyzed by enzyme E, with rate 0.1
@@ -186,7 +186,7 @@ class ReactionImpl(Entity, head="Reaction"):
             modifiers: Mapping catalyst/regulator molecules (not consumed) to a
                 ``Modulation`` (kind + rate params) or a bare opaque role tag
                 ``str`` (e.g. "catalyst") — a bare string is inert (factor 1.0)
-            rate: Reaction rate (constant float or function of StateImpl)
+            rate: Numeric rate constant (a non-numeric value is refused)
             rate_law: Optional compiled rate expression (``bio.rate_expr``, species
                 by molecule name) — the whole rate when it names a reactant, else the
                 factor multiplying mass action; ``rate`` is then unused (M47.10)
@@ -251,7 +251,7 @@ class ReactionImpl(Entity, head="Reaction"):
                 )
             modifiers[molecules[mol_name]] = Modulation(**role) if isinstance(role, dict) else role
 
-        # Get rate (function or constant)
+        # The numeric rate constant
         rate = data.get("rate", 1.0)
 
         return cls(
@@ -284,7 +284,8 @@ class ReactionImpl(Entity, head="Reaction"):
 
     @property
     def rate(self) -> RateValue:
-        """Reaction rate (constant or function)."""
+        """The numeric rate constant (a state-dependent rate is a ``rate_law``,
+        which, when set, the simulators read instead of this)."""
         return self._rate
 
     @property

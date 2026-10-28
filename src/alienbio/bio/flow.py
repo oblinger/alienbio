@@ -10,10 +10,13 @@ Flow hierarchy:
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Optional, Sequence, TYPE_CHECKING
 
 from .rate_expr import ROUNDING_FLOOR
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .world_state import WorldStateImpl
@@ -255,7 +258,7 @@ class TransportFlux(Flow):
     compartments' volumes/multiplicities.
     """
 
-    __slots__ = ("_dest", "_stoichiometry", "_driver_molecule", "_rate_constant", "_rate_law")
+    __slots__ = ("_dest", "_stoichiometry", "_driver_molecule", "_rate_constant", "_rate_law", "_blocked")
 
     def __init__(
         self,
@@ -296,6 +299,9 @@ class TransportFlux(Flow):
         self._driver_molecule = driver_molecule
         self._rate_constant = rate_constant
         self._rate_law = rate_law
+        #: T088 — whether the last :meth:`demand` was blocked by an emptied
+        #: receiver, so the block is logged once when it starts, not every step.
+        self._blocked = False
 
     @property
     def dest(self) -> CompartmentId:
@@ -375,9 +381,20 @@ class TransportFlux(Flow):
         # ``WorldImpl`` refuses a zero-size receiver at draft; one can still
         # empty mid-run (a population dying out). It cannot hold an amount, so
         # the flux is blocked rather than drawing a share into nowhere.
+        # T088: the block is logged (once, as it starts, on
+        # ``alienbio.bio.flow``) rather than silent — the record's own trace of
+        # it is the receiver's multiplicity 0 in ``final_state``.
         for receiver in self.receivers():
             if frozen.get_multiplicity(receiver) * frozen.get_volume(receiver) <= 0.0:
+                if not self._blocked:
+                    self._blocked = True
+                    logger.warning(
+                        "TransportFlux %r blocked: receiver compartment %s has size 0 "
+                        "(its population died out); no transport until it refills",
+                        self._name, receiver,
+                    )
                 return 0.0, draws
+        self._blocked = False
         for mol, count in self._stoichiometry.items():
             if count == 0:
                 continue
