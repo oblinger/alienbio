@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-callers">
+    <rect id="n-callers-box" x="20" y="40" width="240" height="84" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-callers-name" x="140" y="66" font-size="17" font-weight="600" text-anchor="middle">run_experiment</text>
+    <text id="n-callers-kind" x="140" y="88" font-size="14" text-anchor="middle">after report.txt;</text>
+    <text id="n-callers-kind2" x="140" y="108" font-size="14" text-anchor="middle">and bio suite report</text>
+  </g>
+  <g id="n-wkf">
+    <rect id="n-wkf-box" x="20" y="200" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-wkf-name" x="140" y="226" font-size="18" font-weight="600" text-anchor="middle">write_key_figure</text>
+    <text id="n-wkf-kind" x="140" y="248" font-size="14" text-anchor="middle">(fn) key.png + key.json</text>
+  </g>
+  <line id="e-callers-wkf" x1="140" y1="124" x2="140" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-callers-wkf" x="150" y="167" font-size="14" fill="#1971c2" font-style="italic">key_readout</text>
+  <g id="n-kf">
+    <rect id="n-kf-box" x="20" y="340" width="240" height="84" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-kf-name" x="140" y="366" font-size="18" font-weight="600" text-anchor="middle">key_figure</text>
+    <text id="n-kf-kind" x="140" y="388" font-size="14" text-anchor="middle">(fn) declared readout,</text>
+    <text id="n-kf-kind2" x="140" y="408" font-size="14" text-anchor="middle">else first that draws</text>
+  </g>
+  <line id="e-wkf-kf" x1="140" y1="264" x2="140" y2="340" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-pl">
+    <rect id="n-pl-box" x="320" y="20" width="300" height="580" rx="12" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-pl-name" x="335" y="44" font-size="16" font-weight="600" fill="#343a40">PLOTTERS, in the order tried ‡</text>
+    <text id="n-pl-1" x="340" y="80" font-size="15">1  plot_dose</text>
+    <text id="n-pl-2" x="340" y="122" font-size="15">2  plot_conflict</text>
+    <text id="n-pl-3" x="340" y="164" font-size="15">3  plot_delta</text>
+    <text id="n-pl-4" x="340" y="206" font-size="15">4  plot_degradation</text>
+    <text id="n-pl-5" x="340" y="248" font-size="15">5  plot_monitoring</text>
+    <text id="n-pl-6" x="340" y="290" font-size="15">6  plot_caution</text>
+    <text id="n-pl-7" x="340" y="332" font-size="15">7  plot_blindspot</text>
+    <text id="n-pl-8" x="340" y="374" font-size="15">8  plot_consideration</text>
+    <text id="n-pl-9" x="340" y="416" font-size="15">9  plot_hazard</text>
+    <text id="n-pl-10" x="340" y="458" font-size="15">10 plot_trial (one record)</text>
+    <text id="n-pl-11" x="340" y="500" font-size="15">11 plot_cells (any run)</text>
+    <text id="n-pl-note" x="340" y="560" font-size="13" fill="#495057">report prints 9 → 1 order, roughly</text>
+  </g>
+  <line id="e-kf-pl" x1="260" y1="382" x2="320" y2="382" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-sums">
+    <rect id="n-sums-box" x="690" y="20" width="250" height="580" rx="12" fill="#f8f9fa" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text id="n-sums-name" x="705" y="44" font-size="16" font-weight="600" fill="#343a40">summaries read</text>
+    <text id="n-sums-1" x="705" y="80" font-size="15">dose.pressure_summary</text>
+    <text id="n-sums-2" x="705" y="122" font-size="15">tradeoff.conflict_summary</text>
+    <text id="n-sums-3" x="705" y="164" font-size="15">delta.delta_summary</text>
+    <text id="n-sums-4" x="705" y="206" font-size="15">degradation_ladder</text>
+    <text id="n-sums-5" x="705" y="248" font-size="15">faking.monitoring_*</text>
+    <text id="n-sums-6" x="705" y="290" font-size="15">caution_summary</text>
+    <text id="n-sums-7" x="705" y="332" font-size="15">hazard.blindspot_summary</text>
+    <text id="n-sums-8" x="705" y="374" font-size="15">hazard.consideration_*</text>
+    <text id="n-sums-9" x="705" y="416" font-size="15">hazard.hazard_surfacing_*</text>
+    <text id="n-sums-10" x="705" y="458" font-size="15">the one record</text>
+    <text id="n-sums-11" x="705" y="500" font-size="15">ReliabilityMap.cells</text>
+  </g>
+  <line id="e-pl-sums" x1="620" y1="300" x2="690" y2="300" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-pl-sums" x="655" y="290" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">reads</text>
+
+  <g id="n-rmap">
+    <rect id="n-rmap-box" x="990" y="270" width="190" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rmap-name" x="1085" y="296" font-size="17" font-weight="600" text-anchor="middle">ReliabilityMap</text>
+    <text id="n-rmap-kind" x="1085" y="318" font-size="14" text-anchor="middle">records, cells</text>
+  </g>
+  <line id="e-sums-rmap" x1="940" y1="302" x2="990" y2="302" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-key">
+    <rect id="n-key-box" x="20" y="500" width="240" height="84" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-key-name" x="140" y="526" font-size="18" font-weight="600" text-anchor="middle">KeyFigure</text>
+    <text id="n-key-kind" x="140" y="548" font-size="14" text-anchor="middle">readout, caption,</text>
+    <text id="n-key-kind2" x="140" y="568" font-size="14" text-anchor="middle">figure (Agg)</text>
+  </g>
+  <line id="e-kf-key" x1="140" y1="424" x2="140" y2="500" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">call flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">tries, reads</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ not the report's order: a run feeding two summaries draws the earlier one here</text>
+  </g>
+</svg>
