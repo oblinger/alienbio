@@ -41,7 +41,7 @@ A mutable, unvalidated container: every setter writes in place, nothing checks a
 | [[#^from-array\|from_array]] | Overwrite concentrations from an array |
 
 **__init__**`(tree: CompartmentTreeImpl, num_molecules: int, initial_concentrations: Optional[List[float]] = None, initial_multiplicities: Optional[List[float]] = None, compartment_ids: Optional[List[str]] = None, molecule_ids: Optional[List[str]] = None, initial_volumes: Optional[List[float]] = None) -> None`
-    Size the store from `tree.num_compartments` at this moment and `num_molecules`. Each given list is copied; `ValueError` when `initial_concentrations` is not exactly `num_compartments × num_molecules` long, or `initial_multiplicities` / `initial_volumes` not `num_compartments` long. Defaults: concentrations 0.0, multiplicities 1.0, volumes 1.0. The id lists become tuples; their lengths are NOT checked against the axes — `molecule_ids=['a']` on a three-molecule state is accepted, and `concentration` then raises `IndexError` for a compartment id whose index is past the store ([[#Self-describing and pure-int states]]). ^init
+    Size the store from `tree.num_compartments` at this moment and `num_molecules`. Each given list is copied; `ValueError` when `initial_concentrations` is not exactly `num_compartments × num_molecules` long, or `initial_multiplicities` / `initial_volumes` not `num_compartments` long. Defaults: concentrations 0.0, multiplicities 1.0, volumes 1.0. The id lists become tuples; their lengths must match the axes — `ValueError` when `molecule_ids` is not `num_molecules` long or `compartment_ids` not `num_compartments` long (until 2026-10 a wrong length was accepted) ([[#Self-describing and pure-int states]]). ^init
 
 **tree**`: CompartmentTreeImpl` (property)
     The tree passed at construction, the same object every `copy()` carries. `CompartmentTreeImpl` is mutable (`add_root`, `add_child`); the class docstring and `copy()`'s comment call it immutable, but nothing enforces that ([[#Copies across a step]]). ^tree
@@ -59,22 +59,22 @@ A mutable, unvalidated container: every setter writes in place, nothing checks a
     `molecule_ids[j]` names molecule index `j`; `None` on a pure-int state. [[ABIO WorldImpl]] fills it with `chemistry.molecules.keys()`, the order `WorldSimulatorImpl.from_chemistry` assigns ids in. ^molecule-ids
 
 **get**`(compartment: CompartmentId, molecule: MoleculeId) -> float`
-    The concentration at flat index `compartment × num_molecules + molecule`. Unchecked: a molecule id at or past `num_molecules` reads the next compartment's slot, a negative id wraps from the end of the list, and only an index past the whole list raises `IndexError` ([[#Storage layout and indexing]]). ^get
+    The concentration at flat index `compartment × num_molecules + molecule`. `IndexError` naming the id and its bound when either id is negative or past its axis ([[#Storage layout and indexing]]). ^get
 
 **set**`(compartment: CompartmentId, molecule: MoleculeId, value: float) -> None`
-    Write `value` at the same flat index, in place, with the same unchecked indexing as `get`. Accepts any value — negative, NaN, infinite. Every simulator pass writes through it. ^set
+    Write `value` at the same flat index, in place, with the same bounds check as `get`. Accepts any value — negative, NaN, infinite. Every simulator pass writes through it. ^set
 
 **get_compartment**`(compartment: CompartmentId) -> List[float]`
-    A new list of compartment `compartment`'s `num_molecules` concentrations (a slice). A compartment index at or past `num_compartments` returns `[]` rather than raising. `JaxWorldSimulator` builds its device array from it. ^get-compartment
+    A new list of compartment `compartment`'s `num_molecules` concentrations (a slice). An out-of-range compartment raises `IndexError`. `JaxWorldSimulator` builds its device array from it. ^get-compartment
 
 **set_compartment**`(compartment: CompartmentId, values: List[float]) -> None`
-    Overwrite one compartment's row, in place. `ValueError` unless `len(values) == num_molecules`; a compartment past the end raises `IndexError`. `JaxWorldSimulator` writes its result back through it. ^set-compartment
+    Overwrite one compartment's row, in place. `ValueError` unless `len(values) == num_molecules`; an out-of-range compartment, negative included, raises `IndexError`. `JaxWorldSimulator` writes its result back through it. ^set-compartment
 
 **concentration**`(compartment_id: str, molecule_id: str) -> float`
     The concentration by real ids: each id's position in its axis (`tuple.index`, a linear scan), then the flat store. `ValueError` on a pure-int state; `KeyError` naming the id when either is absent from its axis. `suite/arch_predict.py` and the verify and grade tests read through it. ^concentration
 
 **get_multiplicity**`(compartment: CompartmentId) -> float`
-    How many instances of the compartment exist; concentrations are per instance ([[#Concentration, amount and multiplicity]]). A plain list index, so a negative compartment wraps. ^get-multiplicity
+    How many instances of the compartment exist; concentrations are per instance ([[#Concentration, amount and multiplicity]]). An out-of-range compartment, negative included, raises `IndexError`; so do `set_multiplicity`, `get_volume` and `set_volume`. ^get-multiplicity
 
 **set_multiplicity**`(compartment: CompartmentId, value: float) -> None`
     Write the instance count, in place. Only the population pass changes it during a run (`apply_population_laws`, `bio/population.py`); [[ABIO WorldImpl]] sets it at construction. ^set-multiplicity
@@ -101,10 +101,10 @@ A mutable, unvalidated container: every setter writes in place, nothing checks a
     A new state built through `__init__` with copies of the concentration, multiplicity and volume lists and the id axes, sharing the same `tree` object. Writes to either state never reach the other; a change to the tree reaches both ([[#Copies across a step]]). ^copy
 
 **as_array**`() -> Any`
-    The concentrations as a float64 numpy array of shape `(num_compartments, num_molecules)`; without numpy, a list of per-compartment lists. The docstring says "a view"; it is a copy (`np.array` copies), so writing the result does not reach the state. `ValueError` from `reshape` if the tree has grown since construction. `full_observation` reads every observation through it. ^as-array
+    The concentrations as a float64 numpy array of shape `(num_compartments, num_molecules)`; without numpy, a list of per-compartment lists. It is a copy (`np.array` copies), so writing the result does not reach the state; the docstring says so (it said "a view" until 2026-10). `ValueError` from `reshape` if the tree has grown since construction. `full_observation` reads every observation through it. ^as-array
 
 **from_array**`(arr: Any) -> None`
-    Replace the concentration list from an array, flattened row-major. With numpy only the total size is checked (`ValueError` on mismatch), so a transposed or otherwise reshaped array of the right size is accepted silently; without numpy nothing is checked and a short input leaves the tail unchanged. `suite/verify.simulate` uses it to apply the environmental-pressure overlay to a copy. ^from-array
+    Replace the concentration list from an array, flattened row-major. With numpy the shape must be exactly `(num_compartments, num_molecules)` (`ValueError` otherwise — a transposed array of the right size used to be accepted silently); without numpy nothing is checked and a short input leaves the tail unchanged. `suite/verify.simulate` uses it to apply the environmental-pressure overlay to a copy. ^from-array
 
 
 
@@ -130,18 +130,7 @@ A mutable, unvalidated container: every setter writes in place, nothing checks a
 ## Storage layout and indexing
 Concentrations sit in one Python list of `num_compartments × num_molecules` floats, row-major: compartment `c`'s molecules occupy `c × num_molecules` up to `(c + 1) × num_molecules`. The row order is the tree's compartment numbering, which [[ABIO WorldImpl]] gets from `build_tree`; the column order is `chemistry.molecules.keys()`, the same order `WorldSimulatorImpl.from_chemistry` gives molecule ids, which is what lets a simulator's integer ids address a world's state. Multiplicities and volumes are two parallel lists of length `num_compartments`.
 
-`_index` is `compartment × num_molecules + molecule` with no bounds check, and Python list indexing does the rest (verified against HEAD 84f8190 on a 2-compartment, 3-molecule state):
-
-| Call | What happens |
-| --- | --- |
-| `get(0, 3)` / `set(0, 3, v)` | reads / writes `c1·m0` — the next compartment's first slot |
-| `get(1, 3)` | `IndexError` — past the last compartment |
-| `set(0, -1, v)` | writes `c1·m2`, the last slot of the list |
-| `get_multiplicity(-1)` | the last compartment's multiplicity |
-| `get_compartment(2)` | `[]` |
-| `set_compartment(2, …)` | `IndexError` |
-
-So a molecule id one past the vocabulary in any compartment but the last corrupts a neighbour silently. Every production caller derives its ids from the same `chemistry.molecules` order, so the store relies on its callers, not on itself, for correct ids.
+`_index` is `compartment × num_molecules + molecule` after one range test per axis: a molecule id outside `[0, num_molecules)` or a compartment id outside `[0, num_compartments)` raises `IndexError` naming the id and the bound, on `get`, `set`, `amount`, `total_molecules`, the compartment-row and multiplicity/volume accessors alike. The bound is the axes the state was sized for, fixed at construction. Until 2026-10 nothing was checked (verified against HEAD 84f8190 on a 2-compartment, 3-molecule state): `set(0, 3, v)` wrote the next compartment's first slot, `set(0, -1, v)` the last slot of the list, `get_multiplicity(-1)` returned the last compartment's and `get_compartment(2)` returned `[]`. The check costs nothing measurable on a golden run (12.1–12.8 s before, 12.1–12.2 s after). Pinned by `tests/bio/test_moddoc_findings_world_state.py`.
 
 
 

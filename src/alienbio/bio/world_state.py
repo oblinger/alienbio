@@ -54,6 +54,7 @@ class WorldStateImpl:
     __slots__ = (
         "_tree",
         "_num_molecules",
+        "_num_compartments",
         "_concentrations",
         "_multiplicities",
         "_volumes",
@@ -99,6 +100,19 @@ class WorldStateImpl:
 
         num_compartments = tree.num_compartments
         size = num_compartments * num_molecules
+        # The bound every accessor checks against: the axes this state was
+        # sized for, fixed here (a tree grown later does not resize the store).
+        self._num_compartments = num_compartments
+        if molecule_ids is not None and len(self._molecule_ids or ()) != num_molecules:
+            raise ValueError(
+                f"molecule_ids has {len(self._molecule_ids or ())} entries, "
+                f"num_molecules is {num_molecules}"
+            )
+        if compartment_ids is not None and len(self._compartment_ids or ()) != num_compartments:
+            raise ValueError(
+                f"compartment_ids has {len(self._compartment_ids or ())} entries, "
+                f"the tree has {num_compartments} compartments"
+            )
 
         # Initialize concentrations
         if initial_concentrations is not None:
@@ -195,8 +209,31 @@ class WorldStateImpl:
         return self._concentrations[self._index(ci, mj)]
 
     def _index(self, compartment: CompartmentId, molecule: MoleculeId) -> int:
-        """Compute flat array index."""
-        return compartment * self._num_molecules + molecule
+        """Compute flat array index, refusing an id outside either axis.
+
+        The store is one flat list, so an unchecked ``molecule >= num_molecules``
+        landed in the NEXT compartment's slots and a negative id wrapped to the
+        end of the list (module-doc finding, 2026-10). One chained comparison
+        per axis on the hot path; the message is built only on failure.
+        """
+        if 0 <= molecule < self._num_molecules and 0 <= compartment < self._num_compartments:
+            return compartment * self._num_molecules + molecule
+        if not 0 <= compartment < self._num_compartments:
+            raise self._compartment_error(compartment)
+        raise IndexError(
+            f"molecule id {molecule!r} out of range [0, {self._num_molecules})"
+        )
+
+    def _compartment_error(self, compartment: Any) -> IndexError:
+        return IndexError(
+            f"compartment id {compartment!r} out of range [0, {self._num_compartments})"
+        )
+
+    def _comp(self, compartment: CompartmentId) -> CompartmentId:
+        """``compartment`` itself, refusing an id outside the compartment axis."""
+        if 0 <= compartment < self._num_compartments:
+            return compartment
+        raise self._compartment_error(compartment)
 
     def get(self, compartment: CompartmentId, molecule: MoleculeId) -> float:
         """Get concentration of molecule in compartment."""
@@ -210,7 +247,7 @@ class WorldStateImpl:
 
     def get_compartment(self, compartment: CompartmentId) -> List[float]:
         """Get all concentrations for a compartment."""
-        start = compartment * self._num_molecules
+        start = self._comp(compartment) * self._num_molecules
         end = start + self._num_molecules
         return self._concentrations[start:end]
 
@@ -222,7 +259,7 @@ class WorldStateImpl:
             raise ValueError(
                 f"Values length {len(values)} != num_molecules {self._num_molecules}"
             )
-        start = compartment * self._num_molecules
+        start = self._comp(compartment) * self._num_molecules
         for i, v in enumerate(values):
             self._concentrations[start + i] = v
 
@@ -230,11 +267,11 @@ class WorldStateImpl:
 
     def get_multiplicity(self, compartment: CompartmentId) -> float:
         """Get multiplicity (instance count) for a compartment."""
-        return self._multiplicities[compartment]
+        return self._multiplicities[self._comp(compartment)]
 
     def set_multiplicity(self, compartment: CompartmentId, value: float) -> None:
         """Set multiplicity (instance count) for a compartment."""
-        self._multiplicities[compartment] = value
+        self._multiplicities[self._comp(compartment)] = value
 
     def get_all_multiplicities(self) -> List[float]:
         """Get multiplicities for all compartments."""
@@ -242,17 +279,18 @@ class WorldStateImpl:
 
     def total_molecules(self, compartment: CompartmentId, molecule: MoleculeId) -> float:
         """Get total molecules = multiplicity * concentration."""
-        return self._multiplicities[compartment] * self.get(compartment, molecule)
+        value = self.get(compartment, molecule)
+        return self._multiplicities[compartment] * value
 
     # ── Volume + amount (the extensive count basis, F012/M37.1) ───────────────
 
     def get_volume(self, compartment: CompartmentId) -> float:
         """Get volume for a compartment (default 1.0 when never set)."""
-        return self._volumes[compartment]
+        return self._volumes[self._comp(compartment)]
 
     def set_volume(self, compartment: CompartmentId, value: float) -> None:
         """Set volume for a compartment."""
-        self._volumes[compartment] = value
+        self._volumes[self._comp(compartment)] = value
 
     def get_all_volumes(self) -> List[float]:
         """Get volumes for all compartments."""
@@ -265,10 +303,11 @@ class WorldStateImpl:
         *amount*, not concentration. With the default volume 1.0 this equals
         ``total_molecules`` and existing worlds are unchanged.
         """
+        concentration = self.get(compartment, molecule)  # bounds-checks both ids
         return (
             self._multiplicities[compartment]
             * self._volumes[compartment]
-            * self.get(compartment, molecule)
+            * concentration
         )
 
     # ── Copy and array methods ────────────────────────────────────────────────
@@ -294,7 +333,8 @@ class WorldStateImpl:
     def as_array(self) -> Any:
         """Get concentrations as 2D numpy array [compartments x molecules].
 
-        Returns a view if numpy is available, otherwise a list of lists.
+        Returns a fresh copy (writing to it does not change the state) as a
+        numpy array if numpy is available, otherwise a list of lists.
         """
         try:
             import numpy as np
@@ -312,12 +352,16 @@ class WorldStateImpl:
         try:
             import numpy as np
 
-            flat = np.asarray(arr, dtype=np.float64).flatten()
-            if len(flat) != len(self._concentrations):
+            data = np.asarray(arr, dtype=np.float64)
+            expected = (self._num_compartments, self._num_molecules)
+            # A transposed [molecules x compartments] array has the right SIZE
+            # and flattened silently into the wrong slots; check the shape.
+            if data.shape != expected:
                 raise ValueError(
-                    f"Array size {len(flat)} != expected {len(self._concentrations)}"
+                    f"Array shape {data.shape} != expected {expected} "
+                    "[compartments x molecules]"
                 )
-            self._concentrations = flat.tolist()
+            self._concentrations = data.flatten().tolist()
         except ImportError:
             # Fallback: assume list of lists
             idx = 0
