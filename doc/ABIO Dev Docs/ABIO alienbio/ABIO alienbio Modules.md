@@ -6,7 +6,7 @@ description: "module docs for the src/alienbio/ package root and commands/: the 
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Front door                                              | [CLI](ABIO%20CLI.md),  [SuiteCmd](ABIO%20SuiteCmd.md),                                                                                                                     |
 | Settings                                                | [Config](ABIO%20Config.md),                                                                                                                                                |
-| Test surface                                            | [Capabilities](ABIO%20Capabilities.md), |
+| Test surface                                            | [Capabilities](ABIO%20Capabilities.md),  [Report](ABIO%20Report.md),                                                                                                                                    |
 | ...                                                     |                                                                                                                                                                            |
 
 # ABIO alienbio Modules

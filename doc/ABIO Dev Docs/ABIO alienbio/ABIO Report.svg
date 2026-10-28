@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-cmd">
+    <rect id="n-cmd-box" x="20" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cmd-name" x="140.0" y="68" font-size="18" font-weight="600" text-anchor="middle">report_command</text>
+    <text id="n-cmd-kind" x="140.0" y="92" font-size="14" text-anchor="middle">(bio report) argparse · flags</text>
+  </g>
+  <g id="n-pytest">
+    <rect id="n-pytest-box" x="320" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pytest-name" x="440.0" y="68" font-size="18" font-weight="600" text-anchor="middle">run_pytest</text>
+    <text id="n-pytest-kind" x="440.0" y="92" font-size="14" text-anchor="middle">(fn) pytest tests → junit.xml</text>
+  </g>
+  <g id="n-junit">
+    <rect id="n-junit-box" x="620" y="40" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-junit-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">junit.xml</text>
+    <text id="n-junit-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(file) or --junit PATH, exit 0</text>
+  </g>
+  <g id="n-pj">
+    <rect id="n-pj-box" x="920" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pj-name" x="1040.0" y="68" font-size="18" font-weight="600" text-anchor="middle">parse_junit</text>
+    <text id="n-pj-kind" x="1040.0" y="92" font-size="14" text-anchor="middle">(fn) (stem, test) → worst outcome</text>
+  </g>
+  <g id="n-cap">
+    <rect id="n-cap-box" x="20" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cap-name" x="140.0" y="228" font-size="18" font-weight="600" text-anchor="middle">capability_rows</text>
+    <text id="n-cap-kind" x="140.0" y="252" font-size="14" text-anchor="middle">(fn) §1 · capabilities.py</text>
+  </g>
+  <g id="n-suite">
+    <rect id="n-suite-box" x="320" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-suite-name" x="440.0" y="228" font-size="18" font-weight="600" text-anchor="middle">suite_rows</text>
+    <text id="n-suite-kind" x="440.0" y="252" font-size="14" text-anchor="middle">(fn) §2 · eight SUITES</text>
+  </g>
+  <g id="n-ex">
+    <rect id="n-ex-box" x="920" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ex-name" x="1040.0" y="228" font-size="18" font-weight="600" text-anchor="middle">example_rows</text>
+    <text id="n-ex-kind" x="1040.0" y="252" font-size="14" text-anchor="middle">(fn) §3 · first *.yaml, run fresh</text>
+  </g>
+  <g id="n-runs">
+    <rect id="n-runs-box" x="620" y="200" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-runs-name" x="740.0" y="228" font-size="18" font-weight="600" text-anchor="middle">run_rows</text>
+    <text id="n-runs-kind" x="740.0" y="252" font-size="14" text-anchor="middle">(fn) §4 · runs/*/manifest.json</text>
+  </g>
+  <g id="n-build">
+    <rect id="n-build-box" x="320" y="360" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-build-name" x="440.0" y="388" font-size="18" font-weight="600" text-anchor="middle">build</text>
+    <text id="n-build-kind" x="440.0" y="412" font-size="14" text-anchor="middle">(fn) the Report dataclass</text>
+  </g>
+  <g id="n-ok">
+    <rect id="n-ok-box" x="620" y="520" width="240" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ok-name" x="740.0" y="548" font-size="18" font-weight="600" text-anchor="middle">Report.ok ‡</text>
+    <text id="n-ok-kind" x="740.0" y="572" font-size="14" text-anchor="middle">(property) exit · totals · examples</text>
+  </g>
+  <g id="n-rx">
+    <rect id="n-rx-box" x="920" y="360" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rx-name" x="1040.0" y="388" font-size="18" font-weight="600" text-anchor="middle">run_experiment</text>
+    <text id="n-rx-kind" x="1040.0" y="412" font-size="14" text-anchor="middle">(suite) into a temp folder</text>
+  </g>
+  <g id="n-md">
+    <rect id="n-md-box" x="20" y="520" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-md-name" x="140.0" y="548" font-size="18" font-weight="600" text-anchor="middle">render_markdown</text>
+    <text id="n-md-kind" x="140.0" y="572" font-size="14" text-anchor="middle">(fn) report.md · links from reports/</text>
+  </g>
+  <g id="n-html">
+    <rect id="n-html-box" x="320" y="520" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-html-name" x="440.0" y="548" font-size="18" font-weight="600" text-anchor="middle">render_html</text>
+    <text id="n-html-kind" x="440.0" y="572" font-size="14" text-anchor="middle">(fn) report.html, standalone</text>
+  </g>
+  <g id="n-cnt">
+    <rect id="n-cnt-box" x="920" y="520" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cnt-name" x="1040.0" y="548" font-size="18" font-weight="600" text-anchor="middle">count_cases</text>
+    <text id="n-cnt-kind" x="1040.0" y="572" font-size="14" text-anchor="middle">(fn) the totals line</text>
+  </g>
+  <line id="e-cmd-pytest" x1="260" y1="75" x2="320" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-pytest-junit" x1="560" y1="75" x2="620" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-junit-pj" x1="860" y1="75" x2="920" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-pj-cap" x1="960" y1="110" x2="200" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-pj-cap" x="560" y="140" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle" transform="rotate(-7 560 140)">outcomes</text>
+  <line id="e-pj-suite" x1="990" y1="110" x2="500" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-pj-ex" x1="1040" y1="110" x2="1040" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-ex-rx" x1="1040" y1="270" x2="1040" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-cap-build" x1="140" y1="270" x2="360" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-suite-build" x1="440" y1="270" x2="440" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-ex-build" x1="940" y1="270" x2="560" y2="385" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-runs-build" x1="680" y1="270" x2="520" y2="360" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-build-ok" x1="500" y1="430" x2="680" y2="520" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-build-md" x1="360" y1="430" x2="140" y2="520" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-md-html" x1="260" y1="555" x2="320" y2="555" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-cnt-build" x1="980" y1="520" x2="560" y2="415" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cnt-build" x="820" y="455" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">totals</text>
+  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call or data · dotted: read by the title · ‡ ok never reads the capability rows: a JUnit file without the proving tests</text>
+  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">leaves every row 'not run' and the page titled ALL PASSED · one unparsable manifest under runs/ stops the whole report</text>
+</svg>
