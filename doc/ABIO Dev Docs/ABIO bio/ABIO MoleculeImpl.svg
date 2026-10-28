@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-common">
+    <rect id="n-common-box" x="20" y="40" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-common-name" x="140.0" y="68" font-size="18" font-weight="600" text-anchor="middle">COMMON_ATOMS</text>
+    <text id="n-common-kind" x="140.0" y="92" font-size="14" text-anchor="middle">(dict) 14 elements by symbol</text>
+  </g>
+  <g id="n-get">
+    <rect id="n-get-box" x="320" y="40" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-get-name" x="440.0" y="68" font-size="18" font-weight="600" text-anchor="middle">get_atom</text>
+    <text id="n-get-kind" x="440.0" y="92" font-size="14" text-anchor="middle">(fn) symbol → AtomImpl</text>
+  </g>
+  <g id="n-atom">
+    <rect id="n-atom-box" x="620" y="40" width="240" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-atom-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">AtomImpl</text>
+    <text id="n-atom-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(class) symbol · name · weight</text>
+  </g>
+  <g id="n-entity">
+    <rect id="n-entity-box" x="920" y="40" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-entity-name" x="1040.0" y="68" font-size="18" font-weight="600" text-anchor="middle">Entity</text>
+    <text id="n-entity-kind" x="1040.0" y="92" font-size="14" text-anchor="middle">(base) local_name · dat · parent</text>
+  </g>
+  <g id="n-chemh">
+    <rect id="n-chemh-box" x="20" y="220" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chemh-name" x="140.0" y="248" font-size="18" font-weight="600" text-anchor="middle">ChemistryImpl.hydrate</text>
+    <text id="n-chemh-kind" x="140.0" y="272" font-size="14" text-anchor="middle">(caller) passes its registry</text>
+  </g>
+  <g id="n-hyd">
+    <rect id="n-hyd-box" x="320" y="220" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-hyd-name" x="440.0" y="248" font-size="18" font-weight="600" text-anchor="middle">MoleculeImpl.hydrate</text>
+    <text id="n-hyd-kind" x="440.0" y="272" font-size="14" text-anchor="middle">(classmethod) dict + registry</text>
+  </g>
+  <g id="n-mol">
+    <rect id="n-mol-box" x="620" y="220" width="240" height="90" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mol-name" x="740.0" y="248" font-size="18" font-weight="600" text-anchor="middle">MoleculeImpl</text>
+    <text id="n-mol-kind" x="740.0" y="272" font-size="14" text-anchor="middle">(class) atoms · bdepth · energy</text>
+    <text id="n-mol-kind2" x="740.0" y="290" font-size="14" text-anchor="middle">symbol · molecular_weight</text>
+  </g>
+  <g id="n-biot">
+    <rect id="n-biot-box" x="920" y="220" width="240" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-biot-name" x="1040.0" y="248" font-size="18" font-weight="600" text-anchor="middle">biotype registry</text>
+    <text id="n-biot-kind" x="1040.0" y="272" font-size="14" text-anchor="middle">(dict) 'molecule' → class</text>
+  </g>
+  <g id="n-mk">
+    <rect id="n-mk-box" x="20" y="420" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mk-name" x="140.0" y="448" font-size="18" font-weight="600" text-anchor="middle">mk.M</text>
+    <text id="n-mk-kind" x="140.0" y="472" font-size="14" text-anchor="middle">(maker) bio/makers.py</text>
+  </g>
+  <g id="n-attr">
+    <rect id="n-attr-box" x="320" y="420" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-attr-name" x="440.0" y="448" font-size="18" font-weight="600" text-anchor="middle">attributes</text>
+    <text id="n-attr-kind" x="440.0" y="472" font-size="14" text-anchor="middle">(method) the dict hydrate reads</text>
+  </g>
+  <g id="n-mq">
+    <rect id="n-mq-box" x="620" y="420" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mq-name" x="740.0" y="448" font-size="18" font-weight="600" text-anchor="middle">molecule_quantity</text>
+    <text id="n-mq-kind" x="740.0" y="472" font-size="14" text-anchor="middle">(reader) conservation: atoms</text>
+  </g>
+  <g id="n-dg">
+    <rect id="n-dg-box" x="920" y="420" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dg-name" x="1040.0" y="448" font-size="18" font-weight="600" text-anchor="middle">reaction_delta_g</text>
+    <text id="n-dg-kind" x="1040.0" y="472" font-size="14" text-anchor="middle">(reader) energy: formation_energy</text>
+  </g>
+  <line id="e-common-get" x1="260" y1="75" x2="320" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-common-get" x="290" y="65" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">lookup</text>
+  <line id="e-get-atom" x1="560" y1="75" x2="620" y2="75" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-atom-mol" x1="740" y1="110" x2="740" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-atom-mol" x="750" y="170" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">composition keys</text>
+  <line id="e-entity-mol" x1="1000" y1="110" x2="860" y2="225" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-entity-mol" x="968" y="192" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">subclass</text>
+  <line id="e-mol-biot" x1="860" y1="265" x2="920" y2="265" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-chemh-hyd" x1="260" y1="255" x2="320" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-chemh-hyd" x="290" y="245" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">atoms=</text>
+  <line id="e-hyd-mol" x1="560" y1="255" x2="620" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-hyd-mol" x="590" y="245" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">builds</text>
+  <line id="e-mk-mol" x1="230" y1="420" x2="620" y2="300" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-mk-mol" x="420" y="345" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle" transform="rotate(-17 420 345)">constructor</text>
+  <line id="e-mol-attr" x1="660" y1="310" x2="500" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-mol-attr" x="605" y="402" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">writes</text>
+  <line id="e-mol-mq" x1="740" y1="310" x2="740" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-mol-mq" x="750" y="370" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">atoms</text>
+  <line id="e-mol-dg" x1="840" y1="310" x2="980" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-mol-dg" x="920" y="355" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">formation_energy</text>
+  <text id="t-attr-note" x="440" y="512" font-size="13" fill="#495057" text-anchor="middle">read back by hydrate (round trip)</text>
+  <text id="t-legend" x="20" y="650" font-size="13" fill="#495057" text-anchor="start">solid: call or data · dotted: subclass, registration, reads · lilac: outside caller or reader · no simulator reads atoms or energy</text>
+</svg>
