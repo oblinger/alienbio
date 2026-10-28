@@ -62,7 +62,7 @@ from .carve import CarveFail, carve as _carve
 from .cover import Cover, cover as _cover
 from .dist import Constant, Dist, Seed
 from .agents import AGENTS
-from .drafters import _GUARDED_BRIEF_DIALS, dial_params, drafter_heads
+from .drafters import _FACTORY_DIALS, _GUARDED_BRIEF_DIALS, dial_params, drafter_heads
 from .spec import ExperimentSpec, _default_expected_turns, _require_pinned_model, spec_from_dict, spec_to_dict
 from .mass_trial import AgentFactory
 from .pipeline import build_suite
@@ -475,7 +475,12 @@ def agent_registry_name(name: Any, env: Optional[Env] = None) -> str:
 SIDE_HEADS: tuple[str, ...] = ("brief", "episode")
 
 #: Axes the experiment itself sweeps — never free names in a quoted call.
-EXPERIMENT_AXES: frozenset[str] = frozenset({"agent", "model"})
+#: The agent factory's dials (``agent``, ``model``, ``memory``, the
+#: forgetting triggers, the output budget): the factory reads each from the
+#: trial's dials, so the Python form sweeps them as plain axes. Round 4/5
+#: leftover (2026-10-27): this was ``{agent, model}`` alone, so a YAML
+#: ``axes: {memory: [2, 6]}`` was refused as "swept but no call reads them".
+EXPERIMENT_AXES: frozenset[str] = _FACTORY_DIALS
 
 
 def _split_call(

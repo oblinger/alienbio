@@ -363,6 +363,14 @@ def _model_axis_levels(spec: ExperimentSpec) -> list[str]:
     return []
 
 
+def _axis_levels(spec: ExperimentSpec, axis: str) -> list[Any]:
+    """``axis``'s levels as declared — empty when it is not swept."""
+    for name, levels in spec.axes:
+        if name == axis:
+            return list(levels)
+    return []
+
+
 def _single_model(spec: ExperimentSpec) -> Optional[str]:
     """The one model id this run uses, or ``None`` when it sweeps several."""
     if _model_axis_levels(spec):
@@ -409,7 +417,12 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         # models.list snapshot — what makes two runs naming it comparable.
         # Absent for a swept axis: there is no single generation to date.
         "model_created_at": model_created_at(_single_model(spec)),
-        "memory": spec.memory,
+        # Round 4/5 leftover (2026-10-27): as ``model`` / ``models`` above —
+        # under a ``memory`` axis no single window ran, so ``memory`` is null
+        # and the swept levels ride ``memories``; every record line carries
+        # its own cell's value (round 4).
+        "memory": None if _axis_levels(spec, "memory") else spec.memory,
+        **({"memories": _axis_levels(spec, "memory")} if _axis_levels(spec, "memory") else {}),
         # M45.18 — the sampling every live call ran under.
         "temperature": spec.temperature,
         "top_p": spec.top_p,
