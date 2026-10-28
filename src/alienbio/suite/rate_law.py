@@ -61,12 +61,17 @@ _MODULATION_DEFAULTS: Mapping[str, Mapping[str, float]] = {
 
 @fn(kind="rate", summary="Hill response of a modifier: Vmax * m**n / (K**n + m**n)")
 def hill(m: float, K: float, n: float = 2.0, Vmax: float = 1.0) -> float:
-    return Vmax * m**n / (K**n + m**n) if (K or m) else 0.0
+    # `denom > 0`, as rate_expr.modulation_factor guards (the compiled law both
+    # simulators run); `(K or m)` divided by zero at K = -m (module-doc finding).
+    m_n = m**n
+    denom = K**n + m_n
+    return Vmax * m_n / denom if denom > 0.0 else 0.0
 
 
 @fn(kind="rate", summary="Michaelis-Menten response of a modifier: Vmax * m / (K + m)")
 def michaelis(m: float, K: float, Vmax: float = 1.0) -> float:
-    return Vmax * m / (K + m) if (K or m) else 0.0
+    denom = K + m
+    return Vmax * m / denom if denom > 0.0 else 0.0
 
 
 @fn(kind="rate", summary="linear activation: 1 + a * m")
