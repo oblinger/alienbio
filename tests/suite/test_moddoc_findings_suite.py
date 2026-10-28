@@ -15,6 +15,9 @@ D. ``surface_brief`` left ``protocol`` (and the auditor / monitoring lines)
    reached the model unrenamed and the audit refused only after the spend.
 E. An id followed by ``.word`` (``root/x_in.rate``) was not a whole token, so
    ``surface_text`` left it structural AND the taint audit missed it.
+F. ``constitution=""`` counted as present for ``bury_commitment`` (padding
+   built and stored, never shown); and ``brief_defaults`` merged after the
+   control surface was resolved, so a drafter-default lever was never read.
 """
 
 from __future__ import annotations
@@ -232,3 +235,67 @@ def test_a_dotted_leak_in_a_prompt_is_a_taint_hit():
     with pytest.raises(TaintError) as info:
         run(world, task, _LeakThenCrash(f"{leak}.rate"), dials, Seed(5), max_turns=5)
     assert leak in info.value.record.taint_hits
+
+
+# F ---------------------------------------------------------------------------
+
+
+def _with_defaults(task, defaults):
+    return dataclasses.replace(task, setup={**task.setup, "brief_defaults": defaults})
+
+
+@pytest.mark.parametrize("constitution", [None, ""])
+def test_bury_commitment_refuses_an_empty_constitution(constitution):
+    world, task, dials = _p1_world()
+    dials = {**dials, "bury_commitment": 50}
+    if constitution is not None:
+        dials["constitution"] = constitution
+    with pytest.raises(ValueError, match="needs a constitution to bury"):
+        run(world, task, ScriptedAgent((Wait(duration=1.0),), Seed(0)), dials, Seed(5), max_turns=1)
+
+
+def test_constitution_in_history_refuses_an_empty_constitution():
+    world, task, dials = _p1_world()
+    dials = {**dials, "constitution_in_history": True, "constitution": ""}
+    with pytest.raises(ValueError, match="needs a constitution to displace"):
+        run(world, task, ScriptedAgent((Wait(duration=1.0),), Seed(0)), dials, Seed(5), max_turns=1)
+
+
+def _wait_agent():
+    return ScriptedAgent(lambda obs, sd: (Wait(duration=1.0), ()), Seed(0))
+
+
+def test_a_drafter_default_lever_is_the_control_surface():
+    world, task, dials = _p1_world()
+    dials = {k: v for k, v in dials.items() if k != "levers"}
+    task = _with_defaults(task, {"levers": [{"id": P1_LEVERS[0], "max_rate": 3}]})
+    brief = run(world, task, _wait_agent(), dials, Seed(5), max_turns=1).brief
+    assert brief.affordances.levers == (P1_LEVERS[0],)
+    assert brief.affordances.max_rates == {P1_LEVERS[0]: 3.0}
+
+
+def test_an_explicit_lever_dial_still_beats_the_default():
+    world, task, dials = _p1_world()
+    task = _with_defaults(task, {"levers": [P1_LEVERS[0]]})
+    brief = run(world, task, _wait_agent(), dials, Seed(5), max_turns=1).brief
+    assert brief.affordances.levers == tuple(P1_LEVERS)
+
+
+def test_a_drafter_default_lever_on_the_readout_is_refused():
+    world, task, dials = _p1_world()
+    target = task.question.structured["target"]
+    dials = {k: v for k, v in dials.items() if k != "levers"}
+    task = _with_defaults(task, {"levers": [target]})
+    with pytest.raises(ValueError, match="readout molecule"):
+        run(world, task, _wait_agent(), dials, Seed(5), max_turns=1)
+
+
+def test_a_drafter_default_lever_on_a_hidden_pool_is_refused():
+    world, task, dials = _p1_world(variant="coupling_unobservable")
+    hidden = task.setup["hidden_ids"][0]
+    dials = {k: v for k, v in dials.items() if k not in ("levers", "variant")}
+    task = _with_defaults(task, {"levers": [hidden]})
+    # The hidden pool is also this variant's tracked readout, so the readout
+    # refusal (checked first) fires; either way the default was read.
+    with pytest.raises(ValueError, match="structurally hidden|readout molecule"):
+        run(world, task, _wait_agent(), dials, Seed(5), max_turns=1)

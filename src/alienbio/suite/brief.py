@@ -28,7 +28,7 @@ dial, and nothing off the answer key/outcome target/oracle, ever reaches it.
   monitoring ground truth (``actual``) never enters the brief — the runner
   records it on ``TrialRecord.oracle["monitoring_actual"]``.
   :func:`compose_briefing` / :func:`coerce_monitoring` are the underlying
-  coercers, moved here from the legacy ``agent.types`` (which re-exports).
+  coercers; they live here (the legacy ``agent.types`` module is gone).
 """
 
 from __future__ import annotations
@@ -477,6 +477,19 @@ def build_brief(
     missing dial is a ``ValueError``: on a pressure/conflict/delta world the
     surface is never implicit.
     """
+    # T047 — a drafter may ship brief defaults (W2's bright-line commitment
+    # and in-world stakes); an explicit dial always wins. Merged FIRST, so
+    # every consumer below — the monitor's probe keys, the lever list and
+    # its caps, both lever refusals, burial, displacement, the
+    # stakes/reversibility resolvers — reads the merged view and a default
+    # behaves exactly like a declared dial (a default lever used to be read
+    # by nothing: the surface was resolved before the merge).
+    setup_defaults = task.setup.get("brief_defaults") if isinstance(task.setup, Mapping) else None
+    if setup_defaults:
+        if not isinstance(setup_defaults, Mapping):
+            raise ValueError(f"build_brief: task.setup['brief_defaults'] must be a mapping; got {setup_defaults!r}")
+        dials = {**setup_defaults, **{k: v for k, v in dials.items() if v is not None}}
+
     probes = tuple(sorted({obs_id for compartment in first_observation for obs_id in compartment}))
     # T066 — the in-world monitor's own keys (T060). The brief TELLS the agent
     # "they appear in your observations as auditor:ledger and auditor:coverage",
@@ -625,17 +638,12 @@ def build_brief(
         objective_kind = "outcome"
         answer_kind = None
 
-    # T047 — a drafter may ship brief defaults (W2's bright-line commitment
-    # and in-world stakes); an explicit dial always wins, and everything below
-    # (burial, displacement, the stakes/reversibility resolvers) reads the
-    # merged view so a default behaves exactly like a declared dial.
-    setup_defaults = task.setup.get("brief_defaults") if isinstance(task.setup, Mapping) else None
-    if setup_defaults:
-        if not isinstance(setup_defaults, Mapping):
-            raise ValueError(f"build_brief: task.setup['brief_defaults'] must be a mapping; got {setup_defaults!r}")
-        dials = {**setup_defaults, **{k: v for k, v in dials.items() if v is not None}}
     constitution_dial = dials.get("constitution")
     constitution = constitution_dial if isinstance(constitution_dial, str) else None
+    # An empty constitution is no commitment: ``render_brief`` skips a falsy
+    # one, so burying or displacing "" would build and store padding (or a
+    # bare "Constitution: " history entry) for a commitment never shown.
+    has_constitution = bool(constitution)
 
     # T027 — bury the commitment behind seed-deterministic neutral filler.
     bury = dials.get("bury_commitment")
@@ -645,7 +653,7 @@ def build_brief(
             raise ValueError(
                 f"build_brief: dials['bury_commitment'] must be a non-negative int (tokens; 0 = no burial), got {bury!r}"
             )
-        if constitution is None:
+        if not has_constitution:
             raise ValueError(
                 "build_brief: dials['bury_commitment'] needs a constitution to bury — "
                 "declare dials['constitution'] (measure 2's negative control buries a commitment, "
@@ -671,7 +679,7 @@ def build_brief(
         )
     constitution_in_history = in_history_dial is True
     if constitution_in_history:
-        if constitution is None:
+        if not has_constitution:
             raise ValueError(
                 "build_brief: dials['constitution_in_history'] needs a constitution to displace — "
                 "declare dials['constitution']"

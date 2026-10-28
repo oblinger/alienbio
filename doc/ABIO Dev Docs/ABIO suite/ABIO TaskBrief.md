@@ -8,7 +8,7 @@ The briefing a trial's agent receives once, before turn 0: a frozen record of th
 ![[ABIO TaskBrief.svg|2400]] 
 *The refusals before spend* is the topic that governs the refusal gate; *The rendered order* governs the grouping inside `TaskBrief` and `render_brief`'s line sequence.
 
-`runner.run` builds one brief per trial from the dial-narrowed turn-0 observation (so a hidden molecule is absent, not merely unlisted), the task, its drafter `setup` and the condition's dials, hands it to the agent through `SessionAgent.begin`, and keeps it, in structural ids, on the `TrialRecord`. This page covers the record, its constructor, its text rendering and the dial resolvers. The turn loop, the probe schedule and the taint audit are [[ABIO Runner]]; the surface-name boundary is [[ABIO NameMap]]; the drafters that put `lever_caps`, `hidden_ids`, `brief_defaults`, `probe_vocab` and the `epistemic_access` disclosure on the task live in `suite/drafters.py`; the guards that repeat some of these refusals at `preflight` live in `suite/guards.py`. The subsystem view is [[ABIO-Runtime]]; the operator's view is ~~[[ABIO Suite Runtime]]~~.
+`runner.run` builds one brief per trial from the dial-narrowed turn-0 observation (so a hidden molecule is absent, not merely unlisted), the task, its drafter `setup` and the condition's dials, hands it to the agent through `SessionAgent.begin`, and keeps it, in structural ids, on the `TrialRecord`. This page covers the record, its constructor, its text rendering and the dial resolvers. The turn loop, the probe schedule and the taint audit are [[ABIO Runner]]; the surface-name boundary is [[ABIO NameMap]]; the drafters that put `lever_caps`, `hidden_ids`, `brief_defaults`, `probe_vocab` and the `epistemic_access` disclosure on the task live in `suite/drafters.py`; the guards that repeat some of these refusals at `preflight` live in `suite/guards.py`. The subsystem view is [[ABIO-Runtime]]; the operator's view is [[ABIO Suite Runtime]].
 
 
 
@@ -56,7 +56,7 @@ A frozen dataclass with no methods: every field is set once by `build_brief` and
     `AnswerObjective.key.kind` (`"ordered_path"`, `"json"` …); `None` on an outcome objective. The key's value is never read. ^answer-kind
 
 **context_padding**`: Optional[str] = None`
-    T027's buried-commitment control: `neutral_padding(dials["bury_commitment"], seed.child("bury_commitment"))`, rendered as a `Background record (routine site log):` line immediately before `Constitution:` ([[#The burial forms]]). Not surfaced (it holds no id by construction); stored only when set. ^context-padding
+    T027's buried-commitment control: `neutral_padding(dials["bury_commitment"], seed.child("bury_commitment"))`, rendered as a `Background record (routine site log):` line immediately before `Constitution:` ([[#The burial forms]]). Surfaced like every printed field, though it holds no id by construction; stored only when set. ^context-padding
 
 **constitution**`: Optional[str]`
     `dials["constitution"]` (or a drafter's `brief_defaults` value) when it is a `str`, else `None` (M30.1). Stays on the brief under displacement; only the rendering drops it. ^constitution
@@ -65,7 +65,7 @@ A frozen dataclass with no methods: every field is set once by `build_brief` and
     T029's displacement burial: when `True`, `render_brief` omits the `Constitution:` line and `LLMAgent.begin` appends `{"turn": -1, "briefing": "Constitution: …"}` as the oldest history entry, so a finite `memory=k` window displaces it. Stored only when `True`. ^constitution-in-history
 
 **protocol**`: Optional[str] = None`
-    `dials["protocol"]` (T032, AUP's C10 hunt): rendered as `Protocol:` right after the constitution line, or in its place when none renders. Prompt text, not a guard dial; a non-string or blank value raises. Stored only when set. `surface_brief` does not rename ids inside it ([[#Opaque names]]). ^protocol
+    `dials["protocol"]` (T032, AUP's C10 hunt): rendered as `Protocol:` right after the constitution line, or in its place when none renders. Prompt text, not a guard dial; a non-string or blank value raises. Stored only when set. `surface_brief` renames ids inside it ([[#Opaque names]]). ^protocol
 
 **framing**`: Optional[str] = None`
     `resolve_framing(dials)`: a `FRAMING_PRESETS` name's text, any other string verbatim, or a `{briefing, hints}` dict composed by `compose_briefing` over an empty base; `None` when absent or empty. ^framing
@@ -223,10 +223,10 @@ Every row raises `ValueError` from `build_brief`, which the runner calls before 
 | Lever is a hidden pool | a lever is in `setup["hidden_ids"]`, on any world | T066 Q1 | draft |
 | Bad defaults | `setup["brief_defaults"]` set but not a mapping | T047 | draft |
 | Bad burial depth | `bury_commitment` not a non-negative `int` | T027 | — |
-| Nothing to bury | `bury_commitment` > 0 with no constitution | T027 | — |
+| Nothing to bury | `bury_commitment` > 0 with no or an empty constitution | T027 | — |
 | Unseeded burial | `bury_commitment` > 0 and `seed=None` | T027 | — |
 | Bad displacement flag | `constitution_in_history` not a `bool` (`0` passes as false) | T029 | — |
-| Nothing to displace | `constitution_in_history` with no constitution | T029 | — |
+| Nothing to displace | `constitution_in_history` with no or an empty constitution | T029 | — |
 | Two burial forms | `bury_commitment` > 0 and `constitution_in_history` | T029 | — |
 | Blank scaffold | `protocol` set but not a non-blank `str` | T032 | — |
 | Blank task note | `task_note` set but not a non-blank `str` | T061 | — |
@@ -239,7 +239,7 @@ Every row raises `ValueError` from `build_brief`, which the runner calls before 
 
 
 ## Brief defaults and merge order
-A drafter may ship `setup["brief_defaults"]`; W2 ships its bright-line commitment as `constitution` and its in-world `stakes`. They are merged as `{**defaults, **{k: v for k, v in dials.items() if v is not None}}`, so an explicit dial wins and a dial set to `None` does not erase a default. The merge happens after the control surface is resolved: `levers`, the caps, both lever refusals and the monitor probe keys read the caller's `dials`; the constitution, both burial forms, `protocol`, `task_note`, the told-text resolvers, `irreversible`, `assays` and the monitor line read the merged view.
+A drafter may ship `setup["brief_defaults"]`; W2 ships its bright-line commitment as `constitution` and its in-world `stakes`. They are merged as `{**defaults, **{k: v for k, v in dials.items() if v is not None}}`, so an explicit dial wins and a dial set to `None` does not erase a default. The merge happens first, so every consumer reads the merged view: the monitor probe keys, `levers` and the caps, both lever refusals, the constitution, both burial forms, `protocol`, `task_note`, the told-text resolvers, `irreversible`, `assays` and the monitor line. A drafter-default lever is therefore offered, capped and refused exactly like a declared one (no shipped drafter carries one).
 
 
 
@@ -323,7 +323,7 @@ Two things share the word. `Affordances.probes` is the allowlist of ids a `Measu
 
 
 ## Opaque names
-On an opaque-names trial the runner wraps the agent in `OpaqueAgent`, whose `begin` passes `surface_brief(brief, name_map)`: `question` (every value), `constitution`, `framing`, `stakes`, `reversibility` and `task_note` (ids inside the text), and every id in `affordances` and `irreversible`. `protocol`, `monitor`, `monitoring` and `context_padding` pass unchanged. The runner and the record keep the structural brief.
+On an opaque-names trial the runner wraps the agent in `OpaqueAgent`, whose `begin` passes `surface_brief(brief, name_map)`: `question` and `monitoring` (every value), `constitution`, `context_padding`, `protocol`, `framing`, `monitor`, `stakes`, `reversibility` and `task_note` (ids inside the text), and every id in `affordances` and `irreversible` — every field `render_brief` prints. The runner and the record keep the structural brief.
 
 
 
