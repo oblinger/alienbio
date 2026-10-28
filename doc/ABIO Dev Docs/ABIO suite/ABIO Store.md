@@ -1,7 +1,7 @@
 ---
 description: "`store`: the on-disk record store of a run — the `records.jsonl` line codec with its only-when-set keys, the brief codec, the `manifest.json` builder and the model/memory/axis helpers it shares with `bio suite run --dry`, and the run directory every writer and reader meets in. Source: `src/alienbio/suite/store.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Store](ha://p/ABIO%20Store) 
 # ABIO Store
 The run's own evidence on disk: one canonical-JSON line per trial in `records.jsonl`, appended as each trial lands, and a `manifest.json` that pins the spec, code, model, licence and spend the lines were drawn under, so a run can be re-aggregated, resumed and audited from its directory alone.
 
@@ -171,7 +171,7 @@ The `models`/`memories` keys are absent, not empty, when nothing is swept, so `m
 - **The timeline** — `final_timeline` is `Timeline(times=(final_time,), states=())`. Scores are frozen on the line, and `final_state` survives as a mapping, so every scorer in the report reads the same; code that indexes `final_timeline.states` does not.
 - **Tuples** — a tuple condition level, oracle value or answer reloads as a list, so a reloaded `condition_key` can differ from the live one; `bucket_key` freezes both to the same key.
 - **The line extras** — `agent`, `model`, `memory`, sampling and `registration` stay in the file and are not on the rebuilt record.
-- **The early stop** — `aggregate_records` cannot know the grid stopped at the ceiling, so its provenance says `stopped_early: false`; the manifest's `stopped_reason` keeps the fact.
+- **The early stop** — `aggregate_records` cannot know the grid stopped at the ceiling on its own; since `dbbfce1` (2026-10-28) `experiment.aggregate` reads the manifest's `stopped_reason` back into the provenance, so a reloaded map keeps `stopped_early: true`.
 
 
 

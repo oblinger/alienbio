@@ -23,7 +23,7 @@
   <g id="n-preflight">
     <rect id="n-preflight-box" x="280" y="20" width="400" height="500" rx="12" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-preflight-name" x="480" y="48" font-size="18" font-weight="600" text-anchor="middle">preflight</text>
-    <text id="n-preflight-kind" x="480" y="70" font-size="14" text-anchor="middle">(fn) 16 checks, top to bottom</text>
+    <text id="n-preflight-kind" x="480" y="70" font-size="14" text-anchor="middle">(fn) 17 checks, top to bottom</text>
   </g>
   <g id="b-licence">
     <rect id="b-licence-box" x="292" y="82" width="376" height="60" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="1.5"/>
@@ -33,7 +33,7 @@
   <g id="b-dials">
     <rect id="b-dials-box" x="292" y="152" width="376" height="60" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="1.5"/>
     <text id="b-dials-name" x="304" y="176" font-size="18" font-weight="600">2 dial placement</text>
-    <text id="b-dials-checks" x="304" y="200" font-size="14">dials · episode-dials · surface · sampling</text>
+    <text id="b-dials-checks" x="304" y="200" font-size="14">dials · labels · episode-dials · surface · sampling</text>
   </g>
   <g id="b-cross">
     <rect id="b-cross-box" x="292" y="222" width="376" height="80" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="1.5"/>

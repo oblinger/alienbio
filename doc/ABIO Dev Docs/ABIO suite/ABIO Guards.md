@@ -1,9 +1,9 @@
 ---
 description: "`guards`: every refusal a run makes before spend — `preflight` and its 16 ordered checks, the no-peeking rule and the registration licence, the declared surface, unknown and misplaced dials, the price check and one drafted world per condition. Source: `src/alienbio/suite/guards.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Guards](ha://p/ABIO%20Guards) 
 # ABIO Guards
-The gate in front of every paid run: `preflight` puts an `ExperimentSpec` through sixteen checks in a fixed order and returns every verdict, so `run_experiment` can raise the first refusal and `bio suite run --dry` can print them all, before a single world is simulated or a model is called.
+The gate in front of every paid run: `preflight` puts an `ExperimentSpec` through seventeen checks in a fixed order and returns every verdict, so `run_experiment` can raise the first refusal and `bio suite run --dry` can print them all, before a single world is simulated or a model is called.
 
 ![ABIO Guards](ABIO%20Guards.svg) 
 *The no-peeking rule and the registration licence* is the topic that governs the licence group; *The draft check* governs group 5, skipped once anything above it refused.
@@ -62,7 +62,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | guards | |
 | --- | --- |
 | [preflight](#^preflight) | Run every check in order; one `Preflight` |
-| [PREFLIGHT_CHECKS](#^preflight-checks) | The sixteen check names, in run order |
+| [PREFLIGHT_CHECKS](#^preflight-checks) | The seventeen check names, in run order |
 | [registration_admission](#^registration-admission) | Resolve a `registration:` claim against the registry |
 | [no_peeking_violation](#^no-peeking-violation) | A live model on a guarded world or dial, unlicensed |
 | [unknown_dials_violation](#^unknown-dials-violation) | A dial name nothing reads |
@@ -83,7 +83,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
     Resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; `draft` is skipped once anything refused. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` passes `resume=False`, the flag `bio suite run` itself passes ([Dry run and real run](#dry-run-and-real-run)). ^preflight
 
 **PREFLIGHT_CHECKS**`: tuple[str, ...]`
-    `("registration", "no-peeking", "dials", "episode-dials", "surface", "sampling", "w2-lag", "brief-dials", "certainty-windows", "score-window", "inert-arm", "agent", "price", "draft", "resume", "out_dir")`: the names `checks` carries, in the order `preflight` runs them. A declaration only; `preflight` spells each name again in its own `check(...)` calls. ^preflight-checks
+    `("registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag", "brief-dials", "certainty-windows", "score-window", "inert-arm", "agent", "price", "draft", "resume", "out_dir")`: the names `checks` carries, in the order `preflight` runs them. A declaration only; `preflight` spells each name again in its own `check(...)` calls. ^preflight-checks
 
 **registration_admission**`(spec: ExperimentSpec, registry_path: Optional[Path] = None) -> Optional[Registration]`
     `None` when `spec.registration` is unset. Otherwise resolves the id in the registry (`registry_path`, default the repo's `catalog/registrations.yaml`) through `resolve_registration`, which raises on a missing or unparseable file, an unknown id or a malformed entry; then raises `ValueError` when the entry names a drafter this build does not register, or does not name `spec.drafter`. Runs as the `registration` check whatever the agent, so a scripted run with a false claim refuses too ([The registry file](#the-registry-file)). ^registration-admission
@@ -143,6 +143,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | `registration` | `registration_admission` | `spec.registration`, the registry file, `DRAFTERS` | the claim does not resolve, or does not cover the drafter | T030 |
 | `no-peeking` | `no_peeking_violation` | agent kinds, `guarded_drafters()`, `guarded_dials()`, the licence | a live model meets a guarded drafter, variant or dial unlicensed | 2026-08-27 ruling; T030, T025, T048 |
 | `dials` | `unknown_dials_violation`, `fixed_factory_dials_violation` | `fixed_dials` keys, axis names, head `dial_params`, `runtime_dials()` | a name nothing reads; a factory dial in `fixed_dials` | AUP 2026-09-10; round 4 |
+| `labels` | `label_collision_violation` | the axes' levels, rendered as `_condition_label` renders them | two distinct cells share a label (`1` and `"1"`, or a level carrying `&b=`) — they would share a seed and a resume key | T088 (mass_trial round), 2026-10-28 |
 | `episode-dials` | `misplaced_episode_dials_violation` | `drafter_kwargs`, `EPISODE_DIALS` | a clock dial only the drafter would see | T066 |
 | `surface` | `declared_surface_violation` | `guarded_drafters()`, `levers` | a guarded drafter with no `levers`, or a non-list one | M45.2; T084 |
 | `sampling` | `sampling_violation` | agent kinds, `temperature` | a live arm with sampling unstated | M45.18 |
