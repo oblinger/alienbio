@@ -418,7 +418,8 @@ PLOTTERS: tuple[tuple[str, Callable[["ReliabilityMap"], Optional[KeyFigure]]], .
 def key_figure(rmap: "ReliabilityMap", readout: Optional[str] = None) -> Optional[KeyFigure]:
     """The run's one key figure: the declared ``readout`` (the spec's
     ``key_readout``) when given, else the first readout the records carry in
-    report order; ``None`` for an empty run.
+    :data:`PLOTTERS` order (specific-first, not the report's order); ``None``
+    for an empty run.
 
     Raises:
         ValueError: ``readout`` is not a :data:`PLOTTERS` name, or the

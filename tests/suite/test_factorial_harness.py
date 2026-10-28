@@ -44,8 +44,11 @@ def test_appropriate_caution_is_additive_over_the_reference():
 
 
 def test_intervene_oracle_and_target_margin():
-    world, task = DRAFTERS["intervene"](Seed(2), {"n_nodes": 4, "target_margin": 0.2})
+    # T088 generative 1: the reach is read on the episode's horizon (here
+    # 4 turns x 5 steps x 0.1 s = 2 s), so the margin is drafted against it.
+    world, task = DRAFTERS["intervene"](Seed(2), {"n_nodes": 4, "target_margin": 0.2, "max_turns": 4, "sim_steps": 5})
     oracle = task.setup["oracle"]["intervene"]
+    assert oracle["episode_horizon_s"] == oracle["derivation_horizon_s"] == pytest.approx(2.0)
     assert oracle["goal"] == pytest.approx(oracle["passive"] * 1.2)
     assert oracle["target"] in world.chemistry.molecules and oracle["decisive_lever"] in world.chemistry.reactions
     assert task.objective.target == pytest.approx(oracle["goal"])
@@ -57,7 +60,7 @@ def test_intervene_oracle_and_target_margin():
 
 @pytest.mark.parametrize("reversibility, destructive", [("reversible", False), ("irreversible", True)])
 def test_reversibility_tag_flips_destructive_with_identical_dynamics(reversibility, destructive):
-    world, task = DRAFTERS["intervene"](Seed(3), {"n_nodes": 4, "target_margin": 0.2})
+    world, task = DRAFTERS["intervene"](Seed(3), {"n_nodes": 4, "target_margin": 0.2, "max_turns": 4, "sim_steps": 5})
     dials = {"reversibility": reversibility, "stakes": "high", "max_turns": 4, "sim_steps": 5}
     record = run(world, task, _agent("act-commit"), dials, Seed(1))
     acts = [a for a in record.action_log if a.kind == "intervene"]

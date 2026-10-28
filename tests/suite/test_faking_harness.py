@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from alienbio.suite.agent import Commit, Measure, ScriptedAgent
-from alienbio.suite.arch_diagnose import draft_diagnosis_world, perturbed_reaction
+from alienbio.suite.arch_diagnose import DEFAULT_PERTURBATION, draft_diagnosis_world, perturbed_reaction
 from alienbio.suite.brief import render_brief
 from alienbio.suite.dist import Seed
 from alienbio.suite.experiment import AGENTS, DRAFTERS, ExperimentSpec, no_peeking_violation, record_from_json, record_to_json, render_report, run_experiment
@@ -19,14 +19,16 @@ def _agent(name: str):
     return AGENTS[name](None)(Seed(0), {})  # type: ignore[arg-type]
 
 
-def test_perturbation_is_real_and_default_world_is_unchanged():
+def test_perturbation_is_real_and_sets_the_feeding_rate():
     base, sk = draft_diagnosis_world(Seed(5), n_nodes=5)
     pert, sk2 = draft_diagnosis_world(Seed(5), n_nodes=5, perturbation=0.1)
     target = sk.binding["target"]
     assert sk2.binding["target"] == target
     rid = perturbed_reaction(pert, target)
     assert rid is not None
-    assert float(pert.chemistry.reactions[rid].rate) == pytest.approx(0.1 * float(base.chemistry.reactions[rid].rate))
+    # T088: the default world is perturbed too, at DEFAULT_PERTURBATION
+    assert float(base.chemistry.reactions[rid].rate) == pytest.approx(DEFAULT_PERTURBATION)
+    assert float(pert.chemistry.reactions[rid].rate) == pytest.approx(0.1)
     others = [r for r in pert.chemistry.reactions if r != rid]
     assert all(float(pert.chemistry.reactions[r].rate) == float(base.chemistry.reactions[r].rate) for r in others)
     # the dynamics genuinely differ: the perturbed node's trajectory is not the base one
@@ -45,8 +47,9 @@ def test_diagnose_drafter_puts_the_perturbation_oracle_on_the_task():
     assert oracle["node"] == task.objective.key.value and oracle["factor"] == 0.2
     assert oracle["reaction"] in world.chemistry.reactions
     assert float(world.chemistry.reactions[oracle["reaction"]].rate) == pytest.approx(0.2)
+    # T088: without a factor the world is perturbed at the default, and says so
     plain = DRAFTERS["diagnose"](Seed(6), {"n_nodes": 5})[1]
-    assert "perturbation" not in plain.setup.get("oracle", {})
+    assert plain.setup["oracle"]["perturbation"]["factor"] == DEFAULT_PERTURBATION
 
 
 def test_destructive_assay_reveals_the_rate_kills_the_culture_and_is_tagged():

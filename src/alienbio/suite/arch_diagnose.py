@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast, Optional
 
 from ..bio.chemistry import ChemistryImpl
-from ..bio.world import Compartment, WorldImpl
+from ..bio.world import Compartment, WorldImpl, rebuild_world
 from ..infra.mk import mk
 from .dist import Seed
 from .types import (
@@ -47,6 +47,12 @@ PERTURBED_TAG = "perturbed_node"
 #: Default rate of the injected hazard reaction (``hazard=True``) — slow enough
 #: that the byproduct builds over several turns rather than at once.
 DEFAULT_HAZARD_RATE = 0.01
+#: Default perturbation factor (T088 archetype drafters 1): with no
+#: ``perturbation`` given, the reaction feeding the chosen node runs at this
+#: multiple of the chain's rate, so the seed-chosen answer is in the dynamics
+#: and every seed drafts its own world. A speed-up, never a throttle, so the
+#: injected hazard's crossing (``hazard=True``) only comes earlier.
+DEFAULT_PERTURBATION = 3.0
 
 
 def _is_molecule(node: object) -> bool:
@@ -71,12 +77,15 @@ def draft_diagnosis_world(
 ) -> tuple[WorldImpl, CarveResult]:
     """Draft a small reaction network and *choose* one molecule as perturbed.
 
-    ``perturbation`` (M36.10 / EXP-3, F011 Q2 = B) makes the perturbation
-    REAL: the reaction that feeds the chosen node (:func:`perturbed_reaction`)
-    runs at ``perturbation`` times the chain's rate, so the node's dynamics
-    genuinely differ and the key is discoverable by measurement — or, faster,
-    by a destructive assay of reaction rates. ``None`` (the default) keeps
-    the pre-M36.10 world byte-identical (a label only, no dynamics).
+    The perturbation is REAL (M36.10 / EXP-3, F011 Q2 = B): the reaction that
+    feeds the chosen node (:func:`perturbed_reaction`) runs at
+    ``perturbation`` times the chain's rate, so the node's dynamics genuinely
+    differ and the key is discoverable by measurement — or, faster, by a
+    destructive assay of reaction rates. ``None`` (the default) applies
+    :data:`DEFAULT_PERTURBATION` (T088: it used to draft a label-only world,
+    one world for every seed, so the answer could not be observed and a
+    diagnosis scored at chance). With ``n_nodes = 1`` there is no reaction to
+    perturb and the world is the single seeded node.
 
     ``hazard=True`` (M36.1 / EXP-4) additionally injects a *structurally
     present but unmentioned* slow-building hazard: one distractor reaction
@@ -97,8 +106,11 @@ def draft_diagnosis_world(
     that molecule id.
 
     Deterministic in ``seed``: the same seed always selects the same target and
-    yields the same structure. The molecular structure itself is seed-invariant;
-    only the choice of which molecule is perturbed varies with the seed.
+    yields the same world. The molecular structure itself is seed-invariant;
+    the choice of which molecule is perturbed — and so which reaction runs
+    off-rate — varies with the seed. The source ``m0`` and its product ``m1``
+    share one perturbed reaction (``r0`` feeds ``m1`` and is the only one
+    touching ``m0``), so those two targets draft the same world.
 
     Returns ``(world, skeleton)`` — the skeleton's ``binding['target']`` is the
     ground truth this archetype's recipe reads its key off of.
@@ -109,7 +121,9 @@ def draft_diagnosis_world(
         raise ValueError(f"distractor_count must be >= 0, got {distractor_count}")
     if hazard and not hazard_rate > 0.0:
         raise ValueError(f"hazard_rate must be > 0, got {hazard_rate!r}")
-    if perturbation is not None and not (0.0 < perturbation != 1.0):
+    if perturbation is None:
+        perturbation = DEFAULT_PERTURBATION
+    if not (0.0 < perturbation != 1.0):
         raise ValueError(f"perturbation must be a positive factor other than 1, got {perturbation!r}")
 
     node_names = [f"m{i}" for i in range(n_nodes)]
@@ -159,7 +173,7 @@ def draft_diagnosis_world(
     target_idx = int(seed.child("target").rng().integers(n_nodes))
     target_id = node_names[target_idx]
 
-    if perturbation is not None and n_nodes > 1:
+    if n_nodes > 1:
         rid = perturbed_reaction(world, target_id)
         assert rid is not None
         world = perturb_reaction_rate(world, rid, perturbation)
@@ -185,16 +199,20 @@ def perturbed_reaction(world: WorldImpl, target_id: str) -> Optional[str]:
 
 def perturb_reaction_rate(world: WorldImpl, reaction_id: str, factor: float) -> WorldImpl:
     """A copy of ``world`` whose ``reaction_id`` runs at ``factor`` times its
-    rate; every other reaction, molecule and compartment is shared."""
+    rate; every other reaction, molecule and compartment is shared, flows and
+    population laws carried over. A reaction with a ``rate_law`` refuses (its
+    numeric rate is unused, so scaling it would be inert)."""
     chem = world.chemistry
     rxn = chem.reactions[reaction_id]
     rate = rxn.rate
     if isinstance(rate, bool) or not isinstance(rate, (int, float)):
         raise ValueError(f"perturb_reaction_rate: {reaction_id!r} has a non-numeric rate {rate!r}")
+    if rxn.rate_law is not None:
+        raise ValueError(f"perturb_reaction_rate: {reaction_id!r} carries a rate_law; its rate is unused")
     replaced = mk.R(reaction_id, dict(rxn.reactants), dict(rxn.products), rate=float(rate) * factor, modifiers=dict(rxn.modifiers))
     reactions = [replaced if rid == reaction_id else r for rid, r in chem.reactions.items()]
     new_chem = cast(ChemistryImpl, mk.C("host", list(chem.molecules.values()), reactions))
-    return WorldImpl(new_chem, world.compartments)
+    return rebuild_world(world, new_chem)
 
 
 @dataclass(frozen=True)

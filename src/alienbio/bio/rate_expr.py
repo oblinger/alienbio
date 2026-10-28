@@ -105,9 +105,14 @@ def species(name: Hashable) -> RateNode:
 
 
 def modulation(kind: str, pool: Hashable, params: Mapping[str, float]) -> RateNode:
+    """A modulation node. A negative or NaN ``Ki`` refuses, as ``Modulation``
+    refuses it (T088 refresh 1: here it built an inhibitor that activates)."""
     if kind not in MODULATION_KINDS:
         raise ValueError(f"unknown modulation kind {kind!r}")
-    return ("mod", kind, pool, {k: float(v) for k, v in params.items()})
+    out = {k: float(v) for k, v in params.items()}
+    if "Ki" in out and not (out["Ki"] >= 0.0):
+        raise ValueError(f"modulation: Ki must be >= 0, got {params['Ki']!r}")
+    return ("mod", kind, pool, out)
 
 
 def species_of(node: RateNode) -> set:
@@ -355,6 +360,7 @@ __all__ = [
     "eval_rate",
     "from_json",
     "implicit_mass_action",
+    "inhibitor_ratio",
     "lower_jax",
     "map_species",
     "modulation",

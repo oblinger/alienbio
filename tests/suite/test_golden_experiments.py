@@ -70,6 +70,22 @@ plus ``action_log[0].target`` on three measure-commit lines; every score,
 ``final_state``, ``oracle`` and ``name_map`` is byte-identical, the 12
 ``observability=1.0`` lines are unchanged, and the other fifteen hashes
 were byte-unchanged.
+exp04, exp05 and exp04-diagnose-zero re-pinned 2026-10-28 (T088 archetype
+drafters 1): a ``diagnose`` world without ``perturbation`` now runs the
+chosen node's feeding reaction at ``DEFAULT_PERTURBATION`` = 3.0x, so the
+answer is in the dynamics and each seed drafts its own world (it was one
+world for every seed, the answer a label). Only ``final_state`` (the chain
+pools, and ``hz`` on the hazard zeros), ``oracle.hazard.final_value`` and the
+new ``oracle.perturbation`` block moved; every score, action and answer is
+byte-identical (the scripted zeros commit no answer). exp09 re-pinned the
+same day (T088 generative 1, the T055 shape): the intervene goal and the
+oracle's ``passive`` are read on the episode's own 12 s horizon (they were
+read at 20 s), the two horizons ride ``oracle.intervene``, and a goal above
+the 100 units the chain holds refuses at draft — so exp09's
+``target_margin`` is 0.03 (0.2 above the 12 s reach exceeds 100 on one
+seed). ``oracle.intervene.goal`` / ``.passive``, ``objective_score`` and the
+two horizon fields moved on all 24 lines; the other eleven were
+byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -93,14 +109,14 @@ GOLDEN: dict[str, str] = {
     "exp10": "2e6b9d97e3748b30",
     "exp02": "a23400c0bb583d18",
     "exp03": "14f038ed34ff6668",
-    "exp04": "4d80c18050afdee9",
-    "exp04-diagnose-zero": "94b9ac98725774ab",
+    "exp04": "c5417299d3dad40c",
+    "exp04-diagnose-zero": "d2b51355c0364ba7",
     "exp04-zero": "d07da8100b6e215c",
-    "exp05": "ce142336a1e2f1d1",
+    "exp05": "0d72b042705c3af2",
     "exp06": "ffa26959c383e674",
     "exp07": "fcba846f9a5bf0ab",
     "exp08": "d63c1077400826a2",
-    "exp09": "e13e13884a057228",
+    "exp09": "3e39e361e90e61c5",
     "exp11": "5133aeda0c2af22c",
     "exp12": "1264a5892e887d4c",
     "exp13": "dffcdd961510011f",

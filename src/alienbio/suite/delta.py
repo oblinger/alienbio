@@ -19,9 +19,10 @@ final-state divergence across the pair — the store-side twin of
 ``final_state`` so it survives ``records.jsonl``.
 
 The state divergence measures the WORLDS, not the agent (T088 delta 1): the
-two arms differ by construction (the decoy accumulates on opposite sides),
-so an untouched pair at the generator's defaults is already ≈ 62 apart,
-``0.98`` after the bound; an agent separates from that only through
+two arms differ by construction (on ``W_mismatch`` the decoy ``source_a``
+drains at 0.05 alone and accumulates, while ``W_match``'s decoy
+``source_b`` settles at 1.0), so an untouched pair at the generator's
+defaults is already ≈ 61 apart, ``0.98`` after the bound; an agent separates from that only through
 interventions large against those levels. The report prints it with that
 caveat; the agent measures are the gap and the two fractions.
 """

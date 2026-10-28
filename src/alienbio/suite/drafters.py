@@ -1268,7 +1268,10 @@ def diagnose(
     ``hazard_threshold`` and attached as ``task.setup["oracle"]["hazard"]``.
     A hazard that never crosses within the horizon fails the draft
     (``assert_hazard_gate``), before any spend. ``perturbation`` (M36.10)
-    makes the perturbation real and attaches EXP-3's perturbation oracle.
+    sets the factor the node's feeding reaction runs at (default
+    :data:`~alienbio.suite.arch_diagnose.DEFAULT_PERTURBATION`, T088 — the
+    answer is always in the dynamics); EXP-3's perturbation oracle is
+    attached on every draft.
     ``max_turns`` / ``sim_steps`` / ``sim_dt`` are read for the oracle's
     horizon only — the world itself never depends on them.
     """
@@ -1285,15 +1288,16 @@ def diagnose(
         diag_kwargs["perturbation"] = float(perturbation)
     world, task = _generative_suite(generative_diagnose(**diag_kwargs), seed, **generator)
 
-    if perturbation is not None:
-        from .arch_diagnose import TARGET_ROLE as _DIAG_TARGET, perturbed_reaction
+    if int(n_nodes) > 1:
+        from .arch_diagnose import DEFAULT_PERTURBATION, TARGET_ROLE as _DIAG_TARGET, perturbed_reaction
 
         # M36.10 — EXP-3's perturbation oracle: the perturbed node, the
         # reaction carrying the perturbation (what a destructive assay of it
         # reveals as an off rate), the factor, and the assay allowlist.
         target = task.skeleton.binding[_DIAG_TARGET]
         rid = perturbed_reaction(world, target)
-        task = _with_oracle(task, "perturbation", {"node": target, "reaction": rid, "factor": float(perturbation)})
+        factor = float(perturbation) if perturbation is not None else DEFAULT_PERTURBATION
+        task = _with_oracle(task, "perturbation", {"node": target, "reaction": rid, "factor": factor})
 
     if hazard:
         from .hazard import HAZARD_MOLECULE, assert_hazard_gate, diagnosis_considerations, hazard_oracle
@@ -1342,16 +1346,62 @@ def predict(*, n_nodes: int = 4, ill_posed: bool = False, max_turns: Optional[in
     return Draft(world, task)
 
 
+#: The intervene generator's own integration step (``SimConfig().dt``): the
+#: passive reach and the goal are integrated at this step over the episode's
+#: horizon (T088 generative 1, the T055 shape).
+_INTERVENE_GEN_DT = SimConfig().dt
+
+
 @_head(kind="drafter", guarded_params={"target_margin"}, summary="M29.3 design-an-intervention world (outcome-scored)")
-def intervene(*, n_nodes: int = 4, target_margin: float = 0.0, env: Any, **generator: Any) -> Draft:
+def intervene(
+    *,
+    n_nodes: int = 4,
+    target_margin: float = 0.0,
+    max_turns: Optional[int] = None,
+    sim_steps: Optional[int] = None,
+    sim_dt: Optional[float] = None,
+    env: Any,
+    **generator: Any,
+) -> Draft:
     """``intervene`` — the M29.3 design-an-intervention family (outcome-scored).
     ``target_margin`` (M36.8) lifts the goal above the passive reach so a
     decisive act is required; the oracle carries EXP-9's target, goal,
-    passive reach and decisive lever."""
+    passive reach and decisive lever.
+
+    T088 (generative 1, the T055 shape): the passive reach — and so the goal
+    — is the do-nothing reach at the EPISODE's own horizon (``max_turns`` x
+    ``sim_steps`` x ``sim_dt`` as dialed, else the runner's defaults),
+    integrated at the generator's own step (:data:`_INTERVENE_GEN_DT`); the
+    two horizons ride the oracle as ``derivation_horizon_s`` /
+    ``episode_horizon_s``. Before this the reach was read at a fixed 20 s
+    while exp09 ran 12 s. A goal above the mass the chain holds (the
+    source's seeded amount) is refused at draft: no act can reach it.
+    ``max_turns`` / ``sim_steps`` / ``sim_dt`` are read for the horizon
+    only — the world itself never depends on them.
+    """
     from .arch_intervene import TARGET_ROLE, make_intervention_objective
     from .generative import generative_intervene
+    from .runner import resolve_int_dial
 
-    world, task = _generative_suite(generative_intervene(n_nodes=n_nodes), env.ctx.seed, **generator)
+    margin = float(target_margin)
+    if not (margin >= 0.0 and math.isfinite(margin)):
+        raise ValueError(f"target_margin must be non-negative and finite, got {target_margin!r}")
+    run_defaults = inspect.signature(run).parameters
+    default_sim: SimConfig = run_defaults["sim_cfg"].default
+    horizon_dials = {"max_turns": max_turns, "sim_steps": sim_steps}
+    turns = resolve_int_dial(horizon_dials, "max_turns", run_defaults["max_turns"].default)
+    steps_per_turn = resolve_int_dial(horizon_dials, "sim_steps", default_sim.steps)
+    episode_horizon_s = turns * steps_per_turn * float(sim_dt if sim_dt is not None else default_sim.dt)
+    derivation_cfg = SimConfig(
+        dt=_INTERVENE_GEN_DT,
+        steps=max(1, round(episode_horizon_s / _INTERVENE_GEN_DT)),
+        sample_every=SimConfig().sample_every,
+    )
+    derivation_horizon_s = derivation_cfg.dt * derivation_cfg.steps
+
+    world, task = _generative_suite(
+        generative_intervene(n_nodes=n_nodes, sim_cfg=derivation_cfg), env.ctx.seed, **generator
+    )
     # M36.8 — EXP-9's intervene oracle: the target, the goal, the passive
     # reach (the default goal IS the passive reach — `target_margin` lifts
     # the goal above it so a decisive act is required), and the decisive
@@ -1359,10 +1409,17 @@ def intervene(*, n_nodes: int = 4, target_margin: float = 0.0, env: Any, **gener
     assert isinstance(task.objective, OutcomeObjective)
     target_id = task.skeleton.binding[TARGET_ROLE]
     passive = float(task.objective.target)
-    margin = float(target_margin)
-    if margin < 0.0:
-        raise ValueError(f"target_margin must be non-negative, got {margin!r}")
     goal = passive * (1.0 + margin)
+    # The chain is closed (no source reaction): the most its sink can read is
+    # every seeded unit, in the scorer's units (concentration summed over
+    # compartments).
+    held = sum(sum(c.concentrations.values()) for c in world.compartments)
+    if goal > held:
+        raise ValueError(
+            f"intervene: goal {goal:g} (passive reach {passive:g} at {episode_horizon_s:g} s x "
+            f"(1 + target_margin {margin:g})) exceeds the {held:g} units the chain holds — "
+            "no intervention can reach it; lower target_margin"
+        )
     if margin > 0.0:
         task = dataclasses.replace(task, objective=make_intervention_objective(target_id, goal))
     task = _with_oracle(
@@ -1373,6 +1430,8 @@ def intervene(*, n_nodes: int = 4, target_margin: float = 0.0, env: Any, **gener
             "goal": goal,
             "passive": passive,
             "decisive_lever": sorted(world.chemistry.reactions)[0],
+            "derivation_horizon_s": derivation_horizon_s,
+            "episode_horizon_s": episode_horizon_s,
         },
     )
     return Draft(world, task)
