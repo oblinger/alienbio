@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-in">
+    <rect id="n-in-box" x="20" y="250" width="220" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-in-name" x="130" y="276" font-size="18" font-weight="600" text-anchor="middle">WorldImpl</text>
+    <text id="n-in-kind" x="130" y="298" font-size="14" text-anchor="middle">or a Skeleton,</text>
+    <text id="n-in-kind2" x="130" y="318" font-size="14" text-anchor="middle">materialized on seed</text>
+  </g>
+  <g id="n-check">
+    <rect id="n-check-box" x="300" y="258" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-check-name" x="410" y="284" font-size="18" font-weight="600" text-anchor="middle">check_boundedness</text>
+    <text id="n-check-kind" x="410" y="306" font-size="14" text-anchor="middle">(fn) both layers</text>
+  </g>
+  <line id="e-in-check" x1="240" y1="290" x2="300" y2="290" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-static">
+    <rect id="n-static-box" x="590" y="60" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-static-name" x="710" y="86" font-size="18" font-weight="600" text-anchor="middle">static_bounded_fate</text>
+    <text id="n-static-kind" x="710" y="108" font-size="14" text-anchor="middle">(fn) product, never</text>
+    <text id="n-static-kind2" x="710" y="128" font-size="14" text-anchor="middle">a reactant ‡</text>
+  </g>
+  <g id="n-dyn">
+    <rect id="n-dyn-box" x="590" y="420" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dyn-name" x="710" y="446" font-size="18" font-weight="600" text-anchor="middle">simulate_boundedness</text>
+    <text id="n-dyn-kind" x="710" y="468" font-size="14" text-anchor="middle">(fn) final / window start,</text>
+    <text id="n-dyn-kind2" x="710" y="488" font-size="14" text-anchor="middle">theta 10, window 0.25 ‡</text>
+  </g>
+  <line id="e-check-static" x1="450" y1="258" x2="620" y2="140" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-check-static" x="470" y="190" font-size="14" fill="#1971c2" font-style="italic">world.chemistry</text>
+  <line id="e-check-dyn" x1="450" y1="322" x2="620" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-check-dyn" x="480" y="390" font-size="14" fill="#1971c2" font-style="italic">world, seed</text>
+
+  <g id="n-sim">
+    <rect id="n-sim-box" x="590" y="570" width="240" height="40" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sim-name" x="710" y="596" font-size="16" font-weight="600" text-anchor="middle">verify.simulate</text>
+  </g>
+  <line id="e-dyn-sim" x1="710" y1="500" x2="710" y2="570" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-dyn-sim" x="720" y="540" font-size="14" fill="#1971c2" font-style="italic">timeline, amount()</text>
+
+  <g id="n-repair">
+    <rect id="n-repair-box" x="590" y="230" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-repair-name" x="710" y="256" font-size="18" font-weight="600" text-anchor="middle">repair_static</text>
+    <text id="n-repair-kind" x="710" y="278" font-size="14" text-anchor="middle">(fn) pool → ∅ at 0.01;</text>
+    <text id="n-repair-kind2" x="710" y="298" font-size="14" text-anchor="middle">returns a chemistry</text>
+  </g>
+  <line id="e-repair-static" x1="710" y1="230" x2="710" y2="140" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-repair-static" x="720" y="190" font-size="14" fill="#1971c2" font-style="italic">calls</text>
+
+  <g id="n-up">
+    <rect id="n-up-box" x="900" y="60" width="280" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-up-name" x="1040" y="86" font-size="18" font-weight="600" text-anchor="middle">UnboundedPool</text>
+    <text id="n-up-kind" x="1040" y="108" font-size="14" text-anchor="middle">(dataclass) name, reason</text>
+  </g>
+  <g id="n-pt">
+    <rect id="n-pt-box" x="900" y="428" width="280" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pt-name" x="1040" y="454" font-size="18" font-weight="600" text-anchor="middle">PoolTrajectory</text>
+    <text id="n-pt-kind" x="1040" y="476" font-size="14" text-anchor="middle">(dataclass) factor, classification</text>
+  </g>
+  <line id="e-static-up" x1="830" y1="92" x2="900" y2="92" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-dyn-pt" x1="830" y1="460" x2="900" y2="460" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-rep">
+    <rect id="n-rep-box" x="900" y="230" width="280" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rep-name" x="1040" y="256" font-size="18" font-weight="600" text-anchor="middle">BoundednessReport</text>
+    <text id="n-rep-kind" x="1040" y="278" font-size="14" text-anchor="middle">(dataclass) diverging,</text>
+    <text id="n-rep-kind2" x="1040" y="298" font-size="14" text-anchor="middle">collapsing, ok</text>
+  </g>
+  <line id="e-up-rep" x1="1040" y1="124" x2="1040" y2="230" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-pt-rep" x1="1040" y1="428" x2="1040" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-up-rep" x="1050" y="180" font-size="14" fill="#1971c2" font-style="italic">static_unbounded</text>
+  <text id="l-pt-rep" x="1050" y="375" font-size="14" fill="#1971c2" font-style="italic">dynamic</text>
+
+  <g id="n-guard">
+    <rect id="n-guard-box" x="20" y="60" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-guard-name" x="130" y="86" font-size="18" font-weight="600" text-anchor="middle">bounded guard</text>
+    <text id="n-guard-kind" x="130" y="108" font-size="14" text-anchor="middle">(organism example)</text>
+    <text id="n-guard-kind2" x="130" y="128" font-size="14" text-anchor="middle">the one caller</text>
+  </g>
+  <line id="e-guard-check" x1="200" y1="140" x2="340" y2="258" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="625" width="1170" height="44" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="647" x2="85" y2="647" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="652" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="190" y1="647" x2="240" y2="647" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="250" y="652" font-size="14">calls</text>
+    <text id="legend-dagger" x="330" y="652" font-size="14">‡ static flags a closed world's end product; dynamic flags near-zero decay and zero-start fill</text>
+  </g>
+</svg>
