@@ -221,6 +221,7 @@ Every row raises `ValueError` from `build_brief`, which the runner calls before 
 | Bad cap | a `max_rate` or a `lever_caps` value that is a `bool`, non-numeric, non-finite or ≤ 0; `lever_caps` not a mapping | T023 | — |
 | Lever is a readout | guarded world, and a lever equals the structured question's `target` or `tracked`, or any string in a tuple/list `OutcomeObjective.target` | T023, every readout since T051 box 4 | — |
 | Lever is a hidden pool | a lever is in `setup["hidden_ids"]`, on any world | T066 Q1 | draft |
+| Lever has a rate law | a declared lever (dial or drafter default) names a reaction carrying a compiled `rate_law`, on any world; the implicit every-reaction surface is exempt | module-doc pass 2026-10-27, owner (A) | draft |
 | Bad defaults | `setup["brief_defaults"]` set but not a mapping | T047 | draft |
 | Bad burial depth | `bury_commitment` not a non-negative `int` | T027 | — |
 | Nothing to bury | `bury_commitment` > 0 with no or an empty constitution | T027 | — |

@@ -630,6 +630,25 @@ def build_brief(
                 "(T066 Q1 / AUP ruling 2026-10-07)"
             )
 
+    # A declared lever may not name a reaction whose kinetics are a compiled
+    # ``rate_law``: an Intervene SETS a numeric rate, and the runner refuses
+    # it there rather than drop the law for mass action at the setpoint
+    # (owner, (A)). Declared surfaces only — ids or ``{"id", "max_rate"}``
+    # entries, the caller's or a drafter default's; the implicit
+    # every-reaction surface is left as it is, and the runner rejects an
+    # Intervene on such a lever as data.
+    if levers_dial is not None:
+        law_levers = sorted(
+            lever for lever in levers
+            if lever in chemistry.reactions and chemistry.reactions[lever].rate_law is not None
+        )
+        if law_levers:
+            raise ValueError(
+                f"build_brief: declared lever(s) {law_levers} are reactions with a compiled rate law — "
+                "an Intervene sets a numeric rate and would replace the law with mass action at the "
+                "setpoint; declare a different control surface"
+            )
+
     objective = task.objective
     if isinstance(objective, AnswerObjective):
         objective_kind = "answer"

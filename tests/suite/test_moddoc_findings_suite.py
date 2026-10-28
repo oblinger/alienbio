@@ -21,6 +21,10 @@ F. ``constitution=""`` counted as present for ``bury_commitment`` (padding
 G. An action of an unknown type raised ``ValueError`` inside the loop and
    surfaced as a ``TrialError`` instead of rejection-as-data; ``token_pattern``
    was missing from ``naming.__all__``.
+H. A rate ``Intervene`` on a reaction carrying a compiled ``rate_law`` rebuilt
+   it with ``rate=setpoint`` and dropped the law, silently turning it into
+   mass action at the setpoint; now the runner rejects it as data and
+   ``build_brief`` refuses such a declared lever.
 """
 
 from __future__ import annotations
@@ -329,3 +333,63 @@ def test_token_pattern_is_exported():
     import alienbio.suite.naming as naming
 
     assert "token_pattern" in naming.__all__
+
+
+# H ---------------------------------------------------------------------------
+
+
+def _with_law(world, reaction_id):
+    from alienbio.bio.chemistry import ChemistryImpl
+    from alienbio.bio.rate_expr import const, to_json
+    from alienbio.bio.reaction import ReactionImpl
+    from alienbio.bio.world import WorldImpl
+    from alienbio.infra.entity import MockDat
+
+    chem = world.chemistry
+    old = chem.reactions[reaction_id]
+    reactions = dict(chem.reactions)
+    reactions[reaction_id] = ReactionImpl(
+        reaction_id, reactants=old.reactants, products=old.products,
+        modifiers=old.modifiers, rate=old.rate, rate_law=to_json(const(2.0)),
+        dat=MockDat(f"rxn/{reaction_id}"),
+    )
+    new_chem = ChemistryImpl(
+        chem.local_name, atoms=chem.atoms, molecules=chem.molecules,
+        reactions=reactions, dat=MockDat(f"chem/{chem.local_name}"),
+    )
+    return WorldImpl(new_chem, world.compartments, flows=world.flows, population_laws=world.population_laws)
+
+
+def test_a_rate_intervene_on_a_rate_law_reaction_is_rejected():
+    from alienbio.suite.agent import Intervene
+
+    world, task = _pathway_world()
+    rxn = next(iter(world.chemistry.reactions))
+    world = _with_law(world, rxn)
+    agent = ScriptedAgent(lambda obs, sd: (Intervene(lever=rxn, value=9.0), ()), Seed(0))
+    record = run(world, task, agent, {}, Seed(5), max_turns=2)
+    assert [a.accepted for a in record.action_log] == [False, False]
+    assert all("rate law" in a.reason for a in record.action_log)
+    assert record.illegal_actions == 2
+    # The world keeps its law: the reaction is untouched.
+    assert world.chemistry.reactions[rxn].rate_law is not None
+
+
+@pytest.mark.parametrize("entry_kind", ["str", "mapping"])
+def test_a_declared_lever_on_a_rate_law_reaction_is_refused(entry_kind):
+    world, task = _pathway_world()
+    rxn = next(iter(world.chemistry.reactions))
+    world = _with_law(world, rxn)
+    entry = rxn if entry_kind == "str" else {"id": rxn, "max_rate": 4}
+    with pytest.raises(ValueError, match="rate law"):
+        run(world, task, _wait_agent(), {"levers": [entry]}, Seed(5), max_turns=1)
+
+
+def test_a_numeric_rate_lever_still_intervenes():
+    from alienbio.suite.agent import Intervene
+
+    world, task = _pathway_world()
+    rxn = next(iter(world.chemistry.reactions))
+    agent = ScriptedAgent(lambda obs, sd: (Intervene(lever=rxn, value=9.0), ()), Seed(0))
+    record = run(world, task, agent, {"levers": [rxn]}, Seed(5), max_turns=1)
+    assert record.action_log[0].accepted

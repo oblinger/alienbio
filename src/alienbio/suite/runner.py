@@ -330,6 +330,10 @@ def _chemistry_with_rate(
     must not leak back into a caller's original ``world``/``chemistry``
     (needed for ``run``'s determinism: two calls against the same ``world``
     must not see each other's interventions).
+
+    Never reached for a reaction carrying a compiled ``rate_law``: the
+    loop rejects that Intervene as data, since this rebuild keeps only the
+    numeric ``rate`` and would drop the law.
     """
     old = chemistry.reactions[reaction_id]
     new_reactions = dict(chemistry.reactions)
@@ -782,6 +786,18 @@ def run(
                     accepted = False
                     reject_reason = (
                         f"lever {action.lever!r} is allowlisted but not resolvable in this world"
+                    )
+                elif action.lever in chemistry.reactions and chemistry.reactions[action.lever].rate_law is not None:
+                    # A rate Intervene SETS the reaction's numeric rate; on a
+                    # reaction whose kinetics are a compiled ``rate_law`` that
+                    # rebuild would drop the law and run the reaction as mass
+                    # action at the setpoint — a different world, silently.
+                    # Refused (owner, (A)); build_brief refuses such a declared
+                    # lever, so this fires only on an undeclared surface.
+                    accepted = False
+                    reject_reason = (
+                        f"lever {action.lever!r} is a reaction with a compiled rate law; a rate Intervene "
+                        "would replace the law with mass action at the setpoint"
                     )
                 elif not _is_finite_number(action.value):
                     accepted = False

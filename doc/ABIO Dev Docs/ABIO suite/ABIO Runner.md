@@ -135,6 +135,7 @@ An illegal action never raises. It is logged as an `ActionRecord` with `accepted
 | `Measure` | probe in `brief.affordances.probes` | `unknown probe '…'` |
 | `Intervene` | lever in `brief.affordances.levers` | `unknown lever '…'` |
 | | lever is a reaction or a molecule here | `lever '…' is allowlisted but not resolvable in this world` |
+| | lever is not a reaction with a compiled `rate_law` (the rebuild would drop the law for mass action at the setpoint) | `lever '…' is a reaction with a compiled rate law; …` |
 | | value is a finite real, not a `bool` | `non-finite value …` |
 | | value `>= 0` | `negative value …` |
 | `Commit`, `Wait` | none | |
