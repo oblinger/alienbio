@@ -93,7 +93,7 @@ The wrapper that lets any agent see and speak surface names while the runner see
 
 
 ## naming Interface
-The module-level functions. `__all__` lists `NameMap`, `OpaqueAgent`, `build_name_map`, `opaque_names_requested`, `structural_action`, `surface_action`, `surface_brief` and `surface_observation`; `token_pattern` is public by name and imported by `suite/runner.py`, but absent from `__all__`. Private: `_BOUNDARY_L` and `_BOUNDARY_R` (the boundary regexes), `_id_pattern` (the longest-first alternation over a map's keys; a pattern that matches nothing for an empty map) and `_map_value` (the recursive walk behind the `_value` methods).
+The module-level functions. `__all__` lists `NameMap`, `OpaqueAgent`, `build_name_map`, `opaque_names_requested`, `structural_action`, `surface_action`, `surface_brief`, `surface_observation` and `token_pattern` (imported by `suite/runner.py`). Private: `_BOUNDARY_L` and `_BOUNDARY_R` (the boundary regexes), `_id_pattern` (the longest-first alternation over a map's keys; a pattern that matches nothing for an empty map) and `_map_value` (the recursive walk behind the `_value` methods).
 
 | naming | |
 | --- | --- |

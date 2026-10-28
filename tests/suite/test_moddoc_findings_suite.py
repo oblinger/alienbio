@@ -18,6 +18,9 @@ E. An id followed by ``.word`` (``root/x_in.rate``) was not a whole token, so
 F. ``constitution=""`` counted as present for ``bury_commitment`` (padding
    built and stored, never shown); and ``brief_defaults`` merged after the
    control surface was resolved, so a drafter-default lever was never read.
+G. An action of an unknown type raised ``ValueError`` inside the loop and
+   surfaced as a ``TrialError`` instead of rejection-as-data; ``token_pattern``
+   was missing from ``naming.__all__``.
 """
 
 from __future__ import annotations
@@ -299,3 +302,30 @@ def test_a_drafter_default_lever_on_a_hidden_pool_is_refused():
     # refusal (checked first) fires; either way the default was read.
     with pytest.raises(ValueError, match="structurally hidden|readout molecule"):
         run(world, task, _wait_agent(), dials, Seed(5), max_turns=1)
+
+
+# G ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class _Dance:
+    params: dict = dataclasses.field(default_factory=dict)
+
+
+@pytest.mark.parametrize("illegal_cost", [None, 2.0])
+def test_an_unknown_action_type_is_rejected_as_data(illegal_cost):
+    world, task = _pathway_world()
+    agent = ScriptedAgent(lambda obs, sd: (_Dance(), ()), Seed(0))
+    kwargs = {} if illegal_cost is None else {"illegal_action_cost": illegal_cost}
+    record = run(world, task, agent, {}, Seed(5), max_turns=4, illegal_action_limit=2, **kwargs)
+    assert record.terminal_reason == "illegal_limit"
+    assert record.illegal_actions == 2
+    assert [a.accepted for a in record.action_log] == [False, False]
+    assert all("unknown action type" in a.reason for a in record.action_log)
+    assert record.spent == (0.0 if illegal_cost is None else 2 * illegal_cost)
+
+
+def test_token_pattern_is_exported():
+    import alienbio.suite.naming as naming
+
+    assert "token_pattern" in naming.__all__

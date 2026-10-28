@@ -281,4 +281,5 @@ __all__ = [
     "surface_action",
     "surface_brief",
     "surface_observation",
+    "token_pattern",
 ]

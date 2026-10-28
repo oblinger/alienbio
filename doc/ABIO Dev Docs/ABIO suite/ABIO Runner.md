@@ -41,7 +41,7 @@ A frozen dataclass: the cumulative spend cap `run` compares its per-action cost 
 
 
 ## TrialError Interface
-The exception `run` raises when an exception escapes the turn loop and the partial record audits clean: a provider failure on turn 3, a simulator `ValueError`, an action of an unknown type. It carries the partial record built from the loop's locals at the moment of failure, so `MassTrialRunner(on_error="record")` lands what the paid trial did before it died, under the cause's own type name ([[#Errors and the partial record]]). Raised `from` the cause.
+The exception `run` raises when an exception escapes the turn loop and the partial record audits clean: a provider failure on turn 3, a simulator `ValueError`. It carries the partial record built from the loop's locals at the moment of failure, so `MassTrialRunner(on_error="record")` lands what the paid trial did before it died, under the cause's own type name ([[#Errors and the partial record]]). Raised `from` the cause.
 
 | TrialError | |
 | --- | --- |
@@ -138,6 +138,7 @@ An illegal action never raises. It is logged as an `ActionRecord` with `accepted
 | | value is a finite real, not a `bool` | `non-finite value …` |
 | | value `>= 0` | `negative value …` |
 | `Commit`, `Wait` | none | |
+| any other type | none passes | `unknown action type '…'` (charged only `illegal_action_cost`: an unknown verb has no normal cost) |
 
 The affordances are read off the structural brief, before any surface naming, and `OpaqueAgent` has already translated the agent's surface names back to structural ids. A negative setpoint is refused because the engine has no guard on input: a molecule set to −5 ran on −5 in every compartment, and a negative rate would be floored to 0 by the stepper with no note on the record. An action that is none of the four types raises `ValueError`, which leaves the loop as a `TrialError`, not as a rejection.
 

@@ -350,7 +350,8 @@ def _chemistry_with_rate(
     )
 
 
-#: M36.10 — the share of every population a destructive assay kills.
+#: M36.10 — the share of every concentration a destructive assay removes
+#: (``_state_scaled`` scales concentrations; multiplicity is untouched).
 DEFAULT_ASSAY_KILL = 0.5
 
 
@@ -826,7 +827,11 @@ def run(
             elif isinstance(action, (Commit, Wait)):
                 pass
             else:
-                raise ValueError(f"unknown action type: {type(action).__name__}")
+                # Rejection-as-data like every other illegal action: an agent
+                # that returns something that is not one of the four verbs has
+                # made an illegal move, not crashed the trial.
+                accepted = False
+                reject_reason = f"unknown action type {type(action).__name__!r}"
 
             cost_note = _ignored_cost_note(action)
             if cost_note:
@@ -857,14 +862,20 @@ def run(
                 spent += _action_cost(action)
             else:
                 illegal += 1
-                spent += illegal_action_cost if illegal_action_cost is not None else _action_cost(action)
+                if illegal_action_cost is not None:
+                    spent += illegal_action_cost
+                elif type(action).__name__.lower() in DEFAULT_ACTION_COSTS:
+                    spent += _action_cost(action)
+                # An unknown verb has no normal cost to charge: only an
+                # explicit illegal_action_cost prices it.
 
             result: Any = None
             if accepted:
                 if is_assay:
                     # M36.10 — the destructive assay: reveal the reaction's current
-                    # rate (hidden STRUCTURE, never the key) and kill `assay_kill`
-                    # of every population in the culture.
+                    # rate (hidden STRUCTURE, never the key) and scale every
+                    # concentration in every compartment by `1 - assay_kill`.
+                    # Population counts (multiplicity) are left as they are.
                     assert isinstance(action, Measure)
                     rate = chemistry.reactions[action.probe].rate
                     result = float(rate) if isinstance(rate, (int, float)) and not isinstance(rate, bool) else None
