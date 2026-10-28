@@ -100,3 +100,25 @@ def test_the_hidden_pool_refusal_is_build_briefs_own():
     })
     why = draft_violation(spec)
     assert why is not None and "build_brief:" in why and "task.setup['hidden_ids']" in why
+
+
+# B ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("value", [None, "root/crux/uptake_fast_in", 3])
+def test_a_non_list_surface_is_a_surface_refusal(value, tmp_path):
+    spec = _w1({"levers": value})
+    why = declared_surface_violation(spec)
+    assert why is not None and repr(value) in why
+    assert dict(preflight(spec, out_dir=str(tmp_path / "o")).checks)["surface"] is not None
+
+
+def test_a_non_list_axis_level_is_a_surface_refusal():
+    spec = _w1(axes={"levers": [list(W1_LEVERS), None]})
+    spec = spec_from_dict({**spec_to_dict(spec), "fixed_dials": {"pi": 0.5}})
+    why = declared_surface_violation(spec)
+    assert why is not None and "None" in why
+
+
+def test_an_empty_surface_is_the_do_nothing_arm():
+    assert declared_surface_violation(_w1({"levers": []})) is None

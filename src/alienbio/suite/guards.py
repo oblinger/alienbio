@@ -44,11 +44,28 @@ def declared_surface_violation(spec: ExperimentSpec) -> Optional[str]:
     """M45.2 — why ``spec`` has no declared control surface: a guarded drafter
     (conflict / pressure / delta and the controls on them) with no ``levers``
     dial, fixed or swept. ``None`` otherwise. The default for those worlds is
-    *no levers until declared*, failing visibly — never every reaction id."""
+    *no levers until declared*, failing visibly — never every reaction id.
+
+    A declaration is a list (``[]`` is the do-nothing arm): ``levers: null``
+    or any other non-list, fixed or as an axis level, refuses here, naming
+    the value (T084 finding B: the key's presence alone passed, and
+    ``build_brief`` refused inside every trial)."""
     if spec.drafter not in guarded_drafters():
         return None
-    if "levers" in spec.fixed_dials or any(name == "levers" for name, _ in spec.axes):
-        return None
+    declared: list[Any] = []
+    if "levers" in spec.fixed_dials:
+        declared.append(spec.fixed_dials["levers"])
+    for name, levels in spec.axes:
+        if name == "levers":
+            declared.extend(levels)
+    if declared:
+        bad = [value for value in declared if not isinstance(value, (list, tuple))]
+        if not bad:
+            return None
+        return (
+            f"drafter {spec.drafter!r}: the declared control surface must be a list of lever ids "
+            f"(`levers=[]` for a do-nothing arm); got {', '.join(repr(v) for v in bad)} (M45.2)"
+        )
     return (
         f"drafter {spec.drafter!r} is an AUP-registered substrate: declare the control surface on the brief "
         "(`brief: !q brief(levers=[...])`, `levers=[]` for a do-nothing arm) — the surface is never every reaction id by default (M45.2)"

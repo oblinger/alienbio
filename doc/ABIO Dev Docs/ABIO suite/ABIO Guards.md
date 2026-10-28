@@ -97,7 +97,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
     Refuses `max_turns`, `sim_steps` or `sim_dt` in `drafter_kwargs`: the drafter would size its derivation to that clock while the runner, which reads only the dial vector, ran another (T066: a `sim_dt` the episode never ran cleared the W2 lag bound and was stamped on the oracle). ^misplaced-episode-dials-violation
 
 **declared_surface_violation**`(spec: ExperimentSpec) -> Optional[str]`
-    On a guarded drafter, refuses unless `levers` is a `fixed_dials` key or an axis name ([The declared surface](#the-declared-surface)). `None` on every other drafter. ^declared-surface-violation
+    On a guarded drafter, refuses unless `levers` is a `fixed_dials` key or an axis name, and refuses a declared value (fixed, or any axis level) that is not a list, naming it: `levers: null` used to pass ([The declared surface](#the-declared-surface)). `None` on every other drafter. ^declared-surface-violation
 
 **sampling_violation**`(spec: ExperimentSpec) -> Optional[str]`
     With a live arm in play, refuses when `spec.temperature` is `None`: a number in `[0, 1]` or the literal `provider-fixed` must be stated (M45.18; the range and literal are validated at load by `spec.py`). ^sampling-violation
@@ -140,7 +140,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | `no-peeking` | `no_peeking_violation` | agent kinds, `guarded_drafters()`, `guarded_dials()`, the licence | a live model meets a guarded drafter, variant or dial unlicensed | 2026-08-27 ruling; T030, T025, T048 |
 | `dials` | `unknown_dials_violation`, `fixed_factory_dials_violation` | `fixed_dials` keys, axis names, head `dial_params`, `runtime_dials()` | a name nothing reads; a factory dial in `fixed_dials` | AUP 2026-09-10; round 4 |
 | `episode-dials` | `misplaced_episode_dials_violation` | `drafter_kwargs`, `EPISODE_DIALS` | a clock dial only the drafter would see | T066 |
-| `surface` | `declared_surface_violation` | `guarded_drafters()`, `levers` | a guarded drafter with no `levers` | M45.2 |
+| `surface` | `declared_surface_violation` | `guarded_drafters()`, `levers` | a guarded drafter with no `levers`, or a non-list one | M45.2; T084 |
 | `sampling` | `sampling_violation` | agent kinds, `temperature` | a live arm with sampling unstated | M45.18 |
 | `w2-lag` | `w2_lag_violation` | `depth`, `sim_dt`, `k_harm_hop`, `hop_delay_s` | the instant-read chain lag exceeds the bound | AUP leg 3, 2026-09-15 |
 | `brief-dials` | `brief_dials_violation` | each condition's monitor dials | `resolve_monitor` refuses | T066 |
@@ -175,7 +175,7 @@ No language model runs on a substrate the Alignment Under Pressure paper has a r
 
 
 ## The declared surface
-On a guarded drafter the agent's levers are never every reaction id by default: the spec must declare them on the brief, `brief(levers=[...])`, or `levers=[]` for a do-nothing arm. The `surface` check tests only that `levers` is a `fixed_dials` key or an axis; the drafter adapter stamps `require_levers` on the task and `build_brief` enforces the same rule inside the trial. Which levers are legal is the brief's business, not this check's: the readout-molecule refusal, the hidden-pool refusal and the lever-entry shape are [ABIO TaskBrief](ABIO%20TaskBrief.md)'s, and `draft` reaches every one of them before spend by calling `build_brief`.
+On a guarded drafter the agent's levers are never every reaction id by default: the spec must declare them on the brief, `brief(levers=[...])`, or `levers=[]` for a do-nothing arm. The `surface` check tests that `levers` is a `fixed_dials` key or an axis and that every declared value is a list (`[]` allowed); the drafter adapter stamps `require_levers` on the task and `build_brief` enforces the same rule inside the trial. Which levers are legal is the brief's business, not this check's: the readout-molecule refusal, the hidden-pool refusal and the lever-entry shape are [ABIO TaskBrief](ABIO%20TaskBrief.md)'s, and `draft` reaches every one of them before spend by calling `build_brief`.
 
 
 
