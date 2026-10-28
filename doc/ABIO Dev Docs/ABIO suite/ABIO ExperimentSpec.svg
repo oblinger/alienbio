@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- Column A: the two ways in -->
+  <g id="n-file">
+    <rect id="n-file-box" x="20" y="40" width="220" height="70" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-file-name" x="130" y="70" font-size="20" font-weight="600" text-anchor="middle">!experiment file</text>
+    <text id="n-file-kind" x="130" y="94" font-size="14" text-anchor="middle">(YAML) quoted calls</text>
+  </g>
+  <g id="n-head">
+    <rect id="n-head-box" x="20" y="165" width="220" height="70" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="130" y="195" font-size="20" font-weight="600" text-anchor="middle">experiment</text>
+    <text id="n-head-kind" x="130" y="219" font-size="14" text-anchor="middle">(Expr head) free names = axes</text>
+  </g>
+  <g id="n-fromdict">
+    <rect id="n-fromdict-box" x="20" y="290" width="220" height="70" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-fromdict-name" x="130" y="320" font-size="20" font-weight="600" text-anchor="middle">spec_from_dict</text>
+    <text id="n-fromdict-kind" x="130" y="344" font-size="14" text-anchor="middle">(fn) validators, derivations</text>
+  </g>
+  <g id="n-python">
+    <rect id="n-python-box" x="20" y="440" width="220" height="70" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-python-name" x="130" y="470" font-size="20" font-weight="600" text-anchor="middle">ExperimentSpec(...)</text>
+    <text id="n-python-kind" x="130" y="494" font-size="14" text-anchor="middle">(Python form) direct</text>
+  </g>
+
+  <!-- Column B: the spec itself, field groups in the order the Interface lists them -->
+  <g id="n-spec">
+    <rect id="n-spec-box" x="290" y="30" width="430" height="498" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="505" y="58" font-size="20" font-weight="600" text-anchor="middle">ExperimentSpec</text>
+    <text id="n-spec-kind" x="505" y="80" font-size="14" text-anchor="middle">(frozen dataclass) one run as data, 31 fields</text>
+
+    <rect id="g1-box" x="302" y="92" width="406" height="66" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g1-label" x="314" y="110" font-size="15" font-weight="600">identity and task</text>
+    <text id="g1-l1" x="314" y="130" font-size="14">name · drafter · out_dir</text>
+    <text id="g1-l2" x="314" y="148" font-size="14">trials_per_condition · base_seed</text>
+
+    <rect id="g2-box" x="302" y="164" width="406" height="66" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g2-label" x="314" y="182" font-size="15" font-weight="600">dials</text>
+    <text id="g2-l1" x="314" y="202" font-size="14">axes (swept) · fixed_dials · drafter_kwargs</text>
+    <text id="g2-l2" x="314" y="220" font-size="14">matched_dials · idle_baseline</text>
+
+    <rect id="g3-box" x="302" y="236" width="406" height="84" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g3-label" x="314" y="254" font-size="15" font-weight="600">agent side</text>
+    <text id="g3-l1" x="314" y="274" font-size="14">agent · model · memory · token_ceiling</text>
+    <text id="g3-l2" x="314" y="292" font-size="14">compact_at · compact_budget · history_token_limit</text>
+    <text id="g3-l3" x="314" y="310" font-size="14">max_tokens · output_schedule · temperature · top_p</text>
+
+    <rect id="g4-box" x="302" y="326" width="406" height="48" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g4-label" x="314" y="344" font-size="15" font-weight="600">run controls</text>
+    <text id="g4-l1" x="314" y="364" font-size="14">concurrency · design · key_readout</text>
+
+    <rect id="g5-box" x="302" y="380" width="406" height="84" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g5-label" x="314" y="398" font-size="15" font-weight="600">cost</text>
+    <text id="g5-l1" x="314" y="418" font-size="14">cost_ceiling_usd · price_usd_per_mtok</text>
+    <text id="g5-l2" x="314" y="436" font-size="14">expected_turns · expected_prompt_tokens</text>
+    <text id="g5-l3" x="314" y="454" font-size="14">expected_output_tokens · expected_cache_hit_rate</text>
+
+    <rect id="g6-box" x="302" y="470" width="406" height="48" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="g6-label" x="314" y="488" font-size="15" font-weight="600">registration</text>
+    <text id="g6-l1" x="314" y="508" font-size="14">a licence id, resolved at preflight</text>
+  </g>
+
+  <!-- Round trip -->
+  <g id="n-roundtrip">
+    <rect id="n-rt-box" x="290" y="580" width="430" height="60" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rt-name" x="505" y="605" font-size="20" font-weight="600" text-anchor="middle">spec_to_dict · spec_to_text</text>
+    <text id="n-rt-kind" x="505" y="628" font-size="14" text-anchor="middle">(fn) the inverses: a dict, an experiment file</text>
+  </g>
+
+  <!-- Column C: the readers -->
+  <g id="n-preflight">
+    <rect id="n-pf-box" x="790" y="30" width="340" height="65" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pf-name" x="960" y="58" font-size="20" font-weight="600" text-anchor="middle">preflight</text>
+    <text id="n-pf-kind" x="960" y="82" font-size="14" text-anchor="middle">(fn, guards.py) sixteen checks</text>
+  </g>
+  <g id="n-estimate">
+    <rect id="n-est-box" x="790" y="150" width="340" height="65" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-est-name" x="960" y="178" font-size="20" font-weight="600" text-anchor="middle">estimate_cost</text>
+    <text id="n-est-kind" x="960" y="202" font-size="14" text-anchor="middle">(fn) grid shape × price, no trial</text>
+  </g>
+  <g id="n-costest">
+    <rect id="n-ce-box" x="790" y="270" width="340" height="60" rx="10" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ce-name" x="960" y="295" font-size="20" font-weight="600" text-anchor="middle">CostEstimate</text>
+    <text id="n-ce-kind" x="960" y="318" font-size="14" text-anchor="middle">(frozen dataclass) usd · formula</text>
+  </g>
+  <g id="n-grid">
+    <rect id="n-grid-box" x="790" y="375" width="340" height="65" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-grid-name" x="960" y="403" font-size="20" font-weight="600" text-anchor="middle">condition_grid</text>
+    <text id="n-grid-kind" x="960" y="427" font-size="14" text-anchor="middle">(fn, mass_trial.py) cells → trials</text>
+  </g>
+  <g id="n-manifest">
+    <rect id="n-man-box" x="790" y="465" width="340" height="65" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-man-name" x="960" y="493" font-size="20" font-weight="600" text-anchor="middle">manifest.json</text>
+    <text id="n-man-kind" x="960" y="517" font-size="14" text-anchor="middle">(file, store.py) the run's header</text>
+  </g>
+
+  <!-- Primary flow (solid) -->
+  <line id="e-file-head" x1="130" y1="110" x2="130" y2="165" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-file-head-label" x="140" y="142" font-size="14" font-style="italic" fill="#1864ab">load_spec</text>
+  <line id="e-head-fromdict" x1="130" y1="235" x2="130" y2="290" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-head-fromdict-label" x="140" y="267" font-size="14" font-style="italic" fill="#1864ab">a dict</text>
+  <line id="e-fromdict-spec" x1="240" y1="325" x2="290" y2="325" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-python-spec" x1="240" y1="475" x2="290" y2="475" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-python-note" x="130" y="532" font-size="14" font-style="italic" fill="#c92a2a" text-anchor="middle">no validators run</text>
+
+  <line id="e-spec-pf" x1="720" y1="62" x2="790" y2="62" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-spec-pf-label" x="755" y="53" font-size="14" font-style="italic" fill="#1864ab" text-anchor="middle">checks</text>
+  <line id="e-spec-est" x1="720" y1="182" x2="790" y2="182" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-spec-est-label" x="755" y="173" font-size="14" font-style="italic" fill="#1864ab" text-anchor="middle">prices</text>
+  <line id="e-spec-grid" x1="720" y1="407" x2="790" y2="407" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-spec-grid-label" x="755" y="398" font-size="14" font-style="italic" fill="#1864ab" text-anchor="middle">axes</text>
+  <line id="e-spec-man" x1="720" y1="497" x2="790" y2="497" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="e-spec-man-label" x="755" y="488" font-size="14" font-style="italic" fill="#1864ab" text-anchor="middle">header</text>
+
+  <!-- Reads, returns and the round trip (dotted) -->
+  <line id="e-pf-est" x1="960" y1="95" x2="960" y2="150" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-pf-est-label" x="970" y="127" font-size="14" font-style="italic" fill="#1864ab">price check</text>
+  <line id="e-est-ce" x1="960" y1="215" x2="960" y2="270" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-est-ce-label" x="970" y="247" font-size="14" font-style="italic" fill="#1864ab">returns</text>
+  <path id="e-ce-man" d="M 1130 300 L 1165 300 L 1165 497 L 1130 497" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-ce-man-label" x="1158" y="358" font-size="14" font-style="italic" fill="#1864ab" text-anchor="end">cost_estimate</text>
+  <line id="e-spec-rt" x1="505" y1="528" x2="505" y2="580" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <path id="e-rt-man" d="M 720 610 L 960 610 L 960 530" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="e-rt-man-label" x="840" y="602" font-size="14" font-style="italic" fill="#1864ab" text-anchor="middle">manifest["spec"]</text>
+  <path id="e-rt-file" d="M 290 610 L 265 610 L 265 75 L 240 75" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+
+  <!-- Legend -->
+  <g id="legend">
+    <line id="lg-solid" x1="30" y1="663" x2="80" y2="663" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="lg-solid-label" x="90" y="668" font-size="14">builds or reads the spec</text>
+    <line id="lg-dot" x1="290" y1="663" x2="340" y2="663" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5"/>
+    <text id="lg-dot-label" x="350" y="668" font-size="14">returns, carries, renders back</text>
+    <rect id="lg-in" x="630" y="654" width="18" height="18" fill="#fff3f3" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="lg-in-label" x="654" y="668" font-size="14">input</text>
+    <rect id="lg-fn" x="710" y="654" width="18" height="18" fill="#ebfbee" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="lg-fn-label" x="734" y="668" font-size="14">function</text>
+    <rect id="lg-data" x="810" y="654" width="18" height="18" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="lg-data-label" x="834" y="668" font-size="14">the spec</text>
+    <rect id="lg-rec" x="910" y="654" width="18" height="18" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="lg-rec-label" x="934" y="668" font-size="14">result</text>
+    <rect id="lg-store" x="1000" y="654" width="18" height="18" fill="#fff9db" stroke="#1e1e1e" stroke-width="1"/>
+    <text id="lg-store-label" x="1024" y="668" font-size="14">on disk</text>
+  </g>
+</svg>
