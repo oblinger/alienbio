@@ -243,3 +243,152 @@ def test_archetype_drafters1_diagnose_worlds_differ_with_the_target():
         finals[target] = tuple(round(v, 9) for row in state.as_array() for v in row)
     assert len(finals) >= 2
     assert len(set(finals.values())) == len(finals)  # one world per answer
+
+
+# ── registration 1: a repeated id refuses ──────────────────────────────────
+
+
+def test_registration1_duplicate_id_refuses(tmp_path):
+    from alienbio.suite.registration import load_registry
+
+    entry = "  osf: abcde\n  filed: '2026-01-01'\n  dials: [{d}]\n  drafters: [pressure]\n"
+    path = tmp_path / "registrations.yaml"
+    path.write_text("a:\n" + entry.format(d="pi") + "a:\n" + entry.format(d="pi, stakes"))
+    with pytest.raises(ValueError, match="duplicate key 'a'"):
+        load_registry(path)
+    path.write_text("a:\n" + entry.format(d="pi"))
+    assert set(load_registry(path)) == {"a"}
+
+
+# ── boundedness 1: a closed world's terminal product is not an accumulator ─
+
+
+def test_boundedness1_closed_batch_is_bounded_a_sourced_chain_is_not():
+    from alienbio.infra.mk import mk
+    from alienbio.suite.boundedness import static_bounded_fate
+
+    a, b, c = mk.M("a"), mk.M("b"), mk.M("c")
+    closed = mk.C("closed", [a, b, c], [mk.R("r1", {a: 1.0}, {b: 1.0}), mk.R("r2", {b: 1.0}, {c: 1.0})])
+    assert static_bounded_fate(closed) == []
+    a2, b2 = mk.M("a"), mk.M("b")
+    sourced = mk.C("sourced", [a2, b2], [mk.R("src", {}, {a2: 1.0}), mk.R("r1", {a2: 1.0}, {b2: 1.0})])
+    assert [p.name for p in static_bounded_fate(sourced)] == ["b"]
+
+
+# ── carve 1: an edge's relation tag is part of the match ───────────────────
+
+
+def test_carve1_a_catalyst_edge_is_not_satisfied_by_a_substrate():
+    from alienbio.infra.mk import mk
+    from alienbio.suite.carve import CarveFail, carve
+    from alienbio.suite.types import Motif, RoleSlot
+
+    def is_mol(n):
+        return not hasattr(n, "reactants")
+
+    def is_rxn(n):
+        return hasattr(n, "reactants")
+
+    e, p = mk.M("e"), mk.M("p")
+    host = mk.C("h", [e, p], [mk.R("r", {e: 1.0}, {p: 1.0})])
+    motif = Motif(roles=(RoleSlot("E", "cat", (is_mol,)), RoleSlot("R", "rxn", (is_rxn,))), edges=(("E", "R", "catalyzes"),))
+    assert isinstance(carve(host, motif, allow_add=False), CarveFail)
+    e2, p2, k = mk.M("e"), mk.M("p"), mk.M("k")
+    host2 = mk.C("h2", [e2, p2, k], [mk.R("r", {e2: 1.0}, {p2: 1.0}, modifiers={k: "catalyst"})])
+    out = carve(host2, motif, allow_add=False)
+    assert not isinstance(out, CarveFail) and out.binding == {"E": "k", "R": "r"}
+
+
+# ── validity 1: a heuristic that recovers half the answer cracks it ────────
+
+
+def test_validity1_partial_top_k_recovery_is_not_resistant():
+    from alienbio.infra.mk import mk
+    from alienbio.suite.validity import is_shortcut_resistant
+
+    h, a, b, c, d = (mk.M(n) for n in "habcd")
+    hub = mk.C("hub", [h, a, b, c, d], [mk.R("r1", {h: 1.0}, {a: 1.0}), mk.R("r2", {h: 1.0}, {b: 1.0}), mk.R("r3", {h: 1.0}, {c: 1.0}), mk.R("r4", {d: 1.0}, {a: 1.0})])
+    assert not is_shortcut_resistant(hub, {"h"})
+    assert not is_shortcut_resistant(hub, {"h", "d"})  # the degree pick is half of it
+    assert is_shortcut_resistant(hub, {"b", "c", "d"})
+
+
+# ── cover 1: features compare by key, not predicate object ─────────────────
+
+
+def test_cover1_items_naming_one_key_share_it():
+    from alienbio.suite.cover import cover
+    from alienbio.suite.types import FeatureSet
+
+    a = FeatureSet(features=frozenset({("x", lambda w: True)}))
+    b = FeatureSet(features=frozenset({("x", lambda w: True)}))
+    out = cover([a, b])
+    assert len(out.containers) == 1 and out.assignment == (0, 0)
+
+
+# ── dist 1: two places never share a draw ──────────────────────────────────
+
+
+def test_dist1_paths_that_spell_the_same_string_draw_independently():
+    from alienbio.suite.dist import ParamSchema, Uniform
+
+    u = Uniform(0.0, 1.0)
+    out = ParamSchema({"a/b": u, "a": {"b": u}}).sample(Seed(3))
+    assert out["a/b"] != out["a"]["b"]
+    out = ParamSchema({"x": {"0": u}, "y": [u]}).sample(Seed(3))
+    keyed = ParamSchema({"x": {"0": u}}).sample(Seed(3))["x"]["0"]
+    listed = ParamSchema({"x": [u]}).sample(Seed(3))["x"][0]
+    assert keyed != listed
+
+
+# ── verify 1: SimConfig refuses what the simulator cannot run ─────────────
+
+
+@pytest.mark.parametrize(
+    "kwargs, field",
+    [({"sample_every": 0}, "sample_every"), ({"steps": -1}, "steps"), ({"steps": 0}, "steps"),
+     ({"dt": 0.0}, "dt"), ({"dt": -0.1}, "dt"), ({"dt": float("inf")}, "dt"), ({"steps": 2.5}, "steps"), ({"steps": True}, "steps")],
+)
+def test_verify1_simconfig_validates(kwargs, field):
+    from alienbio.suite.verify import SimConfig
+
+    with pytest.raises(ValueError, match=f"SimConfig.{field}"):
+        SimConfig(**kwargs)
+
+
+# ── render 1: no phrase may hold half the separator ────────────────────────
+
+
+@pytest.mark.parametrize("phrase", ["a |", "| b", "a|b"])
+def test_render1_a_bar_anywhere_in_a_phrase_refuses(phrase):
+    from alienbio.suite.render import Vocabulary
+
+    with pytest.raises(ValueError, match="separator"):
+        Vocabulary(phrases={"x": phrase, "y": "b"})
+
+
+# ── info_seeking 1: rejected actions count neither way ─────────────────────
+
+
+def test_info_seeking1_rejected_actions_are_not_counted():
+    from alienbio.suite.info_seeking import ActionRecord, actions_before_commit, destructive_rate, info_seeking_ratio
+
+    log = [ActionRecord(kind="measure", accepted=False), ActionRecord(kind="commit", accepted=False)]
+    assert info_seeking_ratio(log, {"measure"}) == 0.0
+    assert actions_before_commit(log, {"commit"}) == 0
+    log = [ActionRecord(kind="measure"), ActionRecord(kind="intervene", destructive=True, accepted=False), ActionRecord(kind="commit")]
+    assert info_seeking_ratio(log, {"measure"}) == 0.5
+    assert destructive_rate(log) == 0.0
+    assert actions_before_commit(log, {"commit"}) == 1
+
+
+# ── CellStats 1: keys equal under == but not in type refuse ────────────────
+
+
+def test_cellstats1_true_one_and_one_point_oh_do_not_merge():
+    from alienbio.suite.reliability_grid import aggregate_cells
+
+    with pytest.raises(ValueError, match="compare equal but differ"):
+        aggregate_cells([((("flag", True),), 1.0), ((("flag", 1),), 0.0), ((("flag", 1.0),), 0.5)])
+    out = aggregate_cells([((("flag", True),), 1.0), ((("flag", True),), 0.0), ((("flag", False),), 0.5)])
+    assert out[(("flag", True),)].n == 2

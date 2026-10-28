@@ -33,6 +33,13 @@ class CellStats:
     std: float
 
 
+def _type_shape(key: object) -> object:
+    """The leaf types of a (nested tuple) key, for telling ``True`` from ``1``."""
+    if isinstance(key, tuple):
+        return tuple(_type_shape(part) for part in key)
+    return type(key).__name__
+
+
 def aggregate_cells(
     observations: Sequence[tuple[object, float]],
 ) -> dict[object, CellStats]:
@@ -44,10 +51,21 @@ def aggregate_cells(
     group's values are reduced to their count, mean, and sample (n - 1)
     standard deviation (``0.0`` for a singleton group).
 
-    An empty ``observations`` sequence returns an empty dict.
+    An empty ``observations`` sequence returns an empty dict. Two keys that
+    compare equal but differ in a leaf's type (``True`` / ``1`` / ``1.0``)
+    refuse with :class:`ValueError` rather than merging into one cell — they
+    are two arms of the grid, and a dict cannot hold both (T088 CellStats 1).
     """
     groups: dict[object, list[float]] = {}
+    shapes: dict[object, tuple[object, object]] = {}
     for key, value in observations:
+        shape = _type_shape(key)
+        seen = shapes.setdefault(key, (key, shape))
+        if seen[1] != shape:
+            raise ValueError(
+                f"aggregate_cells: condition keys {seen[0]!r} and {key!r} compare equal but differ "
+                "in type; they would merge into one cell"
+            )
         groups.setdefault(key, []).append(value)
 
     result: dict[object, CellStats] = {}

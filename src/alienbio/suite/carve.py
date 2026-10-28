@@ -100,6 +100,23 @@ def _adjacent(host: ChemistryImpl, u: NodeId, v: NodeId) -> bool:
     return False
 
 
+def _edge_holds(host: ChemistryImpl, u: NodeId, v: NodeId, relation: str) -> bool:
+    """Whether the motif edge ``(u, v, relation)`` is realized in ``host`` as
+    :func:`splice` would realize it (T088 carve 1). A molecule<->reaction edge
+    whose ``relation`` names a catalytic role (:data:`_MODIFIER_RELATIONS`)
+    holds only when the molecule is a MODIFIER of the reaction; any other
+    molecule<->reaction edge holds only on reactant/product incidence (a
+    catalyst does not satisfy a substrate edge, nor a substrate a catalyst
+    edge). Molecule<->molecule edges read :func:`_adjacent`."""
+    if u in host.reactions and v in host.molecules or u in host.molecules and v in host.reactions:
+        rxn_id, mol_id = (u, v) if u in host.reactions else (v, u)
+        rxn = host.reactions[rxn_id]
+        if relation.lower() in _MODIFIER_RELATIONS:
+            return mol_id in {m.name for m in rxn.modifiers}
+        return mol_id in {m.name for m in rxn.reactants} | {m.name for m in rxn.products}
+    return _adjacent(host, u, v)
+
+
 def carve(
     host: ChemistryImpl,
     motif: Motif,
@@ -143,7 +160,7 @@ def carve(
         assigned: dict[str, tuple[NodeId, bool]],
     ) -> bool:
         """Whether binding ``name`` to ``node_id`` keeps all satisfiable edges intact."""
-        for a, b, _ in edges:
+        for a, b, relation in edges:
             if a == name:
                 other, forward = b, True
             elif b == name:
@@ -157,7 +174,7 @@ def carve(
                 # Adjacency to a synthesized node is realized later by splice.
                 continue
             src, dst = (node_id, other_id) if forward else (other_id, node_id)
-            if not _adjacent(host, src, dst):
+            if not _edge_holds(host, src, dst, relation):
                 return False
         return True
 
@@ -275,7 +292,7 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
         u = binding[a]
         v = binding[b]
         current = _rebuild(molecules, reactions, atoms)
-        if _adjacent(current, u, v):
+        if _edge_holds(current, u, v, relation):
             continue
 
         u_is_rxn = u in reactions

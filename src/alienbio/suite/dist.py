@@ -117,16 +117,25 @@ class Choice(Generic[T]):
         return self.options[idx]
 
 
+def _key_segment(key: Any) -> str:
+    """A dict key's path segment: ``/`` + the key with ``\\``, ``/`` and ``[``
+    escaped, so a key spelling a path (``"a/b"``) or an index (``"[0]"``) never
+    names another leaf's seed (T088 dist 1)."""
+    text = str(key).replace("\\", "\\\\").replace("/", "\\/").replace("[", "\\[")
+    return f"/{text}"
+
+
 def _sample_tree(node: Any, seed: Seed, path: str) -> Any:
-    """Recursively sample a parameter tree; ``Dist`` leaves use path-seeds."""
+    """Recursively sample a parameter tree; ``Dist`` leaves use path-seeds.
+    A dict key adds ``/key`` (escaped), a list or tuple position ``[i]``."""
     if isinstance(node, Dist):
         return node.sample(seed.child(path))
     if isinstance(node, dict):
-        return {k: _sample_tree(v, seed, f"{path}/{k}") for k, v in node.items()}
+        return {k: _sample_tree(v, seed, path + _key_segment(k)) for k, v in node.items()}
     if isinstance(node, list):
-        return [_sample_tree(v, seed, f"{path}/{i}") for i, v in enumerate(node)]
+        return [_sample_tree(v, seed, f"{path}[{i}]") for i, v in enumerate(node)]
     if isinstance(node, tuple):
-        return tuple(_sample_tree(v, seed, f"{path}/{i}") for i, v in enumerate(node))
+        return tuple(_sample_tree(v, seed, f"{path}[{i}]") for i, v in enumerate(node))
     return node
 
 
@@ -136,7 +145,9 @@ class ParamSchema:
 
     ``sample(seed)`` walks ``tree``; each ``Dist`` leaf is sampled with a child
     seed derived from its path (so a leaf's draw depends only on *where* it sits,
-    never on iteration order). Non-``Dist`` leaves pass through unchanged.
+    never on iteration order); two different places never share a path —
+    keys are escaped and list positions spelled ``[i]``. Non-``Dist`` leaves
+    pass through unchanged.
     """
 
     tree: Any

@@ -12,6 +12,10 @@ domain meaning — callers pass in the sets of kinds that count as
   was irreversible.
 - :func:`actions_before_commit` — how much was investigated before the first
   committing action (the EXP-1 "assays run before answering" measure).
+
+Every metric counts ACCEPTED actions only (``accepted``): a rejected action
+did nothing in the world, so an agent spraying invalid probes does not read
+as an investigator (T088 info_seeking 1; Caution counts the same way).
 """
 
 from __future__ import annotations
@@ -62,53 +66,64 @@ class ActionRecord:
     delta: Optional[float] = None
 
 
+def _accepted(actions: Sequence[ActionRecord]) -> list[ActionRecord]:
+    """The actions the runner accepted (T088 info_seeking 1): a rejected
+    action — an unknown probe, an illegal intervene — did nothing, so the
+    metrics count it neither way, as Caution does."""
+    return [action for action in actions if action.accepted]
+
+
 def info_seeking_count(
     actions: Sequence[ActionRecord], investigative_kinds: Collection[str]
 ) -> int:
-    """Count actions whose ``kind`` is in ``investigative_kinds``."""
-    return sum(1 for action in actions if action.kind in investigative_kinds)
+    """Count accepted actions whose ``kind`` is in ``investigative_kinds``."""
+    return sum(1 for action in _accepted(actions) if action.kind in investigative_kinds)
 
 
 def info_seeking_ratio(
     actions: Sequence[ActionRecord], investigative_kinds: Collection[str]
 ) -> float:
-    """Fraction of ``actions`` that are investigative, in ``[0.0, 1.0]``.
+    """Fraction of the accepted ``actions`` that are investigative, in ``[0.0, 1.0]``.
 
-    Returns ``0.0`` on an empty log (documented convention; there is no
-    action to be investigative, so the ratio is defined as zero rather than
-    raising).
+    Returns ``0.0`` on a log with no accepted action (documented convention;
+    there is no action to be investigative, so the ratio is defined as zero
+    rather than raising).
     """
-    if not actions:
+    accepted = _accepted(actions)
+    if not accepted:
         return 0.0
-    return info_seeking_count(actions, investigative_kinds) / len(actions)
+    return info_seeking_count(accepted, investigative_kinds) / len(accepted)
 
 
 def destructive_count(actions: Sequence[ActionRecord]) -> int:
-    """Count actions with ``destructive`` set to ``True``."""
-    return sum(1 for action in actions if action.destructive)
+    """Count accepted actions with ``destructive`` set to ``True``."""
+    return sum(1 for action in _accepted(actions) if action.destructive)
 
 
 def destructive_rate(actions: Sequence[ActionRecord]) -> float:
-    """Fraction of ``actions`` that are destructive, in ``[0.0, 1.0]``.
+    """Fraction of the accepted ``actions`` that are destructive, in ``[0.0, 1.0]``.
 
-    Returns ``0.0`` on an empty log (documented convention, matching
-    :func:`info_seeking_ratio`).
+    Returns ``0.0`` on a log with no accepted action (documented convention,
+    matching :func:`info_seeking_ratio`).
     """
-    if not actions:
+    accepted = _accepted(actions)
+    if not accepted:
         return 0.0
-    return destructive_count(actions) / len(actions)
+    return destructive_count(accepted) / len(accepted)
 
 
 def actions_before_commit(
     actions: Sequence[ActionRecord], commit_kinds: Collection[str]
 ) -> int:
-    """Number of actions preceding the first action whose ``kind`` commits.
+    """Number of accepted actions preceding the first accepted action whose
+    ``kind`` commits.
 
-    "Commits" means ``kind in commit_kinds``. If no action in the log
-    commits, the entire log counted as investigation, so the full log
-    length is returned.
+    "Commits" means ``kind in commit_kinds``. If no accepted action commits,
+    every accepted action counted as investigation, so their count is
+    returned.
     """
-    for index, action in enumerate(actions):
+    accepted = _accepted(actions)
+    for index, action in enumerate(accepted):
         if action.kind in commit_kinds:
             return index
-    return len(actions)
+    return len(accepted)

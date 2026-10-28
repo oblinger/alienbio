@@ -45,7 +45,8 @@ from .types import FeatureSet, Predicate
 log = logging.getLogger(__name__)
 
 # A feature is a (key, opaque predicate) pair — exactly the elements of
-# FeatureSet.features.
+# FeatureSet.features. Features are matched by key: ``cover`` canonicalizes
+# each key to the first predicate it sees.
 Feature = tuple[str, Predicate]
 
 # Safety cap on local-improvement steps; strict cost decrease already
@@ -116,7 +117,14 @@ def cover(
     threshold = 1.0 - aggressiveness
     rng = seed.rng()
     n = len(items)
-    item_feats: list[frozenset[Feature]] = [frozenset(it.features) for it in items]
+    # A feature IS its key (T088 cover 1): two items naming one key share
+    # the feature even when each carries its own predicate object (separately
+    # built lambdas compared unequal and never overlapped). The first item's
+    # predicate stands for the key.
+    canonical: dict[str, Feature] = {}
+    item_feats: list[frozenset[Feature]] = [
+        frozenset(canonical.setdefault(key, (key, pred)) for key, pred in it.features) for it in items
+    ]
 
     # Working state: parallel lists over live containers.
     groups: list[list[int]] = []  # item indices per container

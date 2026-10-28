@@ -119,14 +119,38 @@ def _parse_entry(entry_id: str, raw: Any) -> Registration:
     )
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """``SafeLoader`` that refuses a mapping with two equal keys (T088
+    registration 1: ``safe_load`` keeps the last, so a second ``a:`` block
+    silently replaced the license a reviewer reads first)."""
+
+
+def _construct_unique_mapping(loader: yaml.SafeLoader, node: yaml.MappingNode, deep: bool = False) -> dict:
+    seen: set = set()
+    for key_node, _value in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in seen:
+            raise ValueError(f"duplicate key {key!r} at line {key_node.start_mark.line + 1}")
+        seen.add(key)
+    return loader.construct_mapping(node, deep=deep)
+
+
+_UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping)
+
+
 def load_registry(path: Path) -> dict[str, Registration]:
     """Parse + validate the whole registry file at ``path``.
 
     A missing file is an error only when someone claims a registration —
     callers reach this via :func:`resolve_registration`. An empty (or
-    comments-only) file is a valid empty registry.
+    comments-only) file is a valid empty registry. A repeated key — two
+    entries under one id, or one field twice — refuses. Any malformed entry
+    refuses every claim (fail closed: the file is one audited unit).
     """
-    raw = yaml.safe_load(path.read_text()) or {}
+    try:
+        raw = yaml.load(path.read_text(), Loader=_UniqueKeyLoader) or {}
+    except ValueError as exc:
+        raise ValueError(f"registration registry {path}: {exc}") from None
     if not isinstance(raw, Mapping):
         raise ValueError(f"registration registry {path}: top level must be a mapping, got {type(raw).__name__}")
     registry: dict[str, Registration] = {}

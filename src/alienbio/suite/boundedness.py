@@ -109,11 +109,16 @@ def static_bounded_fate(chemistry: ChemistryImpl) -> list[UnboundedPool]:
     """Flag every pool produced/injected with no consuming reaction, sink, or dilution.
 
     A pool (molecule) qualifies as an accumulator when it appears as a **product** of
-    at least one reaction (including a boundary Source, ``∅ -> X``) but never as a
-    **reactant** of any reaction (an internal consumer, or a boundary Sink/dilution,
-    ``X -> ∅``) — the canonical sourced-only-inflow failure. Modifiers (catalysts,
-    never stoichiometrically consumed) do not count either way. Fail-visibly: names
-    every flagged pool + the reaction(s) that produce it; logs every trip.
+    at least one reaction but never as a **reactant** of any reaction (an internal
+    consumer, or a boundary Sink/dilution, ``X -> ∅``) AND a boundary Source
+    (``∅ -> X``, a reaction with no reactants) feeds it through some chain of
+    reactions — the canonical sourced-only-inflow failure. A terminal product of a
+    closed world (``a -> b -> c`` from a seeded ``a``, no source) is bounded by mass
+    conservation and is not flagged (T088 boundedness 1). Modifiers (catalysts,
+    never stoichiometrically consumed) do not count either way. Population laws
+    are not read (a pool drained only by a growth law reads as an accumulator).
+    Fail-visibly: names every flagged pool + the reaction(s) that produce it; logs
+    every trip.
     """
     produced_by: dict[str, list[str]] = {}
     consumed: set[str] = set()
@@ -122,6 +127,17 @@ def static_bounded_fate(chemistry: ChemistryImpl) -> list[UnboundedPool]:
             produced_by.setdefault(mol.name, []).append(rxn_id)
         for mol in rxn.reactants:
             consumed.add(mol.name)
+    # Pools a boundary source feeds, directly or downstream.
+    fed: set[str] = {m.name for r in chemistry.reactions.values() if not r.reactants for m in r.products}
+    grew = True
+    while grew:
+        grew = False
+        for rxn in chemistry.reactions.values():
+            if any(m.name in fed for m in rxn.reactants):
+                new = {m.name for m in rxn.products} - fed
+                if new:
+                    fed |= new
+                    grew = True
 
     unbounded = [
         UnboundedPool(
@@ -132,7 +148,7 @@ def static_bounded_fate(chemistry: ChemistryImpl) -> list[UnboundedPool]:
             ),
         )
         for name, rxns in sorted(produced_by.items())
-        if name not in consumed
+        if name not in consumed and name in fed
     ]
     for pool in unbounded:
         logger.warning("boundedness: static accumulator pool %r (%s)", pool.name, pool.reason)

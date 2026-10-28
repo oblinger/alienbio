@@ -16,8 +16,8 @@ positional reload: ``WorldImpl`` builds ``initial_state`` on the same molecule o
 (``chemistry.molecules.keys()``) that :meth:`WorldSimulatorImpl.from_chemistry` uses, so
 the snapshot id axes are already aligned with the simulator indices.
 
-Only **constant mass-action rates** are supported: a reaction whose ``rate`` is a callable (a
-formula rate law) raises :class:`ValueError` rather than being silently downgraded. The
+A reaction runs mass action at its numeric ``rate`` or, when it carries one, its compiled
+``rate_law`` (M47.10; a callable ``rate`` is refused by ``ReactionImpl`` itself). The
 integrator is deterministic, so :func:`simulate` is a pure function of ``(world, sim_cfg)``;
 ``seed`` is threaded only for stochastic perturbations / predicates.
 """
@@ -25,6 +25,7 @@ integrator is deterministic, so :func:`simulate` is a pure function of ``(world,
 from __future__ import annotations
 
 import math
+import numbers
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -40,11 +41,23 @@ from .types import Timeline
 
 @dataclass(frozen=True)
 class SimConfig:
-    """Integration parameters for :func:`simulate`."""
+    """Integration parameters for :func:`simulate`: ``dt`` a positive finite
+    step, ``steps`` and ``sample_every`` positive ints (T088 verify 1:
+    ``sample_every = 0`` raised a bare ``ZeroDivisionError`` from
+    :func:`simulate`, a negative ``steps`` or non-positive ``dt`` reached the
+    simulator as given). A bad field refuses here, naming it."""
 
     dt: float = 0.1
     steps: int = 200
     sample_every: int = 10
+
+    def __post_init__(self) -> None:
+        if isinstance(self.dt, bool) or not isinstance(self.dt, numbers.Real) or not (math.isfinite(self.dt) and self.dt > 0):
+            raise ValueError(f"SimConfig.dt must be a positive finite number, got {self.dt!r}")
+        for name in ("steps", "sample_every"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, numbers.Integral) or value < 1:
+                raise ValueError(f"SimConfig.{name} must be a positive int, got {value!r}")
 
 
 @dataclass(frozen=True)

@@ -98,7 +98,8 @@ class Vocabulary:
 
     ``phrases`` maps ``token -> surface phrase``. It must be **injective** (no
     two tokens share a phrase) so the inverse is unambiguous, and no phrase may
-    contain :data:`SEP` or equal :data:`EMPTY` (those are reserved lexical
+    contain the separator's ``|`` (anywhere, so no join is ambiguous) or equal
+    :data:`EMPTY` (those are reserved lexical
     markers). Violations raise ``ValueError`` at construction time.
     """
 
@@ -113,9 +114,12 @@ class Vocabulary:
                     f"Vocabulary is not injective: phrase {phrase!r} maps from "
                     f"both {inverse[phrase]!r} and {token!r}"
                 )
-            if SEP in phrase:
+            if SEP.strip() in phrase:
+                # Any ``|``, not only the whole " | " (T088 render 1): phrases
+                # "a |" and "| b" joined to "a | | b", which parsed as two
+                # other tokens.
                 raise ValueError(
-                    f"phrase {phrase!r} contains the reserved separator {SEP!r}"
+                    f"phrase {phrase!r} contains the reserved separator character {SEP.strip()!r}"
                 )
             if phrase == EMPTY:
                 raise ValueError(

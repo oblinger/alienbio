@@ -9,10 +9,10 @@ trajectories / graphs, with no experiment content:
   perturbation*. Returned as a ``Callable[[Timeline, Timeline], bool]`` matching
   the :func:`~alienbio.suite.verify.verify` reject-sampling seam: it accepts a
   world only when the perturbation produces a non-trivial trajectory change.
-- :func:`is_shortcut_resistant` — **(C)** the ground-truth answer must not
-  coincide with the top-ranked node under a small battery of cheap *structural*
-  heuristics (degree centrality, two-hop reach), so a heuristic shortcut cannot
-  crack the task.
+- :func:`is_shortcut_resistant` — **(C)** the top-ranked nodes under a small
+  battery of cheap *structural* heuristics (degree centrality, two-hop reach)
+  must not recover half or more of the ground-truth answer, so a heuristic
+  shortcut cannot crack the task.
 """
 
 from __future__ import annotations
@@ -82,6 +82,11 @@ def _two_hop(chem: "ChemistryImpl", node: NodeId) -> int:
 # agent might rank by. Extend this tuple to harden shortcut-resistance further.
 _HEURISTICS: tuple[Callable[["ChemistryImpl", NodeId], int], ...] = (_degree, _two_hop)
 
+#: The share of the answer a heuristic's top-k may recover before the world is
+#: rejected (T088 validity 1: only an EXACT top-k match was rejected, so a
+#: heuristic that recovered all but one answer node left the world "resistant").
+SHORTCUT_RECALL = 0.5
+
 
 def is_shortcut_resistant(
     chemistry: "ChemistryImpl",
@@ -93,8 +98,9 @@ def is_shortcut_resistant(
     For each heuristic in the battery, rank all nodes by score (descending, ties
     broken by id) and take the top ``k`` (default: as many nodes as the answer
     has). The world is *shortcut-resistant* (``True``) only if **no** heuristic's
-    top-``k`` pick equals the ground-truth ``answer_nodes`` set — otherwise a
-    degree/centrality shortcut cracks the task and the world is rejected.
+    top-``k`` pick recovers :data:`SHORTCUT_RECALL` (half) or more of the
+    ground-truth ``answer_nodes`` — otherwise a degree/centrality shortcut
+    cracks the task (or most of it) and the world is rejected.
 
     An empty answer is trivially resistant.
     """
@@ -106,6 +112,6 @@ def is_shortcut_resistant(
     k = top_k if top_k is not None else len(answer)
     for score_fn in _HEURISTICS:
         ranked = sorted(nodes, key=lambda n: (-score_fn(chemistry, n), n))
-        if set(ranked[:k]) == answer:
+        if len(set(ranked[:k]) & answer) >= SHORTCUT_RECALL * len(answer):
             return False
     return True
