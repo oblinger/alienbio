@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <polygon points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="background" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <!-- runner.run: the caller, turn methods in order -->
+  <rect id="run-box" x="40" y="50" width="230" height="520" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="run-name" x="155" y="78" font-size="18" font-weight="700" text-anchor="middle">runner.run</text>
+  <text id="run-kind" x="155" y="98" font-size="14" text-anchor="middle">(function, suite/runner)</text>
+  <text id="run-h1" x="56" y="140" font-size="14" font-weight="700">before turn 0</text>
+  <text id="run-s1" x="56" y="162" font-size="14">1 · begin(brief)</text>
+  <text id="run-h2" x="56" y="200" font-size="14" font-weight="700">each turn</text>
+  <text id="run-s2" x="56" y="222" font-size="14">2 · every_turn probes</text>
+  <text id="run-s3" x="56" y="244" font-size="14">3 · act(observation)</text>
+  <text id="run-s4" x="56" y="266" font-size="14">4 · after_action probes</text>
+  <text id="run-s5" x="56" y="288" font-size="14">5 · validate, charge</text>
+  <text id="run-s6" x="56" y="310" font-size="14">6 · apply if accepted</text>
+  <text id="run-s7" x="56" y="332" font-size="14">7 · notice(outcome)</text>
+  <text id="run-s8" x="56" y="354" font-size="14">8 · simulate one burst</text>
+  <text id="run-n1" x="56" y="400" font-size="14">agent sees only the</text>
+  <text id="run-n2" x="56" y="420" font-size="14">brief and narrowed</text>
+  <text id="run-n3" x="56" y="440" font-size="14">observations</text>
+
+  <!-- Agent protocol -->
+  <rect id="agent-box" x="470" y="50" width="260" height="90" rx="12" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="agent-name" x="600" y="78" font-size="18" font-weight="700" text-anchor="middle">Agent</text>
+  <text id="agent-kind" x="600" y="98" font-size="14" text-anchor="middle">(Protocol, runtime_checkable)</text>
+  <text id="agent-m" x="600" y="124" font-size="14" text-anchor="middle">act(observation)</text>
+
+  <!-- ProbeAgent / SessionAgent -->
+  <rect id="probe-box" x="360" y="190" width="200" height="80" rx="12" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="probe-name" x="460" y="216" font-size="18" font-weight="700" text-anchor="middle">ProbeAgent</text>
+  <text id="probe-kind" x="460" y="236" font-size="14" text-anchor="middle">(Protocol)</text>
+  <text id="probe-m" x="460" y="257" font-size="14" text-anchor="middle">probe(text)</text>
+
+  <rect id="session-box" x="630" y="190" width="200" height="80" rx="12" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="session-name" x="730" y="216" font-size="18" font-weight="700" text-anchor="middle">SessionAgent</text>
+  <text id="session-kind" x="730" y="236" font-size="14" text-anchor="middle">(Protocol)</text>
+  <text id="session-m" x="730" y="257" font-size="14" text-anchor="middle">begin · notice</text>
+
+  <path id="derive-probe" d="M 480 190 L 560 140" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <path id="derive-session" d="M 710 190 L 640 140" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="derive-label" x="600" y="176" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">optional</text>
+
+  <!-- ReasoningStep / ActionOutcome -->
+  <rect id="step-box" x="360" y="330" width="200" height="90" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="step-name" x="460" y="356" font-size="18" font-weight="700" text-anchor="middle">ReasoningStep</text>
+  <text id="step-kind" x="460" y="376" font-size="14" text-anchor="middle">(frozen dataclass)</text>
+  <text id="step-f" x="460" y="400" font-size="14" text-anchor="middle">kind · content · refs</text>
+
+  <rect id="outcome-box" x="630" y="330" width="200" height="96" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="outcome-name" x="730" y="356" font-size="18" font-weight="700" text-anchor="middle">ActionOutcome</text>
+  <text id="outcome-kind" x="730" y="376" font-size="14" text-anchor="middle">(frozen dataclass)</text>
+  <text id="outcome-f1" x="730" y="396" font-size="14" text-anchor="middle">turn · action · accepted</text>
+  <text id="outcome-f2" x="730" y="413" font-size="14" text-anchor="middle">reason · result</text>
+
+  <!-- Action union with its four members -->
+  <rect id="action-box" x="340" y="460" width="530" height="110" rx="12" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="action-name" x="605" y="484" font-size="18" font-weight="700" text-anchor="middle">Action (closed Union)</text>
+  <rect id="measure-box" x="352" y="496" width="120" height="62" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="measure-name" x="412" y="520" font-size="18" font-weight="600" text-anchor="middle">Measure</text>
+  <text id="measure-f" x="412" y="544" font-size="14" text-anchor="middle">probe · params</text>
+  <rect id="intervene-box" x="480" y="496" width="120" height="62" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="intervene-name" x="540" y="520" font-size="18" font-weight="600" text-anchor="middle">Intervene</text>
+  <text id="intervene-f" x="540" y="544" font-size="14" text-anchor="middle">lever · value</text>
+  <rect id="commit-box" x="608" y="496" width="120" height="62" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="commit-name" x="668" y="520" font-size="18" font-weight="600" text-anchor="middle">Commit</text>
+  <text id="commit-f" x="668" y="544" font-size="14" text-anchor="middle">answer · ends</text>
+  <rect id="wait-box" x="736" y="496" width="120" height="62" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="wait-name" x="796" y="520" font-size="18" font-weight="600" text-anchor="middle">Wait</text>
+  <text id="wait-f" x="796" y="544" font-size="14" text-anchor="middle">duration</text>
+
+  <!-- Implementers -->
+  <rect id="scripted-box" x="920" y="50" width="240" height="110" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="scripted-name" x="1040" y="76" font-size="18" font-weight="700" text-anchor="middle">Scripted agents</text>
+  <text id="scripted-kind" x="1040" y="96" font-size="14" text-anchor="middle">(AGENTS, suite/agents)</text>
+  <text id="scripted-f1" x="1040" y="120" font-size="14" text-anchor="middle">ScriptedAgent: act only</text>
+  <text id="scripted-f2" x="1040" y="142" font-size="14" text-anchor="middle">5 classes: + begin, notice</text>
+
+  <rect id="llm-box" x="920" y="200" width="240" height="80" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="llm-name" x="1040" y="226" font-size="18" font-weight="700" text-anchor="middle">LLMAgent</text>
+  <text id="llm-kind" x="1040" y="246" font-size="14" text-anchor="middle">(class, suite/llm_agent)</text>
+  <text id="llm-f" x="1040" y="270" font-size="14" text-anchor="middle">all three Protocols</text>
+
+  <rect id="opaque-box" x="920" y="340" width="240" height="90" rx="10" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="opaque-name" x="1040" y="366" font-size="18" font-weight="700" text-anchor="middle">OpaqueAgent</text>
+  <text id="opaque-kind" x="1040" y="386" font-size="14" text-anchor="middle">(wrapper, suite/naming)</text>
+  <text id="opaque-f" x="1040" y="410" font-size="14" text-anchor="middle">surface names both ways</text>
+
+  <rect id="record-box" x="920" y="470" width="240" height="96" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text id="record-name" x="1040" y="496" font-size="18" font-weight="700" text-anchor="middle">ActionRecord</text>
+  <text id="record-kind" x="1040" y="516" font-size="14" text-anchor="middle">(frozen dataclass)</text>
+  <text id="record-f1" x="1040" y="540" font-size="14" text-anchor="middle">kind · accepted · reason</text>
+  <text id="record-f2" x="1040" y="558" font-size="14" text-anchor="middle">target · value · delta</text>
+
+  <!-- Primary flow: the runner's calls -->
+  <path id="call-act" d="M 270 100 L 470 100" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="call-act-label" x="370" y="90" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">act(observation)</text>
+  <path id="call-probe" d="M 270 230 L 360 230" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="call-probe-label" x="315" y="220" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">probe</text>
+  <path id="call-begin" d="M 270 300 L 700 300 L 700 270" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="call-begin-label" x="600" y="318" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">begin(brief), once</text>
+  <path id="call-outcome" d="M 270 444 L 760 444 L 760 426" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="call-outcome-label" x="320" y="438" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">builds, every turn</text>
+  <path id="call-record" d="M 155 570 L 155 600 L 1040 600 L 1040 566" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="call-record-label" x="600" y="592" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">writes one per action, accepted or rejected</text>
+
+  <!-- Secondary: returns, notice, implements, wraps -->
+  <path id="ret-action" d="M 340 515 L 270 515" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="ret-action-label" x="305" y="505" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">returns</text>
+  <path id="ret-step" d="M 360 375 L 270 375" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="ret-step-label" x="315" y="365" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">returns</text>
+  <path id="notice" d="M 760 330 L 760 270" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="notice-label" x="768" y="304" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">notice</text>
+  <path id="impl-scripted" d="M 920 100 L 730 100" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="impl-scripted-label" x="825" y="90" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">implements</text>
+  <path id="impl-llm" d="M 920 240 L 830 240" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="impl-llm-label" x="875" y="230" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">implements</text>
+  <path id="wraps" d="M 1040 340 L 1040 280" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="wraps-label" x="1050" y="315" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">wraps any agent</text>
+
+  <!-- Legend -->
+  <line id="legend-solid" x1="40" y1="640" x2="120" y2="640" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="legend-solid-label" x="132" y="645" font-size="14">runner call or build (primary flow)</text>
+  <line id="legend-dotted" x1="420" y1="640" x2="500" y2="640" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrowhead)"/>
+  <text id="legend-dotted-label" x="512" y="645" font-size="14">returns · notice · extends · implements · wraps</text>
+  <text id="legend-colors" x="40" y="668" font-size="14">blue: Protocol · yellow: record · green: implementer · red: action union</text>
+</svg>
