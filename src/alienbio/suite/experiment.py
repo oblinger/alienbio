@@ -493,7 +493,8 @@ def run_experiment(
 def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
     """Rebuild a :class:`~alienbio.suite.mass_trial.ReliabilityMap` from
     ``records.jsonl`` + ``manifest.json`` alone — no world is re-drafted, no
-    trial is re-run.
+    trial is re-run. ``Provenance.stopped_early`` is read back from the
+    manifest's ``stopped_reason``.
 
     Raises:
         FileNotFoundError: ``out_dir`` has no ``manifest.json``.
@@ -515,4 +516,9 @@ def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
                     continue
                 records.append(record_from_json(json.loads(line)))
 
-    return aggregate_records(records, spec.axes, Seed(spec.base_seed), spec.trials_per_condition)
+    rmap = aggregate_records(records, spec.axes, Seed(spec.base_seed), spec.trials_per_condition)
+    # The early stop is a fact about the run, not the records: the manifest
+    # carries it (``stopped_reason``), and a reload that left the default
+    # rewrote a ceiling-stopped run's map.json as complete (T084 B).
+    stopped_early = manifest.get("stopped_reason") is not None
+    return dataclasses.replace(rmap, provenance=dataclasses.replace(rmap.provenance, stopped_early=stopped_early))

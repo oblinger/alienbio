@@ -116,7 +116,7 @@ What produced a map. Frozen; the two counters default so a hand-built fixture co
     `len(records)` minus the scored records — the error records the reducer skipped, counted by `_aggregate` itself so a live run and a reload agree. Always `0` under `on_error="raise"`. ^failed-trials
 
 **stopped_early**`: bool = False`
-    `True` when `stop()` returned true before the last unit, or a worker found it true as it started; set by `run` after the reduce. A reload through [aggregate_records](#^aggregate-records) always says `False`. ^stopped-early
+    `True` when `stop()` returned true before the last unit, or a worker found it true as it started; set by `run` after the reduce. [aggregate_records](#^aggregate-records) alone leaves `False`; `experiment.aggregate` reads it back from the manifest's `stopped_reason` (T084 B, 2026-10-28 — before that `bio suite aggregate` rewrote a ceiling-stopped run's `map.json` with `stopped_early: false`). ^stopped-early
 
 
 
@@ -136,7 +136,7 @@ What produced a map. Frozen; the two counters default so a hand-built fixture co
     `itertools.product` over the axes' levels in the order given, each combination normalised by `trial.condition_key` (sorted by dial name). Empty `axes` yields `[()]`, one cell with no dials. `run` re-sorts the result by `str(key)`; callers that need the run's order must do the same. ^condition-grid
 
 **aggregate_records**`(records: Sequence[TrialRecord], axes: tuple[tuple[str, tuple[Any, ...]], ...], base_seed: Seed, trials_per_condition: int) -> ReliabilityMap`
-    The public name for `_aggregate`, the reducer `run` itself ends with: no drafting, no re-running. `experiment.aggregate(out_dir)` reads `records.jsonl` and the manifest's spec and calls it; `bio suite aggregate` and `bio suite report` go through that. ^aggregate-records
+    The public name for `_aggregate`, the reducer `run` itself ends with: no drafting, no re-running. `experiment.aggregate(out_dir)` reads `records.jsonl` and the manifest's spec, calls it, and sets `stopped_early` from the manifest's `stopped_reason`; `bio suite aggregate` and `bio suite report` go through that. ^aggregate-records
 
 **ConditionKey**` = tuple[tuple[str, Any], ...]`
     One cell: `(dial, level)` pairs sorted by dial name, the shape `trial.condition_key` produces. Levels stay raw here; `bucket_key` is the hashable form. ^conditionkey

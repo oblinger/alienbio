@@ -8,6 +8,10 @@ A. ``_marginal_cell_means`` looked cells up by the RAW ``condition_key``
    with any other two-level axis raised ``TypeError: unhashable`` after
    every trial had run; ``sorted`` over mapping levels raised too, and the
    contrast pooled nothing (a raw list level never equals its frozen tuple).
+B. ``experiment.aggregate`` rebuilt the map with ``stopped_early`` at its
+   default, so ``bio suite aggregate`` rewrote a ceiling-stopped run's
+   ``map.json`` with ``stopped_early: false``; it now reads the manifest's
+   ``stopped_reason`` back into ``Provenance``.
 """
 
 from __future__ import annotations
@@ -67,3 +71,50 @@ def test_a_list_axis_crossed_with_a_scalar_axis_aggregates():
     rmap = aggregate_records(records, axes, Seed(1), 2)
     assert rmap.interactions[("levers", "pi")] == pytest.approx(0.0)
     assert ("levers", "pi") in rmap.contrasts
+
+
+# B ---------------------------------------------------------------------------
+
+
+def test_a_ceiling_stopped_run_reloads_stopped_early(tmp_path, monkeypatch):
+    import json
+
+    from alienbio.suite.agent import Commit
+    from alienbio.suite.experiment import AGENTS, ExperimentSpec, aggregate, run_experiment
+    from alienbio.suite.types import Answer
+
+    class _BigUsageAgent:
+        def act(self, observation):
+            del observation
+            return Commit(answer=Answer(value=[], kind="ordered_path")), ()
+
+        @property
+        def usage(self):
+            return {"calls": 1, "input_tokens": 1_000_000, "output_tokens": 0,
+                    "cache_read_tokens": 0, "cache_write_tokens": 0}
+
+    monkeypatch.setitem(AGENTS, "idle", lambda spec: (lambda seed, dials: _BigUsageAgent()))
+    spec = ExperimentSpec(
+        name="ceiling-reload", axes=(("rung", ("single",)),), drafter="conflict", agent="idle",
+        trials_per_condition=2, base_seed=1, price_usd_per_mtok=(3.0, 15.0),
+        cost_ceiling_usd=2.0, fixed_dials={"levers": []},
+    )
+    out_dir = tmp_path / "run"
+    live = run_experiment(spec, out_dir=str(out_dir))
+    assert live.provenance.stopped_early is True
+
+    reloaded = aggregate(out_dir)
+    assert reloaded.provenance.stopped_early is True
+    assert json.loads(reloaded.to_json())["provenance"]["stopped_early"] is True
+
+
+def test_a_complete_run_reloads_not_stopped(tmp_path):
+    from alienbio.suite.experiment import ExperimentSpec, aggregate, run_experiment
+
+    spec = ExperimentSpec(
+        name="complete-reload", axes=(("rung", ("single",)),), drafter="conflict", agent="idle",
+        trials_per_condition=1, base_seed=1, fixed_dials={"levers": []},
+    )
+    out_dir = tmp_path / "run"
+    run_experiment(spec, out_dir=str(out_dir))
+    assert aggregate(out_dir).provenance.stopped_early is False
