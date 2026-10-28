@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-base">
+    <rect id="n-base-box" x="20" y="60" width="220" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-base-name" x="130" y="86" font-size="17" font-weight="600" text-anchor="middle">baseline Timeline</text>
+    <text id="n-base-kind" x="130" y="108" font-size="13" text-anchor="middle">simulate(world)</text>
+  </g>
+  <g id="n-pert">
+    <rect id="n-pert-box" x="20" y="160" width="220" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pert-name" x="130" y="186" font-size="17" font-weight="600" text-anchor="middle">perturbed Timeline</text>
+    <text id="n-pert-kind" x="130" y="208" font-size="13" text-anchor="middle">simulate(perturbation(world))</text>
+  </g>
+  <g id="n-noc">
+    <rect id="n-noc-box" x="320" y="90" width="270" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-noc-name" x="455" y="116" font-size="17" font-weight="600" text-anchor="middle">non_obvious_causal(1e-3)</text>
+    <text id="n-noc-k1" x="455" y="138" font-size="13" text-anchor="middle">same shape and total L2</text>
+    <text id="n-noc-k2" x="455" y="156" font-size="13" text-anchor="middle">distance &gt; min_deviation;</text>
+    <text id="n-noc-k3" x="455" y="174" font-size="13" text-anchor="middle">baseline never inspected ‡</text>
+  </g>
+  <line id="e-base-noc" x1="240" y1="92" x2="320" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-pert-noc" x1="240" y1="192" x2="320" y2="165" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-seam">
+    <rect id="n-seam-box" x="680" y="90" width="250" height="100" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-seam-name" x="805" y="116" font-size="16" font-weight="600" text-anchor="middle">verify_with seam</text>
+    <text id="n-seam-k1" x="805" y="138" font-size="13" text-anchor="middle">build_suite reject loop,</text>
+    <text id="n-seam-k2" x="805" y="156" font-size="13" text-anchor="middle">Expr verify head; used by</text>
+    <text id="n-seam-k3" x="805" y="174" font-size="13" text-anchor="middle">pathway_puzzles non_obvious</text>
+  </g>
+  <line id="e-noc-seam" x1="590" y1="140" x2="680" y2="140" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-noc-seam" x="635" y="130" font-size="13" fill="#1971c2" font-style="italic" text-anchor="middle">bool</text>
+
+  <g id="n-chem">
+    <rect id="n-chem-box" x="20" y="340" width="220" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-chem-name" x="130" y="366" font-size="17" font-weight="600" text-anchor="middle">ChemistryImpl</text>
+    <text id="n-chem-kind" x="130" y="388" font-size="13" text-anchor="middle">+ answer_nodes</text>
+  </g>
+  <g id="n-heur">
+    <rect id="n-heur-box" x="320" y="420" width="270" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-heur-name" x="455" y="446" font-size="16" font-weight="600" text-anchor="middle">_degree, _two_hop</text>
+    <text id="n-heur-k1" x="455" y="468" font-size="13" text-anchor="middle">rank every node, ties by id,</text>
+    <text id="n-heur-k2" x="455" y="486" font-size="13" text-anchor="middle">take top k = |answer|</text>
+  </g>
+  <g id="n-isr">
+    <rect id="n-isr-box" x="320" y="300" width="270" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-isr-name" x="455" y="326" font-size="17" font-weight="600" text-anchor="middle">is_shortcut_resistant</text>
+    <text id="n-isr-k1" x="455" y="348" font-size="13" text-anchor="middle">fails only on an exact</text>
+    <text id="n-isr-k2" x="455" y="366" font-size="13" text-anchor="middle">top-k = answer match ‡</text>
+  </g>
+  <line id="e-chem-isr" x1="240" y1="372" x2="320" y2="350" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-isr-heur" x1="455" y1="390" x2="455" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-tests">
+    <rect id="n-tests-box" x="680" y="310" width="250" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-tests-name" x="805" y="336" font-size="15" font-weight="600" text-anchor="middle">tests/suite/test_validity</text>
+    <text id="n-tests-kind" x="805" y="358" font-size="13" text-anchor="middle">the only caller</text>
+  </g>
+  <line id="e-tests-isr" x1="680" y1="345" x2="590" y2="345" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-ex">
+    <rect id="n-ex-box" x="680" y="420" width="500" height="80" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <text id="n-ex-k1" x="930" y="446" font-size="13" text-anchor="middle">hub h has degree 3: answer {h} is rejected,</text>
+    <text id="n-ex-k2" x="930" y="466" font-size="13" text-anchor="middle">answer {h, d} passes though the ranking's</text>
+    <text id="n-ex-k3" x="930" y="486" font-size="13" text-anchor="middle">first pick is half of it</text>
+  </g>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="646" font-size="14">‡ each gate tests less than its name: an absolute distance; an exact match</text>
+  </g>
+</svg>
