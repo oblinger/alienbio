@@ -373,9 +373,10 @@ def task_readouts(task: TaskInstance, chemistry: "ChemistryImpl") -> frozenset[s
 
     - a structured question's ``target`` / ``tracked`` (the pressure and
       phase-1 objectives, an outcome example's ``{kind, target}``) and every
-      string in an ``OutcomeObjective``'s tuple ``target`` (the harm pool
-      rides third there, T051 box 4) — each as named and as the molecule(s)
-      it resolves to;
+      id in an ``OutcomeObjective``'s tuple ``target`` — a bare id (the harm
+      pool rides third there, T051 box 4) or the id of an ``(id, goal)``
+      pair (the conflict rungs) — each as named and as the molecule(s) it
+      resolves to;
     - on a question that is a bare collection of ids (an outcome or predict
       example), every molecule it names — unless the task's answer key is
       itself a world node (diagnose / identify): there the named molecules
@@ -386,8 +387,8 @@ def task_readouts(task: TaskInstance, chemistry: "ChemistryImpl") -> frozenset[s
     structured = task.question.structured
     if isinstance(structured, Mapping):
         for key in ("target", "tracked"):
-            named = structured.get(key)
-            if isinstance(named, str):
+            named = _target_id(structured.get(key))
+            if named is not None:
                 readouts.add(named)
                 readouts |= _resolve_molecules(named, molecules)
     elif isinstance(structured, (list, tuple, set, frozenset)):
@@ -402,10 +403,22 @@ def task_readouts(task: TaskInstance, chemistry: "ChemistryImpl") -> frozenset[s
     objective = task.objective
     if isinstance(objective, OutcomeObjective) and isinstance(objective.target, (tuple, list)):
         for item in objective.target:
-            if isinstance(item, str):
-                readouts.add(item)
-                readouts |= _resolve_molecules(item, molecules)
+            named = _target_id(item)
+            if named is not None:
+                readouts.add(named)
+                readouts |= _resolve_molecules(named, molecules)
     return frozenset(readouts)
+
+
+def _target_id(item: Any) -> Optional[str]:
+    """The id a target entry names: a bare id, or the id of an
+    ``(id, goal)`` pair (the conflict rungs' two-target shape, T088
+    conflict_gen 1); anything else names nothing."""
+    if isinstance(item, str):
+        return item
+    if isinstance(item, (tuple, list)) and item and isinstance(item[0], str):
+        return item[0]
+    return None
 
 
 def lever_exclusion(

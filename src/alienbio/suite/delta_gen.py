@@ -16,8 +16,13 @@ gate.** Two independently observable signal pools ``source_a``/``source_b``
 each drain, ALWAYS, into their own dedicated boundedness sink (``sink_a``/
 ``sink_b`` — F012 D-f), regardless of ``invert``; ``source_a``'s supply rate
 is ALWAYS the larger of the two (``r_a > r_b`` — Q1's fixed "conventionally-
-implicated" signal: the one that reads as stronger/leading regardless of
-which world you are in). On top of that fixed scaffold, exactly ONE
+implicated" signal: the larger SUPPLY regardless of which world you are in).
+Larger supply is not a larger observed level: the driver drains at
+``k_drive + k_sink``, the decoy at ``k_sink`` alone, so the decoy's level
+overtakes the driver's early (≈ 2.6 s on ``W_match`` at the defaults) and
+reads larger on both arms at the 20 s horizon (T088 delta_gen 1). A
+"largest observed level" rule is therefore right on ``W_match`` only for an
+early read. On top of that fixed scaffold, exactly ONE
 additional reaction — ``route_drive`` (``driver_pool -> T``) — is wired to
 whichever source is the TRUE driver: ``source_a`` when ``invert=False``
 (``W_match``, so the conventional heuristic "the bigger signal drives it"

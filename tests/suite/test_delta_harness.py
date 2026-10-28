@@ -20,7 +20,7 @@ def test_delta_drafter_arms_share_ids_and_flip_the_answer():
     assert om["true_driver"] == om["conventional"]  # match: the bigger signal really drives T
     assert ox["true_driver"] != ox["conventional"]  # mismatch: it does not
     assert om["true_driver"] != ox["true_driver"]
-    assert task_m.question.structured == set(om["candidates"])
+    assert task_m.question.structured == tuple(om["candidates"])  # sorted: prompt order is not hash order (T088 delta_gen 2)
     with pytest.raises(ValueError, match="arm"):
         DRAFTERS["delta"](Seed(5), {"arm": "sideways"})
 

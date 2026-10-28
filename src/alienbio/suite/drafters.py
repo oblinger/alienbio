@@ -1145,7 +1145,7 @@ def delta(*, arm: str = "match", env: Any, **generator: Any) -> Draft:
         world="world0",
         skeleton=_no_carve(),
         objective=objective,
-        question=Question(structured={a_id, b_id}, kind="node_id"),
+        question=Question(structured=tuple(sorted([a_id, b_id])), kind="node_id"),
         setup={
             "oracle": {
                 "delta": {
