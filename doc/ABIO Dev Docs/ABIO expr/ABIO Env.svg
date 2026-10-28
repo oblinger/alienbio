@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-yaml">
+    <rect id="n-yaml-box" x="20" y="40" width="200" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-yaml-name" x="120" y="66" font-size="18" font-weight="600" text-anchor="middle">spec file</text>
+    <text id="n-yaml-kind" x="120" y="88" font-size="14" text-anchor="middle">(YAML) a mapping</text>
+  </g>
+  <g id="n-load">
+    <rect id="n-load-box" x="290" y="40" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-load-name" x="400" y="66" font-size="18" font-weight="600" text-anchor="middle">Env.load</text>
+    <text id="n-load-kind" x="400" y="88" font-size="14" text-anchor="middle">(method) parse, refuse non-map</text>
+  </g>
+  <line id="e-yaml-load" x1="220" y1="72" x2="290" y2="72" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-yaml-load" x="255" y="62" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">text</text>
+  <g id="n-hyd">
+    <rect id="n-hyd-box" x="580" y="40" width="250" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-hyd-name" x="705" y="66" font-size="18" font-weight="600" text-anchor="middle">include.hydrate</text>
+    <text id="n-hyd-kind" x="705" y="88" font-size="14" text-anchor="middle">(fn) includes, !py, under trust</text>
+  </g>
+  <line id="e-load-hyd" x1="510" y1="72" x2="580" y2="72" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-load-hyd" x="545" y="62" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">forms</text>
+  <g id="n-scope">
+    <rect id="n-scope-box" x="900" y="40" width="280" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-scope-name" x="1040" y="66" font-size="18" font-weight="600" text-anchor="middle">Scope of Lazy</text>
+    <text id="n-scope-kind" x="1040" y="90" font-size="14" text-anchor="middle">(Scope) one binding per key</text>
+  </g>
+  <line id="e-hyd-scope" x1="830" y1="72" x2="900" y2="72" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-head">
+    <rect id="n-head-box" x="20" y="220" width="200" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="120" y="248" font-size="18" font-weight="600" text-anchor="middle">Env.head</text>
+    <text id="n-head-kind" x="120" y="272" font-size="14" text-anchor="middle">(method) bound head first</text>
+  </g>
+  <g id="n-eval">
+    <rect id="n-eval-box" x="290" y="220" width="220" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-eval-name" x="400" y="248" font-size="18" font-weight="600" text-anchor="middle">evaluate</text>
+    <text id="n-eval-kind" x="400" y="272" font-size="14" text-anchor="middle">(Interp) every node</text>
+  </g>
+  <g id="n-force">
+    <rect id="n-force-box" x="580" y="220" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-force-name" x="705" y="248" font-size="18" font-weight="600" text-anchor="middle">Lazy._force</text>
+    <text id="n-force-kind" x="705" y="272" font-size="14" text-anchor="middle">(method) pending → done</text>
+  </g>
+  <g id="n-lookup">
+    <rect id="n-lookup-box" x="900" y="220" width="235" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-lookup-name" x="1017" y="248" font-size="18" font-weight="600" text-anchor="middle">Env.lookup</text>
+    <text id="n-lookup-kind" x="1017" y="272" font-size="14" text-anchor="middle">(method) name, then steps</text>
+  </g>
+  <line id="e-lookup-scope" x1="1017" y1="220" x2="1017" y2="110" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-lookup-scope" x="1027" y="150" font-size="14" fill="#1971c2" font-style="italic">first segment</text>
+  <line id="e-lookup-force" x1="900" y1="255" x2="830" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-lookup-force" x="865" y="245" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">Lazy</text>
+  <line id="e-force-eval" x1="580" y1="255" x2="510" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-force-eval" x="545" y="245" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">form</text>
+  <line id="e-eval-head" x1="290" y1="255" x2="220" y2="255" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-eval-head" x="255" y="245" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">call</text>
+  <polyline id="e-eval-lookup" points="470,220 470,170 1100,170 1100,220" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-eval-lookup" x="760" y="160" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">Name</text>
+
+  <g id="n-reg">
+    <rect id="n-reg-box" x="20" y="420" width="200" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reg-name" x="120" y="448" font-size="18" font-weight="600" text-anchor="middle">Registry</text>
+    <text id="n-reg-kind" x="120" y="472" font-size="14" text-anchor="middle">(class) full name</text>
+  </g>
+  <line id="e-head-reg" x1="120" y1="290" x2="120" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-head-reg" x="130" y="360" font-size="14" fill="#1971c2" font-style="italic">else</text>
+  <g id="n-ctx">
+    <rect id="n-ctx-box" x="290" y="420" width="220" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ctx-name" x="400" y="446" font-size="18" font-weight="600" text-anchor="middle">Ctx</text>
+    <text id="n-ctx-kind" x="400" y="468" font-size="14" text-anchor="middle">(dataclass) seed · path</text>
+    <text id="n-ctx-kind2" x="400" y="488" font-size="14" text-anchor="middle">trusted · instances</text>
+  </g>
+  <line id="e-eval-ctx" x1="400" y1="290" x2="400" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-eval-ctx" x="390" y="370" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">child(key)</text>
+  <g id="n-lim">
+    <rect id="n-lim-box" x="580" y="420" width="250" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-lim-name" x="705" y="446" font-size="18" font-weight="600" text-anchor="middle">Limits + Meter</text>
+    <text id="n-lim-kind" x="705" y="468" font-size="14" text-anchor="middle">(dataclass) entities · depth</text>
+    <text id="n-lim-kind2" x="705" y="488" font-size="14" text-anchor="middle">attempts · running total ‡</text>
+  </g>
+  <line id="e-ctx-lim" x1="510" y1="460" x2="580" y2="460" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-ctx-lim" x="545" y="450" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">carries</text>
+  <line id="e-eval-lim" x1="490" y1="290" x2="640" y2="420" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-eval-lim" x="600" y="345" font-size="14" fill="#1971c2" font-style="italic">charge</text>
+  <g id="n-pool">
+    <rect id="n-pool-box" x="900" y="420" width="235" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pool-name" x="1017" y="446" font-size="18" font-weight="600" text-anchor="middle">Env.pool</text>
+    <text id="n-pool-kind" x="1017" y="468" font-size="14" text-anchor="middle">(method) caller's spelling</text>
+    <text id="n-pool-kind2" x="1017" y="488" font-size="14" text-anchor="middle">or instance.name</text>
+  </g>
+  <polyline id="e-pool-scope" points="1135,460 1165,460 1165,110" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-pool-scope" x="1150" y="380" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">__passed__</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">load and evaluation flow</text>
+    <line id="legend-dotted" x1="280" y1="641" x2="330" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="340" y="646" font-size="14">reads, derives, charges</text>
+    <text id="legend-dagger" x="530" y="646" font-size="14">‡ the total lives on the Limits object: one passed to several envs is shared</text>
+  </g>
+</svg>

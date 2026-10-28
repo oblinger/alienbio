@@ -4,8 +4,8 @@ description: "module docs for src/alienbio/expr/: the Expr language's forms, int
 
 | -[ABIO expr](ABIO%20expr.md)- | : module docs for src/alienbio/expr/: the Expr language's forms, interpreter, environment, head registry, inline and structural spellings, and load-time includes |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Language                      | [Interp](ABIO%20Interp.md),   |
-| ...                           |                                                                                                                                   |
+| Language                      | [Interp](ABIO%20Interp.md),  [Env](ABIO%20Env.md),                                                                                                                                    |
+| ...                           | [ABIO Env](ABIO%20Env.md),                                                                                                                                        |
 
 # ABIO expr
 Module docs for `src/alienbio/expr/`: the forms a spec is made of, the interpreter that gives them meaning, the environment it runs in, the registry that is the only door into Python, the two text spellings, and the includes resolved before anything evaluates.
