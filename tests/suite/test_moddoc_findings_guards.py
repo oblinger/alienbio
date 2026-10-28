@@ -170,3 +170,28 @@ def test_a_value_error_is_still_a_config_refusal(monkeypatch):
     monkeypatch.setattr(guards, "DRAFTERS", {"pressure": refusing})
     why = draft_violation(_w1())
     assert why is not None and "drafts no world" in why and "generator error" not in why
+
+
+# E ---------------------------------------------------------------------------
+
+
+def _bio(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([sys.executable, "-m", "alienbio.cli", *args], capture_output=True, text=True, cwd=REPO)
+
+
+def test_dry_names_the_resume_check_skipped_on_a_fresh_run(tmp_path):
+    zero = REPO / "catalog" / "experiments" / "exp04-zero.yaml"
+    dry = _bio("suite", "run", str(zero), "--dry", "--out", str(tmp_path / "out"))
+    assert dry.returncode == 0, dry.stderr
+    assert "resume: skipped (not a resume)" in dry.stdout
+    assert "resume: ok" not in dry.stdout
+
+
+def test_preflight_names_the_resume_verdict_on_a_resume(tmp_path):
+    spec = _w1()
+    out = tmp_path / "run"
+    out.mkdir()
+    (out / "manifest.json").write_text(json.dumps({"spec": spec_to_dict(spec)}))
+    (out / "records.jsonl").write_text("")
+    assert "resume: ok" in preflight(spec, out_dir=str(out), resume=True).lines()
+    assert "resume: skipped (not a resume)" in preflight(spec, out_dir=str(out)).lines()

@@ -109,7 +109,11 @@ def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> in
         # T057 — the same preflight the run makes, every verdict printed;
         # exit 1 when the run would refuse (it used to print two of the
         # guards and exit 0 on a spec the run then refused).
-        flight = preflight(spec, out_dir=out_dir)
+        # The resume flag the real run passes: ``bio suite run`` never
+        # resumes (``bio suite resume <DIR>`` does, from the manifest's own
+        # spec), so the resume verdict prints as skipped and a directory that
+        # already holds records refuses on ``out_dir``, as the run would.
+        flight = preflight(spec, out_dir=out_dir, resume=False)
         print(f"name: {spec.name}")
         print(f"conditions: {grid_size}")
         print(f"trials planned: {trials_planned}")
@@ -141,7 +145,7 @@ def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> in
         if verbose:
             print(message)
 
-    run_experiment(spec, out_dir=out_dir, progress=progress)
+    run_experiment(spec, out_dir=out_dir, resume=False, progress=progress)
     return 0
 
 

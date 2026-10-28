@@ -21,6 +21,7 @@ A frozen dataclass: what one `preflight` call found. `checks` holds every check'
 | [out_exists](#^out-exists) | Whether it already holds `records.jsonl` |
 | [checks](#^checks) | Every check's name and verdict, in order |
 | [skipped](#^skipped) | Checks not run because an earlier one refused |
+| [resume](#^resume) | Whether the call was a resume |
 | [estimate](#^estimate) | The dry-run cost estimate |
 | [refusal](#^refusal) | The first refusal, as the exception |
 | [ok](#^ok) | Whether nothing refused |
@@ -38,6 +39,9 @@ A frozen dataclass: what one `preflight` call found. `checks` holds every check'
 **skipped**`: tuple[str, ...] = ()`
     Names of the checks marked `only_if_clean` that did not run because something earlier refused; today only `draft`. Their `checks` entry carries `None`, so read this before reading a `None` as a pass. ^skipped
 
+**resume**`: bool = False`
+    The `resume` argument. When false, the `resume` check had nothing to compare and `lines()` prints it as skipped. ^resume
+
 **estimate**`: Optional[CostEstimate]`
     `estimate_cost(spec)` from the `price` check; `None` when pricing itself refused. ^estimate
 
@@ -48,7 +52,7 @@ A frozen dataclass: what one `preflight` call found. `checks` holds every check'
     `refusal is None`. ^ok
 
 **lines**`() -> list[str]`
-    `out_dir exists: yes (run refuses without resume)` or `no`, then one line per check: `<name>: ok`, `<name>: REFUSED — <why>`, or `<name>: skipped (an earlier check refused)`. ^lines
+    `out_dir exists: yes (run refuses without resume)` or `no`, then one line per check: `<name>: ok`, `<name>: REFUSED — <why>`, or `<name>: skipped (an earlier check refused)`; off a resume, `resume: skipped (not a resume)` (it used to print `resume: ok` for a check with nothing to compare). ^lines
 
 
 
@@ -76,7 +80,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | [dials_in_play](#^dials-in-play) | Every dial name a run sets |
 
 **preflight**`(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bool = False) -> Preflight`
-    Resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; `draft` is skipped once anything refused. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` calls it without `resume` ([Dry run and real run](#dry-run-and-real-run)). ^preflight
+    Resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; `draft` is skipped once anything refused. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` passes `resume=False`, the flag `bio suite run` itself passes ([Dry run and real run](#dry-run-and-real-run)). ^preflight
 
 **PREFLIGHT_CHECKS**`: tuple[str, ...]`
     `("registration", "no-peeking", "dials", "episode-dials", "surface", "sampling", "w2-lag", "brief-dials", "certainty-windows", "score-window", "inert-arm", "agent", "price", "draft", "resume", "out_dir")`: the names `checks` carries, in the order `preflight` runs them. A declaration only; `preflight` spells each name again in its own `check(...)` calls. ^preflight-checks
@@ -212,10 +216,10 @@ The `price` check is `estimate_cost(spec)`: zero live trials price at $0.00 with
 
 | | `run_experiment` | `bio suite run --dry` |
 | --- | --- | --- |
-| calls | `preflight(spec, out_dir=…, resume=…)` | `preflight(spec, out_dir=…)` |
+| calls | `preflight(spec, out_dir=…, resume=…)` | `preflight(spec, out_dir=…, resume=False)` |
 | on a refusal | raises `flight.refusal`, the first | prints every `lines()` verdict<br>then `preflight: REFUSED`, exits 1 |
 | on success | creates `out_dir`, writes the manifest, runs the grid | prints the plan, the estimate and the ceiling, exits 0 |
-| `resume` check | runs when `resume=True` (`bio suite resume <DIR>`) | never: `--dry` passes no `resume` |
+| `resume` check | runs when `resume=True` (`bio suite resume <DIR>`) | `resume: skipped (not a resume)`: `bio suite run` never resumes, so neither does its `--dry`; a directory holding records refuses on `out_dir`, as the run does |
 
 A refusal message from a violation check starts `run_experiment:` in both, since the text is the same exception; the no-peeking one adds the rule's name.
 

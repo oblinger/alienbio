@@ -716,6 +716,10 @@ class Preflight:
     estimate: Optional[CostEstimate]
     refusal: Optional[BaseException]
     skipped: tuple[str, ...] = ()
+    #: Whether the call was a resume. Off one, the ``resume`` check has
+    #: nothing to compare and prints as ``skipped (not a resume)``, never
+    #: ``ok`` (T084 finding E).
+    resume: bool = False
 
     @property
     def ok(self) -> bool:
@@ -725,7 +729,9 @@ class Preflight:
         """The verdicts as ``bio suite run --dry`` prints them."""
         out = [f"out_dir exists: {'yes (run refuses without resume)' if self.out_exists else 'no'}"]
         for name, why in self.checks:
-            if name in self.skipped:
+            if name == "resume" and not self.resume:
+                out.append("resume: skipped (not a resume)")
+            elif name in self.skipped:
                 out.append(f"{name}: skipped (an earlier check refused)")
             else:
                 out.append(f"{name}: ok" if why is None else f"{name}: REFUSED — {why}")
@@ -853,4 +859,4 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
             )
 
     check("out_dir", _out_dir)
-    return Preflight(resolved_out, out_exists, tuple(checks), estimate, refusal, tuple(skipped))
+    return Preflight(resolved_out, out_exists, tuple(checks), estimate, refusal, tuple(skipped), resume)
