@@ -1,7 +1,7 @@
 ---
 description: "ABIO PRD — the product-level statement of what the Alien Biology Framework is: a taint-free generative testing framework for reasoning under partial observability, the Expr language it is written in, the suite runtime, the example corpus, and the safety-adjacency rule."
 ---
-:>> [[ABIO]] → [[ABIO Design]] → [ABIO PRD](ha://p/ABIO%20PRD) 
+:>> [ABIO](../ABIO.md) → [ABIO Design](ABIO%20Design.md) → [ABIO PRD](ha://p/ABIO%20PRD) 
 # ABIO PRD
 The product statement of the Alien Biology Framework: what it is, what it must do, and what is out of scope.
 

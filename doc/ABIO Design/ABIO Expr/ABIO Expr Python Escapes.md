@@ -1,7 +1,7 @@
 ---
 description: "The Python side of Expr — every way a spec reaches Python, from an inline formula to a registered expander to a trusted !py reference — with an example of each, the injection convention, and the trust model that keeps untrusted specs inside the registry."
 ---
-:>> [[ABIO]] → [[ABIO Design]] → [[ABIO Expr]] → [ABIO Expr Python Escapes](ha://p/ABIO%20Expr%20Python%20Escapes) 
+:>> [ABIO](../../ABIO.md) → [ABIO Design](../ABIO%20Design.md) → [ABIO Expr](ABIO%20Expr.md) → [ABIO Expr Python Escapes](ha://p/ABIO%20Expr%20Python%20Escapes) 
 # ABIO Expr Python Escapes
 How a spec written in [[ABIO Expr]] reaches Python — the escapes, ordered from the smallest (a formula on one line) to the largest (a module the spec loads), with an example of each.
 
