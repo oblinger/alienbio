@@ -38,7 +38,7 @@
   <g id="n-make">
     <rect id="n-make-box" x="620" y="250" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-make-name" x="735" y="278" font-size="18" font-weight="600" text-anchor="middle">make</text>
-    <text id="n-make-kind" x="735" y="302" font-size="14" text-anchor="middle">(closure) picks one anchor</text>
+    <text id="n-make-kind" x="735" y="302" font-size="14" text-anchor="middle">(closure) picks the anchor</text>
   </g>
   <g id="n-stack">
     <rect id="n-stack-box" x="930" y="250" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -81,6 +81,6 @@
   <text id="l-mock-build" x="590" y="475" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">dat</text>
   <line id="e-build-ent" x1="850" y1="485" x2="930" y2="485" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="l-build-ent" x="890" y="475" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">new</text>
-  <text id="t-legend" x="20" y="600" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call, read, write · dotted: returns, passes · anchor order: explicit dat=, explicit parent=, top of the stack, a minted MockDat</text>
-  <text id="t-legend2" x="20" y="620" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">dat= with parent= drops the parent; the same build re-registered takes the new prefix</text>
+  <text id="t-legend" x="20" y="600" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call, read, write · dotted: returns, passes · anchor order: explicit dat= and/or parent=, top of the stack, a minted MockDat</text>
+  <text id="t-legend2" x="20" y="620" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">dat= with parent= builds a sub-root child of parent; the same build under a new prefix refuses</text>
 </svg>

@@ -96,8 +96,7 @@ The alienbio repository as it stands, file by file.
 - **`infra/entity.py`** — the `Entity` base class every biology object
   carries; **`io.py`** — naming, formatting, parsing, persistence over
   dvc-dat; **`mk.py`** — the maker pegboard; **`graph_ops.py`** — the
-  neutral bipartite-graph algorithms the network views share;
-  **`imports.py`** — the import collector for do-system references.
+  neutral bipartite-graph algorithms the network views share.
 - **`protocols/bio.py`** — the biology protocols;
   **`_conformance.py`** — the Protocols as a live contract under
   `TYPE_CHECKING`, so `pyright src/` defends what the package exports.
@@ -121,11 +120,11 @@ The alienbio repository as it stands, file by file.
   test has no docstring sentence.
 - **`tests/unit/`** (18) — the bio core, the CLI, the JAX parity suites,
   and the dvc-dat integration round-trip.
-- **`tests/integration/`** + **`tests/fixtures/`** — the subprocess CLI
-  end-to-end and the shared fixtures.
+- **`tests/integration/`** — the subprocess CLI end-to-end.
 
-⚠️ Run `uv run pytest tests/` — a bare `uv run pytest` from the repo root
-fails collection on a site-packages `tests` package.
+A bare `pytest` from the repo root collects what `pytest tests/` does
+(importlib mode, T087; `import alienbio` no longer binds a `tests`
+package, T088).
 
 ## catalog/ — the declared experiments and examples
 

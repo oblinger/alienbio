@@ -13,7 +13,7 @@ The page for the reaction-network graph as the algorithms see it: the id-only vi
 
 
 ## GraphView Interface
-A frozen dataclass. The id tuples are ordered and their order is the enumeration order of `match` and the index order of `subgraph_selection`; nothing checks that the two namespaces are disjoint (the chemistry adapter's caller, `ChemistryImpl`, refuses a shared id).
+A frozen dataclass. The id tuples are ordered and their order is the enumeration order of `match` and the index order of `subgraph_selection`; a view whose two namespaces share an id refuses at construction with `ValueError` naming the ids (`ChemistryImpl` refuses the same overlap upstream).
 
 | GraphView | |
 | --- | --- |
@@ -51,7 +51,7 @@ Five functions over a view; each is pure and returns new containers.
     For a species, every reaction whose incidence holds it (a scan of all reactions); for a reaction, its incidence; for an id in neither namespace, the empty set. An id in both namespaces gets the union. ^neighbors
 
 **paths**`(view, a, b, max_len: int = 8) -> list[list[str]]`
-    Depth-first over simple paths from `a`, alternating species and reactions, each of at most `max_len` edges, returned as id lists. Neighbours are visited sorted by id, not in source order, so results are deterministic but not in the module docstring's "source order". `a == b` returns `[[a]]` whether or not `a` is a node (already on T088 under bio/chemistry). The count is exponential in a dense network; `max_len` is the only bound. ^paths
+    Depth-first over simple paths from `a`, alternating species and reactions, each of at most `max_len` edges, returned as id lists. Neighbours are visited sorted by id, not in source order, so results are deterministic; the module docstring says so. `a == b` returns `[[a]]` whether or not `a` is a node (already on T088 under bio/chemistry). The count is exponential in a dense network; `max_len` is the only bound. ^paths
 
 **subgraph_selection**`(view, nodes) -> tuple[tuple[str, ...], tuple[str, ...]]`
     The species and reaction ids found in `nodes`, each in view order. Rebuilding the reactions with their dropped endpoints removed is the caller's job (`ChemistryImpl.subgraph`). ^subgraph-selection
@@ -73,10 +73,11 @@ A chemistry is two node kinds and one relation: a reaction is adjacent to every 
 
 
 ## Embedding
-`match` builds each pattern node's candidate list once (every host species with an equal key, or every host reaction), then backtracks node by node, rejecting a candidate already used or one missing a host edge to an already-mapped neighbour. Through `ChemistryImpl` the species key includes the molecule `name`, so a pattern molecule can map only to the host molecule of the same name and the search is free only over reactions. On a hand-built view whose species and reaction namespaces overlap, an id adjacent to itself makes `edge - {pn}` empty and `match` raises `StopIteration` (checked); `ChemistryImpl` refuses the shared id first, so no chemistry reaches it.
+`match` builds each pattern node's candidate list once (every host species with an equal key, or every host reaction), then backtracks node by node, rejecting a candidate already used or one missing a host edge to an already-mapped neighbour. Through `ChemistryImpl` the species key includes the molecule `name`, so a pattern molecule can map only to the host molecule of the same name and the search is free only over reactions. A view whose namespaces overlap, where an id adjacent to itself made `edge - {pn}` empty and `match` raised `StopIteration`, can no longer be built: `GraphView.__post_init__` refuses it.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `7d390d6` (read from a `git archive` export; a concurrent worker editing `src/suite/`). Run against that export: a self-adjacent id making `match` raise `StopIteration`; a two-species pattern matching four ways on a three-species chain; 400 `neighbors` calls on a 400-reaction view in under 0.01 s (cost is not a concern at catalog sizes). Callers by `git grep` over `src/` and `tests/` at that sha. Findings filed on T088.
+- 2026-10-28 — refreshed against `e4c6b68`: `GraphView` refuses a shared species/reaction id; the module docstring says `paths` sorts by id and names `paths`, `subgraph` and `match` as reached by tests only.

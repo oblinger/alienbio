@@ -14,7 +14,7 @@ Two mutually independent packages: `infra` is what the entities are made of, `pr
 | MODULE | LOC | Role |
 | --- | --- | --- |
 | `infra/entity.py` | 478 | `Entity`, `MockDat`, the head registry, `DatLike`, `_bio_io()`. |
-| `infra/io.py` | 592 | `IO`: prefix binding, ref rendering and parsing, DAT load/save;<br>the `D:` virtual root. |
+| `infra/io.py` | 555 | `IO`: prefix binding, ref rendering and parsing, DAT load/save;<br>the tree loader that hydrates by head. |
 | `infra/mk.py` | 124 | `Pegboard`, the `mk` singleton, `mk.anchor`, `Maker`. |
 | `infra/graph_ops.py` | 174 | `GraphView`, `neighbors`, `paths`, `subgraph_selection`, `match` (backtracking subgraph isomorphism) for `ChemistryImpl`. |
 | `protocols/bio.py` | 415 | `Atom`, `Molecule`, `Reaction`, `Flow`, `GeneralFlow`, `Chemistry`, `CompartmentTree`, `WorldState`, `Simulator` — stated on the substrate's one state class and one tree class. |

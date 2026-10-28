@@ -1,6 +1,5 @@
 :>> [ABIO](../ABIO.md) → [ABIO Guides](ABIO%20Guides.md) → [ABIO Testing Guide](ha://p/ABIO%20Testing%20Guide) 
 # Testing Guide
-**Topic**: ~~[[ABIO Topics]]~~ 
 Testing tiers (smoke, commit, release) and test organization.
 
 ## Overview
@@ -84,13 +83,8 @@ def check_context_uses_contextvar():
 
 ## Fixtures
 
-Shared test data in YAML format, readable by both Python and Rust:
-```
-tests/fixtures/
-├─molecules/
-├─reactions/
-└─systems/
-```
+There is no shared fixtures folder: each test builds its worlds in code
+(the `mk` makers, the catalog specs, `conftest.py` fixtures).
 
 ## Pytest Markers
 

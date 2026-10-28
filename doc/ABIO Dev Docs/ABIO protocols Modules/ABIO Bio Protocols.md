@@ -65,7 +65,7 @@ The page for what the chemistry substrate promises its callers: the nine Protoco
 
 
 ## Reaction Interface
-`@runtime_checkable`. Implemented by `ReactionImpl` (`bio/reaction.py`). A reaction acts within one compartment; there is no `rate_law` member, though `ReactionImpl` carries one and both simulators read it.
+`@runtime_checkable`. Implemented by `ReactionImpl` (`bio/reaction.py`). A reaction acts within one compartment.
 
 | Reaction | |
 | --- | --- |
@@ -76,6 +76,7 @@ The page for what the chemistry substrate promises its callers: the nine Protoco
 | [products](#^products) | Molecule → coefficient made |
 | [modifiers](#^modifiers) | Molecule → modulation or role tag |
 | [rate](#^rate) | The mass-action constant |
+| [rate_law](#^rate-law) | The compiled rate expression, or none |
 
 **local_name**`: str` (property)
     From `Entity`. ^reaction-local-name
@@ -97,6 +98,9 @@ The page for what the chemistry substrate promises its callers: the nine Protoco
 
 **rate**`: float` (property)
     A number only: a state-dependent rate is a compiled `rate_law`, and `ReactionImpl` refuses a callable. ^rate
+
+**rate_law**`: Any | None` (property)
+    A `bio.rate_expr` tree, or `None` for mass action at `rate`; when set, both simulators read it instead of `rate`. Added to the Protocol 2026-10-28 (T088). ^rate-law
 
 
 
@@ -188,7 +192,7 @@ The page for what the chemistry substrate promises its callers: the nine Protoco
     Edges to dropped nodes removed. ^subgraph
 
 **match**`(pattern: Any) -> list[dict[str, str]]`
-    `pattern` is typed `Any`; `ChemistryImpl` takes a `ChemistryImpl`. ^match
+    `pattern` is typed `Any` because `ChemistryImpl` takes a `ChemistryImpl` (it reads the pattern's graph view); the docstring says so. ^match
 
 
 
@@ -273,7 +277,7 @@ The page for what the chemistry substrate promises its callers: the nine Protoco
 
 
 ## Simulator Interface
-Not `@runtime_checkable`, unlike the other eight: `isinstance(x, Simulator)` raises `TypeError`. Implemented by `WorldSimulatorImpl` (`bio/world_simulator.py`) and `JaxWorldSimulator` (`bio/jax_simulator.py`). The banner above it in the source still reads "State (for single-compartment Chemistry simulations)".
+`@runtime_checkable`, like the other eight (since 2026-10-28). Implemented by `WorldSimulatorImpl` (`bio/world_simulator.py`) and `JaxWorldSimulator` (`bio/jax_simulator.py`).
 
 | Simulator | |
 | --- | --- |
@@ -289,7 +293,7 @@ Not `@runtime_checkable`, unlike the other eight: `isinstance(x, Simulator)` rai
     Simulated seconds per step. ^dt
 
 **step**`(state: WorldStateImpl) -> WorldStateImpl`
-    Marked `@abstractmethod`, which matters only to a class that subclasses `Simulator` explicitly; both implementations conform structurally. ^step
+    Both implementations conform structurally; the `@abstractmethod` the Protocol carried until 2026-10-28 bound only an explicit subclass and is gone. ^step
 
 **run**`(state: WorldStateImpl, steps: int, sample_every: int | None = None) -> list[WorldStateImpl]`
     The trajectory, every `sample_every` steps when given; a `run` without `sample_every` was one of the two drifts that led T057 to add the conformance file. ^run
@@ -313,7 +317,7 @@ The module-level names besides the Protocols.
 
 
 ## protocols Interface
-`alienbio.protocols` re-exports the nine Protocols and nothing else; `from alienbio.protocols import *` is pinned by `tests/unit/test_protocol_conformance.py`, and `reportUnsupportedDunderAll = "error"` in `pyproject.toml` refuses a ghost name in `__all__`. The package docstring and a commented-out import still describe `infra` protocols (`Entity`, `IO`, `Expr`, `Context`) and `Pathway`/`Generators` that do not exist.
+`alienbio.protocols` re-exports the nine Protocols and nothing else; `from alienbio.protocols import *` is pinned by `tests/unit/test_protocol_conformance.py`, and `reportUnsupportedDunderAll = "error"` in `pyproject.toml` refuses a ghost name in `__all__`. The package docstring names the nine and says the infra layer is concrete classes, not Protocols.
 
 
 
@@ -326,15 +330,16 @@ The module-level names besides the Protocols.
 
 
 ## Runtime checks
-Eight of the nine are `@runtime_checkable`, so `isinstance` works on them, but a runtime check sees only that each member name exists, not its type or signature: a reaction whose `rate` is a callable passes `isinstance(x, Reaction)`. The static check above is the one that compares types. `Simulator`, without the decorator, cannot be used with `isinstance` at all.
+All nine are `@runtime_checkable`, so `isinstance` works on them, but a runtime check sees only that each member name exists, not its type or signature: a reaction whose `rate` is a callable passes `isinstance(x, Reaction)`. The static check above is the one that compares types; the module docstring says not to lean on `isinstance`.
 
 
 
 ## Concrete types in the contracts
-The module docstring says the Protocols let alternative implementations stand in. `Flow.compute_flux`, `GeneralFlow.apply`, `Simulator.tree`, `Simulator.step` and `Simulator.run` name `WorldStateImpl` and `CompartmentTreeImpl` (imported under `TYPE_CHECKING`), so a second state or tree class cannot satisfy them, while `WorldState.tree` names the `CompartmentTree` Protocol. Today one state class and one tree class exist (the comment at the import says so), so the mixture costs nothing yet.
+`Flow.compute_flux`, `GeneralFlow.apply`, `Simulator.tree`, `Simulator.step` and `Simulator.run` name `WorldStateImpl` and `CompartmentTreeImpl` (imported under `TYPE_CHECKING`), so a second state or tree class cannot satisfy them, while `WorldState.tree` names the `CompartmentTree` Protocol. Today one state class and one tree class exist, and the module docstring now says the engine-facing signatures name them on purpose (the engine reads their arrays) and would need widening before a second class could conform; it no longer promises room for alternative implementations.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `7d390d6` (read from a `git archive` export; a concurrent worker editing `src/suite/`). Run against that export: `isinstance(object(), Simulator)` raising `TypeError`; `protocols.__all__` matching the nine names. Users of each Protocol by `git grep` over `src/` and `tests/` at that sha. Not run: `pyright` (the conformance file is pinned green by CI per the Pilot's notes). The task named a `protocols/report.py`; there is none at this sha. Findings filed on T088.
+- 2026-10-28 — refreshed against `16be363`: `Simulator` is `@runtime_checkable` and drops `@abstractmethod`, `Reaction` declares `rate_law`, the module and package docstrings are honest about the concrete types, the runtime check and the absent infra protocols; the published [ABIO Protocols](../../ABIO%20Ref/ABIO%20Protocols.md) no longer lists `State`/`World`.

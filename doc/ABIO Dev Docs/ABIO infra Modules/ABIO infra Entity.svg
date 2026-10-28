@@ -44,7 +44,7 @@
   <g id="n-load">
     <rect id="n-load-box" x="930" y="240" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-load-name" x="1055" y="268" font-size="18" font-weight="600" text-anchor="middle">IO loader</text>
-    <text id="n-load-kind" x="1055" y="292" font-size="14" text-anchor="middle">(infra.io) by head, else Entity</text>
+    <text id="n-load-kind" x="1055" y="292" font-size="14" text-anchor="middle">(infra.io) hydrate by head or refuse</text>
   </g>
   <g id="n-subroot">
     <rect id="n-subroot-box" x="20" y="450" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -85,5 +85,5 @@
   <line id="e-child-orph" x1="560" y1="485" x2="620" y2="485" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="l-child-orph" x="590" y="475" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">detach</text>
   <text id="t-legend" x="20" y="620" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call, write, contains · dotted: anchor pointer, copy · the orphan root needs alienbio.bio.io, which only tests attach</text>
-  <text id="t-legend2" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">a load keeps name and description only; set_parent refuses a taken name after leaving the old parent</text>
+  <text id="t-legend2" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">a load hydrates by head or refuses; set_parent refuses a taken name or a cycle before moving</text>
 </svg>

@@ -32,7 +32,7 @@
   <g id="n-p5">
     <rect id="n-p5-box" x="20" y="440" width="300" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-p5-name" x="170" y="468" font-size="18" font-weight="600" text-anchor="middle">Simulator</text>
-    <text id="n-p5-kind" x="170" y="492" font-size="14" text-anchor="middle">(Protocol) not runtime_checkable</text>
+    <text id="n-p5-kind" x="170" y="492" font-size="14" text-anchor="middle">(Protocol) runtime_checkable</text>
   </g>
   <g id="n-i1">
     <rect id="n-i1-box" x="880" y="40" width="300" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>

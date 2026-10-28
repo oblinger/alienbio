@@ -1,6 +1,5 @@
 :>> [ABIO](../ABIO.md) → [ABIO Ref](ABIO%20Ref.md) → [ABIO DAT](ha://p/ABIO%20DAT) 
 # ABIO DAT
-**Topic**: ~~[[ABIO Topics]]~~ 
 What alienbio actually uses [dvc_dat](https://github.com/oblinger/dvc-dat) for.
 
 ## Overview
@@ -50,7 +49,7 @@ A later need for a non-default location is a `.datconfig.yaml` with
 | `Dat.create(path=…, spec=…)` | writes a dat folder; `infra/io.py` persistence and the unit round-trip |
 | `Dat.load(path)` | reads one back |
 | `dat.get_spec()` | the spec dict (3.0's accessor; 2.x exposed a `spec` attribute) |
-| `Dat.manager` | the world; `infra/io.py` reads its first dat folder for the `D:` prefix root |
+| `Dat.manager` | the world `Dat.load` / `Dat.create` resolve against; nothing in `src/` reads it directly since the `D:` prefix went (T088) |
 | `MockDat` | alienbio's own stand-in, used everywhere a real folder is not wanted |
 
 ## Development setup

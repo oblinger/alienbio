@@ -8,7 +8,7 @@ A named, removable perturbation that rises while active and decays after removal
 ![ABIO EnvironmentalPressure](ABIO%20EnvironmentalPressure.svg) 
 *An overlay, not a force* is the topic behind the dotted path into the timeline (‡: the integration never sees the pressure; the readout is rescaled after it).
 
-`suite/pressure.py` is unrelated to the pressure world ([ABIO PressureGen](ABIO%20PressureGen.md)), the `pressure` drafter or its `pi` dial; the shared word is the only link. Its one consumer is `verify.simulate`'s `pressure=` argument, and the only calls that pass it are `tests/suite/test_pressure.py` and the B10 capability test (`tests/capabilities/test_b_generation.py`), which `capabilities.py` lists as built. The Microcosm example's "environmental drain" is an ordinary sink reaction, not this module. `EnvironmentalPressure`, `make_pressure` and the three ladders are re-exported from `alienbio.suite`. The subsystem view is [ABIO-Generators](../../ABIO%20Architecture/ABIO-Generators.md).
+`suite/pressure.py` is unrelated to the pressure world ([ABIO PressureGen](ABIO%20PressureGen.md)), the `pressure` drafter or its `pi` dial; the shared word is the only link. Its one consumer is `verify.simulate`'s `pressure=` argument, and the only calls that pass it are `tests/suite/test_pressure.py` and the B10 capability test (`tests/capabilities/test_b_generation.py`), which `capabilities.py` grades B10 partial (the overlay is on no run path). The Microcosm example's "environmental drain" is an ordinary sink reaction, not this module. `EnvironmentalPressure`, `make_pressure` and the three ladders are re-exported from `alienbio.suite`. The subsystem view is [ABIO-Generators](../../ABIO%20Architecture/ABIO-Generators.md).
 
 
 
@@ -88,3 +88,4 @@ The three ladders, the type alias and the builder.
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and `verify.simulate`; the uniform factor measured on the B10 test's world from the HEAD export, no spend. Consumer census: `verify.py` imports the type; `pressure=` is passed only in `tests/`. Not determined: whether B10 should be re-graded or the pressure moved into the dynamics (T088 § suite/pressure).
 - 2026-10-28 — refreshed against `0377846`: docstring-only — the module and the B10 test docstring now state the overlay is a readout rescale off every run path.
+- 2026-10-28 — refreshed against `f86ac01`: `capabilities.py` grades B10 partial, not built — the overlay is on no run path.

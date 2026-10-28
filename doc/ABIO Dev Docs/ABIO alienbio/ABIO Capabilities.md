@@ -37,7 +37,7 @@ A frozen dataclass, the fixed table, and functions that each rescan the test fol
     `status` is one of `built`, `partial`, `planned`, `future`; anything else raises `ValueError` at construction, which is at import for the table. ^dimension
 
 **DIMENSIONS**`: tuple[Dimension, ...]`
-    A1–A5 (core substrate), B1–B18 (generation and control knobs), C1–C11 (measurement and scoring), I1 (mass trials and the reliability map). At `038c399`: 30 built, 2 partial (C3, C7), 1 planned (B16), 2 future (B18, C11). Edited by hand when a dimension's status changes. ^dimensions
+    A1–A5 (core substrate), B1–B18 (generation and control knobs), C1–C11 (measurement and scoring), I1 (mass trials and the reliability map). At `f86ac01`: 29 built, 3 partial (B10, C3, C7), 1 planned (B16), 2 future (B18, C11). Edited by hand when a dimension's status changes. ^dimensions
 
 **BY_ID**`: Mapping[str, Dimension]`
     `{d.id: d}`. ^by-id
@@ -115,3 +115,4 @@ The scan reads source, so it knows a test is decorated, not whether it ran. A pr
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with `tests/capabilities/conftest.py` read for the marker. Checked locally against the export: the matrix over that commit's tests (32 claimed, `check`, `unknown_ids` and `check_phrases` all empty), and `check` against a missing folder returning every built id. The dimension counts are from `DIMENSIONS` at that commit. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `scan`/`phrases` refuse a missing `tests/capabilities/` with `FileNotFoundError` naming it, and `bio test-matrix --check` prints that and exits 1. A skip-guarded proving test still satisfies the static gate; `bio report` now reads it as not proven.
 - 2026-10-28 — refreshed against `0eb23e5`: the body states the round's outcome — `test_matrix_command` is argparse (`--help` exits 0), `scan`/`phrases` refuse a missing folder, a skip-only proving test reads NOT PROVEN in `bio report` (`13298f0`); the figure's folder note updated.
+- 2026-10-28 — refreshed against `f86ac01`: B10 re-graded partial (the pressure overlay is a readout on no run path); the count reads 29 built, 3 partial.

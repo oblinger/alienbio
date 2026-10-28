@@ -27,7 +27,7 @@ A plain class: a dict of registrations and a list used as a stack. Instances do 
     `_registry = {}`, `_anchor_stack = []`. ^pegboard
 
 **register**`(key: str, *, prefix: str, build: Maker) -> None`
-    Stores `_Registration(key, prefix, build)`. A key already held by a different `build` object raises `ValueError`; the same `build` again replaces the registration, prefix included, so re-importing `makers.py` is harmless and a changed prefix is taken without notice (§ [Registration](#registration)). Keys are any string; `bio/makers.py` uses `M`, `R`, `C` with prefixes `mol`, `rxn`, `chem`. ^register
+    Stores `_Registration(key, prefix, build)`. A key already held by a different `build` object raises `ValueError`; the same `build` with the same prefix is a no-op, so re-importing `makers.py` is harmless, and the same `build` with a different prefix raises `ValueError` naming both (§ [Registration](#registration)). Keys are any string; `bio/makers.py` uses `M`, `R`, `C` with prefixes `mol`, `rxn`, `chem`. ^register
 
 **registered_keys**`() -> list[str]`
     Sorted keys; `["C", "M", "R"]` once `alienbio.bio` is imported. ^registered-keys
@@ -52,7 +52,7 @@ The module-level surface.
     Created at import; `bio/makers.py` registers on it, and `alienbio`, `alienbio.infra` and `alienbio.bio` re-export it. ^mk
 
 **Maker**` = Callable[..., Entity]`
-    Called as `build(local_name, anchor, *args, **kwargs)`, where `anchor` is `{"dat": …}` or `{"parent": …}` ready to splat into an entity constructor. ^maker
+    Called as `build(local_name, anchor, *args, **kwargs)`, where `anchor` is `{"dat": …}`, `{"parent": …}` or both, ready to splat into an entity constructor. ^maker
 
 
 
@@ -60,15 +60,16 @@ The module-level surface.
 # Pegboard Semantics
 
 ## Anchor resolution
-`make` picks exactly one anchor: `dat=` when given, else `parent=` when given, else the top of the anchor stack (`{"parent": target}` for an `Entity`, `{"dat": target}` otherwise), else `{"dat": MockDat(f"{prefix}/{local_name}")}`. Passing both `dat=` and `parent=` keeps the dat and drops the parent without a word, where `Entity(name, dat=d, parent=p)` would build a sub-root child of `p`. The stack is a plain list on the instance, not a context variable: two threads building under `mk.anchor` would see each other's targets. Nothing in `src/` uses the stack, so generated worlds never meet either case.
+`make` takes both when `dat=` and `parent=` are given — `{"dat": d, "parent": p}`, the sub-root child of `p` that `Entity(name, dat=d, parent=p)` builds — else `dat=` when given, else `parent=` when given, else the top of the anchor stack (`{"parent": target}` for an `Entity`, `{"dat": target}` otherwise), else `{"dat": MockDat(f"{prefix}/{local_name}")}`. The stack is a plain list on the instance, not a context variable: two threads building under `mk.anchor` would see each other's targets. Nothing in `src/` uses the stack, so generated worlds never meet either case.
 
 
 
 ## Registration
-Identity of the `build` object is the test for "same maker", which is what makes a module re-import safe (`makers.py` binds the same function objects) and an `importlib.reload` of `makers.py` unsafe (new function objects, so `M` raises). A same-`build` re-registration overwrites the prefix: `register("E", prefix="ent", build=b)` then `register("E", prefix="other", build=b)` leaves `other` in force.
+Identity of the `build` object is the test for "same maker", which is what makes a module re-import safe (`makers.py` binds the same function objects) and an `importlib.reload` of `makers.py` unsafe (new function objects, so `M` raises). A same-`build` re-registration under a different prefix refuses: `register("E", prefix="ent", build=b)` then `register("E", prefix="other", build=b)` raises `ValueError`, so an edit to a prefix is caught rather than silently taken.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `7d390d6` (read from a `git archive` export; a concurrent worker editing `src/suite/`). Run against that export: a same-`build` re-registration taking the new prefix; `dat=` with `parent=` dropping the parent. Callers by `git grep -w` over `src/` and `tests/` at that sha. Not determined: whether any concurrent drafting path will ever adopt `mk.anchor` (it would need a context variable). Findings filed on T088.
+- 2026-10-28 — refreshed against `e4c6b68`: `dat=` with `parent=` builds the sub-root child the constructor builds; a same-`build` re-registration under another prefix refuses; the module docstring no longer claims a production path for `mk.anchor`.

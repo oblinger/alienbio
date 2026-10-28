@@ -70,7 +70,7 @@ A plain class with `__slots__` (`_local_name`, `_parent`, `_children`, `_top`, `
     A root's `dat.get_path_name()`; otherwise the parent's `full_name`, a `.`, and the local name, so it walks the parent chain (it does not use `_top`). Under a `MockDat("mol/A")` the molecule `A` reads `mol/A`; a child of it `mol/A.x`. ^full-name
 
 **set_parent**`(parent: Entity | None) -> None`
-    Removes the entity from its old parent's children, falls back to `bio.io.orphan_root` for `None` (raising `RuntimeError` when no IO is attached), sets `_parent`, refuses a name the new parent already holds with `ValueError`, registers the entity, and repoints `_top` across the subtree. The refusal comes after the first two steps (§ [Re-parenting](#re-parenting)). No cycle check. ^set-parent
+    Falls back to `bio.io.orphan_root` for `None` (raising `RuntimeError` when no IO is attached), refuses with `ValueError` a parent that is the entity or one of its descendants and a name the new parent already holds for another entity, then removes the entity from its old parent's children, sets `_parent`, registers it, and repoints `_top` across the subtree. Both refusals come before anything moves (§ [Re-parenting](#re-parenting)); re-setting the current parent is a no-op. ^set-parent
 
 **detach**`() -> None`
     `set_parent(bio.io.orphan_root)`; the entity then prints `ORPHAN:<name>`. `RuntimeError` with no IO attached. ^detach
@@ -126,7 +126,7 @@ The module-level surface: the head registry and the anchor alias.
     Writes `_head_registry[name] = cls`, replacing any earlier class silently. Called by `Entity.__init_subclass__` with the `head=` class keyword or the class name, and once at import for `Entity` itself. ^register-head
 
 **get_entity_class**`(name: str) -> type[Entity]`
-    `KeyError` naming an unknown head. Its one `src/` caller is `IO._create_entity_from_dict`, which turns the `KeyError` into a plain `Entity`. ^get-entity-class
+    `KeyError` naming an unknown head. Its one `src/` caller is `IO._create_entity_from_dict`, which lets the `KeyError` through. ^get-entity-class
 
 **get_registered_heads**`() -> dict[str, type[Entity]]`
     A copy. `suite/expr_heads.py` iterates it once at import to register an Expr constructor head per entity head other than `Entity`, `Compartment`, `Reaction` and `Chemistry` (which have hand-written ones), so a class defined after that import gets no `!Head` constructor. ^get-registered-heads
@@ -137,7 +137,7 @@ The module-level surface: the head registry and the anchor alias.
 
 
 ## infra Interface
-`alienbio.infra` re-exports `Entity`, `IO`, `Pegboard` and `mk`; `alienbio/__init__.py` re-exports the same four and imports `infra.imports` for its side effect ([ABIO infra IO](ABIO%20infra%20IO.md) § [imports Interface](ABIO%20infra%20IO.md#imports-interface)). `MockDat` is exported from `alienbio.bio`, not from here.
+`alienbio.infra` re-exports `Entity`, `IO`, `Pegboard` and `mk`; `alienbio/__init__.py` re-exports the same four; the `infra.imports` side-effect module is gone (T088). `MockDat` is exported from `alienbio.bio`, not from here.
 
 
 
@@ -150,15 +150,16 @@ One slot answers both "which dat" and "which root". A root's `_top` is its dat; 
 
 
 ## Re-parenting
-`set_parent` runs in this order (entity.py 258–274): pop from the old parent, resolve `None` to the orphan root, assign `_parent`, check the new parent for the name, register, repoint `_top`. A name collision therefore raises after the entity has left its old parent and points at the new one, which does not list it; the entity is then in neither tree. Moving an entity under its own descendant is not checked: on a non-root the `_top` rewrite recurses round the cycle until `RecursionError`, on a root it succeeds and leaves `ancestors()` and `descendants()` looping forever. Both are filed on T088.
+`set_parent` checks before it moves: resolve `None` to the orphan root, refuse a parent that is the entity itself or appears among its descendants (found by walking the new parent's `ancestors()` for the entity), refuse a name the new parent holds for a different entity, and only then pop from the old parent, assign `_parent`, register and repoint `_top`. A refused call leaves the entity, its old parent and the new parent as they were. Until 2026-10-28 the pop and the assignment came first, so a name collision left the entity in neither tree, and a cycle either recursed to `RecursionError` (non-root) or succeeded with `ancestors()` and `descendants()` looping forever (root).
 
 
 
 ## Serialized form
-`save` writes the shape `to_dict(recursive=True)` gives: `head`, the attributes, and `args` mapping each child's local name to its own dict or to an absolute reference `</dat/path.a.b>`. `IO` reads it back by head; what comes back is set by each class's constructor, not by `attributes`, so the round trip keeps `name` and `description` only (§ [Loading a tree](ABIO%20infra%20IO.md#loading-a-tree) on the IO page).
+`save` writes the shape `to_dict(recursive=True)` gives: `head`, the attributes, and `args` mapping each child's local name to its own dict or to an absolute reference `</dat/path.a.b>`. `IO` reads it back by head through each class's own `hydrate`, and refuses when the rebuilt `attributes()` differ from the saved ones, so a class either round-trips its fields or does not load (§ [Loading a tree](ABIO%20infra%20IO.md#loading-a-tree) on the IO page).
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `7d390d6` (read from a `git archive` export, a concurrent worker editing `src/suite/`). Run against that export: the name-collision `set_parent` leaving the entity in neither tree; a cycle through a non-root raising `RecursionError` and through a root succeeding; a shadowed class's `head` falling back to its class name. Callers counted by `git grep -w` over `src/` and `tests/` at that sha. Not determined: whether any caller outside `src/` (AUP's launchers) uses `save`, `detach` or `to_dict`. Findings filed on T088.
+- 2026-10-28 — refreshed against `234de0d`: `set_parent` refuses a name clash or a cycle before moving anything; `__str__` falls back to `full_name` only when no IO is attached; `get_entity_class`'s `KeyError` now reaches the loader's caller (`76bfc54`).
