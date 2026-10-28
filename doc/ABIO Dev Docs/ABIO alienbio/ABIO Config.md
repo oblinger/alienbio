@@ -6,7 +6,7 @@ description: "`config` + `commands/config_cmd`: API-key resolution (environment 
 The page for where alienbio gets an API key: the lookup order, the YAML file and how it merges onto the defaults, the file's mode, and the `bio config` subcommands.
 
 ![ABIO Config](ABIO%20Config.svg) 
-*Key resolution* is the topic behind the three-step chain into `get_api_key`, the one function on this page the instrument calls. The figure predates T088's config round and still draws the removed `default_agent` / `default_model` settings.
+*Key resolution* is the topic behind the three-step chain into `get_api_key`, the one function on this page the instrument calls.
 
 `config.py` is module-level functions over one YAML file; `config_cmd.py` is the `bio config` verb, one `argparse` parser over those functions, kept on this page because it holds no logic of its own. The instrument's one reader is the real-model agent: `llm_agent.default_anthropic_llm_fn` and `fetch_models_snapshot` call `get_api_key("anthropic")` ([ABIO LLMAgent](../ABIO%20suite/ABIO%20LLMAgent.md)). On this machine the key lives in the macOS Keychain and reaches the process as `ANTHROPIC_API_KEY` through `~/.zshrc`, so the file is normally empty of keys. The front door is [ABIO CLI](ABIO%20CLI.md); the subsystem view is [ABIO-Operator-Surface](../../ABIO%20Architecture/ABIO-Operator-Surface.md).
 
@@ -114,3 +114,4 @@ The model a run uses comes from the spec or `suite.llm_agent.PINNED_MODEL`. The 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`). Checked locally against the export, with the config paths pointed at a temporary directory and the key variables unset: an empty `api_keys:` breaking `get_api_key`, `list_providers` and `remove_api_key`; a list-valued file breaking `load_config`; a written file's mode 0644; `bio config --help` exiting 1. `test-key` was not run (it is a billed call). Readers of each setting found by grep over `src/`. Findings filed on T088.
 - 2026-10-28 — T088 config round: argparse parser (`--help` exits 0), an empty `api_keys:` reads as none, the file 0600 / folder 0700 and tightened on read, `default_agent` / `default_model` / `set-default-agent` removed, `test_api_key` renamed `check_api_key` and pinged at `PINNED_MODEL`.
+- 2026-10-28 — refreshed against `0eb23e5`: body already current after `13298f0`; the figure redrawn to match — `PINNED_MODEL` in place of the removed `default_agent`/`default_model` box, `check_api_key`, argparse, file mode 0600 — and the caption's stale-figure note dropped.

@@ -96,6 +96,6 @@
   <line id="e-cmd-gate" x1="740" y1="430" x2="740" y2="520" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-ci-cmd" x1="1000" y1="520" x2="840" y2="430" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="l-ci-cmd" x="930" y="460" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">runs --check</text>
-  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call or data · dotted: shared with bio report · nothing here runs a test: a skipped proving test satisfies the gate</text>
-  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">the folder is two levels above the package; in an installed wheel it is missing and every built row reads no test</text>
+  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call or data · dotted: shared with bio report · nothing here runs a test: bio report reads a skip-only proof as not proven</text>
+  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">the folder is two levels above the package; in an installed wheel it is missing and scan refuses, naming it</text>
 </svg>

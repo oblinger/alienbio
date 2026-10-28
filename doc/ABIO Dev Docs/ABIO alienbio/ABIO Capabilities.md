@@ -49,10 +49,10 @@ A frozen dataclass, the fixed table, and functions that each rescan the test fol
     `REPO_ROOT / "tests" / "capabilities"`, where `REPO_ROOT` is two levels above the package directory: the repository in a source checkout, an unrelated directory in an installed package (§ [Where the tests are](#where-the-tests-are)). ^tests-dir
 
 **scan**`(tests_dir=None) -> dict[str, list[str]]`
-    Parses every `test_*.py` in the folder (not recursively) with `ast` and, for every function named `test_*` at any depth, collects the string arguments of a decorator call named `capability` (`@capability("A1", "B2")` or `@pytest.mark.capability(...)`). Returns `{id: ["module::test", …]}`. An `async def`, a decorator argument that is not a string literal, or a decorator under another name is invisible. ^scan
+    Parses every `test_*.py` in the folder (not recursively) with `ast` and, for every function named `test_*` at any depth, collects the string arguments of a decorator call named `capability` (`@capability("A1", "B2")` or `@pytest.mark.capability(...)`). Returns `{id: ["module::test", …]}`; raises `FileNotFoundError` naming the folder when it is not a directory. An `async def`, a decorator argument that is not a string literal, or a decorator under another name is invisible. ^scan
 
 **phrases**`(tests_dir=None) -> dict[str, str]`
-    For every decorated test, the first paragraph of its docstring collapsed to one line; `""` when it has none. The sentence `bio report` prints beside the dimension. ^phrases
+    For every decorated test, the first paragraph of its docstring collapsed to one line; `""` when it has none. The sentence `bio report` prints beside the dimension. Refuses a missing folder as `scan` does. ^phrases
 
 **undocumented**`(tests_dir=None) -> list[str]`
     Sorted decorated tests whose phrase is empty. ^undocumented
@@ -88,7 +88,7 @@ A frozen dataclass, the fixed table, and functions that each rescan the test fol
 | [test_matrix_command](#^test-matrix-command) | Print the matrix; gate it on `--check` |
 
 **test_matrix_command**`(args: list[str], verbose: bool = False) -> int`
-    Any token other than `--markdown` or `--check` prints the module docstring to stderr and returns 2 (so does `--help`). Prints `render_markdown()` with `--markdown`, else `render_text()`. With `--check`, also runs `check`, `unknown_ids` and `check_phrases`; any non-empty result prints a `capability gate: …` line per kind to stderr and returns 1, else prints that every built or partial dimension is proven and returns 0. ^test-matrix-command
+    Parses with `argparse` (`--markdown`, `--check`): `--help` prints usage and returns 0, any other token returns 2. Prints `render_markdown()` with `--markdown`, else `render_text()`. With `--check`, also runs `check`, `unknown_ids` and `check_phrases`; any non-empty result prints a `capability gate: …` line per kind to stderr and returns 1, else prints that every built or partial dimension is proven and returns 0. A missing test folder prints `capability gate: no proving-test folder at …` and returns 1. ^test-matrix-command
 
 
 
@@ -101,12 +101,12 @@ A frozen dataclass, the fixed table, and functions that each rescan the test fol
 
 
 ## A static scan
-The scan reads source, so it knows a test is decorated, not whether it ran. A proving test marked `skip`, guarded by `skipif` (the `needs_jax` guard in `test_simulator_conformance.py`), or `xfail` still satisfies the gate, and a dimension whose only test always skips shows as proven here; `bio report` is where the outcome appears, as ⏭ beside the row. No proving test is skip-guarded at `038c399`.
+The scan reads source, so it knows a test is decorated, not whether it ran. A proving test marked `skip`, guarded by `skipif` (the `needs_jax` guard in `test_simulator_conformance.py`), or `xfail` still satisfies the gate, and a dimension whose only test always skips shows as proven here; `bio report` is where the outcome appears: a built or partial row whose proving tests all skipped counts against the page (`Report.unproven`, title `NOT PROVEN`, exit 1; [ABIO Report](ABIO%20Report.md)). No proving test is skip-guarded at `038c399`.
 
 
 
 ## Where the tests are
-`TESTS_DIR` is computed from the module's own file, two directories up. In a source checkout with the editable install `uv sync` makes, that is the repository root. In an installed wheel it is a directory under the environment's `lib/`, where no `tests/capabilities/` exists; `Path.glob` on a missing directory returns nothing, so every built dimension reads `**no test**` and `--check` fails, with no message saying the folder was not found.
+`TESTS_DIR` is computed from the module's own file, two directories up. In a source checkout with the editable install `uv sync` makes, that is the repository root. In an installed wheel it is a directory under the environment's `lib/`, where no `tests/capabilities/` exists; `scan` and `phrases` then raise `FileNotFoundError` naming the folder, which `bio test-matrix --check` and `bio report` print and exit 1 on, rather than reading every built dimension as `**no test**`.
 
 
 
@@ -114,3 +114,4 @@ The scan reads source, so it knows a test is decorated, not whether it ran. A pr
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with `tests/capabilities/conftest.py` read for the marker. Checked locally against the export: the matrix over that commit's tests (32 claimed, `check`, `unknown_ids` and `check_phrases` all empty), and `check` against a missing folder returning every built id. The dimension counts are from `DIMENSIONS` at that commit. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `scan`/`phrases` refuse a missing `tests/capabilities/` with `FileNotFoundError` naming it, and `bio test-matrix --check` prints that and exits 1. A skip-guarded proving test still satisfies the static gate; `bio report` now reads it as not proven.
+- 2026-10-28 — refreshed against `0eb23e5`: the body states the round's outcome — `test_matrix_command` is argparse (`--help` exits 0), `scan`/`phrases` refuse a missing folder, a skip-only proving test reads NOT PROVEN in `bio report` (`13298f0`); the figure's folder note updated.

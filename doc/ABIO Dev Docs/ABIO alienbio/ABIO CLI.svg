@@ -17,7 +17,7 @@
   </g>
   <g id="n-help">
     <rect id="n-help-box" x="620" y="40" width="240" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-help-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">help, exit 1</text>
+    <text id="n-help-name" x="740.0" y="68" font-size="18" font-weight="600" text-anchor="middle">help, exit 2</text>
     <text id="n-help-kind" x="740.0" y="92" font-size="14" text-anchor="middle">(no command) prints the epilog</text>
   </g>
   <g id="n-summ">
@@ -48,13 +48,13 @@
   </g>
   <g id="n-tm">
     <rect id="n-tm-box" x="620" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-tm-name" x="740.0" y="428" font-size="18" font-weight="600" text-anchor="middle">test_matrix_command ‡</text>
-    <text id="n-tm-kind" x="740.0" y="452" font-size="14" text-anchor="middle">(hand) --markdown · --check</text>
+    <text id="n-tm-name" x="740.0" y="428" font-size="18" font-weight="600" text-anchor="middle">test_matrix_command</text>
+    <text id="n-tm-kind" x="740.0" y="452" font-size="14" text-anchor="middle">(argparse) --markdown · --check</text>
   </g>
   <g id="n-config">
     <rect id="n-config-box" x="920" y="400" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-config-name" x="1040.0" y="428" font-size="18" font-weight="600" text-anchor="middle">config_command ‡</text>
-    <text id="n-config-kind" x="1040.0" y="452" font-size="14" text-anchor="middle">(hand) first token picks</text>
+    <text id="n-config-name" x="1040.0" y="428" font-size="18" font-weight="600" text-anchor="middle">config_command</text>
+    <text id="n-config-kind" x="1040.0" y="452" font-size="14" text-anchor="middle">(argparse) one subparser per verb</text>
   </g>
   <g id="n-suitepg">
     <rect id="n-suitepg-box" x="20" y="540" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -74,7 +74,7 @@
   <g id="n-cfgpg">
     <rect id="n-cfgpg-box" x="920" y="540" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-cfgpg-name" x="1040.0" y="568" font-size="18" font-weight="600" text-anchor="middle">config.py</text>
-    <text id="n-cfgpg-kind" x="1040.0" y="592" font-size="14" text-anchor="middle">(module) keys and defaults</text>
+    <text id="n-cfgpg-kind" x="1040.0" y="592" font-size="14" text-anchor="middle">(module) provider keys</text>
   </g>
   <line id="e-shell-main" x1="260" y1="75" x2="320" y2="75" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="l-shell-main" x="290" y="65" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">argv</text>
@@ -95,6 +95,6 @@
   <line id="e-config-pg" x1="1040" y1="470" x2="1040" y2="540" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="t-n1" x="900" y="215" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">every token after the verb, flags</text>
   <text id="t-n2" x="900" y="233" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">included, goes to the verb's parser</text>
-  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: dispatch · dotted: fronts or reads · ‡ --help is not argparse's: test-matrix exits 2, config exits 1</text>
-  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">exit codes: 0 ok · 1 reported error or failed gate (and no command) · 2 usage</text>
+  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: dispatch · dotted: fronts or reads · every verb takes --help</text>
+  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">exit codes: 0 ok · 1 reported error or failed gate · 2 usage (and no command)</text>
 </svg>

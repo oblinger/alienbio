@@ -18,8 +18,8 @@
   <g id="n-file">
     <rect id="n-file-box" x="20" y="300" width="240" height="90" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-file-name" x="140.0" y="328" font-size="18" font-weight="600" text-anchor="middle">config.yaml</text>
-    <text id="n-file-kind" x="140.0" y="352" font-size="14" text-anchor="middle">(file) ~/.config/alienbio, 0644</text>
-    <text id="n-file-kind2" x="140.0" y="370" font-size="14" text-anchor="middle">api_keys · default_agent · providers</text>
+    <text id="n-file-kind" x="140.0" y="352" font-size="14" text-anchor="middle">(file) ~/.config/alienbio, 0600</text>
+    <text id="n-file-kind2" x="140.0" y="370" font-size="14" text-anchor="middle">api_keys: provider → key</text>
   </g>
   <g id="n-gak">
     <rect id="n-gak-box" x="320" y="160" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -49,17 +49,17 @@
   <g id="n-cmd">
     <rect id="n-cmd-box" x="620" y="320" width="240" height="90" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-cmd-name" x="740.0" y="348" font-size="18" font-weight="600" text-anchor="middle">config_command</text>
-    <text id="n-cmd-kind" x="740.0" y="372" font-size="14" text-anchor="middle">(bio config) hand dispatch</text>
+    <text id="n-cmd-kind" x="740.0" y="372" font-size="14" text-anchor="middle">(bio config) argparse</text>
     <text id="n-cmd-kind2" x="740.0" y="390" font-size="14" text-anchor="middle">set-key · list-keys · show · …</text>
   </g>
   <g id="n-defs">
-    <rect id="n-defs-box" x="920" y="320" width="240" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-defs-name" x="1040.0" y="348" font-size="18" font-weight="600" text-anchor="middle">default_agent / _model ‡</text>
-    <text id="n-defs-kind" x="1040.0" y="372" font-size="14" text-anchor="middle">(settings) read by no run</text>
+    <rect id="n-defs-box" x="920" y="320" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-defs-name" x="1040.0" y="348" font-size="18" font-weight="600" text-anchor="middle">PINNED_MODEL</text>
+    <text id="n-defs-kind" x="1040.0" y="372" font-size="14" text-anchor="middle">(suite.llm_agent) the ping's model</text>
   </g>
   <g id="n-tak">
     <rect id="n-tak-box" x="620" y="490" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-tak-name" x="740.0" y="518" font-size="18" font-weight="600" text-anchor="middle">test_api_key</text>
+    <text id="n-tak-name" x="740.0" y="518" font-size="18" font-weight="600" text-anchor="middle">check_api_key</text>
     <text id="n-tak-kind" x="740.0" y="542" font-size="14" text-anchor="middle">(fn) one billed call on anthropic</text>
   </g>
   <g id="n-prov">
@@ -78,12 +78,13 @@
   <polyline id="e-gak-snap" points="520,160 520,140 1040,140 1040,160" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <line id="e-cmd-load" x1="620" y1="365" x2="560" y2="365" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-save-file" x1="360" y1="490" x2="200" y2="390" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
-  <line id="e-cmd-defs" x1="860" y1="355" x2="920" y2="355" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-tak-defs" x1="840" y1="490" x2="960" y2="390" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-tak-defs" x="912" y="452" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">model</text>
   <line id="e-cmd-tak" x1="740" y1="410" x2="740" y2="490" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="l-cmd-tak" x="750" y="455" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">test-key</text>
   <line id="e-tak-prov" x1="860" y1="525" x2="920" y2="525" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-cmd-save" x1="640" y1="410" x2="560" y2="490" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
-  <text id="l-cmd-save" x="590" y="448" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">set-key · set-default-agent</text>
-  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: read or call · dotted: copies, mentions · ‡ default_agent is printed by list-keys only; default_model is read by test_api_key only</text>
-  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">an empty `api_keys:` in the file makes get_api_key raise once the environment is empty</text>
+  <text id="l-cmd-save" x="590" y="448" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">set-key</text>
+  <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: read or call · dotted: copies, names · no default agent or model setting: a run's model is its spec's or PINNED_MODEL</text>
+  <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">an empty `api_keys:` reads as no keys; a looser file is tightened to 0600 on read</text>
 </svg>

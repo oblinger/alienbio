@@ -6,7 +6,7 @@ description: "`report` + `commands/report_cmd`: `bio report` — one pytest run 
 The page for `bio report`: where each row's outcome and sentence come from, what the four sections hold, how the verdict in the title is decided, and what is written where.
 
 ![ABIO Report](ABIO%20Report.svg) 
-*The JUnit file is the truth* is the topic behind the `parse_junit` box: every ✓ and ✗ on the page is read from one XML file, keyed by module stem and test name; *The verdict* governs the ‡ on `Report.ok`, which does not look at the capability rows.
+*The JUnit file is the truth* is the topic behind the `parse_junit` box: every ✓ and ✗ on the page is read from one XML file, keyed by module stem and test name; *The verdict* governs the ‡ on `Report.ok`, which also requires every built or partial capability row to have passed.
 
 `report.py` builds a `Report` and renders it twice; `report_cmd.py` is the verb, an `argparse` parser around one call sequence, kept on this page. The matrix and the sentences come from [ABIO Capabilities](ABIO%20Capabilities.md); the examples run through `suite.experiment.run_experiment` and the runs are read through `suite.store.read_manifest` ([ABIO Store](../ABIO%20suite/ABIO%20Store.md)); each run's key figure is the `key.png` that `bio suite report` draws ([ABIO SuiteCmd](ABIO%20SuiteCmd.md)). `just report` runs `bio report --open`; `just test` stays the gate and CI never runs this. The subsystem view is [ABIO-Operator-Surface](../../ABIO%20Architecture/ABIO-Operator-Surface.md).
 
@@ -52,19 +52,19 @@ Path constants, the outcome readers, four row builders, `build`, and the two ren
     Pass, fail and skip counts per `SUITES` module (by stem) and its docstring's first paragraph, a leading milestone tag (`M48.5 — `) removed. ^suite-rows
 
 **example_rows**`(outcomes, runner=None) -> list[ExampleRow]`
-    For each folder under `catalog/examples/` with a YAML file, runs the alphabetically first `*.yaml` with `run_experiment` into a temporary directory and records trials, failed trials, the mean objective score over non-error records, wall time, the outcome of its `test_<folder>_example` module, and the first non-heading line of its README. An exception becomes an `error` row instead of stopping the report. `runner` is injectable for tests. ^example-rows
+    For each folder under `catalog/examples/` with a YAML file, runs `<folder>.yaml` (else its one `*.yaml`; several with none named after the folder is an `error` row) with `run_experiment` into a temporary directory, refusing a spec whose `estimate_cost` counts any live-model trial as an `error` row, and records trials, failed trials, the mean objective score over non-error records, wall time, the outcome of its `test_<folder>_example` module, and the first non-heading line of its README. An exception becomes an `error` row instead of stopping the report. `runner` is injectable for tests. ^example-rows
 
-**run_rows**`() -> list[RunRow]`
-    For each `runs/<name>/manifest.json`: the model label (a live run has one, a scripted run none), trials completed and failed, `cost_usd_spent` from the manifest, the start date, and `key.png` with the readout and caption from `key.json` when present. Live runs sort first. A manifest or `key.json` that does not parse raises and stops the report. ^run-rows
+**run_rows**`(notes=None) -> list[RunRow]`
+    For each `runs/<name>/manifest.json`: the model label (a live run has one, a scripted run none), trials completed and failed, `cost_usd_spent` from the manifest, the start date, and `key.png` with the readout and caption from `key.json` when present. Live runs sort first. A folder whose manifest or `key.json` will not read (`OSError`, `ValueError`, `TypeError`, `KeyError`) is skipped with a `runs/<name> skipped: …` line appended to `notes`. ^run-rows
 
-**build**`(outcomes, pytest_exit, *, run_examples=True, example_runner=None, totals=None) -> Report`
-    Assembles the four sections and the golden-zeros outcome (`test_golden_experiments`), stamps the time, and notes `--no-examples`. `totals` defaults to counting `outcomes`, which collapses parametrized cases; `report_cmd` passes `count_cases`. ^build
+**build**`(outcomes, pytest_exit, *, run_examples=True, example_runner=None, totals=None, out_dir=None) -> Report`
+    Assembles the four sections and the golden-zeros outcome (`test_golden_experiments`), stamps the time, records `out_dir` (default `REPO/reports`), passes its `notes` to `run_rows`, and notes `--no-examples`. Raises `FileNotFoundError` when `tests/capabilities/` is missing. `totals` defaults to counting `outcomes`, which collapses parametrized cases; `report_cmd` passes `count_cases`. ^build
 
 **render_markdown**`(rep: Report) -> str`
-    The page: a title carrying the verdict, a totals line, then the four sections as tables, each run's key figure as an image link relative to `reports/`. ^render-markdown
+    The page: a title carrying the verdict, a totals line, then the four sections as tables, each run's key figure as an image link relative to `rep.out_dir`. The title is `ALL PASSED`, or the first failing reason: pytest's exit, the failed count, an example, else `NOT PROVEN (N capability rows without a passing test)`. ^render-markdown
 
 **render_html**`(rep: Report) -> str`
-    Converts the Markdown line by line (tables, headings, paragraphs, inline code, bold, italic), embedding each image as a base64 `data:` URI read from `reports/<link>`, so `report.html` stands alone. ^render-html
+    Converts the Markdown line by line (tables, headings, paragraphs, inline code, bold, italic), embedding each image as a base64 `data:` URI read from `rep.out_dir / <link>`, so `report.html` stands alone. ^render-html
 
 
 
@@ -74,13 +74,21 @@ A dataclass of the four row lists, the totals and the pytest exit code. The row 
 | Report | |
 | --- | --- |
 | [ok](#^ok) | The verdict ‡ |
+| [unproven](#^unproven) | Capability rows without a passing test |
 | [notes](#^notes) | Footnotes printed at the end |
+| [out_dir](#^out-dir) | Where `report.md` is written |
 
 **ok**`: bool` (property)
-    True when the pytest exit was 0, the totals show no failure, and every example ran without an error or a failed trial. Capability rows do not enter it (§ [The verdict](#the-verdict)). ^ok
+    True when the pytest exit was 0, the totals show no failure, every example ran without an error or a failed trial, and `unproven` is empty (§ [The verdict](#the-verdict)). ^ok
+
+**unproven**`: list[str]` (property)
+    The ids of built or partial dimensions whose outcome is not `passed`: `not run`, `no test`, `failed`, or every proving test `skipped`. ^unproven
 
 **notes**`: list[str]`
-    Printed in italics at the bottom; `build` adds one when examples were skipped. ^notes
+    Printed in italics at the bottom; `build` adds one when examples were skipped, `run_rows` one per unreadable run folder. ^notes
+
+**out_dir**`: Path = REPO / "reports"`
+    The folder the Markdown lands in; figure links are made relative to it and the HTML resolves them against it. ^out-dir
 
 
 
@@ -92,7 +100,7 @@ A dataclass of the four row lists, the totals and the pytest exit code. The row 
 | [report_command](#^report-command) | Run, build, write, print |
 
 **report_command**`(args: list[str], verbose: bool = False) -> int`
-    Parses the flags (argparse; a usage error returns 2). Creates `--out` (default `reports/` under `REPO`); without `--junit`, runs the suite to `<out>/junit.xml` and keeps pytest's exit code, with `--junit` uses that file and an exit code of 0. A missing JUnit file returns 1. Builds the report, writes `report.md` and `report.html` to the output folder, prints the Markdown to stdout, opens the HTML on macOS with `--open`, and returns 0 when `Report.ok`, else 1. `-v` is accepted by the front door and ignored. ^report-command
+    Parses the flags (argparse; a usage error returns 2). Creates `--out` (default `reports/` under `REPO`); without `--junit`, runs the suite to `<out>/junit.xml` and keeps pytest's exit code, with `--junit` uses that file and an exit code of 0. A missing JUnit file returns 1, as does a missing `tests/capabilities/` (printed as `bio report: …`). Builds the report with `out_dir` set to the output folder, writes `report.md` and `report.html` to the output folder, prints the Markdown to stdout, opens the HTML on macOS with `--open`, and returns 0 when `Report.ok`, else 1. `-v` is accepted by the front door and ignored. ^report-command
 
 
 
@@ -118,17 +126,17 @@ Outcomes are keyed by the last segment of `classname` and the bare test name. Fo
 
 
 ## The verdict
-The title reads `ALL PASSED` when `Report.ok` holds, else names the reason (pytest's exit, the failed count, or an example). `ok` reads the pytest exit, the totals and the examples, and since T051 box 4 it is computed from what the page shows rather than from the exit code alone. The capability rows are not part of it: a JUnit file that does not contain the proving tests leaves every row `not run`, and the page is still titled `ALL PASSED`. Built from a one-test JUnit file at `038c399`, the report was `ok`, every built dimension read `not run`, and the title read `ALL PASSED`. With `--junit` that file is whatever the caller passes; without it, a full run, so the gap matters only for `--junit` and for a pytest run that deselects tests.
+The title reads `ALL PASSED` when `Report.ok` holds, else names the reason (pytest's exit, the failed count, an example, or `NOT PROVEN`). `ok` reads the pytest exit, the totals, the examples and the capability rows, computed from what the page shows rather than from the exit code alone (T051 box 4). A built or partial row that did not pass — absent from the JUnit file, without a test, failed, or only skipped — makes the page `NOT PROVEN` and the exit 1, so a `--junit` file lacking the proving tests, or a pytest run that deselects them, no longer reads `ALL PASSED`.
 
 
 
 ## Where it writes
-`report.md` and `report.html` go to `--out` (default `reports/`), `junit.xml` too when the suite is run. Image links in the Markdown are computed relative to `REPO/reports`, not to `--out`, so a page written elsewhere carries links that point nowhere from its own folder; the HTML is unaffected because it resolves each link against `REPO/reports` itself and embeds the bytes. The examples run into temporary folders and leave nothing behind.
+`report.md` and `report.html` go to `--out` (default `reports/`), `junit.xml` too when the suite is run. Image links in the Markdown are computed relative to `--out` (`Report.out_dir`), so a page written anywhere links its figures correctly; the HTML resolves each link against the same folder and embeds the bytes. The examples run into temporary folders and leave nothing behind.
 
 
 
 ## Cost
-Every example under `catalog/examples/` runs fresh, its alphabetically first YAML file only. Today that is a scripted spec in every folder (`agent_loop/` carries `live.yaml`, which sorts after `agent_loop.yaml`), so `bio report` spends nothing; a live spec whose name sorted first would be run, with no cost check of its own.
+Every example under `catalog/examples/` runs fresh: the spec named after its folder, else its only spec. A spec whose `estimate_cost` counts a live-model trial is refused as an `error` row before anything runs, so `bio report` spends nothing whatever the file names (`agent_loop/live.yaml` is never chosen: `agent_loop.yaml` is named after the folder).
 
 
 
@@ -136,3 +144,4 @@ Every example under `catalog/examples/` runs fresh, its alphabetically first YAM
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with the example folders listed at that commit. Checked locally against the export, with no pytest run: a one-test JUnit file building a report titled `ALL PASSED` with every capability row `not run`; a corrupt `manifest.json` under `runs/` raising `JSONDecodeError` out of `run_rows`; the figure link computed relative to `reports/`. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `Report.ok` also requires every built / partial capability row to have passed (`Report.unproven`; title `NOT PROVEN (…)`, exit 1); an unreadable run folder is skipped with a `runs/<name> skipped: …` note; figure links are relative to `--out`; each example runs `<folder>.yaml` (else its one spec) and a spec with a live-model arm is an error row, never a paid run.
+- 2026-10-28 — refreshed against `0eb23e5`: the body states the round's outcome (`13298f0`) — `Report.unproven` and `out_dir` (new member blocks), the `NOT PROVEN` title, `run_rows(notes)` skipping a bad run folder, figure links relative to `--out`, example selection by name with live specs refused; the figure's ‡ and notes updated.
