@@ -272,31 +272,35 @@ class TestLookup:
 class TestPathBinding:
     """Tests for binding prefixes to path strings."""
 
-    def test_bind_path_string(self):
-        """bind_prefix accepts a path string."""
+    def test_bind_path_string(self, tmp_path):
+        """bind_prefix accepts a path string to a dat that loads."""
+        from dvc_dat import Dat
+
+        Dat.create(path=str(tmp_path / "exp1"), spec={"name": "exp1"})
         io = IO()
-        io.bind_prefix("R", "runs/exp1")
+        io.bind_prefix("R", str(tmp_path / "exp1"))
 
-        assert "R" in io.prefixes
-        assert io.prefixes["R"] == "runs/exp1"
+        assert io.prefixes["R"] == str(tmp_path / "exp1")
+        assert io.resolve_prefix("R").local_name == "exp1"
 
-    def test_resolve_d_prefix(self):
-        """D: prefix always resolves to data root."""
+    def test_bind_unloadable_path_refuses_at_the_binding(self):
+        """T088 infra/io 5: a string binding whose dat will not load used to
+        make every later `ref` raise, for any entity; it refuses here now."""
         io = IO()
+        with pytest.raises(KeyError, match=r"prefix .*Z.* dat .*no/such/dat.* does not load"):
+            io.bind_prefix("Z", "no/such/dat")
+        assert "Z" not in io.prefixes
+        world = Entity("world", dat=MockDat("runs/exp1"))
+        assert io.ref(world) == "runs/exp1"
 
-        # D: should work even with no bindings
-        root = io.resolve_prefix("D")
-        assert root is not None
-        # It's a _RootEntity
-        assert root.local_name == ""
-
-    def test_lookup_d_prefix(self):
-        """lookup('D:') returns data root."""
+    def test_d_is_an_ordinary_prefix(self):
+        """T088 infra/io 2: the `D:` data-root prefix worked in neither
+        direction and is retired; `D` is unbound like any other name."""
         io = IO()
-
-        root = io.lookup("D:")
-        assert root is not None
-        assert root.local_name == ""
+        with pytest.raises(KeyError, match="not bound"):
+            io.resolve_prefix("D")
+        with pytest.raises(KeyError, match="not bound"):
+            io.lookup("D:runs.exp1")
 
     def test_lookup_prefix_only_returns_bound_entity(self):
         """lookup('W:') returns the bound entity (same as resolve_prefix)."""

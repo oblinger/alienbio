@@ -329,16 +329,13 @@ class TestEntityLoadWithTypes:
             with open(entities_file, "w") as f:
                 yaml.dump(entity_data, f)
 
-            # Load via IO
+            # Load via IO: MockMolecule has no hydrate for `formula`, so the
+            # load refuses rather than dropping it (T088 infra/io 1)
             from alienbio.infra.io import IO
 
             io = IO()
-            entity = io._load_dat_entity(f"{tmpdir}/test/load1")
-
-            assert isinstance(entity, MockMolecule)
-            assert entity.local_name == "glucose"
-            # Note: formula won't be loaded yet because _create_entity_from_dict
-            # doesn't handle custom fields - that's a future enhancement
+            with pytest.raises(ValueError, match=r"does not rebuild field\(s\) \['formula'\]"):
+                io._load_dat_entity(f"{tmpdir}/test/load1")
 
     def test_load_with_args(self):
         """Loading entities.yaml with args creates tree."""

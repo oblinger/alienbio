@@ -1,7 +1,18 @@
-"""IO module: entity naming, formatting, parsing, and persistence."""
+"""IO module: entity naming, formatting, parsing, and persistence.
+
+Nothing in ``src/`` builds an ``IO``; tests attach one as ``alienbio.bio.io``.
+The persisted shape is ``entities.yaml`` in a dat folder (``Entity.save``),
+read back by ``_load_dat_entity``. That model is narrower than the class
+pages once described ([ABIO DAT] was rewritten to the dvc-dat 3.0 surface the
+package uses, T067): a head loads only if its class can rebuild every field
+it wrote, and the ``D:`` data-root prefix is retired (2026-10-28, T088) —
+the absolute form ``</dat/path.entity.path>`` is the one way to name an
+entity in another dat.
+"""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
@@ -11,54 +22,9 @@ if TYPE_CHECKING:
     from .entity import Entity
 
 
-def _dat_root() -> str:
-    """The dat world's root folder — what the ``D:`` prefix resolves against.
-
-    dvc-dat 3.0 (the repo moved into ``~/ob/grove/dvc-dat``) replaced the
-    single ``DatManager.sync_folder`` with a list of search folders and
-    published no accessor for them, so the first search folder is read off
-    the manager directly. Fails visibly rather than guessing a path: a
-    manager shaped some other way is a configuration error here, not
-    something to paper over with a default.
-    """
-    folders = getattr(Dat.manager, "_dat_folders", None)
-    if not folders:
-        raise RuntimeError(
-            "alienbio.infra.io: Dat.manager exposes no dat folders "
-            f"({type(Dat.manager).__name__}); the D: prefix has no root to "
-            "resolve against"
-        )
-    return str(folders[0]).rstrip("/")
-
-
-class _RootEntity:
-    """Virtual entity representing the data root.
-
-    This allows the 'D:' prefix to work without requiring a _spec_.yaml
-    at the data root. Children are loaded from DAT paths on demand.
-    """
-
-    def __init__(self) -> None:
-        self._local_name = ""
-        self._parent = None
-        self._dat = None
-        self._children: Dict[str, Entity] = {}
-
-    @property
-    def local_name(self) -> str:
-        return self._local_name
-
-    @property
-    def full_name(self) -> str:
-        return _dat_root()
-
-    @property
-    def parent(self) -> None:
-        return None
-
-    @property
-    def children(self) -> Dict[str, Entity]:
-        return self._children.copy()
+#: What ``resolve_refs`` reads as a reference: ``<PREFIX:dotted.path>`` with an
+#: identifier prefix, or the absolute ``</dat/path.entity.path>``. No whitespace.
+_REF_SHAPE = re.compile(r"<(?:[A-Za-z_]\w*:[^\s<>]*|/[^\s<>]+)>")
 
 
 class _OrphanDat:
@@ -90,26 +56,16 @@ class IO:
     - Lookup: Converts PREFIX:path strings back to entities
     - Persistence: Load/save entities via DAT
 
-    The 'D:' prefix is always bound to the data root as an escape hatch.
-
-    Note: for the data path use :func:`_dat_root` (single source of truth).
+    One cache maps a dat path to its root entity, so a string binding and an
+    absolute reference to the same dat give the same object.
     """
 
     def __init__(self) -> None:
         """Initialize IO."""
         self._prefixes: Dict[str, Entity | str] = {}
-        self._path_entity_cache: Dict[str, Entity] = {}
         self._dat_entity_cache: Dict[str, Entity] = {}  # DAT path -> root entity
-        self._root_entity: Optional[_RootEntity] = None
         self._orphan_dat: Optional[_OrphanDat] = None
         self._orphan_root: Optional[Entity] = None
-
-    @property
-    def _data_root(self) -> Any:  # a virtual root, duck-typed like the dats
-        """Lazy-initialized root entity for D: prefix."""
-        if self._root_entity is None:
-            self._root_entity = _RootEntity()
-        return self._root_entity
 
     @property
     def orphan_root(self) -> Entity:
@@ -133,6 +89,11 @@ class IO:
     def bind_prefix(self, prefix: str, target: Entity | str) -> None:
         """Bind a prefix to an entity or path string.
 
+        A path string is loaded here (``_load_dat_entity``, so an
+        ``entities.yaml`` tree comes back typed), not on first use: a dat that
+        will not load refuses at the binding, naming the prefix and path,
+        rather than making every later ``ref`` raise for unrelated entities.
+
         Args:
             prefix: Short prefix string (e.g., "R", "W", "M")
             target: Entity to bind, or path string to DAT location
@@ -141,6 +102,14 @@ class IO:
             io.bind_prefix("W", world_entity)       # bind to Entity
             io.bind_prefix("R", "runs/experiment1") # bind to path
         """
+        if isinstance(target, str):
+            try:
+                self._load_dat_entity(target)
+            except Exception as exc:
+                raise KeyError(
+                    f"prefix {prefix!r}: dat {target!r} does not load "
+                    f"({type(exc).__name__}: {exc})"
+                ) from exc
         self._prefixes[prefix] = target
 
     def unbind_prefix(self, prefix: str) -> Optional[Entity | str]:
@@ -157,8 +126,8 @@ class IO:
     def resolve_prefix(self, prefix: str) -> Entity:
         """Get the entity bound to a prefix.
 
-        If prefix is bound to a path string, loads/creates an Entity for it.
-        The special prefix 'D' always resolves to the data root.
+        If prefix is bound to a path string, returns that dat's root entity
+        (loaded and cached at ``bind_prefix``).
 
         Args:
             prefix: Prefix to resolve
@@ -169,43 +138,15 @@ class IO:
         Raises:
             KeyError: If prefix is not bound
         """
-        # Special case: D always resolves to data root
-        if prefix == "D":
-            return self._data_root
-
         if prefix not in self._prefixes:
             raise KeyError(f"Prefix {prefix!r} is not bound")
 
         target = self._prefixes[prefix]
 
         if isinstance(target, str):
-            return self._resolve_path_to_entity(target)
+            return self._load_dat_entity(target)
 
         return target
-
-    def _resolve_path_to_entity(self, path: str) -> Entity:
-        """Resolve a path string to an Entity, caching the result.
-
-        Args:
-            path: Path to DAT location
-
-        Returns:
-            Entity wrapping the DAT at that path
-        """
-        if path in self._path_entity_cache:
-            return self._path_entity_cache[path]
-
-        # Import here to avoid circular import
-        from .entity import Entity
-
-        # Load the DAT and create an Entity wrapper
-        dat = Dat.load(path)
-        # Use the last path component as the entity name
-        name = Path(path).name
-        entity = Entity(name, dat=dat)
-
-        self._path_entity_cache[path] = entity
-        return entity
 
     def ref(
         self, entity: Entity, prefer_short: bool = True, absolute: bool = False
@@ -232,16 +173,11 @@ class IO:
         matches: list[tuple[str, str]] = []  # (prefix, remaining_path)
 
         # Check user-bound prefixes
-        for prefix, target in self._prefixes.items():
+        for prefix in self._prefixes:
             resolved = self.resolve_prefix(prefix)
             path = self._relative_path(entity, resolved)
             if path is not None:
                 matches.append((prefix, path))
-
-        # Always check D: prefix (data root) as fallback
-        d_path = self._relative_path(entity, self._data_root)
-        if d_path is not None:
-            matches.append(("D", d_path))
 
         if not matches:
             # No prefix matches, use full name
@@ -274,6 +210,13 @@ class IO:
             )
 
         dat_path = dat.get_path_name()
+        if "." in dat_path:
+            # `_absolute_lookup` splits at the first `.`; a dotted path name
+            # would write a reference that reads back as a different dat.
+            raise ValueError(
+                f"dat path name {dat_path!r} contains '.', which an absolute "
+                "reference cannot carry (the first '.' ends the dat path)"
+            )
 
         # Build entity path from root to this entity
         entity_parts: list[str] = []
@@ -296,25 +239,9 @@ class IO:
         Returns None if ancestor is not in entity's ancestry.
         Returns "" if entity is the ancestor.
         Returns dotted path otherwise.
-
-        Special handling for _RootEntity: matches based on full_name prefix.
         """
         if entity is ancestor:
             return ""
-
-        # Special handling for _RootEntity (virtual data root)
-        if isinstance(ancestor, _RootEntity):
-            try:
-                entity_path = entity.full_name
-                root_path = ancestor.full_name
-                if entity_path.startswith(root_path):
-                    # Strip root path and leading separator
-                    relative = entity_path[len(root_path):].lstrip("/")
-                    # Convert slashes to dots for consistency
-                    return relative.replace("/", ".")
-            except (ValueError, AttributeError):
-                pass
-            return None
 
         # Walk up from entity, building path segments
         path_parts: list[str] = []
@@ -456,32 +383,41 @@ class IO:
     ) -> Entity:
         """Create an entity and its children from a dict.
 
-        Uses type dispatch: looks up 'type' field in the entity registry
-        to instantiate the correct Entity subclass.
+        The dict is what ``Entity.to_dict(recursive=True)`` writes: ``head``,
+        the entity's ``attributes()``, and ``args`` (children by local name).
+        ``head`` is looked up in the registry — an unknown head raises
+        ``KeyError`` — and the class's own ``hydrate`` rebuilds the entity.
+        The rebuilt entity's ``attributes()`` must equal the saved ones: a
+        class whose ``hydrate`` cannot carry a field it wrote refuses with
+        ``ValueError`` naming the fields, rather than loading a default.
 
         Args:
-            data: Dict with 'type', 'name', optional 'description', optional 'children'
+            data: Dict with 'head', 'name', the attributes, optional 'args'
             dat: DAT anchor (required if no parent)
             parent: Parent entity (required if no dat)
 
         Returns:
-            The created entity (may be a subclass based on 'head' field)
+            The created entity, an instance of the class ``head`` names
         """
-        from .entity import Entity, get_entity_class
+        from .entity import get_entity_class
 
-        # Get the entity class from head field (default to Entity)
         head_name = data.get("head", "Entity")
-        try:
-            entity_cls = get_entity_class(head_name)
-        except KeyError:
-            # Unknown head - fall back to base Entity
-            entity_cls = Entity
+        entity_cls = get_entity_class(head_name)  # KeyError on an unknown head
 
         name = data.get("name", "unnamed")
-        description = data.get("description", "")
-
-        # Create entity using the resolved class
-        entity = entity_cls(name, parent=parent, dat=dat, description=description)
+        saved = {k: v for k, v in data.items() if k not in ("head", "args")}
+        entity = entity_cls.hydrate(saved, dat=dat, parent=parent, local_name=name)
+        rebuilt = entity.attributes()
+        if rebuilt != saved:
+            lost = sorted(
+                k for k in set(saved) | set(rebuilt) if saved.get(k) != rebuilt.get(k)
+            )
+            if parent is not None:
+                parent._children.pop(entity.local_name, None)
+            raise ValueError(
+                f"entity {name!r} (head {head_name!r}): {entity_cls.__name__}.hydrate "
+                f"does not rebuild field(s) {lost!r}; loading it would drop them"
+            )
 
         # Recursively create children (args)
         args_data = data.get("args", {})
@@ -489,6 +425,11 @@ class IO:
             if isinstance(child_data, str) and child_data.startswith("</"):
                 # Absolute ref - load from another DAT
                 child = self._absolute_lookup(child_data)
+                if child.local_name != child_name:
+                    raise ValueError(
+                        f"args key {child_name!r} names {child_data!r}, whose "
+                        f"local name is {child.local_name!r}"
+                    )
                 # Reparent to this entity
                 child.set_parent(entity)
             elif isinstance(child_data, dict):
@@ -530,8 +471,11 @@ class IO:
         """Recursively replace <PREFIX:path> strings with Entity objects.
 
         Walks a data structure (dict, list, or scalar) and replaces any
-        strings matching the <PREFIX:path> pattern with the corresponding
-        Entity objects.
+        string shaped like a reference — ``<PREFIX:dotted.path>`` (an
+        identifier prefix, no whitespace) or ``</dat/path.entity.path>`` —
+        with the corresponding Entity. Any other angle-bracketed text
+        (``"<html>"``, ``"<a b>"``) passes through unchanged; a ref-shaped
+        string whose prefix is unbound still raises ``KeyError``.
 
         Args:
             obj: Data structure to process (dict, list, or scalar)
@@ -544,7 +488,7 @@ class IO:
             data = io.resolve_refs(data)  # <W:glucose> → Entity
         """
         if isinstance(obj, str):
-            if obj.startswith("<") and obj.endswith(">") and len(obj) > 2:
+            if _REF_SHAPE.fullmatch(obj):
                 return self.lookup(obj[1:-1])  # strip < >
             return obj
         elif isinstance(obj, dict):
@@ -598,7 +542,7 @@ class IO:
 
         Args:
             obj: Object to save. If dict, uses as spec. Otherwise wraps in {"value": obj}.
-            path: Path relative to Dat.manager.sync_folder
+            path: Absolute, or relative to dvc-dat's dat folders (3.0)
 
         Returns:
             The created Dat
@@ -606,7 +550,6 @@ class IO:
         if isinstance(obj, Dat):
             obj.save()
             return obj
-        # Create a new Dat with the object as spec
-        # Dat.create handles path resolution via Dat.manager.sync_folder
+        # Create a new Dat with the object as spec; Dat.create places it
         spec = obj if isinstance(obj, dict) else {"value": obj}
         return Dat.create(path=str(path), spec=spec)
