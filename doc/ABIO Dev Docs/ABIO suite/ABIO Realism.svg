@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-rec">
+    <rect id="n-rec-box" x="20" y="60" width="240" height="104" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="140" y="86" font-size="18" font-weight="600" text-anchor="middle">TrialRecord</text>
+    <text id="n-rec-kind" x="140" y="108" font-size="14" text-anchor="middle">(trial) brief, deliberation</text>
+    <text id="n-rec-kind2" x="140" y="128" font-size="14" text-anchor="middle">trace, action_log,</text>
+    <text id="n-rec-kind3" x="140" y="148" font-size="14" text-anchor="middle">name_map</text>
+  </g>
+  <g id="n-rt">
+    <rect id="n-rt-box" x="330" y="70" width="250" height="84" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rt-name" x="455" y="96" font-size="18" font-weight="600" text-anchor="middle">render_transcript</text>
+    <text id="n-rt-kind" x="455" y="118" font-size="14" text-anchor="middle">(fn) brief, turns, actions</text>
+    <text id="n-rt-kind2" x="455" y="138" font-size="14" text-anchor="middle">surface names; no results ‡</text>
+  </g>
+  <line id="e-rec-rt" x1="260" y1="112" x2="330" y2="112" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-nm">
+    <rect id="n-nm-box" x="330" y="210" width="250" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-nm-name" x="455" y="234" font-size="17" font-weight="600" text-anchor="middle">NameMap.surface_text</text>
+    <text id="n-nm-kind" x="455" y="255" font-size="14" text-anchor="middle">(naming) every line</text>
+  </g>
+  <line id="e-rt-nm" x1="455" y1="154" x2="455" y2="210" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-pool">
+    <rect id="n-pool-box" x="20" y="330" width="240" height="64" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pool-name" x="140" y="356" font-size="18" font-weight="600" text-anchor="middle">load_reference_pool</text>
+    <text id="n-pool-kind" x="140" y="378" font-size="14" text-anchor="middle">(fn) *.txt, sorted (AUP's)</text>
+  </g>
+  <g id="n-jp">
+    <rect id="n-jp-box" x="650" y="200" width="250" height="84" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-jp-name" x="775" y="226" font-size="18" font-weight="600" text-anchor="middle">judge_pair</text>
+    <text id="n-jp-kind" x="775" y="248" font-size="14" text-anchor="middle">(fn) trial at A or B</text>
+    <text id="n-jp-kind2" x="775" y="268" font-size="14" text-anchor="middle">by seed parity</text>
+  </g>
+  <line id="e-rt-jp" x1="580" y1="130" x2="690" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-rt-jp" x="650" y="150" font-size="14" fill="#1971c2" font-style="italic">trial</text>
+  <line id="e-pool-jp" x1="260" y1="350" x2="650" y2="262" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-pool-jp" x="440" y="328" font-size="14" fill="#1971c2" font-style="italic">reference</text>
+
+  <g id="n-judge">
+    <rect id="n-judge-box" x="960" y="200" width="220" height="84" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-judge-name" x="1070" y="226" font-size="18" font-weight="600" text-anchor="middle">realism_judge</text>
+    <text id="n-judge-kind" x="1070" y="248" font-size="14" text-anchor="middle">(LLMOp) {"real": A|B}</text>
+    <text id="n-judge-kind2" x="1070" y="268" font-size="14" text-anchor="middle">REALISM_DIRECTIVE</text>
+  </g>
+  <line id="e-jp-judge" x1="900" y1="242" x2="960" y2="242" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-llm">
+    <rect id="n-llm-box" x="960" y="60" width="220" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-llm-name" x="1070" y="86" font-size="18" font-weight="600" text-anchor="middle">LLMFn</text>
+    <text id="n-llm-kind" x="1070" y="108" font-size="14" text-anchor="middle">(ops) a fake in CI</text>
+  </g>
+  <line id="e-judge-llm" x1="1070" y1="200" x2="1070" y2="124" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-wr">
+    <rect id="n-wr-box" x="650" y="380" width="250" height="84" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-wr-name" x="775" y="406" font-size="18" font-weight="600" text-anchor="middle">realism_win_rates</text>
+    <text id="n-wr-kind" x="775" y="428" font-size="14" text-anchor="middle">(fn) one judge call per</text>
+    <text id="n-wr-kind2" x="775" y="448" font-size="14" text-anchor="middle">record, by condition</text>
+  </g>
+  <line id="e-wr-jp" x1="775" y1="380" x2="775" y2="284" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-wr-jp" x="785" y="337" font-size="14" fill="#1971c2" font-style="italic">per record</text>
+  <g id="n-wil">
+    <rect id="n-wil-box" x="960" y="390" width="220" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-wil-name" x="1070" y="416" font-size="18" font-weight="600" text-anchor="middle">wilson_interval</text>
+    <text id="n-wil-kind" x="1070" y="438" font-size="14" text-anchor="middle">(fn) 95 % CI</text>
+  </g>
+  <line id="e-wr-wil" x1="900" y1="422" x2="960" y2="422" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-sum">
+    <rect id="n-sum-box" x="650" y="520" width="250" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sum-name" x="775" y="546" font-size="18" font-weight="600" text-anchor="middle">RealismSummary</text>
+    <text id="n-sum-kind" x="775" y="568" font-size="14" text-anchor="middle">n, wins, win_rate, ci</text>
+  </g>
+  <line id="e-wr-sum" x1="775" y1="464" x2="775" y2="520" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-aup">
+    <rect id="n-aup-box" x="960" y="520" width="220" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-aup-name" x="1070" y="546" font-size="18" font-weight="600" text-anchor="middle">AUP</text>
+    <text id="n-aup-kind" x="1070" y="568" font-size="14" text-anchor="middle">(no caller in src/)</text>
+  </g>
+  <line id="e-sum-aup" x1="900" y1="552" x2="960" y2="552" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ no observation, assay result, intervene value or answer is rendered</text>
+  </g>
+</svg>
