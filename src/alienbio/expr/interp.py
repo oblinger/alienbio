@@ -107,6 +107,10 @@ class TemplateHead(Head):
                 raise env.error(f"template {self.name!r}: missing positional argument {pname!r}")
         for key, form in kwargs.items():
             if key in self.positional:
+                if self.positional.index(key) < len(args):
+                    # ``t(1, a=2)`` with ``positional: [a]`` silently kept 1
+                    # (T088 expr/interp 2).
+                    raise env.error(f"template {self.name!r}: argument {key!r} is bound twice (positionally and by keyword)")
                 continue
             if key not in self.params:
                 raise env.error(f"template {self.name!r} has no parameter {key!r}")
@@ -221,8 +225,12 @@ def _dispatch(form: Call, env: Env) -> Any:
         return head.fn(*args, **kwargs)
     except ExprError:
         raise
-    except TypeError as exc:
-        raise env.error(f"{form.head}: {exc}") from exc
+    except (TypeError, ValueError, ArithmeticError) as exc:
+        # A callable's own failure carries the node path: ``exp(1000)``'s
+        # OverflowError and ``log(0)``'s ValueError reached callers that
+        # catch ExprError as untyped crashes (T088 expr/interp 3).
+        kind = "" if isinstance(exc, TypeError) else f"{type(exc).__name__}: "
+        raise env.error(f"{form.head}: {kind}{exc}") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +311,11 @@ def _guarded_call(form: Call, env: Env) -> Any:
     attempts = env.ctx.limits.attempts if on_fail == "retry" else 1
     failure: Optional[_Failure] = None
     for n in range(attempts):
-        attempt_env = env if n == 0 else env.child(f"retry{n}")
+        # A retry re-draws on a child SEED at the same path: a child path
+        # renamed a template instance ``retry1`` (its pools ``retry1.P``,
+        # and a second retried template under one parent refused as a
+        # collision) — T088 expr/interp 1. The seeds are unchanged.
+        attempt_env = env if n == 0 else env.with_seed(env.ctx.seed.child(f"retry{n}"))
         value = _dispatch(inner, attempt_env)
         failure = _check_guards(value, guards, attempt_env)
         if failure is None:

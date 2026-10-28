@@ -144,7 +144,10 @@ class Env:
         from ..suite import expr_experiment as _suite_experiment  # noqa: F401  (layers 3-6: tasks, experiments, agents)
 
         root_seed = seed if isinstance(seed, Seed) else Seed(int(seed))
-        ctx = Ctx(seed=root_seed, trusted=trusted, limits=limits or Limits())
+        # A passed ``limits`` gets its own meter: the meter rode the Limits
+        # object, so one Limits handed to three envs summed their
+        # allocations (T088 expr/env 3).
+        ctx = Ctx(seed=root_seed, trusted=trusted, limits=replace(limits, meter=Meter()) if limits is not None else Limits())
         return cls(Scope(dict(bindings or {}), name="root"), registry or _default_registry, ctx)
 
     def child(self, label: str) -> "Env":
@@ -203,10 +206,17 @@ class Env:
         try:
             value.value = evaluate(value.form, value.env.child(name))
         except RecursionError:
+            value.state = "pending"
             # Belt to the depth cap's braces: whatever shape slips past
             # ``limits.depth`` still surfaces as the spec's error, not a
             # Python traceback (T051 box 4).
             raise self.error(f"evaluation of {name!r} too deep (Python recursion limit); raise nothing above limits.depth") from None
+        except BaseException:
+            # A failed evaluation leaves the binding pending, so the next
+            # lookup re-raises ITS error — not "cyclic definition" forever
+            # after (T088 expr/env 1).
+            value.state = "pending"
+            raise
         value.state = "done"
         return value.value
 
@@ -229,9 +239,23 @@ class Env:
         raise self.error(f"{path!r}: no key or attribute {step!r} on {type(value).__name__}")
 
     def head(self, name: str) -> Head:
-        """A head by name: a locally bound head (a YAML template) shadows the registry."""
+        """A head by name: a locally bound head (a YAML template) shadows the registry.
+
+        A dotted name resolves its WHOLE path through the scope (a head or a
+        callable at the end of it), else falls to the registry — matching only
+        its first segment made ``!t.anything {}`` call template ``t`` (T088
+        expr/env 2)."""
         first = name.split(".")[0]
-        if first in self.bindings:
+        if "." in name and first in self.bindings:
+            try:
+                target = self.lookup(name)
+            except ExprError:
+                target = None
+            if isinstance(target, Head):
+                return target
+            if target is not None and callable(target):
+                return _callable_head(name, target)
+        elif first in self.bindings:
             value = self.bindings[first]
             # A binding shadows a registered head only when it IS a head — a
             # template already evaluated, or a not-yet-forced `!template` form.
@@ -259,8 +283,6 @@ class Env:
                 return value
             elif callable(value):
                 return _callable_head(first, value)
-            elif isinstance(value, Head):
-                return value
         try:
             return self.registry.get(name)
         except KeyError:
