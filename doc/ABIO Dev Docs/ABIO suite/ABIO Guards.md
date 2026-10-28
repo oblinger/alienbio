@@ -8,7 +8,7 @@ The gate in front of every paid run: `preflight` puts an `ExperimentSpec` throug
 ![ABIO Guards](ABIO%20Guards.svg) 
 *The no-peeking rule and the registration licence* is the topic that governs the licence group; *The draft check* governs group 5, skipped once anything above it refused.
 
-`suite/guards.py` has no primary class: its exports are `preflight`, the `Preflight` result it returns, the check-name tuple, and one `*_violation` function per check, each returning `None` or the refusal's text. This page covers those. The dial sets the guards read live in `suite/drafters.py` (`DRAFTERS`, `guarded_drafters()`, `guarded_dials()`, `EPISODE_DIALS`, `WORLD_INVARIANT_DIALS`, `runtime_dials()`, `_FACTORY_DIALS`, `CONFLICT_FREE_DRAFTERS`); the registry parser and `REGISTRY_RELPATH` in `suite/registration.py`; `ExperimentSpec`, `agent_kinds_in_play` and `estimate_cost` in `suite/spec.py`; the certainty slice rule `certainty_slice_problem` in `suite/runner.py`. The brief-side refusals the `draft` check does not reach are [ABIO TaskBrief](ABIO%20TaskBrief.md)'s; the trial a passing spec then runs is [ABIO Runner](ABIO%20Runner.md). The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's list is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md) § Every refusal happens before spend, which matches the source's order.
+`suite/guards.py` has no primary class: its exports are `preflight`, the `Preflight` result it returns, the check-name tuple, and one `*_violation` function per check, each returning `None` or the refusal's text. This page covers those. The dial sets the guards read live in `suite/drafters.py` (`DRAFTERS`, `guarded_drafters()`, `guarded_dials()`, `EPISODE_DIALS`, `WORLD_INVARIANT_DIALS`, `runtime_dials()`, `_FACTORY_DIALS`, `CONFLICT_FREE_DRAFTERS`); the registry parser and `REGISTRY_RELPATH` in `suite/registration.py`; `ExperimentSpec`, `agent_kinds_in_play` and `estimate_cost` in `suite/spec.py`; the certainty slice rule `certainty_slice_problem` in `suite/runner.py`. The brief-side refusals the `draft` check reaches by calling `build_brief` are [ABIO TaskBrief](ABIO%20TaskBrief.md)'s; the trial a passing spec then runs is [ABIO Runner](ABIO%20Runner.md). The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's list is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md) § Every refusal happens before spend, which matches the source's order.
 
 
 
@@ -121,7 +121,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
     Per condition: refuses an agent kind not in `agents.AGENTS`; for `llm`, calls `llm_agent.validate_agent_config` on the cell's `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens` and `output_schedule` (dial, else spec field) without building the agent, so no API key is needed; for any other kind, builds it through the spec's factory at `trial_seed.child("agent")`. ^agent-construction-violation
 
 **draft_violation**`(spec: ExperimentSpec) -> Optional[str]`
-    Refuses an unknown drafter. Otherwise drafts one world per condition at the seed its first trial will use, collects every config refusal and every declared lever on a `task.setup["hidden_ids"]` pool, and returns them all joined by `; `, each naming its condition ([The draft check](#the-draft-check)). ^draft-violation
+    Refuses an unknown drafter. Otherwise drafts one world per condition at the seed its first trial will use, builds that condition's brief with the real `build_brief`, collects every config refusal from either, and returns them all joined by `; `, each naming its condition ([The draft check](#the-draft-check)). ^draft-violation
 
 **dials_in_play**`(spec: ExperimentSpec) -> frozenset[str]`
     Every axis name, every `fixed_dials` key with a truthy value, and every `drafter_kwargs` key the drafter head declares as a dial, with a truthy value. What the no-peeking rule intersects with `guarded_dials()` ([Dials in play](#dials-in-play)). ^dials-in-play
@@ -149,7 +149,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | `inert-arm` | `inert_arm_violation` | `compact_at`, each cell's `max_turns` | compaction can never fire | T066; round 4 |
 | `agent` | `agent_construction_violation` | each condition's agent dials | the agent kind or config refuses | T066 |
 | `price` | `estimate_cost` | model levels, price table, turns, memory | a live model level has no price | T051 box 4 |
-| `draft` | `draft_violation` | one drafted world per condition | a config refusal or a lever on a hidden pool | T066; round 4/5 |
+| `draft` | `draft_violation` | one drafted world and brief per condition | the drafter or `build_brief` refuses the condition | T066; round 4/5; T084 |
 | `resume` | `_resume_spec_drift` | `manifest.json` under `out_dir` | `resume=True` and the spec drifted | T051 box 4; round 5 |
 | `out_dir` | inline | `records.jsonl` under `out_dir` | records exist and `resume` is false | M46 |
 
@@ -175,7 +175,7 @@ No language model runs on a substrate the Alignment Under Pressure paper has a r
 
 
 ## The declared surface
-On a guarded drafter the agent's levers are never every reaction id by default: the spec must declare them on the brief, `brief(levers=[...])`, or `levers=[]` for a do-nothing arm. The `surface` check tests only that `levers` is a `fixed_dials` key or an axis; the drafter adapter stamps `require_levers` on the task and `build_brief` enforces the same rule inside the trial. Which levers are legal is the brief's business, not this check's: the readout-molecule refusal and the lever-entry shape are [ABIO TaskBrief](ABIO%20TaskBrief.md)'s, and only the hidden-pool refusal is pulled forward, by `draft`.
+On a guarded drafter the agent's levers are never every reaction id by default: the spec must declare them on the brief, `brief(levers=[...])`, or `levers=[]` for a do-nothing arm. The `surface` check tests only that `levers` is a `fixed_dials` key or an axis; the drafter adapter stamps `require_levers` on the task and `build_brief` enforces the same rule inside the trial. Which levers are legal is the brief's business, not this check's: the readout-molecule refusal, the hidden-pool refusal and the lever-entry shape are [ABIO TaskBrief](ABIO%20TaskBrief.md)'s, and `draft` reaches every one of them before spend by calling `build_brief`.
 
 
 
@@ -199,7 +199,7 @@ For each condition, `draft_violation` calls `DRAFTERS[spec.drafter](trial_seed.c
 
 Only `ValueError` (including `SkeletonError`), `TypeError` (a missing required dial) and `KeyError` (a readout naming no molecule) count as configuration refusals. Any other exception skips just that condition and is left to the run, where it becomes an error record a resume retries, instead of a refusal that kills a grid over a transient failure. Every refusing condition is named in one joined message; it used to stop at the first, and to return `None` at the first non-config exception, hiding every later refusal.
 
-From the drafted task it also reads one brief-side refusal whose inputs it already holds: a declared lever on a `hidden_ids` pool, which the agent cannot observe and an `Intervene` would set, writing the measurement's own ground truth (T066 Q1). `build_brief` refuses the same thing inside the trial, on every head; the check here is a second copy of that logic, not a call to it.
+Each drafted condition's brief is then built by the real `build_brief`, through `_first_brief`, which mirrors `runner.run`'s preamble: the runner's default clock overridden by the cell's `max_turns`/`sim_steps`/`sim_dt`/`sample_every`, the `budget` dial, the turn-0 observation with `hidden_ids` projected out, and the seeds `trial_seed.child("run")` uses. A `ValueError` from it is that condition's refusal (`builds no brief`): `assays` naming no reaction, a lever on the readout or on a `hidden_ids` pool (T066 Q1), a malformed `levers` entry, and any brief refusal added later. No agent is built and nothing is simulated (T084 finding A: only the hidden-pool refusal was pulled forward before, as a hand copy of `build_brief`'s logic).
 
 
 

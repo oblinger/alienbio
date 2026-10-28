@@ -341,6 +341,40 @@ def agent_construction_violation(spec: ExperimentSpec) -> Optional[str]:
     return None
 
 
+def _first_brief(world: Any, task: Any, dials: Mapping[str, Any], trial_seed: Any) -> Any:
+    """The ``TaskBrief`` :func:`~alienbio.suite.runner.run` builds before turn
+    0 of this condition's first trial: the same budget, episode clock, turn-0
+    observation (hidden pools projected out) and seeds, from the runner's own
+    defaults. ``run`` takes ``trial_seed.child("run")`` (``MassTrialRunner``),
+    so the brief's seed is that seed's ``child("brief")``. Builds no agent
+    and simulates nothing, so it is free.
+
+    A mirror of ``run``'s preamble, kept to the calls it makes; it has no
+    helper of its own to call. Raises what ``build_brief`` (or the runner's
+    dial validation) raises."""
+    import dataclasses
+
+    from .brief import build_brief
+    from .observation import narrow_observation, project_observation
+    from .runner import Budget, _resolve_int_dial, run as _run
+
+    params = inspect.signature(_run).parameters
+    run_seed = trial_seed.child("run")
+    budget = Budget.from_dial(dials.get("budget"))
+    max_turns = _resolve_int_dial(dials, "max_turns", params["max_turns"].default)
+    default_cfg = params["sim_cfg"].default
+    sim_cfg = dataclasses.replace(
+        default_cfg,
+        steps=_resolve_int_dial(dials, "sim_steps", default_cfg.steps),
+        dt=float(dials.get("sim_dt", default_cfg.dt)),
+        sample_every=_resolve_int_dial(dials, "sample_every", default_cfg.sample_every),
+    )
+    first = narrow_observation(world.initial_state, dials, run_seed.child("turn/0/observe"))
+    if isinstance(task.setup, Mapping) and task.setup.get("hidden_ids") is not None:
+        first = project_observation(first, frozenset(str(h) for h in task.setup["hidden_ids"]))
+    return build_brief(task, world.chemistry, first, dials, budget, max_turns, sim_cfg, seed=run_seed.child("brief"))
+
+
 def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     """Why DRAFTING this run's worlds refuses — ``None`` when every condition
     drafts.
@@ -355,8 +389,13 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     before spend; a per-seed refusal still surfaces on the run, since
     drafting every seed is the run.
 
-    The drafted task is also read for one brief-side refusal whose inputs it
-    already carries: a declared lever on a structurally hidden pool (T066 Q1).
+    Each drafted condition's brief is then built by the real
+    :func:`~alienbio.suite.brief.build_brief`, as the run builds it before
+    turn 0 (:func:`_first_brief`), and a ``ValueError`` from it is that
+    condition's refusal: ``assays`` naming no reaction, a lever on the
+    readout or on a structurally hidden pool (T066 Q1), a malformed
+    ``levers`` entry, and any brief refusal added later (T084 finding A:
+    only the hidden-pool one was pulled forward, as a hand copy).
 
     Every condition is drafted and every refusing one is named, joined with
     ``; `` (round 4/5 leftover, 2026-10-27: it returned on the first refusal,
@@ -376,29 +415,9 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     kwargs = dict(spec.drafter_kwargs or {})
     refusals: list[str] = []
     for dials, trial_seed in _condition_units(spec):
+        cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
         try:
-            _world, task = drafter(trial_seed.child("draft"), dials, **kwargs)
-            # T066 Q1 (AUP ruling (A), 2026-10-07) — ``build_brief`` refuses a
-            # lever that names a structurally hidden pool, and that refusal
-            # lands inside the trial: the same shape AUP paid N error records
-            # for. The drafted task is already in hand here, so the verdict is
-            # free.
-            hidden_raw = task.setup.get("hidden_ids") if isinstance(task.setup, Mapping) else None
-            declared = dials.get("levers")
-            if hidden_raw and declared is not None:
-                hidden = {str(h) for h in hidden_raw}
-                named = {
-                    (entry.get("id") if isinstance(entry, Mapping) else entry)
-                    for entry in declared
-                }
-                offenders = sorted(hidden.intersection(n for n in named if isinstance(n, str)))
-                if offenders:
-                    cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
-                    refusals.append(
-                        f"{spec.drafter}: condition {cond} declares lever(s) {offenders} on a structurally "
-                        "hidden pool — the agent cannot observe it and an Intervene would write the "
-                        "measurement's own ground truth (T066 Q1)"
-                    )
+            world, task = drafter(trial_seed.child("draft"), dials, **kwargs)
         except (ValueError, TypeError, KeyError) as exc:
             # A CONFIG error only. `ValueError` (and `SkeletonError`, which
             # derives from it) is how every generator refuses a dial vector
@@ -407,10 +426,20 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
             # other exception — a provider or IO failure raised through a
             # drafter — is left to the run, where it becomes an error record
             # a resume retries rather than a refusal that kills the grid.
-            cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
             refusals.append(f"{spec.drafter}: condition {cond} drafts no world — {exc}")
+            continue
         except Exception:  # noqa: BLE001 — transient, not a config verdict
             continue
+        # The brief, built exactly as the run builds it before turn 0: every
+        # brief-side refusal that reads the drafted world (``assays`` naming
+        # no reaction, a lever on the readout or on a hidden pool, a
+        # malformed ``levers`` entry) is ``build_brief``'s own verdict here,
+        # not a copy of it (T084 finding A: those landed as N error records
+        # after a clean ``--dry``).
+        try:
+            _first_brief(world, task, dials, trial_seed)
+        except ValueError as exc:
+            refusals.append(f"{spec.drafter}: condition {cond} builds no brief — {exc}")
     return "; ".join(refusals) if refusals else None
 
 
