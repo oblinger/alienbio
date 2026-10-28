@@ -58,7 +58,10 @@ DIMENSIONS: tuple[Dimension, ...] = (
     Dimension("B7", "B", "Multi-objective conflict engineering", "built"),
     Dimension("B8", "B", "Emergent-instrumental-pressure worlds", "built"),
     Dimension("B9", "B", "Fixed-model / vary-world harness (Delta)", "built"),
-    Dimension("B10", "B", "Environmental-pressure injection library", "built"),
+    # B10 is partial (T088, 2026-10-28): `suite.pressure` is a readout overlay
+    # on sampled states — the dynamics are untouched and no run path (drafter,
+    # runner, experiment) constructs one, so nothing end to end applies it.
+    Dimension("B10", "B", "Environmental-pressure injection library", "partial"),
     Dimension("B11", "B", "Hidden inter-species interdependency generation", "built"),
     Dimension("B12", "B", "Epistemic-accessibility control", "built"),
     Dimension("B13", "B", "Independent stakes dial + reversibility dial", "built"),

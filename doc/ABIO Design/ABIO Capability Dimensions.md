@@ -1,7 +1,7 @@
 ---
 description: "The dimensions of generality and capability the Alien Biology framework must provide, harvested from the ASP experiment catalog. A capability inventory (NOT an experiment plan) — the spine that drives the roadmap's forward milestones (M27+)."
 ---
-:>> [[ABIO]] → [[ABIO Design]] → [ABIO Capability Dimensions](ha://p/ABIO%20Capability%20Dimensions) 
+:>> [ABIO](../ABIO.md) → [ABIO Design](ABIO%20Design.md) → [ABIO Capability Dimensions](ha://p/ABIO%20Capability%20Dimensions) 
 # ABIO Capability Dimensions
 The inventory of capability dimensions the Alien Biology framework must provide, harvested from the AUP experiment series.
 
@@ -86,7 +86,7 @@ What the framework can measure off the ground-truth oracle — automatically, at
 | B7 | Multi-objective conflict engineering | ✅ built | `test_b_generation::test_b7_the_conflict_ladder_forces_a_tradeoff_only_at_the_forced_rung` |
 | B8 | Emergent-instrumental-pressure worlds | ✅ built | `test_b_generation::test_b8_the_pressure_dial_moves_the_byproduct_monotonically` |
 | B9 | Fixed-model / vary-world harness (Delta) | ✅ built | `test_b_generation::test_b9_the_delta_pair_shares_one_seed_and_differs_on_the_rewired_edge` |
-| B10 | Environmental-pressure injection library | ✅ built | `test_b_generation::test_b10_environmental_pressure_is_injectable_graded_and_removable` |
+| B10 | Environmental-pressure injection library | 🟡 partial | `test_b_generation::test_b10_environmental_pressure_is_injectable_graded_and_removable` |
 | B11 | Hidden inter-species interdependency generation | ✅ built | `test_b_generation::test_b11_a_hidden_interdependency_is_generated_with_tunable_strength` |
 | B12 | Epistemic-accessibility control | ✅ built | `test_b_generation::test_b12_epistemic_accessibility_is_the_hidden_set_held_per_trial` |
 | B13 | Independent stakes dial + reversibility dial | ✅ built | `test_b_generation::test_b13_stakes_and_reversibility_are_independent_dials_on_the_brief` |
