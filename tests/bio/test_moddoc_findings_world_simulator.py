@@ -129,3 +129,49 @@ def test_the_jax_host_step_follows_the_same_rule() -> None:
         tree, [fast], num_molecules=2, dt=1.0, native_flows=[(a, b, 0, 50.0)]
     ).step(state)
     assert native.get(a, 0) >= 0.0
+
+
+# ---- conc ** stoich on a negative concentration ----------------------------
+#
+# Repro (before the fix): a concentration below the rounding snap (here -0.5,
+# as an Intervene or a GeneralFlow can leave it) under a non-integer
+# stoichiometry made ``conc ** stoich`` complex on the reference, which then
+# raised ``TypeError`` at ``max(0.0, rate)``; JAX reads the power as NaN and
+# the clamp as no reaction. Both mass-action products now go through
+# ``ieee_pow``.
+
+
+def _negative_world(rate_law=None):
+    from alienbio.bio import rate_expr as rx
+
+    tree = CompartmentTreeImpl()
+    a = tree.add_root("a")
+    state = WorldStateImpl(tree=tree, num_molecules=2, compartment_ids=["a"], molecule_ids=["A", "B"])
+    state.set(a, 0, -0.5)
+    law = rx.const(2.0) if rate_law == "factor" else None
+    rxn = ReactionSpec(
+        name="r", reactants={0: 0.5}, products={1: 1.0}, rate_constant=2.0, rate_law=law
+    )
+    return tree, state, a, rxn
+
+
+@pytest.mark.parametrize("rate_law", [None, "factor"])
+def test_a_negative_base_under_a_fractional_stoich_is_no_reaction(rate_law) -> None:
+    tree, state, a, rxn = _negative_world(rate_law)
+    if rate_law == "factor":
+        assert rxn.implicit_mass_action  # the law multiplies mass action
+    sim = WorldSimulatorImpl(tree=tree, reactions=[rxn], flows=[], num_molecules=2, dt=0.1)
+    out = sim.step(state)
+    assert out.get(a, 0) == -0.5
+    assert out.get(a, 1) == 0.0
+
+
+def test_the_negative_base_reads_the_same_on_jax() -> None:
+    pytest.importorskip("jax")
+    from alienbio.bio.jax_simulator import JaxWorldSimulator
+
+    tree, state, a, rxn = _negative_world()
+    ref = WorldSimulatorImpl(tree=tree, reactions=[rxn], flows=[], num_molecules=2, dt=0.1).step(state)
+    jx = JaxWorldSimulator(tree, [rxn], num_molecules=2, dt=0.1).step(state)
+    for mol in (0, 1):
+        assert jx.get(a, mol) == pytest.approx(ref.get(a, mol), abs=1e-12)

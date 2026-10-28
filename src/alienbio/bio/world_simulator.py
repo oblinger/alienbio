@@ -274,11 +274,14 @@ class WorldSimulatorImpl:
             rate = eval_rate(reaction.rate_law, lambda mol_id: frozen.get(compartment, mol_id))
             if reaction.implicit_mass_action:
                 for mol_id, stoich in reaction.reactants.items():
-                    rate *= frozen.get(compartment, mol_id) ** stoich
+                    rate *= ieee_pow(frozen.get(compartment, mol_id), stoich)
         else:
             rate = reaction.rate_constant
+            # ``ieee_pow``: a concentration below the snap under a fractional
+            # stoichiometry is complex in CPython (it then raised at the clamp)
+            # and NaN under JAX — read as NaN here too, so no reaction.
             for mol_id, stoich in reaction.reactants.items():
-                rate *= frozen.get(compartment, mol_id) ** stoich
+                rate *= ieee_pow(frozen.get(compartment, mol_id), stoich)
         if reaction.modulators:
             rate *= self._modulation_factor(frozen, reaction.modulators, compartment)
         rate *= self._dt

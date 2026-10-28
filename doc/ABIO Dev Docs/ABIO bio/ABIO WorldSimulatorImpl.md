@@ -154,6 +154,7 @@ Every pass reads its demand off the frozen state; the flow pass rations against 
 - **No law** — `rate_constant × Π [reactant]^stoichiometry`.
 - **Law naming a reactant** — `eval_rate(rate_law)` is the whole rate (`Vmax·S/(Km+S)`); `rate_constant` is ignored.
 - **Law naming no reactant** — `eval_rate(rate_law) × Π [reactant]^stoichiometry`; `rate_constant` is still ignored.
+- **Powers** — each `[reactant]^stoichiometry` is `ieee_pow`, so a concentration below the snap under a fractional stoichiometry is NaN and the reaction does not run, as JAX reads it; until 2026-10 the power was complex and raised `TypeError` at the clamp.
 - **Modulators** — the rate is multiplied by `_modulation_factor`, the product over modifiers of the terms below, read at the frozen concentration `m`.
 - **Then** — `× dt`; NaN becomes 0; the result is clamped to `[0, RATE_CAP]`.
 
@@ -203,3 +204,4 @@ The subnormal flush copies XLA's denormals-are-zero, which the JAX core already 
 
 # BRIEF
 - 2026-10-18 — written as the first ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; every member and claim traced to `bio/world_simulator.py`, `flow.py`, `population.py`, `rate_expr.py`, `world_state.py`, `jax_simulator.py` and the conformance tests. Left out: the private passes (`_desired_extent`, `_modulation_factor`, `_apply_reactions`, `_apply_population_laws`, `_flush_subnormals`), which appear in the figure and Semantics but get no member block, and `__repr__`. Constructor block ids are `^init` and `^reactionspec-init`, not the literal `--init--`. The cross-pass over-draw (§ The min-ratio ration) was reproduced against HEAD, not fixed; the class docstring's example (`GeneralFlow(child=…, molecule=…, rate_constant=…)`) and its pointer to the deleted `ReferenceSimulatorImpl` are stale in the source.
+- 2026-10-28 — § Rate laws and modulation: the mass-action powers go through `ieee_pow` (a negative base under a fractional stoichiometry raised `TypeError` on the reference, read 0 on JAX).
