@@ -1,7 +1,7 @@
 ---
 description: "`capabilities` + `commands/test_matrix_cmd`: the 35 capability dimensions with their status, the static scan that pairs each with its `@capability` proving test and that test's docstring sentence, the CI gate, and the `bio test-matrix` verb. Source: `src/alienbio/capabilities.py`, `src/alienbio/commands/test_matrix_cmd.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO Capabilities](ha://p/ABIO%20Capabilities) 
 # ABIO Capabilities
 The page for the capability matrix: the fixed table of 35 dimensions, how the tests that prove them are found without running pytest, what the CI gate refuses, and the `bio test-matrix` verb that prints it.
 

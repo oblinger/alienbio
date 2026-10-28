@@ -1,7 +1,7 @@
 ---
 description: "`energy`: opt-in free-energy accounting over a chemistry — `reaction_delta_g` from assigned formation energies, the spontaneity check (`check_energy` / `validate_energy`, `EnergyViolation`, `EnergyError`) and the `total_free_energy` canary over a world state. Source: `src/alienbio/bio/energy.py`."
 ---
-:>>
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO Energy](ha://p/ABIO%20Energy) 
 # ABIO Energy
 The page for `bio/energy.py`: how a reaction's free-energy change is booked from its molecules' assigned formation energies, the one constraint the module can enforce (an uncoupled reaction runs downhill), and the whole-state canary.
 

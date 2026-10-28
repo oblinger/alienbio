@@ -6,10 +6,10 @@ description: "module docs for src/alienbio/bio/: the chemistry substrate, its ra
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Chemistry                   | [ChemistryImpl](ABIO%20ChemistryImpl.md),  [ReactionImpl](ABIO%20ReactionImpl.md),  [RateExpr](ABIO%20RateExpr.md),  [MoleculeImpl](ABIO%20MoleculeImpl.md),                                                                |
 | World                       | [WorldImpl](ABIO%20WorldImpl.md),  [WorldStateImpl](ABIO%20WorldStateImpl.md),  [TransportFlux](ABIO%20TransportFlux.md),  [PopulationLaw](ABIO%20PopulationLaw.md),  [CompartmentTreeImpl](ABIO%20CompartmentTreeImpl.md), |
-| Simulators                  | [WorldSimulatorImpl](ABIO%20WorldSimulatorImpl.md),  [JaxWorldSimulator](ABIO%20JaxWorldSimulator.md),  [JaxCore](ABIO%20JaxCore.md),                                                                                                                    |
+| Simulators                  | [WorldSimulatorImpl](ABIO%20WorldSimulatorImpl.md),  [JaxWorldSimulator](ABIO%20JaxWorldSimulator.md),  [JaxCore](ABIO%20JaxCore.md),                                                                                       |
 | Construction                | [Makers](ABIO%20Makers.md),                                                                                                                                                                                                 |
 | Checks                      | [Conservation](ABIO%20Conservation.md),  [Energy](ABIO%20Energy.md),                                                                                                                                                        |
-| ...                         | [ABIO JaxCore](ABIO%20JaxCore.md),                                                                                                                                                                                          |
+| ...                         |                                                                                                                                                                                                                             |
 
 # ABIO bio
 Module docs for `src/alienbio/bio/`: the chemistry substrate, its compiled rate grammar, and the two simulators that must agree to 1e-9.
