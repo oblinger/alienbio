@@ -101,25 +101,18 @@ def test_perturb_rate_unknown_id_raises():
 
 
 def test_perturb_rate_callable_rate_raises():
+    # ReactionImpl refuses a non-numeric rate at construction (2026-10), so a
+    # callable-rate reaction can no longer reach perturb_rate at all.
     a = MoleculeImpl("A", name="A", dat=_mock_dat("mol/A"))
     b = MoleculeImpl("B", name="B", dat=_mock_dat("mol/B"))
-    r = ReactionImpl(
-        "A_B",
-        reactants={a: 1.0},
-        products={b: 1.0},
-        rate=lambda state: 1.0,
-        dat=_mock_dat("rxn/A_B"),
-    )
-    chem = ChemistryImpl(
-        "host",
-        molecules={"A": a, "B": b},
-        reactions={"A_B": r},
-        dat=_mock_dat("chem/host"),
-    )
-    comp = Compartment("cell", None, "cell", 1.0, concentrations={"A": 1.0, "B": 0.0})
-    world = WorldImpl(chem, (comp,))
-    with pytest.raises(TypeError):
-        perturb_rate(world, "A_B", 2.0)
+    with pytest.raises(ValueError, match="rate must be a number"):
+        ReactionImpl(
+            "A_B",
+            reactants={a: 1.0},
+            products={b: 1.0},
+            rate=lambda state: 1.0,  # type: ignore[arg-type]
+            dat=_mock_dat("rxn/A_B"),
+        )
 
 
 # ── remove_reaction ─────────────────────────────────────────────────────────

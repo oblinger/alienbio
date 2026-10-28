@@ -282,9 +282,36 @@ def to_json(node: RateNode) -> list:
     return [tag, to_json(node[1]), to_json(node[2])]
 
 
+def _check_tree(node: Any) -> None:
+    """Refuse a tuple tree with an unknown tag or the wrong arity, naming it."""
+    if not isinstance(node, tuple) or not node:
+        raise ValueError(f"not a rate expression: {node!r}")
+    tag = node[0]
+    if tag in ("const", "species"):
+        if len(node) != 2:
+            raise ValueError(f"rate node {tag!r} takes one operand: {node!r}")
+    elif tag == "mod":
+        if len(node) != 4 or node[1] not in MODULATION_KINDS or not isinstance(node[3], Mapping):
+            raise ValueError(f"malformed modulation node: {node!r}")
+    elif tag in _UNARY:
+        if len(node) != 2:
+            raise ValueError(f"rate node {tag!r} takes one operand: {node!r}")
+        _check_tree(node[1])
+    elif tag in _BINARY:
+        if len(node) != 3:
+            raise ValueError(f"rate node {tag!r} takes two operands: {node!r}")
+        _check_tree(node[1])
+        _check_tree(node[2])
+    else:
+        raise ValueError(f"unknown rate node {tag!r}")
+
+
 def from_json(data: Any) -> RateNode:
-    """The inverse of :func:`to_json`; a tuple tree passes through."""
+    """The inverse of :func:`to_json`; a tuple tree passes through once its
+    tags and arities are checked (a malformed one used to pass unseen and
+    fail only when evaluated — module-doc finding, 2026-10)."""
     if isinstance(data, tuple):
+        _check_tree(data)
         return data
     if not isinstance(data, list) or not data:
         raise ValueError(f"not a rate expression: {data!r}")

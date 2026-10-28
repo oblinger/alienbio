@@ -147,9 +147,10 @@ def test_determinism():
 # === 5. Callable-rate guard ===
 
 def test_callable_rate_guard():
-    world = make_world(rate=lambda state: 0.1)
-    with pytest.raises(ValueError, match="callable rate"):
-        simulate(world)
+    # ReactionImpl refuses a non-numeric rate at construction (2026-10), so a
+    # callable-rate world can no longer reach simulate at all.
+    with pytest.raises(ValueError, match="rate must be a number"):
+        make_world(rate=lambda state: 0.1)
 
 
 # === Extra: config threading (non-default sampling) ===

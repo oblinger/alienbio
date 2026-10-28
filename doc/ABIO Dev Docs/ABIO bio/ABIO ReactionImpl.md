@@ -33,7 +33,7 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
 | [[#^attributes\|attributes]] | The reaction as a plain dict |
 
 **ReactionImpl**`(name: str, *, reactants: Optional[Dict[MoleculeImpl, float]] = None, products: Optional[Dict[MoleculeImpl, float]] = None, modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None, rate: RateValue = 1.0, rate_law: Optional[Any] = None, parent: Optional[Entity] = None, dat: Optional[DatLike] = None, description: str = "") -> None`
-    Initialize the `Entity` (`ValueError` without a `parent` or `dat`, or with a space in `name`), then store a shallow copy of each molecule dict (an absent one is `{}`) and `rate` as given. `rate_law` passes through `rate_expr.from_json`: a nested-list tree becomes tuples, a tuple tree passes through unchecked, and anything else — including rate-grammar text such as `"k * A"` — raises `ValueError`; the text form must be compiled first ([[#The numeric rate and the rate law]]). Nothing checks `rate`'s type, the coefficients, or that the tree's species are molecules of this reaction. ^reactionimpl
+    Initialize the `Entity` (`ValueError` without a `parent` or `dat`, or with a space in `name`), then store a shallow copy of each molecule dict (an absent one is `{}`) and `rate`, which must be a real number (`ValueError` for anything else — a string, `None`, a `bool`, a callable; accepted unchecked until 2026-10). `rate_law` passes through `rate_expr.from_json`: a nested-list tree becomes tuples, a tuple tree passes through once its tags and arities are checked, and anything else — including rate-grammar text such as `"k * A"` — raises `ValueError`; the text form must be compiled first ([[#The numeric rate and the rate law]]). Nothing checks `rate`'s type, the coefficients, or that the tree's species are molecules of this reaction. ^reactionimpl
 
 **hydrate**`(data: dict[str, Any], *, molecules: dict[str, MoleculeImpl], dat: Optional[DatLike] = None, parent: Optional[Entity] = None, local_name: Optional[str] = None) -> Self` (classmethod)
     Build from a dict, resolving every molecule name through `molecules`; an unknown reactant, product or modifier raises `KeyError` naming the reaction and the molecule. `reactants`/`products` are a `{name: coef}` mapping (what `attributes` writes) or a list whose entries are a bare name (coefficient 1) or a `{name: coef}` dict; `modifiers` is a `{name: role}` dict or a list of names (role `""`) and `{name: role}` dicts, every key kept; any other entry type is `TypeError`; and a role that is itself a dict becomes `Modulation(**role)` (an unknown key raises `TypeError`). `rate` defaults to `1.0`, `rate_law` is passed to the constructor, the name is `local_name`, else `data["name"]`, else `"reaction"`, and with neither `dat` nor `parent` it mints `MockDat("rxn/<name>")`. It is the inverse of `attributes`: see [[#Serialization]]. ^hydrate
@@ -48,7 +48,7 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
     A copy of the molecules that act on the rate without being consumed, each mapped to a `Modulation` or a bare role-tag `str` (`"catalyst"`). A bare string is rate-inert; `from_chemistry` coerces it with `Modulation.from_value` ([[#Modulation kinds and defaults]]). ^modifiers
 
 **rate**`: RateValue` (property)
-    The rate constant `k` of mass action, `rate · Π [reactant]^coef`. Typed `float` and stored unchecked; the world simulator's `from_chemistry` refuses a non-number (or a `bool`) with `ValueError`. Unused whenever `rate_law` is set. ^rate
+    The rate constant `k` of mass action, `rate · Π [reactant]^coef`. A real number, checked at construction and by `set_rate` (`ValueError` otherwise); `from_chemistry` keeps its own check. Unused whenever `rate_law` is set. ^rate
 
 **rate_law**`: Optional[Any]` (property)
     The compiled `rate_expr` tree with species named by molecule `name`, or `None` for plain mass action. Read by `from_chemistry`, which re-keys its species to molecule ids with `map_species` (a name outside the chemistry raises `KeyError`). ^rate-law
@@ -60,7 +60,7 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
     The formula `"A + 2B -> C"`: molecules by `name` in dict order, a coefficient prefixed only when it is not `1` (written as Python prints it, so `2.0B` for a float). Modifiers and the rate are not shown. ^symbol
 
 **set_rate**`(rate: RateValue) -> None`
-    Replace the rate constant in place, unchecked. Does not touch `rate_law`, so it has no effect on a reaction that has one. ^set-rate
+    Replace the rate constant in place; a non-number refuses with `ValueError` and leaves the old rate. Does not touch `rate_law`, so it has no effect on a reaction that has one. ^set-rate
 
 **add_reactant**`(molecule: MoleculeImpl, coefficient: float = 1.0) -> None`
     Set `molecule`'s reactant coefficient, overwriting any earlier one. Does not check that the molecule is in the chemistry or absent from the products. ^add-reactant

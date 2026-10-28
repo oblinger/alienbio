@@ -323,22 +323,14 @@ class TestWorldSimulator:
         carbon = AtomImpl("C", name="Carbon", atomic_weight=12.0)
         a = MoleculeImpl("A", atoms={carbon: 1}, bdepth=0, dat=MockDat("mol/A"))
         b = MoleculeImpl("B", atoms={carbon: 2}, bdepth=0, dat=MockDat("mol/B"))
-        r1 = ReactionImpl(
-            "r1", reactants={a: 1.0}, products={b: 1.0},
-            rate=lambda state: 0.5,  # type: ignore[arg-type]
-            dat=MockDat("rxn/r1"),
-        )
-        chem = ChemistryImpl(
-            "test", atoms={"C": carbon},
-            molecules={"A": a, "B": b}, reactions={"r1": r1},
-            dat=MockDat("chem/test"),
-        )
-
-        tree = CompartmentTreeImpl()
-        tree.add_root("organism")
-
+        # Refused at construction since 2026-10, before from_chemistry's own
+        # check can see it.
         with pytest.raises(ValueError, match="rate must be a number"):
-            WorldSimulatorImpl.from_chemistry(chem, tree, dt=0.1)
+            ReactionImpl(
+                "r1", reactants={a: 1.0}, products={b: 1.0},
+                rate=lambda state: 0.5,  # type: ignore[arg-type]
+                dat=MockDat("rxn/r1"),
+            )
 
     def test_from_chemistry_unknown_reactant_raises(self):
         """M8: a reaction referencing a molecule not in chemistry.molecules raises."""

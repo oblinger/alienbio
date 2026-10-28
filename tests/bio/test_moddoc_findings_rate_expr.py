@@ -101,3 +101,20 @@ def test_an_infinite_law_takes_the_whole_pool() -> None:
         tree=tree, reactions=[spec], flows=[], num_molecules=3, dt=0.1
     ).step(state)
     assert out.get(0, 0) == 0.0 and out.get(0, 1) == pytest.approx(1.0)
+
+
+# ── E5: from_json validates a tuple tree's tags ──────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [("bogus", 1.0), ("add", ("const", 1.0)), ("mod", "nope", "M", {}), ("exp", ("frob",))],
+)
+def test_from_json_refuses_a_malformed_tuple_tree(bad) -> None:
+    with pytest.raises(ValueError):
+        rx.from_json(bad)
+
+
+def test_from_json_passes_a_well_formed_tuple_tree_through() -> None:
+    law = ("mul", ("const", 0.4), ("mod", "hill", "M", {"K": 0.5, "n": 2.0}))
+    assert rx.from_json(law) is law

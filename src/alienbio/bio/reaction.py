@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numbers
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Optional, TYPE_CHECKING, Self, Tuple, Union
 
@@ -78,6 +79,21 @@ class Modulation:
 # A modifier's value: either the new first-class Modulation, or (for backward compat)
 # a bare opaque role-tag string, which is inert (factor 1.0) — see Modulation.from_value.
 ModifierValue = Union[Modulation, str]
+
+
+def _numeric_rate(reaction: str, rate: Any) -> RateValue:
+    """``rate`` itself when it is a real number; ``ValueError`` otherwise.
+
+    A non-numeric rate (``"abc"``, ``None``, a callable — the M1 simulator's,
+    refused since T056) used to be accepted here and fail only when a
+    simulator was built from the reaction (module-doc finding, 2026-10).
+    """
+    if isinstance(rate, numbers.Real) and not isinstance(rate, bool):
+        return rate  # type: ignore[return-value]
+    raise ValueError(
+        f"reaction {reaction!r}: rate must be a number (got {type(rate).__name__}: "
+        f"{rate!r}); a rate law is `rate_law`, compiled by rate_expr"
+    )
 
 
 def _side_items(
@@ -182,7 +198,7 @@ class ReactionImpl(Entity, head="Reaction"):
         self._reactants: Dict[MoleculeImpl, float] = reactants.copy() if reactants else {}
         self._products: Dict[MoleculeImpl, float] = products.copy() if products else {}
         self._modifiers: Dict[MoleculeImpl, ModifierValue] = dict(modifiers) if modifiers else {}
-        self._rate: RateValue = rate
+        self._rate: RateValue = _numeric_rate(name, rate)
         from .rate_expr import from_json
 
         self._rate_law: Optional[Any] = from_json(rate_law) if rate_law is not None else None
@@ -296,8 +312,8 @@ class ReactionImpl(Entity, head="Reaction"):
         return self._rate_law
 
     def set_rate(self, rate: RateValue) -> None:
-        """Set the reaction rate."""
-        self._rate = rate
+        """Set the reaction rate (a number; anything else refuses)."""
+        self._rate = _numeric_rate(self._local_name, rate)
 
     def add_reactant(self, molecule: MoleculeImpl, coefficient: float = 1.0) -> None:
         """Add a reactant to this reaction."""

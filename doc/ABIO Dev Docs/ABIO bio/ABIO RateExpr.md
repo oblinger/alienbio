@@ -74,7 +74,7 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
     The tree as nested lists, the form `ReactionImpl.attributes()` writes under `rate_law`. A `mod` node's parameter dict is copied. An unrecognised tag is treated as binary, so a short one raises `IndexError`. ^to-json
 
 **from_json**`(data: Any) -> RateNode`
-    The inverse of `to_json`; `ReactionImpl.__init__` passes every `rate_law` through it, so a reaction accepts either form. A `tuple` passes through unchecked. `ValueError` when `data` is not a non-empty list or carries an unknown tag. `mod` parameters are copied but not coerced to `float`. ^from-json
+    The inverse of `to_json`; `ReactionImpl.__init__` passes every `rate_law` through it, so a reaction accepts either form. A `tuple` passes through after a recursive check of every tag and arity (`ValueError` naming the bad node; unchecked until 2026-10). `ValueError` when `data` is not a non-empty list or carries an unknown tag. `mod` parameters are copied but not coerced to `float`. ^from-json
 
 **ROUNDING_FLOOR**`: float = 1e-12`
     Below this magnitude a value is float residue of an exact zero. Read by `eval_rate`'s and `lower_jax`'s `div`, and imported by both simulators and the population pass to snap small negative residues ([[#Rounding floor and rate cap]]). ^rounding-floor
