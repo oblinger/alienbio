@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-rec">
+    <rect id="n-rec-box" x="20" y="250" width="200" height="90" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rec-name" x="120" y="276" font-size="17" font-weight="600" text-anchor="middle">TrialRecords</text>
+    <text id="n-rec-k1" x="120" y="298" font-size="13" text-anchor="middle">action_log, trace,</text>
+    <text id="n-rec-k2" x="120" y="316" font-size="13" text-anchor="middle">oracle, final_state</text>
+  </g>
+  <g id="n-hazard">
+    <rect id="n-hazard-box" x="290" y="80" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-hazard-name" x="400" y="106" font-size="17" font-weight="600" text-anchor="middle">hazard.py</text>
+    <text id="n-hazard-k1" x="400" y="128" font-size="13" text-anchor="middle">(turn, id) events,</text>
+    <text id="n-hazard-k2" x="400" y="146" font-size="13" text-anchor="middle">should vs raised</text>
+  </g>
+  <g id="n-trade">
+    <rect id="n-trade-box" x="290" y="260" width="220" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-trade-name" x="400" y="286" font-size="17" font-weight="600" text-anchor="middle">tradeoff.py</text>
+    <text id="n-trade-k1" x="400" y="308" font-size="13" text-anchor="middle">scores, ladders, frontier</text>
+  </g>
+  <g id="n-delta">
+    <rect id="n-delta-box" x="290" y="420" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-delta-name" x="400" y="446" font-size="17" font-weight="600" text-anchor="middle">delta.py</text>
+    <text id="n-delta-k1" x="400" y="468" font-size="13" text-anchor="middle">own final_state_divergence</text>
+    <text id="n-delta-k2" x="400" y="486" font-size="13" text-anchor="middle">over stored states</text>
+  </g>
+  <line id="e-rec-hazard" x1="200" y1="250" x2="300" y2="160" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-rec-trade" x1="220" y1="295" x2="290" y2="295" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-rec-delta" x1="200" y1="340" x2="300" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-surf">
+    <rect id="n-surf-box" x="590" y="30" width="270" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-surf-name" x="725" y="56" font-size="16" font-weight="600" text-anchor="middle">score_surfacing</text>
+    <text id="n-surf-k1" x="725" y="78" font-size="13" text-anchor="middle">depth, profile, coverage</text>
+  </g>
+  <g id="n-blind">
+    <rect id="n-blind-box" x="590" y="120" width="270" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-blind-name" x="725" y="146" font-size="16" font-weight="600" text-anchor="middle">score_blindspot</text>
+    <text id="n-blind-k1" x="725" y="168" font-size="13" text-anchor="middle">missed, spurious, rate</text>
+  </g>
+  <g id="n-conf">
+    <rect id="n-conf-box" x="590" y="250" width="270" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-conf-name" x="725" y="276" font-size="16" font-weight="600" text-anchor="middle">score_conflict</text>
+    <text id="n-conf-k1" x="725" y="298" font-size="13" text-anchor="middle">dominant (ties → smallest id),</text>
+    <text id="n-conf-k2" x="725" y="316" font-size="13" text-anchor="middle">favors, precedence, Pareto</text>
+  </g>
+  <line id="e-hazard-surf" x1="510" y1="100" x2="590" y2="65" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-hazard-blind" x1="510" y1="140" x2="590" y2="150" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-trade-conf" x1="510" y1="290" x2="590" y2="290" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-div">
+    <rect id="n-div-box" x="590" y="400" width="270" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-div-name" x="725" y="426" font-size="16" font-weight="600" text-anchor="middle">score_divergence</text>
+    <text id="n-div-k1" x="725" y="448" font-size="13" text-anchor="middle">d / (d + 1); no caller ‡</text>
+  </g>
+  <g id="n-cal">
+    <rect id="n-cal-box" x="590" y="480" width="270" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-cal-name" x="725" y="504" font-size="16" font-weight="600" text-anchor="middle">score_calibration</text>
+    <text id="n-cal-k1" x="725" y="524" font-size="13" text-anchor="middle">Brier, ECE; tests only ‡</text>
+  </g>
+  <g id="n-fm">
+    <rect id="n-fm-box" x="590" y="550" width="270" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-fm-name" x="725" y="574" font-size="16" font-weight="600" text-anchor="middle">score_failuremode</text>
+    <text id="n-fm-k1" x="725" y="594" font-size="13" text-anchor="middle">flags → labels; tests only ‡</text>
+  </g>
+  <line id="e-delta-div" x1="510" y1="460" x2="590" y2="440" stroke="#1e1e1e" stroke-width="1" stroke-dasharray="2 6"/>
+  <text id="l-delta-div" x="550" y="430" font-size="12" fill="#1971c2" font-style="italic" text-anchor="middle">mirrors</text>
+
+  <g id="n-rep">
+    <rect id="n-rep-box" x="930" y="120" width="250" height="170" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rep-name" x="1055" y="146" font-size="17" font-weight="600" text-anchor="middle">report.txt sections</text>
+    <text id="n-rep-k1" x="1055" y="172" font-size="13" text-anchor="middle">Hazard surfacing</text>
+    <text id="n-rep-k2" x="1055" y="192" font-size="13" text-anchor="middle">Objective surfacing by depth</text>
+    <text id="n-rep-k3" x="1055" y="212" font-size="13" text-anchor="middle">Blind spots by type</text>
+    <text id="n-rep-k4" x="1055" y="232" font-size="13" text-anchor="middle">Conflict resolution</text>
+    <text id="n-rep-k5" x="1055" y="252" font-size="13" text-anchor="middle">Delta (state_div)</text>
+  </g>
+  <line id="e-surf-rep" x1="860" y1="62" x2="980" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-blind-rep" x1="860" y1="152" x2="930" y2="165" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-conf-rep" x1="860" y1="285" x2="930" y2="260" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <path id="e-delta-rep" d="M 510 480 L 560 480 L 560 370 L 900 370 L 900 280 L 930 280" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="620" width="1170" height="48" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="644" x2="85" y2="644" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="649" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="644" x2="250" y2="644" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="649" font-size="14">calls</text>
+    <text id="legend-dagger" x="340" y="649" font-size="14">‡ dashed: no caller in src/; delta re-implements divergence over stored states</text>
+  </g>
+</svg>
