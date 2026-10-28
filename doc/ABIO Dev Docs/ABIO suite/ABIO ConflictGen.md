@@ -92,7 +92,7 @@ Each route drains its product through a sink of rate 1, so at steady state the p
 
 
 ## The objective
-An `OutcomeObjective` whose scorer reads each target's final total and maps it through `_component_score`: `1.0` at or above the goal, `1 / (1 + deficit)` below it, so overshoot is free and the falloff is in absolute units. The pair scorer returns the `min` of the two components, a bottleneck: a joint win needs both. `target` is `(id, goal)` on `single` and `((v1_id, v1), (v2_id, v2))` on the other rungs. The `conflict` drafter takes `objective.target[0]` as the question's target, which on a two-route rung is the `(id, goal)` pair, not an id (`drafters.py:991`, `1001`).
+An `OutcomeObjective` whose scorer reads each target's final total and maps it through `_component_score`: `1.0` at or above the goal, `1 / (1 + deficit)` below it, so overshoot is free and the falloff is in absolute units. The pair scorer returns the `min` of the two components, a bottleneck: a joint win needs both. `target` is `(id, goal)` on `single` and `((v1_id, v1), (v2_id, v2))` on the other rungs. The `conflict` drafter takes `objective.target[0]` as the question's target, which on a two-route rung is the `(id, goal)` pair, not an id (`drafters.py:991`, `1001`). Neither shape is a string where `brief.task_readouts` looks for one, so on the two-route rungs the readout set is empty and the target pools stay on the default control surface: the agent may set `V1` and `V2` directly.
 
 
 
