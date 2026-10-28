@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-inc">
+    <rect id="n-inc-box" x="20" y="40" width="250" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-inc-name" x="145" y="68" font-size="18" font-weight="600" text-anchor="middle">.py include</text>
+    <text id="n-inc-kind" x="145" y="92" font-size="14" text-anchor="middle">(Include) trusted load only</text>
+  </g>
+  <g id="n-dec">
+    <rect id="n-dec-box" x="20" y="200" width="250" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dec-name" x="145" y="226" font-size="18" font-weight="600" text-anchor="middle">fn · expander · guard</text>
+    <text id="n-dec-kind" x="145" y="248" font-size="14" text-anchor="middle">(decorators) at import time,</text>
+    <text id="n-dec-kind2" x="145" y="268" font-size="14" text-anchor="middle">replace=False</text>
+  </g>
+  <line id="e-inc-dec" x1="145" y1="110" x2="145" y2="200" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-inc-dec" x="155" y="160" font-size="14" fill="#1971c2" font-style="italic">executes</text>
+  <g id="n-spec">
+    <rect id="n-spec-box" x="20" y="380" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="145" y="408" font-size="18" font-weight="600" text-anchor="middle">special</text>
+    <text id="n-spec-kind" x="145" y="432" font-size="14" text-anchor="middle">(fn) interp only, replace=True</text>
+  </g>
+
+  <g id="n-reg">
+    <rect id="n-reg-box" x="340" y="200" width="230" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reg-name" x="455" y="226" font-size="18" font-weight="600" text-anchor="middle">Registry.register</text>
+    <text id="n-reg-kind" x="455" y="248" font-size="14" text-anchor="middle">(method) same definition</text>
+    <text id="n-reg-kind2" x="455" y="268" font-size="14" text-anchor="middle">or refuse ‡</text>
+  </g>
+  <line id="e-dec-reg" x1="270" y1="240" x2="340" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-dec-reg" x="305" y="230" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">Head</text>
+  <line id="e-spec-reg" x1="270" y1="410" x2="400" y2="280" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-inj">
+    <rect id="n-inj-box" x="340" y="40" width="230" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-inj-name" x="455" y="68" font-size="18" font-weight="600" text-anchor="middle">_injects</text>
+    <text id="n-inj-kind" x="455" y="92" font-size="14" text-anchor="middle">(fn) ctx / env in signature</text>
+  </g>
+  <line id="e-dec-inj" x1="230" y1="200" x2="380" y2="110" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-dec-inj" x="300" y="182" font-size="14" fill="#1971c2" font-style="italic">signature</text>
+
+  <g id="n-tab">
+    <rect id="n-tab-box" x="640" y="200" width="230" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tab-name" x="755" y="226" font-size="18" font-weight="600" text-anchor="middle">registry</text>
+    <text id="n-tab-kind" x="755" y="248" font-size="14" text-anchor="middle">(Registry) the one table,</text>
+    <text id="n-tab-kind2" x="755" y="268" font-size="14" text-anchor="middle">name → Head</text>
+  </g>
+  <line id="e-reg-tab" x1="570" y1="240" x2="640" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-head">
+    <rect id="n-head-box" x="640" y="380" width="230" height="90" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="755" y="406" font-size="18" font-weight="600" text-anchor="middle">Head</text>
+    <text id="n-head-kind" x="755" y="428" font-size="14" text-anchor="middle">(dataclass) name · kind · fn</text>
+    <text id="n-head-kind2" x="755" y="448" font-size="14" text-anchor="middle">injects · guarded</text>
+  </g>
+  <line id="e-tab-head" x1="755" y1="280" x2="755" y2="380" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-tab-head" x="765" y="335" font-size="14" fill="#1971c2" font-style="italic">holds</text>
+
+  <g id="n-get">
+    <rect id="n-get-box" x="940" y="40" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-get-name" x="1060" y="66" font-size="18" font-weight="600" text-anchor="middle">get</text>
+    <text id="n-get-kind" x="1060" y="88" font-size="14" text-anchor="middle">(method) from Env.head,</text>
+    <text id="n-get-kind2" x="1060" y="108" font-size="14" text-anchor="middle">after a bound template</text>
+  </g>
+  <line id="e-tab-get" x1="870" y1="215" x2="980" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-view">
+    <rect id="n-view-box" x="940" y="200" width="240" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-view-name" x="1060" y="226" font-size="18" font-weight="600" text-anchor="middle">view(kinds)</text>
+    <text id="n-view-kind" x="1060" y="248" font-size="14" text-anchor="middle">(Registry) same dict; rate</text>
+    <text id="n-view-kind2" x="1060" y="268" font-size="14" text-anchor="middle">math · op · dist + special</text>
+  </g>
+  <line id="e-tab-view" x1="870" y1="240" x2="940" y2="240" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-tab-view" x="905" y="230" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">view</text>
+  <g id="n-desc">
+    <rect id="n-desc-box" x="940" y="380" width="240" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-desc-name" x="1060" y="408" font-size="18" font-weight="600" text-anchor="middle">describe</text>
+    <text id="n-desc-kind" x="1060" y="432" font-size="14" text-anchor="middle">(method) name · kind · signature</text>
+  </g>
+  <line id="e-tab-desc" x1="870" y1="270" x2="990" y2="380" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="n-gv">
+    <rect id="n-gv-box" x="340" y="500" width="230" height="70" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-gv-name" x="455" y="528" font-size="18" font-weight="600" text-anchor="middle">GuardViolation</text>
+    <text id="n-gv-kind" x="455" y="552" font-size="14" text-anchor="middle">(exception) message · offenders</text>
+  </g>
+  <polyline id="e-head-gv" points="640,450 605,450 605,535 570,535" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-head-gv" x="615" y="500" font-size="14" fill="#1971c2" font-style="italic">a guard raises</text>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">registration, lookup</text>
+    <line id="legend-dotted" x1="260" y1="641" x2="310" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="320" y="646" font-size="14">reads, derives</text>
+    <text id="legend-dagger" x="470" y="646" font-size="14">‡ a multi-line decorator keeps its continuation lines in the compared source</text>
+  </g>
+</svg>
