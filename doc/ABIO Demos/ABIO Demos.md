@@ -2,10 +2,10 @@
 description: "the demonstration suite: eight sequential tutorial demos and three combination experiments"
 ---
 
-| -[[ABIO Demos]]- | : the demonstration suite: eight sequential tutorial demos and three combination experiments<br>→ [[ABIO]] → [ABIO Demos](ha://p/ABIO%20Demos) |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Demos            | [Gallery](ABIO%20Demo%20Gallery.md),                                                                                                                |
-| ...              |                                                                                                                                                |
+| -[ABIO Demos](ABIO%20Demos.md)- | : the demonstration suite: eight sequential tutorial demos and three combination experiments<br>→ [ABIO](../ABIO.md) → [ABIO Demos](ha://p/ABIO%20Demos) |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Demos                           | [Gallery](ABIO%20Demo%20Gallery.md),                                                                                                                     |
+| ...                             |                                                                                                                                                          |
 
 # ABIO Demos
 Demonstration suite for the Alien Biology framework (Milestone 20).

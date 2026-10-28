@@ -1,7 +1,7 @@
 ---
 description: "M27 semantic layer — the Opus-authored content (task-archetype catalog + controlled vocabularies + world-validity predicates + end-to-end wiring) that supplies the M26 neutral primitives their opaque material. Design spec grounded in the actual suite/ seams."
 ---
-:>> [[ABIO]] → [[ABIO Design]] → [ABIO Semantic Layer](ha://p/ABIO%20Semantic%20Layer) 
+:>> [ABIO](../ABIO.md) → [ABIO Design](ABIO%20Design.md) → [ABIO Semantic Layer](ha://p/ABIO%20Semantic%20Layer) 
 # ABIO Semantic Layer
 The **M27 semantic layer** is the content half of Suite Construction.
 
@@ -9,7 +9,7 @@ The **M27 semantic layer** is the content half of Suite Construction.
 
 M27 authors that meaning: the concrete `TaskArchetype`s, `Vocabulary`s, and world-validity `Predicate`s the engines close over, plus the wiring that runs them end-to-end into a materialized `Suite`. It is **Opus-authored** (design, not mechanical) and was unblocked by the M25 aims-interview ([[ABIO001 - M25 aims interview + M9 ablation|F001]], all six Qs resolved).
 
-This doc is the build spec for backlog **[[ABIO Backlog#^F005|F005]]** and roadmap **[[ABIO Roadmap|M-Semantic]]** (M27.1–M27.4). It is grounded in the real seams in `src/alienbio/suite/` — every type and function named below exists on `main` today.
+This doc is the build spec for backlog **[F005](../ABIO%20Track/ABIO%20Features/ABIO005%20-%20M27%20semantic%20layer%20over%20M26%20primitives.md)** and roadmap **[[ABIO Roadmap|M-Semantic]]** (M27.1–M27.4). It is grounded in the real seams in `src/alienbio/suite/` — every type and function named below exists on `main` today.
 
 ## Scope boundary — why authoring this is framework work, not experiment design
 

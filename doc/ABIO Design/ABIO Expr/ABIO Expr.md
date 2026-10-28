@@ -2,12 +2,12 @@
 description: "the generative expression language — G4 design note"
 ---
 
-| -[[ABIO Expr]]-                                                                             | : the generative expression language — G4 design note<br>→ [[ABIO]] → [[ABIO Design]] → [ABIO Expr](ha://p/ABIO%20Expr)     |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| -[ABIO Expr](ABIO%20Expr.md)-                                                               | : the generative expression language — G4 design note<br>→ [ABIO](../../ABIO.md) → [ABIO Design](../ABIO%20Design.md) → [ABIO Expr](ha://p/ABIO%20Expr)                                                                                                                   |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Related                                                                                     | [ABIO Unified Protocol Model](../ABIO%20Unified%20Protocol%20Model.md),  [Spec](../../ABIO%20Guides/ABIO%20Expr%20Spec.md),  [Python API](../../ABIO%20Guides/ABIO%20Expr%20Python%20API.md),  [ABIO Skeleton Arch](../ABIO%20Skeleton%20Arch/ABIO%20Skeleton%20Arch.md), |
-| [[ABIO Expr Templates\| every head, layer 0–6, with a worked example each                   |                                                                                                                             |
-| [[ABIO Expr Python Escapes\| where `!py` and `!x` reach into Python, and the trust boundary |                                                                                                                             |
-| ...                                                                                         | [[ABIO Expr Python Escapes\|Python Escapes]],  [[ABIO Expr Templates\|Templates]],                                          |
+| [[ABIO Expr Templates\| every head, layer 0–6, with a worked example each                   |                                                                                                                                                                                                                                                                           |
+| [[ABIO Expr Python Escapes\| where `!py` and `!x` reach into Python, and the trust boundary |                                                                                                                                                                                                                                                                           |
+| ...                                                                                         | [ABIO Expr Python Escapes](ABIO%20Expr%20Python%20Escapes.md),  [ABIO Expr Templates](ABIO%20Expr%20Templates.md),                                                                                                                                                        |
 
 # ABIO Expr
 The generative expression language of the Alien Biology Framework — the G4 design note: one call-shaped form over YAML data, evaluated against Python-registered functions and expanders.
@@ -32,7 +32,7 @@ The generative expression language of the Alien Biology Framework — the G4 des
 | **[[#Open questions]]** |  |
 | **[[#History]]** |  |
 
-**Expr** is the generative expression language of the Alien Biology Framework — the one declarative form in which everything that *describes how to build* a world, a task, an objective or a suite is written. [[ABIO Unified Protocol Model]] § Group 4 locked the decision that those descriptions are **not classes**: they are spec-expressions an `Interpreter` evaluates into their concrete counterparts. This folder is the design note that decision asked for ([[ABIO Backlog#^F007|F007]] G4): it fixes the language before any code, because the language is the surface every generator, template and experiment is authored against.
+**Expr** is the generative expression language of the Alien Biology Framework — the one declarative form in which everything that *describes how to build* a world, a task, an objective or a suite is written. [[ABIO Unified Protocol Model]] § Group 4 locked the decision that those descriptions are **not classes**: they are spec-expressions an `Interpreter` evaluates into their concrete counterparts. This folder is the design note that decision asked for ([F007](../../ABIO%20Track/ABIO%20Features/ABIO007%20-%20Retire%20shadow%20types%20-%20protocol-ize%20suite%20over%20biology%20classes.md) G4): it fixes the language before any code, because the language is the surface every generator, template and experiment is authored against.
 
 | Page | What it holds |
 |---|---|

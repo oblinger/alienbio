@@ -1,7 +1,7 @@
 ---
 description: "The Expr template catalog — every generative form the framework will expose, layer by layer (distributions, pools and blocks, worlds, objectives, tasks and the ten drafters, experiments, briefs and agents), each with a worked example; the mapping from today's dataclasses and the M1 generator DSL; and two end-to-end generators written in Expr."
 ---
-:>> [[ABIO]] → [[ABIO Design]] → [[ABIO Expr]] → [ABIO Expr Templates](ha://p/ABIO%20Expr%20Templates) 
+:>> [ABIO](../../ABIO.md) → [ABIO Design](../ABIO%20Design.md) → [ABIO Expr](ABIO%20Expr.md) → [ABIO Expr Templates](ha://p/ABIO%20Expr%20Templates) 
 # ABIO Expr Templates
 The catalog of generative forms in [[ABIO Expr]] — what a template author can write, layer by layer, with an example of each, and what each replaces in the code today.
 
@@ -343,7 +343,7 @@ Both files load through the same loader, evaluate through the same interpreter, 
 
 ## Build order
 
-The order [[ABIO Backlog#^F007|F007]] set, made concrete against this catalog — now roadmap **M47** ([[ABIO Roadmap]] § M47, one item per step below plus rate laws, constructors, docs, the runnable example and rate-grammar growth) with **M48** (the capability test matrix) behind it:
+The order [F007](../../ABIO%20Track/ABIO%20Features/ABIO007%20-%20Retire%20shadow%20types%20-%20protocol-ize%20suite%20over%20biology%20classes.md) set, made concrete against this catalog — now roadmap **M47** ([[ABIO Roadmap]] § M47, one item per step below plus rate laws, constructors, docs, the runnable example and rate-grammar growth) with **M48** (the capability test matrix) behind it:
 
 1. **Interpreter + registry + the three spellings**, behind the existing dataclasses: `Form`, `Env`, `evaluate`, `X`, the `!x` / `!head` constructors, `@fn` / `@expander` writing to the one registry with the old decorators as aliases. Layer 0 and the special forms. `build_suite` untouched.
 2. **Layers 1–2 as heads** over the existing block classes and world drafters (thin registrations); `Dist`-as-quoted-form.

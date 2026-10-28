@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Design]] → [ABIO Roadmap](ha://p/ABIO%20Roadmap) 
+:>> [ABIO](../ABIO.md) → [ABIO Design](ABIO%20Design.md) → [ABIO Roadmap](ha://p/ABIO%20Roadmap) 
 # ABIO Roadmap
 Shape B task-checklist roadmap for the alienbio project — 3 forward milestones here; the 41 completed ones live in [[ABIO Completed Roadmap]] (migrated 2026-09-16).
 
@@ -9,7 +9,7 @@ Shape B task-checklist roadmap for the alienbio project — 3 forward milestones
 | M-Harden | Proposed (awaiting review) | M-Harden.1 — cost-model conformance |
 | Completed | [[ABIO Completed Roadmap]] |  |
 
-**Related**: ~~[[ABIO alienbio]]~~, ~~[[ABIO Testing Guide|Testing]]~~ 
+**Related**: [[ABIO alienbio]], [[ABIO Testing Guide|Testing]] 
 
 | Table of Contents |  |
 |---|---|
@@ -365,7 +365,7 @@ Under-specified in [[AUP]] as of 2026-07-12 — captured so they aren't lost; pr
 - **Statistical-power design** — trials-per-condition targets, effect sizes (ASP §6.5). Feeds M-Trials.2/M-Trials.3.
 
 ## ___
-line:: [[ABIO Roadmap]] · [[ABIO Roadmap#M-Bench.1 — Interactive design-session workflow|1 ready]] 
+line:: [ABIO Roadmap](ABIO%20Roadmap.md) · [1 ready](ABIO%20Roadmap.md#M-Bench.1%20%E2%80%94%20Interactive%20design-session%20workflow)
 status:: Ready
 next:: (opus) (dan) [[ABIO Roadmap#^ABIO-Roadmap-Q1|Roadmap Q1]] is the word; meanwhile [[ABIO Backlog#^T073|T073]] and [[ABIO Backlog#^T074|T074]] run against the worlds that exist, and [[ABIO Backlog#^T069|T069]]'s yes releases [[ABIO Backlog#^T075|T075]] through [[ABIO Backlog#^T082|T082]] (stoked 2026-10-08)
 appears:: ABIO
