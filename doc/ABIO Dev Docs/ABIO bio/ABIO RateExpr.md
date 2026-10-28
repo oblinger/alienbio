@@ -68,10 +68,10 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
     The same law as `jax.numpy` ops over a state array `S` of shape `[C, M]`, returning one rate per compartment, shape `[C]`; `column(name)` gives the molecule axis index. Meant to be traced once under `jit`: `jax_core.build_rate_laws` wraps each reaction's tree in a closure that calls it. Constants broadcast to `[C]` in `S.dtype`. `log`, `sqrt` and `div` mask their unsafe inputs with a second `where` so the untaken branch never produces `inf` or `nan`; modulations go through the private `_lower_modulation`, the same arithmetic as [[#^modulation-factor|modulation_factor]]. `ImportError` when JAX is not installed. ^lower-jax
 
 **to_text**`(node: RateNode) -> str`
-    The tree as inline Expr text, for messages and test assertions: constants by `repr(float)`, species by `str`, a modulation as `hill(M, K=0.5, n=2.0, Vmax=1.0)`, unary as `exp(…)` or `-(…)`, and every binary node parenthesised, `(a * b)`. `KeyError` on an unrecognised tag. ^to-text
+    The tree as inline Expr text, for messages and test assertions: constants by `repr(float)`, species by `str`, a modulation as `hill(M, K=0.5, n=2.0, Vmax=1.0)`, unary as `exp(…)` or `-(…)`, and every binary node parenthesised, `(a * b)`. `ValueError` on an unrecognised tag. ^to-text
 
 **to_json**`(node: RateNode) -> list`
-    The tree as nested lists, the form `ReactionImpl.attributes()` writes under `rate_law`. A `mod` node's parameter dict is copied. An unrecognised tag is treated as binary, so a short one raises `IndexError`. ^to-json
+    The tree as nested lists, the form `ReactionImpl.attributes()` writes under `rate_law`. A `mod` node's parameter dict is copied. An unrecognised tag raises `ValueError` naming it (until 2026-10 it was treated as binary). ^to-json
 
 **from_json**`(data: Any) -> RateNode`
     The inverse of `to_json`; `ReactionImpl.__init__` passes every `rate_law` through it, so a reaction accepts either form. A `tuple` passes through after a recursive check of every tag and arity (`ValueError` naming the bad node; unchecked until 2026-10). `ValueError` when `data` is not a non-empty list or carries an unknown tag. `mod` parameters are copied but not coerced to `float`. ^from-json
@@ -102,7 +102,7 @@ A tree is built from five shapes. It carries only numbers, species and operators
 | `div` | `("div", a, b)` | `a / b`, 0 when `\|b\| < ROUNDING_FLOOR` | same |
 | `pow` | `("pow", a, b)` | `ieee_pow(a, b)`: inf / NaN where Python refuses | `a ** b`, unguarded |
 
-Both evaluators recurse on the tag. Binary children are evaluated before the operator is matched, so a malformed node with an unknown tag raises `ValueError` only when it has at least two children; a shorter one fails earlier on indexing.
+Both evaluators recurse on the tag and check it before reading any operand, so an unknown tag raises `ValueError` naming it whatever its arity (until 2026-10 the binary children were evaluated first, and a short malformed node failed on indexing instead).
 
 
 

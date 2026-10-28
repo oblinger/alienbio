@@ -118,3 +118,22 @@ def test_from_json_refuses_a_malformed_tuple_tree(bad) -> None:
 def test_from_json_passes_a_well_formed_tuple_tree_through() -> None:
     law = ("mul", ("const", 0.4), ("mod", "hill", "M", {"K": 0.5, "n": 2.0}))
     assert rx.from_json(law) is law
+
+
+# ── E6: an unknown node tag is a ValueError everywhere ───────────────────────
+
+
+@pytest.mark.parametrize("bad", [("bogus", ("const", 1.0)), ("bogus",), ("frob", 1, 2)])
+def test_an_unknown_tag_is_a_value_error_naming_it(bad) -> None:
+    with pytest.raises(ValueError, match="unknown rate node"):
+        rx.eval_rate(bad, lambda _s: 0.0)
+    with pytest.raises(ValueError, match="unknown rate node"):
+        rx.to_json(bad)
+    with pytest.raises(ValueError, match="unknown rate node"):
+        rx.to_text(bad)
+
+
+def test_lower_jax_refuses_an_unknown_tag_with_a_value_error() -> None:
+    jnp = pytest.importorskip("jax.numpy")
+    with pytest.raises(ValueError, match="unknown rate node"):
+        rx.lower_jax(("bogus", ("const", 1.0)), jnp.zeros((1, 1)), int)

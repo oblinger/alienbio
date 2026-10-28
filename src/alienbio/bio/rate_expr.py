@@ -181,6 +181,10 @@ def eval_rate(node: RateNode, conc: Callable[[Any], float]) -> float:
     if tag == "sqrt":
         x = eval_rate(node[1], conc)
         return math.sqrt(x) if x > 0.0 else 0.0
+    if tag not in _BINARY:
+        # Checked before the operands are read: an unknown tag used to fail
+        # with an unpacking TypeError/IndexError instead (module-doc finding).
+        raise ValueError(f"unknown rate node {tag!r}")
     a, b = eval_rate(node[1], conc), eval_rate(node[2], conc)
     if tag == "add":
         return a + b
@@ -190,9 +194,7 @@ def eval_rate(node: RateNode, conc: Callable[[Any], float]) -> float:
         return a * b
     if tag == "div":
         return a / b if abs(b) >= ROUNDING_FLOOR else 0.0
-    if tag == "pow":
-        return ieee_pow(a, b)
-    raise ValueError(f"unknown rate node {tag!r}")
+    return ieee_pow(a, b)  # tag == "pow", the last binary operator
 
 
 def lower_jax(node: RateNode, S: Any, column: Callable[[Any], int]) -> Any:
@@ -221,6 +223,8 @@ def lower_jax(node: RateNode, S: Any, column: Callable[[Any], int]) -> Any:
         x = lower_jax(node[1], S, column)
         safe = jnp.where(x > 0.0, x, 0.0)
         return jnp.where(x > 0.0, jnp.sqrt(safe), 0.0)
+    if tag not in _BINARY:
+        raise ValueError(f"unknown rate node {tag!r}")
     a, b = lower_jax(node[1], S, column), lower_jax(node[2], S, column)
     if tag == "add":
         return a + b
@@ -231,9 +235,7 @@ def lower_jax(node: RateNode, S: Any, column: Callable[[Any], int]) -> Any:
     if tag == "div":
         live = jnp.abs(b) >= ROUNDING_FLOOR
         return jnp.where(live, a / jnp.where(live, b, 1.0), 0.0)
-    if tag == "pow":
-        return a**b
-    raise ValueError(f"unknown rate node {tag!r}")
+    return a**b  # tag == "pow", the last binary operator
 
 
 def _lower_modulation(kind: str, m: Any, p: Mapping[str, float], jnp: Any) -> Any:
@@ -266,6 +268,8 @@ def to_text(node: RateNode) -> str:
         return f"-({to_text(node[1])})"
     if tag in ("exp", "log", "sqrt"):
         return f"{tag}({to_text(node[1])})"
+    if tag not in _BINARY:
+        raise ValueError(f"unknown rate node {tag!r}")
     sym = {"add": "+", "sub": "-", "mul": "*", "div": "/", "pow": "**"}[tag]
     return f"({to_text(node[1])} {sym} {to_text(node[2])})"
 
@@ -279,7 +283,9 @@ def to_json(node: RateNode) -> list:
         return ["mod", node[1], node[2], dict(node[3])]
     if tag in _UNARY:
         return [tag, to_json(node[1])]
-    return [tag, to_json(node[1]), to_json(node[2])]
+    if tag in _BINARY:
+        return [tag, to_json(node[1]), to_json(node[2])]
+    raise ValueError(f"unknown rate node {tag!r}")
 
 
 def _check_tree(node: Any) -> None:
