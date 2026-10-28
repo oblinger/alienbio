@@ -49,7 +49,12 @@ def report_command(args: list[str], verbose: bool = False) -> int:
     if not junit.exists():
         print(f"bio report: no JUnit file at {junit}", file=sys.stderr)
         return 1
-    rep = build(parse_junit(junit), exit_code, run_examples=run_examples, totals=count_cases(junit))
+    try:
+        rep = build(parse_junit(junit), exit_code, run_examples=run_examples,
+                    totals=count_cases(junit), out_dir=out_dir.resolve())
+    except FileNotFoundError as exc:  # no tests/capabilities/ outside a checkout
+        print(f"bio report: {exc}", file=sys.stderr)
+        return 1
     md, html_page = out_dir / "report.md", out_dir / "report.html"
     md.write_text(render_markdown(rep))
     html_page.write_text(render_html(rep))

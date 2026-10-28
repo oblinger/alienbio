@@ -70,10 +70,6 @@ docs-deploy: docs
 build-rust:
     cd rust && cargo build --release
 
-# Run main entry point
+# Run the bio CLI (the package has no __main__; `bio` is the entry point)
 run *ARGS:
-    uv run python -m alienbio {{ARGS}}
-
-# View the last generated report in spreadsheet app
-view-report:
-    uv run python -m alienbio view-report
+    uv run bio {{ARGS}}

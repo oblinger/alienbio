@@ -1,7 +1,7 @@
 ---
 description: "the bio CLI, the capability matrix, the one-page report, config resolution, and the gates (justfile, CI). Source: cli.py, commands/, report.py, capabilities.py, config.py, justfile, .github/workflows/ci.yml."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO-Operator-Surface](ha://p/ABIO-Operator-Surface) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO-Operator-Surface](ha://p/ABIO-Operator-Surface) 
 # ABIO-Operator-Surface
 Thin, but it is the surface an operator reads before spending and the surface CI trusts.
 
@@ -18,7 +18,7 @@ Thin, but it is the surface an operator reads before spending and the surface CI
 | `bio suite aggregate <DIR>` | — | `aggregate` → `map.json` / `map.csv` |
 | `bio suite report <DIR>` | — | `aggregate` → `render_report` → `write_key_figure` |
 | `bio suite models` | — | `fetch_models_snapshot` → `models_snapshot.json` |
-| `bio config set-key \| list-keys \| set-default-agent \| test-key \| show` | — | `config.py`; `test-key` makes one live call |
+| `bio config set-key \| list-keys \| test-key \| show` | — | `config.py`; `test-key` makes one live call |
 | `bio test-matrix` | `--markdown` `--check` | `capabilities.render_*`, `check`, `unknown_ids`, `check_phrases` |
 | `bio report` | `--open` `--no-examples` `--junit PATH` `--out DIR` | `report.run_pytest` → `parse_junit` → `build` → `render_markdown` / `render_html` |
 
@@ -41,7 +41,7 @@ Exit codes: 0, 1 for a reported user error or gate failure, 2 for bad usage.
 | `commands/` | ~520 | `COMMANDS` registry;<br>`suite_cmd`, `config_cmd`, `report_cmd`, `test_matrix_cmd` — one `argparse` parser per verb. |
 | `report.py` | 442 | `run_pytest`, `parse_junit` (worst outcome wins per function), `capability_rows`, `suite_rows`, `example_rows`, `run_rows`, `build`, `Report.ok` (the verdict is read off the page: failures, errored examples), `render_markdown`, `render_html`. |
 | `capabilities.py` | 192 | The 35 `Dimension`s, `scan`, `phrases`, `matrix`, `check`; imports nothing from the library. |
-| `config.py` | 279 | `get_api_key`, `set_api_key`, `list_providers`, `get_default_agent`, `get_default_model`, `test_api_key`, `DEFAULT_CONFIG`. |
+| `config.py` | 279 | `get_api_key`, `set_api_key`, `list_providers`, `check_api_key`, `DEFAULT_CONFIG`; the file is written 0600. |
 
 ## Where the surface could mislead an operator
 

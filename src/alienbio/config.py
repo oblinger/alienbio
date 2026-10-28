@@ -1,9 +1,14 @@
 """API key and configuration management for alienbio.
 
 This module provides configuration management for LLM providers:
-- Config file at ~/.config/alienbio/config.yaml
-- API key storage and retrieval (env vars take precedence)
-- Default agent and model settings per provider
+- Config file at ~/.config/alienbio/config.yaml, written 0600 (it holds keys)
+- API key storage and retrieval (env vars take precedence; the documented
+  setup keeps the key in the macOS Keychain and exports it into the shell)
+
+The model a run uses comes from its spec or ``suite.llm_agent.PINNED_MODEL``;
+there is no default agent or default model setting (the ``default_agent`` /
+``providers.*.default_model`` keys were read by nothing that runs and were
+removed, T088 config 3).
 
 Example usage:
     from alienbio.config import get_api_key, set_api_key, get_config
@@ -43,16 +48,11 @@ PROVIDER_ENV_VARS = {
 # Default config structure
 DEFAULT_CONFIG: dict[str, Any] = {
     "api_keys": {},
-    "default_agent": None,
-    "providers": {
-        "anthropic": {
-            "default_model": "claude-sonnet-5",
-        },
-        "openai": {
-            "default_model": "gpt-4o",
-        },
-    },
 }
+
+#: Group/other permission bits: a config file carrying any of them is
+#: readable by other users of the machine and is tightened on read.
+_LOOSE_BITS = 0o077
 
 
 def get_config_path() -> Path:
@@ -69,7 +69,7 @@ def load_config() -> dict[str, Any]:
     """Load config from file, creating default if missing.
 
     Returns:
-        Config dict with api_keys, default_agent, providers
+        Config dict with api_keys (and whatever else the file holds)
     """
     # A deep copy, never `.copy()`: the setters below mutate the returned dict
     # in place, and a shallow copy shared its nested dicts with DEFAULT_CONFIG,
@@ -78,10 +78,33 @@ def load_config() -> dict[str, Any]:
     if not CONFIG_FILE.exists():
         return copy.deepcopy(DEFAULT_CONFIG)
 
+    _tighten_permissions()
     with open(CONFIG_FILE) as f:
         config = yaml.safe_load(f) or {}
+    if not isinstance(config, dict):
+        raise ValueError(
+            f"{CONFIG_FILE}: the top level must be a mapping, got {type(config).__name__}"
+        )
 
     return _merge(copy.deepcopy(DEFAULT_CONFIG), config)
+
+
+def _tighten_permissions() -> None:
+    """Make an existing config file 0600, warning once when it was looser.
+
+    It holds API keys; an older ``save_config`` wrote it with the default
+    mode (0644 — world-readable, T088 config 2)."""
+    import stat
+    import warnings
+
+    mode = stat.S_IMODE(CONFIG_FILE.stat().st_mode)
+    if mode & _LOOSE_BITS:
+        os.chmod(CONFIG_FILE, 0o600)
+        warnings.warn(
+            f"{CONFIG_FILE} was readable by other users (mode {mode:o}); "
+            "tightened to 600",
+            stacklevel=3,
+        )
 
 
 def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -89,6 +112,11 @@ def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     ``providers:`` block adds to the defaults instead of replacing the whole
     sub-dict (a file naming only anthropic used to drop openai's default model)."""
     for key, value in override.items():
+        if value is None and isinstance(base.get(key), dict):
+            # ``api_keys:`` with nothing under it — what deleting the last key
+            # by hand leaves — means "none", not "replace the dict with null"
+            # (every reader did ``.get`` on it and raised, T088 config 1).
+            continue
         if isinstance(value, dict) and isinstance(base.get(key), dict):
             _merge(base[key], value)
         else:
@@ -103,7 +131,12 @@ def save_config(config: dict[str, Any]) -> None:
         config: Config dict to save
     """
     ensure_config_dir()
-    with open(CONFIG_FILE, "w") as f:
+    os.chmod(CONFIG_DIR, 0o700)
+    # Created 0600 (never world-readable for an instant), and tightened if it
+    # already existed with a looser mode.
+    fd = os.open(CONFIG_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.chmod(CONFIG_FILE, 0o600)
+    with os.fdopen(fd, "w") as f:
         yaml.safe_dump(config, f, default_flow_style=False)
 
 
@@ -144,8 +177,15 @@ def get_api_key(provider: str) -> Optional[str]:
         return key
 
     # Fall back to config file
-    config = load_config()
-    return config.get("api_keys", {}).get(provider)
+    return _api_keys(load_config()).get(provider)
+
+
+def _api_keys(config: dict[str, Any]) -> dict[str, Any]:
+    """The ``api_keys`` mapping, refusing a non-mapping with the file named."""
+    keys = config.get("api_keys") or {}
+    if not isinstance(keys, dict):
+        raise ValueError(f"{CONFIG_FILE}: api_keys must be a mapping, got {type(keys).__name__}")
+    return keys
 
 
 def set_api_key(provider: str, key: str) -> None:
@@ -156,8 +196,7 @@ def set_api_key(provider: str, key: str) -> None:
         key: API key value
     """
     config = load_config()
-    if "api_keys" not in config:
-        config["api_keys"] = {}
+    config["api_keys"] = _api_keys(config)
     config["api_keys"][provider] = key
     save_config(config)
 
@@ -172,7 +211,7 @@ def remove_api_key(provider: str) -> bool:
         True if key was removed, False if not found
     """
     config = load_config()
-    if provider in config.get("api_keys", {}):
+    if provider in _api_keys(config):
         del config["api_keys"][provider]
         save_config(config)
         return True
@@ -186,7 +225,7 @@ def list_providers() -> list[str]:
         List of provider names
     """
     config = load_config()
-    providers = set(config.get("api_keys", {}).keys())
+    providers = set(_api_keys(config).keys())
 
     # Also check env vars
     for provider, env_vars in PROVIDER_ENV_VARS.items():
@@ -198,58 +237,12 @@ def list_providers() -> list[str]:
     return sorted(providers)
 
 
-def get_default_agent() -> Optional[str]:
-    """Get the default agent provider.
+def check_api_key(provider: str) -> tuple[bool, str]:
+    """Check an API key by making a minimal API call — a BILLED one for
+    anthropic (one ``messages.create``, ``max_tokens=1``).
 
-    Returns:
-        Default provider name or None
-    """
-    config = load_config()
-    return config.get("default_agent")
-
-
-def set_default_agent(provider: str) -> None:
-    """Set the default agent provider.
-
-    Args:
-        provider: Provider name
-    """
-    config = load_config()
-    config["default_agent"] = provider
-    save_config(config)
-
-
-def get_default_model(provider: str) -> Optional[str]:
-    """Get the default model for a provider.
-
-    Args:
-        provider: Provider name
-
-    Returns:
-        Default model name or None
-    """
-    config = load_config()
-    return config.get("providers", {}).get(provider, {}).get("default_model")
-
-
-def set_default_model(provider: str, model: str) -> None:
-    """Set the default model for a provider.
-
-    Args:
-        provider: Provider name
-        model: Model name
-    """
-    config = load_config()
-    if "providers" not in config:
-        config["providers"] = {}
-    if provider not in config["providers"]:
-        config["providers"][provider] = {}
-    config["providers"][provider]["default_model"] = model
-    save_config(config)
-
-
-def test_api_key(provider: str) -> tuple[bool, str]:
-    """Test if an API key is valid by making a minimal API call.
+    Named ``check_``, not ``test_``: a test module importing it by name would
+    have pytest collect and run it against the real key (T088 config 4).
 
     Args:
         provider: Provider name
@@ -266,8 +259,10 @@ def test_api_key(provider: str) -> tuple[bool, str]:
             import anthropic
             client = anthropic.Anthropic(api_key=key)
             # Make a minimal API call
+            from alienbio.suite.llm_agent import PINNED_MODEL
+
             client.messages.create(
-                model=get_default_model(provider) or "claude-sonnet-5",
+                model=PINNED_MODEL,
                 max_tokens=1,
                 messages=[{"role": "user", "content": "hi"}]
             )

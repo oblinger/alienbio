@@ -71,8 +71,10 @@ Examples:
     args = parser.parse_args(argv)
 
     if not args.command:
+        # Help, then the usage-error code every verb uses for "no verb" (2);
+        # 1 is a reported error, which a bare `bio` is not.
         parser.print_help()
-        return 1
+        return 2
 
     # Check if command is a registered command
     if args.command in COMMANDS:

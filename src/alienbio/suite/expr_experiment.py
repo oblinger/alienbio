@@ -357,10 +357,8 @@ def brief(
 ) -> dict[str, Any]:
     """The brief-side dial vector: everything here reaches the
     :class:`~alienbio.suite.brief.TaskBrief` or the observation narrowing and
-    never the drafted world. ``WORLD_INVARIANT_DIALS`` (the dials a sweep
-    pairs on one world without ``matched_dials``) holds most of them but not
-    ``observability`` / ``observation_noise`` / ``sample_every`` — a sweep of
-    those draws a world per level unless the spec lists the dial in
+    never the drafted world. ``WORLD_INVARIANT_DIALS`` holds every one of
+    them, so a sweep of any pairs its levels on one world without
     ``matched_dials`` (T088 drafters 1). Evaluated, it is just
     the mapping of the dials given; in an experiment file it is *quoted* and
     its free names are axes. A ``levers`` entry is a lever id or a
@@ -675,21 +673,24 @@ def load_experiment(path: Union[str, Path], *, text: Optional[str] = None, trust
 
         spec = evaluate(data, env.child("experiment"))
         if not isinstance(spec, ExperimentSpec):
-            raise ExprError(f"{source}: the document must be an !experiment (got {type(spec).__name__})", source)
+            raise ExprError(f"the document must be an !experiment (got {type(spec).__name__})", source)
         return spec
     if not isinstance(data, Mapping):
-        raise ExprError(f"{source}: an experiment file is an !experiment call or a mapping holding one", source)
+        raise ExprError("an experiment file is an !experiment call or a mapping holding one", source)
     if "drafter" in data and "task" not in data:
         raise ExprError(
-            f"{source}: this is the pre-M47.4 flat form (`drafter:` + `fixed_dials:`); write it as an "
+            "this is the pre-M47.4 flat form (`drafter:` + `fixed_dials:`); write it as an "
             "!experiment with `task: !q <drafter>(...)` and `brief: !q brief(...)` (see suite.expr_experiment)",
             source,
         )
+    # ``ExprError(message, source)`` prints ``<source>: <message>``; the
+    # messages above carry no path of their own (it printed twice, T088
+    # suite_cmd 4).
     scope = env.load(source, text=text)
     values = scope.force_all()
     specs = [v for v in values.values() if isinstance(v, ExperimentSpec)]
     if len(specs) != 1:
-        raise ExprError(f"{source}: expected exactly one !experiment among the top-level bindings, found {len(specs)}", source)
+        raise ExprError(f"expected exactly one !experiment among the top-level bindings, found {len(specs)}", source)
     return specs[0]
 
 

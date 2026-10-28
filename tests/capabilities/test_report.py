@@ -90,8 +90,76 @@ def test_the_verdict_is_read_off_the_page_not_the_pytest_exit_code(tmp_path):
     def fine(spec: Path, out_dir: Path):
         return 4, 0, 0.5
 
-    assert build(clean, pytest_exit=0, example_runner=fine).ok is True
+    # T088 report 1: a clean JUnit file that lacks the proving tests is not
+    # a pass — every built row reads "not run", so the page says NOT PROVEN.
+    unproven = build(clean, pytest_exit=0, example_runner=fine)
+    assert unproven.ok is False and "A2" in unproven.unproven
+    assert render_markdown(unproven).startswith("# ABIO test report — NOT PROVEN")
+    proven = dict(clean)
+    for _d, tests in matrix():
+        for t in tests:
+            module, name = t.split("::", 1)
+            proven[(module, name)] = "passed"
+    assert build(proven, pytest_exit=0, example_runner=fine).ok is True
 
     assert report_command(["--junit", str(junit), "--no-examples", "--out", str(tmp_path / "out")]) == 1
     assert (tmp_path / "out" / "report.md").read_text().startswith("# ABIO test report — FAILURES")
     assert report_command(["--junit"]) == 2
+
+
+def test_a_corrupt_run_manifest_is_a_named_note_not_a_crash(tmp_path, monkeypatch):
+    """T088 report 2 — one unreadable ``runs/*/manifest.json`` raised out of
+    ``build`` after the full pytest run, so nothing was written. The run is
+    skipped and the page names it."""
+    import alienbio.report as report
+
+    runs = tmp_path / "runs"
+    (runs / "bad").mkdir(parents=True)
+    (runs / "bad" / "manifest.json").write_text("{not json")
+    monkeypatch.setattr(report, "RUNS", runs)
+    rep = build({}, pytest_exit=0, run_examples=False)
+    assert rep.runs == []
+    assert any(n.startswith("runs/bad skipped: JSONDecodeError") for n in rep.notes)
+    assert "runs/bad skipped" in render_markdown(rep)
+
+
+def test_figure_links_are_relative_to_the_output_folder(tmp_path, monkeypatch):
+    """T088 report 3 — a figure link was made relative to ``reports/``
+    whatever ``--out`` said, so a page written elsewhere linked nowhere."""
+    import json
+
+    import alienbio.report as report
+
+    runs = tmp_path / "runs"
+    run = runs / "r1"
+    run.mkdir(parents=True)
+    (run / "manifest.json").write_text(json.dumps({"spec": {}, "trials_completed": 1}))
+    (run / "key.png").write_bytes(b"\x89PNG")
+    (run / "key.json").write_text(json.dumps({"readout": "x", "caption": "c"}))
+    monkeypatch.setattr(report, "RUNS", runs)
+    out = tmp_path / "elsewhere" / "deep"
+    rep = build({}, pytest_exit=0, run_examples=False, out_dir=out)
+    md = render_markdown(rep)
+    assert "](../../runs/r1/key.png)" in md
+    assert (out / "../../runs/r1/key.png").resolve() == (run / "key.png").resolve()
+    assert "data:image/png;base64," in render_html(rep)
+
+
+def test_bio_report_runs_the_spec_named_after_its_folder_and_never_a_live_one(tmp_path, monkeypatch):
+    """T088 report 5 — the alphabetically first ``*.yaml`` was run with no
+    cost check; ``agent_loop/live.yaml`` was safe only by spelling."""
+    import alienbio.report as report
+
+    seen = []
+
+    def runner(spec: Path, out_dir: Path):
+        seen.append(spec)
+        return 1, 0, 0.0
+
+    example_rows({}, runner)
+    by_folder = {p.parent.name: p.name for p in seen}
+    assert by_folder["agent_loop"] == "agent_loop.yaml"
+    assert by_folder["pathway_puzzles"] == "puzzles.yaml"
+
+    with __import__("pytest").raises(ValueError, match="live-model arm"):
+        report._run_example(report.EXAMPLES / "agent_loop" / "live.yaml", tmp_path / "run")

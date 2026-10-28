@@ -43,9 +43,7 @@ class TestConfigBasics:
 
     def test_default_config_structure(self):
         """Default config has expected structure."""
-        assert "api_keys" in config.DEFAULT_CONFIG
-        assert "default_agent" in config.DEFAULT_CONFIG
-        assert "providers" in config.DEFAULT_CONFIG
+        assert config.DEFAULT_CONFIG == {"api_keys": {}}
 
     def test_get_config_path(self):
         """get_config_path returns Path object."""
@@ -66,16 +64,14 @@ class TestConfigLoadSave:
         """Config survives save/load round-trip."""
         test_config = {
             "api_keys": {"anthropic": "test-key-123"},
-            "default_agent": "anthropic",
-            "providers": {"anthropic": {"default_model": "claude-3"}},
+            "extra": {"kept": True},
         }
 
         config.save_config(test_config)
         loaded = config.load_config()
 
         assert loaded["api_keys"]["anthropic"] == "test-key-123"
-        assert loaded["default_agent"] == "anthropic"
-        assert loaded["providers"]["anthropic"]["default_model"] == "claude-3"
+        assert loaded["extra"] == {"kept": True}
 
     def test_ensure_config_dir_creates_directory(self, temp_config_dir):
         """ensure_config_dir creates the config directory."""
@@ -183,66 +179,27 @@ class TestListProviders:
         assert providers.count("anthropic") == 1
 
 
-class TestDefaultAgent:
-    """Tests for default agent setting."""
-
-    def test_set_default_agent(self, temp_config_dir):
-        """set_default_agent stores setting."""
-        config.set_default_agent("anthropic")
-
-        agent = config.get_default_agent()
-        assert agent == "anthropic"
-
-    def test_get_default_agent_returns_none_initially(self, temp_config_dir):
-        """get_default_agent returns None when not set."""
-        agent = config.get_default_agent()
-        assert agent is None
-
-
-class TestDefaultModel:
-    """Tests for default model per provider."""
-
-    def test_get_default_model_from_defaults(self, temp_config_dir):
-        """get_default_model returns default from DEFAULT_CONFIG."""
-        # Anthropic has a default model in DEFAULT_CONFIG
-        model = config.get_default_model("anthropic")
-        assert model is not None
-        assert "claude" in model.lower()
-
-    def test_set_default_model(self, temp_config_dir):
-        """set_default_model stores model setting."""
-        config.set_default_model("anthropic", "claude-opus-4-5-20251101")
-
-        model = config.get_default_model("anthropic")
-        assert model == "claude-opus-4-5-20251101"
-
-    def test_get_default_model_returns_none_for_unknown(self, temp_config_dir):
-        """get_default_model returns None for unknown provider."""
-        model = config.get_default_model("unknown_provider")
-        assert model is None
-
-
 class TestApiKeyTesting:
     """Tests for API key validation."""
 
-    def test_test_api_key_no_key_returns_false(self, temp_config_dir):
-        """test_api_key returns False when no key found."""
+    def test_check_api_key_no_key_returns_false(self, temp_config_dir):
+        """check_api_key returns False when no key found."""
         # Ensure no keys exist
         cfg = config.load_config()
         cfg["api_keys"] = {}
         config.save_config(cfg)
 
-        success, message = config.test_api_key("anthropic")
+        success, message = config.check_api_key("anthropic")
 
         assert success is False
         assert "No API key" in message
 
-    def test_test_api_key_unknown_provider(self, temp_config_dir):
-        """test_api_key returns error for unknown provider."""
+    def test_check_api_key_unknown_provider(self, temp_config_dir):
+        """check_api_key returns error for unknown provider."""
         # Use a fresh provider name that won't have env vars
         config.set_api_key("custom_provider", "some-key")
 
-        success, message = config.test_api_key("custom_provider")
+        success, message = config.check_api_key("custom_provider")
 
         assert success is False
         assert "not implemented" in message
@@ -265,16 +222,10 @@ class TestConfigIntegration:
         config.set_api_key("anthropic", "sk-ant-123")
         config.set_api_key("openai", "sk-openai-456")
 
-        # Set defaults
-        config.set_default_agent("anthropic")
-        config.set_default_model("anthropic", "claude-opus-4-5-20251101")
-
         # Verify
         assert "anthropic" in config.list_providers()
         assert "openai" in config.list_providers()
         assert config.get_api_key("anthropic") == "sk-ant-123"
-        assert config.get_default_agent() == "anthropic"
-        assert config.get_default_model("anthropic") == "claude-opus-4-5-20251101"
 
         # Remove one
         config.remove_api_key("openai")
@@ -285,14 +236,10 @@ class TestConfigIntegration:
 class TestMergeAndIsolation:
     """T051 box 4 / T054 #8: a one-level merge and a shallow copy."""
 
-    def test_a_partial_providers_block_keeps_the_other_providers_defaults(self, temp_config_dir):
-        config.ensure_config_dir()
-        config.CONFIG_FILE.write_text(
-            yaml.safe_dump({"providers": {"anthropic": {"default_model": "claude-opus-4-1"}}})
-        )
-
-        assert config.get_default_model("anthropic") == "claude-opus-4-1"
-        assert config.get_default_model("openai") == config.DEFAULT_CONFIG["providers"]["openai"]["default_model"]
+    def test_a_partial_nested_block_adds_to_the_defaults(self):
+        base = {"providers": {"anthropic": {"x": 1}, "openai": {"x": 2}}}
+        merged = config._merge(base, {"providers": {"anthropic": {"x": 3}}})
+        assert merged == {"providers": {"anthropic": {"x": 3}, "openai": {"x": 2}}}
 
     def test_setting_a_key_with_no_file_on_disk_never_touches_the_module_default(self, temp_config_dir):
         import copy
@@ -305,3 +252,44 @@ class TestMergeAndIsolation:
 
         config.CONFIG_FILE.unlink()
         assert config.get_api_key("anthropic") is None
+
+
+class TestT088ConfigRound:
+    """T088 config 1, 2, 4: an empty ``api_keys:``, the file's mode, the name."""
+
+    def test_an_empty_api_keys_line_reads_as_no_keys(self, temp_config_dir):
+        config.ensure_config_dir()
+        config.CONFIG_FILE.write_text("api_keys:\n")
+        os.chmod(config.CONFIG_FILE, 0o600)
+        assert config.get_api_key("anthropic") is None
+        assert config.list_providers() == []
+        assert config.remove_api_key("anthropic") is False
+        config.set_api_key("anthropic", "sk-FAKE")
+        assert config.get_api_key("anthropic") == "sk-FAKE"
+
+    def test_a_non_mapping_file_is_refused_naming_it(self, temp_config_dir):
+        config.ensure_config_dir()
+        config.CONFIG_FILE.write_text("- a\n- b\n")
+        os.chmod(config.CONFIG_FILE, 0o600)
+        with pytest.raises(ValueError, match="config.yaml"):
+            config.load_config()
+
+    def test_the_key_file_is_written_0600_and_its_folder_0700(self, temp_config_dir):
+        import stat
+
+        config.set_api_key("anthropic", "sk-FAKE")
+        assert stat.S_IMODE(config.CONFIG_FILE.stat().st_mode) == 0o600
+        assert stat.S_IMODE(config.CONFIG_DIR.stat().st_mode) == 0o700
+
+    def test_a_world_readable_file_is_tightened_on_read_with_a_warning(self, temp_config_dir):
+        import stat
+
+        config.ensure_config_dir()
+        config.CONFIG_FILE.write_text("api_keys: {}\n")
+        os.chmod(config.CONFIG_FILE, 0o644)
+        with pytest.warns(UserWarning, match="tightened to 600"):
+            config.load_config()
+        assert stat.S_IMODE(config.CONFIG_FILE.stat().st_mode) == 0o600
+
+    def test_no_collectable_name_reaches_the_network(self):
+        assert not any(name.startswith("test") for name in vars(config))

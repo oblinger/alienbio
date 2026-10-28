@@ -42,6 +42,12 @@ def _parser() -> argparse.ArgumentParser:
     ``--out``", and ``-v`` after the verb was silently lost."""
     parser = argparse.ArgumentParser(prog="bio suite", description=__doc__, add_help=True,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    # ``-v`` is accepted between ``suite`` and its verb as well as after the
+    # verb: ``bio suite -v run x.yaml`` was an exit-2 "unrecognized
+    # arguments" (T088 cli 3). Its own dest, so the verb's ``-v`` default
+    # (False) cannot overwrite it.
+    parser.add_argument("-v", "--verbose", dest="verbose_suite", action="store_true",
+                        help="per-trial progress (also accepted after the verb)")
     verbs = parser.add_subparsers(dest="verb", metavar="run|resume|aggregate|report|models")
 
     def verbose(sub: argparse.ArgumentParser) -> None:
@@ -82,7 +88,7 @@ def suite_command(args: list[str], verbose: bool = False) -> int:
     if ns.verb is None:
         parser.print_usage(sys.stderr)
         return 2
-    verbose = verbose or bool(getattr(ns, "verbose", False))
+    verbose = verbose or bool(getattr(ns, "verbose", False)) or ns.verbose_suite
     try:
         if ns.verb == "run":
             return _run(ns.spec, ns.out, ns.dry, verbose)
@@ -149,8 +155,22 @@ def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> in
         if verbose:
             print(message)
 
-    run_experiment(spec, out_dir=out_dir, resume=False, progress=progress)
+    rmap = run_experiment(spec, out_dir=out_dir, resume=False, progress=progress)
+    _report_stop(rmap, trials_planned)
     return 0
+
+
+def _report_stop(rmap, trials_planned: int) -> None:
+    """One stderr line when the cost ceiling stopped the grid: a partial run
+    exited 0 with no output, indistinguishable from a finished one without
+    ``-v`` (T088 suite_cmd 2). The exit code stays 0 — the run did what its
+    spec told it to; ``manifest.json`` carries ``stopped_reason``."""
+    if rmap.provenance.stopped_early:
+        print(
+            f"bio suite: stopped early (cost_ceiling) after {len(rmap.records)} of "
+            f"{trials_planned} trials; see manifest.json stopped_reason",
+            file=sys.stderr,
+        )
 
 
 def _resume(out_dir: str, verbose: bool) -> int:
@@ -165,7 +185,8 @@ def _resume(out_dir: str, verbose: bool) -> int:
         if verbose:
             print(message)
 
-    run_experiment(spec, out_dir=out_dir, resume=True, progress=progress)
+    rmap = run_experiment(spec, out_dir=out_dir, resume=True, progress=progress)
+    _report_stop(rmap, int(manifest.get("trials_planned") or len(rmap.records)))
     return 0
 
 
@@ -202,7 +223,12 @@ def _models_cmd(verbose: bool) -> int:
     del verbose
     from ..suite.llm_agent import fetch_models_snapshot, write_models_snapshot
 
-    models = fetch_models_snapshot()
+    try:
+        models = fetch_models_snapshot()
+    except RuntimeError as exc:  # no key: a refusal, not a traceback (T088 suite_cmd 1)
+        raise ValueError(str(exc)) from exc
+    except Exception as exc:  # the provider's own error (auth, network)
+        raise ValueError(f"bio suite models: the provider call failed: {type(exc).__name__}: {exc}") from exc
     path = write_models_snapshot(models)
     for model_id, created in models.items():
         print(f"{model_id}  {created}")

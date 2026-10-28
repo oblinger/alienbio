@@ -103,9 +103,25 @@ def _decorator_ids(node: ast.FunctionDef) -> list[str]:
     return ids
 
 
+def _tests_root(tests_dir: Optional[Path]) -> Path:
+    """The folder the proving tests live in, refused when it is not there.
+
+    ``TESTS_DIR`` is the repository's ``tests/capabilities/`` only under an
+    editable install; from an installed wheel it does not exist, ``glob``
+    found nothing, and ``--check`` reported every built id as untested with
+    no word about the folder (T088 capabilities 1)."""
+    root = tests_dir or TESTS_DIR
+    if not root.is_dir():
+        raise FileNotFoundError(
+            f"no proving-test folder at {root} — the capability matrix reads the "
+            "source checkout's tests/capabilities/ (an installed package has none)"
+        )
+    return root
+
+
 def scan(tests_dir: Optional[Path] = None) -> dict[str, list[str]]:
     """``dimension id -> ["module::test", ...]`` from the decorated tests."""
-    root = tests_dir or TESTS_DIR
+    root = _tests_root(tests_dir)
     found: dict[str, list[str]] = {}
     for path in sorted(root.glob("test_*.py")):
         tree = ast.parse(path.read_text())
@@ -128,7 +144,7 @@ def phrases(tests_dir: Optional[Path] = None) -> dict[str, str]:
     """``"module::test" -> one-line phrase`` for every decorated test: the first
     paragraph of its docstring, collapsed. Empty when the test has none — the
     report shows the gap and :func:`check` refuses it on a built dimension."""
-    root = tests_dir or TESTS_DIR
+    root = _tests_root(tests_dir)
     out: dict[str, str] = {}
     for path in sorted(root.glob("test_*.py")):
         tree = ast.parse(path.read_text())

@@ -6,7 +6,7 @@ As of T056 (2026-09-10). The design-level view is [[ABIO Architecture]]; this pa
 
 ## Source Tree
 
-Top level — the public surface (`__init__.py`), the `bio` front door (`cli.py`, whose command list is `COMMANDS`), `config.py` (API keys and the default agent/model), `capabilities.py` (the 35 capability dimensions behind `bio test-matrix`) and `report.py` (`bio report`).
+Top level — the public surface (`__init__.py`), the `bio` front door (`cli.py`, whose command list is `COMMANDS`), `config.py` (API keys), `capabilities.py` (the 35 capability dimensions behind `bio test-matrix`) and `report.py` (`bio report`).
 
 ```
 src/alienbio/

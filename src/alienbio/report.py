@@ -172,17 +172,34 @@ class Report:
     runs: list[RunRow]
     golden_outcome: str = "not run"
     notes: list[str] = field(default_factory=list)
+    #: The folder ``report.md`` is written to; figure links are relative to it.
+    out_dir: Path = field(default_factory=lambda: REPO / "reports")
+
+    @property
+    def unproven(self) -> list[str]:
+        """Built / partial dimensions whose proving tests did not pass here:
+        ``not run`` (absent from the JUnit file), ``no test``, ``failed``, or
+        every proving test ``skipped``."""
+        return [
+            r.id
+            for r in self.capabilities
+            if r.status in ("built", "partial") and r.outcome != "passed"
+        ]
 
     @property
     def ok(self) -> bool:
         """The verdict, computed from what the page shows — never from the
         pytest exit code alone (T051 box 4: ``--junit`` hard-coded that exit
         to 0, and a broken example never reached it, so a page whose own
-        rows read ``3 failed`` / ``error: ExprError`` was titled ALL PASSED)."""
+        rows read ``3 failed`` / ``error: ExprError`` was titled ALL PASSED).
+        A page whose capability rows were not proven by a passing test is not
+        a pass either: a JUnit file without the proving tests read ALL PASSED
+        with every row ``not run`` (T088 report 1)."""
         return (
             self.pytest_exit == 0
             and self.totals.get("failed", 0) == 0
             and all(not r.error and r.failed == 0 for r in self.examples)
+            and not self.unproven
         )
 
 
@@ -234,9 +251,29 @@ def _readme_sentence(folder: Path) -> str:
     for line in readme.read_text().splitlines():
         line = line.strip()
         if line and not line.startswith("#"):
-            # the first sentence of the first paragraph
+            # the first line of the first paragraph (the README's lead line)
             return line.strip("*").replace("**", "")
     return ""
+
+
+def _example_spec(folder: Path) -> Optional[Path]:
+    """The spec ``bio report`` runs for an example: ``<folder name>.yaml``
+    when the folder has one, else its one ``*.yaml`` — never "the
+    alphabetically first", which picked ``agent_loop.yaml`` over
+    ``live.yaml`` by spelling alone (T088 report 5). A folder with several
+    specs and none named after it refuses."""
+    named = folder / f"{folder.name}.yaml"
+    if named.exists():
+        return named
+    specs = sorted(folder.glob("*.yaml"))
+    if not specs:
+        return None
+    if len(specs) > 1:
+        raise ValueError(
+            f"{folder.name}: {len(specs)} specs and none named {folder.name}.yaml; "
+            "name the one bio report runs after its folder"
+        )
+    return specs[0]
 
 
 def example_rows(outcomes: Mapping[tuple[str, str], Outcome], runner: Optional[Callable[[Path, Path], tuple[int, int, Optional[float]]]] = None) -> list[ExampleRow]:
@@ -244,14 +281,18 @@ def example_rows(outcomes: Mapping[tuple[str, str], Outcome], runner: Optional[C
     runner = runner or _run_example
     rows = []
     for folder in sorted(p for p in EXAMPLES.iterdir() if p.is_dir()):
-        specs = sorted(folder.glob("*.yaml"))
-        if not specs:
+        try:
+            spec = _example_spec(folder)
+        except ValueError as exc:
+            rows.append(ExampleRow(folder.name, _readme_sentence(folder), 0, 0, None, 0.0, "not run", error=str(exc)))
+            continue
+        if spec is None:
             continue
         test_outcome = _outcome_of_module(outcomes, f"test_{folder.name}_example")
         t0 = time.perf_counter()
         try:
             with tempfile.TemporaryDirectory() as tmp:
-                trials, failed, mean = runner(specs[0], Path(tmp) / "run")
+                trials, failed, mean = runner(spec, Path(tmp) / "run")
             rows.append(ExampleRow(folder.name, _readme_sentence(folder), trials, failed, mean, time.perf_counter() - t0, test_outcome))
         except Exception as exc:  # the report must land even when an example does not
             rows.append(ExampleRow(folder.name, _readme_sentence(folder), 0, 0, None, time.perf_counter() - t0, test_outcome, error=f"{type(exc).__name__}: {exc}"))
@@ -268,43 +309,63 @@ def _outcome_of_module(outcomes: Mapping[tuple[str, str], Outcome], module: str)
 
 
 def _run_example(spec: Path, out_dir: Path) -> tuple[int, int, Optional[float]]:
-    from .suite.experiment import load_spec, run_experiment
+    from .suite.experiment import estimate_cost, load_spec, run_experiment
 
-    rmap = run_experiment(load_spec(spec), out_dir=str(out_dir))
+    loaded = load_spec(spec)
+    # The report spends nothing: a spec with a live-model arm is an error row,
+    # not a paid run (T088 report 5).
+    if estimate_cost(loaded).llm_trials:
+        raise ValueError(f"{spec.name} has a live-model arm; bio report runs scripted specs only")
+    rmap = run_experiment(loaded, out_dir=str(out_dir))
     scores = [r.objective_score for r in rmap.records if r.terminal_reason != "error"]
     mean = sum(scores) / len(scores) if scores else None
     return len(rmap.records), rmap.provenance.failed_trials, mean
 
 
-def run_rows() -> list[RunRow]:
+def run_rows(notes: Optional[list[str]] = None) -> list[RunRow]:
+    """One row per ``runs/<name>/manifest.json``. A run whose manifest or
+    ``key.json`` will not read is skipped with a named line in ``notes``
+    (one corrupt file stopped the whole report after the full pytest run,
+    T088 report 2)."""
     rows = []
     if not RUNS.exists():
         return rows
     for folder in sorted(RUNS.iterdir()):
-        manifest = folder / "manifest.json"
-        if not manifest.exists():
+        try:
+            row = _run_row(folder)
+        except (OSError, ValueError, TypeError, KeyError) as exc:  # JSONDecodeError is a ValueError
+            if notes is not None:
+                notes.append(f"runs/{folder.name} skipped: {type(exc).__name__}: {exc}")
             continue
-        from .suite.store import manifest_model_label, read_manifest
-
-        m = read_manifest(manifest)
-        model = manifest_model_label(m)
-        # The spend is the manifest's own number (written at every landed
-        # unit), not a regex over report.txt — a run with no report yet, or
-        # a report format change, read as no spend at all.
-        spent = m.get("cost_usd_spent")
-        spend = float(spent) if isinstance(spent, (int, float)) and not isinstance(spent, bool) else None
-        figure, readout, caption = None, "", ""
-        if (folder / "key.png").exists():
-            figure = folder / "key.png"
-            if (folder / "key.json").exists():
-                meta = json.loads((folder / "key.json").read_text())
-                readout, caption = str(meta.get("readout", "")), str(meta.get("caption", ""))
-        rows.append(RunRow(folder.name, "live model" if model else "scripted", str(model or "—"), int(m.get("trials_completed", 0)), int(m.get("failed_trials", 0)), spend, str(m.get("started_at", ""))[:10], figure, readout, caption))
+        if row is not None:
+            rows.append(row)
     rows.sort(key=lambda r: (r.kind != "live model", r.name))
     return rows
 
 
-def build(outcomes: Mapping[tuple[str, str], Outcome], pytest_exit: int, *, run_examples: bool = True, example_runner=None, totals: Optional[dict[str, int]] = None) -> Report:
+def _run_row(folder: Path) -> Optional[RunRow]:
+    manifest = folder / "manifest.json"
+    if not manifest.exists():
+        return None
+    from .suite.store import manifest_model_label, read_manifest
+
+    m = read_manifest(manifest)
+    model = manifest_model_label(m)
+    # The spend is the manifest's own number (written at every landed
+    # unit), not a regex over report.txt — a run with no report yet, or
+    # a report format change, read as no spend at all.
+    spent = m.get("cost_usd_spent")
+    spend = float(spent) if isinstance(spent, (int, float)) and not isinstance(spent, bool) else None
+    figure, readout, caption = None, "", ""
+    if (folder / "key.png").exists():
+        figure = folder / "key.png"
+        if (folder / "key.json").exists():
+            meta = json.loads((folder / "key.json").read_text())
+            readout, caption = str(meta.get("readout", "")), str(meta.get("caption", ""))
+    return RunRow(folder.name, "live model" if model else "scripted", str(model or "—"), int(m.get("trials_completed", 0)), int(m.get("failed_trials", 0)), spend, str(m.get("started_at", ""))[:10], figure, readout, caption)
+
+
+def build(outcomes: Mapping[tuple[str, str], Outcome], pytest_exit: int, *, run_examples: bool = True, example_runner=None, totals: Optional[dict[str, int]] = None, out_dir: Optional[Path] = None) -> Report:
     if totals is None:
         totals = {"passed": 0, "failed": 0, "skipped": 0}
         for outcome in outcomes.values():
@@ -316,9 +377,11 @@ def build(outcomes: Mapping[tuple[str, str], Outcome], pytest_exit: int, *, run_
         capabilities=capability_rows(outcomes),
         suites=suite_rows(outcomes),
         examples=example_rows(outcomes, example_runner) if run_examples else [],
-        runs=run_rows(),
+        runs=[],
         golden_outcome=_outcome_of_module(outcomes, "test_golden_experiments"),
+        out_dir=out_dir if out_dir is not None else REPO / "reports",
     )
+    rep.runs = run_rows(rep.notes)
     if not run_examples:
         rep.notes.append("examples not run (--no-examples)")
     return rep
@@ -337,8 +400,10 @@ def render_markdown(rep: Report) -> str:
         verdict = f"FAILURES (pytest exit {rep.pytest_exit})"
     elif rep.totals.get("failed", 0):
         verdict = f"FAILURES ({rep.totals['failed']} failed)"
-    else:
+    elif not all(not e.error and e.failed == 0 for e in rep.examples):
         verdict = "FAILURES (an example did not run clean)"
+    else:
+        verdict = f"NOT PROVEN ({len(rep.unproven)} capability rows without a passing test)"
     L = [f"# ABIO test report — {verdict}", "",
          f"*{rep.generated_at} · {t['passed']} passed, {t['failed']} failed, {t['skipped']} skipped · `just test` is the gate; this page is what the gate tested.*", ""]
     L += ["## 1. Capability matrix — the 35 dimensions and the sentence each proving test carries", "",
@@ -377,7 +442,7 @@ def render_markdown(rep: Report) -> str:
         if figures:
             L += ["", "*Each run's key figure — the one readout the experiment exists for, drawn from its record store (`key.png` beside `report.txt`). Scripted controls give the instrument's zero: the shape a live arm is read against.*"]
             for r in figures:
-                L += ["", f"### `{r.name}` — {r.readout}", "", f"![{r.name} key figure]({_relative(cast(Path, r.figure))})", "", f"*{r.caption}*"]
+                L += ["", f"### `{r.name}` — {r.readout}", "", f"![{r.name} key figure]({_relative(cast(Path, r.figure), rep.out_dir)})", "", f"*{r.caption}*"]
     else:
         L.append("*(no run directories)*")
     if rep.notes:
@@ -408,7 +473,7 @@ def render_html(rep: Report) -> str:
             out.append("</table>"); in_table = False
         image = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", line.strip())
         if image:
-            out.append(f'<img alt="{html.escape(image.group(1))}" src="{_data_uri(REPO / "reports" / image.group(2))}">')
+            out.append(f'<img alt="{html.escape(image.group(1))}" src="{_data_uri(Path(os.path.normpath(rep.out_dir / image.group(2))))}">')
             continue
         if line.startswith("# "):
             out.append(f"<h1>{_inline(line[2:])}</h1>")
@@ -423,9 +488,11 @@ def render_html(rep: Report) -> str:
     return "\n".join(out) + "\n"
 
 
-def _relative(path: Path) -> str:
-    """``path`` relative to ``reports/`` (where the Markdown lives), POSIX-style."""
-    return os.path.relpath(path, REPO / "reports").replace(os.sep, "/")
+def _relative(path: Path, out_dir: Path) -> str:
+    """``path`` relative to ``out_dir`` (where the Markdown lives), POSIX-style
+    — it was always relative to ``reports/``, so ``--out`` elsewhere wrote
+    links that pointed nowhere (T088 report 3)."""
+    return os.path.relpath(path, out_dir).replace(os.sep, "/")
 
 
 def _data_uri(path: Path) -> str:
