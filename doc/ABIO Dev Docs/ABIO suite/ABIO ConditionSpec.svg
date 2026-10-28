@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-axis">
+    <rect id="n-axis-box" x="20" y="40" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-axis-name" x="140" y="66" font-size="18" font-weight="600" text-anchor="middle">DialAxis</text>
+    <text id="n-axis-kind" x="140" y="88" font-size="14" text-anchor="middle">(dataclass) levels, or</text>
+    <text id="n-axis-kind2" x="140" y="108" font-size="14" text-anchor="middle">lo / hi / bin_edges ‡</text>
+  </g>
+  <g id="n-pairs">
+    <rect id="n-pairs-box" x="20" y="240" width="240" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-pairs-name" x="140" y="266" font-size="17" font-weight="600" text-anchor="middle">NON_ORTHOGONAL_PAIRS</text>
+    <text id="n-pairs-kind" x="140" y="288" font-size="14" text-anchor="middle">(const) observability +</text>
+    <text id="n-pairs-kind2" x="140" y="308" font-size="14" text-anchor="middle">observation_noise</text>
+  </g>
+  <g id="n-spec">
+    <rect id="n-spec-box" x="340" y="140" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-spec-name" x="460" y="166" font-size="18" font-weight="600" text-anchor="middle">ConditionSpec</text>
+    <text id="n-spec-kind" x="460" y="188" font-size="14" text-anchor="middle">(dataclass) {dial: DialAxis}</text>
+    <text id="n-spec-kind2" x="460" y="208" font-size="14" text-anchor="middle">refuses both of a pair</text>
+  </g>
+  <line id="e-axis-spec" x1="260" y1="100" x2="340" y2="160" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-axis-spec" x="305" y="118" font-size="14" fill="#1971c2" font-style="italic">contains</text>
+  <line id="e-pairs-spec" x1="260" y1="270" x2="340" y2="210" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-pairs-spec" x="200" y="226" font-size="14" fill="#1971c2" font-style="italic">checked at init</text>
+
+  <g id="n-sample">
+    <rect id="n-sample-box" x="340" y="330" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sample-name" x="460" y="356" font-size="18" font-weight="600" text-anchor="middle">sample</text>
+    <text id="n-sample-kind" x="460" y="378" font-size="14" text-anchor="middle">(fn) one draw per axis</text>
+  </g>
+  <line id="e-spec-sample" x1="460" y1="220" x2="460" y2="330" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-spec-sample" x="470" y="280" font-size="14" fill="#1971c2" font-style="italic">axes</text>
+
+  <g id="n-seed">
+    <rect id="n-seed-box" x="660" y="40" width="240" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-seed-name" x="780" y="66" font-size="18" font-weight="600" text-anchor="middle">Seed.child(dial)</text>
+    <text id="n-seed-kind" x="780" y="88" font-size="14" text-anchor="middle">(dist) one stream per dial</text>
+  </g>
+  <g id="n-choice">
+    <rect id="n-choice-box" x="660" y="160" width="240" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-choice-name" x="780" y="184" font-size="17" font-weight="600" text-anchor="middle">Choice(levels)</text>
+    <text id="n-choice-kind" x="780" y="204" font-size="14" text-anchor="middle">(dist) discrete axis</text>
+  </g>
+  <g id="n-unif">
+    <rect id="n-unif-box" x="660" y="260" width="240" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-unif-name" x="780" y="284" font-size="17" font-weight="600" text-anchor="middle">Uniform(lo, hi)</text>
+    <text id="n-unif-kind" x="780" y="304" font-size="14" text-anchor="middle">(dist) continuous axis</text>
+  </g>
+  <g id="n-quant">
+    <rect id="n-quant-box" x="960" y="260" width="220" height="56" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-quant-name" x="1070" y="284" font-size="17" font-weight="600" text-anchor="middle">_quantize</text>
+    <text id="n-quant-kind" x="1070" y="304" font-size="14" text-anchor="middle">(fn) nearest edge ‡</text>
+  </g>
+  <line id="e-sample-seed" x1="560" y1="330" x2="700" y2="104" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-sample-choice" x1="580" y1="345" x2="660" y2="205" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-sample-unif" x1="580" y1="360" x2="660" y2="300" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-sample-unif" x="608" y="335" font-size="14" fill="#1971c2" font-style="italic">calls</text>
+  <line id="e-unif-quant" x1="900" y1="288" x2="960" y2="288" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-unif-quant" x="930" y="278" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">raw</text>
+
+  <g id="n-dials">
+    <rect id="n-dials-box" x="340" y="470" width="240" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dials-name" x="460" y="496" font-size="18" font-weight="600" text-anchor="middle">dials</text>
+    <text id="n-dials-kind" x="460" y="518" font-size="14" text-anchor="middle">(dict) named dials only</text>
+  </g>
+  <line id="e-sample-dials" x1="460" y1="394" x2="460" y2="470" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-apply">
+    <rect id="n-apply-box" x="660" y="440" width="240" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-apply-name" x="780" y="464" font-size="17" font-weight="600" text-anchor="middle">apply</text>
+    <text id="n-apply-kind" x="780" y="484" font-size="14" text-anchor="middle">(fn) overrides win</text>
+  </g>
+  <g id="n-key">
+    <rect id="n-key-box" x="660" y="530" width="240" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-key-name" x="780" y="554" font-size="17" font-weight="600" text-anchor="middle">condition_key_of</text>
+    <text id="n-key-kind" x="780" y="574" font-size="14" text-anchor="middle">(fn) trial.condition_key</text>
+  </g>
+  <line id="e-dials-apply" x1="580" y1="490" x2="660" y2="470" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-dials-key" x1="580" y1="515" x2="660" y2="555" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-run">
+    <rect id="n-run-box" x="960" y="440" width="220" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-run-name" x="1070" y="466" font-size="17" font-weight="600" text-anchor="middle">runner.run</text>
+    <text id="n-run-kind" x="1070" y="488" font-size="14" text-anchor="middle">MassTrialRunner: the</text>
+    <text id="n-run-kind2" x="1070" y="508" font-size="14" text-anchor="middle">dials shape; no caller</text>
+  </g>
+  <line id="e-apply-run" x1="900" y1="468" x2="960" y2="474" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">calls, contains</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ edges are points: nearest wins, tie to the first listed, any value accepted</text>
+  </g>
+</svg>
