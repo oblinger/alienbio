@@ -30,8 +30,9 @@ The mechanism:
   license.
 
 This module is the registry side (parse + validate + resolve); the guard
-integration lives in :mod:`~alienbio.suite.experiment`
-(``registration_admission`` / ``no_peeking_violation``).
+integration lives in :mod:`~alienbio.suite.guards`
+(``registration_admission`` / ``no_peeking_violation``, re-exported by
+:mod:`~alienbio.suite.experiment`).
 """
 
 from __future__ import annotations

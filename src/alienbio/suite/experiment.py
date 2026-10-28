@@ -281,8 +281,14 @@ def run_experiment(
     ``cost_usd_spent``/``usage_totals`` (written at the end).
 
     Raises:
-        ValueError: ``spec`` pairs agent ``"llm"`` with a non-neutral drafter
-            (the no-peeking rule) — checked before anything is drafted.
+        ValueError: any :func:`~alienbio.suite.guards.preflight` check
+            refuses (the first, in :data:`~alienbio.suite.guards.PREFLIGHT_CHECKS`
+            order): the registration claim, the no-peeking rule, unknown or
+            misplaced dials, the declared surface, the sampling regime, the
+            W2 chain lag, the brief-side and agent dials, an unpriced model
+            level, a condition whose world or brief refuses to draft, or a
+            resume against an unreadable or drifted manifest — all before
+            anything is drafted for the run or spent.
         FileExistsError: ``out_dir`` already holds ``records.jsonl`` and
             ``resume`` is ``False`` (never silently overwrite a paid run).
     """

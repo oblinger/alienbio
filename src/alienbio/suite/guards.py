@@ -1,4 +1,4 @@
-"""Every refusal a run makes before spend — the five guards, the dial check and ``preflight`` (T058; split out of ``experiment.py``)."""
+"""Every refusal a run makes before spend — ``preflight`` and its sixteen ordered checks (:data:`PREFLIGHT_CHECKS`), one ``*_violation`` function per check (T058; split out of ``experiment.py``)."""
 
 from __future__ import annotations
 
@@ -402,9 +402,10 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     per seed, so one fixed level is legal on some seeds and not others),
     ``certainty_windows`` not dividing ``sim_steps``, a W2 depth whose chain
     lag exceeds the bound, a declared readout that names no molecule. One
-    draft per condition at the base seed catches the config-shaped ones
-    before spend; a per-seed refusal still surfaces on the run, since
-    drafting every seed is the run.
+    draft per condition, at the seed that condition's FIRST trial will use
+    (:func:`_condition_units`), catches the config-shaped ones before spend;
+    a refusal only a later trial's seed hits still surfaces on the run,
+    since drafting every seed is the run.
 
     Each drafted condition's brief is then built by the real
     :func:`~alienbio.suite.brief.build_brief`, as the run builds it before
@@ -753,11 +754,22 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     all-ok and refused on the run — and the per-model price check and the
     resume-drift check (box 4) had been added to one side only.
 
-    Order: the registration claim, the no-peeking rule, unknown dials, the
-    declared surface, the sampling regime, the W2 chain lag, a price for every model level in
-    play (the estimate), resume drift against the manifest, and ``out_dir``
-    (records present without ``resume``). ``out_dir`` is resolved exactly as
-    the run resolves it and nothing here creates it.
+    Order (:data:`PREFLIGHT_CHECKS`): ``registration`` (the claim
+    resolves), ``no-peeking`` (a live model on a guarded drafter, variant or
+    dial, unlicensed), ``dials`` (a name nothing reads; a factory dial in
+    ``fixed_dials``), ``episode-dials`` (a clock dial in ``drafter_kwargs``),
+    ``surface`` (a guarded drafter's ``levers`` undeclared or not a list),
+    ``sampling`` (a live arm with no ``temperature``), ``w2-lag`` (the W2
+    chain lag bound), ``brief-dials`` (the in-world monitor arm),
+    ``certainty-windows`` (slices that cannot cut the turn),
+    ``score-window`` (a held window longer than the episode), ``inert-arm``
+    (a ``compact_at`` that never fires), ``agent`` (each condition's agent
+    config), ``price`` (a price for every model level in play; the
+    estimate), ``draft`` (each condition's world and brief; skipped once
+    anything above refused), ``resume`` (an unreadable or spec-less manifest,
+    or drift against it; skipped off a resume), and ``out_dir`` (records
+    present without ``resume``). ``out_dir`` is resolved exactly as the run
+    resolves it and nothing here creates it.
     """
     resolved_out = Path(out_dir or spec.out_dir or f"runs/{spec.name}")
     records_path = resolved_out / "records.jsonl"
