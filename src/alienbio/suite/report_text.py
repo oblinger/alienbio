@@ -18,6 +18,7 @@ from .faking import monitoring_divergence, monitoring_summary
 from .census import census_summary, outcome_distribution
 from .power import bonferroni_alpha
 from .mass_trial import ReliabilityMap
+from .store import manifest_model_label
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -34,7 +35,7 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     lines: list[str] = []
     lines.append(f"Experiment: {manifest.get('name')}")
     lines.append(f"Commit: {manifest.get('git_commit')} (dirty={manifest.get('git_dirty')})")
-    lines.append(f"Model: {manifest.get('model')}")
+    lines.append(f"Model: {manifest_model_label(manifest)}")
     lines.append(f"Started: {manifest.get('started_at')}   Finished: {manifest.get('finished_at')}")
     lines.append(
         f"Trials planned: {manifest.get('trials_planned')}   "

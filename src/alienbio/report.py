@@ -285,7 +285,9 @@ def run_rows() -> list[RunRow]:
         if not manifest.exists():
             continue
         m = json.loads(manifest.read_text())
-        model = m.get("model")
+        from .suite.store import manifest_model_label
+
+        model = manifest_model_label(m)
         spend = None
         report = folder / "report.txt"
         if report.exists():

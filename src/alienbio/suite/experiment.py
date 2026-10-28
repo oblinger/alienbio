@@ -262,7 +262,7 @@ def run_experiment(
 ) -> ReliabilityMap:
     """Run (or resume) ``spec`` into ``out_dir``, persisting as it goes.
 
-    Writes ``manifest.json`` once at the start (updated at the end),
+    Writes ``manifest.json`` at the start (updated if the grid raises and at the end),
     ``records.jsonl`` incrementally (one line per fresh trial), and, on
     completion, ``map.json``/``map.csv``/``report.txt``.
 

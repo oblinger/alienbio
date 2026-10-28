@@ -8,6 +8,9 @@ resume appended retried lines before replacing ``records.jsonl``, so a crash
 between the two duplicated them on the next resume.
 C — a resumed run that crashed left ``trials_completed: 0`` beside a store
 full of landed lines.
+D — under a ``model`` axis the manifest's ``model`` is null and the levels
+ride ``models``; ``render_report`` printed ``Model: None`` and ``bio report``
+listed the paid sweep as ``scripted``.
 """
 
 from __future__ import annotations
@@ -203,3 +206,34 @@ def test_a_resume_starts_its_manifest_from_the_kept_lines(tmp_path, monkeypatch)
     run_experiment(_spec("startcount", trials_per_condition=2), out_dir=str(out), resume=True)
     assert written[0]["trials_completed"] == 2 and written[0]["finished_at"] is None
     assert written[-1]["trials_completed"] == 4
+
+
+# ── D. readers under a model axis ───────────────────────────────────────────
+
+
+def test_readers_name_the_model_axis_levels(tmp_path, monkeypatch):
+    import alienbio.report as report_mod
+    from alienbio.suite.report_text import render_report
+
+    runs = tmp_path / "runs"
+    out = runs / "sweep"
+    rmap = run_experiment(_spec("sweep"), out_dir=str(out))
+    manifest = json.loads((out / "manifest.json").read_text())
+    manifest.update(model=None, models=["claude-sonnet-5", "claude-opus-5"])
+    (out / "manifest.json").write_text(json.dumps(manifest))
+
+    text = render_report(rmap, manifest)
+    assert "Model: claude-sonnet-5, claude-opus-5" in text
+    assert "Model: None" not in text
+
+    monkeypatch.setattr(report_mod, "RUNS", runs)
+    (row,) = report_mod.run_rows()
+    assert row.kind == "live model"
+    assert row.model == "claude-sonnet-5, claude-opus-5"
+
+
+def test_readers_keep_a_single_model_and_a_scripted_run():
+    from alienbio.suite.store import manifest_model_label
+
+    assert manifest_model_label({"model": "claude-sonnet-5"}) == "claude-sonnet-5"
+    assert manifest_model_label({"model": None}) is None

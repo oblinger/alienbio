@@ -1,4 +1,4 @@
-"""The record store — record/brief JSON codecs, the manifest, resume drift (T058; split out of ``experiment.py``)."""
+"""The record store — record/brief JSON codecs, the manifest and its atomic writers (T058; split out of ``experiment.py``; resume drift lives in ``guards.py``)."""
 
 from __future__ import annotations
 
@@ -463,6 +463,22 @@ def _model_axis_levels(spec: ExperimentSpec) -> list[str]:
     return []
 
 
+def manifest_model_label(manifest: Mapping[str, Any]) -> Optional[str]:
+    """What a manifest says ran: its one ``model``, else the ``models`` levels
+    of a ``model`` axis joined with ``", "``, else ``None`` (no live model).
+
+    The one reading of the pair ``_build_manifest`` writes from
+    :func:`_single_model` / :func:`_model_axis_levels`; ``render_report`` and
+    ``bio report``'s run table both go through it, so a paid sweep never
+    reads ``Model: None`` or ``scripted``.
+    """
+    model = manifest.get("model")
+    if model:
+        return str(model)
+    levels = manifest.get("models") or []
+    return ", ".join(str(level) for level in levels) if levels else None
+
+
 def _axis_levels(spec: ExperimentSpec, axis: str) -> list[Any]:
     """``axis``'s levels as declared — empty when it is not swept."""
     for name, levels in spec.axes:
@@ -486,6 +502,7 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
     spec_dict = spec_to_dict(spec)
     spec_sha256 = hashlib.sha256(_canonical_json(spec_dict).encode("utf-8")).hexdigest()
     git_commit, git_dirty = _git_info(_REPO_ROOT)
+    # DEFAULT_DIRECTIVE, not the directive in force: equal today (agents.py never passes another); latent if one becomes a dial.
     directive_sha256 = hashlib.sha256(DEFAULT_DIRECTIVE.encode("utf-8")).hexdigest()
     from .guards import registration_admission  # guards imports this module; resolve late
 
