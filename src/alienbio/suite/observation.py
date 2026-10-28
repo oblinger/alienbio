@@ -12,7 +12,8 @@ is the pure pipeline turning ground truth into what the agent actually observes:
 - :func:`choose_hidden` deterministically picks which ids an agent cannot see.
 - :func:`project_observation` drops the hidden ids (partial observability).
 - :func:`add_measurement_noise` multiplies surviving values by seeded relative
-  Gaussian instrument noise (measurement error).
+  Gaussian instrument noise (measurement error), clamped at zero — mean-one
+  only while the clamp rarely bites (``rel_sigma`` well below 0.5).
 - :func:`narrow_observation` (F021) composes all three into the one
   dial-driven entry point ``suite.runner.run`` calls every turn: ground truth
   in, agent-visible :data:`Observation` out.
@@ -107,9 +108,15 @@ def add_measurement_noise(
     """Multiply each observed value by seeded relative Gaussian instrument noise.
 
     Each value ``v`` becomes ``v * max(0.0, 1 + rng.normal(0, rel_sigma))`` —
-    zero-mean relative noise, clamped so a value never goes negative from noise
-    alone. ``rel_sigma == 0.0`` is the identity (the draw is always exactly
-    ``0.0``). Deterministic in ``(obs, rel_sigma, seed)``.
+    relative Gaussian noise clamped so a value never goes negative from noise
+    alone. The draw is zero-mean before the clamp; the clamp cuts the left
+    tail, so the read is biased UP once ``rel_sigma`` reaches it (T088
+    observation 1, 20 000 draws on 1.0: mean 1.000 at 0.1, 1.0052 at 0.5,
+    1.083 at 1.0, with 2.1 % / 15.7 % of reads exactly 0 at 0.5 / 1.0).
+    Kept as drawn: ``observation_noise`` is a dial AUP's registrations
+    license, and its records were taken on this draw. ``rel_sigma == 0.0`` is
+    the identity (the draw is always exactly ``0.0``). Deterministic in
+    ``(obs, rel_sigma, seed)``.
 
     Raises:
         ValueError: if ``rel_sigma`` is negative.

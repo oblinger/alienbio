@@ -4,8 +4,15 @@ This module carries NO domain logic: every piece of domain meaning is an
 opaque :data:`Tags` mapping (``dict[str, str | float | bool]``) that this code never
 inspects or branches on.
 
-All value types are ``@dataclass(frozen=True)`` — collections are stored as
-tuples or immutable mappings, and nothing mutates after construction.
+All value types are ``@dataclass(frozen=True)``: a field cannot be
+reassigned. Frozen is shallow (T088 types 1): a :data:`Tags` / ``Mapping`` /
+``Any`` field holds the caller's object as given — ``GraderSpec("x").config``
+is the caller's dict, a list-valued :class:`Answer` holds the list — so it is
+not copied, can be mutated through, and makes the instance unhashable
+(``hash`` raises ``TypeError`` on ``GraderSpec``, ``Motif``, ``CarveResult``
+and a list-valued ``Answer``). Nothing in the suite hashes them or mutates a
+held collection; deep-freezing is not done because the payloads are compared
+by ``==`` (the render round trip) and serialized as plain JSON.
 
 Layers:
 - L0: primitive aliases (:data:`NodeId`, :data:`Tags`).

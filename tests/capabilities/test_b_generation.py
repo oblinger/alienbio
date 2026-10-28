@@ -143,7 +143,7 @@ def test_b9_the_delta_pair_shares_one_seed_and_differs_on_the_rewired_edge(harne
 
 @capability("B10")
 def test_b10_environmental_pressure_is_injectable_graded_and_removable():
-    """An environmental drain is injectable at a graded intensity, and the world recovers when it is removed."""
+    """A named pressure rescales every sampled state by a graded readout overlay that decays after removal; the dynamics are untouched and no run path applies one."""
     world = evaluate(X.identify_pathway(pathway_length=3), Env.standard(seed=2)).world
     cfg = SimConfig(dt=0.1, steps=40, sample_every=10)
     base = simulate(world, cfg)

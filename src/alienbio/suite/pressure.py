@@ -23,6 +23,17 @@ Design (all domain-neutral — pressures carry no biology semantics):
   returns toward the unperturbed trajectory regardless of the base world's own
   stability — recovery is a property of the dial, not of the world.
 
+**What it is not** (T088 EnvironmentalPressure 1–2). No reaction, flow or
+population law sees the pressure: the world integrates unchanged and
+:func:`~alienbio.suite.verify.simulate` multiplies each sampled state's whole
+array by one factor, so ratios between pools never move and "recovery" after
+``remove_at`` is the overlay decaying, not the world returning. Nothing on a
+run path builds one either — no dial, drafter, runner or Expr head
+constructs an :class:`EnvironmentalPressure`; only tests pass ``pressure=``.
+Capability B10 is proven on this readout overlay. The name is unrelated to
+the W1 ``pressure`` world (:mod:`alienbio.suite.pressure_gen`) and the
+``pressure`` drafter.
+
 Named pressures are opaque coefficients (the sign/magnitude of the per-step
 log-multiplier); named intensity / persistence levels are opaque ordinals.
 Unknown names or out-of-range levels RAISE — there is no silent fallback.
