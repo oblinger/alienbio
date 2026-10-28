@@ -139,6 +139,15 @@ class ExperimentSpec:
         def put(name: str, value: Any) -> None:
             object.__setattr__(self, name, value)
 
+        # T088 leftovers — the run's shape and the agent-side fields, refused
+        # here rather than inside a trial: ``trials_per_condition: 0`` used to
+        # plan an empty grid, a bool or float slipped into every seed label.
+        put("trials_per_condition", _validate_positive_int("trials_per_condition", self.trials_per_condition))
+        if isinstance(self.base_seed, bool) or not isinstance(self.base_seed, int):
+            raise ValueError(f"experiment spec: base_seed must be an int, got {self.base_seed!r}")
+        if self.token_ceiling is not None:
+            _validate_positive_int("token_ceiling", self.token_ceiling)
+        _validate_agent_fields(self)
         if self.model is not None:
             require_pinned_model(self.model)
         # M46.8: an ``agent`` / ``model`` axis is validated like the scalar fields.
@@ -177,6 +186,26 @@ class ExperimentSpec:
             _validate_unit_float("expected_cache_hit_rate", self.expected_cache_hit_rate) or 0.0,
         )
         put("registration", _validate_registration_id(self.registration))
+
+
+def _validate_agent_fields(spec: "ExperimentSpec") -> None:
+    """Each agent-side field's own shape: ``memory`` is ``'none'``,
+    ``'full'`` or a non-negative int (:class:`~alienbio.suite.llm_agent.LLMAgent`'s
+    own validator); each forgetting field is a positive int or unset. The
+    cross-field rules (``compact_budget`` needs ``compact_at``; one trigger per
+    arm; a trigger needs turn memory) stay with the pre-flight ``agent``
+    check, which reads each condition's dials, because a swept axis may
+    supply the partner field."""
+    from .llm_agent import validate_agent_config
+
+    try:
+        validate_agent_config(memory=spec.memory)
+    except ValueError as exc:
+        raise ValueError(f"experiment spec: {str(exc).removeprefix('LLMAgent: ')}") from exc
+    for name in ("compact_at", "compact_budget", "history_token_limit"):
+        value = getattr(spec, name)
+        if value is not None:
+            _validate_positive_int(name, value)
 
 
 def _with_idle_arm(
