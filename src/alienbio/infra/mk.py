@@ -20,8 +20,13 @@ maker asks the current environment how to anchor:
 - otherwise — mint a ``MockDat(f"{prefix}/{local_name}")``.
 
 The same ``mk.M("A")`` call therefore works unchanged in a bare test (MockDat)
-and under a real catalog root (production). An explicit ``dat=`` / ``parent=``
-always wins over the ambient environment.
+and under a real dat root. An explicit ``dat=`` / ``parent=`` always wins over
+the ambient environment; passing both builds what the ``Entity`` constructor
+builds from both, a sub-root child of ``parent`` anchored to ``dat``.
+
+``mk.anchor`` has no caller in ``src/`` (only ``tests/unit/test_mk.py``), and
+its stack is per pegboard, not per thread or context: a worker thread building
+under another thread's ``mk.anchor`` anchors to it.
 """
 
 from __future__ import annotations
@@ -55,12 +60,18 @@ class Pegboard:
         """Register a maker under ``key`` (e.g. ``"M"``) with an anchor ``prefix``.
 
         Idempotent for an identical re-registration (module re-import); a
-        conflicting re-registration under the same key is an error.
+        re-registration under the same key with a different ``build`` or a
+        different ``prefix`` is an error.
         """
         existing = self._registry.get(key)
         if existing is not None and existing.build is not build:
             raise ValueError(
                 f"maker key {key!r} already registered to {existing.build!r}"
+            )
+        if existing is not None and existing.prefix != prefix:
+            raise ValueError(
+                f"maker key {key!r} already registered with prefix "
+                f"{existing.prefix!r}, not {prefix!r}"
             )
         self._registry[key] = _Registration(key, prefix, build)
 
@@ -107,7 +118,9 @@ class Pegboard:
             parent: Entity | None = None,
             **kwargs: Any,
         ) -> Entity:
-            if dat is not None:
+            if dat is not None and parent is not None:
+                anchor = {"dat": dat, "parent": parent}
+            elif dat is not None:
                 anchor = {"dat": dat}
             elif parent is not None:
                 anchor = {"parent": parent}

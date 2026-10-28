@@ -10,10 +10,16 @@ algorithm never inspects domain objects.
 
 The bipartite model: species nodes and reaction nodes live in one id namespace;
 a reaction is adjacent to every species it touches (reactants, products, or
-modifiers, unioned into :attr:`GraphView.incidence`). Ordering of
-:attr:`GraphView.species_ids` / :attr:`GraphView.reaction_ids` is preserved
-(source dict order) so that :func:`match` and :func:`paths` produce identical,
-deterministic result sequences regardless of caller.
+modifiers, unioned into :attr:`GraphView.incidence`); a view whose two
+namespaces share an id refuses at construction. :func:`match` enumerates in
+source order (:attr:`GraphView.species_ids` / :attr:`GraphView.reaction_ids`,
+dict order at the caller); :func:`paths` visits neighbours sorted by id. Both
+are deterministic regardless of caller.
+
+The view is undirected, so :func:`paths` reports connection, not
+producibility. Only :func:`neighbors` has a caller in ``src/`` (validity,
+augment, carve); :func:`paths`, :func:`subgraph` and :func:`match` are reached
+through ``ChemistryImpl`` by tests only.
 """
 
 from __future__ import annotations
@@ -30,7 +36,7 @@ class GraphView:
 
     - ``species_ids`` / ``reaction_ids`` — the two node namespaces, in source
       order (dict-insertion order at the caller). Order is load-bearing:
-      :func:`match` and :func:`paths` enumerate in this order.
+      :func:`match` enumerates in this order (:func:`paths` sorts by id).
     - ``incidence`` — ``reaction_id -> frozenset`` of every species id the
       reaction touches (reactants ∪ products ∪ modifiers).
     - ``species_key`` — ``species_id -> opaque comparable`` used only by
@@ -49,6 +55,15 @@ class GraphView:
     _reaction_set: frozenset[NodeId] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        shared = set(self.species_ids) & set(self.reaction_ids)
+        if shared:
+            # One id in both namespaces makes a self-adjacent "edge" of one
+            # node, which `match` cannot take apart; ChemistryImpl refuses the
+            # same overlap, so the view now refuses it on its own.
+            raise ValueError(
+                f"GraphView: id(s) {sorted(shared)!r} name both a species and a "
+                "reaction; the two namespaces must be disjoint"
+            )
         object.__setattr__(self, "_species_set", frozenset(self.species_ids))
         object.__setattr__(self, "_reaction_set", frozenset(self.reaction_ids))
 
