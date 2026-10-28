@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import platform
 import subprocess
 from dataclasses import asdict
@@ -396,6 +397,62 @@ def _canonical_json(payload: Any) -> str:
     return json.dumps(
         _encode_nonfinite(payload), sort_keys=True, separators=(",", ":"), default=repr, allow_nan=False
     )
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write ``text`` to ``path`` through a temp file in the same directory and
+    ``os.replace``: a reader sees the old file or the new one, never a torn one."""
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        with tmp.open("w") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def _write_manifest(path: Path, manifest: Mapping[str, Any]) -> None:
+    """``manifest.json`` written atomically (temp file + ``os.replace``).
+
+    A crash mid-dump used to leave a torn manifest that ``preflight`` refuses
+    to resume from and ``aggregate`` cannot parse — with the spec, the only
+    copy of what the records were drawn under, lost. Now the old manifest
+    stands until the new one is whole.
+    """
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        with tmp.open("w") as f:
+            json.dump(manifest, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def _append_retried(path: Path, lines: list[str]) -> None:
+    """Append retried error lines to ``records.retried.jsonl``, skipping any
+    line already there byte for byte.
+
+    A resume appends here BEFORE it rewrites ``records.jsonl``, so a crash
+    between the two loses no evidence; the next resume reads the same error
+    lines again and this skip keeps them from landing twice. A trial that
+    fails again on a later press writes a different line (its own usage,
+    wall time and error), so a genuine second failure is still kept.
+    """
+    seen: set[str] = set()
+    if path.exists():
+        seen = {line.strip() for line in path.read_text().splitlines() if line.strip()}
+    fresh = [line for line in lines if line not in seen]
+    if not fresh:
+        return
+    with path.open("a") as f:
+        for line in fresh:
+            f.write(line + "\n")
 
 
 def _model_axis_levels(spec: ExperimentSpec) -> list[str]:

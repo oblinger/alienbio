@@ -3,6 +3,9 @@ robustness defects, each pinned red-then-green.
 
 A — a non-finite float anywhere on a record line wrote a bare ``NaN`` /
 ``Infinity`` token that strict JSON readers refuse.
+B — ``manifest.json`` was written in place, so a crash mid-dump tore it; a
+resume appended retried lines before replacing ``records.jsonl``, so a crash
+between the two duplicated them on the next resume.
 """
 
 from __future__ import annotations
@@ -86,3 +89,70 @@ def test_run_store_lines_are_strict_json(tmp_path):
     run_experiment(_spec("strict"), out_dir=str(out))
     for line in (out / "records.jsonl").read_text().splitlines():
         _strict_loads(line)
+
+
+# ── B. atomic manifest, ordered retries ─────────────────────────────────────
+
+
+def _flaky_forced(monkeypatch, fail: dict):
+    import alienbio.suite.mass_trial as mass_trial_mod
+
+    original = mass_trial_mod.run_trial
+
+    def flaky(world, task, agent, dials, seed, **kwargs):
+        if fail["on"] and dials.get("rung") == "forced":
+            raise RuntimeError("credit balance is too low")
+        return original(world, task, agent, dials, seed, **kwargs)
+
+    monkeypatch.setattr(mass_trial_mod, "run_trial", flaky)
+
+
+def test_a_crash_between_the_retry_writes_duplicates_nothing(tmp_path, monkeypatch):
+    import alienbio.suite.experiment as experiment_mod
+
+    fail = {"on": True}
+    _flaky_forced(monkeypatch, fail)
+    out = tmp_path / "run"
+    spec = _spec("crashretry", trials_per_condition=2)
+    run_experiment(spec, out_dir=str(out))
+    fail["on"] = False
+
+    def crash(path, text):
+        raise KeyboardInterrupt("killed between the two writes")
+
+    monkeypatch.setattr(experiment_mod, "_atomic_write_text", crash)
+    with pytest.raises(KeyboardInterrupt):
+        run_experiment(spec, out_dir=str(out), resume=True)
+    monkeypatch.undo()  # the store writes again; the trial is no longer flaky
+
+    run_experiment(spec, out_dir=str(out), resume=True)
+    retried = (out / "records.retried.jsonl").read_text().strip().splitlines()
+    assert len(retried) == 2  # each error line kept once — none lost, none doubled
+    assert len({(json.loads(l)["label"], json.loads(l)["index"]) for l in retried}) == 2
+    lines = [json.loads(l) for l in (out / "records.jsonl").read_text().strip().splitlines()]
+    assert len(lines) == 4 and not any(d["error"] for d in lines)
+
+
+def test_a_torn_manifest_dump_leaves_the_old_manifest_intact(tmp_path, monkeypatch):
+    import alienbio.suite.store as store_mod
+
+    out = tmp_path / "run"
+    spec = _spec("torn", trials_per_condition=1)
+    run_experiment(spec, out_dir=str(out))
+    manifest_path = out / "manifest.json"
+    before = manifest_path.read_text()
+
+    real_dump = json.dump
+
+    def torn_dump(obj, fp, **kwargs):
+        fp.write(json.dumps(obj, **kwargs)[:40])  # half a manifest
+        raise OSError("disk full")
+
+    monkeypatch.setattr(store_mod.json, "dump", torn_dump)
+    with pytest.raises(OSError):
+        run_experiment(_spec("torn", trials_per_condition=2), out_dir=str(out), resume=True)
+    monkeypatch.setattr(store_mod.json, "dump", real_dump)
+
+    assert manifest_path.read_text() == before
+    json.loads(manifest_path.read_text())
+    assert not (out / "manifest.json.tmp").exists()

@@ -214,6 +214,8 @@ from .agents import (  # noqa: F401
     _survey_commit_agent_factory,
 )
 from .store import (  # noqa: F401
+    _append_retried,
+    _atomic_write_text,
     _brief_from_json,
     _brief_to_json,
     _build_manifest,
@@ -224,6 +226,7 @@ from .store import (  # noqa: F401
     _json_safe,
     _trials_planned,
     _utc_now_iso,
+    _write_manifest,
     record_from_json,
     record_to_json,
 )
@@ -352,12 +355,12 @@ def run_experiment(
                 clean_lines.append(line)
                 existing_by_key[(d["label"], d["index"])] = record
         if retried_lines:
-            with (resolved_out / "records.retried.jsonl").open("a") as f:
-                for line in retried_lines:
-                    f.write(line + "\n")
-            rewritten = records_path.with_name("records.jsonl.tmp")
-            rewritten.write_text("".join(line + "\n" for line in clean_lines))
-            rewritten.replace(records_path)
+            # Evidence first, then the store: a crash between the two leaves
+            # the error lines in records.jsonl, the next resume reads them
+            # again, and `_append_retried` skips the copies already kept — no
+            # duplicate, and no retried line lost (T084, ABIO Store).
+            _append_retried(resolved_out / "records.retried.jsonl", retried_lines)
+            _atomic_write_text(records_path, "".join(line + "\n" for line in clean_lines))
             if progress is not None:
                 progress(
                     f"resume: retrying {len(retried_lines)} error record(s) "
@@ -380,7 +383,7 @@ def run_experiment(
 
     trials_planned = _trials_planned(spec)
     manifest = _build_manifest(spec, trials_planned, started_at)
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    _write_manifest(manifest_path, manifest)
 
     def drafter(seed: Seed, dials: Mapping[str, Any]) -> tuple[WorldImpl, TaskInstance]:
         merged = {**spec.fixed_dials, **dials}
@@ -480,7 +483,7 @@ def run_experiment(
     manifest["cost_ceiling_usd"] = spec.cost_ceiling_usd
     manifest["stopped_reason"] = "cost_ceiling" if rmap.provenance.stopped_early else None
     manifest["usage_totals"] = usage_totals
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    _write_manifest(manifest_path, manifest)
 
     (resolved_out / "report.txt").write_text(render_report(rmap, manifest))
     from .plots import write_key_figure
