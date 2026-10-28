@@ -1,7 +1,7 @@
 ---
 description: "`ReactionImpl` and `Modulation`: one reaction's stoichiometry, its non-consumed modifiers, its numeric rate and its optional compiled rate law. Source: `src/alienbio/bio/reaction.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO ReactionImpl](ha://p/ABIO%20ReactionImpl) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO ReactionImpl](ha://p/ABIO%20ReactionImpl) 
 # ABIO ReactionImpl
 One reaction of a chemistry: reactant and product molecules with their coefficients, non-consumed modifiers each carrying a `Modulation`, a numeric rate constant, and optionally a compiled `rate_expr` tree that replaces it.
 
@@ -36,7 +36,7 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
     Initialize the `Entity` (`ValueError` without a `parent` or `dat`, or with a space in `name`), then store a shallow copy of each molecule dict (an absent one is `{}`) and `rate` as given. `rate_law` passes through `rate_expr.from_json`: a nested-list tree becomes tuples, a tuple tree passes through unchecked, and anything else — including rate-grammar text such as `"k * A"` — raises `ValueError`; the text form must be compiled first ([[#The numeric rate and the rate law]]). Nothing checks `rate`'s type, the coefficients, or that the tree's species are molecules of this reaction. ^reactionimpl
 
 **hydrate**`(data: dict[str, Any], *, molecules: dict[str, MoleculeImpl], dat: Optional[DatLike] = None, parent: Optional[Entity] = None, local_name: Optional[str] = None) -> Self` (classmethod)
-    Build from a dict, resolving every molecule name through `molecules`; an unknown reactant, product or modifier raises `KeyError` naming the reaction and the molecule. `reactants`/`products` are lists whose entries are a bare name (coefficient 1) or a `{name: coef}` dict; `modifiers` is a `{name: role}` dict or a list of names (role `""`) and single-entry dicts, and a role that is itself a dict becomes `Modulation(**role)` (an unknown key raises `TypeError`). `rate` defaults to `1.0`, `rate_law` is passed to the constructor, the name is `local_name`, else `data["name"]`, else `"reaction"`, and with neither `dat` nor `parent` it mints `MockDat("rxn/<name>")`. It is not the inverse of `attributes`: see [[#Serialization]]. ^hydrate
+    Build from a dict, resolving every molecule name through `molecules`; an unknown reactant, product or modifier raises `KeyError` naming the reaction and the molecule. `reactants`/`products` are a `{name: coef}` mapping (what `attributes` writes) or a list whose entries are a bare name (coefficient 1) or a `{name: coef}` dict; `modifiers` is a `{name: role}` dict or a list of names (role `""`) and `{name: role}` dicts, every key kept; any other entry type is `TypeError`; and a role that is itself a dict becomes `Modulation(**role)` (an unknown key raises `TypeError`). `rate` defaults to `1.0`, `rate_law` is passed to the constructor, the name is `local_name`, else `data["name"]`, else `"reaction"`, and with neither `dat` nor `parent` it mints `MockDat("rxn/<name>")`. It is the inverse of `attributes`: see [[#Serialization]]. ^hydrate
 
 **reactants**`: Dict[MoleculeImpl, float]` (property)
     A copy of the consumed molecules mapped to their stoichiometric coefficients — the exponents of mass action and the amounts each extent removes. An empty dict makes the reaction a boundary source; see [[#Stoichiometry and modifiers]]. ^reactants
@@ -176,7 +176,7 @@ This module stores only what it is given: every parameter defaults to `None`, an
 
 
 ## Serialization
-`attributes()` writes reactants and products as `{name: coef}` dicts, but `hydrate` reads them as a list: iterating a dict yields its keys, each a bare string, so every coefficient comes back as `1` (`reaction.py:180–188`, `201–209`). `ReactionImpl.hydrate(r.attributes(), molecules=…)` for `A + 2B -> 3C` returns `A + B -> C`, and `ChemistryImpl.hydrate` inherits the loss. Modifiers do round-trip — `hydrate` handles the dict form and rebuilds each `Modulation` from `to_dict()` output — and so does `rate_law` (`to_json` / `from_json`). A list-form modifier entry that is a dict with several keys keeps only its first (`reaction.py:231`). The Expr `!Reaction` head reaches `hydrate` with its sides built as lists by `_as_names`, so it is not affected.
+`attributes()` writes reactants and products as `{name: coef}` dicts, and `hydrate` reads that mapping form as well as the list form `!Reaction` builds, so `ReactionImpl.hydrate(r.attributes(), molecules=…)` for `A + 2B -> 3C` returns `A + 2B -> 3C`. Until 2026-10 `hydrate` iterated the mapping as a list, reading only its keys, so every coefficient came back as `1` and `ChemistryImpl.hydrate` inherited the loss. Modifiers round-trip — `hydrate` handles the dict form and rebuilds each `Modulation` from `to_dict()` output — and so does `rate_law` (`to_json` / `from_json`). A list-form modifier entry that is a dict with several keys contributes every key (it used to keep only its first). Pinned by `tests/bio/test_moddoc_findings_chemistry.py`.
 
 
 

@@ -1,7 +1,7 @@
 ---
 description: "`ChemistryImpl`: the container of atoms, molecules and reactions every world is built on, with its one-namespace id rule and bipartite graph queries. Source: `src/alienbio/bio/chemistry.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO ChemistryImpl](ha://p/ABIO%20ChemistryImpl) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO bio](ABIO%20bio.md) → [ABIO ChemistryImpl](ha://p/ABIO%20ChemistryImpl) 
 # ABIO ChemistryImpl
 The chemistry of a world: three dicts of atoms, molecules and reactions, one id namespace across the last two, and the reaction network as a bipartite graph.
 
@@ -42,7 +42,7 @@ The `Chemistry` Protocol's implementation (`protocols/bio.py`, held to it by `pr
     Reactions keyed by id, sharing the molecules' namespace. The runner resolves an `Intervene` lever against this dict before `molecules`, which is why a shared id would silently change meaning by action. ^reactions
 
 **hydrate**`(data: dict[str, Any], *, dat: Optional[DatLike] = None, parent: Optional[Entity] = None, local_name: Optional[str] = None) -> Self` (classmethod)
-    Build from a nested dict: molecules first (each entry a dict passed to `MoleculeImpl.hydrate`, or any non-dict meaning a bare molecule named by its key), then reactions against those molecules (`ReactionImpl.hydrate`, which raises `KeyError` on an unknown reactant, product or modifier); a non-dict reaction entry is `ValueError`. The name is `local_name`, else `data["name"]`, else `"chemistry"`; with neither `dat` nor `parent` it mints `MockDat("chem/<name>")`. It never reads `data["atoms"]`, and `MoleculeImpl.hydrate` does not hydrate a molecule's atoms, so a hydrated chemistry carries no atoms at all ([[#Construction paths]]). ^hydrate
+    Build from a nested dict: atoms first (`{symbol: {name, atomic_weight}}`, as `attributes()` writes them, or an `AtomImpl`), then molecules (each entry a dict passed to `MoleculeImpl.hydrate`, or any non-dict meaning a bare molecule named by its key), then reactions against those molecules (`ReactionImpl.hydrate`, which raises `KeyError` on an unknown reactant, product or modifier); a non-dict reaction entry is `ValueError`. The name is `local_name`, else `data["name"]`, else `"chemistry"`; with neither `dat` nor `parent` it mints `MockDat("chem/<name>")`. Each molecule's `{symbol: count}` composition resolves against those atoms; a symbol the chemistry lacks is `KeyError`. `hydrate(attributes())` is the identity — atoms, compositions and coefficients included (`tests/bio/test_moddoc_findings_chemistry.py`; until 2026-10 atoms, compositions and coefficients were all lost) ([[#Construction paths]]). ^hydrate
 
 **validate**`() -> list[str]`
     One message per broken membership, `[]` when clean: each molecule's atoms must be in `atoms` (compared by symbol — `AtomImpl` equality), each reaction's reactants and products must be in `molecules` (compared by identity — `MoleculeImpl` defines no equality). Modifiers are not checked, and nothing is raised. ^validate
@@ -93,12 +93,12 @@ Three identifiers can differ: the dict key, the entity's `local_name`, and its `
 | --- | --- | --- |
 | `mk.C(name, mols, rxns)` (`bio/makers.py`) | the constructor, lists keyed by `local_name` | none (no `atoms=`) |
 | `Skeleton.materialize` (`suite/skeleton.py`) | `mk.C` over the realized fragment | none in the dict; on molecules if the blocks set them |
-| `!Chemistry {…}` (`suite/expr_heads.py`) | `hydrate`, molecules re-hydrated from fields | none — dropped by `hydrate` |
-| `hydrate(data)` | `MoleculeImpl.hydrate`, `ReactionImpl.hydrate` | none, even when `data` has `atoms` |
+| `!Chemistry {…}` (`suite/expr_heads.py`) | `hydrate`, molecules re-hydrated from fields | those in an `atoms:` field; a molecule naming any other symbol refuses |
+| `hydrate(data)` | `MoleculeImpl.hydrate`, `ReactionImpl.hydrate` | `data["atoms"]`, and each molecule's composition |
 | Suite derivers — `carve`, `augment`, `perturbations`, the runner's `_chemistry_with_rate` | the constructor directly, sharing molecules | whatever they pass |
 | `subgraph(nodes)` | the constructor | every atom of the source |
 
-So `attributes()` followed by `hydrate()` loses both the `atoms` dict and every molecule's composition.
+So `attributes()` followed by `hydrate()` keeps both the `atoms` dict and every molecule's composition; until 2026-10 it lost both.
 
 
 

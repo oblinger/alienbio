@@ -165,6 +165,24 @@ class ChemistryImpl(Entity, head="Chemistry"):
         molecules_data = data.get("molecules", {})
         reactions_data = data.get("reactions", {})
 
+        # Atoms first: ``{symbol: {name, atomic_weight}}`` as ``attributes()``
+        # writes them (an AtomImpl is taken as-is). Every molecule composition
+        # resolves against this registry; before 2026-10 it was never read and
+        # a reloaded chemistry lost every composition.
+        atoms: Dict[str, AtomImpl] = {}
+        for symbol, atom_data in (data.get("atoms") or {}).items():
+            if isinstance(atom_data, AtomImpl):
+                atoms[symbol] = atom_data
+            elif isinstance(atom_data, dict):
+                atoms[symbol] = AtomImpl(
+                    symbol, atom_data.get("name", symbol), atom_data["atomic_weight"]
+                )
+            else:
+                raise ValueError(
+                    f"Atom {symbol!r} must be a mapping with atomic_weight, got "
+                    f"{type(atom_data).__name__}: {atom_data!r}"
+                )
+
         # First pass: hydrate molecules
         molecules: Dict[str, MoleculeImpl] = {}
         for mol_key, mol_data in molecules_data.items():
@@ -172,6 +190,7 @@ class ChemistryImpl(Entity, head="Chemistry"):
                 molecules[mol_key] = MoleculeImpl.hydrate(
                     mol_data,
                     local_name=mol_key,
+                    atoms=atoms,
                 )
             else:
                 # Simple name, create basic molecule
@@ -200,6 +219,7 @@ class ChemistryImpl(Entity, head="Chemistry"):
 
         return cls(
             name,
+            atoms=atoms,
             molecules=molecules,
             reactions=reactions,
             parent=parent,

@@ -1,7 +1,7 @@
 ---
 description: "the chemistry substrate — entities, one resolution point (WorldImpl), one compiled rate grammar, two simulators that must agree, and the canaries. Source: src/alienbio/bio/, 5.2k LOC, 18 modules (the M1 layer went with T056)."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO-Bio-Engine](ha://p/ABIO-Bio-Engine) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO-Bio-Engine](ha://p/ABIO-Bio-Engine) 
 # ABIO-Bio-Engine
 A deterministic alien-chemistry integrator: a wrong number here corrupts every trial silently, which is why it is scanned first.
 
@@ -38,4 +38,5 @@ Hypotheses for the latent-bug pass ([[ABIO051 - Deep Scan|T051]] box 4); each na
 | Constants duplicated across backends | `ROUNDING_FLOOR`/`RATE_CAP` re-declared as literals in `jax_core`; subnormal flush on the reference path only; `lower_jax` assumes `map_species` already ran | `jax_core.py` ~118, ~195; `world_simulator.py` ~35 |
 | Autocatalytic species and negative-base powers | JAX collapses to `P − R` in one matmul, the reference subtracts (with a snap) then adds; `a**b` on a negative base raises in CPython and yields NaN→0 in JAX | `jax_core.py` ~231; `world_simulator.py` ~406–418; `rate_expr.py` ~134, ~175 |
 | The three passes over-draw a pool together — FIXED 2026-10 | each rationed against the frozen pool, so A = 1.0 under a fast A → B and a fast flux out ended at −1.0; a later pass now rations against what the earlier left in `new_state` | `flow.py` `apply_flows`; `population.py` `apply_population_laws` |
+| A saved chemistry reloads wrong — FIXED 2026-10 | `hydrate` read the `{name: coef}` sides as a list (every coefficient 1) and never read atoms or compositions; `hydrate(attributes())` is now the identity | `reaction.py` `_side_items`; `chemistry.py`/`molecule.py` `hydrate` |
 | `ReferenceSimulatorImpl` is a different physics | no mass-action term, no rounding snap; any parity test that pairs it with the world simulator compares two models | `simulator.py` ~131–173 |

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Mapping, Optional, TYPE_CHECKING, Self, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, TYPE_CHECKING, Self, Tuple, Union
 
 from ..infra.entity import DatLike, Entity
 
@@ -78,6 +78,48 @@ class Modulation:
 # A modifier's value: either the new first-class Modulation, or (for backward compat)
 # a bare opaque role-tag string, which is inert (factor 1.0) — see Modulation.from_value.
 ModifierValue = Union[Modulation, str]
+
+
+def _side_items(
+    reaction: str, role: str, raw: Any, default: Any
+) -> List[Tuple[str, Any]]:
+    """The ``(molecule name, value)`` pairs of one side of a serialized reaction.
+
+    Two forms: the ``{name: value}`` mapping ``attributes()`` writes, and the
+    list ``!Reaction`` builds, whose entries are bare names (value
+    ``default``) or ``{name: value}`` dicts (every key kept). Iterating the
+    mapping form as a list read its keys alone, so every coefficient
+    reloaded as 1 (module-doc finding, 2026-10).
+    """
+    if isinstance(raw, Mapping):
+        return [(str(k), v) for k, v in raw.items()]
+    items: List[Tuple[str, Any]] = []
+    for entry in raw or ():
+        if isinstance(entry, str):
+            items.append((entry, default))
+        elif isinstance(entry, Mapping):
+            items.extend((str(k), v) for k, v in entry.items())
+        else:
+            raise TypeError(
+                f"Reaction {reaction!r}: a {role} entry must be a molecule name or a "
+                f"{{name: value}} mapping, got {type(entry).__name__}: {entry!r}"
+            )
+    return items
+
+
+def _hydrate_side(
+    reaction: str, role: str, raw: Any, molecules: Mapping[str, "MoleculeImpl"]
+) -> Dict["MoleculeImpl", float]:
+    """``{MoleculeImpl: coefficient}`` for one side; an unknown name refuses."""
+    side: Dict[MoleculeImpl, float] = {}
+    for mol_name, coef in _side_items(reaction, role, raw, 1):
+        if mol_name not in molecules:
+            raise KeyError(
+                f"Reaction {reaction!r}: unknown {role} molecule {mol_name!r} "
+                f"(not in chemistry molecules)"
+            )
+        side[molecules[mol_name]] = coef
+    return side
 
 
 class ReactionImpl(Entity, head="Reaction"):
@@ -175,63 +217,17 @@ class ReactionImpl(Entity, head="Reaction"):
         if dat is None and parent is None:
             dat = MockDat(f"rxn/{name}")
 
-        # Build reactants dict: {MoleculeImpl: coefficient}
-        reactants: Dict[MoleculeImpl, float] = {}
-        for r in data.get("reactants", []):
-            if isinstance(r, str):
-                # Just a name, coefficient 1
-                if r not in molecules:
-                    raise KeyError(
-                        f"Reaction {name!r}: unknown reactant molecule {r!r} "
-                        f"(not in chemistry molecules)"
-                    )
-                reactants[molecules[r]] = 1
-            elif isinstance(r, dict):
-                # {name: coef} format
-                for mol_name, coef in r.items():
-                    if mol_name not in molecules:
-                        raise KeyError(
-                            f"Reaction {name!r}: unknown reactant molecule {mol_name!r} "
-                            f"(not in chemistry molecules)"
-                        )
-                    reactants[molecules[mol_name]] = coef
-
-        # Build products dict: {MoleculeImpl: coefficient}
-        products: Dict[MoleculeImpl, float] = {}
-        for p in data.get("products", []):
-            if isinstance(p, str):
-                # Just a name, coefficient 1
-                if p not in molecules:
-                    raise KeyError(
-                        f"Reaction {name!r}: unknown product molecule {p!r} "
-                        f"(not in chemistry molecules)"
-                    )
-                products[molecules[p]] = 1
-            elif isinstance(p, dict):
-                # {name: coef} format
-                for mol_name, coef in p.items():
-                    if mol_name not in molecules:
-                        raise KeyError(
-                            f"Reaction {name!r}: unknown product molecule {mol_name!r} "
-                            f"(not in chemistry molecules)"
-                        )
-                    products[molecules[mol_name]] = coef
+        reactants = _hydrate_side(name, "reactant", data.get("reactants", ()), molecules)
+        products = _hydrate_side(name, "product", data.get("products", ()), molecules)
 
         # Build modifiers dict: {MoleculeImpl: role}.  Accepts the canonical
-        # {name: role} mapping (attributes() output) or a bare list of names
-        # (role defaults to "", mirroring the reactant/product list form). A
-        # role that is itself a dict is a serialized Modulation (Modulation.to_dict());
+        # {name: role} mapping (attributes() output) or a list of names and
+        # {name: role} dicts (a bare name's role defaults to "", mirroring the
+        # reactant/product list form; a dict contributes every key). A role
+        # that is itself a dict is a serialized Modulation (Modulation.to_dict());
         # everything else (a bare str) stays as-is, inert by default.
         modifiers: Dict[MoleculeImpl, ModifierValue] = {}
-        raw_modifiers = data.get("modifiers", {})
-        if isinstance(raw_modifiers, dict):
-            mod_items = raw_modifiers.items()
-        else:
-            mod_items = (
-                (m, "") if isinstance(m, str) else next(iter(m.items()))
-                for m in raw_modifiers
-            )
-        for mol_name, role in mod_items:
+        for mol_name, role in _side_items(name, "modifier", data.get("modifiers", {}), ""):
             if mol_name not in molecules:
                 raise KeyError(
                     f"Reaction {name!r}: unknown modifier molecule {mol_name!r} "

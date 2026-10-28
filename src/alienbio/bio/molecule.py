@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, TYPE_CHECKING, Self
+from typing import Any, Dict, Mapping, Optional, TYPE_CHECKING, Self
 
 from ..infra.entity import DatLike, Entity
 from ..spec_lang.decorators import biotype
@@ -72,14 +72,21 @@ class MoleculeImpl(Entity, head="Molecule"):
         dat: Optional[DatLike] = None,
         parent: Optional[Entity] = None,
         local_name: Optional[str] = None,
+        atoms: Optional[Mapping[str, AtomImpl]] = None,
     ) -> Self:
         """Create a Molecule from a dict.
 
         Args:
-            data: Dict with optional keys: name, bdepth, atoms, description
+            data: Dict with optional keys: name, bdepth, atoms, description,
+                formation_energy, display_name — the keys ``attributes()``
+                writes. ``atoms`` is ``{symbol: count}``.
             dat: DAT anchor (if root entity)
             parent: Parent entity (if child)
             local_name: Override name (defaults to data["name"])
+            atoms: The atom registry ``{symbol: AtomImpl}`` the composition's
+                symbols resolve against (``ChemistryImpl.hydrate`` passes the
+                chemistry's own). A composition with no registry, or naming a
+                symbol the registry lacks, refuses rather than dropping it.
 
         Returns:
             New MoleculeImpl instance
@@ -92,14 +99,31 @@ class MoleculeImpl(Entity, head="Molecule"):
         if dat is None and parent is None:
             dat = MockDat(f"mol/{name}")
 
+        composition: Dict[AtomImpl, int] = {}
+        raw_atoms = data.get("atoms") or {}
+        if raw_atoms and atoms is None:
+            raise ValueError(
+                f"Molecule {name!r}: data carries atoms {sorted(raw_atoms)!r} but no "
+                "atom registry was given (pass atoms={symbol: AtomImpl})"
+            )
+        registry: Mapping[str, AtomImpl] = atoms or {}
+        for symbol, count in raw_atoms.items():
+            if symbol not in registry:
+                raise KeyError(
+                    f"Molecule {name!r}: atom {symbol!r} is not in the atom registry "
+                    f"{sorted(registry)!r}"
+                )
+            composition[registry[symbol]] = count
+
         return cls(
             name,
             parent=parent,
             dat=dat,
             description=data.get("description", ""),
+            atoms=composition,
             bdepth=data.get("bdepth", 0),
+            name=data.get("display_name"),
             formation_energy=data.get("formation_energy"),
-            # atoms not hydrated here - would need atom registry
         )
 
     @property
