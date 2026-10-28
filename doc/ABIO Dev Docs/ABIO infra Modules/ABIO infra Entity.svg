@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+  <g id="n-sub">
+    <rect id="n-sub-box" x="20" y="40" width="250" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-sub-name" x="145" y="68" font-size="18" font-weight="600" text-anchor="middle">Entity subclasses</text>
+    <text id="n-sub-kind" x="145" y="92" font-size="14" text-anchor="middle">(bio) MoleculeImpl, ReactionImpl,</text>
+    <text id="n-sub-kind2" x="145" y="110" font-size="14" text-anchor="middle">ChemistryImpl, CompartmentImpl</text>
+  </g>
+  <g id="n-regfn">
+    <rect id="n-regfn-box" x="330" y="50" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-regfn-name" x="445" y="78" font-size="18" font-weight="600" text-anchor="middle">register_head</text>
+    <text id="n-regfn-kind" x="445" y="102" font-size="14" text-anchor="middle">(fn) from __init_subclass__</text>
+  </g>
+  <g id="n-reg">
+    <rect id="n-reg-box" x="620" y="50" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-reg-name" x="735" y="78" font-size="18" font-weight="600" text-anchor="middle">_head_registry</text>
+    <text id="n-reg-kind" x="735" y="102" font-size="14" text-anchor="middle">(dict) head name → class</text>
+  </g>
+  <g id="n-xh">
+    <rect id="n-xh-box" x="930" y="50" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-xh-name" x="1055" y="78" font-size="18" font-weight="600" text-anchor="middle">expr_heads</text>
+    <text id="n-xh-kind" x="1055" y="102" font-size="14" text-anchor="middle">(suite) one !Head per entity head</text>
+  </g>
+  <g id="n-dat">
+    <rect id="n-dat-box" x="20" y="240" width="250" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dat-name" x="145" y="268" font-size="18" font-weight="600" text-anchor="middle">MockDat or Dat</text>
+    <text id="n-dat-kind" x="145" y="292" font-size="14" text-anchor="middle">(anchor) get_path_name, get_path</text>
+  </g>
+  <g id="n-root">
+    <rect id="n-root-box" x="330" y="240" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-root-name" x="445" y="268" font-size="18" font-weight="600" text-anchor="middle">Entity (root)</text>
+    <text id="n-root-kind" x="445" y="292" font-size="14" text-anchor="middle">(class) _top is its dat</text>
+  </g>
+  <g id="n-yaml">
+    <rect id="n-yaml-box" x="620" y="240" width="230" height="70" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-yaml-name" x="735" y="268" font-size="18" font-weight="600" text-anchor="middle">entities.yaml</text>
+    <text id="n-yaml-kind" x="735" y="292" font-size="14" text-anchor="middle">(file) head, attributes, args</text>
+  </g>
+  <g id="n-load">
+    <rect id="n-load-box" x="930" y="240" width="250" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-load-name" x="1055" y="268" font-size="18" font-weight="600" text-anchor="middle">IO loader</text>
+    <text id="n-load-kind" x="1055" y="292" font-size="14" text-anchor="middle">(infra.io) by head, else Entity</text>
+  </g>
+  <g id="n-subroot">
+    <rect id="n-subroot-box" x="20" y="450" width="250" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-subroot-name" x="145" y="478" font-size="18" font-weight="600" text-anchor="middle">Entity (sub-root)</text>
+    <text id="n-subroot-kind" x="145" y="502" font-size="14" text-anchor="middle">(class) a parent and its own dat</text>
+  </g>
+  <g id="n-child">
+    <rect id="n-child-box" x="330" y="450" width="230" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-child-name" x="445" y="478" font-size="18" font-weight="600" text-anchor="middle">Entity (child)</text>
+    <text id="n-child-kind" x="445" y="502" font-size="14" text-anchor="middle">(class) _top is the root</text>
+  </g>
+  <g id="n-orph">
+    <rect id="n-orph-box" x="620" y="450" width="230" height="70" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-orph-name" x="735" y="478" font-size="18" font-weight="600" text-anchor="middle">orphan root</text>
+    <text id="n-orph-kind" x="735" y="502" font-size="14" text-anchor="middle">(bio.io) prints ORPHAN:name</text>
+  </g>
+  <line id="e-sub-regfn" x1="270" y1="85" x2="330" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-regfn-reg" x1="560" y1="85" x2="620" y2="85" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-regfn-reg" x="590" y="75" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">writes</text>
+  <line id="e-reg-xh" x1="850" y1="85" x2="930" y2="85" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-reg-xh" x="890" y="75" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">copy</text>
+  <line id="e-root-dat" x1="330" y1="275" x2="270" y2="275" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-root-dat" x="300" y="265" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">_top</text>
+  <line id="e-root-yaml" x1="560" y1="275" x2="620" y2="275" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-root-yaml" x="590" y="265" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">save</text>
+  <line id="e-yaml-load" x1="850" y1="275" x2="930" y2="275" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-yaml-load" x="890" y="265" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">read</text>
+  <line id="e-load-reg" x1="1000" y1="240" x2="820" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-load-reg" x="925" y="170" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">get_entity_class</text>
+  <line id="e-root-child" x1="480" y1="310" x2="480" y2="450" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-root-child" x="490" y="385" font-size="14" fill="#1971c2" font-style="italic" text-anchor="start">children</text>
+  <line id="e-child-root" x1="410" y1="450" x2="410" y2="310" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-child-root" x="400" y="385" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">_top, _parent</text>
+  <line id="e-root-subroot" x1="360" y1="310" x2="230" y2="450" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-root-subroot" x="250" y="390" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">children</text>
+  <line id="e-subroot-dat" x1="145" y1="450" x2="145" y2="310" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-subroot-dat" x="135" y="385" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">_top</text>
+  <line id="e-child-orph" x1="560" y1="485" x2="620" y2="485" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-child-orph" x="590" y="475" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">detach</text>
+  <text id="t-legend" x="20" y="620" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call, write, contains · dotted: anchor pointer, copy · the orphan root needs alienbio.bio.io, which only tests attach</text>
+  <text id="t-legend2" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">a load keeps name and description only; set_parent refuses a taken name after leaving the old parent</text>
+</svg>
