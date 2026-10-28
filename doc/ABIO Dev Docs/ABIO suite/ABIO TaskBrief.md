@@ -1,7 +1,7 @@
 ---
 description: "`TaskBrief` + `Affordances` + `build_brief`/`render_brief`: what a live agent is told before turn 0, the refusals made while building it, and the dial helpers that feed it. Source: `src/alienbio/suite/brief.py`."
 ---
-:>> [[ABIO]] → [[ABIO Dev Docs]] → [ABIO TaskBrief](ha://p/ABIO%20TaskBrief) 
+:>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO TaskBrief](ha://p/ABIO%20TaskBrief) 
 # ABIO TaskBrief
 The briefing a trial's agent receives once, before turn 0: a frozen record of the question, the commitment, what it is told about the world, what it may measure and intervene on, and the episode's limits, built by a pure function that refuses a contradictory spec before any model is called.
 
@@ -122,7 +122,7 @@ A frozen dataclass: the ids an action may legally name in this trial and the cap
     The sorted union of every id in every compartment of the turn-0 observation, plus the auditor keys (`monitor_probe_ids`) on a monitor arm, since the auditor block is appended after narrowing and would otherwise make the ids the brief names unmeasurable (T066). Not the discarded-branch `dials["probes"]` ([[#Probes are not on the brief]]). ^probes
 
 **levers**`: tuple[str, ...]`
-    `dials["levers"]` in declared order when the key is present (`[]` is a valid do-nothing surface); otherwise every reaction id, sorted, followed by `probes` — except on a task whose `setup` carries `require_levers`, where the missing dial raises. ^levers
+    `dials["levers"]` in declared order when the key is present (`[]` is a valid do-nothing surface); otherwise every reaction id, sorted, followed by `probes`, minus every id `lever_exclusion` refuses (the task's readouts, a hidden pool, a reaction with a compiled `rate_law`) — except on a task whose `setup` carries `require_levers`, where the missing dial raises. ^levers
 
 **assays**`: tuple[str, ...] = ()`
     `resolve_assays(dials, chemistry)` (M36.10); empty unless `dials["assays"]`. ^assays
@@ -219,9 +219,9 @@ Every row raises `ValueError` from `build_brief`, which the runner calls before 
 | No control surface | `setup["require_levers"]` and no `levers` dial | M45.2 | surface |
 | Malformed lever entry | not a `str` or an `{id, max_rate}` mapping; an unknown key; a non-string `id` | T023 | — |
 | Bad cap | a `max_rate` or a `lever_caps` value that is a `bool`, non-numeric, non-finite or ≤ 0; `lever_caps` not a mapping | T023 | — |
-| Lever is a readout | guarded world, and a lever equals the structured question's `target` or `tracked`, or any string in a tuple/list `OutcomeObjective.target` | T023, every readout since T051 box 4 | — |
+| Lever is a readout | a declared lever is in `task_readouts`: the structured question's `target` or `tracked`, any string in a tuple/list `OutcomeObjective.target`, or a molecule a bare-collection question names unless the answer key is a node — on any world (guarded only until 2026-10-28) | T023, every readout since T051 box 4 | — |
 | Lever is a hidden pool | a lever is in `setup["hidden_ids"]`, on any world | T066 Q1 | draft |
-| Lever has a rate law | a declared lever (dial or drafter default) names a reaction carrying a compiled `rate_law`, on any world; the implicit every-reaction surface is exempt | module-doc pass 2026-10-27, owner (A) | draft |
+| Lever has a rate law | a declared lever (dial or drafter default) names a reaction carrying a compiled `rate_law`, on any world; the implicit surface leaves such a reaction out instead | module-doc pass 2026-10-27, owner (A) | draft |
 | Bad defaults | `setup["brief_defaults"]` set but not a mapping | T047 | draft |
 | Bad burial depth | `bury_commitment` not a non-negative `int` | T027 | — |
 | Nothing to bury | `bury_commitment` > 0 with no or an empty constitution | T027 | — |
@@ -288,7 +288,7 @@ Padding cannot induce forgetting: the system prompt is re-sent whole on every ca
 
 
 ## The control surface
-`levers` is the declared `dials["levers"]` when present, else every reaction id plus the visible probes, a default refused wherever `setup["require_levers"]` is set. Every guarded drafter's adapter in `suite/drafters.py` adds `require_levers` and `opaque_names` to its task's `setup`; `phase1_pressure` is not a guarded head but sets `require_levers` itself, so its surface must be declared and its readouts are protected too. The readout refusal applies only to these `require_levers` worlds; the hidden-pool refusal applies everywhere.
+`levers` is the declared `dials["levers"]` when present, else every reaction id plus the visible probes, a default refused wherever `setup["require_levers"]` is set. Every guarded drafter's adapter in `suite/drafters.py` adds `require_levers` and `opaque_names` to its task's `setup`; `phase1_pressure` is not a guarded head but sets `require_levers` itself, so its surface must be declared and its readouts are protected too. The readout, hidden-pool and rate-law refusals apply on every world, and the implicit surface omits the same ids (`lever_exclusion`), so a neutral example's agent can no longer set its readout to the goal (`agent_loop` scored 0.85 that way against the intended 0.25).
 
 A cap resolves per declared lever: the spec's `{"id", "max_rate"}` entry, else `setup["lever_caps"]` (`pressure` and `pressure_w2` cap their two feed levers at the generator's `feed_max_rate`, default 20; `phase1_pressure` at `FEED_MAX_RATE`, 20), else `DEFAULT_MAX_RATE` on a `require_levers` world, else none. A `lever_caps` entry for an undeclared lever is ignored.
 

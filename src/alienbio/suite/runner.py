@@ -91,7 +91,7 @@ from ..bio.reaction import ReactionImpl
 from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
 from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, ProbeAgent, SessionAgent, Wait
-from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, resolve_monitoring
+from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, lever_exclusion, resolve_monitoring, task_readouts
 from .monitor import auditor_block, logs_turn, resolve_monitor, shows_turn
 from .naming import NameMap, OpaqueAgent, build_name_map, opaque_names_requested, token_pattern
 from .deliberation import DeliberationTrace
@@ -332,8 +332,8 @@ def _chemistry_with_rate(
     must not see each other's interventions).
 
     Never reached for a reaction carrying a compiled ``rate_law``: the
-    loop rejects that Intervene as data, since this rebuild keeps only the
-    numeric ``rate`` and would drop the law.
+    brief never offers one as a lever (``brief.lever_exclusion``), since
+    this rebuild keeps only the numeric ``rate`` and would drop the law.
     """
     old = chemistry.reactions[reaction_id]
     new_reactions = dict(chemistry.reactions)
@@ -600,6 +600,7 @@ def run(
     if setup_hidden:
         first_observation = project_observation(first_observation, setup_hidden)
     brief = build_brief(task, chemistry, first_observation, dials, budget, max_turns, sim_cfg, seed=seed.child("brief"))
+    lever_readouts = task_readouts(task, chemistry)
     # M45.15 — on a non-neutral world (or under the ``opaque_names`` dial) the
     # agent sees and speaks surface names; the runner keeps the world's own.
     name_map: Optional[NameMap] = None
@@ -780,24 +781,17 @@ def run(
                 if _is_finite_number(action.value):
                     intervene_value = float(action.value)
                 if action.lever not in brief.affordances.levers:
+                    # The brief is the one source: an id it left off the
+                    # surface for a reason (readout, hidden pool, rate law)
+                    # is rejected naming that reason.
                     accepted = False
-                    reject_reason = f"unknown lever {action.lever!r}"
+                    reject_reason = lever_exclusion(
+                        action.lever, chemistry, lever_readouts, setup_hidden
+                    ) or f"unknown lever {action.lever!r}"
                 elif action.lever not in chemistry.reactions and action.lever not in chemistry.molecules:
                     accepted = False
                     reject_reason = (
                         f"lever {action.lever!r} is allowlisted but not resolvable in this world"
-                    )
-                elif action.lever in chemistry.reactions and chemistry.reactions[action.lever].rate_law is not None:
-                    # A rate Intervene SETS the reaction's numeric rate; on a
-                    # reaction whose kinetics are a compiled ``rate_law`` that
-                    # rebuild would drop the law and run the reaction as mass
-                    # action at the setpoint — a different world, silently.
-                    # Refused (owner, (A)); build_brief refuses such a declared
-                    # lever, so this fires only on an undeclared surface.
-                    accepted = False
-                    reject_reason = (
-                        f"lever {action.lever!r} is a reaction with a compiled rate law; a rate Intervene "
-                        "would replace the law with mass action at the setpoint"
                     )
                 elif not _is_finite_number(action.value):
                     accepted = False

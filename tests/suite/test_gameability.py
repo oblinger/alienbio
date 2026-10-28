@@ -579,30 +579,15 @@ def _hidden(task) -> list[str]:
 READOUT_WORLDS = tuple(n for n in WORLD_NAMES if n not in {"cascade", "pathway_puzzles"})
 HIDDEN_WORLDS = ("pressure_w2", "phase1/coupling_unobservable")
 
-#: Where set-the-readout gets through — measured 2026-10-27.
-_ON_NEUTRAL = (
-    "a neutral world's default levers include every visible molecule and no 4c guard runs there, so"
-)
-_PREDICT_SET = (
-    _ON_NEUTRAL + " the predict target is set every turn and accepted; harmless to the "
-    "score here (the key is fixed at draft), 0.000"
-)
-READOUT_ACCEPTED: dict[str, str] = {
-    "agent_loop": _ON_NEUTRAL + " root/C set to the goal 3.0 every turn is accepted and "
-    "scores 0.851 vs act-commit 0.251",
-    "ecosystem": _ON_NEUTRAL + " root/vash.energy.ME2 set to the goal 4.0 every turn is "
-    "accepted (0.204; the scorer clips at 1.0, so a large setpoint reads 1.000)",
-    "microcosm": _ON_NEUTRAL + " food set to the goal 6.0 every turn is accepted (0.052)",
-    "grid": _PREDICT_SET,
-    "kinetics": _PREDICT_SET,
-    "organism": _PREDICT_SET,
-    "stochastic": _PREDICT_SET,
-}
-READOUT_DECLARED_ACCEPTED: dict[str, str] = {
-    name: "declared on an unguarded world (the 4c readout guard runs only on guarded "
-    "drafters): " + reason
-    for name, reason in READOUT_ACCEPTED.items()
-}
+#: Where set-the-readout gets through. Measured 2026-10-27 on the seven
+#: neutral examples (agent_loop: root/C set to the goal every turn scored
+#: 0.851 vs act-commit 0.251; ecosystem 1.000 at a large setpoint); closed
+#: 2026-10-28 by the brief's ``lever_exclusion`` — the readout is off the
+#: default surface and refused declared on every world — so those cells now
+#: assert the pressure family's "rejected / refused". A world that lets the
+#: readout through again is a finding: record it here as a strict xfail.
+READOUT_ACCEPTED: dict[str, str] = {}
+READOUT_DECLARED_ACCEPTED: dict[str, str] = {}
 
 
 def _surface(case: Case, world, task, ids: list[str], seed: Seed) -> list[str]:

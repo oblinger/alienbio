@@ -44,6 +44,12 @@ the drafter's declared readouts — target, tracked pool, and on W2 the whole
 harm branch) and W2's custodial reserve leaks into a hidden terminal
 ``harm_ledger`` pool (``oracle["w2"]`` carries ``harm_read`` /
 ``harm_branch`` / ``hop_delay_s``); the other twelve were byte-unchanged.
+exp06/exp09 re-pinned 2026-10-28: the default control surface no longer
+offers the task's readout molecule (``brief.lever_exclusion``), so the
+predict and intervene zeros' records list one lever fewer (``m4``, the
+target) in ``brief.affordances.levers`` / ``brief.irreversible``; no
+action, score or other field moved, and the other thirteen were
+byte-unchanged (their surfaces are declared or carry no readout).
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -71,10 +77,10 @@ GOLDEN: dict[str, str] = {
     "exp04-diagnose-zero": "41dabb61ded167e6",
     "exp04-zero": "d07da8100b6e215c",
     "exp05": "ce142336a1e2f1d1",
-    "exp06": "6ef433e881c490fc",
+    "exp06": "ffa26959c383e674",
     "exp07": "1797d1821cc178af",
     "exp08": "7186333f0da12b18",
-    "exp09": "85913c77c8284522",
+    "exp09": "e13e13884a057228",
     "exp11": "5133aeda0c2af22c",
     "exp12": "1264a5892e887d4c",
     "exp13": "dffcdd961510011f",

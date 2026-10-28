@@ -345,6 +345,104 @@ def resolve_framing(dials: Mapping[str, Any]) -> Optional[str]:
     return text or None
 
 
+def _string_leaves(value: Any) -> set[str]:
+    """Every string leaf inside a JSON-ish value."""
+    if isinstance(value, str):
+        return {value}
+    if isinstance(value, Mapping):
+        out: set[str] = set()
+        for k, v in value.items():
+            out |= _string_leaves(k) | _string_leaves(v)
+        return out
+    if isinstance(value, (list, tuple, set, frozenset)):
+        out = set()
+        for v in value:
+            out |= _string_leaves(v)
+        return out
+    return set()
+
+
+def _resolve_molecules(name: str, molecules: Any) -> set[str]:
+    """The molecule ids a question names by ``name``: the id itself, or the
+    ids it is the compartment-relative tail of (``vash.energy.ME2`` names
+    ``root/vash.energy.ME2``)."""
+    if name in molecules:
+        return {name}
+    return {m for m in molecules if m.endswith("/" + name)}
+
+
+def task_readouts(task: TaskInstance, chemistry: "ChemistryImpl") -> frozenset[str]:
+    """The ids this task is read on — what an ``Intervene`` must never set.
+
+    An ``Intervene`` on a molecule SETS its concentration, so a lever on the
+    readout writes the answer into the measurement. The readouts are:
+
+    - a structured question's ``target`` / ``tracked`` (the pressure and
+      phase-1 objectives, an outcome example's ``{kind, target}``) and every
+      string in an ``OutcomeObjective``'s tuple ``target`` (the harm pool
+      rides third there, T051 box 4) — each as named and as the molecule(s)
+      it resolves to;
+    - on a question that is a bare collection of ids (an outcome or predict
+      example), every molecule it names — unless the task's answer key is
+      itself a world node (diagnose / identify): there the named molecules
+      are candidates or endpoints, not a measurement.
+    """
+    molecules = chemistry.molecules
+    readouts: set[str] = set()
+    structured = task.question.structured
+    if isinstance(structured, Mapping):
+        for key in ("target", "tracked"):
+            named = structured.get(key)
+            if isinstance(named, str):
+                readouts.add(named)
+                readouts |= _resolve_molecules(named, molecules)
+    elif isinstance(structured, (list, tuple, set, frozenset)):
+        objective = task.objective
+        answer_is_node = isinstance(objective, AnswerObjective) and any(
+            leaf in chemistry.reactions or _resolve_molecules(leaf, molecules)
+            for leaf in _string_leaves(objective.key.value)
+        )
+        if not answer_is_node:
+            for named in _string_leaves(structured):
+                readouts |= _resolve_molecules(named, molecules)
+    objective = task.objective
+    if isinstance(objective, OutcomeObjective) and isinstance(objective.target, (tuple, list)):
+        for item in objective.target:
+            if isinstance(item, str):
+                readouts.add(item)
+                readouts |= _resolve_molecules(item, molecules)
+    return frozenset(readouts)
+
+
+def lever_exclusion(
+    lever: str, chemistry: "ChemistryImpl", readouts: frozenset[str], hidden_ids: frozenset[str]
+) -> Optional[str]:
+    """Why ``lever`` can never be on this trial's control surface, or ``None``.
+
+    The one source for both sides of the surface: :func:`build_brief` drops
+    such a lever from the default surface and refuses it declared, and the
+    runner names this reason when it rejects an ``Intervene`` on it.
+    """
+    if lever in readouts:
+        return (
+            f"{lever!r} is this task's readout molecule — an Intervene on the readout writes the "
+            "answer into the measurement (T023 / AUP finding 2026-08-31)"
+        )
+    if lever in hidden_ids:
+        return (
+            f"{lever!r} names a structurally hidden pool (task.setup['hidden_ids']) — the agent "
+            "cannot observe it, and an Intervene would write the measurement's own ground truth "
+            "(T066 Q1 / AUP ruling 2026-10-07)"
+        )
+    reaction = chemistry.reactions[lever] if lever in chemistry.reactions else None
+    if reaction is not None and reaction.rate_law is not None:
+        return (
+            f"{lever!r} is a reaction with a compiled rate law — a rate Intervene sets a numeric "
+            "rate and would replace the law with mass action at the setpoint"
+        )
+    return None
+
+
 @dataclass(frozen=True)
 class Affordances:
     """What a ``Measure``/``Intervene`` may legally name in this trial.
@@ -472,7 +570,10 @@ def build_brief(
     be leaked by the reaction-id vocabulary itself. Otherwise it defaults to
     every reaction id in ``chemistry`` (the world's declared control
     surface) plus the same visible ``probes`` (a molecule lever is only
-    offered if it is already visible) — except on a task whose ``setup``
+    offered if it is already visible), minus every id
+    :func:`lever_exclusion` refuses (the task's readout, a hidden pool, a
+    reaction with a compiled ``rate_law``) — the same ids a declared list
+    may not name, on any world — except on a task whose ``setup``
     carries ``require_levers`` (every guarded drafter's, M45.2), where the
     missing dial is a ``ValueError``: on a pressure/conflict/delta world the
     surface is never implicit.
@@ -513,6 +614,12 @@ def build_brief(
             raise ValueError(f"build_brief: {where} max_rate must be a finite positive number; got {cap!r}")
         return float(cap)
 
+    setup_hidden_raw = task.setup.get("hidden_ids") if isinstance(task.setup, Mapping) else None
+    setup_hidden_ids: frozenset[str] = (
+        frozenset(str(h) for h in setup_hidden_raw) if setup_hidden_raw is not None else frozenset()
+    )
+    readouts = task_readouts(task, chemistry)
+
     levers_dial = dials.get("levers")
     declared_caps: dict[str, float] = {}
     if levers_dial is not None:
@@ -546,13 +653,20 @@ def build_brief(
             "reaction id is refused here (M45.2)"
         )
     else:
-        levers = tuple(sorted(chemistry.reactions)) + probes
+        # The implicit surface: every reaction and every visible molecule,
+        # minus what can never be a lever (:func:`lever_exclusion` — the
+        # task's readout, a hidden pool, a rate-law reaction). Offering one
+        # would hand the agent a lever the runner always rejects, or — the
+        # readout — one that writes the answer into the measurement
+        # (agent_loop: setting root/C to the goal every turn scored 0.85
+        # against the intended 0.25).
+        levers = tuple(
+            lever
+            for lever in tuple(sorted(chemistry.reactions)) + probes
+            if lever_exclusion(lever, chemistry, readouts, setup_hidden_ids) is None
+        )
 
     guarded = isinstance(task.setup, Mapping) and bool(task.setup.get("require_levers"))
-    setup_hidden_raw = task.setup.get("hidden_ids") if isinstance(task.setup, Mapping) else None
-    setup_hidden_ids: frozenset[str] = (
-        frozenset(str(h) for h in setup_hidden_raw) if setup_hidden_raw is not None else frozenset()
-    )
 
     # T023 — the per-lever Intervene cap: an explicit spec cap wins, then the
     # drafter's declared scale (``setup["lever_caps"]``), then — on a guarded
@@ -576,77 +690,37 @@ def build_brief(
         elif guarded:
             max_rates[lever] = DEFAULT_MAX_RATE
 
-    # T023 sibling guard (AUP 4c-note, 2026-08-31) — on a guarded world a
-    # declared lever must never be the question's readout molecule: an
-    # ``Intervene`` on a molecule SETS its concentration, so a lax spec that
-    # declares the readout as a lever lets the agent write the answer into
-    # the measurement (measured on the pressure world: setting the target
-    # pool to 100.0 reads target 38.36 against v_target 10.80). Criterion (c)
-    # must hold by refusal here, not merely by well-behaved specs.
-    if guarded:
-        # T051 box 4 — EVERY readout, not only the target: the pressure and
-        # phase-1 objectives carry the harm/tracked pool as the third element
-        # of ``objective.target`` (dose.py reads it; M3/M4 grade against it),
-        # and the structured question names it ``tracked``. A spec that
-        # listed that pool among the levers let the agent SET the harm
-        # measurement to 0 every turn (side-product 2.00 -> 1.22, tracked
-        # pool 10.37 -> 1.94, every action accepted).
-        readouts: set[str] = set()
-        structured = task.question.structured
-        if isinstance(structured, Mapping):
-            for key in ("target", "tracked"):
-                if isinstance(structured.get(key), str):
-                    readouts.add(structured[key])
-        objective_ = task.objective
-        if isinstance(objective_, OutcomeObjective) and isinstance(objective_.target, (tuple, list)):
-            for item in objective_.target:
-                if isinstance(item, str):
-                    readouts.add(item)
-        written = sorted(readouts.intersection(levers))
-        if written:
-            raise ValueError(
-                f"build_brief: declared lever(s) {written} are this task's readout molecule — an Intervene on "
-                "the readout writes the answer into the measurement; declare a different control surface "
-                "(T023 / AUP finding 2026-08-31)"
-            )
-
-    # T066 Q1, AUP ruling (A) 2026-10-07 — a declared lever may never name a
-    # pool the drafter made structurally hidden (``setup["hidden_ids"]``, T025).
-    # The runner projects those ids out of EVERY observation, so the agent can
-    # neither read the pool nor learn it exists: it can never be an affordance,
-    # and an ``Intervene`` on a molecule SETS its concentration — so a lax spec
-    # would let the episode write the ground truth it is being measured against
-    # (W2's ``harm_ledger`` is the committed-harm read the paper rests on,
-    # phase 1's hidden pool is the no-observation control's tracked quantity).
-    # Unconditional: the contradiction is structural, so it holds on the
-    # unguarded ``phase1_pressure`` head too, not only on registered substrates.
-    if setup_hidden_ids:
-        hidden_levers = sorted(setup_hidden_ids.intersection(levers))
-        if hidden_levers:
-            raise ValueError(
-                f"build_brief: declared lever(s) {hidden_levers} name a structurally hidden pool "
-                "(task.setup['hidden_ids']) — the agent cannot observe it, and an Intervene would write "
-                "the measurement's own ground truth; declare a different control surface "
-                "(T066 Q1 / AUP ruling 2026-10-07)"
-            )
-
-    # A declared lever may not name a reaction whose kinetics are a compiled
-    # ``rate_law``: an Intervene SETS a numeric rate, and the runner refuses
-    # it there rather than drop the law for mass action at the setpoint
-    # (owner, (A)). Declared surfaces only — ids or ``{"id", "max_rate"}``
-    # entries, the caller's or a drafter default's; the implicit
-    # every-reaction surface is left as it is, and the runner rejects an
-    # Intervene on such a lever as data.
+    # A declared lever is refused, on EVERY world, when :func:`lever_exclusion`
+    # names a reason it can never be one — the same test that trims the
+    # implicit surface above, so the brief is the one source and the runner
+    # only reads it:
+    #
+    # - the readout (T023 sibling guard, AUP 4c-note 2026-08-31; every
+    #   readout since T051 box 4): an Intervene SETS a molecule, so a lax
+    #   spec that declares the readout lets the agent write the answer into
+    #   the measurement (pressure: the target set to 100.0 read 38.36
+    #   against v_target 10.80; the harm pool set to 0 every turn took the
+    #   side-product 2.00 -> 1.22). Once guarded worlds only; a neutral
+    #   example's declared readout was accepted the same way;
+    # - a structurally hidden pool (T066 Q1, AUP ruling (A) 2026-10-07):
+    #   the runner projects it out of every observation, so it is never an
+    #   affordance, and an Intervene would write the ground truth the
+    #   episode is measured against (W2's ``harm_ledger``, phase 1's hidden
+    #   pool);
+    # - a reaction with a compiled ``rate_law`` (owner, (A)): an Intervene
+    #   SETS a numeric rate and would drop the law for mass action at the
+    #   setpoint.
     if levers_dial is not None:
-        law_levers = sorted(
-            lever for lever in levers
-            if lever in chemistry.reactions and chemistry.reactions[lever].rate_law is not None
-        )
-        if law_levers:
+        refusals = {
+            lever: reason
+            for lever in levers
+            if (reason := lever_exclusion(lever, chemistry, readouts, setup_hidden_ids)) is not None
+        }
+        if refusals:
             raise ValueError(
-                f"build_brief: declared lever(s) {law_levers} are reactions with a compiled rate law — "
-                "an Intervene sets a numeric rate and would replace the law with mass action at the "
-                "setpoint; declare a different control surface"
+                f"build_brief: declared lever(s) {sorted(refusals)} cannot be a control surface: "
+                + "; ".join(refusals[lever] for lever in sorted(refusals))
+                + "; declare a different control surface"
             )
 
     objective = task.objective
