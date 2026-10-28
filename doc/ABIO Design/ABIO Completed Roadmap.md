@@ -4,52 +4,57 @@ Completed milestones of the alienbio project, newest on top — 41 migrated 2026
 
 | Table of Contents |  |
 |---|---|
-| **[[#Completed standalone features (since 2026-09-16)]]** |  |
-| **[[#[x] M-Matrix — ABIO exercised: a capability test matrix inside the module (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Expr — Expr: the generative expression language (F007 G4, ratified 2026-08-29) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-ProdOps — Production experiment operations (framework-general readiness) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-AUPReady — AUP experiment-readiness (the instrument, ready to run B2 end to end) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Conserve — Conservation-grounded simulation core (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Catalog — Experiment Catalog (meta-milestone: enumerate experiment types → flesh → prove coverage) 🏗️ (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Trials — Mass-trial automation + cross-dimensional reliability map (integrative end-state) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Scoring — Measurement & scoring layer (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Knobs — Modulating-factor knobs (Series C substrate) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Conflict — Driver-conflict engineering (Series B substrate) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Constit — Objective / constitution injection (Series A substrate) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Families — Benchmark-capability task families (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Dials — Controllable-complexity dials (migrated 2026-09-16)]]** |  |
-| **[[#Forward roadmap — framework-capability milestones (M-Semantic+)]]** |  |
-| **[[#[x] M-Semantic — Semantic layer over the M-Suite primitives (immediate next) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Suite — Suite Construction subsystem (Fable-built primitives) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Vector — JAX Vectorization & GPU Scaling (Future) (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Polish — Demo Polish, JAX GPU Demo, and Roadmap (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-DocsPub — Documentation Publishing & Demo Refactoring (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Gallery — Demo Gallery & Checked-In Results (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Demos — Demonstration Suite & Visualization (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Unskip — Skipped Test Debt — Unskip previously deferred tests (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Build — Build System Completion (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-SpecLang — Spec Language Completion (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-BioAPI — Bio API Completion (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-RateSim — Rate Compilation and Sim Integration (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Analysis — Advanced Analysis (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Docs — Documentation (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Skin — Alien Descriptions and Skinning (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-JAX — JAX Simulator (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Harness — Test Harness (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-DiagCure — Diagnosis and Cure Tasks (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Disease — Disease and Variation (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Compart — Multi-Compartment Systems (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Task — Task Framework (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-MeasAct — Measurements and Actions (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-OneComp — Single Compartment Simulation (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Valid — System Validation (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Expt — Experimentation System (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Exec — Scenario Execution (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-Gen — Generator System (migrated 2026-09-16)]]** |  |
-| **[[#[x] M-SimLoop — Minimal Simulation Loop (migrated 2026-09-16)]]** |  |
-
+| **[Completed standalone features (since 2026-09-16)](#Completed%20standalone%20features%20%28since%202026-09-16%29)** |  |
+| **[M-Matrix — ABIO exercised: a capability test matrix inside the module (migrated 2026-09-16)](#%5Bx%5D%20M-Matrix%20%E2%80%94%20ABIO%20exercised%20a%20capability%20test%20matrix%20inside%20the%20module%20%28migrated%202026-09-16%29)** |  |
+| **[M-Expr — Expr: the generative expression language (F007 G4, ratified 2026-08-29) (migrated 2026-09-16)](#%5Bx%5D%20M-Expr%20%E2%80%94%20Expr%20the%20generative%20expression%20language%20%28F007%20G4,%20ratified%202026-08-29%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-ProdOps — Production experiment operations (framework-general readiness) (migrated 2026-09-16)](#%5Bx%5D%20M-ProdOps%20%E2%80%94%20Production%20experiment%20operations%20%28framework-general%20readiness%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-AUPReady — AUP experiment-readiness (the instrument, ready to run B2 end to end) (migrated 2026-09-16)](#%5Bx%5D%20M-AUPReady%20%E2%80%94%20AUP%20experiment-readiness%20%28the%20instrument,%20ready%20to%20run%20B2%20end%20to%20end%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-Conserve — Conservation-grounded simulation core (migrated 2026-09-16)](#%5Bx%5D%20M-Conserve%20%E2%80%94%20Conservation-grounded%20simulation%20core%20%28migrated%202026-09-16%29)** |  |
+| **[M-Catalog — Experiment Catalog (meta-milestone: enumerate experiment types → flesh → prove coverage) 🏗️ (migrated 2026-09-16)](#%5Bx%5D%20M-Catalog%20%E2%80%94%20Experiment%20Catalog%20%28meta-milestone%20enumerate%20experiment%20types%20%E2%86%92%20flesh%20%E2%86%92%20prove%20coverage%29%20%F0%9F%8F%97%EF%B8%8F%20%28migrated%202026-09-16%29)** |  |
+| **[M-Trials — Mass-trial automation + cross-dimensional reliability map (integrative end-state) (migrated 2026-09-16)](#%5Bx%5D%20M-Trials%20%E2%80%94%20Mass-trial%20automation%20+%20cross-dimensional%20reliability%20map%20%28integrative%20end-state%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-Scoring — Measurement & scoring layer (migrated 2026-09-16)](#%5Bx%5D%20M-Scoring%20%E2%80%94%20Measurement%20&%20scoring%20layer%20%28migrated%202026-09-16%29)** |  |
+| **[M-Knobs — Modulating-factor knobs (Series C substrate) (migrated 2026-09-16)](#%5Bx%5D%20M-Knobs%20%E2%80%94%20Modulating-factor%20knobs%20%28Series%20C%20substrate%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-Conflict — Driver-conflict engineering (Series B substrate) (migrated 2026-09-16)](#%5Bx%5D%20M-Conflict%20%E2%80%94%20Driver-conflict%20engineering%20%28Series%20B%20substrate%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-Constit — Objective / constitution injection (Series A substrate) (migrated 2026-09-16)](#%5Bx%5D%20M-Constit%20%E2%80%94%20Objective%20/%20constitution%20injection%20%28Series%20A%20substrate%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-Families — Benchmark-capability task families (migrated 2026-09-16)](#%5Bx%5D%20M-Families%20%E2%80%94%20Benchmark-capability%20task%20families%20%28migrated%202026-09-16%29)** |  |
+| **[M-Dials — Controllable-complexity dials (migrated 2026-09-16)](#%5Bx%5D%20M-Dials%20%E2%80%94%20Controllable-complexity%20dials%20%28migrated%202026-09-16%29)** |  |
+| **[Forward roadmap — framework-capability milestones (M-Semantic+)](#Forward%20roadmap%20%E2%80%94%20framework-capability%20milestones%20%28M-Semantic+%29)** |  |
+| **[M-Semantic — Semantic layer over the M-Suite primitives (immediate next) (migrated 2026-09-16)](#%5Bx%5D%20M-Semantic%20%E2%80%94%20Semantic%20layer%20over%20the%20M-Suite%20primitives%20%28immediate%20next%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-Suite — Suite Construction subsystem (Fable-built primitives) (migrated 2026-09-16)](#%5Bx%5D%20M-Suite%20%E2%80%94%20Suite%20Construction%20subsystem%20%28Fable-built%20primitives%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-Vector — JAX Vectorization & GPU Scaling (Future) (migrated 2026-09-16)](#%5Bx%5D%20M-Vector%20%E2%80%94%20JAX%20Vectorization%20&%20GPU%20Scaling%20%28Future%29%20%28migrated%202026-09-16%29)** |  |
+| **[M-Polish — Demo Polish, JAX GPU Demo, and Roadmap (migrated 2026-09-16)](#%5Bx%5D%20M-Polish%20%E2%80%94%20Demo%20Polish,%20JAX%20GPU%20Demo,%20and%20Roadmap%20%28migrated%202026-09-16%29)** |  |
+| **[M-DocsPub — Documentation Publishing & Demo Refactoring (migrated 2026-09-16)](#%5Bx%5D%20M-DocsPub%20%E2%80%94%20Documentation%20Publishing%20&%20Demo%20Refactoring%20%28migrated%202026-09-16%29)** |  |
+| **[M-Gallery — Demo Gallery & Checked-In Results (migrated 2026-09-16)](#%5Bx%5D%20M-Gallery%20%E2%80%94%20Demo%20Gallery%20&%20Checked-In%20Results%20%28migrated%202026-09-16%29)** |  |
+| **[M-Demos — Demonstration Suite & Visualization (migrated 2026-09-16)](#%5Bx%5D%20M-Demos%20%E2%80%94%20Demonstration%20Suite%20&%20Visualization%20%28migrated%202026-09-16%29)** |  |
+| **[M-Unskip — Skipped Test Debt — Unskip previously deferred tests (migrated 2026-09-16)](#%5Bx%5D%20M-Unskip%20%E2%80%94%20Skipped%20Test%20Debt%20%E2%80%94%20Unskip%20previously%20deferred%20tests%20%28migrated%202026-09-16%29)** |  |
+| **[M-Build — Build System Completion (migrated 2026-09-16)](#%5Bx%5D%20M-Build%20%E2%80%94%20Build%20System%20Completion%20%28migrated%202026-09-16%29)** |  |
+| **[M-SpecLang — Spec Language Completion (migrated 2026-09-16)](#%5Bx%5D%20M-SpecLang%20%E2%80%94%20Spec%20Language%20Completion%20%28migrated%202026-09-16%29)** |  |
+| **[M-BioAPI — Bio API Completion (migrated 2026-09-16)](#%5Bx%5D%20M-BioAPI%20%E2%80%94%20Bio%20API%20Completion%20%28migrated%202026-09-16%29)** |  |
+| **[M-RateSim — Rate Compilation and Sim Integration (migrated 2026-09-16)](#%5Bx%5D%20M-RateSim%20%E2%80%94%20Rate%20Compilation%20and%20Sim%20Integration%20%28migrated%202026-09-16%29)** |  |
+| **[M-Analysis — Advanced Analysis (migrated 2026-09-16)](#%5Bx%5D%20M-Analysis%20%E2%80%94%20Advanced%20Analysis%20%28migrated%202026-09-16%29)** |  |
+| **[M-Docs — Documentation (migrated 2026-09-16)](#%5Bx%5D%20M-Docs%20%E2%80%94%20Documentation%20%28migrated%202026-09-16%29)** |  |
+| **[M-Skin — Alien Descriptions and Skinning (migrated 2026-09-16)](#%5Bx%5D%20M-Skin%20%E2%80%94%20Alien%20Descriptions%20and%20Skinning%20%28migrated%202026-09-16%29)** |  |
+| **[M-JAX — JAX Simulator (migrated 2026-09-16)](#%5Bx%5D%20M-JAX%20%E2%80%94%20JAX%20Simulator%20%28migrated%202026-09-16%29)** |  |
+| **[M-Harness — Test Harness (migrated 2026-09-16)](#%5Bx%5D%20M-Harness%20%E2%80%94%20Test%20Harness%20%28migrated%202026-09-16%29)** |  |
+| **[M-DiagCure — Diagnosis and Cure Tasks (migrated 2026-09-16)](#%5Bx%5D%20M-DiagCure%20%E2%80%94%20Diagnosis%20and%20Cure%20Tasks%20%28migrated%202026-09-16%29)** |  |
+| **[M-Disease — Disease and Variation (migrated 2026-09-16)](#%5Bx%5D%20M-Disease%20%E2%80%94%20Disease%20and%20Variation%20%28migrated%202026-09-16%29)** |  |
+| **[M-Compart — Multi-Compartment Systems (migrated 2026-09-16)](#%5Bx%5D%20M-Compart%20%E2%80%94%20Multi-Compartment%20Systems%20%28migrated%202026-09-16%29)** |  |
+| **[M-Task — Task Framework (migrated 2026-09-16)](#%5Bx%5D%20M-Task%20%E2%80%94%20Task%20Framework%20%28migrated%202026-09-16%29)** |  |
+| **[M-MeasAct — Measurements and Actions (migrated 2026-09-16)](#%5Bx%5D%20M-MeasAct%20%E2%80%94%20Measurements%20and%20Actions%20%28migrated%202026-09-16%29)** |  |
+| **[M-OneComp — Single Compartment Simulation (migrated 2026-09-16)](#%5Bx%5D%20M-OneComp%20%E2%80%94%20Single%20Compartment%20Simulation%20%28migrated%202026-09-16%29)** |  |
+| **[M-Valid — System Validation (migrated 2026-09-16)](#%5Bx%5D%20M-Valid%20%E2%80%94%20System%20Validation%20%28migrated%202026-09-16%29)** |  |
+| **[M-Expt — Experimentation System (migrated 2026-09-16)](#%5Bx%5D%20M-Expt%20%E2%80%94%20Experimentation%20System%20%28migrated%202026-09-16%29)** |  |
+| **[M-Exec — Scenario Execution (migrated 2026-09-16)](#%5Bx%5D%20M-Exec%20%E2%80%94%20Scenario%20Execution%20%28migrated%202026-09-16%29)** |  |
+| **[M-Gen — Generator System (migrated 2026-09-16)](#%5Bx%5D%20M-Gen%20%E2%80%94%20Generator%20System%20%28migrated%202026-09-16%29)** |  |
+| **[M-SimLoop — Minimal Simulation Loop (migrated 2026-09-16)](#%5Bx%5D%20M-SimLoop%20%E2%80%94%20Minimal%20Simulation%20Loop%20%28migrated%202026-09-16%29)** |  |
 
 ## Completed standalone features (since 2026-09-16)
+
+### [x] Quiescence Detection (moved from the forward roadmap's Later section 2026-10-27, T073)
+- [x] `sim.run(quiet=("measure_name", args...), delta=10, span=50)` - run until measure stabilizes
+- [x] Stop when measure changes by less than `delta` over `span` consecutive ticks
+- [x] Requires `timeout` parameter for safety (prevents infinite runs)
+- [x] Use case: "Run until the ecosystem stabilizes, then sample"
 
 ## [x] M-Matrix — ABIO exercised: a capability test matrix inside the module (migrated 2026-09-16)
 

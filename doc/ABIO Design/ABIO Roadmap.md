@@ -13,30 +13,29 @@ Shape B task-checklist roadmap for the alienbio project — 3 forward milestones
 
 | Table of Contents |  |
 |---|---|
-| **[[#Open Items]]** |  |
-| **[[#Meta-Thesis — what this framework is for]]** |  |
-| **[[#Milestone renaming (2026-09-16)]]** |  |
-| **[[#[ ] M-Bench.1 — Interactive design-session workflow]]** |  |
-|    [[#The loop, in the tooling that now exists (2026-10-07)]] |  |
-| **[[#[ ] M-Bench.2 — World-validity tests ("test the world")]]** |  |
-| **[[#[ ] M-Bench.3 — Curriculum design]]** |  |
-| **[[#[ ] M-Bench.4 — Gameability / red-team of a design]]** |  |
-| **[[#[ ] M-Bench.5 — Encode as catalog fixtures]]** |  |
-| **[[#[ ] M-FixPoint.1 — Iterative self-/successor-alignment adjustment loop (initial-condition variation)]]** |  |
-| **[[#[ ] M-FixPoint.2 — Trajectory / attractor / perturbation analysis across generations]]** |  |
-| **[[#[ ] M-Harden.1 — Cost-model conformance (H6)]]** |  |
-| **[[#[ ] M-Harden.2 — World contracts (H1)]]** |  |
-| **[[#[ ] M-Harden.3 — Metamorphic relations (H5)]]** |  |
-| **[[#[ ] M-Harden.4 — Fault injection (H3)]]** |  |
-| **[[#[ ] M-Harden.5 — Brief entailment (H2)]]** |  |
-| **[[#[ ] M-Harden.6 — Record and replay (H4)]]** |  |
-| **[[#[ ] M-Harden.7 — Live conformance (H7)]]** |  |
-| **[[#[ ] M-Harden.8 — Close the capability matrix's own gaps]]** |  |
-| **[[#[ ] Cloud Storage Integration]]** |  |
-| **[[#[ ] Web Dashboard]]** |  |
-| **[[#[ ] Multi-agent Experiments]]** |  |
-| **[[#[x] Quiescence Detection]]** |  |
-| **[[#Yet to be added to the roadmap]]** |  |
+| **[Open Items](#Open%20Items)** |  |
+|    [Auto-resolved](#Auto-resolved) |  |
+|    [Q2 — All seven hardening legs, or the free five? (auto-resolved 2026-10-08)](#Q2%20%E2%80%94%20All%20seven%20hardening%20legs,%20or%20the%20free%20five?%20%28auto-resolved%202026-10-08%29) |  |
+| **[Meta-Thesis — what this framework is for](#Meta-Thesis%20%E2%80%94%20what%20this%20framework%20is%20for)** |  |
+| **[Milestone renaming (2026-09-16)](#Milestone%20renaming%20%282026-09-16%29)** |  |
+| **[M-Bench.1 — Interactive design-session workflow](#%5B%20%5D%20M-Bench.1%20%E2%80%94%20Interactive%20design-session%20workflow)** |  |
+|    [The loop, in the tooling that now exists (2026-10-07)](#The%20loop,%20in%20the%20tooling%20that%20now%20exists%20%282026-10-07%29) |  |
+| **[M-Bench.2 — World-validity tests ("test the world")](#%5B%20%5D%20M-Bench.2%20%E2%80%94%20World-validity%20tests%20%28%22test%20the%20world%22%29)** |  |
+| **[M-Bench.3 — Curriculum design](#%5B%20%5D%20M-Bench.3%20%E2%80%94%20Curriculum%20design)** |  |
+| **[M-Bench.4 — Gameability / red-team of a design](#%5B%20%5D%20M-Bench.4%20%E2%80%94%20Gameability%20/%20red-team%20of%20a%20design)** |  |
+| **[M-Bench.5 — Encode as catalog fixtures](#%5B%20%5D%20M-Bench.5%20%E2%80%94%20Encode%20as%20catalog%20fixtures)** |  |
+| **[M-FixPoint.1 — Iterative self-/successor-alignment adjustment loop (initial-condition variation)](#%5B%20%5D%20M-FixPoint.1%20%E2%80%94%20Iterative%20self-/successor-alignment%20adjustment%20loop%20%28initial-condition%20variation%29)** |  |
+| **[M-FixPoint.2 — Trajectory / attractor / perturbation analysis across generations](#%5B%20%5D%20M-FixPoint.2%20%E2%80%94%20Trajectory%20/%20attractor%20/%20perturbation%20analysis%20across%20generations)** |  |
+| **[M-Harden.1 — Cost-model conformance (H6)](#%5B%20%5D%20M-Harden.1%20%E2%80%94%20Cost-model%20conformance%20%28H6%29)** |  |
+| **[M-Harden.2 — World contracts (H1)](#%5B%20%5D%20M-Harden.2%20%E2%80%94%20World%20contracts%20%28H1%29)** |  |
+| **[M-Harden.3 — Metamorphic relations (H5)](#%5B%20%5D%20M-Harden.3%20%E2%80%94%20Metamorphic%20relations%20%28H5%29)** |  |
+| **[M-Harden.4 — Fault injection (H3)](#%5B%20%5D%20M-Harden.4%20%E2%80%94%20Fault%20injection%20%28H3%29)** |  |
+| **[M-Harden.5 — Brief entailment (H2)](#%5B%20%5D%20M-Harden.5%20%E2%80%94%20Brief%20entailment%20%28H2%29)** |  |
+| **[M-Harden.6 — Record and replay (H4)](#%5B%20%5D%20M-Harden.6%20%E2%80%94%20Record%20and%20replay%20%28H4%29)** |  |
+| **[M-Harden.7 — Live conformance (H7)](#%5B%20%5D%20M-Harden.7%20%E2%80%94%20Live%20conformance%20%28H7%29)** |  |
+| **[M-Harden.8 — Close the capability matrix's own gaps](#%5B%20%5D%20M-Harden.8%20%E2%80%94%20Close%20the%20capability%20matrix's%20own%20gaps)** |  |
+| **[Agents sharing one world](#%5B%20%5D%20Agents%20sharing%20one%20world)** |  |
+| **[Yet to be added to the roadmap](#Yet%20to%20be%20added%20to%20the%20roadmap)** |  |
 
 ## Open Items
 <!-- state:q nk -->
@@ -247,7 +246,8 @@ content (still owed), so the checkbox means one thing.
 
 ## [ ] M-Bench.3 — Curriculum design
 - [ ] Graded difficulty ladder; each rung isolates one target capability (structure → dynamics → intervention → hidden-mechanism hypothesis)
-- [ ] Gap analysis vs. current H1–H5 hello-worlds; replace or promote
+- [x] Gap analysis vs. the worlds that exist — [ABIO Curriculum Map](ABIO%20Curriculum%20Map.md) (2026-10-27, T073): `pathway_puzzles` promoted to rung 1; the H1–H5 hello-worlds were deleted at M47.7
+- [ ] Rungs 2–4 as neutral worlds: a predict key that varies with the world (grid, branched), a passive-gated intervention (agent_loop, gated), a hidden-reaction hypothesis (H5 restored); cascade's locus drawn per seed; an oracle agent per rung
 
 ## [ ] M-Bench.4 — Gameability / red-team of a design
 - [ ] Can an agent short the scoring without doing the "biology"? Fable adversarially probes each design
@@ -332,27 +332,10 @@ Ordered by catch-per-dollar, not ambition.
 
 Features to consider for future development.
 
-## [ ] Cloud Storage Integration
-- Add cloud sync for DAT storage (Google Cloud Storage, S3)
-- Implement `Dat.push()` / `Dat.pull()` methods
-- Or integrate with DVC for remote storage
-- Config already has `default_remote` and `remote_prefix` fields
+## [ ] Agents sharing one world
+- Two agents acting in the same world at once — the one part of the M1-era "Multi-agent Experiments" item nothing implements. Its other bullets are built: agent and model as grid axes over matched world seeds (M46.8), paired divergence (C10), the idle twin (M45.7); tournament ranking is one aggregate over those axes, not a milestone.
 
-## [ ] Web Dashboard
-- Real-time experiment monitoring
-- Result visualization and comparison
-- Agent performance analytics
-
-## [ ] Multi-agent Experiments
-- Run multiple agents on same scenarios
-- Comparative scoring and analysis
-- Tournament-style evaluation
-
-## [x] Quiescence Detection
-- [x] `sim.run(quiet=("measure_name", args...), delta=10, span=50)` - run until measure stabilizes
-- [x] Stop when measure changes by less than `delta` over `span` consecutive ticks
-- [x] Requires `timeout` parameter for safety (prevents infinite runs)
-- [x] Use case: "Run until the ecosystem stabilizes, then sample"
+Struck 2026-10-27 (T073, [ABIO Curriculum Map](ABIO%20Curriculum%20Map.md) § Proposed roadmap edits): **Cloud Storage Integration** — run output is `records.jsonl` + `manifest.json` per run directory, not DAT; dvc-dat 3.0 ships no `push`/`pull`, and the `default_remote`/`remote_prefix` config went with T067. **Web Dashboard** — `bio report` writes a self-contained `reports/report.html` with every run's key figure and `bio suite report` reads a run from its store; runs are batch, so "real-time" has no consumer. **Quiescence Detection** (done) moved whole to [ABIO Completed Roadmap](ABIO%20Completed%20Roadmap.md).
 
 
 ## Yet to be added to the roadmap
@@ -365,7 +348,7 @@ Under-specified in [[AUP]] as of 2026-07-12 — captured so they aren't lost; pr
 - **Statistical-power design** — trials-per-condition targets, effect sizes (ASP §6.5). Feeds M-Trials.2/M-Trials.3.
 
 ## ___
-line:: [ABIO Roadmap](ABIO%20Roadmap.md) · [1 ready](ABIO%20Roadmap.md#M-Bench.1%20%E2%80%94%20Interactive%20design-session%20workflow)
+line:: [ABIO Roadmap](ABIO%20Roadmap.md) · [1 ready](ABIO%20Roadmap.md#M-Bench.1%20%E2%80%94%20Interactive%20design-session%20workflow) 
 status:: Ready
 next:: (opus) (dan) [[ABIO Roadmap#^ABIO-Roadmap-Q1|Roadmap Q1]] is the word; meanwhile [[ABIO Backlog#^T073|T073]] and [[ABIO Backlog#^T074|T074]] run against the worlds that exist, and [[ABIO Backlog#^T069|T069]]'s yes releases [[ABIO Backlog#^T075|T075]] through [[ABIO Backlog#^T082|T082]] (stoked 2026-10-08)
 appears:: ABIO
