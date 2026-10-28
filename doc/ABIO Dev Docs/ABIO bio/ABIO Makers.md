@@ -57,3 +57,4 @@ The three `mk.register` calls run once, at import. The pegboard accepts a re-reg
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with `infra/mk.py` read for the accessor and anchor rules this module depends on. Checked locally against the export: the duplicate-name collapse in `mk.C`. Production callers found by grep over `src/`. The pegboard itself is documented here only as far as the makers rely on it; its own page belongs to the `infra/` pass. Findings filed on T088.
+- 2026-10-28 — T088 bio and operator round: `mk.C` refuses two different entities sharing a local name (the same object twice is kept once); no shipped generator relied on the overwrite (suite green). A mapping keyed off its entity's name was already refused by `ChemistryImpl` (E3).

@@ -73,3 +73,4 @@ The `justfile`'s `run` and `view-report` recipes call `python -m alienbio`, and 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with `pyproject.toml` and the `justfile` read at the same commit. Checked locally against the export: `bio config --help` (exit 1), `bio test-matrix --help` (exit 2), `bio suite -v run` (exit 2), `python -m alienbio` failing. `cli.py` and `commands/__init__.py` share this page because the registry is the front door's only data; the four verb modules are on the pages of the modules they front. Findings filed on T088.
+- 2026-10-28 — T088 bio and operator round: every verb takes `--help` (exit 0): `config` and `test-matrix` have `argparse` parsers; a bare `bio` exits 2; the justfile's `run` calls `bio` and `view-report` is gone (no `__main__.py`, as the rest of the justfile already assumed).

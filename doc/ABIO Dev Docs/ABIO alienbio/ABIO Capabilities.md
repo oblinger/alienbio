@@ -113,3 +113,4 @@ The scan reads source, so it knows a test is decorated, not whether it ran. A pr
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with `tests/capabilities/conftest.py` read for the marker. Checked locally against the export: the matrix over that commit's tests (32 claimed, `check`, `unknown_ids` and `check_phrases` all empty), and `check` against a missing folder returning every built id. The dimension counts are from `DIMENSIONS` at that commit. Findings filed on T088.
+- 2026-10-28 — T088 bio and operator round: `scan`/`phrases` refuse a missing `tests/capabilities/` with `FileNotFoundError` naming it, and `bio test-matrix --check` prints that and exits 1. A skip-guarded proving test still satisfies the static gate; `bio report` now reads it as not proven.

@@ -113,3 +113,4 @@ A composition travels as `{symbol: count}` and is resolved against a registry th
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`). `atom.py` is folded in because it is one value class and a table; a page of its own would repeat the composition story. Checked locally against the export: `HCl` and `C0O2` as printed, atom equality across different weights. Readers of each field found by grep over `src/`. Not determined: whether `bdepth` has a planned reader. Findings filed on T088.
+- 2026-10-28 — T088 bio and operator round: `symbol` is Hill order (carbon-free formulas fully alphabetical: `HCl` → `ClH`); atoms are equal by symbol and weight; a molecule or chemistry carrying two different atoms under one symbol refuses.

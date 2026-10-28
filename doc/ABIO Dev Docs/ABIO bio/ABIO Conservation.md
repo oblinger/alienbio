@@ -98,3 +98,4 @@ A reaction with an empty side is read as an exchange with the environment and sk
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`). Checked locally against that export: the atom-free pass under the defaults and the `require_atoms` refusal. Callers found by grep over `src/` and `tests/`. Not determined: whether any planned caller means to run `total_quantity` on an open world. Findings filed on T088.
+- 2026-10-28 — T088 bio and operator round: `conservation_outcome` (`balanced` / `vacuous: no atoms` / `partial: …` / `violated: …`) added and `Skeleton.validate` records it on `Skeleton.conservation` — every skeleton-minted world reads `vacuous: no atoms`; `total_quantity`'s docstring names what moves it legitimately (boundary reactions, population laws).

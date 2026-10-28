@@ -106,3 +106,4 @@ Across `src/` the tree is built through `add_root` and `add_child` and read thro
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`). Checked locally against the export: the connector-less grandchild line, the half-added compartment after `add_child(-1)` (5 → 6), `from_dict` mutating the caller's dict, two roots resolving to the last. The readers of each member found by grep over `src/`. Not run: the cyclic `ancestors` loop (read from the code). Findings filed on T088.
+- 2026-10-28 — T088 bio and operator round: `add_child` refuses a negative or non-int parent before touching the tree; `__str__` draws a connector at every depth; `from_dict` copies its lists and refuses unequal lengths, zero or two roots, an out-of-range parent and a cycle; `children` returns a copy.
