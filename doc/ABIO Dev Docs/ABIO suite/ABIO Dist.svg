@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-base">
+    <rect id="n-base-box" x="20" y="60" width="220" height="64" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-base-name" x="130" y="86" font-size="18" font-weight="600" text-anchor="middle">spec.base_seed</text>
+    <text id="n-base-kind" x="130" y="108" font-size="14" text-anchor="middle">(int) the run's root</text>
+  </g>
+  <g id="n-seed">
+    <rect id="n-seed-box" x="320" y="52" width="240" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-seed-name" x="440" y="78" font-size="18" font-weight="600" text-anchor="middle">Seed</text>
+    <text id="n-seed-kind" x="440" y="100" font-size="14" text-anchor="middle">(dataclass) value: int</text>
+    <text id="n-seed-kind2" x="440" y="120" font-size="14" text-anchor="middle">rng(): negative raises</text>
+  </g>
+  <line id="e-base-seed" x1="240" y1="92" x2="320" y2="92" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-child">
+    <rect id="n-child-box" x="640" y="52" width="260" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-child-name" x="770" y="78" font-size="18" font-weight="600" text-anchor="middle">child(label)</text>
+    <text id="n-child-kind" x="770" y="100" font-size="14" text-anchor="middle">sha256("value:label")</text>
+    <text id="n-child-kind2" x="770" y="120" font-size="14" text-anchor="middle">first 8 bytes → Seed</text>
+  </g>
+  <line id="e-seed-child" x1="560" y1="92" x2="640" y2="92" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <path id="e-child-loop" d="M 900 80 L 950 80 L 950 20 L 440 20 L 440 52" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-child-loop" x="700" y="14" font-size="13" fill="#1971c2" font-style="italic" text-anchor="middle">trial / turn / block labels, recursively</text>
+
+  <g id="n-users">
+    <rect id="n-users-box" x="980" y="40" width="200" height="110" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-users-name" x="1080" y="66" font-size="17" font-weight="600" text-anchor="middle">~40 modules</text>
+    <text id="n-users-k1" x="1080" y="88" font-size="13" text-anchor="middle">runner, mass_trial,</text>
+    <text id="n-users-k2" x="1080" y="106" font-size="13" text-anchor="middle">observation, blocks,</text>
+    <text id="n-users-k3" x="1080" y="124" font-size="13" text-anchor="middle">generators, expr env</text>
+  </g>
+  <line id="e-child-users" x1="900" y1="110" x2="980" y2="110" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-proto">
+    <rect id="n-proto-box" x="320" y="230" width="240" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-proto-name" x="440" y="256" font-size="18" font-weight="600" text-anchor="middle">Dist</text>
+    <text id="n-proto-kind" x="440" y="278" font-size="14" text-anchor="middle">(Protocol) sample(seed)</text>
+  </g>
+  <line id="e-seed-proto" x1="440" y1="132" x2="440" y2="230" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-seed-proto" x="450" y="185" font-size="13" fill="#1971c2" font-style="italic">seed.rng()</text>
+  <g id="n-impls">
+    <rect id="n-impls-box" x="20" y="340" width="540" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-impls-name" x="290" y="366" font-size="17" font-weight="600" text-anchor="middle">Constant · Uniform · Normal · LogNormal · Choice</text>
+    <text id="n-impls-kind" x="290" y="388" font-size="13" text-anchor="middle">(frozen dataclasses) one value per seed</text>
+  </g>
+  <line id="e-impls-proto" x1="440" y1="340" x2="440" y2="294" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-impls-proto" x="450" y="322" font-size="13" fill="#1971c2" font-style="italic">implement</text>
+
+  <g id="n-ps">
+    <rect id="n-ps-box" x="640" y="230" width="260" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text id="n-ps-name" x="770" y="256" font-size="18" font-weight="600" text-anchor="middle">ParamSchema</text>
+    <text id="n-ps-kind" x="770" y="278" font-size="14" text-anchor="middle">leaf seed = child(path) ‡</text>
+    <text id="n-ps-kind2" x="770" y="298" font-size="14" text-anchor="middle">no caller in src/</text>
+  </g>
+  <line id="e-ps-proto" x1="640" y1="262" x2="560" y2="262" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-tree">
+    <rect id="n-tree-box" x="640" y="380" width="260" height="90" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tree-name" x="770" y="406" font-size="17" font-weight="600" text-anchor="middle">nested dict / list</text>
+    <text id="n-tree-k1" x="770" y="428" font-size="13" text-anchor="middle">{"a/b": U, "a": {"b": U}}</text>
+    <text id="n-tree-k2" x="770" y="448" font-size="13" text-anchor="middle">both paths "/a/b": same draw</text>
+  </g>
+  <line id="e-tree-ps" x1="770" y1="380" x2="770" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-blocks">
+    <rect id="n-blocks-box" x="980" y="230" width="200" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-blocks-name" x="1080" y="256" font-size="17" font-weight="600" text-anchor="middle">rate holes</text>
+    <text id="n-blocks-k1" x="1080" y="278" font-size="13" text-anchor="middle">blocks and generators</text>
+    <text id="n-blocks-k2" x="1080" y="298" font-size="13" text-anchor="middle">hold Dists, sample</text>
+    <text id="n-blocks-k3" x="1080" y="314" font-size="13" text-anchor="middle">under block seeds</text>
+  </g>
+
+  <line id="e-blocks-child" x1="1040" y1="230" x2="860" y2="132" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
+    <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="260" y="646" font-size="14">derives, implements</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ the seed is the path string: "/a/b" twice, or "/0" key and index, is one draw</text>
+  </g>
+</svg>
