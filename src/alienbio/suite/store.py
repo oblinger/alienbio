@@ -26,7 +26,7 @@ from .types import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
-from .spec import ExperimentSpec, estimate_cost, spec_to_dict
+from .spec import ExperimentSpec, agent_kinds_in_play, estimate_cost, spec_to_dict
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -367,7 +367,11 @@ def _single_model(spec: ExperimentSpec) -> Optional[str]:
     """The one model id this run uses, or ``None`` when it sweeps several."""
     if _model_axis_levels(spec):
         return None
-    return (spec.model or PINNED_MODEL) if spec.agent == "llm" else spec.model
+    # Round 5: every kind in play, not ``spec.agent`` alone — an ``agent``
+    # axis ``[idle, llm]`` on a scripted spec ran its llm cells on
+    # PINNED_MODEL while the header said ``model: null`` (and no
+    # ``model_created_at``), as the record lines did not.
+    return (spec.model or PINNED_MODEL) if "llm" in agent_kinds_in_play(spec) else spec.model
 
 
 def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) -> dict[str, Any]:

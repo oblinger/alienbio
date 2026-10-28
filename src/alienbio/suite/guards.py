@@ -607,9 +607,24 @@ def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
     if not isinstance(prior, Mapping):
         return []
     current = spec_to_dict(spec)
+
+    def _derived_turns(d: Mapping[str, Any]) -> int:
+        axes = tuple((name, tuple(levels)) for name, levels in dict(d.get("axes") or {}).items())
+        return _default_expected_turns(d.get("fixed_dials") or {}, axes)
+
+    # Round 5: ``expected_turns`` is persisted as its DERIVED value when the
+    # spec leaves it unset — the largest ``max_turns`` level — so widening a
+    # ``max_turns`` axis, one of the two legitimate edits, read as drift and
+    # refused the resume. Derived on both sides follows the axes; only an
+    # explicit value on either side is compared.
+    derived_both = prior.get("expected_turns") == _derived_turns(prior) and current[
+        "expected_turns"
+    ] == _derived_turns(current)
     drift: list[str] = []
     for key in sorted(set(prior) | set(current)):
         if key in ("trials_per_condition", "axes"):
+            continue
+        if key == "expected_turns" and derived_both:
             continue
         if prior.get(key) != current.get(key):
             drift.append(key)

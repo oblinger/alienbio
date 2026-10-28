@@ -437,6 +437,12 @@ def certainty_slice_problem(steps: int, windows: int, sample_every: int) -> Opti
             f"certainty_windows={windows} must divide sim_steps={steps} "
             "(each window integrates sim_steps / certainty_windows steps)"
         )
+    if windows == 1:
+        # Round 5: one window runs the turn whole on the untouched path —
+        # there is no slice, so no slice grid to miss. Every certainty arm
+        # carries ``windows: 1``, so ``sim_steps=25`` (sample_every 10)
+        # refused inside each trial.
+        return None
     slice_steps = steps // windows
     if slice_steps % sample_every and sample_every % slice_steps:
         return (
