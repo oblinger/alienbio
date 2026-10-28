@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-slot">
+    <rect id="n-slot-box" x="20" y="40" width="230" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-slot-name" x="135" y="66" font-size="18" font-weight="600" text-anchor="middle">rate: slot</text>
+    <text id="n-slot-kind" x="135" y="88" font-size="14" text-anchor="middle">(value) number · Dist</text>
+    <text id="n-slot-kind2" x="135" y="108" font-size="14" text-anchor="middle">or QuotedForm</text>
+  </g>
+  <g id="n-cr">
+    <rect id="n-cr-box" x="320" y="40" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cr-name" x="440" y="66" font-size="18" font-weight="600" text-anchor="middle">compile_rate</text>
+    <text id="n-cr-kind" x="440" y="88" font-size="14" text-anchor="middle">(fn) once, at world build;</text>
+    <text id="n-cr-kind2" x="440" y="108" font-size="14" text-anchor="middle">a bool refuses</text>
+  </g>
+  <line id="e-slot-cr" x1="250" y1="80" x2="320" y2="80" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-law">
+    <rect id="n-law-box" x="900" y="200" width="270" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-law-name" x="1035" y="226" font-size="18" font-weight="600" text-anchor="middle">RateLaw</text>
+    <text id="n-law-kind" x="1035" y="248" font-size="14" text-anchor="middle">(dataclass) k · modulations</text>
+    <text id="n-law-kind2" x="1035" y="268" font-size="14" text-anchor="middle">or expr</text>
+  </g>
+  <polyline id="e-cr-law" points="560,80 1035,80 1035,200" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cr-law" x="790" y="70" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">number or Dist: k</text>
+
+  <g id="n-prod">
+    <rect id="n-prod-box" x="320" y="200" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-prod-name" x="440" y="226" font-size="18" font-weight="600" text-anchor="middle">_compile_product</text>
+    <text id="n-prod-kind" x="440" y="248" font-size="14" text-anchor="middle">(fn) k × modulations over</text>
+    <text id="n-prod-kind2" x="440" y="268" font-size="14" text-anchor="middle">non-consumed pools</text>
+  </g>
+  <line id="e-cr-prod" x1="440" y1="120" x2="440" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cr-prod" x="450" y="165" font-size="14" fill="#1971c2" font-style="italic">quoted form</text>
+  <g id="n-mod">
+    <rect id="n-mod-box" x="620" y="200" width="220" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-mod-name" x="730" y="226" font-size="18" font-weight="600" text-anchor="middle">ModulationSpec</text>
+    <text id="n-mod-kind" x="730" y="248" font-size="14" text-anchor="middle">(dataclass) hill · michaelis</text>
+    <text id="n-mod-kind2" x="730" y="268" font-size="14" text-anchor="middle">activator · inhibitor</text>
+  </g>
+  <line id="e-prod-mod" x1="560" y1="240" x2="620" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-mod-law" x1="840" y1="240" x2="900" y2="240" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-expr">
+    <rect id="n-expr-box" x="320" y="380" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-expr-name" x="440" y="406" font-size="18" font-weight="600" text-anchor="middle">_compile_expr</text>
+    <text id="n-expr-kind" x="440" y="428" font-size="14" text-anchor="middle">(fn) + − × ÷ ** exp log sqrt</text>
+    <text id="n-expr-kind2" x="440" y="448" font-size="14" text-anchor="middle">modulations, species</text>
+  </g>
+  <line id="e-prod-expr" x1="440" y1="280" x2="440" y2="380" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-prod-expr" x="450" y="335" font-size="14" fill="#1971c2" font-style="italic">refused "compilable subset"</text>
+  <g id="n-tree">
+    <rect id="n-tree-box" x="620" y="380" width="220" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tree-name" x="730" y="406" font-size="18" font-weight="600" text-anchor="middle">rate_expr tree</text>
+    <text id="n-tree-kind" x="730" y="428" font-size="14" text-anchor="middle">(RateExpr) over pool names,</text>
+    <text id="n-tree-kind2" x="730" y="448" font-size="14" text-anchor="middle">dist leaves undrawn</text>
+  </g>
+  <line id="e-expr-tree" x1="560" y1="420" x2="620" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-tree-law" x1="840" y1="400" x2="940" y2="280" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-names">
+    <rect id="n-names-box" x="20" y="290" width="230" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-names-name" x="135" y="316" font-size="18" font-weight="600" text-anchor="middle">a bare name ‡</text>
+    <text id="n-names-kind" x="135" y="338" font-size="14" text-anchor="middle">(Name) bound: a constant;</text>
+    <text id="n-names-kind2" x="135" y="358" font-size="14" text-anchor="middle">unbound: a pool</text>
+  </g>
+  <line id="e-prod-names" x1="320" y1="265" x2="250" y2="305" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <line id="e-expr-names" x1="320" y1="395" x2="250" y2="355" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <g id="n-view">
+    <rect id="n-view-box" x="20" y="500" width="230" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-view-name" x="135" y="526" font-size="18" font-weight="600" text-anchor="middle">registry view</text>
+    <text id="n-view-kind" x="135" y="548" font-size="14" text-anchor="middle">(Registry) rate · math · op</text>
+    <text id="n-view-kind2" x="135" y="568" font-size="14" text-anchor="middle">dist + special</text>
+  </g>
+  <line id="e-expr-view" x1="360" y1="460" x2="250" y2="525" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
+  <text id="l-expr-view" x="310" y="515" font-size="14" fill="#1971c2" font-style="italic">heads</text>
+
+  <g id="n-rlb">
+    <rect id="n-rlb-box" x="900" y="380" width="270" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rlb-name" x="1035" y="406" font-size="18" font-weight="600" text-anchor="middle">RateLawBlock.realize</text>
+    <text id="n-rlb-kind" x="1035" y="428" font-size="14" text-anchor="middle">(ExprHeads) draws k, mod/pool,</text>
+    <text id="n-rlb-kind2" x="1035" y="448" font-size="14" text-anchor="middle">law/law n per world</text>
+  </g>
+  <line id="e-law-rlb" x1="1100" y1="280" x2="1100" y2="380" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <g id="n-rxn">
+    <rect id="n-rxn-box" x="900" y="510" width="270" height="70" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-rxn-name" x="1035" y="538" font-size="18" font-weight="600" text-anchor="middle">ReactionImpl</text>
+    <text id="n-rxn-kind" x="1035" y="562" font-size="14" text-anchor="middle">(bio) modifiers or rate_law</text>
+  </g>
+  <line id="e-rlb-rxn" x1="1035" y1="460" x2="1035" y2="510" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="legend">
+    <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
+    <line id="legend-solid" x1="35" y1="641" x2="85" y2="641" stroke="#1e1e1e" stroke-width="3"/>
+    <text id="legend-solid-text" x="95" y="646" font-size="14">compiles, realizes</text>
+    <line id="legend-dotted" x1="250" y1="641" x2="300" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
+    <text id="legend-dotted-text" x="310" y="646" font-size="14">falls back, reads</text>
+    <text id="legend-dagger" x="460" y="646" font-size="14">‡ a misspelled parameter becomes a pool; a reactant named inside a template refuses</text>
+  </g>
+</svg>
