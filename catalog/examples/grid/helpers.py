@@ -36,11 +36,11 @@ def grid_children(steps: int, rows: int, feed: float = 0.5, *, env: Any) -> dict
     return out
 
 
-@fn(summary="the id of the first reaction of row 0")
-def first_reaction(world) -> str:
-    matches = [rid for rid in world.chemistry.reactions if rid.endswith("/row0_step0/rxn")]
+@fn(summary="the id of the reaction whose grid node is `name` (row0_step0, drain0, ...)")
+def reaction_named(world, name: str) -> str:
+    matches = [rid for rid in world.chemistry.reactions if rid.endswith(f"/{name}/rxn")]
     if len(matches) != 1:
-        raise ValueError(f"first_reaction: row0_step0 matches {matches}")
+        raise ValueError(f"reaction_named: {name!r} matches {matches}")
     return matches[0]
 
 

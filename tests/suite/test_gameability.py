@@ -407,10 +407,6 @@ _P1 = (
     "phase 1 is conflict-free by design (any feed reaches the goal): {cut} 1.000 = "
     "pursue-target 1.000, side-product {h}"
 )
-_PREDICT = (
-    "the predict key is 'down' on every seed: committing it blind scores 1.000 vs "
-    "{agent} 0.000 — needs a key that varies with the world"
-)
 _W1_MAX = (
     "W1's score reads the target only: max-pull 1.000 vs pursue-target 0.805 "
     "(pursue-target commits at its observed peak 12.43 >= goal 10.80 and the commit "
@@ -502,8 +498,13 @@ GAMEABLE: dict[tuple[str, str], str] = {
     # concentration summed over the pond and the three population compartments.
     ("microcosm", "idle"): "no intended solver: measure-commit never intervenes, 0.351 vs idle 0.355",
     ("microcosm", "constant-key"): "no intended solver: measure-commit 0.351 vs constant-key 0.344 (2 seeds)",
-    **_no_solver("grid", "trend-commit (wrong on every cell by design)", "idle", "random"),
-    ("grid", "constant-key"): _PREDICT.format(agent="trend-commit"),
+    **_no_solver(
+        "grid", "trend-commit (right only when row 0's drain is throttled; seed 1 is not)",
+        "idle", "random",
+    ),
+    ("grid", "constant-key"): _PREDICT_DRAWN.format(
+        agent="trend-commit", modal="same", hit=20, cut="0.000"
+    ),
     **_no_solver("kinetics", "measure-commit", "idle", "random"),
     ("kinetics", "constant-key"): _PREDICT_DRAWN.format(
         agent="measure-commit", modal="up", hit=28, cut="0.000"

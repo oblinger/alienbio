@@ -20,13 +20,17 @@ sk: !skeleton
 
 world: !world {skeleton: !x sk, initial: {S0: 1.0}}
 
-# the task: which way does row 0's product move when its first step is
-# throttled?
+# the task: which way does row 0's product move when one reaction is
+# throttled? The reaction is drawn from the world seed (T096: it was row 0's
+# first step, so the key was `down` on every cell): row 0's first step
+# (`down`), row 0's drain (`up`) or row 1's first step, which never reaches
+# P0 (`same`)
+perturbed: !x choice(["row0_step0", "drain0", "row1_step0"])
 task: !task
   archetype: grid-predict
   objective: !predict_q
     world: !x world
-    reaction_id: !x first_reaction(world)
+    reaction_id: !x reaction_named(world, perturbed)
     target_id: !x molecule_id(world, "P0")
     factor: 0.25
     sim: !sim {dt: 0.05, steps: 60}
@@ -41,7 +45,9 @@ experiment: !experiment
   agent: trend_commit
   axes: {complexity: [1, 3], n_nodes: [2, 4], agent: [trend_commit, prior_commit, idle]}
   trials_per_condition: 3
-  base_seed: 17
+  # 22, not 17 (T096): the three matched world seeds draw one each of
+  # row0_step0 / drain0 / row1_step0 here; at 17 all three drew drain0
+  base_seed: 22
   # the run exists to compare short chains with long ones: a large effect,
   # so three trials per cell suffice (suite.power)
   design: !power {target_effect_d: 3.0, primary_contrast: {axis: complexity, low: 1, high: 3}}

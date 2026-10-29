@@ -30,7 +30,19 @@ def test_the_world_is_a_grid_sized_by_both_dials():
     rows, steps = 3, 2  # the file's defaults: n_nodes=3, complexity=2
     assert len(world.chemistry.reactions) == rows * (steps + 2)  # chain steps + a source + a sink per row
     assert len(world.chemistry.molecules) == rows * (steps + 1)
-    assert v["task"].objective.key.value == "down"
+    # T096: the throttled reaction is drawn per seed; its place fixes the sign
+    expected = {"row0_step0": "down", "drain0": "up", "row1_step0": "same"}[v["perturbed"]]
+    assert v["task"].objective.key.value == expected
+
+
+def test_the_predict_key_varies_with_the_seed():
+    """T096: the key was `down` on every cell (row 0's first step throttled);
+    the drawn reaction makes all three answers occur."""
+    seen = {}
+    for seed in range(12):
+        v = Env.standard(seed=seed, trusted=True).load(SPEC).force_all()
+        seen.setdefault(v["task"].objective.key.value, set()).add(v["perturbed"])
+    assert seen == {"down": {"row0_step0"}, "up": {"drain0"}, "same": {"row1_step0"}}, seen
 
 
 def test_the_spec_declares_the_full_harness():
@@ -59,9 +71,14 @@ def test_the_run_fills_the_grid_with_matched_idle_twins(full_run):
     twins = idle_baseline_comparison(rmap)
     assert len(twins) == 8 and all(n == 3 for *_, n in twins)  # every condition, both live arms against idle, three trials each
     assert all(idle == 0.0 for _, _, _, idle, _ in twins)  # doing nothing answers nothing
-    by_agent = {agent: live for _, agent, live, _, _ in twins}
-    assert by_agent["prior-commit"] == 1.0  # the textbook prior is right on every cell of this grid
-    assert by_agent["trend-commit"] == 0.0  # the unperturbed trend points the wrong way on every cell
+    # T096: the three matched world seeds draw one each of down / up / same,
+    # so each one-answer control is right on exactly one trial in three — the
+    # prior (`down`) when row 0's step is throttled, the trend (`up`) when its
+    # drain is; before, the prior was right on every cell and the trend never
+    assert {agent: live for _, agent, live, _, _ in twins} == {
+        "prior-commit": pytest.approx(1 / 3),
+        "trend-commit": pytest.approx(1 / 3),
+    }
     # the twin is the same (condition, trial index) under the other agent: the
     # store line carries the index; matched seeds give both arms one world
     lines = [json.loads(l) for l in (out / "records.jsonl").read_text().splitlines()]
