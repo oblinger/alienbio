@@ -8,7 +8,7 @@
   <g id="n-callers">
     <rect id="n-callers-box" x="20" y="50" width="250" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-callers-name" x="145" y="78" font-size="18" font-weight="600" text-anchor="middle">suite callers</text>
-    <text id="n-callers-kind" x="145" y="102" font-size="14" text-anchor="middle">(suite) validity, augment, carve</text>
+    <text id="n-callers-kind" x="145" y="102" font-size="14" text-anchor="middle">(suite) validity, carve</text>
     <text id="n-callers-kind2" x="145" y="120" font-size="14" text-anchor="middle">neighbors only</text>
   </g>
   <g id="n-chem">

@@ -13,8 +13,7 @@ one piece that changes (a fresh :class:`~alienbio.bio.chemistry.ChemistryImpl`
 for reaction edits, a fresh :class:`~alienbio.bio.world.Compartment` for
 concentration edits) while reusing every untouched node object **by identity** —
 so everything else is byte-for-byte identical, exactly as
-:func:`~alienbio.suite.carve.splice` and :func:`~alienbio.suite.augment.augment`
-reconstruct a chemistry. The edits are pure: the input ``world`` is never mutated.
+:func:`~alienbio.suite.carve.splice` reconstructs a chemistry. The edits are pure: the input ``world`` is never mutated.
 
 Each function raises a clear error on an unknown id, so a caller pulling a lever
 that does not exist fails loudly rather than silently no-op'ing.

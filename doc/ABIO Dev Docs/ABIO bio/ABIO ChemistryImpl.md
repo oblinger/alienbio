@@ -65,7 +65,7 @@ The `Chemistry` Protocol's implementation (`protocols/bio.py`, held to it by `pr
 
 
 ## chemistry Interface
-The module exports `ChemistryImpl`, re-exported from `alienbio.bio` and `alienbio`. Its two helpers are private by name: `_reaction_graph_view(chem)` builds the `graph_ops.GraphView` every graph query runs on, and `_mock_dat(path)` returns a `MockDat` typed `Any` for derived entities — imported by `suite/carve.py`, `suite/augment.py` and `suite/perturbations.py` despite the underscore.
+The module exports `ChemistryImpl`, re-exported from `alienbio.bio` and `alienbio`. Its two helpers are private by name: `_reaction_graph_view(chem)` builds the `graph_ops.GraphView` every graph query runs on, and `_mock_dat(path)` returns a `MockDat` typed `Any` for derived entities — imported by `suite/carve.py` and `suite/perturbations.py` despite the underscore.
 
 
 
@@ -95,7 +95,7 @@ Three identifiers can differ: the dict key, the entity's `local_name`, and its `
 | `Skeleton.materialize` (`suite/skeleton.py`) | `mk.C` over the realized fragment | none in the dict; on molecules if the blocks set them |
 | `!Chemistry {…}` (`suite/expr_heads.py`) | `hydrate`, molecules re-hydrated from fields | those in an `atoms:` field; a molecule naming any other symbol refuses |
 | `hydrate(data)` | `MoleculeImpl.hydrate`, `ReactionImpl.hydrate` | `data["atoms"]`, and each molecule's composition |
-| Suite derivers — `carve`, `augment`, `perturbations`, the runner's `_chemistry_with_rate` | the constructor directly, sharing molecules | whatever they pass |
+| Suite derivers — `carve`, `perturbations`, the runner's `_chemistry_with_rate` | the constructor directly, sharing molecules | whatever they pass |
 | `subgraph(nodes)` | the constructor | every atom of the source |
 
 So `attributes()` followed by `hydrate()` keeps both the `atoms` dict and every molecule's composition; until 2026-10 it lost both.

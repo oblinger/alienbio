@@ -449,8 +449,8 @@ def rebuild_world(
 ) -> "WorldImpl":
     """A new :class:`WorldImpl` with ``chemistry`` and/or ``compartments``
     swapped in and ``world``'s non-reaction dynamics — its ``flows`` and
-    ``population_laws`` — carried over (T088: the suite's perturbation,
-    carve and augment rebuilds called ``WorldImpl(chem, compartments)`` and
+    ``population_laws`` — carried over (T088: the suite's perturbation
+    and carve rebuilds called ``WorldImpl(chem, compartments)`` and
     silently dropped both). The one way a suite edit rebuilds a world."""
     return WorldImpl(
         chemistry if chemistry is not None else world.chemistry,

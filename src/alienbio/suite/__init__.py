@@ -6,7 +6,6 @@ content or evaluates rates.
 
 from __future__ import annotations
 
-from .augment import augment, graph_stats
 from .carve import CarveFail, carve, splice
 from .conflict_gen import (
     RUNGS,
@@ -277,8 +276,6 @@ __all__ = [
     "carve",
     "splice",
     "CarveFail",
-    "augment",
-    "graph_stats",
     "simulate",
     "verify",
     "VerifyResult",

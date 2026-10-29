@@ -228,7 +228,7 @@ The module's free names besides the six classes. Nothing here is re-exported by 
     The type of a `population_laws` entry. ^populationlawspec
 
 **rebuild_world**`(world: WorldImpl, chemistry: Optional[ChemistryImpl] = None, compartments: Optional[tuple[Compartment, ...]] = None) -> WorldImpl`
-    A new world with `chemistry` and/or `compartments` swapped in and `world`'s `flows` and `population_laws` carried, re-resolved by the constructor. The rebuild `perturbations`, `augment` and `arch_diagnose.perturb_reaction_rate` call (T088: they called `WorldImpl(chem, compartments)` and dropped both). ^rebuild-world
+    A new world with `chemistry` and/or `compartments` swapped in and `world`'s `flows` and `population_laws` carried, re-resolved by the constructor. The rebuild `perturbations` and `arch_diagnose.perturb_reaction_rate` call (T088: they called `WorldImpl(chem, compartments)` and dropped both). ^rebuild-world
 
 
 
@@ -279,7 +279,7 @@ Every path ends in this constructor; they differ in what they pass.
 | `world` head | `suite/expr_heads.py` | `materialize`'s, with `initial:` overlaid on one record | carried |
 | `_world_from_state` | `suite/runner.py` | each turn, the records refilled from the last end state | carried |
 | the single-compartment drafters | `suite/arch_diagnose.py`, `arch_predict.py`, `arch_intervene.py`, `pipeline.py` | one record | none |
-| `rebuild_world` | `suite/perturbations.py`, `augment.py`, `arch_diagnose.perturb_reaction_rate`, the discover drafter's `_world` | `world.compartments`, or the edited records (the catalyst added, on discover) | carried |
+| `rebuild_world` | `suite/perturbations.py`, `arch_diagnose.perturb_reaction_rate`, the discover drafter's `_world` | `world.compartments`, or the edited records (the catalyst added, on discover) | carried |
 
 The per-turn rebuild gets the same integer ids every turn: it passes the records in the state's row order, which names every parent before its children, so `build_tree` assigns rows in one round in that order. The `mk` makers build the chemistry (`mk.C`), not the world.
 

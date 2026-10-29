@@ -18,7 +18,7 @@ are deterministic regardless of caller.
 
 The view is undirected, so :func:`paths` reports connection, not
 producibility. Only :func:`neighbors` has a caller in ``src/`` (validity,
-augment, carve); :func:`paths`, :func:`subgraph` and :func:`match` are reached
+carve); :func:`paths`, :func:`subgraph` and :func:`match` are reached
 through ``ChemistryImpl`` by tests only.
 """
 

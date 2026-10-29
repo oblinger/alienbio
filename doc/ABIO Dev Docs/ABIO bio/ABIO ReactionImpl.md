@@ -192,7 +192,7 @@ This module stores only what it is given: every parameter defaults to `None`, an
 | `RateLawBlock.realize` (`suite/expr_heads.py`) | `mk.R` with sampled `Modulation`s | the drawn tree, expression form only |
 | `!Reaction {…}` (`suite/expr_heads.py`) | `hydrate`, minting unknown molecules | a JSON tree in `rate_law:` |
 | `ChemistryImpl.hydrate` | `hydrate` per entry | as given |
-| Suite derivers — `carve`, `augment`, `perturbations` | `rebuild_reaction`, sharing molecules | carried unless the caller passes one |
+| Suite derivers — `carve`, `perturbations` | `rebuild_reaction`, sharing molecules | carried unless the caller passes one |
 | The runner's `_chemistry_with_rate`, `ChemistryImpl.subgraph` | the constructor directly, sharing molecules | as each passes it |
 
 

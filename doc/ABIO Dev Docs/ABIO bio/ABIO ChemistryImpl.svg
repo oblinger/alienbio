@@ -44,7 +44,7 @@
 
   <rect id="derivers-box" x="20" y="340" width="250" height="64" rx="10" fill="#fff3f3" stroke="#1e1e1e" stroke-width="2"/>
   <text id="derivers-name" x="145" y="367" font-size="18" font-weight="600" text-anchor="middle">suite derivers</text>
-  <text id="derivers-kind" x="145" y="389" font-size="14" text-anchor="middle">(carve · augment · runner)</text>
+  <text id="derivers-kind" x="145" y="389" font-size="14" text-anchor="middle">(carve · perturbations · runner)</text>
   <line id="e-derivers" x1="270" y1="372" x2="440" y2="372" stroke="#1e1e1e" stroke-width="2.5" marker-end="url(#arrowhead)"/>
   <text id="l-derivers" x="355" y="362" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">construct</text>
 

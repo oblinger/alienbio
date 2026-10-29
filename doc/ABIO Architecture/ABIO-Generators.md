@@ -1,13 +1,13 @@
 ---
 description: "the drafters — blocks composed into a skeleton, materialized by seed into a world, with the generator-held truth written to task.setup['oracle']. Source: suite/{pressure,phase1,conflict,delta}_gen.py, skeleton.py, blocks.py, hazard.py."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO-Generators](ha://p/ABIO-Generators) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO-Generators](ha://p/ABIO-Generators) 
 # ABIO-Generators
 Every world an agent ever sees is drafted here from a seed, and the truth it will be graded against is written here and nowhere else.
 
 ![[ABIO-Generators.svg|2400]] 
 
-A drafter head in `experiment.py` receives the seed, its declared dials and the free generator keywords, and calls the family's `draft_*_world`. That function measures the do-nothing baseline first (`passive_reach` → `derive_target`), composes a `SkeletonBlock` tree from the `blocks.py` catalog, and `materialize(seed)` samples every distribution hole deterministically into a `WorldImpl`, back-filling provenance so the oracle is read off the tree rather than parsed out of id strings. Draft-time gates then simulate the world and refuse a bad instrument before any agent runs. The head declares the agent-visible surface (`lever_caps`, `probe_vocab`, `hidden_ids`) and writes the generator-held truth to `task.setup["oracle"]`; the runner copies that onto `TrialRecord.oracle` after the episode, so no scorer re-derives it. The `carve`/`augment`/`cover` route is older M27 machinery that only `pipeline.build_suite` walks.
+A drafter head in `experiment.py` receives the seed, its declared dials and the free generator keywords, and calls the family's `draft_*_world`. That function measures the do-nothing baseline first (`passive_reach` → `derive_target`), composes a `SkeletonBlock` tree from the `blocks.py` catalog, and `materialize(seed)` samples every distribution hole deterministically into a `WorldImpl`, back-filling provenance so the oracle is read off the tree rather than parsed out of id strings. Draft-time gates then simulate the world and refuse a bad instrument before any agent runs. The head declares the agent-visible surface (`lever_caps`, `probe_vocab`, `hidden_ids`) and writes the generator-held truth to `task.setup["oracle"]`; the runner copies that onto `TrialRecord.oracle` after the episode, so no scorer re-derives it. The `carve`/`cover` route is older M27 machinery that only `pipeline.build_suite` walks.
 
 ## Modules
 

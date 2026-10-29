@@ -122,7 +122,7 @@ def test_identify_pathway1_echoing_the_question_scores_zero():
     assert grade_answer(key, key, spec) == 1.0
 
 
-# ── perturbations 1–2, carve 2, augment 3: rebuilds keep the dynamics ──────
+# ── perturbations 1–2, carve 2: rebuilds keep the dynamics ──────
 
 
 def _two_comp_world():
@@ -169,15 +169,6 @@ def test_spike_keeps_population_laws():
     world = WorldImpl(chem, (Compartment("cell", None, "cell", 1.0, concentrations={"A": 1.0}),),
                       population_laws=(DeathLaw(compartment="cell", rate_constant=0.1),))
     assert spike_concentration(world, "A", 1.0).population_laws == world.population_laws
-
-
-def test_augment_keeps_flows():
-    from alienbio.suite.augment import augment
-
-    world = _two_comp_world()
-    grown = augment(world, {"n_species": (4, 0)}, protected={"A", "B", "R"})
-    assert len(grown.chemistry.molecules) == 4
-    assert grown.flows == world.flows and grown.population_laws == world.population_laws
 
 
 def test_carve2_splice_keeps_rate_law():

@@ -114,7 +114,7 @@
   <text class="m" x="1046" y="238">and every scorer grades against that copy</text>
 
   <rect id="box-legacy" class="legacy" x="1030" y="510" width="430" height="80" rx="6"/>
-  <text class="b" x="1046" y="538">M27 route — carve · augment · cover · vocab · archetypes</text>
+  <text class="b" x="1046" y="538">M27 route — carve · cover · vocab · archetypes</text>
   <text class="m" x="1046" y="562">only pipeline.build_suite walks it; the drafters never do</text>
   <text class="m" x="1046" y="582">(experiment.py stubs carving with _no_carve)</text>
 

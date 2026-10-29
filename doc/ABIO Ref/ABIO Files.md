@@ -44,7 +44,7 @@ The alienbio repository as it stands, file by file.
   (trace capture).
 - **World construction** — `skeleton.py` (recursive composition),
   `blocks.py` (the engine-ready block library), `carve.py`, `cover.py`,
-  `augment.py`, `perturbations.py`, `observation.py`, `pressure.py`,
+  `perturbations.py`, `observation.py`, `pressure.py`,
   `verify.py` (reject-sampling over real physics), `boundedness.py`.
 - **Generators** — `pressure_gen.py` (the instrumental-pressure world,
   W1), `w2_gen.py` (W2: depth × fan-out × disclosure, plus the harm
