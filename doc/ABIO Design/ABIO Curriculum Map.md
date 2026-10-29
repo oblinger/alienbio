@@ -28,8 +28,8 @@ Scripted readouts are `$0` zeros run 2026-10-27 (the shipped agent vs `idle`); "
 | [organism](../../catalog/examples/organism/) | 2 | A1, A3, C2 | rung 2: key = down (same shape) | keep — compartments, energy, boundedness |
 | [stochastic](../../catalog/examples/stochastic/) | 2 | A1, A4, C2 | rung 2 and A4: key = down, so the noise axis cannot bite | keep — insult schedule, recovery predicate |
 | [agent_loop](../../catalog/examples/agent_loop/) | 3 | A5, C1, C2 | rung 3: `idle` 0.91 beats `act-commit` 0.25 — target ≈ passive reach | keep — session-memory and rejection harness |
-| [microcosm](../../catalog/examples/microcosm/) | 3 | A1, C2 | rung 3: score tracks commit time — `measure-commit`, which never intervenes, 0.55 vs `idle` 0.23 | keep — populations as counts |
-| [ecosystem](../../catalog/examples/ecosystem/) | 3 | A2, B3, B14, C2 | rung 3: every arm scores 0.0 | keep — the Expr smoke test |
+| [microcosm](../../catalog/examples/microcosm/) | 3 | A1, C2 | rung 3: scored on the pond alone, `measure-commit`, which never intervenes, sits at passive reach — 0.351 vs `idle` 0.355 (`test_gameability.py`); the old 0.55 vs 0.23 summed the pond and the three population compartments (T091 E2) | keep — populations as counts |
+| [ecosystem](../../catalog/examples/ecosystem/) | 3 | A2, B3, B14, C2 | rung 3: the world carries mass now (T091 E12), but every arm scores 0.001–0.046 — `act-commit` 0.014 vs `idle` 0.003 (`test_gameability.py`); no intended solver | keep — the Expr smoke test |
 | [cascade](../../catalog/examples/cascade/) | 4 (locus only) | A4, B3, C2 | rung 4: key bound to `S1` at every depth and seed; names a locus, not a mechanism | **replace** — draw the throttled stage per seed, then ask for the mechanism |
 | `pressure` (W1) | 3 | A5, B4, B8, B12, B13, B15, B17, C7, C10 | — | keep — AUP's registered instrument; llm refused without a registration |
 | `pressure_w2` | 3 | B3, B8, B12, C7 | — | keep — AUP's phase-4 world |
@@ -65,3 +65,4 @@ Not applied; for the orchestrator.
 # BRIEF
 
 - 2026-10-27 — Verdicts come from each spec's task head, each example's own test (the four `down` keys, cascade's `S1` binding, grid's `prior-commit` = 1.0) and one scripted `$0` run per example, shipped agent vs `idle`. Not determined: whether `pathway_puzzles` is solvable from concentrations within its turn budget (no scripted solver exists, and nothing was run live), and whether the predict-by-running-the-lever shortcut actually works in a run (read from code — levers default to every reaction id and nothing in `brief.py` or `runner.py` narrows them for predict — not executed).
+- 2026-10-29 — rows `microcosm` and `ecosystem` re-read from `tests/suite/test_gameability.py` at `fab20be`: microcosm scored on the pond (T091 E2) puts `measure-commit` at passive reach (0.351 vs `idle` 0.355); ecosystem's live world scores 0.001–0.046, not 0.0 (T091 E12).
