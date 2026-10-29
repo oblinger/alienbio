@@ -206,7 +206,7 @@ def _llm_spec(**over):
 
     base = ExperimentSpec(
         name="est", axes=(), drafter="phase1_pressure", agent="llm",
-        trials_per_condition=2, base_seed=1, model="claude-sonnet-5",
+        trials_per_condition=2, base_seed=1, model="claude-unpriced-20260101",  # T091 Q2: an unpriced id
         price_usd_per_mtok=(1.0, 2.0), memory="none", expected_turns=4,
         expected_prompt_tokens=100, expected_output_tokens=10,
     )

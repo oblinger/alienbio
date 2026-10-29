@@ -729,7 +729,8 @@ def test_estimate_cost_agent_axis_matches_hand_computed_formula():
         agent="idle",
         trials_per_condition=2,
         base_seed=1,
-        model="claude-sonnet-4-5-20250929",
+        # T091 Q2: an override prices only an unpriced model.
+        model="claude-unpriced-20260101",
         price_usd_per_mtok=(1.0, 2.0),
         expected_turns=4,
         expected_prompt_tokens=100,
@@ -751,7 +752,7 @@ def test_estimate_cost_agent_axis_matches_hand_computed_formula():
 
     expected_usd = cost_usd(expected_input_tokens, expected_output_tokens, (1.0, 2.0))
     assert estimate.usd == pytest.approx(expected_usd)
-    assert estimate.model == "claude-sonnet-4-5-20250929"
+    assert estimate.model == "claude-unpriced-20260101"
 
 
 def test_expected_turns_defaults_from_the_declared_turn_budget():
@@ -1009,6 +1010,7 @@ def test_resume_counts_retried_spend_against_the_ceiling(tmp_path, monkeypatch):
         agent="idle",
         trials_per_condition=4,
         base_seed=1,
+        model="claude-unpriced-20260101",  # T091 Q2: the override prices only an unpriced model
         price_usd_per_mtok=(3.0, 15.0),
         cost_ceiling_usd=4.0,
         fixed_dials={"levers": []},

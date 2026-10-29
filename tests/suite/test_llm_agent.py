@@ -397,7 +397,8 @@ def test_price_for_unknown_model_raises_and_override_wins():
         price_for("some-unknown-model-20260101")
     assert price_for("some-unknown-model-20260101", override=(1.0, 2.0)) == (1.0, 2.0)
     # An override wins even for a KNOWN model.
-    assert price_for("claude-sonnet-4-5-20250929", override=(9.0, 9.0)) == (9.0, 9.0)
+    # T091 Q2 — a published price is never repriced by an override.
+    assert price_for("claude-sonnet-4-5-20250929", override=(9.0, 9.0)) == (3.0, 15.0)
     assert price_for("claude-sonnet-4-5-20250929") == (3.0, 15.0)
 
 
@@ -552,6 +553,7 @@ _E2E_ENABLED = bool(os.environ.get("ABIO_LLM_E2E")) and bool(
 )
 
 
+@pytest.mark.live
 @pytest.mark.skipif(
     not _E2E_ENABLED,
     reason="opt-in LLM e2e test: set ABIO_LLM_E2E=1 and ANTHROPIC_API_KEY to run",

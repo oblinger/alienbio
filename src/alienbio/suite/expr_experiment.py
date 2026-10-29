@@ -557,7 +557,7 @@ def experiment(
     token_ceiling: Optional[int] = None,
     out_dir: Optional[str] = None,
     cost_ceiling_usd: Optional[float] = None,
-    price_usd_per_mtok: Optional[Sequence[float]] = None,
+    price_usd_per_mtok: Optional[Union[Sequence[float], Mapping[str, Sequence[float]]]] = None,
     expected_turns: Optional[int] = None,
     expected_prompt_tokens: Optional[int] = None,
     expected_output_tokens: Optional[int] = None,

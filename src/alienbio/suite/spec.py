@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Union, cast
 
 
-from .llm_agent import PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, validate_output_budget, load_models_snapshot, price_for
+from .llm_agent import MODEL_PRICES_USD_PER_MTOK, PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, validate_output_budget, load_models_snapshot, price_for
 from .power import PowerDesign
 from .trial import frozen_value
 
@@ -70,7 +70,10 @@ class ExperimentSpec:
     #: construction it is always a positive int. Set it explicitly for a
     #: spec whose agent is expected to commit well before the budget.
     cost_ceiling_usd: Optional[float] = None
-    price_usd_per_mtok: Optional[tuple[float, float]] = None
+    #: T091 Q2 — prices for models absent from the published table: one
+    #: ``(input, output)`` USD/MTok pair, or ``{model_id: (input, output)}``.
+    #: A published model is never repriced (see ``llm_agent.price_for``).
+    price_usd_per_mtok: Optional[Union[tuple[float, float], Mapping[str, tuple[float, float]]]] = None
     expected_turns: Optional[int] = None
     expected_prompt_tokens: int = 1500
     expected_output_tokens: int = 300
@@ -323,7 +326,11 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
         "out_dir": spec.out_dir,
         "cost_ceiling_usd": spec.cost_ceiling_usd,
         "price_usd_per_mtok": (
-            list(spec.price_usd_per_mtok) if spec.price_usd_per_mtok is not None else None
+            None
+            if spec.price_usd_per_mtok is None
+            else {m: list(p) for m, p in spec.price_usd_per_mtok.items()}
+            if isinstance(spec.price_usd_per_mtok, Mapping)
+            else list(spec.price_usd_per_mtok)
         ),
         "expected_turns": spec.expected_turns,
         "expected_prompt_tokens": spec.expected_prompt_tokens,
@@ -574,10 +581,32 @@ def _validate_cost_ceiling(value: Any) -> Optional[float]:
     return float(value)
 
 
-def _validate_price_override(value: Any) -> Optional[tuple[float, float]]:
-    """``price_usd_per_mtok`` must be a 2-sequence of non-negative numbers, or absent."""
+def _validate_price_override(value: Any) -> Optional[Union[tuple[float, float], dict[str, tuple[float, float]]]]:
+    """``price_usd_per_mtok`` is absent, a 2-sequence of non-negative numbers
+    (the price of every UNPRICED model in play), or a mapping ``{model_id:
+    2-sequence}`` (T091 Q2). A mapping entry for a model in the published
+    price table refuses: a published price is never overridden."""
     if value is None:
         return None
+    if isinstance(value, Mapping):
+        priced = sorted(str(m) for m in value if m in MODEL_PRICES_USD_PER_MTOK)
+        if priced:
+            raise ValueError(
+                f"experiment spec: price_usd_per_mtok names published model(s) {priced} — a "
+                "published price is never overridden; price only models absent from the table"
+            )
+        out: dict[str, tuple[float, float]] = {}
+        for model, pair in value.items():
+            if not isinstance(model, str):
+                raise ValueError(f"experiment spec: price_usd_per_mtok keys must be model ids, got {model!r}")
+            single = _validate_price_override(pair)
+            if not isinstance(single, tuple):
+                raise ValueError(
+                    f"experiment spec: price_usd_per_mtok[{model!r}] must be a 2-sequence of "
+                    f"non-negative numbers, got {pair!r}"
+                )
+            out[model] = single
+        return out
     try:
         seq = list(value)
     except TypeError:
@@ -759,6 +788,16 @@ def _compact_budget(spec: ExperimentSpec) -> Optional[int]:
     return max(budgets) if budgets else None
 
 
+def _bury_tokens(spec: ExperimentSpec) -> float:
+    """The mean ``bury_commitment`` filler (estimated tokens) a call carries:
+    the fixed dial, or the mean over a swept axis's levels (T091 Q8)."""
+    levels: list[Any] = list(next((lv for name, lv in spec.axes if name == "bury_commitment"), ()))
+    if not levels:
+        levels = [spec.fixed_dials.get("bury_commitment")]
+    values = [float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else 0.0 for v in levels]
+    return sum(values) / len(values)
+
+
 def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
     """Project ``spec``'s USD cost from its grid shape alone — no trial runs.
 
@@ -782,7 +821,9 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
     output again, an ``at_commit`` probe one last-turn call; ``compact_at``
     (T049) adds one summarizer call prompted with the history up to that
     turn (``P * (1 + c/2)``) and replying at most ``compact_budget`` tokens
-    (``O`` when unset). All read high. ``usd`` is
+    (``O`` when unset). ``bury_commitment`` filler (T027) is added to the
+    prompt of every one of those calls (the mean level under an axis, T091
+    Q8). All read high. ``usd`` is
     :func:`~alienbio.suite.llm_agent.cost_usd` at
     :func:`~alienbio.suite.llm_agent.price_for` ``(model,
     spec.price_usd_per_mtok)``.
@@ -866,6 +907,14 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
         calls_per_trial += 1
         extra_desc.append(f"1 summarizer call at turn {compact_turn}")
 
+    # T091 Q8 — ``bury_commitment`` filler sits in the system prompt of EVERY
+    # call (main line, probes, summarizer), so each call carries it; a swept
+    # level owns an equal share of the trials, as the memory axis above.
+    bury = _bury_tokens(spec)
+    if bury:
+        input_per_trial += bury * calls_per_trial
+        extra_desc.append(f"{bury:.0f} bury_commitment filler tok/call")
+
     total_input_tokens = round(input_per_trial * llm_trials)
     total_output_tokens = round(output_per_trial * llm_trials)
 
@@ -880,6 +929,18 @@ def estimate_cost(spec: ExperimentSpec) -> CostEstimate:
         models = [str(level) for level in model_axis]
     else:
         models = [spec.model or PINNED_MODEL]
+    # T091 Q2 — a scalar override prices only unpriced models; beside a
+    # published one it is ambiguous (the operator may believe it reprices
+    # that model too), so it refuses here, before spend, naming them.
+    if spec.price_usd_per_mtok is not None and not isinstance(spec.price_usd_per_mtok, Mapping):
+        published = [m for m in models if m in MODEL_PRICES_USD_PER_MTOK]
+        if published:
+            raise ValueError(
+                f"estimate_cost: price_usd_per_mtok {list(spec.price_usd_per_mtok)} is a scalar override but "
+                f"model(s) {published} have a published price, which an override never replaces — "
+                "drop the override, or price the unpriced model(s) by name: "
+                "price_usd_per_mtok: {<model_id>: [input, output]}"
+            )
     prices = {m: price_for(m, spec.price_usd_per_mtok) for m in models}
     # M45.19 — the fixed system prefix (directive + brief) is cacheable; a
     # pilot-measured hit rate moves that share of the input from full price

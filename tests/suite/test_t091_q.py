@@ -314,3 +314,91 @@ def test_parse_exhausted_abort_text_carries_no_system_prompt():
     text = render_transcript(record)
     assert "Question:" not in text.split("=== Turn 0 ===", 1)[1]
     assert "runaway-cost" not in text
+
+
+# ── Q2 — a price override names the model it prices ─────────────────────────
+
+_MIXED_AXIS = (("model", ("claude-opus-5", "claude-haiku-4-5-20251001", "claude-3-haiku-20240307")),)
+_LIVE = dict(name="m", drafter="diagnose", agent="llm", trials_per_condition=10, base_seed=1, temperature="provider-fixed")
+
+
+def test_a_scalar_override_beside_a_published_model_refuses_before_spend():
+    from alienbio.suite.guards import preflight
+    from alienbio.suite.spec import ExperimentSpec
+
+    spec = ExperimentSpec(axes=_MIXED_AXIS, price_usd_per_mtok=(0.25, 1.25), **_LIVE)
+    verdict = preflight(spec)
+    assert not verdict.ok
+    problem = dict(verdict.checks)["price"]
+    assert "claude-opus-5" in problem and "claude-haiku-4-5-20251001" in problem
+
+
+def test_a_per_model_override_prices_only_its_model():
+    from alienbio.suite.guards import preflight
+    from alienbio.suite.spec import ExperimentSpec, estimate_cost, spec_from_dict, spec_to_dict
+    from alienbio.suite.store import _usage_usd
+
+    spec = ExperimentSpec(axes=_MIXED_AXIS, price_usd_per_mtok={"claude-3-haiku-20240307": [0.25, 1.25]}, **_LIVE)
+    assert dict(preflight(spec).checks)["price"] is None
+    usage = {"input_tokens": 1_000_000, "output_tokens": 1_000_000}
+    assert _usage_usd(usage, "claude-opus-5", spec) == pytest.approx(30.0)
+    assert _usage_usd(usage, "claude-3-haiku-20240307", spec) == pytest.approx(1.5)
+    assert "claude-opus-5 $5.0/$25.0" in estimate_cost(spec).formula
+    assert spec_from_dict(spec_to_dict(spec)) == spec
+
+
+def test_an_override_naming_a_published_model_refuses():
+    from alienbio.suite.spec import ExperimentSpec
+
+    with pytest.raises(ValueError, match="never overridden"):
+        ExperimentSpec(axes=_MIXED_AXIS, price_usd_per_mtok={"claude-opus-5": [0.25, 1.25]}, **_LIVE)
+
+
+# ── Q8 — bury_commitment filler is priced ──────────────────────────────────
+
+
+def test_the_estimate_prices_bury_commitment_filler_on_every_call():
+    from alienbio.suite.spec import ExperimentSpec, estimate_cost
+
+    fixed = {"variant": "commitment_no_coupling", "constitution": "Keep the tracked pool low.", "max_turns": 10,
+             "levers": ["root/uptake_route_in", "root/uptake_neutral_in"]}
+    base = dict(name="b", drafter="phase1_pressure", agent="llm", trials_per_condition=4, base_seed=1,
+                temperature="provider-fixed", fixed_dials=fixed)
+    flat = estimate_cost(ExperimentSpec(axes=(("bury_commitment", (0,)),), **base))
+    buried = estimate_cost(ExperimentSpec(axes=(("bury_commitment", (0, 20000)),), **base))
+    # 8 trials, half at 20000 filler tokens on each of 10 calls.
+    assert buried.input_tokens - 2 * flat.input_tokens == 4 * 20000 * 10
+    assert "bury_commitment" in buried.formula
+    probed = estimate_cost(ExperimentSpec(axes=(), **{**base, "fixed_dials": {
+        **fixed, "probes": [{"text": "q?", "timing": "every_turn"}]}}))
+    assert probed.calls_per_trial == 20  # probes are priced (T088)
+
+
+# ── Q10 — constitution_in_history with no history refuses before the run ───
+
+
+@pytest.mark.parametrize("kw", [dict(axes=(("memory", ("none", 4)),)), dict(axes=(), memory=0)])
+def test_constitution_in_history_without_memory_refuses_in_brief_dials(kw):
+    from alienbio.suite.guards import preflight
+    from alienbio.suite.spec import ExperimentSpec
+
+    fixed = {"variant": "commitment_no_coupling", "constitution": "Keep the tracked pool low.",
+             "constitution_in_history": True, "max_turns": 3,
+             "levers": ["root/uptake_route_in", "root/uptake_neutral_in"]}
+    spec = ExperimentSpec(name="c", drafter="phase1_pressure", agent="llm", trials_per_condition=2, base_seed=1,
+                          temperature="provider-fixed", fixed_dials=fixed, **kw)
+    problem = dict(preflight(spec).checks)["brief-dials"]
+    assert problem is not None and "constitution_in_history requires turn memory" in problem
+
+
+# ── the conftest safety net ─────────────────────────────────────────────────
+
+
+def test_the_real_provider_is_unreachable_from_a_test(monkeypatch):
+    import os
+
+    assert "ANTHROPIC_API_KEY" not in os.environ
+    monkeypatch.setattr("alienbio.config.get_api_key", lambda name: "sk-FAKE")
+    pytest.importorskip("anthropic")
+    with pytest.raises(RuntimeError, match="live provider in tests"):
+        default_anthropic_llm_fn("claude-sonnet-5")

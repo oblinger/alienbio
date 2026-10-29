@@ -163,24 +163,40 @@ def model_created_at(model: Optional[str], snapshot: Optional[Mapping[str, str]]
     return (snapshot if snapshot is not None else load_models_snapshot()).get(model)
 
 
-def price_for(model: str, override: Optional[tuple[float, float]] = None) -> tuple[float, float]:
+#: An ``ExperimentSpec.price_usd_per_mtok``: one ``(input, output)`` pair, or
+#: ``{model_id: (input, output)}`` naming the model each pair prices.
+PriceOverride = Union[tuple[float, float], Mapping[str, tuple[float, float]]]
+
+
+def price_for(model: str, override: Optional[PriceOverride] = None) -> tuple[float, float]:
     """``(input, output)`` USD-per-million-token price for ``model``.
 
-    ``override`` wins when given (an ``ExperimentSpec.price_usd_per_mtok``,
-    e.g.); otherwise the published :data:`MODEL_PRICES_USD_PER_MTOK` entry.
+    A model in :data:`MODEL_PRICES_USD_PER_MTOK` is priced from the table,
+    ALWAYS — an override never reprices it (T091 Q2: a scalar override that
+    an unpriced level of a ``model`` axis forced used to reprice every
+    published level too, so the cost ceiling metered opus-5 at a haiku
+    rate). An unpriced model takes its entry from a per-model ``override``
+    mapping, or the scalar ``(input, output)`` override.
 
     Raises:
-        ValueError: ``model`` is not in :data:`MODEL_PRICES_USD_PER_MTOK` and
-            no ``override`` is given — a paid sweep must never guess a price.
+        ValueError: ``model`` is unpriced and the override does not price it
+            — a paid sweep must never guess a price.
     """
+    if model in MODEL_PRICES_USD_PER_MTOK:
+        return MODEL_PRICES_USD_PER_MTOK[model]
+    if isinstance(override, Mapping):
+        if model in override:
+            return override[model]
+        raise ValueError(
+            f"price_for: no published price for model {model!r} and the "
+            f"price_usd_per_mtok mapping names only {sorted(override)}; add an entry for it"
+        )
     if override is not None:
         return override
-    if model not in MODEL_PRICES_USD_PER_MTOK:
-        raise ValueError(
-            f"price_for: no published price for model {model!r}; pass an "
-            "explicit price_usd_per_mtok override"
-        )
-    return MODEL_PRICES_USD_PER_MTOK[model]
+    raise ValueError(
+        f"price_for: no published price for model {model!r}; pass an "
+        "explicit price_usd_per_mtok override"
+    )
 
 
 def cost_usd(

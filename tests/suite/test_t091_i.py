@@ -77,6 +77,7 @@ def test_the_resume_ceiling_counts_every_retried_dollar(monkeypatch, tmp_path):
         agent="idle",
         trials_per_condition=4,
         base_seed=1,
+        model="claude-unpriced-20260101",  # T091 Q2: the override prices only an unpriced model
         price_usd_per_mtok=(3.0, 15.0),
         cost_ceiling_usd=4.0,
         fixed_dials={"levers": []},

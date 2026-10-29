@@ -655,14 +655,30 @@ def brief_dials_violation(spec: ExperimentSpec) -> Optional[str]:
     identical error records. Anything that needs the drafted world as well
     belongs in :func:`draft_violation`.
     """
+    from .llm_agent import _keeps_no_history
     from .monitor import resolve_monitor
 
     for dials in _condition_dial_vectors(spec):
+        cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
         try:
             resolve_monitor(dials)
         except Exception as exc:  # noqa: BLE001 — the message is the verdict
-            cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
             return f"{spec.name}: condition {cond} — {exc}"
+        # T091 Q10 — ``LLMAgent.begin`` refuses T029's displacement burial
+        # with no history window; checked only there, a ``memory`` axis
+        # holding ``none`` or ``0`` printed a clean ``--dry`` and then wrote
+        # an error record for every trial of that level.
+        memory = dials.get("memory", spec.memory)
+        if (
+            str(dials.get("agent", spec.agent)) == "llm"
+            and dials.get("constitution_in_history")
+            and _keeps_no_history(memory)
+        ):
+            return (
+                f"{spec.name}: condition {cond} — constitution_in_history requires turn memory "
+                f"(memory={memory!r} keeps no history window, so the constitution would never "
+                "reach the model)"
+            )
     return None
 
 
