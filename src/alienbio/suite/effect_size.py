@@ -4,7 +4,6 @@ Pure, closed-form comparisons between two groups of opaque numeric
 observations. No simulation, no randomness (no bootstrap/permutation), no
 I/O. All variances used here are *sample* (``n - 1`` denominator) variances.
 
-- :func:`mean_difference` — ``mean(a) - mean(b)``.
 - :func:`cohens_d` — standardized mean difference using a pooled sample
   standard deviation.
 - :func:`welch_t` — Welch's t statistic (unequal-variance two-sample
@@ -16,19 +15,6 @@ from __future__ import annotations
 import math
 import statistics
 from typing import Sequence
-
-
-def mean_difference(a: Sequence[float], b: Sequence[float]) -> float:
-    """Return ``mean(a) - mean(b)``.
-
-    Raises:
-        ValueError: if either ``a`` or ``b`` is empty.
-    """
-    if not a:
-        raise ValueError("a must not be empty")
-    if not b:
-        raise ValueError("b must not be empty")
-    return statistics.fmean(a) - statistics.fmean(b)
 
 
 def cohens_d(a: Sequence[float], b: Sequence[float]) -> float:

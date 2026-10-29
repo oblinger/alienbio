@@ -40,11 +40,6 @@
   <line id="e-ci-se" x1="300" y1="300" x2="220" y2="330" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <line id="e-ci-mean" x1="330" y1="220" x2="220" y2="80" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
 
-  <g id="n-md">
-    <rect id="n-md-box" x="20" y="430" width="200" height="56" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
-    <text id="n-md-name" x="120" y="454" font-size="17" font-weight="600" text-anchor="middle">mean_difference</text>
-    <text id="n-md-kind" x="120" y="474" font-size="13" text-anchor="middle">(fn) no caller</text>
-  </g>
   <g id="n-d">
     <rect id="n-d-box" x="300" y="420" width="260" height="76" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-d-name" x="430" y="446" font-size="17" font-weight="600" text-anchor="middle">cohens_d</text>

@@ -6,39 +6,7 @@ import math
 
 import pytest
 
-from alienbio.suite.effect_size import cohens_d, mean_difference, welch_t
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# mean_difference
-# ═══════════════════════════════════════════════════════════════════════════
-
-def test_mean_difference_hand_computed():
-    # mean([1,2,3]) == 2, mean([4,5,6]) == 5 -> 2 - 5 == -3
-    assert mean_difference([1, 2, 3], [4, 5, 6]) == pytest.approx(-3.0)
-
-
-def test_mean_difference_sign_flips_with_argument_order():
-    assert mean_difference([4, 5, 6], [1, 2, 3]) == pytest.approx(3.0)
-
-
-def test_mean_difference_zero_when_equal_means():
-    assert mean_difference([1, 2, 3], [0, 2, 4]) == pytest.approx(0.0)
-
-
-def test_mean_difference_empty_a_raises():
-    with pytest.raises(ValueError):
-        mean_difference([], [1, 2, 3])
-
-
-def test_mean_difference_empty_b_raises():
-    with pytest.raises(ValueError):
-        mean_difference([1, 2, 3], [])
-
-
-def test_mean_difference_both_empty_raises():
-    with pytest.raises(ValueError):
-        mean_difference([], [])
+from alienbio.suite.effect_size import cohens_d, welch_t
 
 
 # ═══════════════════════════════════════════════════════════════════════════

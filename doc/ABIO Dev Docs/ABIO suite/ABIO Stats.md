@@ -1,5 +1,5 @@
 ---
-description: "`effect_size` + `stats_summary`: M34.3's closed-form statistics, one page because they are one family — single-sample `sample_mean`/`_variance`/`_std`, `standard_error`, `mean_confidence_interval` (Student-t by default), `t_critical`, and two-sample `mean_difference`, `cohens_d`, `welch_t`. Sources: `src/alienbio/suite/effect_size.py`, `src/alienbio/suite/stats_summary.py`."
+description: "`effect_size` + `stats_summary`: M34.3's closed-form statistics, one page because they are one family — single-sample `sample_mean`/`_variance`/`_std`, `standard_error`, `mean_confidence_interval` (Student-t by default), `t_critical`, and two-sample `cohens_d`, `welch_t`. Sources: `src/alienbio/suite/effect_size.py`, `src/alienbio/suite/stats_summary.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Stats](ha://p/ABIO%20Stats) 
 # ABIO Stats
@@ -45,16 +45,12 @@ Five functions over one `Sequence[float]`, and the t quantile.
 
 
 ## effect_size Interface
-Three functions over two samples `a`, `b`; each reads `a − b`.
+Two functions over two samples `a`, `b`; each reads `a − b`.
 
 | effect_size | |
 | --- | --- |
-| [mean_difference](#^mean-difference) | `mean(a) − mean(b)` |
 | [cohens_d](#^cohens-d) | Difference over pooled SD |
 | [welch_t](#^welch-t) | Unequal-variance t statistic |
-
-**mean_difference**`(a, b) -> float`
-    `ValueError` when either is empty. No caller in `src/` outside the re-export. ^mean-difference
 
 **cohens_d**`(a, b) -> float`
     `(mean(a) − mean(b)) / sqrt(((n₁−1)s₁² + (n₂−1)s₂²) / (n₁+n₂−2))`. `ValueError` for fewer than 2 values on a side or a pooled SD of exactly 0. ^cohens-d
@@ -81,3 +77,4 @@ The default is Student's t quantile at `n − 1` degrees of freedom (4.30 at n =
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the sources at alienbio HEAD `64988be`; the CI coverage measured by Monte Carlo on the HEAD export (20 000 draws per n, seed 0), the catalog's `trials_per_condition` by `git grep`, no spend. Consumer census: `mass_trial`, `census`, `plots`, `report_text`; `mean_difference` and the three single-sample helpers other than the CI have no caller in `src/`.
 - 2026-10-28 — refreshed against `abb5796`: `mean_confidence_interval` defaults to the Student-t quantile via the new `t_critical`.
+- 2026-10-29 — T093: `mean_difference` retired (no caller in `src/`, `catalog/`, `demos/` or AUP); the single-sample helpers stay — `mean_confidence_interval` calls them.

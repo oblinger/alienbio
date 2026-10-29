@@ -160,7 +160,7 @@ from .stats_summary import (
     sample_variance,
     standard_error,
 )
-from .effect_size import cohens_d, mean_difference, welch_t
+from .effect_size import cohens_d, welch_t
 from .reliability_grid import (
     CellStats,
     aggregate_cells,
@@ -427,7 +427,6 @@ __all__ = [
     "standard_error",
     "mean_confidence_interval",
     # M34.3 two-sample effect sizes (wave 5)
-    "mean_difference",
     "cohens_d",
     "welch_t",
     # M34.4 reliability-grid aggregation + interaction (wave 5)
