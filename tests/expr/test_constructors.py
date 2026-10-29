@@ -17,9 +17,16 @@ from alienbio.suite.verify import SimConfig, simulate
 
 
 def test_every_registered_entity_head_is_a_constructor_head():
+    """Every Entity head the PACKAGE defines. The entity head table is
+    process-global and test files define their own Entity subclasses (module
+    level in ``test_dat.py`` / ``test_t091_*``, inside functions in
+    ``test_t088_entity_round.py``); whether ``suite.expr_heads`` — which
+    mints a constructor per head at import — saw them depended on which
+    test module imported it first, so this failed or passed by collection
+    order (T091). A test's own class is not the framework's head table."""
     Env.standard()  # registers the suite heads
-    for name in get_registered_heads():
-        if name == "Entity":
+    for name, cls in get_registered_heads().items():
+        if name == "Entity" or not cls.__module__.startswith("alienbio."):
             continue
         assert registry.get(name).kind == "constructor", name
     assert registry.get("World").kind == "constructor"

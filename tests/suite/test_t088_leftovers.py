@@ -284,10 +284,19 @@ def test_an_on_trial_failure_at_concurrency_two_lands_the_in_flight_records():
 
     drafted = []
     lock = threading.Lock()
+    # T091 — the first two units meet here before either drafts, so both are
+    # in flight when the first one's on_trial raises. Without it a fast first
+    # unit could finish before the pool was handed the second (a loaded
+    # machine descheduling the submitting thread), only one unit had drafted,
+    # and ``> 1`` failed on timing alone.
+    both_started = threading.Barrier(2, timeout=60)
 
     def drafter(seed, dials):
         with lock:
             drafted.append(dials["rung"])
+            first_two = len(drafted) <= 2
+        if first_two:
+            both_started.wait()
         return DRAFTERS["conflict"](seed, dials)
 
     landed = []
