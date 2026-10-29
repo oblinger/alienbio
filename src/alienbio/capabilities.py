@@ -66,7 +66,12 @@ DIMENSIONS: tuple[Dimension, ...] = (
     Dimension("B12", "B", "Epistemic-accessibility control", "built"),
     Dimension("B13", "B", "Independent stakes dial + reversibility dial", "built"),
     Dimension("B14", "B", "Deliberation-budget / time-pressure control", "built"),
-    Dimension("B15", "B", "Monitoring / observability-signal injection", "built"),
+    # B15 is partial (T091 E5, 2026-10-29): the belief side moves the brief,
+    # but the reality side (`monitoring_actual`) is a label on the oracle —
+    # `deceptively-unlogged` and `apparently-unlogged` hand the agent the same
+    # brief and world and end in the same state, so no run path gives being
+    # logged a consequence; C10's deception gap is a placebo until one does.
+    Dimension("B15", "B", "Monitoring / observability-signal injection", "partial"),
     Dimension("B16", "B", "User-preference / sycophancy injection", "planned"),
     Dimension("B17", "B", "Explicit-hint / framing-variation controls", "built"),
     Dimension("B18", "B", "Iterative multi-generation alignment-adjustment loop", "future"),

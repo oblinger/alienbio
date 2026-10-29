@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from alienbio.bio import CompartmentTreeImpl, ReactionSpec, WorldSimulatorImpl, WorldStateImpl
 from alienbio.bio.reaction import Modulation
 from alienbio.expr import Env, X, evaluate
+from alienbio.suite.agent import Answer, Commit, ReasoningStep
+from alienbio.suite.experiment import AGENTS
 from alienbio.suite.verify import SimConfig, simulate
 
 from .conftest import capability, catalog, small
@@ -49,7 +53,7 @@ def test_a1_engine_runs_reactions_modulations_and_compiled_rate_laws_on_both_sim
 
 @capability("A2")
 def test_a2_a_world_is_generated_from_a_spec_file():
-    """A spec file of templates, blocks and a skeleton evaluates to a runnable World with the molecules and reactions it declares.
+    """A spec file of templates, blocks and a skeleton evaluates to a World with the pools and reactions it declares, whose seeded mass moves.
 
     A spec (templates, blocks, a skeleton) evaluates to a World with the
     pools it names — the ecosystem example end to end."""
@@ -62,7 +66,13 @@ def test_a2_a_world_is_generated_from_a_spec_file():
     assert {"krel.energy.ME1", "vash.energy.ME1", "shared_waste"} <= mols
     assert len(world.chemistry.reactions) >= 8
     timeline = simulate(world, SimConfig(dt=0.05, steps=20, sample_every=20))
-    assert len(timeline.states) >= 1
+    # the world is live (T091 E12: it carried no mass and never moved): the
+    # seeded energy cycles drain and pools nobody seeded fill
+    first, last = timeline.states[0], timeline.states[-1]
+    ids = list(last.molecule_ids or ())
+    seeded = {i for i, m in enumerate(ids) if first.get(0, i) > 0.0}
+    assert seeded and all(last.get(0, i) < first.get(0, i) for i in seeded)
+    assert any(last.get(0, i) > 0.0 for i in range(len(ids)) if i not in seeded)
 
 
 @capability("A3")
@@ -93,13 +103,22 @@ w: !world {skeleton: !x sk, initial: {A: 4.0, B: 4.0}, container: cell}
     assert final.get(dest, b) == 0.0  # B did not
 
 
+class _ObservationEcho:
+    """Records the turn-0 observation it was handed as its one reasoning step, then commits nothing."""
+
+    def act(self, observation):
+        seen = [sorted((str(k), float(v)) for k, v in compartment.items()) for compartment in observation]
+        return Commit(answer=Answer(value=[], kind="json")), (ReasoningStep(kind="policy", content=json.dumps(seen), refs=()),)
+
+
 @capability("A4")
-def test_a4_observability_and_noise_dials_narrow_what_the_agent_sees(harness):
-    """The observability and noise dials shrink and perturb the probe set the agent's brief exposes.
+def test_a4_observability_and_noise_dials_narrow_what_the_agent_sees(harness, monkeypatch):
+    """Observability shrinks the brief's probe set; observation noise perturbs what the agent is handed while the world stays the same.
 
     Under observability 0.5 the brief's probes are a strict subset of the
-    world's molecules; under 1.0 every molecule is a probe; noise perturbs
-    the turn-0 observation without changing the world."""
+    world's molecules; under 1.0 every molecule is a probe; observation
+    noise changes the turn-0 observation an agent receives while the final
+    state and the oracle stay equal (T091 E6: the noise arm was never run)."""
     spec = small(catalog("exp04-diagnose-zero"), axes=(("n_nodes", (6,)), ("observability", (1.0, 0.5))), fixed_dials={"max_turns": 2, "sim_steps": 5})
     rmap, _, _ = harness(spec)
     by_obs = {dict(r.condition_key)["observability"]: r for r in rmap.records if dict(r.condition_key)["agent"] != "idle"}
@@ -107,6 +126,20 @@ def test_a4_observability_and_noise_dials_narrow_what_the_agent_sees(harness):
     assert full.brief is not None and half.brief is not None
     assert len(half.brief.affordances.probes) < len(full.brief.affordances.probes)
     assert set(half.brief.affordances.probes) < set(full.brief.affordances.probes)
+
+    monkeypatch.setitem(AGENTS, "observation-echo", lambda spec: lambda seed, dials: _ObservationEcho())
+    noisy = small(
+        catalog("exp04-diagnose-zero"),
+        axes=(("n_nodes", (6,)), ("observability", (1.0,)), ("observation_noise", (0.0, 0.3)), ("agent", ("observation-echo",))),
+        fixed_dials={"max_turns": 2, "sim_steps": 5},
+    )
+    rmap, _, _ = harness(noisy)
+    by_noise = {dict(r.condition_key)["observation_noise"]: r for r in rmap.records}
+    quiet, loud = by_noise[0.0], by_noise[0.3]
+    seen = {k: json.loads(r.deliberation_trace.steps[0].content) for k, r in by_noise.items()}
+    assert [[name for name, _ in c] for c in seen[0.0]] == [[name for name, _ in c] for c in seen[0.3]]  # same probes
+    assert seen[0.0] != seen[0.3]  # the noise reached what the agent was handed
+    assert quiet.final_state == loud.final_state and quiet.oracle == loud.oracle  # the world did not change
 
 
 @capability("A5")

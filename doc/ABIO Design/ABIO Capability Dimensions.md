@@ -77,7 +77,7 @@ What the framework can measure off the ground-truth oracle — automatically, at
 | A3 | Region isolation + per-molecule permeability | ✅ built | `test_a_substrate::test_a3_transport_between_compartments_moves_a_pool_and_only_that_pool` |
 | A4 | Partial-observability sensing model | ✅ built | `test_a_substrate::test_a4_observability_and_noise_dials_narrow_what_the_agent_sees` |
 | A5 | Action execution with reversibility semantics | ✅ built | `test_a_substrate::test_a5_levers_carry_reversibility_and_a_destructive_act_is_logged_as_such` |
-| B1 | Taint-free / guaranteed-novel generation | ✅ built | `test_b_generation::test_b1_the_brief_never_carries_the_key_and_a_live_model_is_refused_where_it_could_peek` |
+| B1 | Taint-free / guaranteed-novel generation | ✅ built | `test_b_generation::test_b1_the_question_never_carries_the_key_interior_and_a_live_model_is_refused_where_it_could_peek` |
 | B2 | Asymmetric knowledge + ground-truth oracle | ✅ built | `test_b_generation::test_b2_every_record_carries_the_ground_truth_oracle_the_agent_never_sees` |
 | B3 | Controllable-complexity dial | ✅ built | `test_b_generation::test_b3_the_complexity_dial_changes_the_world_and_nothing_else` |
 | B4 | Constitution / objective injection | ✅ built | `test_b_generation::test_b4_the_constitution_reaches_the_brief_verbatim` |
@@ -91,14 +91,14 @@ What the framework can measure off the ground-truth oracle — automatically, at
 | B12 | Epistemic-accessibility control | ✅ built | `test_b_generation::test_b12_epistemic_accessibility_is_the_hidden_set_held_per_trial` |
 | B13 | Independent stakes dial + reversibility dial | ✅ built | `test_b_generation::test_b13_stakes_and_reversibility_are_independent_dials_on_the_brief` |
 | B14 | Deliberation-budget / time-pressure control | ✅ built | `test_b_generation::test_b14_the_budget_ladder_starves_the_survey_at_the_tight_rung` |
-| B15 | Monitoring / observability-signal injection | ✅ built | `test_b_generation::test_b15_monitoring_belief_and_reality_are_set_independently` |
+| B15 | Monitoring / observability-signal injection | 🟡 partial | `test_b_generation::test_b15_monitoring_belief_and_reality_are_set_independently` |
 | B16 | User-preference / sycophancy injection | ⬜ planned | — |
 | B17 | Explicit-hint / framing-variation controls | ✅ built | `test_b_generation::test_b17_framing_presets_and_free_text_rewrite_the_briefing_only` |
 | B18 | Iterative multi-generation alignment-adjustment loop | 🔮 future | — |
 | C1 | Deliberation-trace capture | ✅ built | `test_c_measurement::test_c1_the_deliberation_trace_is_captured_per_turn` |
 | C2 | Ground-truth behavioral-alignment scoring | ✅ built | `test_c_measurement::test_c2_the_committed_answer_is_scored_against_the_ground_truth_key` |
 | C3 | Failure-mode classification | 🟡 partial | `test_c_measurement::test_c3_failure_modes_classify_from_signals` |
-| C4 | Per-objective surfacing detection + convergence | ✅ built | `test_c_measurement::test_c4_surfacing_turn_and_depth_profile_are_read_off_records` |
+| C4 | Per-objective surfacing detection + convergence | ✅ built | `test_c_measurement::test_c4_the_surfacing_turn_is_read_off_each_record` |
 | C5 | Blind-spot external verification | ✅ built | `test_c_measurement::test_c5_blind_spots_are_scored_against_an_external_should_have_considered_set` |
 | C6 | Conflict-resolution scoring | ✅ built | `test_c_measurement::test_c6_conflict_resolution_is_scored_and_precedence_read_across_the_ladder` |
 | C7 | Threshold / erosion + recovery measurement | 🟡 partial | `test_c_measurement::test_c7_threshold_and_recovery_are_measured_from_the_dose_and_pressure_reads` |
