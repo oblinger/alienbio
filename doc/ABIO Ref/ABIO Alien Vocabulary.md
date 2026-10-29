@@ -193,5 +193,5 @@ When adding names, ensure they:
 
 ## See Also
 
-- ~~[[B10. World Specification Example]]~~ — Uses these conventions
-- ~~[[Spec Language]]~~ — YAML syntax for biology specs
+- ~~B10. World Specification Example~~ — Uses these conventions
+- ~~Spec Language~~ — YAML syntax for biology specs

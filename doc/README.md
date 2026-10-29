@@ -9,18 +9,18 @@ A framework for testing agentic AI reasoning through procedurally generated biol
 - **CONTROLLABLE** — parametrically constructed for fine-grained analysis of the limits of agentic reasoning.
 
 ## How this documentation is organized
-This tree is **mirrored between the code repository (`docs/`) and the vault (`ABIO Docs/`)** — the folders and paths are identical on both sides. Hand-authored folders sync both directions; generated folders flow one way from the code.
+This tree is the repository's `doc/` folder, published by mkdocs; the design, track and dev-doc folders beside it are excluded from the site.
 
-| Folder | Contents | Sync |
-|--------|----------|------|
-| [[ABIO Architecture Docs\|Architecture/]] | System design — subsystem overviews, PRDs, spec language, per-class and per-command reference. | bidirectional |
-| [[ABIO Alienbio User Guide\|Guide/]] | How to use the system — core specs, generators, execution, the agent interface. | bidirectional |
-| **Modules/** | Auto-generated Python API reference (from docstrings). | one-way (code → vault) |
-| **diagrams/** | Diagram assets (svg/dot). | one-way (code → vault) |
+| Folder | Contents |
+|--------|----------|
+| [Architecture](ABIO%20Architecture/ABIO%20Architecture%20Docs.md) | System design — subsystem overviews, PRDs, the suite runtime and its data model. |
+| [Guides](ABIO%20Guides/ABIO%20Guides.md) | How to use the system — the Expr spec language, its Python API, testing. |
+| [Reference](ABIO%20Ref/ABIO%20Ref.md) | Commands, files, protocols, classes, and the auto-generated [API reference](ABIO%20Ref/ABIO%20API/ABIO%20API.md). |
+| [Demos](ABIO%20Demos/ABIO%20Demo%20Gallery.md) | The M1-era demo gallery, kept as history. |
 
 ## Start here
-- **[[ABIO Architecture Docs]]** — the architecture index: subsystems, data model, protocols, and the benchmark-generation design ([[ABIO Suite Construction]], [[ABIO PRD Docs|Scenario Generator PRD]]).
-- **[[ABIO Alienbio User Guide]]** — usage tutorials: [[ABIO Expr Spec]], [[ABIO Expr Python API]].
+- **[Architecture Docs](ABIO%20Architecture/ABIO%20Architecture%20Docs.md)** — the architecture index: subsystems, data model, protocols, and the benchmark-generation design ([Suite Construction](ABIO%20Architecture/ABIO%20Suite%20Construction.md), [Scenario Generator PRD](ABIO%20Architecture/ABIO%20PRD%20Docs.md)).
+- **[User Guide](ABIO%20Guides/ABIO%20Alienbio%20User%20Guide.md)** — usage: [Expr Spec](ABIO%20Guides/ABIO%20Expr%20Spec.md), [Expr Python API](ABIO%20Guides/ABIO%20Expr%20Python%20API.md).
 - **[API Reference](ABIO%20Ref/ABIO%20API/ABIO%20API.md)** — auto-generated class and function docs.
 
 ## Quick start

@@ -464,7 +464,7 @@ d: !x identify_pathway(pathway_length=3)      # a Draft: (world, task)
 w: !x d.world
 p: !pattern
   roles: {a: molecule, b: molecule, c: molecule}
-  edges: [[a, b, reacts_to], [b, c, reacts_to]]
+  edges: [ [a, b, reacts_to], [b, c, reacts_to] ]
 # a CarveResult under this seed
 sk: !carve {host: !x w, pattern: !x p}
 # {question, objective}
@@ -552,7 +552,7 @@ k2: !x twice(k)
 
 - `!include x.yaml` splices the file's forms in place (its own includes resolved relative to *its* directory; the names inside resolve in the including file's scope); `!include x.md` / `.txt` reads text; `!include x.py` **executes** the file so its decorators register heads, and yields its public names as a mapping. `_includes_:` at the top of a file is the list form: `.py` entries execute; `.yaml` entries merge their top-level keys into the file's scope, the file's own keys winning.
 - `!py module.attr` yields a Python object as a value. A bound callable — a `!py` object, a function from an included module — is callable from `!x` by its name.
-- **Trust.** A spec is loaded *untrusted* by default: it may call any registered head with any arguments, define templates, and include `.yaml` / `.md` / `.txt` files by a relative path inside its own directory. `.py` includes, `!py`, absolute paths and `..` raise `UnsafeSpecError`. Only a trusted load (`Env.standard(trusted=True)`: the framework's own catalog, local development) executes Python. Registration is the only way new heads exist, and it never happens from an untrusted file.
+- **Trust.** A spec is loaded *untrusted* by default: it may call any registered head with any arguments, define templates, and include `.yaml` / `.md` / `.txt` files by a relative path inside its own directory. `.py` includes, `!py`, absolute paths and `..` raise `UnsafeSpecError`. Only a trusted load (`Env.standard(trusted=True)`: the framework's own catalog, local development) executes Python. Registration is the only way new heads exist, and it never happens from an untrusted file. `bio suite run` loads a file trusted only when it sits under the repository's `catalog/`, so an example copied elsewhere that includes `helpers.py` refuses with *executing Python requires a trusted load*: keep the copy under `catalog/`, or load it from Python with `load_experiment(path, trusted=True)` (`alienbio.suite.expr_experiment`) and hand the spec to `run_experiment`; the CLI has no trust flag.
 
 ## Head catalog
 

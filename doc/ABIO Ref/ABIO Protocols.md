@@ -6,12 +6,12 @@ Alphabetical listing of all classes in the Alien Biology system, organized by su
 
 | Subsystem | Classes |
 |-----------|---------|
-| [[ABIO infra\|Infrastructure]] | Entity, IO, DAT |
-| [[ABIO Expr Spec\|Expr]] | Form (Name, Call, Quoted, Include, PyRef), QuotedForm, Env, Ctx, Limits, Registry, Head, TemplateHead, ExprError, GuardViolation, UnsafeSpecError |
-| [[ABIO biology\|Biology]] | Atom, Chemistry, Compartment, CompartmentTree, Flow, GeneralFlow, Molecule, Reaction, WorldState |
-| [[ABIO biology\|Execution]] | Simulator, WorldSimulator |
-| [[ABIO Suite Construction\|Suite construction (M26/M27)]] | Motif, CarveResult, Skeleton, SkeletonBlock, TaskArchetype, ObjectiveRecipe, TaskInstance, Question, Answer, AnswerObjective, OutcomeObjective, SuiteSpec, Suite, Draft, Dist, Seed, Vocabulary, Renderable, Op, LLMOp, Predicate, Directive |
-| [[ABIO Suite Runtime\|Suite runtime (Phase 2)]] | Agent, SessionAgent, ScriptedAgent, LLMAgent, Measure, Intervene, Commit, Wait, ActionOutcome, ReasoningStep, TaskBrief, Affordances, Budget, SimConfig, TrialRecord, ActionRecord, DeliberationTrace, MassTrialRunner, ReliabilityMap, Provenance, ExperimentSpec, PowerDesign |
+| [Infrastructure](../ABIO%20Architecture/ABIO%20infra.md) | Entity, IO, DAT |
+| [Expr](../ABIO%20Guides/ABIO%20Expr%20Spec.md) | Form (Name, Call, Quoted, Include, PyRef), QuotedForm, Env, Ctx, Limits, Registry, Head, TemplateHead, ExprError, GuardViolation, UnsafeSpecError |
+| [Biology](../ABIO%20Architecture/ABIO%20biology.md) | Atom, Chemistry, Compartment, CompartmentTree, Flow, GeneralFlow, Molecule, Reaction, WorldState |
+| [Execution](../ABIO%20Architecture/ABIO%20biology.md) | Simulator, WorldSimulator |
+| [Suite construction (M26/M27)](../ABIO%20Architecture/ABIO%20Suite%20Construction.md) | Motif, CarveResult, Skeleton, SkeletonBlock, TaskArchetype, ObjectiveRecipe, TaskInstance, Question, Answer, AnswerObjective, OutcomeObjective, SuiteSpec, Suite, Draft, Dist, Seed, Vocabulary, Renderable, Op, LLMOp, Predicate, Directive |
+| [Suite runtime (Phase 2)](../ABIO%20Architecture/ABIO%20Suite%20Runtime.md) | Agent, SessionAgent, ScriptedAgent, LLMAgent, Measure, Intervene, Commit, Wait, ActionOutcome, ReasoningStep, TaskBrief, Affordances, Budget, SimConfig, TrialRecord, ActionRecord, DeliberationTrace, MassTrialRunner, ReliabilityMap, Provenance, ExperimentSpec, PowerDesign |
 
 The biology and execution rows name the nine **protocols** in `alienbio.protocols` (`Atom`, `Molecule`, `Reaction`, `Flow`, `GeneralFlow`, `Chemistry`, `CompartmentTree`, `WorldState`, `Simulator`) and the concrete classes in `alienbio.bio` that satisfy them, which carry an `Impl` suffix (`CompartmentTreeImpl`, `WorldStateImpl`, `WorldSimulatorImpl`; `Compartment` is `CompartmentImpl`, which has no Protocol). There is no `State` or `World` protocol and no `StateImpl`: the single-compartment state and simulator went in T056, and `WorldImpl` is a concrete bundle with no Protocol of its own. `pyright src/` holds each implementation to its Protocol through `protocols/_conformance.py`. The Expr row is `alienbio.expr` ([[ABIO Expr Python API]]); the M1 execution stack (Action, Context, Experiment, Measurement, Step, Task, Test, TestHarness, Bio, Interpreter) was deleted in M47.7. The suite rows name concrete dataclasses and Protocols in `alienbio.suite` — the M26 neutral shadow types (`StateVector`, `Topology`, a neutral `World`/`Compartment`) were retired in July 2026 (F007) and the suite now builds directly on the biology classes.
 

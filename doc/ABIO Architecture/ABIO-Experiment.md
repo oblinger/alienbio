@@ -54,7 +54,7 @@ The `expr_experiment` ↔ `experiment` import cycle is gone (T058): `expr_experi
 
 ## Where a config error could reach spend
 
-Hypotheses for the latent-bug pass ([[ABIO051 - Deep Scan|T051]] box 4).
+Hypotheses for the latent-bug pass (T051 box 4).
 
 | HYPOTHESIS | Why it would be quiet | Where |
 | --- | --- | --- |

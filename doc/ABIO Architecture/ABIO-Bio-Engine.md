@@ -27,7 +27,7 @@ Only four packages are imported: `protocols.bio`, `infra.entity`/`graph_ops`/`mk
 
 ## Where a wrong number would be silent
 
-Hypotheses for the latent-bug pass ([[ABIO051 - Deep Scan|T051]] box 4); each names a constructed input.
+Hypotheses for the latent-bug pass (T051 box 4); each names a constructed input.
 
 | HYPOTHESIS | Why it would be quiet | Where |
 | --- | --- | --- |

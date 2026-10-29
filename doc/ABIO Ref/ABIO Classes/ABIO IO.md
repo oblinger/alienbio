@@ -246,5 +246,5 @@ class IO(Protocol):
 ```
 
 ## See Also
-- ~~[[Entity]]~~ - Base class, tree invariants, serialization
+- ~~Entity~~ - Base class, tree invariants, serialization
 - [[ABIO DAT]] - Underlying DAT persistence

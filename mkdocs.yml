@@ -5,6 +5,8 @@ site_url: https://oblinger.github.io/abio-docs/
 repo_url: https://github.com/oblinger/alienbio
 use_directory_urls: false
 exclude_docs: |
+  _hooks/
+  ABIO Ref/_template.md
   *Track/
   *Notebooks/
   .obsidian/
@@ -16,6 +18,10 @@ exclude_docs: |
   ABIO Log.md
   ABIO Experiments.md
   ABIO Docs.md
+
+# Build-time page rewrites (doc/_hooks/strip_spine.py: the vault spine line).
+hooks:
+  - doc/_hooks/strip_spine.py
 
 theme:
   name: material

@@ -26,7 +26,7 @@ Inbound: `infra` has 24 import sites (12 in `bio`, 9 in `suite`, none in `expr`/
 
 Box 4 hypotheses (2026-09-10), each now answered: the `Flow` shadow, the `__all__` ghosts and the Protocol drift are fixed (T056/T057 — `bio/__init__` exports the ABC only, `_conformance.py` makes the contracts live), the pegboard and `bio.io` rows were confirmed as designed (T054 discarded them), and the viz branch went with `viz/` (T056).
 
-Hypotheses for the latent-bug pass ([[ABIO051 - Deep Scan|T051]] box 4).
+Hypotheses for the latent-bug pass (T051 box 4).
 
 | HYPOTHESIS | Why it would be quiet | Where |
 | --- | --- | --- |

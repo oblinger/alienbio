@@ -8,11 +8,11 @@ description: "the demonstration suite: eight sequential tutorial demos and three
 | ...                             |                                                                                                                                                          |
 
 # ABIO Demos
-Demonstration suite for the Alien Biology framework (Milestone 20).
+The M1-era demonstration suite (Milestone 20), kept as history: its runtime, its scripts and the `bio.sim()` pipeline below were deleted in M47.7 and T056 (2026-09-10). What remains is in the [Demo Gallery](ABIO%20Demo%20Gallery.md); the runnable examples today are under `catalog/examples/`.
 
 Eight focused demos form a sequential tutorial covering the full system, plus three combination demos showing realistic multi-feature experiments.
 
-All demos use the full pipeline: YAML spec (M18) → rate compilation (M16) → `bio.sim()` → fetch/store (M17), with scenarios generated from templates (M19).
+All demos used the M1 pipeline: YAML spec (M18) → rate compilation (M16) → `bio.sim()` → fetch/store (M17), with scenarios generated from templates (M19).
 
 ---
 
@@ -48,4 +48,4 @@ All demos use the full pipeline: YAML spec (M18) → rate compilation (M16) → 
 
 ## Optional
 
-**LLM Agent Demo** — Run Claude on a skinned diagnosis task and compare against oracle and random baselines. Requires `ANTHROPIC_API_KEY` in `.env`.
+**LLM Agent Demo** — Run Claude on a skinned diagnosis task and compare against oracle and random baselines. It needed `ANTHROPIC_API_KEY`; the live-model agent today is `suite.llm_agent`.

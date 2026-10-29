@@ -126,7 +126,7 @@ Suite:     worlds: list[World]; tasks: list[TaskInstance]
 |---|---|
 | `Species` | [[ABIO Molecule]] (as a node) |
 | `Reaction` | [[ABIO Reaction]] |
-| `RateSpec` | the M1 `Expr` trees + the rate-compiler (retired; the shipped form is [[ABIO Expr Spec\|Expr]]) |
+| `RateSpec` | the M1 `Expr` trees + the rate-compiler (retired; the shipped form is [Expr](../ABIO%20Guides/ABIO%20Expr%20Spec.md)) |
 | `ReactionNetwork` | [[ABIO Chemistry]] |
 | `Compartment` / `Topology` | [[ABIO Compartment]] / [[ABIO CompartmentTree]] |
 | `StateVector` / `Trace` | [[ABIO WorldState]] (+ time axis) |
@@ -150,4 +150,4 @@ The primitives (Fable-buildable) close over the types above and treat all `Tags`
 
 ## See Also
 - [[ABIO Suite Construction]] — the pipeline this model serves.
-- [[Suite Construction Fable Tasks]] — the primitive implementation specs built against this model (vault-only tracking).
+- Suite Construction Fable Tasks — the primitive implementation specs built against this model (vault-only tracking).

@@ -2,7 +2,7 @@
 # Architecture Docs
 
 Comprehensive specification of the Alien Biology system's design and operation.
-(See [[ABIO Alienbio User Guide]] for usage tutorials and [[Modules/ABIO API|API Docs]] for class and module signatures.)
+(See [[ABIO Alienbio User Guide]] for usage tutorials and [API Docs](../ABIO%20Ref/ABIO%20API/ABIO%20API.md) for class and module signatures.)
 
 
 ## Alienbio Specification Languages
@@ -31,4 +31,4 @@ Comprehensive specification of the Alien Biology system's design and operation.
 ## Project Tracking
 
 - **[[ABIO Roadmap]]** — Milestones and release plan
-- **[[ABIO Todo]]** — Tasks, open questions, and documentation todos
+- **ABIO Todo** — Tasks, open questions, and documentation todos

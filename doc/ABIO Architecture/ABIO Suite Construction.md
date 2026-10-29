@@ -5,7 +5,7 @@ description: "Suite Construction subsystem — how a suite spec becomes a batter
  [[ABIO Architecture Docs]] · [[ABIO Inference Bench]] · [[ABIO PRD Docs|Scenario Generator PRD]] 
 
 # ABIO Suite Construction
-**Subsystem**: ~~[[ABIO execution]]~~ > Benchmark generation
+**Subsystem**: ~~ABIO execution~~ > Benchmark generation
 Turns a *suite spec* into a **suite** — a battery of auto-graded tasks laid over a small set of verified worlds. This is the built realization of the [[ABIO Inference Bench]]; it sits on top of the world-generation layer defined by the [[ABIO PRD Docs|Scenario Generator PRD]] and does not reinvent it.
 
 ## Overview

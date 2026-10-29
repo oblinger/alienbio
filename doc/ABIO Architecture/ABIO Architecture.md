@@ -2,14 +2,14 @@
 description: "How alienbio is built — a chemistry substrate, an instrument (Expr + suite/) that drafts worlds and runs agents against them under guards, and the operator surface + files that AUP's paper consumes."
 ---
 
-| -[ABIO Architecture](ABIO%20Architecture.md)- | : How alienbio is built — a chemistry substrate, an instrument (Expr + suite/) that drafts worlds and runs agents against them under guards, and the operator surface + files that AUP's paper consumes.<br>→ [ABIO](../ABIO.md) → [ABIO Architecture](ha://p/ABIO%20Architecture)   |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Related                                       | [ABIO PRD](../ABIO%20Design/ABIO%20PRD.md),  [ABIO Suite Runtime](ABIO%20Suite%20Runtime.md),  [ABIO Protocols](../ABIO%20Ref/ABIO%20Protocols.md),  [ABIO Expr Spec](../ABIO%20Guides/ABIO%20Expr%20Spec.md),  [T051](../ABIO%20Track/ABIO%20Backlog/ABIO051%20-%20Deep%20Scan.md), |
-| Subsystems                                    | [Bio-Engine](ABIO-Bio-Engine.md),  [Expr](ABIO-Expr.md),  [Generators](ABIO-Generators.md),  [Experiment](ABIO-Experiment.md),  [Runtime](ABIO-Runtime.md),  [Analysis](ABIO-Analysis.md),  [Infra](ABIO-Infra.md),  [Operator-Surface](ABIO-Operator-Surface.md),                   |
-| Suite                                         | [Suite Construction](ABIO%20Suite%20Construction.md),  [Suite Construction Data Model](ABIO%20Suite%20Construction%20Data%20Model.md),  [Suite Runtime](ABIO%20Suite%20Runtime.md),                                                                                                  |
-| Layers                                        | [alienbio](ABIO%20alienbio.md),  [biology](ABIO%20biology.md),  [infra](ABIO%20infra.md),                                                                                                                                                                                            |
-| Docs                                          | [Architecture Docs](ABIO%20Architecture%20Docs.md),  [PRD Docs](ABIO%20PRD%20Docs.md),                                                                                                                                                                                               |
-| ...                                           |                                                                                                                                                                                                                                                                                      |
+| -[ABIO Architecture](ABIO%20Architecture.md)- | : How alienbio is built — a chemistry substrate, an instrument (Expr + suite/) that drafts worlds and runs agents against them under guards, and the operator surface + files that AUP's paper consumes.<br>→ [ABIO](../ABIO.md) → [ABIO Architecture](ha://p/ABIO%20Architecture) |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Related                                       | [ABIO PRD](../ABIO%20Design/ABIO%20PRD.md),  [ABIO Suite Runtime](ABIO%20Suite%20Runtime.md),  [ABIO Protocols](../ABIO%20Ref/ABIO%20Protocols.md),  [ABIO Expr Spec](../ABIO%20Guides/ABIO%20Expr%20Spec.md),  T051,                                                              |
+| Subsystems                                    | [Bio-Engine](ABIO-Bio-Engine.md),  [Expr](ABIO-Expr.md),  [Generators](ABIO-Generators.md),  [Experiment](ABIO-Experiment.md),  [Runtime](ABIO-Runtime.md),  [Analysis](ABIO-Analysis.md),  [Infra](ABIO-Infra.md),  [Operator-Surface](ABIO-Operator-Surface.md),                 |
+| Suite                                         | [Suite Construction](ABIO%20Suite%20Construction.md),  [Suite Construction Data Model](ABIO%20Suite%20Construction%20Data%20Model.md),  [Suite Runtime](ABIO%20Suite%20Runtime.md),                                                                                                |
+| Layers                                        | [alienbio](ABIO%20alienbio.md),  [biology](ABIO%20biology.md),  [infra](ABIO%20infra.md),                                                                                                                                                                                          |
+| Docs                                          | [Architecture Docs](ABIO%20Architecture%20Docs.md),  [PRD Docs](ABIO%20PRD%20Docs.md),                                                                                                                                                                                             |
+| ...                                           |                                                                                                                                                                                                                                                                                    |
 
 # ABIO Architecture
 How alienbio is built: a chemistry substrate under an instrument that drafts worlds, runs agents against them under guards, and writes records the paper reads.
@@ -31,7 +31,7 @@ Every arrow is a call or a write in the direction drawn; nothing in the substrat
 | [[ABIO-Operator-Surface]] | `cli.py`, `commands/`, `report.py`, `capabilities.py`, `config.py`, `justfile`, `ci.yml` — the `bio` CLI, the capability matrix, the one-page report, the gates. |
 | [[ABIO-Infra]] | `infra/`, `protocols/` — `Entity`, the `mk` pegboard, the Protocols the substrate implements (checked by `pyright src/`). Cross-cutting, light. |
 
-Row order is the scan order of [[ABIO051 - Deep Scan|T051]] § Scope (riskiest first); each doc carries its own hand-authored figure and closes with the seams box 4 tested — what each found and what landed is noted there, and the refactors are [[ABIO Refactor Proposals]] (all eight landed 2026-09-10 as T053/T056/T057/T058).
+Row order is the scan order of T051 § Scope (riskiest first); each doc carries its own hand-authored figure and closes with the seams box 4 tested — what each found and what landed is noted there, and the refactors are [[ABIO Refactor Proposals]] (all eight landed 2026-09-10 as T053/T056/T057/T058).
 
 ## Overview
 
@@ -39,7 +39,7 @@ Row order is the scan order of [[ABIO051 - Deep Scan|T051]] § Scope (riskiest f
 | --- | --- |
 | Code | `~/ob/grove/alienbio` — `src/alienbio/` 33.7k LOC, `tests/` 26.3k LOC<br>suite 1659 passed / 3 skipped · `pyright src/` 0 errors 0 warnings · coverage 91 % |
 | Entry points | `bio suite run\|resume\|aggregate\|report` · `load_spec` · `run_experiment` · `DRAFTERS[name](seed, dials, **generator)` |
-| Consumer | [[AUP]] — every phase-1/2/3 arm is a `catalog/experiments/*.yaml` spec or a script over `DRAFTERS` |
+| Consumer | AUP — every phase-1/2/3 arm is a `catalog/experiments/*.yaml` spec or a script over `DRAFTERS` |
 | Gates | `just test` · `just check` · `bio test-matrix --check`<br>fourteen golden zeros (`records.jsonl` hashes) · CI (`.github/workflows/ci.yml`) |
 | Truth | generator-held oracles on `task.setup["oracle"]`; the agent sees surface names only; a registered filing (`catalog/registrations.yaml`) is what admits a live model to a guarded world |
 | Published | `https://oblinger.github.io/abio-docs/` — built from the repo `docs/` mirror of [[ABIO Docs]] |

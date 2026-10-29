@@ -165,22 +165,6 @@ Interactive Jupyter notebooks with inline plots and commentary. Each notebook is
 | [`combo_alien_exam.ipynb`](notebooks/combo_alien_exam.ipynb) | Skinned exam + leaderboard |
 | [`combo_ecosystem.ipynb`](notebooks/combo_ecosystem.ipynb) | Organism + envelope |
 
-## Scripts
+The scripts that built these figures ran the deleted M1 runtime and were removed with it (T056).
 
-| Script | Description |
-|--------|-------------|
-| `scripts/demo_01_quick_start.py` | Basic trajectory + convergence |
-| `scripts/demo_02_equilibrium.py` | Stability analysis |
-| `scripts/demo_03_perturbation.py` | Spike recovery + drift |
-| `scripts/demo_04_disease.py` | Disease + symptom detection |
-| `scripts/demo_05_organism.py` | Multi-compartment heatmap |
-| `scripts/demo_06_features.py` | Population + envelope |
-| `scripts/demo_07_skinning.py` | Alien terminology generation |
-| `scripts/demo_08_evaluation.py` | Difficulty curves + comparison |
-| `scripts/combo_disease_investigation.py` | 4-panel investigation |
-| `scripts/combo_alien_exam.py` | Skinned exam + leaderboard |
-| `scripts/combo_ecosystem.py` | Organism + envelope |
-| `scripts/optional_llm_agent.py` | Claude agent (needs API key) |
-| `scripts/run_all.py` | Batch runner |
-
-See [architecture docs](docs/architecture/) for deeper context on the framework.
+See the [architecture docs](../doc/ABIO%20Architecture/ABIO%20Architecture%20Docs.md) for the framework as built.

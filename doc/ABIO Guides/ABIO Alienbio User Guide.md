@@ -1,8 +1,8 @@
-:>> [[ABIO]] → [[ABIO Guides]] → [ABIO Alienbio User Guide](ha://p/ABIO%20Alienbio%20User%20Guide) 
+:>> [ABIO](../ABIO.md) → [ABIO Guides](ABIO%20Guides.md) → [ABIO Alienbio User Guide](ha://p/ABIO%20Alienbio%20User%20Guide) 
 # Alienbio User Guide
 User-facing documentation for working with alienbio.
 
-See [[ABIO Architecture Docs]] for system internals and [[Modules/ABIO API|API Docs]] for code reference.
+See [[ABIO Architecture Docs]] for system internals and [API Docs](../ABIO%20Ref/ABIO%20API/ABIO%20API.md) for code reference.
 
 ## Contents
 
