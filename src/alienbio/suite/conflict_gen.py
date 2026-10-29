@@ -143,6 +143,16 @@ def _component_score(final: float, target: float) -> float:
     return 1.0 / (1.0 + (target - final))
 
 
+# The rung scorers read :func:`~alienbio.suite.skeleton.final_amount` — the
+# target summed over compartments. Safe, not routed through the intervene
+# scorer's one-compartment read (T091 E2/I6): every rung's skeleton is built
+# here from source, sink, reaction and crux blocks, none of which adds a
+# compartment, so the world is the default single compartment and the sum is
+# that one row — the same compartment the trade-off summary reads
+# (:func:`~alienbio.suite.tradeoff.conflict_oracle` stamps ``compartments``
+# only on a multi-compartment world, which no rung builds).
+
+
 def _make_single_scorer(v1_id: str, v1_target: float) -> Callable[[Timeline], float]:
     def scorer(timeline: Timeline) -> float:
         return _component_score(final_amount(timeline, v1_id), v1_target)

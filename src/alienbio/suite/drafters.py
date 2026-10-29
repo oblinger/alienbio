@@ -1473,8 +1473,10 @@ def intervene(
     passive = float(task.objective.target)
     goal = passive * (1.0 + margin)
     # No act but a molecule SETPOINT adds mass: the chain is closed (no source
-    # reaction), so the most its sink can read is every seeded unit, in the
-    # scorer's units (concentration summed over compartments).
+    # reaction), so the most its sink can read is every seeded unit. The
+    # generative intervene world is ONE compartment (`cell`), the one the
+    # scorer reads (T091 E2), so this sum over compartments is that
+    # compartment's held concentration.
     held = sum(sum(c.concentrations.values()) for c in world.compartments)
     bound_message = (
         f"intervene: goal {goal:g} (passive reach {passive:g} at {scored_at_s:g} s x "

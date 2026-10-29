@@ -153,6 +153,8 @@ from .agents import (  # noqa: F401
     _survey_commit_agent_factory,
 )
 from .store import (  # noqa: F401
+    RETRIED_FILENAME,
+    directory_spend_usd,
     _append_retried,
     _atomic_write_text,
     _brief_from_json,
@@ -219,7 +221,10 @@ def run_experiment(
     ``spec.cost_ceiling_usd`` (M45.5), when set, is checked against a running
     ``spent_usd`` total (every landed record's ``usage``, priced via
     :func:`~alienbio.suite.llm_agent.price_for` /
-    :func:`~alienbio.suite.llm_agent.cost_usd`) before each fresh trial; once
+    :func:`~alienbio.suite.llm_agent.cost_usd`) before each fresh trial. The
+    ceiling is the DIRECTORY's budget, not a press's: a resume starts the
+    total from :func:`~alienbio.suite.store.directory_spend_usd` (``records.jsonl``
+    plus every line earlier resumes moved to ``records.retried.jsonl``); once
     reached the grid stops cleanly (``manifest["stopped_reason"] ==
     "cost_ceiling"``) rather than overspending. The manifest also carries the
     dry-run ``cost_estimate`` (pinned at the start) and the actual
@@ -288,7 +293,7 @@ def run_experiment(
             # the error lines in records.jsonl, the next resume reads them
             # again, and `_append_retried` skips the copies already kept — no
             # duplicate, and no retried line lost (T084, ABIO Store).
-            _append_retried(resolved_out / "records.retried.jsonl", retried_lines)
+            _append_retried(resolved_out / RETRIED_FILENAME, retried_lines)
             _atomic_write_text(records_path, "".join(line + "\n" for line in clean_lines))
             if progress is not None:
                 progress(
@@ -340,10 +345,13 @@ def run_experiment(
 
     agent_factory = _agent_factory_for(spec)
 
-    # M45.5 — a running USD total over every landed record's real usage (both
-    # freshly-run and resumed/``skip``-reused), fed to `stop` below so a
-    # sweep with a `cost_ceiling_usd` halts cleanly rather than overspending.
-    spent_state = {"usd": retried_usd}
+    # M45.5 — a running USD total, fed to `stop` below so a sweep with a
+    # `cost_ceiling_usd` halts cleanly rather than overspending. A resume
+    # seeds it from everything the directory already spent (T091 D: the
+    # reused lines, this press's retried lines and every earlier press's —
+    # the one total the resume guard checks); `on_trial` then adds only the
+    # trials this press runs.
+    spent_state = {"usd": directory_spend_usd(resolved_out, spec) if resume else 0.0}
 
     def on_trial(label: str, i: int, record: TrialRecord) -> None:
         cond = dict(record.condition_key)
@@ -378,7 +386,7 @@ def run_experiment(
         # T051 box 4 — the price lookup runs AFTER the line is on disk: a
         # paid trial's usage is never lost to a pricing failure (which
         # ``estimate_cost`` now refuses before spend anyway).
-        if record.usage:
+        if record.usage and (label, i) not in existing_by_key:
             spent_state["usd"] += _usage_usd(record.usage, cond.get("model"), spec)
         landed[(label, i)] = bool(record.error)
         if progress is not None:

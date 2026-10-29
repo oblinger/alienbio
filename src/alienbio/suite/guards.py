@@ -1019,14 +1019,17 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 f"levels may change); start a new out_dir for a new spec ({resolved_out})"
             )
         ceiling = spec.cost_ceiling_usd
-        if ceiling is not None and records_path.exists():
-            from .store import records_spend_usd
+        if ceiling is not None:
+            from .store import directory_spend_usd
 
-            spent = records_spend_usd(records_path, spec)
+            # T091 D — the ceiling is a directory budget: every dollar the
+            # directory spent counts, the lines earlier resumes retried included.
+            spent = directory_spend_usd(resolved_out, spec)
             if ceiling < spent:
                 raise ValueError(
                     f"run_experiment: resume=True with cost_ceiling_usd={ceiling} but the records "
-                    f"in {records_path} already spent ${spent:.4f} — a ceiling may be raised on a "
+                    f"in {resolved_out} (records.jsonl and records.retried.jsonl) already spent "
+                    f"${spent:.4f} — the ceiling is the directory's budget; it may be raised on a "
                     "resume, never set below the spend"
                 )
 

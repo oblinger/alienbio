@@ -5,12 +5,17 @@ objects: it quantifies how far two simulated outcomes diverged from one
 another, with no notion of which one is "correct". Pure and deterministic —
 no randomness, no :class:`~alienbio.suite.dist.Seed` needed.
 
-Both functions read only the FINAL state of each timeline. Following the
-reading pattern used elsewhere in this subsystem (see
-``arch_intervene._final_concentration``): a state is self-describing when it
-carries an ``id`` axis (``molecule_ids``) alongside its dense array
-(``as_array()``, ``[compartments x ids]``); a given id's total is the sum of
-its column across every compartment row.
+Both functions read only the FINAL state of each timeline. A state is
+self-describing when it carries an ``id`` axis (``molecule_ids``) alongside
+its dense array (``as_array()``, ``[compartments x ids]``); a given id's
+total is the sum of its column across every compartment row — the
+:func:`~alienbio.suite.skeleton.final_amount` reading, not the intervene
+scorer's one-compartment read (T091 E2). The sum is safe for the shipped
+caller, :mod:`~alienbio.suite.delta`'s paired summary over the ``delta``
+drafter's matched pair, whose worlds are one compartment by construction
+(``delta_gen`` builds them from source, sink and reaction blocks only); a
+multi-compartment pair would compare totals over compartments of different
+volumes and must be read per compartment instead (T091 I6).
 """
 
 from __future__ import annotations
@@ -25,10 +30,8 @@ if TYPE_CHECKING:
 
 
 def _final_totals(timeline: Timeline) -> Dict[str, float]:
-    """Per-id totals of ``timeline``'s final state, summed across compartments.
-
-    Mirrors ``arch_intervene._final_concentration`` but reads every id in one
-    pass instead of a single one.
+    """Per-id totals of ``timeline``'s final state, summed across compartments
+    (the module docstring says why that is safe for the shipped caller).
 
     Raises:
         ValueError: if the timeline has no states, or the final state is not

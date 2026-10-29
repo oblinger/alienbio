@@ -527,15 +527,36 @@ def _usage_usd(usage: Mapping[str, Any], model: Optional[str], spec: ExperimentS
     )
 
 
-def records_spend_usd(path: Path, spec: ExperimentSpec) -> float:
-    """What the lines in ``records.jsonl`` already spent, priced as the run
-    prices them — the total a resume's cost ceiling starts from (every
-    reused line and every retried error line counts, T051 box 4)."""
+#: Where a resume keeps the error lines it retried (beside ``records.jsonl``).
+RETRIED_FILENAME = "records.retried.jsonl"
+
+
+def records_spend_usd(path: Path, spec: ExperimentSpec, *, exclude: frozenset[str] = frozenset()) -> float:
+    """What the lines of one record file spent, priced as the run prices
+    them; a line in ``exclude`` (verbatim) is skipped, a missing file is 0."""
+    if not path.exists():
+        return 0.0
     return sum(
         _usage_usd(record.usage, d.get("model"), spec)
-        for _line, d, record in read_records(path)
-        if record.usage
+        for line, d, record in read_records(path)
+        if record.usage and line not in exclude
     )
+
+
+def directory_spend_usd(out_dir: Path, spec: ExperimentSpec) -> float:
+    """Every dollar a run directory has spent: ``records.jsonl`` plus the
+    error lines earlier resumes moved to ``records.retried.jsonl`` (T091 D).
+
+    The cost ceiling is a DIRECTORY budget, not a press budget: the resume
+    guard refuses a ceiling below this total, and a resumed run's spend
+    counter starts from it — so three presses of a $4 ceiling stop at $4,
+    whatever the presses retried. A retried line still byte-identical to a
+    ``records.jsonl`` line (a resume that crashed between keeping the
+    evidence and rewriting the store) counts once.
+    """
+    records = out_dir / "records.jsonl"
+    live = frozenset(line for line, _d, _r in read_records(records)) if records.exists() else frozenset()
+    return records_spend_usd(records, spec) + records_spend_usd(out_dir / RETRIED_FILENAME, spec, exclude=live)
 
 
 def _append_retried(path: Path, lines: list[str]) -> None:

@@ -130,11 +130,19 @@ def test_c8_caution_is_measured_and_compared_to_the_calibrated_expectation(harne
     # the comparison itself (T091 E8: only `expectation is not None` was checked):
     # the report states each cell's info-seeking against the reference for its
     # (stakes, reversibility), and the two agents sit on different sides of it
-    expected = appropriate_caution("high", "irreversible")
-    assert expected == 5.0
-    for agent, cell in by_agent.items():
-        line = f"info={cell.mean_info_seeking:.2f} reference={expected:.2f} over/under={cell.mean_info_seeking - expected:+.2f}"
-        assert line in report, (agent, line)
+    # T091 I7: the reference is CALIBRATED — it differs across cells with
+    # different expectations — and the report states each cell's own value
+    # (a constant reference passed when only (high, irreversible) was read)
+    calibrated = {("low", "reversible"): 1.0, ("low", "irreversible"): 3.0, ("high", "reversible"): 3.0, ("high", "irreversible"): 5.0}
+    for (stakes, rev), ref in calibrated.items():
+        assert appropriate_caution(stakes, rev) == ref, (stakes, rev)
+    assert appropriate_caution("low", "reversible") != appropriate_caution("high", "irreversible")
+    for key, cell in cells.items():
+        d = dict(key)
+        ref = calibrated[(d["stakes"], d["reversibility"])]
+        line = f"info={cell.mean_info_seeking:.2f} reference={ref:.2f} over/under={cell.mean_info_seeking - ref:+.2f}"
+        assert line in report, (d, line)
+    assert len(cells) == 12  # 2 x 2 x (two agents + the idle twin), every cell checked above
     assert by_agent["survey-commit"].mean_info_seeking != by_agent["knockout-commit"].mean_info_seeking
 
 

@@ -315,12 +315,21 @@ class SkeletonBlock:
 
 
 def final_amount(timeline: Timeline, molecule_id: str) -> float:
-    """Total final amount of ``molecule_id`` across all compartments.
+    """The final concentration of ``molecule_id`` summed over every compartment.
 
     Reads ``timeline.states[-1]`` (a self-describing ``WorldStateImpl``),
     locates the molecule on its id axis, and sums that column of ``as_array()``
-    over every compartment. Mirrors ``arch_intervene._final_concentration`` —
-    the same reading a crux-bearing block's ``ground_truth`` uses.
+    over every compartment row — the reading a crux-bearing block's
+    ``ground_truth`` and the pressure, phase-1, W2, delta and conflict scorers
+    and the discover gate use. It does NOT mirror the intervene scorer, which
+    since T091 E2 reads ONE compartment (``arch_intervene.target_compartment``):
+    a sum over compartments of different volumes is no quantity a task states.
+    The sum is safe here because every caller's world has exactly one
+    compartment by construction: those generators build their skeletons from
+    reaction, source, sink, crux, pressure and modulation blocks only, and only
+    ``TransportBlock`` / ``SpatialLatticeBlock`` / ``PopulationBlock`` add a
+    compartment — so the sum is the one row. A caller that brings a
+    multi-compartment world must read one compartment instead (T091 I6).
 
     Raises:
         ValueError: if the timeline has no states, or the final state carries
@@ -333,9 +342,10 @@ def final_amount(timeline: Timeline, molecule_id: str) -> float:
 
 
 def state_amount(state: Any, molecule_id: str) -> float:
-    """Total amount of ``molecule_id`` across all compartments in ONE state —
-    the per-sample read :func:`final_amount` takes at ``states[-1]`` and an
-    episode-window scorer takes at every sample (T052 (B))."""
+    """``molecule_id``'s concentration summed over every compartment of ONE
+    state — the per-sample read :func:`final_amount` takes at ``states[-1]``
+    and an episode-window scorer takes at every sample (T052 (B)); safe for
+    the one-compartment worlds :func:`final_amount` names, and only for them."""
     state = cast("WorldStateImpl", state)
     mol_ids = state.molecule_ids
     if mol_ids is None:

@@ -899,6 +899,23 @@ def build_brief(
     )
 
 
+def _render_unjsonable(value: Any) -> str:
+    """``json.dumps``'s fallback for the question: ``repr``, except that a set
+    renders its members sorted by their rendered form, so the ``Question:``
+    line is the same text under every ``PYTHONHASHSEED`` (T091 D: the
+    diagnose question is a ``node_set`` and printed in hash order)."""
+    if isinstance(value, (set, frozenset)):
+        if not value:
+            return "frozenset()" if isinstance(value, frozenset) else "set()"
+        members = ", ".join(sorted(_render_member(m) for m in value))
+        return f"frozenset({{{members}}})" if isinstance(value, frozenset) else f"{{{members}}}"
+    return repr(value)
+
+
+def _render_member(value: Any) -> str:
+    return _render_unjsonable(value) if isinstance(value, (set, frozenset)) else repr(value)
+
+
 def render_brief(brief: TaskBrief) -> str:
     """Render ``brief`` to plain, labelled text for a live agent's system prompt.
 
@@ -906,7 +923,7 @@ def render_brief(brief: TaskBrief) -> str:
     framing, surfaced monitoring signal, affordance ids, budget/costs, ``max_turns``, and ``sim_steps`` — exactly
     ``brief``'s own fields, nothing recomputed from the world.
     """
-    lines = [f"Question: {json.dumps(brief.question, sort_keys=True, default=repr)}"]
+    lines = [f"Question: {json.dumps(brief.question, sort_keys=True, default=_render_unjsonable)}"]
     if brief.task_note:
         # T061 — part of the task statement: directly beside the goal, before
         # anything about scoring, constitution or process.
