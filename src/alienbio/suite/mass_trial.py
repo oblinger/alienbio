@@ -53,6 +53,19 @@ from dataclasses import dataclass, replace
 from typing import Any, Callable, Collection, Mapping, Optional, Sequence, cast
 
 from ..bio.world import WorldImpl
+
+#: T091 (investigator R, finding 2) — the version of the per-trial seed
+#: derivation this module owns: ``base_seed.child(f"{seed_label}/{i}")``
+#: with ``seed_label`` the condition label minus the matched dials, then
+#: ``.child("draft")`` / ``.child("agent")`` / ``.child("run")``. It is half
+#: of the manifest's ``world_scheme`` stamp (``store.world_scheme``; the
+#: other half is the ``WORLD_INVARIANT_DIALS`` set), which a resume compares
+#: so a store never mixes worlds drawn under two schemes in one cell.
+#: **Bump it whenever that derivation changes** — the label format, a child
+#: path, how matched dials are projected out — or whenever a drafter starts
+#: drawing a different world from the same seed and dials; a change to
+#: ``WORLD_INVARIANT_DIALS`` moves the stamp by itself.
+SEED_SCHEME_VERSION = 1
 from .agent import Agent
 from .deliberation import DeliberationTrace
 from .dist import Seed

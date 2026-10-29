@@ -635,6 +635,22 @@ def _single_model(spec: ExperimentSpec) -> Optional[str]:
     return (spec.model or PINNED_MODEL) if "llm" in agent_kinds_in_play(spec) else spec.model
 
 
+def world_scheme() -> str:
+    """The seed-scheme stamp a manifest carries (T091 R2): ``v<N>:<hash>``,
+    ``N`` = :data:`~alienbio.suite.mass_trial.SEED_SCHEME_VERSION` and the
+    hash a stable sha256 over that version plus the sorted
+    :data:`~alienbio.suite.drafters.WORLD_INVARIANT_DIALS` set — the two
+    things in code (not in the spec) that decide which world a trial draws.
+    A resume refuses a store stamped with another scheme (``guards`` § resume)."""
+    from .drafters import WORLD_INVARIANT_DIALS
+    from .mass_trial import SEED_SCHEME_VERSION
+
+    payload = _canonical_json(
+        {"seed_scheme_version": SEED_SCHEME_VERSION, "world_invariant_dials": sorted(set(WORLD_INVARIANT_DIALS))}
+    )
+    return f"v{SEED_SCHEME_VERSION}:{hashlib.sha256(payload.encode('utf-8')).hexdigest()[:16]}"
+
+
 def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) -> dict[str, Any]:
     spec_dict = spec_to_dict(spec)
     spec_sha256 = hashlib.sha256(_canonical_json(spec_dict).encode("utf-8")).hexdigest()
@@ -665,6 +681,8 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "alienbio_version": __version__,
         "git_commit": git_commit,
         "git_dirty": git_dirty,
+        # T091 R2 — which seed scheme drew this store's worlds (see world_scheme).
+        "world_scheme": world_scheme(),
         "python_version": platform.python_version(),
         "platform": platform.platform(),
         "hostname": platform.node(),

@@ -31,6 +31,7 @@ from alienbio.suite import guards
 from alienbio.suite.dist import Seed
 from alienbio.suite.drafters import DRAFTERS
 from alienbio.suite.experiment import spec_from_dict
+from alienbio.suite.store import world_scheme
 from alienbio.suite.guards import declared_surface_violation, draft_violation, preflight
 from alienbio.suite.spec import spec_to_dict
 
@@ -145,7 +146,7 @@ def test_a_readable_manifest_with_the_same_spec_resumes(tmp_path):
     spec = _w1()
     out = tmp_path / "run"
     out.mkdir()
-    (out / "manifest.json").write_text(json.dumps({"spec": spec_to_dict(spec)}))
+    (out / "manifest.json").write_text(json.dumps({"spec": spec_to_dict(spec), "world_scheme": world_scheme()}))
     (out / "records.jsonl").write_text("")
     assert dict(preflight(spec, out_dir=str(out), resume=True).checks)["resume"] is None
 
@@ -193,7 +194,7 @@ def test_preflight_names_the_resume_verdict_on_a_resume(tmp_path):
     spec = _w1()
     out = tmp_path / "run"
     out.mkdir()
-    (out / "manifest.json").write_text(json.dumps({"spec": spec_to_dict(spec)}))
+    (out / "manifest.json").write_text(json.dumps({"spec": spec_to_dict(spec), "world_scheme": world_scheme()}))
     (out / "records.jsonl").write_text("")
     assert "resume: ok" in preflight(spec, out_dir=str(out), resume=True).lines()
     assert "resume: skipped (not a resume)" in preflight(spec, out_dir=str(out)).lines()

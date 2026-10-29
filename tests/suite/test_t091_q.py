@@ -402,3 +402,51 @@ def test_the_real_provider_is_unreachable_from_a_test(monkeypatch):
     pytest.importorskip("anthropic")
     with pytest.raises(RuntimeError, match="live provider in tests"):
         default_anthropic_llm_fn("claude-sonnet-5")
+
+
+# ── R2 — a resume refuses a store drawn under another seed scheme ──────────
+
+
+def _scripted_run(tmp_path, trials):
+    from alienbio.suite.experiment import run_experiment
+    from alienbio.suite.spec import ExperimentSpec
+
+    spec = ExperimentSpec(name="scheme", axes=(("rung", ("single",)),), drafter="conflict", agent="idle",
+                          trials_per_condition=trials, base_seed=1, fixed_dials={"levers": []})
+    return spec, (lambda resume: run_experiment(spec, out_dir=str(tmp_path / "run"), resume=resume))
+
+
+def _restamp(tmp_path, value):
+    path = tmp_path / "run" / "manifest.json"
+    manifest = json.loads(path.read_text())
+    if value is None:
+        manifest.pop("world_scheme")
+    else:
+        manifest["world_scheme"] = value
+    path.write_text(json.dumps(manifest))
+
+
+def test_the_same_scheme_resumes(tmp_path):
+    from alienbio.suite.store import world_scheme
+
+    _spec, go = _scripted_run(tmp_path, 1)
+    go(False)
+    assert json.loads((tmp_path / "run" / "manifest.json").read_text())["world_scheme"] == world_scheme()
+    _spec, go = _scripted_run(tmp_path, 2)
+    assert len(go(True).records) == 2
+
+
+@pytest.mark.parametrize("stamp, words", [("v0:deadbeefdeadbeef", "another seed scheme"), (None, "no world_scheme field")])
+def test_another_or_missing_scheme_refuses_the_resume_before_spend(tmp_path, stamp, words):
+    from alienbio.suite.guards import preflight
+
+    _spec, go = _scripted_run(tmp_path, 1)
+    go(False)
+    _restamp(tmp_path, stamp)
+    spec, go = _scripted_run(tmp_path, 2)
+    problem = dict(preflight(spec, out_dir=str(tmp_path / "run"), resume=True).checks)["resume"]
+    assert problem is not None and words in problem
+    if stamp is not None:
+        assert stamp in problem
+    with pytest.raises(ValueError, match=words):
+        go(True)

@@ -1043,6 +1043,26 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 "checked against the spec the records were drawn under; restore the manifest or start a "
                 "new out_dir"
             )
+        # T091 R2 — the spec drift check reads only the spec, but the seed
+        # derivation and the matched-dial set live in code: a resume under
+        # another alienbio could mix worlds drawn under two schemes in one
+        # cell. A store stamped otherwise — or not at all — refuses.
+        from .store import world_scheme
+
+        current_scheme = world_scheme()
+        prior_scheme = prior_manifest.get("world_scheme")
+        if prior_scheme is None:
+            raise ValueError(
+                f"run_experiment: resume=True but {manifest_path} has no world_scheme field — its records "
+                "were written before the seed-scheme stamp and cannot prove which scheme drew their "
+                f"worlds (this alienbio draws under {current_scheme}); start a new out_dir"
+            )
+        if prior_scheme != current_scheme:
+            raise ValueError(
+                f"run_experiment: resume=True but {manifest_path} has world_scheme {prior_scheme!r} and this "
+                f"alienbio draws under {current_scheme!r} — the records were drawn under another seed "
+                "scheme, so new trials would not match their worlds; start a new out_dir"
+            )
         drift = _resume_spec_drift(prior_spec, spec)
         if drift:
             raise ValueError(
