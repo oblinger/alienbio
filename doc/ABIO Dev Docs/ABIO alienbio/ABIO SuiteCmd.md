@@ -21,7 +21,7 @@ One public function and the five handlers it dispatches to. Every handler takes 
 | [SUITE_USAGE](#^suite-usage) | The one-line usage string |
 | [_parser](#^parser) | One argparse subparser per subverb |
 | [_run](#^run) | `run`, or the `--dry` printout |
-| [_resume](#^resume) | Resume from the manifest's own spec |
+| [_resume](#^resume) | Resume from the experiment file as it is now |
 | [_aggregate_cmd](#^aggregate-cmd) | Rebuild `map.json` / `map.csv` |
 | [_report_cmd](#^report-cmd) | Print and rewrite `report.txt`, draw `key.png` |
 | [_models_cmd](#^models-cmd) | Refresh the model-id snapshot |
@@ -40,13 +40,13 @@ One public function and the five handlers it dispatches to. Every handler takes 
     `load_spec(spec_path)`. With `--dry`, runs `preflight(spec, out_dir=out_dir, resume=False)` and prints the plan (§ [The dry run](#the-dry-run)), returning 1 when a check refused and 0 otherwise. Without it, calls `run_experiment(spec, out_dir=out_dir, resume=False, progress=…)`, printing progress lines only under `-v`, hands the returned map to `_report_stop` and returns 0. A run directory that already holds records raises `FileExistsError` (exit 1); `bio suite run` never resumes. ^run
 
 **_resume**`(out_dir, verbose) -> int`
-    Reads `<DIR>/manifest.json` through `store.read_manifest`, rebuilds the spec with `spec_from_dict(manifest["spec"])` and calls `run_experiment(..., resume=True)`, then `_report_stop` against the manifest's `trials_planned`. A missing manifest is `FileNotFoundError`. Because the spec comes from the manifest, a resume cannot drift from the original run, and it cannot pick up an edited YAML either. ^resume
+    Reads `<DIR>/manifest.json` through `store.read_manifest`, rebuilds the spec with `spec_from_manifest(manifest, current=True)` and calls `run_experiment(..., resume=True)`, then `_report_stop` against the manifest's `trials_planned`. When the manifest names a `spec_path`, that file is re-loaded as it is now (its `_includes_` helpers registered), so an edit to it is caught by the resume's drift check; a recorded path that no longer exists refuses, naming it. A Python-built spec (no `spec_path`) is read from the manifest's `spec`. A missing manifest is `FileNotFoundError`. ^resume
 
 **_aggregate_cmd**`(out_dir, verbose) -> int`
-    `aggregate(out_dir)` from the record store alone, then writes `map.json` and `map.csv` beside it. ^aggregate-cmd
+    `aggregate(out_dir)` from the record store alone, using the manifest's own spec (`spec_from_manifest`, which loads a named spec file for its helpers and refuses one that is missing), then writes `map.json` and `map.csv` beside it. ^aggregate-cmd
 
 **_report_cmd**`(out_dir, verbose) -> int`
-    Requires the manifest; rebuilds the map with `aggregate`, renders it with `render_report(rmap, manifest)`, prints the text, writes `report.txt`, and draws the run's key figure with `plots.write_key_figure`, honouring the spec's `key_readout`. ^report-cmd
+    Requires the manifest; rebuilds the map with `aggregate` (the manifest's own spec, as above), renders it with `render_report(rmap, manifest)`, prints the text, writes `report.txt`, and draws the run's key figure with `plots.write_key_figure`, honouring the spec's `key_readout`. ^report-cmd
 
 **_models_cmd**`(verbose) -> int`
     `llm_agent.fetch_models_snapshot()` (the provider's model list, no tokens) and `write_models_snapshot`, which writes `suite/models_snapshot.json` inside the package; prints each id with its creation date. A missing key (`RuntimeError`) and any provider error (auth, network) are re-raised as `ValueError`, so the dispatcher prints `Error: …` and returns 1. ^models-cmd
@@ -85,3 +85,4 @@ A run without `-v` prints nothing and exits 0 once a grid finishes. One stopped 
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with `suite/guards.py`'s `Preflight` and `preflight`, `suite/experiment.py`'s `run_experiment` and `suite/llm_agent.py`'s snapshot functions read beside it. Checked locally against the export with no network and no key: a malformed YAML, a spec with no `!experiment`, a missing file and an `aggregate` on a directory with no manifest each exit 1 with `Error: …`; `models` with no key raises `RuntimeError` uncaught. No run was started. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `-v` is accepted between `suite` and its verb; `bio suite models` without a key (or on a provider error) is `Error: …`, exit 1; a cost-ceiling stop prints one stderr line (exit stays 0); a spec load error names its path once.
 - 2026-10-28 — refreshed against `0eb23e5`: the body states the round's outcome (`13298f0`) — suite-level `-v`, `models` refusals as `Error:` exit 1, the ceiling-stop stderr line (`_report_stop`, new member block); the figure's ‡ note updated.
+- 2026-10-29 — refreshed against `661005d` (T091 E1): `_resume` reads `spec_from_manifest(manifest, current=True)` — the experiment file as it is now, so an edit is drift — while `aggregate`/`report` use the manifest's own spec; a missing spec file refuses naming the path. The figure's `_resume` box and side note were reworded to match.

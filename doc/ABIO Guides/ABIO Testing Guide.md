@@ -1,98 +1,96 @@
 :>> [ABIO](../ABIO.md) → [ABIO Guides](ABIO%20Guides.md) → [ABIO Testing Guide](ha://p/ABIO%20Testing%20Guide) 
 # Testing Guide
-Testing tiers (smoke, commit, release) and test organization.
+Where the tests live, how to run them, and the two commands that say what they prove.
 
-## Overview
+## Running the tests
 
-Testing is organized by both *type* (what's being tested) and *tier* (when tests run).
+The suite is plain pytest over `tests/` (`testpaths = ["tests"]`,
+`--import-mode=importlib` in `pyproject.toml`). From the repository root:
 
-## Test Tiers
-
-| Tier | Command | Duration | When |
-|------|---------|----------|------|
-| Smoke | `just smoke` | < 1 sec | Every execution (auto) |
-| Commit | `just test` | < 10 sec | Every commit |
-| Release | `just test-all` | minutes | Version bump, manual |
-
-Smoke tests also run automatically on import (disable with `ALIENBIO_SMOKE=0`).
-
-## Test Types
-
-| Type | Directory | Purpose |
-|------|-----------|---------|
-| Unit | `tests/unit/` | Isolated function/class tests |
-| Integration | `tests/integration/` | Components working together |
-| Property | `tests/property/` | Invariants via random inputs (hypothesis) |
-| Parity | `tests/parity/` | Python == Rust verification |
-| Benchmarks | `tests/benchmarks/` | Performance characteristics |
-
-Unit tests are further organized by subsystem:
 ```
-tests/unit/
-├─infra/
-├─biology/
-└─execution/
+.venv/bin/python -m pytest tests/ -q
+.venv/bin/python -m pytest tests/suite/test_runner.py -q
+.venv/bin/python -m pytest tests/ -k golden -q
 ```
 
-## Just Commands
+`just test` runs the same thing as `uv run pytest tests/ -v`; calling the
+venv's interpreter directly avoids `uv run` picking another Python. Run
+`uv sync --extra jax --extra dev --extra llm` after a fresh clone: without
+the `jax` extra the JAX simulator tests skip, and `llm` is the Anthropic
+SDK (no test spends money; the live-model agent is never called in CI).
 
-```just
-# Quick sanity check
-just smoke
+The other recipes in the `justfile` that touch testing are `just check`
+(`pyright src/`), `just lint` (`ruff check`) and `just report` (below).
+There are no tiers, smoke tests or custom markers: every test runs on
+every invocation. The markers in use are pytest's own (`parametrize`,
+`skipif` for an absent JAX, strict `xfail`) and the `@capability`
+marker described below.
 
-# Standard test suite (commit-level)
-just test
+## The test tree
 
-# Full test suite (release)
-just test-all
+| Folder | What it holds |
+| --- | --- |
+| `tests/capabilities/` | One proving test per capability dimension, plus the broader suites: every Expr head, special forms, the adversarial sandbox corpus, simulator conformance (hypothesis), the `bio` CLI end to end as a subprocess, and the report and matrix themselves |
+| `tests/suite/` | The experiment layer: generators, drafters, runner, guards and preflight, the record store, every analysis family, the golden experiment hashes, the pressure acceptance criteria and the gameability table |
+| `tests/expr/` | The Expr language: core, layers, templates, includes, the rate grammar, one test per catalog example, and the executed samples of the Expr guides |
+| `tests/bio/`, `tests/unit/` | The simulation substrate (chemistry, reactions, flows, populations, both simulators, energy, conservation), the entity and IO layer, config and the CLI |
 
-# Targeted
-just test-unit
-just test-integration
-just test-property
-just test-parity
+Tests build their worlds in code (the `mk` makers, the catalog specs,
+`conftest.py` fixtures); there is no shared fixtures folder.
 
-# Rust
-just test-rust
-just bench-rust
+Three files carry pinned behaviour worth knowing before an edit:
 
-# Combined workflows
-just check          # lint + test
-just release-check  # lint + test-all + bench
+- `tests/suite/test_golden_experiments.py` hashes each catalog
+  experiment's `records.jsonl` (modulo `wall_time_s`). A change that moves
+  a zero run fails here; re-pin only on a reviewed field-level diff.
+- `tests/expr/test_spec_examples.py` executes the code samples in
+  [ABIO Expr Spec](ABIO%20Expr%20Spec.md) and
+  [ABIO Expr Python API](ABIO%20Expr%20Python%20API.md); run it after
+  editing either page.
+- `tests/suite/test_no_peeking_lint.py` scans every executable file
+  under `tests/` and `demos/` and fails one that names a language-model
+  entry point together with a conflict or pressure-family world: no model
+  runs on a substrate the AUP paper has a registered question about.
+
+## What the tests prove: `bio test-matrix`
+
+Each capability dimension (A1–A5, B1–B18, C1–C11, I1) is claimed by a
+test in `tests/capabilities/` decorated `@pytest.mark.capability("B3")`,
+whose docstring's first sentence says what it proves. `bio test-matrix`
+finds them by reading source, without running pytest:
+
+```
+bio test-matrix              # the table, as text
+bio test-matrix --markdown   # the table, as Markdown
+bio test-matrix --check      # the CI gate; exit 1 on a gap
 ```
 
-## Smoke Tests
+`--check` fails on a built or partial dimension no test claims, a test
+claiming an unknown id, and a claiming test with no docstring sentence.
 
-Smoke tests run automatically on import and serve two purposes:
-1. **Sanity checks** - system can start, basic invariants hold
-2. **Decision reminders** - print messages about architectural decisions
+## Whether they passed: `bio report`
 
-```python
-# Example smoke test with reminder
-def check_context_uses_contextvar():
-    from alienbio.context import _context
-    import contextvars
-    if not isinstance(_context, contextvars.ContextVar):
-        print(
-            "⚠️  REMINDER: Context must use ContextVar,"
-            " not plain global"
-        )
-        return False
-    return True
+`bio report` (or `just report`, which adds `--open`) runs pytest once to a
+JUnit file and writes `reports/report.md` and a self-contained
+`reports/report.html`: the capability matrix with each proving test's
+sentence and outcome, the broader suites, the catalog examples run fresh
+(scripted specs only, so it spends nothing), and the runs on disk with
+their key figures.
+
+```
+bio report --no-examples     # skip the fresh example runs
+bio report --junit PATH      # reuse an existing JUnit file
+bio report --out DIR         # write elsewhere (default reports/)
 ```
 
-## Fixtures
+The title reads `ALL PASSED` only when pytest exited 0, nothing failed,
+every example ran clean, every built or partial capability row has a
+passing proving test and every broader-suite row ran and passed;
+otherwise it names the gap (`FAILURES …` or `NOT PROVEN …`) and the
+command exits 1.
 
-There is no shared fixtures folder: each test builds its worlds in code
-(the `mk` makers, the catalog specs, `conftest.py` fixtures).
+## Continuous integration
 
-## Pytest Markers
-
-```python
-@pytest.mark.smoke       # tier 1 - run on every execution
-@pytest.mark.slow        # tier 3 - release only
-@pytest.mark.rust        # requires rust build
-@pytest.mark.interactive # requires user input (avoid)
-```
-
-Default (unmarked) tests run at commit tier.
+`.github/workflows/ci.yml` runs, on every push to `main` and every pull
+request: the full suite with an 85 % coverage floor, `bio test-matrix --check`, `pyright src/`, and
+`mkdocs build`.

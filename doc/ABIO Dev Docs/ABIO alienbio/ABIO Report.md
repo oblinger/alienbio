@@ -6,7 +6,7 @@ description: "`report` + `commands/report_cmd`: `bio report` — one pytest run 
 The page for `bio report`: where each row's outcome and sentence come from, what the four sections hold, how the verdict in the title is decided, and what is written where.
 
 ![ABIO Report](ABIO%20Report.svg) 
-*The JUnit file is the truth* is the topic behind the `parse_junit` box: every ✓ and ✗ on the page is read from one XML file, keyed by module stem and test name; *The verdict* governs the ‡ on `Report.ok`, which also requires every built or partial capability row to have passed.
+*The JUnit file is the truth* is the topic behind the `parse_junit` box: every ✓ and ✗ on the page is read from one XML file, keyed by module stem and test name; *The verdict* governs the ‡ on `Report.ok`, which also requires every built or partial capability row and every broader-suite row to have passed.
 
 `report.py` builds a `Report` and renders it twice; `report_cmd.py` is the verb, an `argparse` parser around one call sequence, kept on this page. The matrix and the sentences come from [ABIO Capabilities](ABIO%20Capabilities.md); the examples run through `suite.experiment.run_experiment` and the runs are read through `suite.store.read_manifest` ([ABIO Store](../ABIO%20suite/ABIO%20Store.md)); each run's key figure is the `key.png` that `bio suite report` draws ([ABIO SuiteCmd](ABIO%20SuiteCmd.md)). `just report` runs `bio report --open`; `just test` stays the gate and CI never runs this. The subsystem view is [ABIO-Operator-Surface](../../ABIO%20Architecture/ABIO-Operator-Surface.md).
 
@@ -61,7 +61,7 @@ Path constants, the outcome readers, four row builders, `build`, and the two ren
     Assembles the four sections and the golden-zeros outcome (`test_golden_experiments`), stamps the time, records `out_dir` (default `REPO/reports`), passes its `notes` to `run_rows`, and notes `--no-examples`. Raises `FileNotFoundError` when `tests/capabilities/` is missing. `totals` defaults to counting `outcomes`, which collapses parametrized cases; `report_cmd` passes `count_cases`. ^build
 
 **render_markdown**`(rep: Report) -> str`
-    The page: a title carrying the verdict, a totals line, then the four sections as tables, each run's key figure as an image link relative to `rep.out_dir`. The title is `ALL PASSED`, or the first failing reason: pytest's exit, the failed count, an example, else `NOT PROVEN (N capability rows without a passing test)`. ^render-markdown
+    The page: a title carrying the verdict, a totals line, then the four sections as tables, each run's key figure as an image link relative to `rep.out_dir`. The title is `ALL PASSED`, or the first failing reason: pytest's exit, the failed count, an example, else `NOT PROVEN (…)` naming the gaps: `N capability rows without a passing test`, `N suite rows not run`, or both joined by `; `. ^render-markdown
 
 **render_html**`(rep: Report) -> str`
     Converts the Markdown line by line (tables, headings, paragraphs, inline code, bold, italic), embedding each image as a base64 `data:` URI read from `rep.out_dir / <link>`, so `report.html` stands alone. ^render-html
@@ -75,14 +75,18 @@ A dataclass of the four row lists, the totals and the pytest exit code. The row 
 | --- | --- |
 | [ok](#^ok) | The verdict ‡ |
 | [unproven](#^unproven) | Capability rows without a passing test |
+| [unrun_suites](#^unrun-suites) | Broader-suite rows that did not run and pass |
 | [notes](#^notes) | Footnotes printed at the end |
 | [out_dir](#^out-dir) | Where `report.md` is written |
 
 **ok**`: bool` (property)
-    True when the pytest exit was 0, the totals show no failure, every example ran without an error or a failed trial, and `unproven` is empty (§ [The verdict](#the-verdict)). ^ok
+    True when the pytest exit was 0, the totals show no failure, every example ran without an error or a failed trial, and `unproven` and `unrun_suites` are both empty (§ [The verdict](#the-verdict)). ^ok
 
 **unproven**`: list[str]` (property)
     The ids of built or partial dimensions whose outcome is not `passed`: `not run`, `no test`, `failed`, or every proving test `skipped`. ^unproven
+
+**unrun_suites**`: list[str]` (property)
+    The module of every broader-suite row (section 2) with no passing case in the JUnit file, or with any failure. ^unrun-suites
 
 **notes**`: list[str]`
     Printed in italics at the bottom; `build` adds one when examples were skipped, `run_rows` one per unreadable run folder. ^notes
@@ -126,7 +130,7 @@ Outcomes are keyed by the last segment of `classname` and the bare test name. Fo
 
 
 ## The verdict
-The title reads `ALL PASSED` when `Report.ok` holds, else names the reason (pytest's exit, the failed count, an example, or `NOT PROVEN`). `ok` reads the pytest exit, the totals, the examples and the capability rows, computed from what the page shows rather than from the exit code alone (T051 box 4). A built or partial row that did not pass — absent from the JUnit file, without a test, failed, or only skipped — makes the page `NOT PROVEN` and the exit 1, so a `--junit` file lacking the proving tests, or a pytest run that deselects them, no longer reads `ALL PASSED`.
+The title reads `ALL PASSED` when `Report.ok` holds, else names the reason (pytest's exit, the failed count, an example, or `NOT PROVEN`). `ok` reads the pytest exit, the totals, the examples and the capability rows, computed from what the page shows rather than from the exit code alone (T051 box 4). A built or partial row that did not pass — absent from the JUnit file, without a test, failed, or only skipped — makes the page `NOT PROVEN` and the exit 1, so a `--junit` file lacking the proving tests, or a pytest run that deselects them, no longer reads `ALL PASSED`. The broader suites are held the same way (T091 B6): a section-2 row with no passing case or with a failure is listed by `unrun_suites` and also titles the page `NOT PROVEN`, so a JUnit file holding only the capability tests does not read `ALL PASSED` beside `test_golden_experiments.py 0 passed`.
 
 
 
@@ -145,3 +149,4 @@ Every example under `catalog/examples/` runs fresh: the spec named after its fol
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with the example folders listed at that commit. Checked locally against the export, with no pytest run: a one-test JUnit file building a report titled `ALL PASSED` with every capability row `not run`; a corrupt `manifest.json` under `runs/` raising `JSONDecodeError` out of `run_rows`; the figure link computed relative to `reports/`. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `Report.ok` also requires every built / partial capability row to have passed (`Report.unproven`; title `NOT PROVEN (…)`, exit 1); an unreadable run folder is skipped with a `runs/<name> skipped: …` note; figure links are relative to `--out`; each example runs `<folder>.yaml` (else its one spec) and a spec with a live-model arm is an error row, never a paid run.
 - 2026-10-28 — refreshed against `0eb23e5`: the body states the round's outcome (`13298f0`) — `Report.unproven` and `out_dir` (new member blocks), the `NOT PROVEN` title, `run_rows(notes)` skipping a bad run folder, figure links relative to `--out`, example selection by name with live specs refused; the figure's ‡ and notes updated.
+- 2026-10-29 — refreshed against `342a77b` (T091 B6): `ALL PASSED` also requires every broader-suite row to have run and passed (`Report.unrun_suites`, new member block); otherwise `NOT PROVEN`, exit 1.

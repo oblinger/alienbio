@@ -29,7 +29,7 @@
   <g id="n-res">
     <rect id="n-res-box" x="320" y="140" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-res-name" x="440.0" y="168" font-size="18" font-weight="600" text-anchor="middle">_resume</text>
-    <text id="n-res-kind" x="440.0" y="192" font-size="14" text-anchor="middle">(handler) spec from manifest.json</text>
+    <text id="n-res-kind" x="440.0" y="192" font-size="14" text-anchor="middle">(handler) spec file as it is now</text>
   </g>
   <g id="n-agg">
     <rect id="n-agg-box" x="320" y="260" width="240" height="70" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -105,7 +105,7 @@
   <text id="t-n-run" x="905" y="55" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">--dry prints every verdict, exits 1 on a refusal</text>
   <text id="t-n-run2" x="905" y="73" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">without it: run_experiment, resume=False</text>
   <text id="t-n-res" x="905" y="240" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">resume reruns error lines;</text>
-  <text id="t-n-res2" x="905" y="258" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">the spec cannot drift</text>
+  <text id="t-n-res2" x="905" y="258" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">an edited spec is drift</text>
   <text id="t-legend" x="20" y="640" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">solid: call or write · dotted: raises · lilac: suite/ modules · ‡ without -v a run prints only a stderr line when the cost ceiling</text>
   <text id="t-legend2" x="20" y="660" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">stopped the grid, and exits 0 · models re-raises a missing key or provider error as ValueError (exit 1)</text>
 </svg>
