@@ -203,8 +203,16 @@ class Env:
         value.state = "evaluating"
         from .interp import evaluate
 
+        # A binding evaluates in its own scope, one level below whichever is
+        # deeper — its definition or the lookup forcing it — so a chain of
+        # names (``a0: a1 + 1``, ``a1: a2 + 1`` …) counts toward
+        # ``limits.depth`` and stops at the cap rather than at Python's
+        # recursion limit (T091 C11).
+        scope = value.env.child(name)
+        if self.depth + 1 > scope.depth:
+            scope = Env(scope.bindings, scope.registry, scope.ctx, scope.ns, self.depth + 1)
         try:
-            value.value = evaluate(value.form, value.env.child(name))
+            value.value = evaluate(value.form, scope)
         except RecursionError:
             value.state = "pending"
             # Belt to the depth cap's braces: whatever shape slips past

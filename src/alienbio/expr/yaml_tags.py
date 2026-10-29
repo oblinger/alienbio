@@ -127,6 +127,11 @@ def load_text(text: str) -> Any:
         return yaml.load(text, Loader=ExprLoader)  # noqa: S506 - ExprLoader is a SafeLoader
     except yaml.YAMLError as exc:
         raise ExprError(f"YAML error: {exc}") from None
+    except RecursionError:
+        # PyYAML composes and constructs recursively, so a deeply nested
+        # document overflows Python's stack before any Expr limit can see it
+        # (T091 C11). Read as the depth cap it is.
+        raise ExprError("YAML nesting deeper than limits.depth allows (Python recursion limit)") from None
 
 
 # ---------------------------------------------------------------------------

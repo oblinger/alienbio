@@ -22,9 +22,41 @@ if TYPE_CHECKING:
     from .entity import Entity
 
 
-#: What ``resolve_refs`` reads as a reference: ``<PREFIX:dotted.path>`` with an
-#: identifier prefix, or the absolute ``</dat/path.entity.path>``. No whitespace.
-_REF_SHAPE = re.compile(r"<(?:[A-Za-z_]\w*:[^\s<>]*|/[^\s<>]+)>")
+#: One segment of a dat path name: identifier characters and ``-`` (dat
+#: folders such as ``pytest-of-x`` or ``exp-2`` carry dashes; ``.`` is refused
+#: in a dat path name by ``_absolute_ref``).
+_DAT_SEGMENT = r"[\w-]+"
+
+#: What ``resolve_refs`` reads as a reference — exactly the two shapes
+#: ``insert_refs`` writes (T091 C6):
+#:
+#: - ``<PREFIX:dotted.path>``: an identifier prefix, a colon, and an optional
+#:   dotted path of identifier-character names (``<W:>`` names the prefix's
+#:   own entity);
+#: - ``</dat/path.entity.path>``: a dat path of ``/``-separated segments (a
+#:   leading ``/`` for an absolute dat path, hence ``<//abs/dat.x>``), then an
+#:   optional dotted entity path. A one-segment dat path must carry an entity
+#:   path, so ``</b>`` is markup, not a dat named ``b``.
+#:
+#: So ``<https://example.com>``, ``<mailto:a@b.c>``, ``</b>`` and ``<html>``
+#: pass through as text.
+_REF_SHAPE = re.compile(
+    r"<(?:"
+    r"(?P<prefix>[A-Za-z_]\w*):(?:\w+(?:\.\w+)*)?"
+    r"|(?P<abs>/(?:/?" + _DAT_SEGMENT + r"(?:/" + _DAT_SEGMENT + r")+(?:\.\w+)*"
+    r"|/?" + _DAT_SEGMENT + r"(?:\.\w+)+))"
+    r")>"
+)
+
+
+def lost_fields(saved: Dict[str, Any], rebuilt: Dict[str, Any]) -> list:
+    """The attribute names whose saved and rebuilt values differ — what a
+    load would drop or change. A NaN on both sides is the same value."""
+
+    def same(a: Any, b: Any) -> bool:
+        return a == b or (isinstance(a, float) and isinstance(b, float) and a != a and b != b)
+
+    return sorted(k for k in set(saved) | set(rebuilt) if not same(saved.get(k), rebuilt.get(k)))
 
 
 class _OrphanDat:
@@ -168,7 +200,13 @@ class IO:
         """
         if absolute:
             return self._absolute_ref(entity)
+        short = self._prefix_ref(entity, prefer_short)
+        # No prefix matches: the full name
+        return short if short is not None else entity.full_name
 
+    def _prefix_ref(self, entity: Entity, prefer_short: bool = True) -> Optional[str]:
+        """``PREFIX:path`` for ``entity`` through a bound prefix, or ``None``
+        when no bound prefix is one of its ancestors."""
         # Find which prefixes match this entity's ancestry
         matches: list[tuple[str, str]] = []  # (prefix, remaining_path)
 
@@ -180,8 +218,7 @@ class IO:
                 matches.append((prefix, path))
 
         if not matches:
-            # No prefix matches, use full name
-            return entity.full_name
+            return None
 
         if prefer_short:
             # Sort by path length (shortest first)
@@ -389,7 +426,17 @@ class IO:
         ``KeyError`` — and the class's own ``hydrate`` rebuilds the entity.
         The rebuilt entity's ``attributes()`` must equal the saved ones: a
         class whose ``hydrate`` cannot carry a field it wrote refuses with
-        ``ValueError`` naming the fields, rather than loading a default.
+        ``ValueError`` naming the fields, rather than loading a default
+        (``Entity.save`` runs the same check before it writes).
+
+        An ``args`` entry that is an absolute reference (``</other/dat.x>``)
+        names an entity of ANOTHER dat. It is attached by reference: it is
+        listed among this entity's children under its own local name, but it
+        stays where it is in its own dat's tree — its parent, its root and
+        the other dat's cached tree are unchanged, so ``lookup`` of the same
+        reference still finds it (T091 C7: it used to be moved out of the
+        other dat's tree). ``to_dict`` writes such a child back as the same
+        absolute reference, because its root is not this tree's root.
 
         Args:
             data: Dict with 'head', 'name', the attributes, optional 'args'
@@ -407,11 +454,8 @@ class IO:
         name = data.get("name", "unnamed")
         saved = {k: v for k, v in data.items() if k not in ("head", "args")}
         entity = entity_cls.hydrate(saved, dat=dat, parent=parent, local_name=name)
-        rebuilt = entity.attributes()
-        if rebuilt != saved:
-            lost = sorted(
-                k for k in set(saved) | set(rebuilt) if saved.get(k) != rebuilt.get(k)
-            )
+        lost = lost_fields(saved, entity.attributes())
+        if lost:
             if parent is not None:
                 parent._children.pop(entity.local_name, None)
             raise ValueError(
@@ -423,15 +467,17 @@ class IO:
         args_data = data.get("args", {})
         for child_name, child_data in args_data.items():
             if isinstance(child_data, str) and child_data.startswith("</"):
-                # Absolute ref - load from another DAT
+                # Absolute ref - an entity of another DAT, attached by reference
                 child = self._absolute_lookup(child_data)
                 if child.local_name != child_name:
                     raise ValueError(
                         f"args key {child_name!r} names {child_data!r}, whose "
                         f"local name is {child.local_name!r}"
                     )
-                # Reparent to this entity
-                child.set_parent(entity)
+                held = entity._children.get(child_name)
+                if held is not None and held is not child:
+                    raise ValueError(f"entity {name!r} already has a child named {child_name!r}")
+                entity._children[child_name] = child
             elif isinstance(child_data, dict):
                 # Inline child definition
                 self._create_entity_from_dict(child_data, parent=entity)
@@ -440,6 +486,8 @@ class IO:
         return entity
 
     def _walk_path(self, entity: Entity, path: str) -> Entity:
+        # Walks the internal name -> child map: a subclass may present its
+        # ``children`` differently (``CompartmentImpl`` lists them).
         """Walk down a dotted path from an entity.
 
         Args:
@@ -458,7 +506,7 @@ class IO:
         parts = path.split(".", 1)
         name = parts[0]
 
-        children = entity.children
+        children = entity._children
         if name not in children:
             raise KeyError(f"No child named {name!r} in {entity.local_name!r}")
 
@@ -471,11 +519,18 @@ class IO:
         """Recursively replace <PREFIX:path> strings with Entity objects.
 
         Walks a data structure (dict, list, or scalar) and replaces any
-        string shaped like a reference — ``<PREFIX:dotted.path>`` (an
-        identifier prefix, no whitespace) or ``</dat/path.entity.path>`` —
-        with the corresponding Entity. Any other angle-bracketed text
-        (``"<html>"``, ``"<a b>"``) passes through unchanged; a ref-shaped
-        string whose prefix is unbound still raises ``KeyError``.
+        string shaped like a reference — exactly the shapes ``insert_refs``
+        writes (``_REF_SHAPE``: ``<PREFIX:dotted.path>`` or
+        ``</dat/path.entity.path>``) — with the corresponding Entity. Any
+        other angle-bracketed text (``"<html>"``, ``"<a b>"``, ``"</b>"``,
+        ``"<https://…>"``, ``"<mailto:a@b.c>"``) passes through unchanged.
+
+        Two ambiguities remain, both deliberate. A ref-shaped string whose
+        prefix is unbound raises ``KeyError`` rather than passing through —
+        a mistyped prefix is caught, at the cost that text such as
+        ``"<note:todo>"`` raises too. And the root of a dat whose path name
+        is one segment (``"</exp1>"``) reads as markup, like ``"</b>"``:
+        ``insert_refs`` refuses to write it, and ``lookup`` resolves it.
 
         Args:
             obj: Data structure to process (dict, list, or scalar)
@@ -488,9 +543,12 @@ class IO:
             data = io.resolve_refs(data)  # <W:glucose> → Entity
         """
         if isinstance(obj, str):
-            if _REF_SHAPE.fullmatch(obj):
-                return self.lookup(obj[1:-1])  # strip < >
-            return obj
+            match = _REF_SHAPE.fullmatch(obj)
+            if match is None:
+                return obj
+            if match.group("abs") is not None:
+                return self.lookup(obj)  # ``lookup`` reads the bracketed absolute form
+            return self.lookup(obj[1:-1])  # strip < > from PREFIX:path
         elif isinstance(obj, dict):
             return {k: self.resolve_refs(v) for k, v in obj.items()}
         elif isinstance(obj, list):
@@ -518,7 +576,20 @@ class IO:
         from .entity import Entity
 
         if isinstance(obj, Entity):
-            return f"<{self.ref(obj)}>"
+            short = self._prefix_ref(obj)
+            # No bound prefix covers it: the absolute form, which
+            # ``resolve_refs`` reads back (T091 C5 — the full name written
+            # here as ``<full.name>`` lost the absolute form's ``</`` and
+            # read back as a different, relative dat path).
+            text = f"<{short}>" if short is not None else self._absolute_ref(obj)
+            if not _REF_SHAPE.fullmatch(text):
+                raise ValueError(
+                    f"cannot write a reference to {obj.local_name!r} that resolve_refs "
+                    f"reads back: {text!r} is not a reference shape (a name outside "
+                    "identifier characters, or a one-segment dat root, which reads as "
+                    "markup)"
+                )
+            return text
         elif isinstance(obj, dict):
             return {k: self.insert_refs(v) for k, v in obj.items()}
         elif isinstance(obj, list):

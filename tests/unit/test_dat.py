@@ -172,10 +172,24 @@ class TestDataFolderOperations:
 from alienbio.infra.entity import Entity as EntityBase
 
 
-class MockMolecule(EntityBase, head="TM"):
+class _OneField:
+    """``hydrate`` for a mock carrying one extra field ``_FIELD`` — ``save``
+    refuses a class whose ``hydrate`` cannot rebuild what it wrote (T091 C8)."""
+
+    _FIELD = ""
+
+    @classmethod
+    def hydrate(cls, data, *, dat=None, parent=None, local_name=None):
+        name = local_name or data.get("name", "unnamed")
+        extra = {cls._FIELD: data[cls._FIELD]} if cls._FIELD in data else {}
+        return cls(name, parent=parent, dat=dat, description=data.get("description", ""), **extra)
+
+
+class MockMolecule(_OneField, EntityBase, head="TM"):
     """Mock subclass for molecules."""
 
     __slots__ = ("formula",)
+    _FIELD = "formula"
 
     def __init__(self, name, *, parent=None, dat=None, description="", formula=""):
         super().__init__(name, parent=parent, dat=dat, description=description)
@@ -188,10 +202,11 @@ class MockMolecule(EntityBase, head="TM"):
         return result
 
 
-class MockCompartment(EntityBase, head="TC"):
+class MockCompartment(_OneField, EntityBase, head="TC"):
     """Mock subclass for compartments."""
 
     __slots__ = ("volume",)
+    _FIELD = "volume"
 
     def __init__(self, name, *, parent=None, dat=None, description="", volume=0.0):
         super().__init__(name, parent=parent, dat=dat, description=description)
@@ -204,10 +219,11 @@ class MockCompartment(EntityBase, head="TC"):
         return result
 
 
-class MockReaction(EntityBase, head="TR"):
+class MockReaction(_OneField, EntityBase, head="TR"):
     """Mock subclass for reactions."""
 
     __slots__ = ("rate",)
+    _FIELD = "rate"
 
     def __init__(self, name, *, parent=None, dat=None, description="", rate=0.0):
         super().__init__(name, parent=parent, dat=dat, description=description)
@@ -325,16 +341,17 @@ class TestEntityLoadWithTypes:
                 "head": "TM",
                 "name": "glucose",
                 "formula": "C6H12O6",
+                "color": "blue",
             }
             with open(entities_file, "w") as f:
                 yaml.dump(entity_data, f)
 
-            # Load via IO: MockMolecule has no hydrate for `formula`, so the
-            # load refuses rather than dropping it (T088 infra/io 1)
+            # Load via IO: MockMolecule's hydrate does not carry `color`, so
+            # the load refuses rather than dropping it (T088 infra/io 1)
             from alienbio.infra.io import IO
 
             io = IO()
-            with pytest.raises(ValueError, match=r"does not rebuild field\(s\) \['formula'\]"):
+            with pytest.raises(ValueError, match=r"does not rebuild field\(s\) \['color'\]"):
                 io._load_dat_entity(f"{tmpdir}/test/load1")
 
     def test_load_with_args(self):

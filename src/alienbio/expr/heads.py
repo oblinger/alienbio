@@ -143,6 +143,7 @@ _op("floordiv", lambda a, b: a // b)
 
 
 _DIGITS = re.compile(r"\d+")
+_REPR_CONVERSION = re.compile(r"%[^a-zA-Z%]*[ra]")
 
 
 def _width_bound(spec: Any) -> int:
@@ -166,7 +167,10 @@ def _mod(a: Any, b: Any, *, ctx: Any) -> Any:
         fmt = a if isinstance(a, str) else a.decode("latin-1")
         items = list(b.values()) if isinstance(b, Mapping) else list(b) if isinstance(b, tuple) else [b]
         star = sum(max(x, 0) for x in items if isinstance(x, int) and not isinstance(x, bool)) if "*" in fmt else 0
-        ctx.limits.charge(len(fmt) + _width_bound(fmt) + star + sum(_text_len(x) for x in items), ctx.path, "mod")
+        # %r / %a write a repr: up to 10 characters per character of the
+        # text ('\U0010ffff' under ascii) — charged at that bound (T091 C4).
+        growth = 10 if _REPR_CONVERSION.search(fmt) else 1
+        ctx.limits.charge(len(fmt) + _width_bound(fmt) + star + growth * sum(_text_len(x) for x in items), ctx.path, "mod")
     return a % b
 
 
@@ -294,8 +298,43 @@ def _method_bound(obj: Any, name: str, args: tuple[Any, ...], kwargs: Mapping[st
             return sum(_text_len(x) for x in items) + n * len(items)
         if name == "replace":
             return n + (n + 1) * max([0] + texts)
+        if name == "translate":
+            return n * _translate_growth(args[0] if args else kwargs.get("table"))
+        if name in _CASE_METHODS:
+            # A case mapping can expand one character to three ('ﬃ'.upper()
+            # is 'FFI'); charged at that bound (T091 C4).
+            return 3 * n
+        if name == "encode":
+            # 'unicode_escape' writes up to 10 bytes per character
+            # ('\U0010ffff'); the 'namereplace' handler writes a character's
+            # whole Unicode name ('\N{...}', under 100 characters).
+            return n * (100 if "namereplace" in values else 10)
+        if name == "decode":
+            return 4 * n  # 'backslashreplace' writes '\xff' for one byte
+        if name == "hex":
+            return n * (2 + sum(texts))  # each byte's two digits and a separator
         return n + sum(texts)
     return len(obj) if hasattr(obj, "__len__") else 0
+
+
+#: str methods whose result can be longer than the receiver by a case mapping.
+_CASE_METHODS: frozenset[str] = frozenset({"upper", "lower", "casefold", "title", "swapcase", "capitalize"})
+
+
+def _translate_growth(table: Any) -> int:
+    """The most characters ``str.translate`` can write for one: the longest
+    string (or bytes) value in the table, at least 1 (T091 C4: a mapping to
+    a 300-character string multiplied the text by 300 per call and was
+    charged only the receiver). A ``bytes`` table maps byte to byte."""
+    if table is None or isinstance(table, (bytes, bytearray)):
+        return 1
+    if isinstance(table, Mapping):
+        values: Iterable[Any] = table.values()
+    elif isinstance(table, (list, tuple)):
+        values = table  # indexed by ordinal
+    else:
+        raise ValueError(f"translate: the table must be a mapping or a list (got {type(table).__name__})")
+    return max([1] + [len(v) for v in values if isinstance(v, (str, bytes, bytearray))])
 
 
 def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
@@ -307,7 +346,11 @@ def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
     target = _attr(obj, name, env=env)
     if not callable(target):
         raise env.error(f"{name!r} on {type(obj).__name__} is not callable")
-    env.ctx.limits.charge(_method_bound(obj, name, args, kwargs), env.path, f"method {name}")
+    try:
+        bound = _method_bound(obj, name, args, kwargs)
+    except ValueError as exc:
+        raise env.error(str(exc)) from None
+    env.ctx.limits.charge(bound, env.path, f"method {name}")
     return target(*args, **kwargs)
 
 

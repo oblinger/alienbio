@@ -327,7 +327,10 @@ class Entity:
 
         self._top = new_root
         for child in self._children.values():
-            child._update_top(new_root)
+            # A child attached by reference (``IO``'s absolute ``args`` entry)
+            # belongs to another tree: its parent is not this entity.
+            if child._parent is self:
+                child._update_top(new_root)
 
     @property
     def full_name(self) -> str:
@@ -429,9 +432,15 @@ class Entity:
         Must be called on the root entity (the one with the DAT anchor).
         Serializes the entire entity tree to entities.yaml in the DAT folder.
 
+        Every entity written inline (this tree, not a sub-root with its own
+        dat) must be one the loader can rebuild: its head must name its own
+        class, and its class's ``hydrate`` must rebuild every attribute it
+        wrote. Otherwise ``save`` refuses before writing anything.
+
         Raises:
             ValueError: If not called on a root entity
             ValueError: If called on orphan root (orphans cannot be saved)
+            ValueError: If an inline entity would not load back (names its class and fields)
             TypeError: If the root's dat is a :class:`MockDat` (no folder, no save)
         """
         import yaml
@@ -456,6 +465,11 @@ class Entity:
             )
 
         dat = self._top
+
+        # Refuse, before anything is written, a tree the loader would refuse
+        # (T091 C8: a Molecule with atoms and a Compartment were written and
+        # then failed only at load).
+        _check_loadable(self)
 
         # Serialize the entity tree
         entity_data = self.to_dict(recursive=True)
@@ -498,6 +512,46 @@ class Entity:
             except ValueError:
                 return f"<Entity:{self._local_name}>"
         return io.ref(self)
+
+
+def _check_loadable(root: Entity) -> None:
+    """Raise ``ValueError`` naming the class and field(s) of the first entity
+    in ``root``'s inline tree that ``IO._create_entity_from_dict`` would not
+    rebuild — the loader's own check, run before ``save`` writes."""
+    from .io import lost_fields
+
+    stack = [root]
+    while stack:
+        entity = stack.pop()
+        cls = type(entity)
+        head = entity.head
+        if _head_registry.get(head) is not cls:
+            raise ValueError(
+                f"cannot save {entity.local_name!r} ({cls.__name__}): its head {head!r} "
+                "loads a different class"
+            )
+        saved = entity.attributes()
+        try:
+            rebuilt = cls.hydrate(
+                dict(saved), dat=MockDat(f"save-check/{entity.local_name}"),
+                local_name=entity.local_name,
+            ).attributes()
+        except Exception as exc:  # the loader's refusal, raised at save instead
+            raise ValueError(
+                f"cannot save {entity.local_name!r} ({cls.__name__}): the loader would "
+                f"refuse it — {type(exc).__name__}: {exc}"
+            ) from exc
+        lost = lost_fields(saved, rebuilt)
+        if lost:
+            raise ValueError(
+                f"cannot save {entity.local_name!r} ({cls.__name__}): {cls.__name__}.hydrate "
+                f"does not rebuild field(s) {lost!r}; loading it would drop them"
+            )
+        for child in entity._children.values():
+            # inline children only: a sub-root saves with its own dat, and a
+            # child attached by reference belongs to another tree
+            if child._parent is entity and isinstance(child._top, Entity):
+                stack.append(child)
 
 
 class MockDat:

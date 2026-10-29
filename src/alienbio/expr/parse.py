@@ -150,6 +150,7 @@ def _convert(node: ast.AST, path: str) -> Any:  # noqa: C901 - one switch, on pu
 #: The name a chained comparison binds a shared operand to (T088 parse 1);
 #: it scopes only the rest of that chain, and dumps and parses back as text.
 _CMP_TEMP = "__cmp{}"
+_CMP_LEFT_TEMP = "__cmpl{}"
 
 
 def _compare(left: Any, rest: list[tuple[ast.cmpop, ast.expr]], path: str, depth: int) -> Any:
@@ -172,8 +173,17 @@ def _compare(left: Any, rest: list[tuple[ast.cmpop, ast.expr]], path: str, depth
         return Call("op:and", (Call(f"op:{name}", (left, right)),) + tuple(terms))
     temp = _CMP_TEMP.format(depth)
     shared = Name(temp)
+    bindings: dict[str, Any] = {}
+    if not (isinstance(left, (Name, str, int, float, bool)) or left is None):
+        # ``let`` evaluates its bindings before its body, so a non-simple left
+        # operand is bound first: operands evaluate left to right, as in
+        # Python (T091 C12 — ``(0 < f(1) < 2) < f(5) < 9`` ran f(5) first).
+        left_temp = _CMP_LEFT_TEMP.format(depth)
+        bindings[left_temp] = left
+        left = Name(left_temp)
+    bindings[temp] = right
     body = Call("op:and", (Call(f"op:{name}", (left, shared)), _compare(shared, rest[1:], path, depth + 1)))
-    return Call("let", (), {"bindings": {temp: right}, "body": body})
+    return Call("let", (), {"bindings": bindings, "body": body})
 
 
 def _comprehension(node: ast.AST, path: str) -> Any:

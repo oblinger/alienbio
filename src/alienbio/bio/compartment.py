@@ -6,7 +6,7 @@ with its initial state, membrane flows, and active reactions.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Self, TYPE_CHECKING
 
 from ..infra.entity import DatLike, Entity
 
@@ -74,7 +74,6 @@ class CompartmentImpl(Entity, head="Compartment"):
         "_concentrations",
         "_membrane_flows",
         "_active_reactions",
-        "_children",
     )
 
     def __init__(
@@ -118,11 +117,42 @@ class CompartmentImpl(Entity, head="Compartment"):
         self._active_reactions: Optional[List[str]] = (
             list(active_reactions) if active_reactions else None
         )
-        self._children: List[CompartmentImpl] = []  # type: ignore[assignment]
+        # Child compartments are the Entity's own name -> child map, filled by
+        # ``set_parent`` (the constructor's ``parent=``) and ``add_child``. A
+        # separate list here once replaced that map, so every nested
+        # ``CompartmentImpl(parent=...)`` raised inside ``set_parent``
+        # (T091 C9); ``children`` lists the map's values.
 
-        # Register with parent
-        if parent is not None and isinstance(parent, CompartmentImpl):
-            parent._children.append(self)
+    @classmethod
+    def hydrate(
+        cls,
+        data: dict[str, Any],
+        *,
+        dat: Optional[DatLike] = None,
+        parent: Optional[Entity] = None,
+        local_name: Optional[str] = None,
+    ) -> Self:
+        """A compartment from the keys ``attributes()`` writes. Membrane flows
+        are not serialized: a compartment carrying one refuses at save (its
+        ``attributes()`` names them, and nothing rebuilds them)."""
+        from ..infra.entity import MockDat
+
+        name = local_name or data.get("name", "compartment")
+        if "volume" not in data:
+            raise ValueError(f"Compartment {name!r}: data carries no 'volume' (a required field)")
+        if dat is None and parent is None:
+            dat = MockDat(f"compartment/{name}")
+        return cls(
+            name,
+            volume=data["volume"],
+            parent=parent,
+            dat=dat,
+            description=data.get("description", ""),
+            kind=data.get("kind", "compartment"),
+            multiplicity=data.get("multiplicity", 1.0),
+            concentrations=data.get("concentrations"),
+            active_reactions=data.get("active_reactions"),
+        )
 
     @property
     def kind(self) -> str:
@@ -156,13 +186,13 @@ class CompartmentImpl(Entity, head="Compartment"):
 
     @property
     def children(self) -> List[CompartmentImpl]:  # type: ignore[override]
-        """Child compartments."""
-        return list(self._children)
+        """Child compartments, in the order they were attached."""
+        return [c for c in self._children.values() if isinstance(c, CompartmentImpl)]
 
     def add_child(self, child: CompartmentImpl) -> None:
-        """Add a child compartment."""
-        if child not in self._children:
-            self._children.append(child)
+        """Add a child compartment (``child.set_parent(self)``: a child of
+        another compartment moves here; one with its own dat stays a sub-root)."""
+        child.set_parent(self)
 
     def add_flow(self, flow: GeneralFlow) -> None:
         """Add a membrane flow."""
@@ -189,11 +219,11 @@ class CompartmentImpl(Entity, head="Compartment"):
     def all_descendants(self) -> List[CompartmentImpl]:
         """Get all descendant compartments (depth-first)."""
         result = []
-        stack = list(self._children)
+        stack = self.children
         while stack:
             child = stack.pop()
             result.append(child)
-            stack.extend(child._children)
+            stack.extend(child.children)
         return result
 
     def all_compartments(self) -> List[CompartmentImpl]:
@@ -213,17 +243,20 @@ class CompartmentImpl(Entity, head="Compartment"):
 
     def attributes(self) -> Dict[str, Any]:
         """Semantic content for serialization."""
-        result: Dict[str, Any] = {
-            "kind": self._kind,
-            "volume": self._volume,  # Always include - required field
-        }
+        result: Dict[str, Any] = super().attributes()  # name, description
+        result["kind"] = self._kind
+        result["volume"] = self._volume  # Always include - required field
         if self._multiplicity != 1.0:
             result["multiplicity"] = self._multiplicity
         if self._concentrations:
             result["concentrations"] = self._concentrations.copy()
         if self._active_reactions is not None:
             result["active_reactions"] = self._active_reactions.copy()
-        # Note: membrane_flows and children serialized separately
+        if self._membrane_flows:
+            # Named so ``Entity.save`` refuses a compartment carrying flows
+            # (``hydrate`` cannot rebuild them) rather than dropping them.
+            result["membrane_flows"] = [flow.name for flow in self._membrane_flows]
+        # children are serialized as the entity's args
         return result
 
     def __repr__(self) -> str:
