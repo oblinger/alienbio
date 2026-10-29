@@ -15,6 +15,7 @@ import pytest
 from alienbio.bio.compartment_tree import CompartmentTreeImpl
 from alienbio.bio.flow import TransportFlux
 from alienbio.bio.population import PerCapitaGrowth
+from alienbio.bio.rate_expr import parity_agrees
 from alienbio.bio.world_simulator import ReactionSpec, WorldSimulatorImpl
 from alienbio.bio.world_state import WorldStateImpl
 
@@ -122,7 +123,7 @@ def test_the_jax_host_step_follows_the_same_rule() -> None:
     assert jx.get(a, 0) >= 0.0
     for comp in (a, b):
         for mol in (0, 1):
-            assert jx.get(comp, mol) == pytest.approx(ref.get(comp, mol), abs=1e-12)
+            assert parity_agrees(jx.get(comp, mol), ref.get(comp, mol)), (comp, mol)
     assert jx.get_multiplicity(b) == ref.get_multiplicity(b)
 
     native = JaxWorldSimulator(
@@ -174,4 +175,4 @@ def test_the_negative_base_reads_the_same_on_jax() -> None:
     ref = WorldSimulatorImpl(tree=tree, reactions=[rxn], flows=[], num_molecules=2, dt=0.1).step(state)
     jx = JaxWorldSimulator(tree, [rxn], num_molecules=2, dt=0.1).step(state)
     for mol in (0, 1):
-        assert jx.get(a, mol) == pytest.approx(ref.get(a, mol), abs=1e-12)
+        assert parity_agrees(jx.get(a, mol), ref.get(a, mol)), mol

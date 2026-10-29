@@ -85,6 +85,32 @@ def snap_residue(value: float, pre: float) -> float:
     return 0.0 if -ROUNDING_FLOOR * scale < value < 0.0 else value
 
 
+def asks_all(demand: float, avail: float) -> bool:
+    """Whether a pass asks a pool for everything it holds — the exhausted-pool
+    test both reaction steppers share (:func:`asks_all_jax` is the same
+    arithmetic over arrays).
+
+    ``demand >= avail`` up to the same relative tolerance :func:`snap_residue`
+    uses, ``ROUNDING_FLOOR * max(1, avail)``. Not ``ratio < 1``: the drawing
+    reactions' ``k·dt`` summing to 1 makes the demand equal the pool to
+    within an ulp, ``ratio`` rounds to 1.0, and the two backends — which sum
+    the draws in different orders — land on opposite sides of an exact
+    ``>=`` (T091 M1: 11 of 400 such pools left a residue on one backend
+    only, which a ``1/[x]`` law amplified to a relative gap of 1.0)."""
+    if not demand > 0.0:
+        return False
+    scale = avail if avail > 1.0 else 1.0
+    return demand >= avail - ROUNDING_FLOOR * scale
+
+
+def asks_all_jax(demand: Any, avail: Any) -> Any:
+    """:func:`asks_all` over arrays, the same arithmetic as JAX ops."""
+    import jax.numpy as jnp
+
+    scale = jnp.where(avail > 1.0, avail, 1.0)
+    return (demand > 0.0) & (demand >= avail - ROUNDING_FLOOR * scale)
+
+
 def snap_residue_jax(value: Any, pre: Any) -> Any:
     """:func:`snap_residue` over arrays, the same arithmetic as JAX ops."""
     import jax.numpy as jnp

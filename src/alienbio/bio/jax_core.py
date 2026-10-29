@@ -38,7 +38,7 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple, cast
 #: A JAX array in annotations — ``Any`` so the module types without JAX installed.
 Array = Any
 
-from .rate_expr import RATE_CAP, lower_jax, snap_residue_jax
+from .rate_expr import RATE_CAP, asks_all_jax, lower_jax, snap_residue_jax
 
 try:
     import jax
@@ -275,13 +275,15 @@ def apply_reactions(
 
     extent = desired * scale  # [Rn, C]
     S_next = S + jnp.einsum("rc,rm->cm", extent, net)
-    # An exhausted pool — rationed and the binding limit of every reaction
+    # An exhausted pool — asked for all it holds and the binding limit of every reaction
     # drawing it — ends at exactly what the pass produced into it, as in
     # WorldSimulatorImpl._apply_reactions (T091: ``pre - draws`` leaves an
     # order-dependent ulp(pre) residue the two backends do not share).
     drawing = is_reactant[:, None, :] & (desired > 0)[:, :, None]  # [Rn, C, M]
     bound = scale[:, :, None] == ratio[None, :, :]
-    exhausted = (ratio < 1.0) & jnp.all(jnp.where(drawing, bound, True), axis=0)  # [C, M]
+    # Asked for at least everything it holds (``rate_expr.asks_all``, T091 M1).
+    asked_all = asks_all_jax(demand, S)
+    exhausted = asked_all & jnp.all(jnp.where(drawing, bound, True), axis=0)  # [C, M]
     produced = jnp.einsum("rc,rm->cm", extent, p_stoich)
     S_next = jnp.where(exhausted, produced, S_next)
     # float rounding of an exact zero -> zero, relative to the start-of-step

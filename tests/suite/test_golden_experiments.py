@@ -113,9 +113,19 @@ exhausted pool (rationed, the binding limit of every reaction drawing it)
 now ends at exactly what the pass produced into it rather than at
 ``pre - draws + production``, on both backends. Only floats moved — 225
 fields on exp02, 84 on exp13, in ``final_state``, ``readout_series`` and
-six ``objective_score`` values — none by more than 3.5e-16 relative; every
+six ``objective_score`` values — none by more than 6e-16 relative (5.65e-16 at most); every
 action, answer and structural field is byte-identical, and the other
 fourteen hashes are byte-unchanged.
+exp02, exp04 and exp05 re-pinned 2026-10-29 (T091 M1): the exhausted-pool
+test is ``rate_expr.asks_all`` — a pool asked for at least what it holds,
+to ``ROUNDING_FLOOR`` relative — not ``ratio < 1``, which missed a demand
+equal to the pool to within an ulp. Only floats moved: exp02 48 fields
+(``final_state``, ``readout_series``, three ``objective_score`` values) by
+at most 2.7e-16 relative; exp04 54 and exp05 26 fields, a 2.6e-17 residue
+on ``m0`` now exactly 0 and the chain below it by at most 1.2e-10
+relative (``oracle.hazard.final_value`` by 3.6e-16). Every action, answer,
+score on exp04/exp05 and structural field is byte-identical; the other
+thirteen hashes are byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -137,12 +147,12 @@ CATALOG = REPO / "catalog" / "experiments"
 GOLDEN: dict[str, str] = {
     "exp01": "4aaf06173dd4d298",
     "exp10": "40269618889cc67a",
-    "exp02": "838e8a5b061f34ad",
+    "exp02": "ab7f5a5e6eac3502",
     "exp03": "5de1a2a44b6b0615",
-    "exp04": "5b05aa164a6d8b8a",
+    "exp04": "097e1f1e9283712b",
     "exp04-diagnose-zero": "eba0349455c4ab1b",
     "exp04-zero": "d07da8100b6e215c",
-    "exp05": "3f37ce5caad5299a",
+    "exp05": "73aa1956b5c4d705",
     "exp06": "ffa26959c383e674",
     "exp07": "fcba846f9a5bf0ab",
     "exp08": "85eef2a6ed114f6f",

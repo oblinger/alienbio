@@ -15,7 +15,7 @@ import math
 import pytest
 
 from alienbio.bio import CompartmentTreeImpl, ReactionSpec, WorldSimulatorImpl, WorldStateImpl
-from alienbio.bio.rate_expr import eval_rate, from_json, implicit_mass_action, species_of, to_json, to_text
+from alienbio.bio.rate_expr import eval_rate, from_json, parity_agrees, implicit_mass_action, species_of, to_json, to_text
 from alienbio.bio.reaction import Modulation
 from alienbio.expr import Env, ExprError, X, evaluate
 from alienbio.suite.rate_law import compile_rate
@@ -151,6 +151,6 @@ def test_jax_matches_reference_on_modulations_and_expression_laws():
     fast = jx.run_fast(state, steps=60)
     for c in range(2):
         for m in range(5):
-            assert ref_final.get(c, m) == pytest.approx(jx_final.get(c, m), abs=1e-9), (c, m)
-            assert ref_final.get(c, m) == pytest.approx(fast.get(c, m), abs=1e-9), (c, m)
+            assert parity_agrees(ref_final.get(c, m), jx_final.get(c, m)), (c, m)
+            assert parity_agrees(ref_final.get(c, m), fast.get(c, m)), (c, m)
     assert sum(ref_final.get(0, m) for m in range(5)) > 0.0

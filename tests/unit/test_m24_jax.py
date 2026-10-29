@@ -30,6 +30,7 @@ from alienbio.bio import (
     WorldSimulatorImpl,
 )
 from alienbio.bio.flow import GeneralFlow
+from alienbio.bio.rate_expr import parity_agrees
 
 pytestmark = pytest.mark.skipif(not HAS_JAX, reason="JAX not installed")
 
@@ -100,7 +101,7 @@ class TestC1MassConservation:
         pf = py.run(state, steps=30)[-1]
         jf = jx.run(state, steps=30)[-1]
         for m in range(2):
-            assert abs(pf.get(0, m) - jf.get(0, m)) < 1e-6
+            assert parity_agrees(pf.get(0, m), jf.get(0, m)), m
 
 
 # ── A3: dtype ──────────────────────────────────────────────────────────────────
@@ -127,7 +128,7 @@ class TestDtype:
         pf = py.run(state, steps=200)[-1]
         d64 = abs(pf.get(0, 0) - j64.run(state, steps=200)[-1].get(0, 0))
         d32 = abs(pf.get(0, 0) - j32.run(state, steps=200)[-1].get(0, 0))
-        assert d64 < 1e-6
+        assert parity_agrees(pf.get(0, 0), j64.run(state, steps=200)[-1].get(0, 0))  # float64 meets the contract
         assert d64 <= d32 + 1e-12
 
 
@@ -161,7 +162,7 @@ class TestVectorizedParity:
         jf = jx.run(state, steps=60)[-1]
         for c in range(3):
             for m in range(3):
-                assert abs(pf.get(c, m) - jf.get(c, m)) < 1e-6, (c, m)
+                assert parity_agrees(pf.get(c, m), jf.get(c, m)), (c, m)
 
     def test_stoichiometry_two_to_one(self):
         from alienbio.bio.jax_simulator import JaxWorldSimulator
@@ -174,7 +175,7 @@ class TestVectorizedParity:
         pf = py.run(state, steps=40)[-1]
         jf = jx.run(state, steps=40)[-1]
         for m in range(2):
-            assert abs(pf.get(0, m) - jf.get(0, m)) < 1e-6
+            assert parity_agrees(pf.get(0, m), jf.get(0, m)), m
 
 
 # ── A2 / M24.5: flows ──────────────────────────────────────────────────────────
@@ -214,7 +215,7 @@ class TestFlows:
         jf = jx.run(state, steps=40)[-1]
         for c in range(2):
             for m in range(2):
-                assert abs(pf.get(c, m) - jf.get(c, m)) < 1e-6, (c, m)
+                assert parity_agrees(pf.get(c, m), jf.get(c, m)), (c, m)
 
     def test_flowless_jax_drops_nothing_vs_flow_reference(self):
         """Guard: an empty-flow JAX sim must DIFFER from a with-flow reference
@@ -263,7 +264,7 @@ class TestFlows:
         jf = jx.run(state, steps=40)[-1]
         for c in range(2):
             for m in range(2):
-                assert abs(pf.get(c, m) - jf.get(c, m)) < 1e-6, (c, m)
+                assert parity_agrees(pf.get(c, m), jf.get(c, m)), (c, m)
 
     def test_run_fast_rejects_python_flows(self):
         from alienbio.bio.jax_simulator import JaxWorldSimulator
@@ -504,11 +505,11 @@ class TestPopulationParity:
         pf = py.run(state, steps=100)[-1]
         jf = jx.run(state, steps=100)[-1]
 
-        assert jf.get_multiplicity(herd) == pytest.approx(pf.get_multiplicity(herd), abs=1e-9)
+        assert parity_agrees(jf.get_multiplicity(herd), pf.get_multiplicity(herd))
         assert jf.get_multiplicity(herd) != pytest.approx(4.0, abs=1e-6)
         for c in (pool, herd):
             for m in range(2):
-                assert jf.get(c, m) == pytest.approx(pf.get(c, m), abs=1e-9, rel=1e-9)
+                assert parity_agrees(jf.get(c, m), pf.get(c, m)), (c, m)
 
     def test_run_fast_refuses_population_laws_rather_than_dropping_them(self):
         from alienbio.bio.jax_simulator import JaxWorldSimulator

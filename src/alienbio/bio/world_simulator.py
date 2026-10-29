@@ -30,6 +30,7 @@ from .rate_expr import (
     ieee_pow,
     implicit_mass_action,
     map_species,
+    asks_all,
     snap_residue,
 )
 
@@ -422,7 +423,11 @@ class WorldSimulatorImpl:
         # Each reaction scales by the tightest ratio over its reactants.
         # 3. Apply simultaneously.
         produced: Dict[MoleculeId, float] = {}
-        bound_by: Dict[MoleculeId, bool] = {mol_id: r < 1.0 for mol_id, r in ratio.items()}
+        # Asked for at least everything it holds (``rate_expr.asks_all``).
+        bound_by: Dict[MoleculeId, bool] = {
+            mol_id: asks_all(dem, frozen.get(compartment, mol_id))
+            for mol_id, dem in demand.items()
+        }
         for reaction, ext in zip(reactions, desired):
             scale = 1.0
             for mol_id, stoich in reaction.reactants.items():
@@ -449,7 +454,7 @@ class WorldSimulatorImpl:
                     new_state.get(compartment, mol_id) + extent * stoich,
                 )
 
-        # An EXHAUSTED pool — rationed (ratio < 1) and the binding limit of
+        # An EXHAUSTED pool — asked for at least what it held and the binding limit of
         # every reaction drawing it — gives up exactly what it held, so it
         # ends at exactly what the pass produced into it. Computing it as
         # ``pre - draws + production`` leaves a residue of ulp(pre) whose

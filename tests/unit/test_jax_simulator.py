@@ -16,6 +16,7 @@ from alienbio.bio import (
     WorldStateImpl,
     WorldSimulatorImpl,
 )
+from alienbio.bio.rate_expr import parity_agrees
 
 pytestmark = pytest.mark.skipif(not HAS_JAX, reason="JAX not installed")
 
@@ -92,7 +93,7 @@ class TestJaxVerification:
         for mol in range(2):
             py_val = py_history[-1].get(0, mol)
             jax_val = jax_history[-1].get(0, mol)
-            assert abs(py_val - jax_val) < 1e-4, (
+            assert parity_agrees(py_val, jax_val), (
                 f"mol {mol}: python={py_val}, jax={jax_val}"
             )
 
@@ -118,7 +119,7 @@ class TestJaxVerification:
 
         for c in range(2):
             for m in range(2):
-                assert abs(py_final.get(c, m) - jax_final.get(c, m)) < 1e-4
+                assert parity_agrees(py_final.get(c, m), jax_final.get(c, m)), (c, m)
 
 
 class TestNoJaxFallback:

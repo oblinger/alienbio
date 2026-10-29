@@ -13,7 +13,7 @@ import pytest
 from alienbio.bio import CompartmentTreeImpl, ReactionSpec, WorldSimulatorImpl, WorldStateImpl
 from alienbio.bio import rate_expr as rx
 from alienbio.bio.flow import TransportFlux
-from alienbio.bio.rate_expr import ieee_pow, snap_residue
+from alienbio.bio.rate_expr import ieee_pow, parity_agrees, snap_residue
 
 try:
     import jax.numpy as jnp
@@ -95,7 +95,7 @@ def test_an_admitted_hill_agrees_on_both_backends():
         st.set(0, 1, 2.0)
         ref = WorldSimulatorImpl(tree, rxns, [], num_molecules=3, dt=0.1).step(st)
         jx = JaxWorldSimulator(tree, rxns, num_molecules=3, dt=0.1).step(st)
-        assert jx.get(0, 0) == pytest.approx(ref.get(0, 0), abs=1e-12), p
+        assert parity_agrees(jx.get(0, 0), ref.get(0, 0)), p
 
 
 # ── C3: the rounding snap is relative to the pool it was drawn from ─────────
@@ -126,9 +126,9 @@ def test_a_large_pool_rationed_to_exhaustion_never_ends_negative_on_either_backe
         jx = JaxWorldSimulator(tree, rxns, num_molecules=3, dt=0.1).step(st)
         # Exhausted or not, rounding may leave a positive residue; never a negative.
         assert ref.get(0, 0) >= 0.0 and jx.get(0, 0) >= 0.0, (trial, ref.get(0, 0), jx.get(0, 0))
-        assert jx.get(0, 0) == pytest.approx(ref.get(0, 0), rel=1e-9, abs=1e-9 * A)
+        assert parity_agrees(jx.get(0, 0), ref.get(0, 0)), (trial, ref.get(0, 0), jx.get(0, 0))
         for m in (1, 2):
-            assert jx.get(0, m) == pytest.approx(ref.get(0, m), rel=1e-9)
+            assert parity_agrees(jx.get(0, m), ref.get(0, m)), (trial, m)
 
 
 def test_a_rationed_antiport_never_leaves_its_losing_pool_negative():

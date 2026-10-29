@@ -7,6 +7,7 @@ import json
 import pytest
 
 from alienbio.bio import CompartmentTreeImpl, ReactionSpec, WorldSimulatorImpl, WorldStateImpl
+from alienbio.bio.rate_expr import parity_agrees
 from alienbio.bio.reaction import Modulation
 from alienbio.expr import Env, X, evaluate
 from alienbio.suite.agent import Answer, Commit, ReasoningStep
@@ -48,7 +49,7 @@ def test_a1_engine_runs_reactions_modulations_and_compiled_rate_laws_on_both_sim
 
         jx = JaxWorldSimulator(tree, reactions, num_molecules=3, dt=0.05).run(state, steps=40)[-1]
         for m in range(3):
-            assert jx.get(0, m) == pytest.approx(ref.get(0, m), abs=1e-9)
+            assert parity_agrees(jx.get(0, m), ref.get(0, m)), m
 
 
 @capability("A2")

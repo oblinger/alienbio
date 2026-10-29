@@ -213,10 +213,32 @@ def _exhausted_pool_read_by_a_modulator():
     return tree, reactions, 4, state, 0.05, 8
 
 
+def _pool_asked_for_exactly_what_it_holds():
+    """Verifier M's h3 (T091 M1): three draws whose ``k·dt`` sum to 1 ask a
+    99999.9 pool for itself to within an ulp, so ``ratio`` rounds to 1.0
+    and the old ``ratio < 1`` test missed it; one backend kept a 3.6e-12
+    residue the other did not, and r3's ``1/[m0]`` read it as a 2.7e11
+    rate — the reference drained all of m2, JAX moved 5e-6. The exhausted
+    test is ``rate_expr.asks_all`` on both backends now."""
+    tree = CompartmentTreeImpl()
+    tree.add_root("o")
+    state = WorldStateImpl(tree=tree, num_molecules=4)
+    state.set(0, 0, 99999.9)
+    state.set(0, 2, 5.0)
+    reactions = [
+        ReactionSpec("r0", {0: 1.0}, {1: 1.0}, 7.0),
+        ReactionSpec("r1", {0: 1.0}, {1: 1.0}, 1.0),
+        ReactionSpec("r2", {0: 1.0}, {1: 1.0}, 2.0),
+        ReactionSpec("r3", {2: 1.0}, {3: 1.0}, 1.0, rate_law=("div", ("const", 1.0), ("species", 0))),
+    ]
+    return tree, reactions, 4, state, 0.1, 3
+
+
 @needs_jax
 @settings(max_examples=60, deadline=None)
 @given(system())
 @example(_exhausted_pool_then_reciprocal_law())
+@example(_pool_asked_for_exactly_what_it_holds())
 @example(_exhausted_pool_read_by_a_modulator())
 def test_jax_matches_the_reference_on_random_systems(sys_):
     tree, reactions, n_mol, state, dt, steps = sys_
@@ -236,7 +258,12 @@ def test_a_closed_one_to_one_system_conserves_its_total(sys_):
     for c in range(tree.num_compartments):
         before = sum(state.get(c, m) for m in range(n_mol))
         after = sum(final.get(c, m) for m in range(n_mol))
-        assert after == pytest.approx(before, abs=1e-9)
+        # Relative as well as absolute: a total near the top of the supported
+        # range (5e5 here) sums its pools with ~ulp(5e5) = 1.2e-10 rounding
+        # per add, so an absolute 1e-9 alone is ~8 ulps — hypothesis seed 49
+        # found 524292 + 1.0e-9 after 22 steps, before and after T091 M1
+        # (2e-15 relative, rounding; a real leak is many orders larger).
+        assert after == pytest.approx(before, rel=1e-12, abs=1e-9)
 
 
 # ---------------------------------------------------------------------------
