@@ -62,7 +62,7 @@ The reader, the writer and their tables.
     The M1 spellings, each a load error that names its replacement (M47.7: no aliases survive). ^legacy-tags
 
 **load_text**`(text: str) -> Any`
-    `yaml.load(text, Loader=ExprLoader)`: untagged YAML is data, tagged nodes are forms. A `yaml.YAMLError` becomes `ExprError("YAML error: …")`; a constructor's `ExprError` carries `line N`. Includes are not resolved. ^load-text
+    `yaml.load(text, Loader=ExprLoader)`: untagged YAML is data, tagged nodes are forms. A `yaml.YAMLError` becomes `ExprError("YAML error: …")`, and a `RecursionError` (PyYAML composes recursively, so a deeply nested document overflows before any Expr limit sees it) becomes `ExprError("YAML nesting deeper than limits.depth allows …")` (since `dc92971`, T091 C11); a constructor's `ExprError` carries `line N`. Includes are not resolved. ^load-text
 
 **ExprDumper** (class)
     A `yaml.SafeDumper` with representers for `Call` (`!head` with a flow mapping, a flow sequence, or one scalar), `Name` (`!ref path`) and `Quoted` (`!q "<inline text>"`, always double-quoted so commas and braces survive a flow context). ^exprdumper
@@ -110,3 +110,4 @@ A lone non-empty string positional is written as a double-quoted tagged scalar (
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: every row of the round-trip table was dumped and reloaded, and `evaluate` of the reloaded `poisson('3')` raised `must be real number, not str`; `!ev 1` refuses naming `!x`. Not determined: whether any production path calls `dump_structural` (the experiment writer `spec_to_text` does not; `X.dump` does). Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: a lone non-string or empty-string positional dumps as a one-element flow sequence and round-trips, a keyword named `args` refuses to dump, and quoted comprehensions survive (`c90ce0d`); round-trip table and figure ‡ note rewritten.
+- 2026-10-29 — refreshed for `dc92971` (T091 C11): `load_text` turns a `RecursionError` into an `ExprError`. Figure still true.

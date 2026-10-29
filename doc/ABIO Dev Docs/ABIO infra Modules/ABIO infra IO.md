@@ -52,10 +52,10 @@ One instance holds the bindings and one cache (dat path → root entity); nothin
     `</…>` goes to the absolute form, split at the first `.` into a dat path and a dotted entity path. Otherwise the text before the first `:` is the prefix (`ValueError` when there is no `:` or the prefix is empty) and the rest is walked child by child (`KeyError` naming the missing child). ^lookup
 
 **resolve_refs**`(obj: Any) -> Any`
-    Rebuilds dicts and lists, replacing every reference-shaped string by `lookup` of its inside: `<PREFIX:dotted.path>` with an identifier prefix, or `</dat/path.entity.path>`, neither holding whitespace (`_REF_SHAPE`). Other angle-bracketed text (`"<html>"`, `"<a b>"`, `"<>"`) passes through; a reference-shaped string with an unbound prefix still raises `KeyError`. ^resolve-refs
+    Rebuilds dicts and lists, replacing every string of exactly a shape `insert_refs` writes (`_REF_SHAPE`): `<PREFIX:dotted.path>` goes to `lookup` of its inside, `</dat/path.entity.path>` to `lookup` of the bracketed absolute form. Other angle-bracketed text — `"<html>"`, `"<a b>"`, `"</b>"`, `"<https://…>"`, `"<mailto:a@b.c>"` — passes through. Two ambiguities are deliberate: a reference-shaped string with an unbound prefix raises `KeyError` (so `"<note:todo>"` raises too), and the root of a one-segment dat (`"</exp1>"`) reads as markup, like `"</b>"` (since `dc92971`, T091 C6). ^resolve-refs
 
 **insert_refs**`(obj: Any) -> Any`
-    The inverse shape: each `Entity` becomes `"<" + ref(entity) + ">"`; tuples and other containers pass through untouched. ^insert-refs
+    The inverse shape: each `Entity` becomes `<PREFIX:path>` through a bound prefix, or, when no prefix covers it, the absolute form `</dat/path.entity.path>` (until `dc92971`, T091 C5, it wrote `<full.name>`, which read back as a different, relative dat path). Text `_REF_SHAPE` would not read back — a name outside identifier characters, or a one-segment dat root — raises `ValueError`. Tuples and other containers pass through untouched. ^insert-refs
 
 **orphan_root**`: Entity` (property)
     Built on first read as `Entity("orphans", dat=_OrphanDat())` and bound to `ORPHAN`, so a detached entity prints `ORPHAN:name`. `_OrphanDat.save` raises, and `Entity.save` refuses an orphan-rooted tree before reaching it. ^orphan-root
@@ -74,10 +74,14 @@ The reference pattern and the orphan root's virtual anchor.
 | io | |
 | --- | --- |
 | [_REF_SHAPE](#^ref-shape) | What `resolve_refs` reads as a reference |
+| [lost_fields](#^lost-fields) | Attribute names a rebuild drops or changes |
 | [_OrphanDat](#^orphandat) | The orphan root's anchor |
 
 **_REF_SHAPE**`: re.Pattern`
-    `<PREFIX:path>` with an identifier prefix, or `</…>`; no whitespace or nested angle brackets. ^ref-shape
+    Exactly the two shapes `insert_refs` writes: `<PREFIX:dotted.path>` — an identifier prefix, a colon and an optional dotted path of identifier names (`<W:>` names the prefix's own entity) — or `</dat/path.entity.path>`, a dat path of `/`-separated segments of identifier characters and `-` (a second leading `/` for an absolute dat path) and an optional dotted entity path, which a one-segment dat path must carry. ^ref-shape
+
+**lost_fields**`(saved: dict, rebuilt: dict) -> list`
+    The sorted attribute names whose saved and rebuilt values differ, NaN on both sides counting as equal. The loader refuses a dict it would rebuild lossily with it, and `Entity.save` runs it before writing ([ABIO infra Entity](ABIO%20infra%20Entity.md)). ^lost-fields
 
 **_OrphanDat**
     `get_path_name()` and `get_path()` both `"<orphans>"`; `save()` raises `ValueError`. ^orphandat
@@ -97,7 +101,7 @@ Retired 2026-10-28 (T088). It stood for the first dat folder and worked in neith
 
 
 ## Loading a tree
-A dat is loaded once per path (`_dat_entity_cache`). With an `entities.yaml` in the dat folder, `_create_entity_from_dict` looks the `head` up in the registry — an unknown head raises `KeyError` — and rebuilds the entity with that class's own `hydrate(saved, dat=, parent=, local_name=)`, where `saved` is the dict less `head` and `args`. The rebuilt entity's `attributes()` must equal `saved`: a class whose `hydrate` cannot carry a field it wrote refuses with `ValueError` naming the fields, rather than loading a default. `MoleculeImpl` and `ChemistryImpl` round-trip (a saved `bdepth: 3` comes back as 3); a test class with an extra field and no `hydrate` refuses; a `ReactionImpl` root cannot load standalone, its `hydrate` needs the molecules. It then recurses into `args`: a dict child is built inline, an absolute-reference child is looked up and moved under it with `set_parent`, refusing when the `args` key is not the child's local name; anything else is skipped. With no `entities.yaml`, the root is a bare `Entity` named after the path's last segment.
+A dat is loaded once per path (`_dat_entity_cache`). With an `entities.yaml` in the dat folder, `_create_entity_from_dict` looks the `head` up in the registry — an unknown head raises `KeyError` — and rebuilds the entity with that class's own `hydrate(saved, dat=, parent=, local_name=)`, where `saved` is the dict less `head` and `args`. The rebuilt entity's `attributes()` must equal `saved`: a class whose `hydrate` cannot carry a field it wrote refuses with `ValueError` naming the fields, rather than loading a default. `MoleculeImpl` and `ChemistryImpl` round-trip (a saved `bdepth: 3` comes back as 3); a test class with an extra field and no `hydrate` refuses; a `ReactionImpl` root cannot load standalone, its `hydrate` needs the molecules. It then recurses into `args`: a dict child is built inline; an absolute-reference child, an entity of another dat, is attached by reference — listed among the entity's children under its local name, while its parent, its root and the other dat's cached tree are unchanged, so a `lookup` of the same reference still finds it, and `to_dict` writes it back as that reference (until `dc92971`, T091 C7, `set_parent` moved it out of the other dat's tree). The `args` key must be the child's local name, and a different child already held under it refuses; anything else is skipped. With no `entities.yaml`, the root is a bare `Entity` named after the path's last segment.
 
 The model is narrower than the class pages once described: `Entity.save` writes one `entities.yaml` per dat and this loader reads it back, and nothing in `src/` calls either. Whether entities persist through dats at all is not settled; [ABIO DAT](../../ABIO%20Ref/ABIO%20DAT.md) describes only the dvc-dat surface the package uses.
 
@@ -112,3 +116,4 @@ A string binding and an absolute reference to one dat reach the same `_load_dat_
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `7d390d6` (read from a `git archive` export; a concurrent worker editing `src/suite/`), against dvc-dat `6eca674`. Run against that export with a scratch dat folder: a saved `MoleculeImpl` losing `bdepth` on load; `</runs/v1.2.c>` failing to load; prefix and absolute routes giving two objects for one dat; `ref` raising `KeyError` once one string binding cannot load; `D:` matching nothing in either direction; `"<html>"` raising in `resolve_refs`; `import alienbio` outside the repo binding the site-packages `tests`. Not determined: whether AUP or any script outside the repo builds an `IO`. Findings filed on T088.
 - 2026-10-28 — refreshed against `76bfc54`: the loader hydrates by head and refuses a lost field or an unknown head, one cache, string bindings load at `bind_prefix`, `D:` retired, a dotted dat path name refused at write, `resolve_refs` reads reference-shaped text only; `imports.py` deleted (`6ec2fb0`), so its section and the import side effect are gone.
+- 2026-10-29 — refreshed for `dc92971` (T091 C5–C7): `_REF_SHAPE` matches only what `insert_refs` writes, `insert_refs` writes the absolute form when no prefix covers the entity and refuses unreadable text, an absolute child in `args` is attached by reference, `lost_fields` documented. Figure still true.

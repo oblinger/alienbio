@@ -88,15 +88,15 @@ demand[c,m]  = sum_r desired[r,c] * R[r,m]
 ratio[c,m]   = min(1, S[c,m] / demand[c,m])     (1 where demand = 0)
 scale[r,c]   = min over reactants m of r of ratio[c,m]
 S'           = S + (desired * scale)^T (P - R)
-S'[c,m]      = 0  where -ROUNDING_FLOOR < S'[c,m] < 0
+S'[c,m]      = 0  where -FLOOR*max(1,S[c,m]) < S'[c,m] < 0
 ```
 
-`0 ** 0` is 1 in `jnp`, so a molecule that is not a reactant contributes a factor of 1, and a reaction with no reactant has `scale = 1`. A rate law replaces row `i` of the mass-action rate before modulation, so a modulated reaction with a law is modulated on top of its law, as in the reference.
+`FLOOR` is `ROUNDING_FLOOR`; the last line is `snap_residue_jax(S', S)`, the reference's `snap_residue` over arrays (relative since `3269751`, T091 C3). `0 ** 0` is 1 in `jnp`, so a molecule that is not a reactant contributes a factor of 1, and a reaction with no reactant has `scale = 1`. A rate law replaces row `i` of the mass-action rate before modulation, so a modulated reaction with a law is modulated on top of its law, as in the reference.
 
 
 
 ## Non-negativity
-For any compartment and molecule, the amount consumed is `Σ_r desired·scale·R ≤ ratio·demand ≤ S`, because each reaction's `scale` is at most the `ratio` of every one of its reactants. Exact arithmetic therefore never drives a reactant below zero, whatever the order or number of competing reactions, and the snap catches float residue down to `-1e-12`. The argument assumes `S ≥ 0` on entry, as `apply_reactions`' docstring now states: a concentration already below `-ROUNDING_FLOOR` gives a negative ratio and a negative extent, which runs the reaction backwards, on both backends; every pass keeps the state non-negative, so that holds between steps.
+For any compartment and molecule, the amount consumed is `Σ_r desired·scale·R ≤ ratio·demand ≤ S`, because each reaction's `scale` is at most the `ratio` of every one of its reactants. Exact arithmetic therefore never drives a reactant below zero, whatever the order or number of competing reactions, and the snap catches float residue down to `-1e-12 · max(1, S)`. The argument assumes `S ≥ 0` on entry, as `apply_reactions`' docstring now states: a concentration already below `-ROUNDING_FLOOR` gives a negative ratio and a negative extent, which runs the reaction backwards, on both backends; every pass keeps the state non-negative, so that holds between steps.
 
 
 
@@ -115,3 +115,4 @@ Slots are padded per reaction to the widest modulator count, and the padded slot
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with the reference's `_desired_extent`, `_modulation_factor` and `_apply_reactions` read beside it. [ABIO JaxWorldSimulator](ABIO%20JaxWorldSimulator.md) was written when this module had no page and named its functions only as far as the class drives them; the two pages now split as class and kernels, and the parity and native-flow material stays there. Checked locally against the export: the `[-1]` and out-of-range compartment divergence, and the `Ki = 0` inhibitor stopping the reaction on both backends. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: both simulators refuse a `ReactionSpec` compartment id outside the tree at construction (`world_simulator.check_reaction_compartments`); `Ki = 0` is the perfect-inhibitor limit on every path (`rate_expr.inhibitor_ratio`: factor 1 with no inhibitor, 0 with any) and `Modulation` refuses a negative `Ki`; the `ReferenceSimulatorImpl` pointers repointed; the `S ≥ 0` assumption stated.
 - 2026-10-28 — refreshed against 0eb23e5: *Compartment ids* and the ‡ say both simulators range-check ids at construction; the inhibitor term and *Modulation slots* give the `Ki = 0` perfect-inhibitor limit; *Non-negativity* cites the docstring's `S ≥ 0` note. Figure's ‡ note rewritten.
+- 2026-10-29 — refreshed for `3269751` (T091 C3): the snap in `apply_reactions` is `snap_residue_jax(S', S)`, relative to the start-of-step pool. Figure: the formula strip's snap term edited to the relative bound.

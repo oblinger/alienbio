@@ -77,7 +77,7 @@
   <line id="e-ar-re" x1="620" y1="465" x2="560" y2="465" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="l-ar-re" x="590" y="455" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">caps</text>
   <text id="t-f1" x="20" y="560" font-size="14" fill="#1e1e1e" text-anchor="start" xml:space="preserve">desired = max(min(k · Π S^R · law · mod · dt, RATE_CAP), 0) · comp_mask   |   demand = Σ desired · R</text>
-  <text id="t-f2" x="20" y="582" font-size="14" fill="#1e1e1e" text-anchor="start" xml:space="preserve">ratio = min(1, S / demand)   |   scale = min over r's reactants   |   S' = S + (desired · scale)ᵀ (P − R)   |   snap (−1e-12, 0) → 0</text>
+  <text id="t-f2" x="20" y="582" font-size="14" fill="#1e1e1e" text-anchor="start" xml:space="preserve">ratio = min(1, S / demand)   |   scale = min over r's reactants   |   S' = S + (desired · scale)ᵀ (P − R)   |   snap (−1e-12·max(1,S), 0) → 0</text>
   <text id="t-brt-note" x="20" y="320" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">‡ compartment ids index a list:</text>
   <text id="t-brt-note2" x="20" y="338" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">both simulators range-check</text>
   <text id="t-brt-note3" x="20" y="356" font-size="13" fill="#495057" text-anchor="start" xml:space="preserve">them first at construction</text>

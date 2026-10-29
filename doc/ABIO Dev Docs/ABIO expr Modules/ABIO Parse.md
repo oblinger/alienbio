@@ -50,7 +50,7 @@ Two functions.
 | `-a`, `+a`, `not a` | `op:neg`, `op:pos`, `op:not` |
 | `a and b`, `a or b` | `op:and(a, b)`, `op:or(a, b)` (special, short-circuit) |
 | `a < b`, `==`, `in`, `is`, … | `op:lt(a, b)`, `eq`, `in`, `is`, … |
-| `a < b < c` | `op:and(op:lt(a, b), op:lt(b, c))` when `b` is a name or literal; else `let(bindings={__cmp0: b}, body=op:and(…))` |
+| `a < b < c` | `op:and(op:lt(a, b), op:lt(b, c))` when `b` is a name or literal; else `let(bindings={__cmp0: b}, body=op:and(…))`, with a non-simple `a` bound first as `__cmpl0` |
 | `t if c else e` | `if(cond=c, then=t, else=e)` |
 | `f"…{x:spec!r}…"` | `op:fstr("…", op:fmt(x, "spec", "r"), "…")` |
 | `x[i]`, `x[a:b]` | `op:item(x, i)`, `op:item(x, op:slice(a, b, None))` |
@@ -59,7 +59,7 @@ Two functions.
 | `a.b(x)` | `op:method(Name("a"), "b", x)` |
 | a comprehension | `each(...)`; § [Comprehensions](#comprehensions) |
 
-A chained comparison evaluates each operand once, as Python does: a shared operand that is a name or a literal is repeated (a name is a cached lookup), any other is bound once by a `let` to `__cmp<depth>` scoping the rest of the chain, so `0 < normal(0, 1) < 1` compares one draw and `op:and` still short-circuits the tail. A method-shaped call always becomes `op:method`, so the inline spelling cannot call a head whose name is dotted (the structural `!a.b` tag or `X.call` can).
+A chained comparison evaluates each operand once, as Python does: a shared operand that is a name or a literal is repeated (a name is a cached lookup), any other is bound once by a `let` to `__cmp<depth>` scoping the rest of the chain, and a left operand that is neither is bound ahead of it as `__cmpl<depth>`, so operands evaluate left to right (`let` evaluates its bindings before its body; until `dc92971`, T091 C12, `(0 < f(1) < 2) < f(5) < 9` ran `f(5)` first). `0 < normal(0, 1) < 1` compares one draw and `op:and` still short-circuits the tail. A method-shaped call always becomes `op:method`, so the inline spelling cannot call a head whose name is dotted (the structural `!a.b` tag or `X.call` can).
 
 
 
@@ -85,3 +85,4 @@ A slice dumps with a trailing colon (`a[1:2:]`), which parses back to the same f
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `dump(parse(t))` re-parses equal for slices, f-strings, methods, `-1`, conditionals and chained comparisons, and fails for a list comprehension and a set literal; a counting head in the middle of `0 < f() < 2` ran twice; the nested dict comprehension above returned a list of two dicts. Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: a chained comparison binds a non-trivial shared operand once (`let __cmp0`), a multi-`for` dict comprehension refuses, `dump` writes comprehensions and set literals back as text that re-parses (`c90ce0d`); the figure's ‡ note narrowed.
+- 2026-10-29 — refreshed for `dc92971` (T091 C12): a chained comparison binds a non-simple left operand first as `__cmpl<depth>`, so operands evaluate left to right. Figure still true.

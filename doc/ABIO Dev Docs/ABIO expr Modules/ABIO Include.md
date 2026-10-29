@@ -13,7 +13,7 @@ The page for what happens to `!include` and `!py` between reading a spec and eva
 
 
 ## include Interface
-Six functions, three suffix sets and one exception.
+Seven functions, three suffix sets and one exception.
 
 | include | |
 | --- | --- |
@@ -24,6 +24,7 @@ Six functions, three suffix sets and one exception.
 | [resolve_path](#^resolve-path) | The file an include names, under trust |
 | [load_include](#^load-include) | One include to `(kind, value)` |
 | [run_python_file](#^run-python-file) | Execute a trusted `.py`, return its names |
+| [recording_python_files](#^recording-python-files) | Collect every `.py` a load executes |
 | [resolve_py](#^resolve-py) | `module.attr` to the object |
 | [hydrate](#^hydrate) | Replace every `Include` / `PyRef` in a tree |
 | [include_bindings](#^include-bindings) | The `_includes_` list to bindings and modules |
@@ -44,10 +45,13 @@ Six functions, three suffix sets and one exception.
     Trusted: `base / path` (or the absolute path), resolved, anywhere. Untrusted: refuses an absolute path, resolves `base / path` with symlinks followed, and refuses a result that is neither `base` nor under it. § [Trust](#trust). ^resolve-path
 
 **load_include**`(path: str, base: Path, *, trusted: bool, seen=frozenset()) -> tuple[str, Any]`
-    Resolves the path; refuses one already in `seen` (a cycle) and a missing file; returns `("yaml", hydrated forms)` — a mapping's own `_includes_` resolved first, relative to that file, its own keys winning — `("text", str)` or `("py", namespace)` by suffix, refusing any other suffix and an untrusted `.py`. ^load-include
+    Resolves the path; refuses one already in `seen` (a cycle) and a missing file; returns `("yaml", hydrated forms)` — the text first checked for duplicate keys (`suite.yaml_keys.refuse_duplicate_keys` under `ExprLoader`, an `ExprError` naming the file; since `661005d`, T091 G3 — PyYAML kept the last of two equal keys), a mapping's own `_includes_` resolved first, relative to that file, its own keys winning — `("text", str)` or `("py", namespace)` by suffix, refusing any other suffix and an untrusted `.py`. ^load-include
 
 **run_python_file**`(target: Path) -> dict[str, Any]`
-    `runpy.run_path` under the module name `alienbio_include_<stem>`, returning every name not starting with `__`. Executes the file on every call; nothing is cached, by design (a cache would break the registry snapshot/restore the spec-example tests rely on), so its decorators re-register as the same definition and any other module-level side effect repeats per load. ^run-python-file
+    `runpy.run_path` under the module name `alienbio_include_<stem>`, returning every name not starting with `__`. Executes the file on every call; nothing is cached, by design (a cache would break the registry snapshot/restore the spec-example tests rely on), so its decorators re-register as the same definition and any other module-level side effect repeats per load. Inside a `recording_python_files` block it appends the resolved path to that block's list. ^run-python-file
+
+**recording_python_files**`() -> Iterator[list[Path]]` (context manager)
+    Yields a list that collects, in order, every `.py` file `run_python_file` executes inside the block (a `ContextVar`, so nested or concurrent loads keep their own). `suite/spec.py`'s experiment loader wraps the load in it to write the manifest's `helper_modules`. Since `661005d`. ^recording-python-files
 
 **resolve_py**`(path: str, *, trusted: bool, modules=None) -> Any`
     Refuses untrusted. Requires at least `module.attr`, all identifiers. Looks the first segment up among the `modules` executed by `_includes_` (by file stem) and steps through keys or attributes; otherwise imports the longest importable prefix and steps through attributes. Raises `ExprError` when nothing resolves. ^resolve-py
@@ -89,3 +93,4 @@ Six functions, three suffix sets and one exception.
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `a.yaml` listing `b.yaml` in `_includes_`, where `b.yaml` lists `c.yaml`, binds `main`, `from_b` and a key `_includes_: [c.yaml]`, and `from_c` is never loaded; `x: !include b.yaml` gives `x` the same stray key. Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: an included `.yaml`'s own `_includes_` loads, `UnsafeSpecError` is an `ExprError`, two `.py` entries sharing a stem refuse, `run_python_file`'s re-execution documented as deliberate (`c90ce0d`); figure's ‡ notes updated.
+- 2026-10-29 — refreshed for `661005d` (T091 G3, D): an included `.yaml` is checked for duplicate keys before it loads; `recording_python_files` (new) collects the helper `.py` files a load ran, for the manifest's `helper_modules`. Figure still true.

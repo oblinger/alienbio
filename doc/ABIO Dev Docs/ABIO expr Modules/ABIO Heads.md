@@ -134,7 +134,7 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     Plain lambdas; none can build more than its operands. ^op-arith
 
 **op:mod**`(a, b, *, ctx)`
-    On a `str` or `bytes` left operand (printf formatting), first charges the format's length, every digit run in it read as a width or precision, a `*` width's integer argument, and the text of every interpolated argument, so `'%050000000d' % 1` refuses; a number is plain `%`. ^op-mod
+    On a `str` or `bytes` left operand (printf formatting), first charges the format's length, every digit run in it read as a width or precision, a `*` width's integer argument, and the text of every interpolated argument — ten times over when the format holds a `%r` or `%a` conversion, the mapping form `%(key)r` / `%(key)a` included (`_REPR_CONVERSION`), since a repr writes up to ten characters per character — so `'%050000000d' % 1` refuses; a number is plain `%`. ^op-mod
 
 **op:neg, op:pos, op:not**`(a)`
     `-a`, `+a`, `not a`. ^op-unary
@@ -158,7 +158,7 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     Refuses a name the sandbox denies (dunders, `format`, `format_map`, `mro`, `subclasses`, frame and code prefixes); a mapping holding the key returns the value, else `getattr`. ^op-attr
 
 **op:method**`(obj, name: str, *args, env, **kwargs)`
-    Refuses an in-place method (`append`, `extend`, `insert`, `remove`, `pop`, `clear`, `sort`, `reverse`, `update`, `setdefault`, `popitem`, `add`, `discard`, the `*_update` set methods) on a list, dict, set or bytearray, since a binding is shared by every node naming it; then `op:attr`, refuses a non-callable, and charges a bound before calling: on text, the padding target for `ljust`/`rjust`/`center`/`zfill`, `len × tabsize` for `expandtabs`, the joined length for `join`, the worst case for `replace`, else the receiver plus its text arguments; on a container, its length. ^op-method
+    Refuses an in-place method (`append`, `extend`, `insert`, `remove`, `pop`, `clear`, `sort`, `reverse`, `update`, `setdefault`, `popitem`, `add`, `discard`, the `*_update` set methods) on a list, dict, set or bytearray, since a binding is shared by every node naming it; then `op:attr`, refuses a non-callable, and charges a bound before calling: on text, the padding target for `ljust`/`rjust`/`center`/`zfill`, `len × tabsize` for `expandtabs`, the joined length for `join`, the worst case for `replace`, `n ×` the longest string value in the table for `translate` (a table that is neither a mapping nor a list refuses), `3n` for the case methods (`upper`, `lower`, `casefold`, `title`, `swapcase`, `capitalize`: `'ﬃ'.upper()` is three characters), `10n` for `encode` (`100n` with `namereplace`), `4n` for `decode`, `n × (2 + separator)` for `hex`, else the receiver plus its text arguments; on a container, its length. ^op-method
 
 **op:fstr**`(*parts, ctx) -> str`
     Charges the summed length of `str(p)` for each part, then joins. ^op-fstr
@@ -229,3 +229,4 @@ M48.5 and T051 box 4 closed the first rows' original members; T088 (`c90ce0d`) a
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `pow(3, 2000000)` returned a 3,169,926-bit integer in 0.26 s where `3 ** 2000000` refused; `'%050000000d' % 1` and `'a'.ljust(50000000)` each returned 50 million characters under the default cap; `b: !x a.clear()` emptied the mapping bound at `a`. Not run: the large `op:fmt` width (the order is read from the code). Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: `pow` by name is `op:pow`'s capped function, `op:mod` on text, `op:fmt` widths and `op:method` charge a bound before they build, in-place methods refuse, `op:flatten`/`op:fstr` charge before the join (`c90ce0d`); new `op:mod` block, the meter table and the figure's unmetered box rewritten.
+- 2026-10-29 — refreshed for `dc92971` (T091 C4) and `db300c9` (F6): `op:method` bounds `translate` by the table's longest value, the case methods at 3n, `encode` at 10n (100n with `namereplace`), `decode` at 4n and `hex`, so a 27-million-character `translate` refuses; `op:mod` charges 10× for `%r`/`%a`, the `%(key)` forms included. Figure still true.

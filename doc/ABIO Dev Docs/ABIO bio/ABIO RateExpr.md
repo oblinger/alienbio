@@ -13,7 +13,7 @@ The compiled form of a rate law: a small tree of tuples, built once from the rat
 
 
 ## rate_expr Interface
-Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and thirteen functions (the two constants since 2026-10, `inhibitor_ratio` since `bf91515`); the constants are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` by name.
+Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and sixteen functions (the two constants since 2026-10, `inhibitor_ratio` since `bf91515`, `check_rate_law`, `snap_residue` and `snap_residue_jax` since `3269751`); the constants and the snap are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` by name.
 
 | rate_expr | |
 | --- | --- |
@@ -32,6 +32,9 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 | [[#^to-text\|to_text]] | The tree as inline Expr text |
 | [[#^to-json\|to_json]] | The tree as nested lists |
 | [[#^from-json\|from_json]] | Nested lists back to a tree |
+| [[#^check-rate-law\|check_rate_law]] | Refuse a malformed tree or an unevaluable hill |
+| [[#^snap-residue\|snap_residue]] | Snap a negative residue relative to the pre-pass value |
+| [[#^snap-residue-jax\|snap_residue_jax]] | The same snap over JAX arrays |
 | [[#^rounding-floor\|ROUNDING_FLOOR]] | Below this magnitude a value is zero |
 | [[#^rate-cap\|RATE_CAP]] | The largest desired extent per step |
 
@@ -45,7 +48,7 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
     Returns `("species", name)`. The name is not checked: it is a pool name straight out of the compiler, a molecule name on a `ReactionImpl`, or a molecule id on a `ReactionSpec`, depending on which [[#^map-species|map_species]] pass the tree has been through. ^species
 
 **modulation**`(kind: str, pool: Hashable, params: Mapping[str, float]) -> RateNode`
-    Returns `("mod", kind, pool, params)` with every parameter coerced to `float` into a new dict. `ValueError` when `kind` is not in `MODULATION_KINDS`, or when a `Ki` is negative or NaN (as `Modulation` refuses it; such a `Ki` built an inhibitor that activates, T088). Does not check that the kind's required parameter is present and fills no defaults; a missing `a`, `Ki` or `K` surfaces as `KeyError` at evaluation ([[#Modulation factors]]). ^modulation
+    Returns `("mod", kind, pool, params)` with every parameter coerced to `float` into a new dict. `ValueError` when `kind` is not in `MODULATION_KINDS`, when a `Ki` is negative or NaN (as `Modulation` refuses it; such a `Ki` built an inhibitor that activates, T088), or when a `hill` has no finite real `K**n` — `K < 0`, or `K = 0` with an `n` that is negative or not an integer (`n` defaults to 2) — the private `_check_modulation_params`, one message for both simulators ([[#Modulation factors]]). Does not check that the kind's required parameter is present and fills no defaults; a missing `a`, `Ki` or `K` surfaces as `KeyError` at evaluation ([[#Modulation factors]]). ^modulation
 
 **MODULATION_KINDS**`= ("activator", "inhibitor", "michaelis", "hill")`
     The kinds [[#^modulation|modulation]] accepts, the same four `Modulation` kinds `bio/reaction.py` implements and `suite/rate_law.py`'s `MODULATION_HEADS` compiles. ^modulation-kinds
@@ -78,10 +81,19 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
     The tree as nested lists, the form `ReactionImpl.attributes()` writes under `rate_law`. A `mod` node's parameter dict is copied. An unrecognised tag raises `ValueError` naming it (until 2026-10 it was treated as binary). ^to-json
 
 **from_json**`(data: Any) -> RateNode`
-    The inverse of `to_json`; `ReactionImpl.__init__` passes every `rate_law` through it, so a reaction accepts either form. A `tuple` passes through after a recursive check of every tag and arity (`ValueError` naming the bad node; unchecked until 2026-10). `ValueError` when `data` is not a non-empty list or carries an unknown tag. `mod` parameters are copied but not coerced to `float`. ^from-json
+    The inverse of `to_json`; `ReactionImpl.__init__` passes every `rate_law` through it, so a reaction accepts either form. A `tuple` passes through after a recursive check of every tag and arity (`ValueError` naming the bad node; unchecked until 2026-10). `ValueError` when `data` is not a non-empty list or carries an unknown tag, and when a `mod` node is a `hill` that `_check_modulation_params` refuses. `mod` parameters are copied but not coerced to `float`. ^from-json
+
+**check_rate_law**`(node: Any) -> None`
+    The tuple-tree check `from_json` runs — every tag and arity, and every `mod` node's hill `K`/`n` — as a public call. `ReactionSpec.__init__` runs it on every `rate_law`, so both simulators refuse one law with one `ValueError` at construction rather than diverging at the first step. Since `3269751`. ^check-rate-law
+
+**snap_residue**`(value: float, pre: float) -> float`
+    `value` with a negative rounding residue snapped to exactly 0: a post-pass value in `(−ROUNDING_FLOOR · max(1, pre), 0)` is 0, else `value` unchanged, where `pre` is the value the pass started from. Relative because a pool rationed to exhaustion leaves a residue on the order of its own ulp (the absolute `−1e-12` snap left a rationed 1e5 pool at −1.1e-11 on both backends, T091 C3). Called by the reference reactant write, the flow pass and the population pass. Since `3269751`. ^snap-residue
+
+**snap_residue_jax**`(value: Any, pre: Any) -> Any`
+    `snap_residue` as `jnp.where` over arrays, the same arithmetic; `jax_core.apply_reactions` returns `snap_residue_jax(S', S)`. Imports `jax.numpy` inside the call. Since `3269751`. ^snap-residue-jax
 
 **ROUNDING_FLOOR**`: float = 1e-12`
-    Below this magnitude a value is float residue of an exact zero. Read by `eval_rate`'s and `lower_jax`'s `div`, and imported by both simulators and the population pass to snap small negative residues ([[#Rounding floor and rate cap]]). ^rounding-floor
+    Below this magnitude a value is float residue of an exact zero. Read by `eval_rate`'s and `lower_jax`'s `div` as an absolute bound, and by `snap_residue` / `snap_residue_jax` as a tolerance scaled by `max(1, pre)` ([[#Rounding floor and rate cap]]). ^rounding-floor
 
 **RATE_CAP**`: float = 1e150`
     The largest desired extent a reaction may ask for in one step: an infinite rate means "all of it", and the rationing then bounds it by availability. Not applied in this module; `WorldSimulatorImpl._desired_extent` and `jax_core.apply_reactions` clamp to it ([[#Rounding floor and rate cap]]). ^rate-cap
@@ -138,7 +150,7 @@ A law that names a reactant is the whole rate (`Vmax * S / (Km + S)` over substr
 | `activator` | `a` | `1 + a·m` | — |
 | `inhibitor` | `Ki ≥ 0` | `1 / (1 + m/Ki)`; 1 at `m = 0`, 0 for `m > 0` when `Ki = 0` | — |
 | `michaelis` | `K` | `Vmax·m / (K + m)`; 0 when `K + m ≤ 0` | `Vmax = 1.0` |
-| `hill` | `K` | `Vmax·mⁿ / (Kⁿ + mⁿ)`; 0 when the denominator ≤ 0 | `Vmax = 1.0`, `n = 2.0` |
+| `hill` | `K ≥ 0`; `K = 0` needs an integer `n ≥ 0` | `Vmax·mⁿ / (Kⁿ + mⁿ)`; 0 when the denominator ≤ 0 | `Vmax = 1.0`, `n = 2.0` |
 
 This module fills a missing `Vmax` or `n` with the default at evaluation. The product-form path does not run through here: a `Modulation` modifier is evaluated by `WorldSimulatorImpl._modulation_factor` (and `jax_core.modulation_factors`), which treats a modifier missing `Vmax`, `K` or `n` as inert, factor 1. The compiler fills the same defaults (`_MODULATION_DEFAULTS`) on both paths, so a compiled world always carries them; the two paths differ only for a hand-built `Modulation` or tree.
 
@@ -149,11 +161,11 @@ This module fills a missing `Vmax` or `n` with the default at evaluation. The pr
 | Constant | Applied in | Effect |
 | --- | --- | --- |
 | `ROUNDING_FLOOR` | `eval_rate` and `lower_jax`, `div` | a divisor smaller than 1e-12 in magnitude yields 0 on both backends |
-| `ROUNDING_FLOOR` | reference reactant subtraction, `jax_core.apply_reactions` | a result in `(−1e-12, 0)` is written as 0 |
-| `ROUNDING_FLOOR` | `population.py` | the same snap for pools and multiplicities |
+| `ROUNDING_FLOOR` | reference reactant write (`snap_residue`), `jax_core.apply_reactions` (`snap_residue_jax`) | a result in `(−1e-12 · max(1, pre), 0)` is written as 0, `pre` the frozen pool |
+| `ROUNDING_FLOOR` | `flow.py`, `population.py` (`snap_residue`) | the same relative snap for both ends of a flux, pools, multiplicities and amounts |
 | `RATE_CAP` | `_desired_extent`, `jax_core.apply_reactions` | the per-step desire is clamped to 1e150; NaN becomes 0 |
 
-The floor lives here because the two backends once carried their own copies, and a `1/[x]` law turned a 1e-16 residue into a `RATE_CAP` extent on one of them while the other read exactly 0 (T051 box 4, T054). Only `div` is floored: `pow(x, -1)` reads the same residue as 1e16 on both backends, and reads an exact zero differently ([[#One tree, two evaluators]]).
+The floor lives here because the two backends once carried their own copies, and a `1/[x]` law turned a 1e-16 residue into a `RATE_CAP` extent on one of them while the other read exactly 0 (T051 box 4, T054). Only `div` is floored: `pow(x, -1)` reads the same residue as 1e16 on both backends, and reads an exact zero differently ([[#One tree, two evaluators]]). The snap became relative in `3269751`: the absolute one left a rationed large pool slightly negative and the two backends disagreeing.
 
 
 
@@ -163,9 +175,12 @@ The floor lives here because the two backends once carried their own copies, and
 | Input | `eval_rate` before 2026-10 | both now, after the clamps |
 | --- | --- | --- |
 | `pow`, base 0, exponent < 0 | `ZeroDivisionError` | `inf`, capped to `RATE_CAP` |
-| `pow`, base < 0, fractional exponent | a `complex`, then `TypeError` in `_desired_extent` | `nan`, read as 0 |
+| `pow`, base < 0, fractional exponent | a `complex`, then `TypeError` in `_desired_extent` | `nan`, read as 0 — in the overflow branch too (`(-2.0) ** 1100.5`, which `ieee_pow` read as inf until `3269751`) |
 | `hill` with `n < 0` at `m = 0` | `ZeroDivisionError` | `nan` (`inf / inf`), read as 0 |
 | `inhibitor` with `Ki = 0` | `ZeroDivisionError` | factor 1 at `m = 0`, 0 otherwise (since `40c5c09`; it was `nan` at `m = 0`) |
+| `hill` with `K < 0`, or `K = 0` and `n` negative or fractional | NaN; JAX raised or cast a complex at trace time | refused at compile (`_check_modulation_params`, since `3269751`) |
+
+The supported range is concentrations, multiplicities and amounts from 0 to 1e6 (the range the conformance property draws; catalog pools are ~1–100): there the two agree to 1e-9, relative or absolute near zero, and where JAX gives NaN or inf the reference gives the same. Pools far beyond it, or spread across more orders of magnitude than float64 carries, are out of contract.
 
 The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_reference_on_modulations_and_expression_laws` (a Michaelis–Menten quotient, a `sqrt`·`exp` sum and every modulation kind, to 1e-9) and `tests/capabilities/test_simulator_conformance.py`, whose generated laws use every operator — `add`, `sub`, `mul`, `div`, `pow` (exponents −1, 0.5, 1.5, 2, 3, over a species or a `sub` that can go negative), `sqrt`, `exp`, `log` — and `michaelis`, plus one pinned `1/[x]` case on an exhausted species; `tests/bio/test_moddoc_findings_rate_expr.py` pins each row of the table above.
 
@@ -177,3 +192,4 @@ The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_referenc
 - 2026-10-27 — the findings above fixed: `ieee_pow`/`ieee_div`/`ieee_exp` (the reference reads an undefined operation as JAX does), `from_json` checks a tuple tree, every walker refuses an unknown tag with `ValueError`, and `suite/rate_law.py`'s numeric `hill`/`michaelis` heads guard on `denom > 0` like this module.
 - 2026-10-28 — refreshed against 0eb23e5: `inhibitor_ratio` (`40c5c09`, the `Ki = 0` perfect-inhibitor limit) given a block and index row; `modulation_factor`, the factor table and the parity table follow. Figure still true.
 - 2026-10-28 — refreshed against `bf91515`: `modulation()` refuses a negative or NaN `Ki`; `inhibitor_ratio` is exported. Figure still true.
+- 2026-10-29 — refreshed for `3269751` (T091 C1–C3) and `db300c9` (F5): `check_rate_law`, `snap_residue`, `snap_residue_jax` exported and documented, the snap is relative to the pre-pass value, a hill with no finite real `K**n` refuses at compile (`modulation`, `from_json`, `check_rate_law`, and `Modulation.__post_init__`), `ieee_pow` reads a negative base under a fractional exponent as NaN in the overflow branch too, and the 0–1e6 supported range is stated. Figure still true.

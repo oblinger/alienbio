@@ -151,7 +151,7 @@ A frozen dataclass of caps. Exceeding one raises `ExprError`; nothing is ever tr
     The cap on one `each`, `range`, `list` or other sized producer, and on the running total in `meter`. ^entities
 
 **depth**`: int = 100`
-    The nesting cap `evaluate` checks; one template level costs about 5.5 Python frames, so 100 sits under the interpreter's own recursion limit. ^limits-depth
+    The nesting cap `evaluate` checks; one template level costs about 5.5 Python frames, so 100 sits under the interpreter's own recursion limit. A forced binding counts too ([Lazy bindings and cycles](#lazy-bindings-and-cycles)), so a chain of about fifty names reaches it. ^limits-depth
 
 **attempts**`: int = 8`
     `on_fail: retry` attempts and `on_fail: prune` rounds. ^attempts
@@ -250,7 +250,7 @@ Inside a template instance, `pool(name)` returns the caller's spelling for a str
 
 
 ## Lazy bindings and cycles
-`_force` marks a `Lazy` `evaluating` before evaluating its form and `done` after. A lookup that meets `evaluating` is a cycle. When evaluation raises, the state returns to `pending`, so the next lookup re-evaluates and raises the binding's own error rather than `cyclic definition`. A `RecursionError` during forcing is converted to an `ExprError` at the binding.
+`_force` marks a `Lazy` `evaluating` before evaluating its form and `done` after. A lookup that meets `evaluating` is a cycle. When evaluation raises, the state returns to `pending`, so the next lookup re-evaluates and raises the binding's own error rather than `cyclic definition`. A `RecursionError` during forcing is converted to an `ExprError` at the binding. A binding evaluates one level below the deeper of its definition and the lookup forcing it, so a chain of names (`a0: a1 + 1`, `a1: a2 + 1`, …) counts toward `limits.depth` and stops at the cap — about fifty names at the default 100 — rather than at Python's recursion limit (since `dc92971`, T091 C11).
 
 
 
@@ -263,3 +263,4 @@ Every sized producer (`each`, `range`, `list`, `sorted`, `zip`, `sum`, `add`, `m
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `!t.anything {}` evaluates template `t`; one `Limits(entities=1000)` passed to three `Env.standard` calls refuses the third `range(400)` at a running total of 1200; a lazy key whose evaluation raised reports `cyclic definition` on the second lookup. No caller in `src/` passes `limits=` today, so the shared meter is latent. Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: `Env.standard` gives a passed `Limits` its own meter, a failed lazy binding returns to pending and re-raises its own error, a dotted head resolves its whole path, the meter list gains the text builders (`e2efa89`, `c90ce0d`).
+- 2026-10-29 — refreshed for `dc92971` (T091 C11): a forced binding evaluates one level below the deeper of its definition and its lookup, so name chains count toward `limits.depth`. Figure still true.

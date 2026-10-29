@@ -76,7 +76,7 @@ One reaction in the id-indexed form the simulators run: molecule ids instead of 
 | [[#^implicit-mass-action\|implicit_mass_action]] | Whether mass action multiplies the law |
 
 **__init__**`(name: str, reactants: Dict[MoleculeId, float], products: Dict[MoleculeId, float], rate_constant: float = 1.0, compartments: Optional[List[CompartmentId]] = None, modulators: Optional[Dict[MoleculeId, Modulation]] = None, rate_law: Optional[Any] = None) -> None`
-    Store the fields; `modulators=None` becomes `{}`. Sets `implicit_mass_action` from `rate_law` and `reactants` (`True` when there is no law). ^reactionspec-init
+    Store the fields; `modulators=None` becomes `{}`. A `rate_law` goes through `rate_expr.check_rate_law` first, so a malformed tree or a hill with no finite real `K**n` refuses here with one `ValueError` for both simulators (since `3269751`). Sets `implicit_mass_action` from `rate_law` and `reactants` (`True` when there is no law). ^reactionspec-init
 
 **name**`: str`
     Human-readable; the simulator never reads it. ^name
@@ -179,11 +179,11 @@ A `mod` node inside a `rate_law` uses `rate_expr.modulation_factor`, the same ar
 | Constant | Value | Where | Effect |
 | --- | --- | --- | --- |
 | `SUBNORMAL_FLOOR` | ≈ 2.2e-308 | start of `step` | a subnormal concentration is zero |
-| `ROUNDING_FLOOR` | 1e-12 | reactant subtraction | a result in `(−1e-12, 0)` is float residue of an exact zero and is written as 0 |
+| `ROUNDING_FLOOR` | 1e-12 | reactant write (`snap_residue`) | a result in `(−1e-12 · max(1, pre), 0)`, `pre` the frozen pool, is float residue of an exact zero and is written as 0 |
 | `ROUNDING_FLOOR` | 1e-12 | `eval_rate`'s `div` | a divisor smaller than this in magnitude yields 0, on both backends |
 | `RATE_CAP` | 1e150 | end of `_desired_extent` | an infinite desire is "all of it" |
 
-The subnormal flush copies XLA's denormals-are-zero, which the JAX core already runs under; without it a non-Lipschitz law such as `sqrt(x)` takes off from a 1e-309 seed on one backend and never on the other. The cap leaves the bound to the ration, which scales a capped extent down to what the pool holds. `ROUNDING_FLOOR` and `RATE_CAP` live once, in `bio/rate_expr.py`, and both simulators import them (T054). Only reactant subtraction snaps; a negative left by a flow or the cross-pass over-draw above is not snapped.
+The subnormal flush copies XLA's denormals-are-zero, which the JAX core already runs under; without it a non-Lipschitz law such as `sqrt(x)` takes off from a 1e-309 seed on one backend and never on the other. The cap leaves the bound to the ration, which scales a capped extent down to what the pool holds. `ROUNDING_FLOOR` and `RATE_CAP` live once, in `bio/rate_expr.py`, and both simulators import them (T054). The snap is relative to the pool the pass drew from (`3269751`, T091 C3): the absolute `−1e-12` snap left a rationed 1e5 pool at −1.1e-11, negative on both backends. The flow and population passes call the same `snap_residue`. The two backends agree to 1e-9 for concentrations, multiplicities and amounts from 0 to 1e6; beyond that range is out of contract (the module docstrings state it).
 
 
 
@@ -211,3 +211,4 @@ The subnormal flush copies XLA's denormals-are-zero, which the JAX core already 
 - 2026-10-28 — § Rate laws and modulation: the mass-action powers go through `ieee_pow` (a negative base under a fractional stoichiometry raised `TypeError` on the reference, read 0 on JAX).
 - 2026-10-28 — `from_chemistry`'s non-numeric-rate guard removed (unreachable since `ReactionImpl` refuses one), with the matching dead guards in `suite/verify.simulate` and `suite/perturbations.perturb_rate`.
 - 2026-10-28 — refreshed against 0eb23e5: `check_reaction_compartments` (`40c5c09`) given a block and index row, the constructor and `ReactionSpec.compartments` blocks name it; the inhibitor term gives the `Ki = 0` limit. Figure still true.
+- 2026-10-29 — refreshed for `3269751` (T091 C2, C3): `ReactionSpec.__init__` runs `check_rate_law`; the reactant write snaps with `snap_residue` relative to the frozen pool, as the flow and population passes do; the 0–1e6 agreement range stated. Figure still true.
