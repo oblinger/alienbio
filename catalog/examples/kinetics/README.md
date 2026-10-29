@@ -1,8 +1,12 @@
 # Kinetics kit — every rate-law form, on both simulators
 
-*Every rate-law form on one network, run on both simulators and compared to 1e-9, with a predict task on the saturated step.*
+*Every rate-law form on one network, run on both simulators and compared to 1e-9, with a predict task on a step drawn per seed.*
 
-One reaction network over a substrate `S` and five modifier / product pools in which every rate-law form the compiled tier admits appears once: a constant `k` (plain mass action); the product form with each of the four modulation kinds (`michaelis`, `hill`, `activator`, `inhibitor`); Michaelis–Menten written over the substrate (the whole rate); algebra with a sum, `exp` and `sqrt`; two modulations mixed with algebra as the factor on mass action. `helpers.compare` runs the same world on the reference simulator and the JAX core and reports the largest divergence — the kit's reason to exist — and a `predict` task asks which way a product moves when the saturated step is throttled.
+One reaction network over a substrate `S` and five modifier / product pools in which every rate-law form the compiled tier admits appears once: a constant `k` (plain mass action); the product form with each of the four modulation kinds (`michaelis`, `hill`, `activator`, `inhibitor`); Michaelis–Menten written over the substrate (the whole rate); algebra with a sum, `exp` and `sqrt`; two modulations mixed with algebra as the factor on mass action. `helpers.compare` runs the same world on the reference simulator and the JAX core and reports the largest divergence — the kit's reason to exist — and a `predict` task asks which way `Q1` moves when one step — drawn from the world seed among the saturated step `r_mm`, its feeder `r_mass`, the competing branch `r_michaelis` and `Q1`'s drain `d1` — is throttled.
+
+## Before and after the drawn step (T096)
+
+Before, `r_mm` was throttled on every seed, `Q1` is its product, and the key was `down` everywhere — committing it blind scored 1.000. Now `perturbed: !x choice([...])` draws the step: `r_mm` / `r_mass` give `down`, `r_michaelis` / `d1` give `up`; over seeds 200–259 the key is `down` 32 / `up` 28, and the blind modal key (`up`) is right on 47 %. The shipped `measure_commit` zero commits nothing and scores 0.000 before and after (4 trials); no scripted solver.
 
 ## Run it
 

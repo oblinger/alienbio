@@ -53,12 +53,16 @@ world: !world {skeleton: !x sk, initial: {S: 2.0, E: !x enzyme_level, A: 0.5, I:
 # simulators over `steps` steps of `dt`, on THIS world
 parity: !x compare(world, steps=200, dt=0.02)
 
-# a task on it: which way does Q1 move when the substrate-saturated step is throttled?
+# a task on it: which way does Q1 move when one step is throttled? The step
+# is drawn from the world seed (T096: it was r_mm, so the key was `down` on
+# every seed) — the substrate-saturated step and its feeder slow Q1, the
+# competing Michaelis branch and Q1's own drain speed it
+perturbed: !x choice(["r_mm", "r_mass", "r_michaelis", "d1"])
 task: !task
   archetype: kinetics-predict
   objective: !predict_q
     world: !x world
-    reaction_id: !x reaction_id(world, "r_mm")
+    reaction_id: !x reaction_id(world, perturbed)
     target_id: !x molecule_id(world, "Q1")
     factor: 0.25
     sim: !sim {dt: 0.05, steps: 80}

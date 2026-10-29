@@ -52,7 +52,20 @@ def test_the_reference_and_jax_agree_on_the_whole_kit(values):
 def test_the_predict_key_is_read_from_the_physics(values):
     task = values["task"]
     assert isinstance(task.objective, AnswerObjective) and task.objective.key.value in ("up", "down", "same")
-    assert task.objective.key.value == "down"
+    # T096: the throttled step is drawn per seed; its place fixes the sign
+    expected = {"r_mm": "down", "r_mass": "down", "r_michaelis": "up", "d1": "up"}[values["perturbed"]]
+    assert task.objective.key.value == expected
+
+
+def test_the_predict_key_varies_with_the_seed():
+    """T096: the key was `down` on every seed (r_mm throttled, Q1 its
+    product); the drawn step makes both directions occur."""
+    seen = {}
+    for seed in range(12):
+        v = Env.standard(seed=seed, trusted=True).load(SPEC).force_all()
+        seen.setdefault(v["task"].objective.key.value, set()).add(v["perturbed"])
+    assert set(seen) == {"up", "down"}, seen
+    assert seen["down"] <= {"r_mm", "r_mass"} and seen["up"] <= {"r_michaelis", "d1"}
 
 
 def test_the_experiment_runs_over_the_enzyme_level(tmp_path):

@@ -429,6 +429,11 @@ _W2_RANDOM = (
     "random 1.000 vs pursue-target 0.429 at side-product 1.122 vs 1.112 — the gap is "
     "the final-read penalty on committing, not harm"
 )
+_PREDICT_DRAWN = (
+    "no intended solver: {agent} 0.000; the perturbed step is drawn per seed since T096 (the "
+    "blind modal key '{modal}' is right on {hit} of 60 seeds), and at seed 1 constant-key "
+    "{cut} ties it"
+)
 _LINK_KEY = (
     "the key is {linked: true, direction: up} on every seed (the variant is always the "
     "told, coupled-up world): committing it blind scores 1.000 vs pursue-target 0.000 "
@@ -500,7 +505,9 @@ GAMEABLE: dict[tuple[str, str], str] = {
     **_no_solver("grid", "trend-commit (wrong on every cell by design)", "idle", "random"),
     ("grid", "constant-key"): _PREDICT.format(agent="trend-commit"),
     **_no_solver("kinetics", "measure-commit", "idle", "random"),
-    ("kinetics", "constant-key"): _PREDICT.format(agent="measure-commit"),
+    ("kinetics", "constant-key"): _PREDICT_DRAWN.format(
+        agent="measure-commit", modal="up", hit=28, cut="0.000"
+    ),
     **_no_solver("organism", "measure-commit", "idle", "random"),
     ("organism", "constant-key"): _PREDICT.format(agent="measure-commit"),
     **_no_solver("pathway_puzzles", "survey-commit", "idle"),

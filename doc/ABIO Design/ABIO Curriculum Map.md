@@ -24,7 +24,7 @@ Scripted readouts are `$0` zeros run 2026-10-27 (the shipped agent vs `idle`); "
 |---|---|---|---|---|
 | [pathway_puzzles](../../catalog/examples/pathway_puzzles/) | 1 | A2, B1, B2, B3, C2 | — (no scripted solver: `survey-commit` 0.0) | **promote** — opaque per-seed key, a length dial, partial credit |
 | [grid](../../catalog/examples/grid/) | 2 | A2, B3, C2 | rung 2: key = down in every cell, `prior-commit` scores 1.0 | **replace** — the best-shaped rung-2 harness; needs a key that varies |
-| [kinetics](../../catalog/examples/kinetics/) | 2 | A1, C2 | rung 2: key = down (target is the throttled step's product) | keep — rate-law and parity showcase |
+| [kinetics](../../catalog/examples/kinetics/) | 2 | A1, C2 | rung 2: the throttled step is drawn per seed over `r_mm`, `r_mass` (down) and `r_michaelis`, `d1` (up) — key down 32 / up 28 over 60 seeds, was down on every seed (T096); `measure-commit` 0.0 | keep — rate-law and parity showcase |
 | [organism](../../catalog/examples/organism/) | 2 | A1, A3, C2 | rung 2: key = down (same shape) | keep — compartments, energy, boundedness |
 | [stochastic](../../catalog/examples/stochastic/) | 2 | A1, A4, C2 | rung 2 and A4: key = down, so the noise axis cannot bite | keep — insult schedule, recovery predicate |
 | [agent_loop](../../catalog/examples/agent_loop/) | 3 | A5, C1, C2 | rung 3 gated (T096): passive reach 0.083 vs goal 3.0, scored at the horizon, feed the one lever — `act-commit` 0.888 beats `idle` 0.255 (was 0.25 vs 0.91) | keep — session-memory and rejection harness |
