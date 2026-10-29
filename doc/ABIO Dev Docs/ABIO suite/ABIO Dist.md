@@ -1,12 +1,12 @@
 ---
-description: "`dist`: the suite's sampling seam — `Seed` (an int with SHA-256 child derivation and a numpy generator), the `Dist` protocol and its five frozen distributions (`Constant`, `Uniform`, `Normal`, `LogNormal`, `Choice`), and `ParamSchema`, which samples every `Dist` leaf of a nested tree by its path. Source: `src/alienbio/suite/dist.py`."
+description: "`dist`: the suite's sampling seam — `Seed` (an int with SHA-256 child derivation and a numpy generator), the `Dist` protocol and its five frozen distributions (`Constant`, `Uniform`, `Normal`, `LogNormal`, `Choice`), and `support_of`. Source: `src/alienbio/suite/dist.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Dist](ha://p/ABIO%20Dist) 
 # ABIO Dist
 The determinism root of the framework: every seed in a run is a `Seed` derived from the spec's base seed by labelled SHA-256 children, and every randomized parameter is a `Dist` sampled from one.
 
 ![ABIO Dist](ABIO%20Dist.svg) 
-*Path seeds* is the topic behind `ParamSchema` (‡: keys are escaped and positions spelled `[i]`, so no two leaves share a path).
+*Labels are the contract* is the topic behind the figure.
 
 `suite/dist.py` is imported by about forty suite modules. The run's root is `Seed(spec.base_seed)` in `run_experiment`; trials, turns, observation and noise draws, brief filler and every generator take labelled children of it ([ABIO MassTrialRunner](ABIO%20MassTrialRunner.md), [ABIO Runner](ABIO%20Runner.md), [ABIO Observation](ABIO%20Observation.md)). The block library holds its rate holes as `Dist`s and samples them under each block's seed ([ABIO Blocks](ABIO%20Blocks.md), [ABIO Skeleton](ABIO%20Skeleton.md)); the pressure, W2, phase-1 and delta generators do the same ([ABIO PressureGen](ABIO%20PressureGen.md), [ABIO W2Gen](ABIO%20W2Gen.md)). The Expr environment seeds from it ([ABIO Env](../ABIO%20expr%20Modules/ABIO%20Env.md)). Every name is re-exported from `alienbio.suite`. The subsystem view is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
 
@@ -65,15 +65,11 @@ A `runtime_checkable` protocol, `sample(seed) -> T`, and five frozen implementat
 
 
 ## dist Interface
-The tree sampler.
+The support reader.
 
 | dist | |
 | --- | --- |
-| [ParamSchema](#^paramschema) | A nested tree sampled by path |
 | [support_of](#^support_of) | A distribution's support, or `None` |
-
-**ParamSchema**`(tree: Any)` with `sample(seed) -> Any`
-    Walks dicts, lists and tuples; each `Dist` leaf is sampled with `seed.child(path)`, the path being `/key` segments (`\`, `/` and `[` escaped) and `[index]` segments joined from the root; other leaves pass through. Order-independent. No caller in `src/` outside the re-export. ^paramschema
 
 **support_of**`(dist: Any) -> Optional[tuple[float, float]]`
     Calls `dist.support()` when it has one and returns it as two floats; `None` when the object has no `support` method or it returns `None`. The rate grammar reads it to refuse a rate constant that could draw negative on some seed ([ABIO RateLaw](ABIO%20RateLaw.md)). ^support_of
@@ -82,11 +78,6 @@ The tree sampler.
 
 
 # Dist Semantics
-
-## Path seeds
-A leaf's seed depends only on its path string, and no two places spell the same one (T088 dist 1): `{"a/b": U, "a": {"b": U}}` seeds `/a\/b` and `/a/b`, two independent draws, and a dict key `"0"` (`/0`) is not list index `0` (`[0]`). The change moved every draw of a schema holding a list or a key with `\`, `/` or `[`; no `src/` caller existed to re-pin. The `Dist` test is the runtime protocol, which only checks for a `sample` attribute, so any object with one (a nested `ParamSchema`, or a pandas DataFrame) is sampled rather than passed through.
-
-
 
 ## Labels are the contract
 Reproducibility rests on every caller spelling its child labels the same way across versions: renaming `"turn/0/observe"` or a block's name changes every downstream draw, which is why the golden hashes move when a label does. Nothing in this module records which labels a run used.
@@ -98,3 +89,4 @@ Reproducibility rests on every caller spelling its child labels the same way acr
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the path collisions and the negative-seed refusal confirmed on the HEAD export, the importer count by `git grep`, no spend.
 - 2026-10-28 — refreshed against `9db219f`: `ParamSchema` paths escape keys and spell positions `[i]`, so the key-path and key-vs-index collisions are gone.
 - 2026-10-29 — refreshed against `aa0e59a`: `support()` on all five distributions and `support_of`, which the rate grammar reads to refuse a constant that can go negative.
+- 2026-10-29 — T093: `ParamSchema` (and its private `_sample_tree`/`_key_segment`) retired — no caller in `src/`, `catalog/`, `demos/` or AUP; § Path seeds and its figure nodes went with it.

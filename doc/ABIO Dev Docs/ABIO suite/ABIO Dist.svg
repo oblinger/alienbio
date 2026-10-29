@@ -52,20 +52,6 @@
   <line id="e-impls-proto" x1="440" y1="340" x2="440" y2="294" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="l-impls-proto" x="450" y="322" font-size="13" fill="#1971c2" font-style="italic">implement</text>
 
-  <g id="n-ps">
-    <rect id="n-ps-box" x="640" y="230" width="260" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
-    <text id="n-ps-name" x="770" y="256" font-size="18" font-weight="600" text-anchor="middle">ParamSchema</text>
-    <text id="n-ps-kind" x="770" y="278" font-size="14" text-anchor="middle">leaf seed = child(path) ‡</text>
-    <text id="n-ps-kind2" x="770" y="298" font-size="14" text-anchor="middle">no caller in src/</text>
-  </g>
-  <line id="e-ps-proto" x1="640" y1="262" x2="560" y2="262" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
-  <g id="n-tree">
-    <rect id="n-tree-box" x="640" y="380" width="260" height="90" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-tree-name" x="770" y="406" font-size="17" font-weight="600" text-anchor="middle">nested dict / list</text>
-    <text id="n-tree-k1" x="770" y="428" font-size="13" text-anchor="middle">{"a/b": U, "a": {"b": U}}</text>
-    <text id="n-tree-k2" x="770" y="448" font-size="13" text-anchor="middle">paths "/a\/b" and "/a/b": two draws</text>
-  </g>
-  <line id="e-tree-ps" x1="770" y1="380" x2="770" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <g id="n-blocks">
     <rect id="n-blocks-box" x="980" y="230" width="200" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-blocks-name" x="1080" y="256" font-size="17" font-weight="600" text-anchor="middle">rate holes</text>
@@ -82,6 +68,5 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">derives, implements</text>
-    <text id="legend-dagger" x="420" y="646" font-size="14">‡ the seed is the path string: keys escaped, positions [i], no two leaves share one</text>
-  </g>
+    </g>
 </svg>

@@ -199,7 +199,6 @@ from .dist import (
     Dist,
     LogNormal,
     Normal,
-    ParamSchema,
     Seed,
     Uniform,
 )
@@ -239,7 +238,6 @@ __all__ = [
     "Normal",
     "LogNormal",
     "Choice",
-    "ParamSchema",
     # L0
     "NodeId",
     "Tags",

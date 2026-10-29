@@ -328,21 +328,6 @@ def test_cover1_items_naming_one_key_share_it():
     assert len(out.containers) == 1 and out.assignment == (0, 0)
 
 
-# ── dist 1: two places never share a draw ──────────────────────────────────
-
-
-def test_dist1_paths_that_spell_the_same_string_draw_independently():
-    from alienbio.suite.dist import ParamSchema, Uniform
-
-    u = Uniform(0.0, 1.0)
-    out = ParamSchema({"a/b": u, "a": {"b": u}}).sample(Seed(3))
-    assert out["a/b"] != out["a"]["b"]
-    out = ParamSchema({"x": {"0": u}, "y": [u]}).sample(Seed(3))
-    keyed = ParamSchema({"x": {"0": u}}).sample(Seed(3))["x"]["0"]
-    listed = ParamSchema({"x": [u]}).sample(Seed(3))["x"][0]
-    assert keyed != listed
-
-
 # ── verify 1: SimConfig refuses what the simulator cannot run ─────────────
 
 
