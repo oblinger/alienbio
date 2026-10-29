@@ -170,3 +170,45 @@ def test_bio_report_runs_the_spec_named_after_its_folder_and_never_a_live_one(tm
 
     with __import__("pytest").raises(ValueError, match="live-model arm"):
         report._run_example(report.EXAMPLES / "agent_loop" / "live.yaml", tmp_path / "run")
+
+
+def test_suite_rows_count_cases_and_xfails_are_not_skips(tmp_path):
+    """T091 U11 — section 2 counted functions (``test_golden_experiments.py``
+    read ``2 passed`` for 15 hashed zeros and the pin test), and the header
+    folded 43 xfails into ``46 skipped``."""
+    from alienbio.report import count_cases, count_module_cases
+
+    junit = tmp_path / "junit.xml"
+    junit.write_text("""<?xml version="1.0"?>
+<testsuites><testsuite name="pytest">
+<testcase classname="tests.suite.test_golden_experiments" name="test_pin"/>
+<testcase classname="tests.suite.test_golden_experiments" name="test_zero[exp01]"/>
+<testcase classname="tests.suite.test_golden_experiments" name="test_zero[exp02]"/>
+<testcase classname="tests.suite.test_golden_experiments" name="test_zero[exp03]"/>
+<testcase classname="tests.suite.test_golden_experiments" name="test_gap"><skipped type="pytest.xfail" message="known"/></testcase>
+<testcase classname="tests.suite.test_golden_experiments" name="test_off"><skipped type="pytest.skip" message="no jax"/></testcase>
+</testsuite></testsuites>
+""")
+    totals = count_cases(junit)
+    assert totals == {"passed": 4, "failed": 0, "skipped": 1, "xfailed": 1}
+    rep = build(parse_junit(junit), pytest_exit=0, run_examples=False, totals=totals, case_counts=count_module_cases(junit))
+    row = next(s for s in rep.suites if s.module.endswith("test_golden_experiments.py"))
+    assert (row.passed, row.skipped, row.xfailed) == (4, 1, 1)
+    md = render_markdown(rep)
+    assert "4 passed, 0 failed, 1 skipped, 1 xfailed" in md.splitlines()[2]
+    assert "| 4 passed, 1 skipped, 1 xfailed |" in md
+
+
+def test_no_examples_is_never_titled_all_passed(tmp_path):
+    """T091 U12 — the Testing Guide's ALL PASSED requires every example to
+    have run clean; ``--no-examples`` ran none, so the page is NOT PROVEN."""
+    proven: dict = {}
+    for _d, tests in matrix():
+        for t in tests:
+            module, name = t.split("::", 1)
+            proven[(module, name)] = "passed"
+    for rel in SUITES:
+        proven[(Path(rel).stem, "test_ran")] = "passed"
+    rep = build(proven, pytest_exit=0, run_examples=False)
+    assert rep.ok is False
+    assert render_markdown(rep).startswith("# ABIO test report — NOT PROVEN (examples not run)")

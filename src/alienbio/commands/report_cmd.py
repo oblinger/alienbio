@@ -2,7 +2,8 @@
 
     bio report                      run tests, run the examples, write reports/
     bio report --open               … and open the HTML page
-    bio report --no-examples        skip the fresh example runs (faster)
+    bio report --no-examples        skip the fresh example runs (faster; the page
+                                    is then NOT PROVEN, never ALL PASSED)
     bio report --junit PATH         reuse an existing JUnit file instead of running pytest
     bio report --out DIR            write elsewhere (default: reports/)
 """
@@ -29,7 +30,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def report_command(args: list[str], verbose: bool = False) -> int:
-    from alienbio.report import REPO, build, count_cases, parse_junit, render_html, render_markdown, run_pytest
+    from alienbio.report import REPO, build, count_cases, count_module_cases, parse_junit, render_html, render_markdown, run_pytest
 
     del verbose
     try:
@@ -51,7 +52,8 @@ def report_command(args: list[str], verbose: bool = False) -> int:
         return 1
     try:
         rep = build(parse_junit(junit), exit_code, run_examples=run_examples,
-                    totals=count_cases(junit), out_dir=out_dir.resolve())
+                    totals=count_cases(junit), case_counts=count_module_cases(junit),
+                    out_dir=out_dir.resolve())
     except FileNotFoundError as exc:  # no tests/capabilities/ outside a checkout
         print(f"bio report: {exc}", file=sys.stderr)
         return 1

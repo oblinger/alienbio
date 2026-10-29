@@ -62,11 +62,12 @@ data/
 _result_.yaml
 timeline.yaml
 
-# Development symlinks (local only)
+# Optional dev symlink to a local dvc-dat checkout (local only; the declared
+# dependency in pyproject.toml is what a clean clone installs)
 src/dvc_dat
 
 # Generated docs (regenerate with just docs)
-doc/ABIO Docs/diagrams/*.svg
+doc/ABIO Ref/diagrams/*.svg
 site/
 src/alienbio/catalog/jobs/hardcoded_test/report.csv
 

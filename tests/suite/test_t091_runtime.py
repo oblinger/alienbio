@@ -10,8 +10,6 @@ from __future__ import annotations
 import dataclasses
 import json
 import math
-import time
-from pathlib import Path
 
 import pytest
 
@@ -271,7 +269,3 @@ def test_idle_baseline_adds_idle_to_a_swept_agent_axis_once():
     assert dataclasses.replace(spec).axes == spec.axes  # idempotent through a rebuild
     plain = _spec(agent="survey-commit", idle_baseline=True)
     assert dict(plain.axes)["agent"] == ("survey-commit", "idle")
-
-
-def _unused() -> None:  # keep imports honest for linters
-    del Path, time

@@ -60,7 +60,7 @@ SUITES: tuple[str, ...] = (
 
 # ---- outcomes: the JUnit file is the truth --------------------------------
 
-Outcome = str  # "passed" | "failed" | "error" | "skipped"
+Outcome = str  # "passed" | "failed" | "error" | "skipped" (an xfail reads as skipped here)
 
 
 def run_pytest(junit_path: Path, extra_args: Sequence[str] = ()) -> int:
@@ -69,17 +69,39 @@ def run_pytest(junit_path: Path, extra_args: Sequence[str] = ()) -> int:
     return subprocess.run(cmd, cwd=REPO).returncode
 
 
+def _case_outcome(case: ET.Element) -> str:
+    """One JUnit ``testcase`` as pytest's summary line counts it: an xfail is
+    written as ``<skipped type="pytest.xfail">`` and is counted apart from a
+    skip (the header read ``46 skipped`` for 3 skips and 43 xfails)."""
+    if case.find("failure") is not None or case.find("error") is not None:
+        return "failed"
+    skipped = case.find("skipped")
+    if skipped is not None:
+        return "xfailed" if skipped.get("type") == "pytest.xfail" else "skipped"
+    return "passed"
+
+
+def _empty_counts() -> dict[str, int]:
+    return {"passed": 0, "failed": 0, "skipped": 0, "xfailed": 0}
+
+
 def count_cases(junit_path: Path) -> dict[str, int]:
     """Test cases as pytest counts them (every parametrized case is one)."""
-    counts = {"passed": 0, "failed": 0, "skipped": 0}
+    counts = _empty_counts()
     for case in ET.parse(junit_path).getroot().iter("testcase"):
-        if case.find("failure") is not None or case.find("error") is not None:
-            counts["failed"] += 1
-        elif case.find("skipped") is not None:
-            counts["skipped"] += 1
-        else:
-            counts["passed"] += 1
+        counts[_case_outcome(case)] += 1
     return counts
+
+
+def count_module_cases(junit_path: Path) -> dict[str, dict[str, int]]:
+    """``module stem -> case counts``: section 2 counts cases, not functions
+    (``test_golden_experiments.py`` read ``2 passed`` for 15 hashed zeros and
+    its pin test)."""
+    out: dict[str, dict[str, int]] = {}
+    for case in ET.parse(junit_path).getroot().iter("testcase"):
+        module = (case.get("classname") or "").split(".")[-1]
+        out.setdefault(module, _empty_counts())[_case_outcome(case)] += 1
+    return out
 
 
 def parse_junit(junit_path: Path) -> dict[tuple[str, str], Outcome]:
@@ -106,12 +128,13 @@ def parse_junit(junit_path: Path) -> dict[tuple[str, str], Outcome]:
     return out
 
 
-def _module_counts(outcomes: Mapping[tuple[str, str], Outcome], module: str) -> dict[str, int]:
-    counts = {"passed": 0, "failed": 0, "skipped": 0}
+def _function_counts(outcomes: Mapping[tuple[str, str], Outcome]) -> dict[str, dict[str, int]]:
+    """``module stem -> counts`` with each function as one case — what a
+    caller holding only ``parse_junit`` outcomes (no JUnit file) can say."""
+    out: dict[str, dict[str, int]] = {}
     for (mod, _), outcome in outcomes.items():
-        if mod == module:
-            counts["failed" if outcome == "error" else outcome] += 1
-    return counts
+        out.setdefault(mod, _empty_counts())["failed" if outcome == "error" else outcome] += 1
+    return out
 
 
 # ---- the four sections ------------------------------------------------------
@@ -133,6 +156,7 @@ class SuiteRow:
     passed: int
     failed: int
     skipped: int
+    xfailed: int = 0
 
 
 @dataclass(frozen=True)
@@ -171,6 +195,9 @@ class Report:
     examples: list[ExampleRow]
     runs: list[RunRow]
     golden_outcome: str = "not run"
+    #: False under ``--no-examples``: section 3 is empty, so the page cannot
+    #: say every example ran clean and is not titled ALL PASSED.
+    examples_run: bool = True
     notes: list[str] = field(default_factory=list)
     #: The folder ``report.md`` is written to; figure links are relative to it.
     out_dir: Path = field(default_factory=lambda: REPO / "reports")
@@ -203,13 +230,16 @@ class Report:
         A page whose capability rows were not proven by a passing test is not
         a pass either: a JUnit file without the proving tests read ALL PASSED
         with every row ``not run`` (T088 report 1), and neither is a page
-        whose broader-suite rows did not all run and pass (T091 B6)."""
+        whose broader-suite rows did not all run and pass (T091 B6), nor one whose
+        examples were not run (``--no-examples``: the Testing Guide's ALL
+        PASSED requires every example to have run clean)."""
         return (
             self.pytest_exit == 0
             and self.totals.get("failed", 0) == 0
             and all(not r.error and r.failed == 0 for r in self.examples)
             and not self.unproven
             and not self.unrun_suites
+            and self.examples_run
         )
 
 
@@ -245,12 +275,15 @@ def _module_phrase(path: Path) -> str:
     return para[:1].upper() + para[1:]
 
 
-def suite_rows(outcomes: Mapping[tuple[str, str], Outcome]) -> list[SuiteRow]:
+def suite_rows(outcomes: Mapping[tuple[str, str], Outcome], case_counts: Optional[Mapping[str, dict[str, int]]] = None) -> list[SuiteRow]:
+    """Section 2's rows, counted per case from ``case_counts``
+    (``count_module_cases``); without a JUnit file, per function."""
+    by_module = case_counts if case_counts is not None else _function_counts(outcomes)
     rows = []
     for rel in SUITES:
         path = REPO / rel
-        counts = _module_counts(outcomes, path.stem)
-        rows.append(SuiteRow(rel, _module_phrase(path), counts["passed"], counts["failed"], counts["skipped"]))
+        counts = by_module.get(path.stem, _empty_counts())
+        rows.append(SuiteRow(rel, _module_phrase(path), counts["passed"], counts["failed"], counts["skipped"], counts.get("xfailed", 0)))
     return rows
 
 
@@ -310,7 +343,7 @@ def example_rows(outcomes: Mapping[tuple[str, str], Outcome], runner: Optional[C
 
 
 def _outcome_of_module(outcomes: Mapping[tuple[str, str], Outcome], module: str) -> str:
-    counts = _module_counts(outcomes, module)
+    counts = _function_counts(outcomes).get(module, _empty_counts())
     if sum(counts.values()) == 0:
         return "not run"
     if counts["failed"]:
@@ -375,9 +408,9 @@ def _run_row(folder: Path) -> Optional[RunRow]:
     return RunRow(folder.name, "live model" if model else "scripted", str(model or "—"), int(m.get("trials_completed", 0)), int(m.get("failed_trials", 0)), spend, str(m.get("started_at", ""))[:10], figure, readout, caption)
 
 
-def build(outcomes: Mapping[tuple[str, str], Outcome], pytest_exit: int, *, run_examples: bool = True, example_runner=None, totals: Optional[dict[str, int]] = None, out_dir: Optional[Path] = None) -> Report:
+def build(outcomes: Mapping[tuple[str, str], Outcome], pytest_exit: int, *, run_examples: bool = True, example_runner=None, totals: Optional[dict[str, int]] = None, case_counts: Optional[Mapping[str, dict[str, int]]] = None, out_dir: Optional[Path] = None) -> Report:
     if totals is None:
-        totals = {"passed": 0, "failed": 0, "skipped": 0}
+        totals = _empty_counts()
         for outcome in outcomes.values():
             totals["failed" if outcome == "error" else outcome] += 1
     rep = Report(
@@ -385,11 +418,12 @@ def build(outcomes: Mapping[tuple[str, str], Outcome], pytest_exit: int, *, run_
         pytest_exit=pytest_exit,
         totals=totals,
         capabilities=capability_rows(outcomes),
-        suites=suite_rows(outcomes),
+        suites=suite_rows(outcomes, case_counts),
         examples=example_rows(outcomes, example_runner) if run_examples else [],
         runs=[],
         golden_outcome=_outcome_of_module(outcomes, "test_golden_experiments"),
         out_dir=out_dir if out_dir is not None else REPO / "reports",
+        examples_run=run_examples,
     )
     rep.runs = run_rows(rep.notes)
     if not run_examples:
@@ -418,9 +452,11 @@ def render_markdown(rep: Report) -> str:
             gaps.append(f"{len(rep.unproven)} capability rows without a passing test")
         if rep.unrun_suites:
             gaps.append(f"{len(rep.unrun_suites)} suite rows not run")
+        if not rep.examples_run:
+            gaps.append("examples not run")
         verdict = f"NOT PROVEN ({'; '.join(gaps)})"
     L = [f"# ABIO test report — {verdict}", "",
-         f"*{rep.generated_at} · {t['passed']} passed, {t['failed']} failed, {t['skipped']} skipped · `just test` is the gate; this page is what the gate tested.*", ""]
+         f"*{rep.generated_at} · {t['passed']} passed, {t['failed']} failed, {t['skipped']} skipped, {t.get('xfailed', 0)} xfailed · `just test` is the gate; this page is what the gate tested.*", ""]
     L += ["## 1. Capability matrix — the 35 dimensions and the sentence each proving test carries", "",
           "| | Id | Dimension | What the test proves |", "|---|---|---|---|"]
     for r in rep.capabilities:
@@ -431,7 +467,7 @@ def render_markdown(rep: Report) -> str:
           "| | Suite | Tests | What it exercises |", "|---|---|---|---|"]
     for s in rep.suites:
         mark = "❌" if s.failed else ("✅" if s.passed else "·")
-        L.append(f"| {mark} | `{s.module}` | {s.passed} passed{f', {s.failed} failed' if s.failed else ''}{f', {s.skipped} skipped' if s.skipped else ''} | {s.phrase} |")
+        L.append(f"| {mark} | `{s.module}` | {s.passed} passed{f', {s.failed} failed' if s.failed else ''}{f', {s.skipped} skipped' if s.skipped else ''}{f', {s.xfailed} xfailed' if s.xfailed else ''} | {s.phrase} |")
     L += ["", "## 3. Examples — `catalog/examples/`, each run fresh for this report", "",
           "*Scores here are scripted controls' (idle / measure / survey agents commit nothing), so 0.00 is the expected zero, not a defect; a live-model arm is what would score.*", ""]
     if rep.examples:
@@ -523,4 +559,4 @@ def _inline(text: str) -> str:
     return text
 
 
-__all__ = ["Report", "build", "capability_rows", "count_cases", "example_rows", "parse_junit", "render_html", "render_markdown", "run_pytest", "run_rows", "suite_rows"]
+__all__ = ["Report", "build", "capability_rows", "count_cases", "count_module_cases", "example_rows", "parse_junit", "render_html", "render_markdown", "run_pytest", "run_rows", "suite_rows"]
