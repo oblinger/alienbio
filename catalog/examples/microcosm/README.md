@@ -24,7 +24,7 @@ Deliberately absent: every AI-safety dial (roadmap M48.9).
 
 ## The score reads the pond
 
-The `intervene` scorer reads `food` in ONE compartment — the pond, the only compartment whose initial state holds it (`arch_intervene.target_compartment`; a `compartment:` entry in the binding names another, and a target held in several compartments with none named refuses at draft). Until T091 E2 it summed `food` over all four compartments, whose volumes differ (10.0 against 0.1–0.2), and so ranked the worse feed rate higher. `bio suite run` at base seed 5 (2 s, 4 turns × 10 steps), goal 6.0:
+The `intervene` scorer reads `food` in ONE compartment — the pond, because the binding names it (`compartment: pond`). The food supply runs in every compartment, so all four can hold `food` (`arch_intervene.target_holders`), and a target held in several compartments with none named refuses at draft (`arch_intervene.target_compartment`). Until T091 E2 it summed `food` over all four compartments, whose volumes differ (10.0 against 0.1–0.2), and so ranked the worse feed rate higher. `bio suite run` at base seed 5 (2 s, 4 turns × 10 steps), goal 6.0:
 
 | feed_rate | pond `food` | adults / juveniles / rivals `food` | score, summed (before) | score, pond (now) |
 |---|---|---|---|---|

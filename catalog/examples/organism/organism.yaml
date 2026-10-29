@@ -57,10 +57,11 @@ tissue: !world
 # ---- a task: predict the response to a throttled step -------------------
 # `predict_q` re-simulates the world with `ferment` slowed by `factor` and
 # reads the direction lactate moves (up / down / same) — the key is computed
-# from the physics, never written down.
+# from the physics, never written down. Lactate can be held in all four
+# compartments, so `compartment:` names the one read (T091 M11).
 task: !task
   archetype: organism-predict
-  objective: !predict_q {world: !x body, reaction_id: ferment, target_id: lactate, factor: 0.25, sim: !sim {dt: 0.1, steps: 60}}
+  objective: !predict_q {world: !x body, reaction_id: ferment, target_id: lactate, factor: 0.25, sim: !sim {dt: 0.1, steps: 60}, compartment: organism}
 
 # ---- an experiment over the transport rate ------------------------------
 experiment: !experiment

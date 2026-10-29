@@ -30,12 +30,13 @@ response tokens, verified distinct from every node id.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Optional, cast
 
 from ..bio.chemistry import ChemistryImpl
 from ..bio.world import Compartment, WorldImpl
 from ..bio.world_state import WorldStateImpl
 from ..infra.mk import mk
+from .arch_intervene import target_compartment
 from .dist import Seed
 from .perturbations import perturb_rate
 from .types import (
@@ -77,14 +78,25 @@ def _is_reaction(node: object) -> bool:
     return hasattr(node, "reactants")
 
 
-def _final_concentration(world: WorldImpl, target_id: str, sim_cfg: SimConfig, seed: Seed) -> float:
-    """Simulate ``world`` and read the target molecule's FINAL concentration.
-
-    Uses the single compartment's id as the read axis (this archetype drafts a
-    one-compartment world). Deterministic in ``(world, sim_cfg)``.
+def _final_concentration(
+    world: WorldImpl, target_id: str, sim_cfg: SimConfig, seed: Seed, compartment: Optional[str] = None
+) -> float:
+    """Simulate ``world`` and read the target molecule's FINAL concentration in
+    one compartment — :func:`~alienbio.suite.arch_intervene.target_compartment`'s
+    rule (T091 M11): ``compartment`` when named, else a one-compartment
+    world's only compartment, else the one compartment that can hold the
+    target; several holders refuse, naming them. It used to read
+    ``world.compartments[0]`` whatever the world. Deterministic in
+    ``(world, sim_cfg)``.
     """
+    comp_id = target_compartment(
+        world,
+        target_id,
+        compartment,
+        task="predict",
+        hint="name the one to read with predict_q(..., compartment=<id>)",
+    )
     timeline = simulate(world, sim_cfg, seed)
-    comp_id = world.compartments[0].id
     # states are typed as the WorldState protocol; the concrete impl exposes concentration().
     final = cast(WorldStateImpl, timeline.states[-1])
     return float(final.concentration(comp_id, target_id))
@@ -99,6 +111,7 @@ def predicted_response(
     seed: Seed = Seed(0),
     *,
     tol: float = DEFAULT_TOL,
+    compartment: Optional[str] = None,
 ) -> str:
     """Compute the ground-truth response token from real simulation.
 
@@ -115,9 +128,9 @@ def predicted_response(
     integrator is deterministic and ``seed`` only matters under stochastic
     pressure, which this path never supplies).
     """
-    base_final = _final_concentration(world, target_id, sim_cfg, seed)
+    base_final = _final_concentration(world, target_id, sim_cfg, seed, compartment)
     perturbed_world = perturb_rate(world, reaction_id, factor)
-    pert_final = _final_concentration(perturbed_world, target_id, sim_cfg, seed)
+    pert_final = _final_concentration(perturbed_world, target_id, sim_cfg, seed, compartment)
     delta = pert_final - base_final
     if abs(delta) <= tol:
         return "same"
@@ -232,6 +245,9 @@ class PredictResponseRecipe:
     sim_cfg: SimConfig = field(default_factory=SimConfig)
     seed: Seed = field(default_factory=lambda: Seed(0))
     tol: float = DEFAULT_TOL
+    #: The compartment the target is read in; ``None`` resolves by
+    #: :func:`~alienbio.suite.arch_intervene.target_compartment` (T091 M11).
+    compartment: Optional[str] = None
 
     def build_question(self, skeleton: CarveResult, world: WorldImpl) -> Question:
         """What was perturbed + what to predict, as a ``node_set`` question.
@@ -254,6 +270,7 @@ class PredictResponseRecipe:
             self.sim_cfg,
             self.seed,
             tol=self.tol,
+            compartment=self.compartment,
         )
         return Answer(value=token, kind="node_id")
 
@@ -270,6 +287,7 @@ def predict_response(
     sim_cfg: SimConfig = SimConfig(),
     seed: Seed = Seed(0),
     archetype_id: str = "predict_response",
+    compartment: Optional[str] = None,
 ) -> TaskArchetype:
     """Build a ``predict_response`` archetype over a fixed perturbation + target.
 
@@ -295,6 +313,7 @@ def predict_response(
         factor=factor,
         sim_cfg=sim_cfg,
         seed=seed,
+        compartment=compartment,
     )
     return TaskArchetype(
         id=archetype_id,

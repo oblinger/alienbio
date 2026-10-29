@@ -203,6 +203,7 @@ def predict_q(
     factor: float = DEFAULT_FACTOR,
     sim: Optional[SimConfig] = None,
     verb: str = "predict",
+    compartment: Optional[str] = None,
     *,
     env: Env,
 ) -> dict[str, Any]:
@@ -210,6 +211,7 @@ def predict_q(
     recipe = PredictResponseRecipe(
         reaction_id=str(reaction_id), target_id=str(target_id), factor=float(factor), verb=str(verb),
         sim_cfg=sim or SimConfig(), seed=env.ctx.seed,
+        compartment=None if compartment is None else str(compartment),
     )
     return _objective_of(recipe, skeleton, world)
 

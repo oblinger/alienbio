@@ -113,7 +113,8 @@ def target_compartment(
     a reaction can make it there (every reaction runs in every compartment,
     so one whose reactants can all be present there — a reactant-free source
     always can), or a transport flow carries it in from a compartment that
-    can hold it, or a death law releases it there (:func:`target_holders`).
+    can hold it, or a death law releases it there, or a count flow carries
+    it in with the individuals it moves (:func:`target_holders`).
     So a cosmetic ``P: 0.0`` changes nothing. Several holders, or none,
     refuse — naming the compartments — because a concentration summed over
     compartments of different volumes is no quantity the task states.
@@ -148,8 +149,9 @@ def target_holders(world: Any, target_id: str) -> list[str]:
     above zero, the products of every reaction whose reactants can all be
     there (the simulators run every reaction in every compartment; a rate
     of 0 still counts, since an Intervene may set it), what a transport flux
-    carries while its driver can be in the origin, and what a death law
-    releases. Duck-typed: a world without ``flows`` / ``population_laws``
+    carries while its driver can be in the origin, what a death law
+    releases, and what a count flow carries from its origin to its dest
+    with the individuals it moves. Duck-typed: a world without ``flows`` / ``population_laws``
     has none (T091 I4)."""
     comps = list(world.compartments)
     present: dict[str, set[str]] = {
@@ -179,6 +181,16 @@ def target_holders(world: Any, target_id: str) -> list[str]:
     for comp, resource in releases:
         if comp in present:
             present[comp].add(resource)
+    # A count flow (``CountFlow``) moves individuals origin -> dest with their
+    # contents (``Carry(src=origin, dst=dest, removes=True)``), so whatever the
+    # origin can hold the dest can come to hold (T091 M7). It is the one
+    # population law whose carry changes compartment: a birth copies in place
+    # and a death's contents leave the world.
+    carries = [
+        (str(law.origin), str(law.dest))
+        for law in getattr(world, "population_laws", ()) or ()
+        if getattr(law, "origin", None) is not None and getattr(law, "dest", None) is not None
+    ]
     changed = True
     while changed:
         changed = False
@@ -195,6 +207,10 @@ def target_holders(world: Any, target_id: str) -> list[str]:
                 if moved:
                     present[dst] |= moved
                     changed = True
+        for origin, dest in carries:
+            if origin in present and dest in present and not present[origin] <= present[dest]:
+                present[dest] |= present[origin]
+                changed = True
     return [str(c.id) for c in comps if target_id in present[str(c.id)]]
 
 

@@ -306,17 +306,72 @@ def _point(iv: Optional[Interval]) -> Optional[float]:
     return iv[0] if iv is not None and iv[0] == iv[1] else None
 
 
-def _dist_head_support(head: str, args: Sequence[Optional[Interval]]) -> Optional[Interval]:
-    """The support of a distribution head called with these argument intervals."""
+#: The distribution heads :func:`_dist_head_support` knows the support of;
+#: any other ``dist`` head in a rate-constant position refuses at load.
+SUPPORTED_DIST_HEADS = ("normal", "uniform", "lognormal", "poisson", "exponential", "discrete", "choice", "constant")
+
+
+def _dist_head_support(
+    head: str, args: Sequence[Interval], kwargs: Mapping[str, Interval], env: Env
+) -> Interval:
+    """The support of a distribution head called with these argument intervals.
+
+    Covered heads (:data:`SUPPORTED_DIST_HEADS`): ``normal`` the whole line;
+    ``uniform(lo, hi)`` (positional or ``low=`` / ``high=``) the hull of its
+    bounds' intervals; ``lognormal`` / ``poisson`` / ``exponential`` /
+    ``discrete`` ``[0, ∞)``; ``choice([...])`` the min and max over its
+    members (a mixed-sign list straddles zero, so the sign rule refuses it);
+    ``constant(x)`` the interval of ``x``. Any other distribution head
+    refuses as unsupported for a support check — never the whole line by
+    default, which refused an all-positive law with a misleading support
+    (T091 M3)."""
     if head == "normal":
         return _LINE
-    if head == "uniform" and len(args) == 2 and args[0] is not None and args[1] is not None:
-        return (min(args[0][0], args[1][0]), max(args[0][1], args[1][1]))
+    if head == "uniform":
+        bounds = list(args) + [kwargs[k] for k in ("low", "high") if k in kwargs]
+        if len(bounds) == 2:
+            return (min(bounds[0][0], bounds[1][0]), max(bounds[0][1], bounds[1][1]))
     if head in ("lognormal", "poisson", "exponential", "discrete"):
         return _HALF
+    if head == "choice":
+        members = list(args) + ([kwargs["options"]] if "options" in kwargs else [])
+        if len(members) == 1:
+            return members[0]  # a list's interval is already its members' min / max
     if head == "constant" and len(args) == 1:
         return args[0]
-    return None
+    raise env.error(
+        f"rate law: the distribution {head}(...) is unsupported for a support check — a rate constant "
+        f"drawn in a rate law must use one of {', '.join(SUPPORTED_DIST_HEADS)} (refused at load, on every seed)"
+    )
+
+
+def _interval_pow(base: Interval, exp: Interval) -> Interval:
+    """``base ** exp`` over intervals, for a point exponent (else the half-line
+    over a non-negative base, the whole line otherwise)."""
+    e = _point(exp)
+    lo, hi = base
+
+    def p(x: float) -> float:
+        try:
+            return math.pow(x, e)  # type: ignore[arg-type]
+        except OverflowError:
+            return math.inf
+        except (ValueError, ZeroDivisionError):
+            return math.inf
+
+    if e is None:
+        return _HALF if lo >= 0.0 else _LINE
+    if lo >= 0.0:
+        if e >= 0.0:
+            return (p(lo), p(hi))
+        return (p(hi), math.inf if lo == 0.0 else p(lo))
+    if e.is_integer() and e > 0.0:
+        if int(e) % 2 == 0:
+            mag = max(abs(lo), abs(hi))
+            low = 0.0 if lo <= 0.0 <= hi else min(p(lo), p(hi))
+            return (low, p(mag) if mag < math.inf else math.inf)
+        return (p(lo), p(hi))  # an odd power is monotone
+    return _LINE
 
 
 def _interval(form: Any, env: Env) -> Optional[Interval]:
@@ -361,10 +416,19 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
         if form.head == "op:mul":
             return _interval_mul(a, b)
         return _interval_div(a, b)
-    if form.head == "op:pow" and len(ivs) == 2:
+    if form.head in ("op:pow", "pow") and len(ivs) == 2 and not kwargs:
         if _point(ivs[0]) is not None and _point(ivs[1]) is not None:
             return _evaluated(form, env)
-        return _HALF if ivs[0][0] >= 0.0 else _LINE
+        return _interval_pow(ivs[0], ivs[1])
+    if form.head == "log" and len(ivs) == 1 and not kwargs and ivs[0][0] >= 0.0:
+        lo, hi = ivs[0]
+        return (math.log(lo) if lo > 0.0 else -math.inf, math.log(hi) if hi < math.inf else math.inf)
+    if form.head in ("min", "max") and ivs and not kwargs:
+        members = ivs
+        if len(form.args) == 1 and isinstance(form.args[0], list):
+            members = [iv for iv in (_interval(x, env) for x in form.args[0]) if iv is not None]
+        pick = min if form.head == "min" else max
+        return (pick(m[0] for m in members), pick(m[1] for m in members))
     if form.head in ("exp", "sqrt", "abs"):
         if len(ivs) == 1 and form.head == "exp":
             return (math.exp(ivs[0][0]) if ivs[0][0] > -math.inf else 0.0, math.exp(ivs[0][1]) if ivs[0][1] < math.inf else math.inf)
@@ -376,8 +440,7 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
     except ExprError:
         return None  # an unknown head refuses in the compiler, naming the node
     if kind == "dist":
-        support = _dist_head_support(form.head, ivs)
-        return support if support is not None else _LINE
+        return _dist_head_support(form.head, ivs, {k: v for k, v in kwargs.items() if v is not None}, env)
     if all(_point(iv) is not None for iv in ivs) and all(_point(v) is not None for v in kwargs.values()):
         return _evaluated(form, env)
     return _LINE
@@ -405,16 +468,17 @@ def _value_interval(value: Any) -> Optional[Interval]:
     return None
 
 
-def _signed_factors(form: Any, sign: int = 1) -> tuple[list[Any], int]:
+def _signed_factors(form: Any, sign: int = 1, divisor: bool = False) -> tuple[list[tuple[Any, bool]], int]:
     """The factors of the top-level product chain (multiplicands and divisors,
-    through unary minus) and the sign the unary minuses carry."""
+    through unary minus), each with whether it divides, and the sign the
+    unary minuses carry."""
     if isinstance(form, Call) and form.head == "op:neg" and len(form.args) == 1 and not form.kwargs:
-        return _signed_factors(form.args[0], -sign)
+        return _signed_factors(form.args[0], -sign, divisor)
     if isinstance(form, Call) and form.head in ("op:mul", "op:div") and len(form.args) == 2 and not form.kwargs:
-        left, sign = _signed_factors(form.args[0], sign)
-        right, sign = _signed_factors(form.args[1], sign)
+        left, sign = _signed_factors(form.args[0], sign, divisor)
+        right, sign = _signed_factors(form.args[1], sign, divisor != (form.head == "op:div"))
         return left + right, sign
-    return [form], sign
+    return [(form, divisor)], sign
 
 
 def _show(iv: Interval) -> str:
@@ -433,10 +497,60 @@ def _describe(form: Any, env: Env) -> str:
     return repr(form)
 
 
+def _modulation_param_forms(form: Call) -> dict[str, Any]:
+    """A modulation call's parameter forms by name (positional after the pool, then keywords)."""
+    positional, _extras = MODULATION_HEADS[form.head]
+    out: dict[str, Any] = dict(zip(positional, form.args[1:]))
+    out.update(form.kwargs)
+    return out
+
+
+def check_modulation_supports(form: Any, env: Env) -> None:
+    """Refuse a modulation parameter whose support can leave its domain on some
+    seed — the sign rule extended to ``hill`` / ``michaelis`` / ``activator``
+    / ``inhibitor`` (T091 M2). ``K``, ``Ki``, ``Vmax`` and ``a`` are rate
+    constants in all but name: each must have a non-negative support. A hill
+    whose ``K`` can be 0 needs a point, non-negative integer ``n``
+    (``rate_expr._check_modulation_params``); with ``K > 0`` on every seed
+    ``n`` may be anything. A drawn ``Ki`` used to refuse per seed, after other
+    trials had spent; a drawn ``K`` / ``Vmax`` / ``a`` ran at rate 0 on some
+    seeds. Refused at LOAD, naming the parameter and the node."""
+    if not isinstance(form, Call):
+        return
+    if form.head in MODULATION_HEADS:
+        params = _modulation_param_forms(form)
+        ivs = {name: _interval(value, env) for name, value in params.items()}
+        for name, iv in ivs.items():
+            if iv is None or name == "n":
+                continue
+            if not (iv[0] >= 0.0):
+                raise env.error(
+                    f"rate law: {form.head}.{name} can be negative — {_describe(params[name], env)} has support "
+                    f"{_show(iv)}; a modulation parameter's support must be non-negative (refused at load, on every seed)"
+                )
+        if form.head == "hill":
+            k_iv = ivs.get("K")
+            n_iv = ivs.get("n", (2.0, 2.0))
+            if k_iv is not None and k_iv[0] == 0.0 and n_iv is not None:
+                n = _point(n_iv)
+                if n is None or not (n >= 0.0 and n.is_integer()):
+                    raise env.error(
+                        f"rate law: hill.K can be 0 (support {_show(k_iv)}) with n support {_show(n_iv)} — "
+                        "K == 0 needs a non-negative integer n on every seed (refused at load)"
+                    )
+    for arg in form.args:
+        check_modulation_supports(arg, env)
+    for arg in form.kwargs.values():
+        check_modulation_supports(arg, env)
+
+
 def check_constant_sign(form: Any, env: Env) -> None:
     """Refuse a rate law whose constant factor can be negative on some seed
-    (the module docstring's sign rule). Pool-reading factors are skipped:
-    their sign is the state's, read as 0 at runtime when negative."""
+    (the module docstring's sign rule), or whose modulation parameter can
+    leave its domain (:func:`check_modulation_supports`). Pool-reading
+    factors are skipped: their sign is the state's, read as 0 at runtime
+    when negative."""
+    check_modulation_supports(form, env)
     whole = _interval(form, env)
     if whole is not None:
         if whole[0] < 0.0:
@@ -450,7 +564,7 @@ def check_constant_sign(form: Any, env: Env) -> None:
     factors, sign = _signed_factors(form)
     negatives = 0 if sign > 0 else 1
     folded = float(sign)
-    for factor in factors:
+    for factor, divides in factors:
         iv = _interval(factor, env)
         if iv is None:
             continue
@@ -464,7 +578,10 @@ def check_constant_sign(form: Any, env: Env) -> None:
         if iv[1] <= 0.0 and iv[0] < 0.0:
             negatives += 1
         point = _point(iv)
-        folded = folded * point if point is not None and not math.isnan(folded) else math.nan
+        if point is None or math.isnan(folded):
+            folded = math.nan
+        else:
+            folded = folded / point if divides else folded * point
     if negatives % 2:
         if not math.isnan(folded):
             raise _negative_constant(env, folded)

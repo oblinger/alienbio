@@ -574,7 +574,16 @@ def _append_retried(path: Path, lines: list[str]) -> None:
     """
     seen: set[str] = set()
     if path.exists():
-        seen = {line.strip() for line in path.read_text().splitlines() if line.strip()}
+        text = path.read_text()
+        if text and not text.endswith("\n"):
+            # T091 M4 — appending onto a torn tail glued the new evidence
+            # into the unparseable line; preflight's records-readable check
+            # refuses first, this is the store's own guard.
+            raise StoreError(
+                f"{path}: the last line has no trailing newline — an append torn by a crash or a "
+                "full disk; delete that line (or restore it) before a resume appends to it"
+            )
+        seen = {line.strip() for line in text.splitlines() if line.strip()}
     fresh = [line for line in lines if line not in seen]
     if not fresh:
         return

@@ -902,7 +902,8 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     config), ``price`` (a price for every model level in play; the
     estimate), ``draft`` (each condition's world and brief; skipped once
     anything above refused), ``records-readable`` (every line of an
-    existing store parses, on a resume — T091 B4), ``resume`` (records with
+    existing store parses, on a resume, ``records.jsonl`` and
+    ``records.retried.jsonl`` both — T091 B4, M4), ``resume`` (records with
     no manifest, an unreadable or spec-less manifest, drift against it, or a
     cost ceiling below the records' spend; skipped off a resume), and ``out_dir`` (records
     present without ``resume``). ``out_dir`` is resolved exactly as the run
@@ -975,11 +976,18 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
         # T091 B4 — a torn last line (a crash mid-append) used to kill the
         # resume with a bare JSONDecodeError naming neither file nor line;
         # the store is read whole here, before spend, and refuses by name.
-        if resume and records_path.exists():
-            from .store import read_records
+        # T091 M4 — records.retried.jsonl too, whenever it exists (ceiling
+        # or not): a resume appends to it and reads it for the directory's
+        # spend, so a torn tail there used to surface only AFTER the resume
+        # had moved its error lines and rewritten records.jsonl.
+        if not resume:
+            return
+        from .store import RETRIED_FILENAME, read_records
 
-            for _row in read_records(records_path):
-                pass
+        for path in (records_path, resolved_out / RETRIED_FILENAME):
+            if path.exists():
+                for _row in read_records(path):
+                    pass
 
     check("records-readable", _records_readable)
 
