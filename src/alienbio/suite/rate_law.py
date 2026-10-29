@@ -43,7 +43,15 @@ it can take *on any seed*: a number is a point, a distribution its support
 ``poisson`` / ``exponential`` ``[0, ∞)``, :func:`~alienbio.suite.dist.support_of`
 for a ``Dist`` object; a name bound to a draw with ``!x`` — drawn at load,
 outside the law — by its binding's form, so ``k: !x normal(0.3, 0.3)`` gets
-the inline draw's verdict, T092). A factor whose interval straddles zero, or a product
+the inline draw's verdict, T092). The fold reads numbers, ``+ - * /`` and
+unary minus, ``**`` / ``pow``, ``exp`` / ``log`` / ``sqrt`` / ``abs``, ``min`` /
+``max``, ``round`` / ``float`` / ``int`` (the bounds mapped), ``sum([...])``
+(the bounds added), one name times itself (a square) and ``a if c else b``
+(the union of the branches, the condition otherwise ignored — but a branch
+that IS the compared name is bounded by the comparison, so the clip idiom
+``base if base > 0 else 0.01`` loads); any other head over a draw folds to
+the whole line, and its refusal names this list (:data:`FOLDED_FORMS`). A
+factor whose interval straddles zero, or a product
 whose signs (unary minus included) come out negative, refuses at LOAD,
 naming the node and the support — so the verdict never depends on the seed
 a world is drafted at, and ``--dry`` agrees with every trial. A sub-expression
@@ -259,7 +267,7 @@ def _constant(form: Any, env: Env, what: str) -> Dist[float]:
             if _quoted_draw(form, env) is not None:
                 # not a product-form constant; the expression path carries a
                 # draw through ``exp`` / ``log`` / ``sqrt`` and refuses the rest by name
-                raise _refuse(env, f"{what} ({form.head}(...) over a distribution still to be drawn)")
+                raise _refuse(env, f"{what} ({form.head}(...) over an unevaluated quoted form)")
             try:
                 value = evaluate(form, env)
             except ExprError as exc:
@@ -304,6 +312,22 @@ def _quoted_draw(form: Any, env: Env) -> Optional[Any]:
     return None
 
 
+def _quoted_constant(hit: Any, env: Env) -> bool:
+    """Whether a :func:`_quoted_draw` hit is a quoted form that draws nothing
+    (``k: !q 0.3``): its fold is a single point."""
+    if isinstance(hit, Name):
+        try:
+            value = env.lookup(hit.path)
+        except ExprError:
+            return False
+        if not isinstance(value, QuotedForm):
+            return False
+        return _point(_interval(value.form, value.env)) is not None
+    if isinstance(hit, Quoted):
+        return _point(_interval(hit.form, env)) is not None
+    return False
+
+
 def _refuse_quoted_draw_argument(form: Call, env: Env) -> None:
     """Refuse a math or distribution call over an undrawn distribution (T092):
     ``max(k, 0.05)`` with ``k: !q normal(0.3, 0.3)`` reached ``max`` with a
@@ -314,6 +338,11 @@ def _refuse_quoted_draw_argument(form: Call, env: Env) -> None:
     hit = _quoted_draw(form, env)
     if hit is None:
         return
+    if _quoted_constant(hit, env):
+        raise env.error(
+            f"rate law: {form.head}(...) takes {_describe(hit, env)}, a quoted constant — a quoted form is not "
+            f"evaluated before the call; bind it with !x or write the number inline (refused at load, on every seed)"
+        )
     raise env.error(
         f"rate law: {form.head}(...) takes {_describe(hit, env)}, a distribution still to be drawn — "
         f"a {form.head}(...) call in a rate law takes numbers; draw inside the call "
@@ -449,6 +478,14 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
         return None
     if form.head in MODULATION_HEADS:
         return None
+    if form.head == "if" and not form.args:
+        return _if_interval(form, env)
+    call_args: list[Any] = list(form.args)
+    if form.head == "sum" and call_args and isinstance(call_args[0], list) and len(call_args) <= 2 and not form.kwargs:
+        terms = [_interval(x, env) for x in [*call_args[0], *call_args[1:]]]
+        if any(t is None for t in terms):
+            return None
+        return (sum(t[0] for t in terms if t), sum(t[1] for t in terms if t))
     args = [_interval(a, env) for a in form.args]
     kwargs = {k: _interval(v, env) for k, v in form.kwargs.items()}
     if any(a is None for a in args) or any(v is None for v in kwargs.values()):
@@ -463,6 +500,9 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
         if form.head == "op:sub":
             return (a[0] - b[1], a[1] - b[0])
         if form.head == "op:mul":
+            if isinstance(call_args[0], Name) and call_args[0] == call_args[1]:
+                # one name read twice is one value: ``n * n`` is a square
+                return _interval_pow(a, (2.0, 2.0))
             return _interval_mul(a, b)
         return _interval_div(a, b)
     if form.head in ("op:pow", "pow") and len(ivs) == 2 and not kwargs:
@@ -478,6 +518,8 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
             members = [iv for iv in (_interval(x, env) for x in form.args[0]) if iv is not None]
         pick = min if form.head == "min" else max
         return (pick(m[0] for m in members), pick(m[1] for m in members))
+    if form.head in ("round", "float", "int") and ivs and len(ivs) <= 2 and not kwargs:
+        return _rounded(form.head, ivs)
     if form.head in ("exp", "sqrt", "abs"):
         if len(ivs) == 1 and form.head == "exp":
             return (math.exp(ivs[0][0]) if ivs[0][0] > -math.inf else 0.0, math.exp(ivs[0][1]) if ivs[0][1] < math.inf else math.inf)
@@ -493,6 +535,130 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
     if all(_point(iv) is not None for iv in ivs) and all(_point(v) is not None for v in kwargs.values()):
         return _evaluated(form, env)
     return _LINE
+
+
+#: What the sign fold reads exactly; any other head over a non-point argument
+#: folds to the whole line, and its refusal names this list.
+FOLDED_FORMS = (
+    "numbers, + - * / ** and unary -, pow, exp, log, sqrt, abs, min, max, round, float, int, "
+    "sum([...]), `a if c else b`, and the draws " + ", ".join(SUPPORTED_DIST_HEADS)
+)
+_FOLDED_HEADS = frozenset(
+    {"op:neg", "op:add", "op:sub", "op:mul", "op:div", "op:pow", "pow", "exp", "log", "sqrt", "abs",
+     "min", "max", "round", "float", "int", "sum", "if"}
+)
+
+_NARROW = {"op:gt": "up", "op:ge": "up", "op:lt": "down", "op:le": "down"}
+_FLIP = {"up": "down", "down": "up"}
+
+
+def _branch_bound(cond: Any, branch: Any, taken: bool, env: Env) -> Optional[Interval]:
+    """The bound a comparison puts on a branch that IS the compared name:
+    ``x if x > c else e`` takes ``x`` only where ``x >= c`` (the clip idiom,
+    ``base if base > 0 else 0.01``), and ``e`` only where ``x <= c`` when ``e``
+    is ``x``. A name only — two inline draws are two values, never narrowed."""
+    if not (isinstance(cond, Call) and cond.head in _NARROW and len(cond.args) == 2 and not cond.kwargs):
+        return None
+    if not isinstance(branch, Name):
+        return None
+    left, right = cond.args
+    direction = _NARROW[cond.head]
+    if left == branch:
+        bound = _point(_interval(right, env))
+    elif right == branch:
+        bound, direction = _point(_interval(left, env)), _FLIP[direction]
+    else:
+        return None
+    if bound is None:
+        return None
+    if not taken:
+        direction = _FLIP[direction]
+    return (bound, math.inf) if direction == "up" else (-math.inf, bound)
+
+
+def _if_interval(form: Call, env: Env) -> Optional[Interval]:
+    """``a if c else b``: the union of the branches' intervals. The condition
+    is not folded, except that a branch which is the compared name is bounded
+    by the comparison (:func:`_branch_bound`). ``None`` when either branch, or
+    the condition, reads a pool."""
+    cond, kw = form.kwargs.get("cond"), form.kwargs
+    if cond is not None and _interval(cond, env) is None:
+        return None
+    if "then" not in kw or "else" not in kw:
+        return _LINE
+    hull: list[Interval] = []
+    for key, taken in (("then", True), ("else", False)):
+        iv = _interval(kw[key], env)
+        if iv is None:
+            return None
+        bound = _branch_bound(cond, kw[key], taken, env)
+        if bound is not None:
+            iv = (max(iv[0], bound[0]), min(iv[1], bound[1]))
+            if iv[0] > iv[1]:
+                continue  # this branch never runs
+        hull.append(iv)
+    if not hull:
+        return _LINE
+    return (min(h[0] for h in hull), max(h[1] for h in hull))
+
+
+def _rounded(head: str, ivs: Sequence[Interval]) -> Interval:
+    """``round`` / ``int`` / ``float`` are monotone: they map the bounds."""
+    digits = _point(ivs[1]) if len(ivs) == 2 else None
+    if len(ivs) == 2 and (digits is None or head != "round"):
+        return _LINE
+
+    def f(x: float) -> float:
+        if math.isinf(x):
+            return x
+        if head == "float":
+            return x
+        if head == "int":
+            return float(int(x))
+        return float(round(x, int(digits))) if digits is not None else float(round(x))
+
+    lo, hi = ivs[0]
+    return (f(lo), f(hi))
+
+
+def _unfolded(form: Any, env: Env, depth: int = 0) -> Optional[str]:
+    """The first head under ``form`` (through bound draws) the sign fold reads
+    as the whole line because it is outside :data:`FOLDED_FORMS`."""
+    if depth > 50:
+        return None
+    if isinstance(form, Name):
+        drawn = _drawn_binding(form, env)
+        return _unfolded(drawn[0], drawn[1], depth + 1) if drawn is not None else None
+    if isinstance(form, Quoted):
+        return _unfolded(form.form, env, depth + 1)
+    if isinstance(form, (list, tuple)):
+        return next((h for h in (_unfolded(x, env, depth + 1) for x in form) if h is not None), None)
+    if not isinstance(form, Call) or form.head in MODULATION_HEADS:
+        return None
+    if form.head == "if":
+        parts: list[Any] = [form.kwargs.get("then"), form.kwargs.get("else")]
+    else:
+        parts = [*form.args, *form.kwargs.values()]
+        if form.head not in _FOLDED_HEADS:
+            try:
+                dist = env.head(form.head).kind == "dist"
+            except ExprError:
+                dist = False
+            if not dist and _interval(form, env) == _LINE:
+                return form.head
+    return next((h for h in (_unfolded(x, env, depth + 1) for x in parts) if h is not None), None)
+
+
+def _fold_note(form: Any, env: Env) -> str:
+    head = _unfolded(form, env)
+    if head is None:
+        return ""
+    shown = _CMP_SHOW.get(head, f"{head}(...)")
+    return f" — the sign fold reads {shown} as the whole line; it covers {FOLDED_FORMS}"
+
+
+_CMP_SHOW = {"op:gt": "a comparison", "op:ge": "a comparison", "op:lt": "a comparison", "op:le": "a comparison",
+             "op:eq": "a comparison", "op:ne": "a comparison", "op:item": "an index", "op:attr": "an attribute"}
 
 
 def _drawn_binding(name: Name, env: Env) -> Optional[tuple[Any, Env]]:
@@ -619,6 +785,7 @@ def check_modulation_supports(form: Any, env: Env) -> None:
                 raise env.error(
                     f"rate law: {form.head}.{name} can be negative — {_describe(params[name], env)} has support "
                     f"{_show(iv)}; a modulation parameter's support must be non-negative (refused at load, on every seed)"
+                    f"{_fold_note(params[name], env)}"
                 )
         if form.head == "hill":
             k_iv = ivs.get("K")
@@ -651,6 +818,7 @@ def check_constant_sign(form: Any, env: Env) -> None:
             raise env.error(
                 f"rate law: negative rate constant possible — {_describe(form, env)} has support {_show(whole)}; "
                 "a rate constant's support must be non-negative (refused at load, on every seed)"
+                f"{_fold_note(form, env)}"
             )
         return
     factors, sign = _signed_factors(form)
@@ -666,6 +834,7 @@ def check_constant_sign(form: Any, env: Env) -> None:
             raise env.error(
                 f"rate law: negative rate constant possible — the factor {_describe(factor, env)} has support {_show(iv)}; "
                 "a rate constant's support must be non-negative (refused at load, on every seed)"
+                f"{_fold_note(factor, env)}"
             )
         if iv[1] <= 0.0 and iv[0] < 0.0:
             negatives += 1
