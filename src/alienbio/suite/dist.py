@@ -14,13 +14,18 @@ Design notes:
 - :class:`ParamSchema` walks a (possibly nested) dict/list tree; every ``Dist``
   leaf is sampled with a seed derived from its *path*, so sampling is
   order-independent and reproducible.
+- A distribution may state its ``support()`` (the interval it draws from;
+  :func:`support_of` reads it, ``None`` = unknown) so a consumer can judge
+  every seed at once — the rate grammar refuses a rate constant whose
+  support reaches below zero at load (T091 I1).
 """
 
 from __future__ import annotations
 
 import hashlib
+import math
 from dataclasses import dataclass
-from typing import Any, Generic, Optional, Protocol, TypeVar, runtime_checkable
+from typing import Any, Generic, Optional, Protocol, TypeVar, cast, runtime_checkable
 
 import numpy as np
 
@@ -66,6 +71,12 @@ class Constant(Generic[T]):
     def sample(self, seed: Seed) -> T:
         return self.value
 
+    def support(self) -> Optional[tuple[float, float]]:
+        v = self.value
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return (float(v), float(v))
+        return None
+
 
 @dataclass(frozen=True)
 class Uniform:
@@ -76,6 +87,9 @@ class Uniform:
 
     def sample(self, seed: Seed) -> float:
         return float(seed.rng().uniform(self.lo, self.hi))
+
+    def support(self) -> tuple[float, float]:
+        return (min(self.lo, self.hi), max(self.lo, self.hi))
 
 
 @dataclass(frozen=True)
@@ -88,6 +102,9 @@ class Normal:
     def sample(self, seed: Seed) -> float:
         return float(seed.rng().normal(self.mean, self.std))
 
+    def support(self) -> tuple[float, float]:
+        return (-math.inf, math.inf)
+
 
 @dataclass(frozen=True)
 class LogNormal:
@@ -98,6 +115,9 @@ class LogNormal:
 
     def sample(self, seed: Seed) -> float:
         return float(seed.rng().lognormal(self.mean, self.sigma))
+
+    def support(self) -> tuple[float, float]:
+        return (0.0, math.inf)
 
 
 @dataclass(frozen=True)
@@ -115,6 +135,27 @@ class Choice(Generic[T]):
             p = [w / total for w in self.weights]
         idx = int(rng.choice(len(self.options), p=p))
         return self.options[idx]
+
+    def support(self) -> Optional[tuple[float, float]]:
+        values = [o for o in self.options if isinstance(o, (int, float)) and not isinstance(o, bool)]
+        if not values or len(values) != len(self.options):
+            return None
+        return (float(min(values)), float(max(values)))
+
+
+def support_of(dist: Any) -> Optional[tuple[float, float]]:
+    """The closed interval ``(lo, hi)`` a distribution can draw from, when it
+    says (a ``support()`` method), else ``None`` (unknown). ``Normal`` is
+    the whole line whatever its parameters; a rate law reads this to refuse
+    a constant whose draw could go negative on SOME seed (T091 I1)."""
+    method = getattr(dist, "support", None)
+    if not callable(method):
+        return None
+    result = method()
+    if result is None:
+        return None
+    lo, hi = cast("tuple[float, float]", result)
+    return (float(lo), float(hi))
 
 
 def _key_segment(key: Any) -> str:

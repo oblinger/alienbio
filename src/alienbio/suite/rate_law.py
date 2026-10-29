@@ -28,11 +28,34 @@ distribution call (drawn once, at world build). A bare name that is not
 bound in scope is a **pool** (a quoted string always is). What is refused,
 at load with the node path: a head outside the rate view (a world-building
 head, a Python-only function), a bool, a product of two distributions, and
-a negative rate constant (it ran as rate 0).
+a constant factor that can be negative.
+
+**A rate law's constant factor is non-negative by construction** (T091 E9,
+I1–I3). The rate-constant positions are the whole law when it reads no pool,
+and each factor of its top-level product chain (multiplicands and divisors,
+through unary minus) that reads no pool. Each such factor is folded at
+compile — constant arithmetic (``k - 1`` with ``k = 0.5``, ``0.2 / -1``,
+``exp(-1)``), bound numbers, bound and quoted distributions — to the interval
+it can take *on any seed*: a number is a point, a distribution its support
+(``normal`` the whole line, ``uniform(lo, hi)`` ``[lo, hi]``, ``lognormal`` /
+``poisson`` / ``exponential`` ``[0, ∞)``, :func:`~alienbio.suite.dist.support_of`
+for a ``Dist`` object). A factor whose interval straddles zero, or a product
+whose signs (unary minus included) come out negative, refuses at LOAD,
+naming the node and the support — so the verdict never depends on the seed
+a world is drafted at, and ``--dry`` agrees with every trial. A sub-expression
+that reads a pool is not a constant: a law whose *value* goes negative
+because of state (``0.2 * (5 - A)`` at ``A > 5``) loads, and both simulators
+read a negative rate as 0. The rule's consequence is an asymmetry between
+two algebraically equal spellings: ``-0.2 * (A - 5)`` refuses (its constant
+factor ``-0.2`` is negative) while ``0.2 * (5 - A)`` loads (its constant
+factor ``0.2`` is not; the sign lives in a state-dependent term). Terms of
+a sum are not rate-constant positions, so ``5 - A`` and ``0.2 * (5 - A)``
+get the same verdict.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Sequence
 
@@ -42,7 +65,7 @@ from ..expr.env import Env, ExprError
 from ..expr.form import Call, Name, Quoted
 from ..expr.interp import QuotedForm, evaluate
 from ..expr.registry import fn
-from .dist import Constant, Dist, Seed
+from .dist import Constant, Dist, Seed, support_of
 
 #: The modulation heads: kind -> (positional parameter names after the pool, keyword-only extras)
 MODULATION_HEADS: Mapping[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
@@ -165,6 +188,12 @@ class _Scaled:
     def sample(self, seed: Seed) -> float:
         return float(self.base.sample(seed)) * self.factor
 
+    def support(self) -> Optional[tuple[float, float]]:
+        base = support_of(self.base)
+        if base is None:
+            return None
+        return _interval_mul(base, (self.factor, self.factor))
+
     def __repr__(self) -> str:
         return f"_Scaled({self.base!r} * {self.factor})"
 
@@ -252,12 +281,197 @@ def _negative_constant(env: Env, value: float) -> ExprError:
     return env.error(f"rate law: negative rate constant {value:g} — a rate is never negative (it ran as rate 0)")
 
 
-def _check_sign(k: Dist[float], env: Env) -> None:
-    """Refuse a rate constant that is negative by construction (T091 E9)."""
-    if isinstance(k, Constant) and float(k.value) < 0.0:
-        raise _negative_constant(env, float(k.value))
-    if isinstance(k, _Scaled) and k.factor < 0.0:
-        raise env.error(f"rate law: negative rate constant ({k!r}) — a rate is never negative (it ran as rate 0)")
+# ---- the sign rule: a constant factor is non-negative on every seed (T091 I1–I3)
+
+Interval = tuple[float, float]
+_LINE: Interval = (-math.inf, math.inf)
+_HALF: Interval = (0.0, math.inf)
+
+
+def _interval_mul(a: Interval, b: Interval) -> Interval:
+    products = [x * y for x in a for y in b if not ((x == 0.0 and math.isinf(y)) or (y == 0.0 and math.isinf(x)))]
+    if not products:
+        return (0.0, 0.0)
+    return (min(products), max(products))
+
+
+def _interval_div(a: Interval, b: Interval) -> Interval:
+    lo, hi = b
+    if lo <= 0.0 <= hi:
+        return _LINE
+    return _interval_mul(a, (1.0 / hi, 1.0 / lo))
+
+
+def _point(iv: Optional[Interval]) -> Optional[float]:
+    return iv[0] if iv is not None and iv[0] == iv[1] else None
+
+
+def _dist_head_support(head: str, args: Sequence[Optional[Interval]]) -> Optional[Interval]:
+    """The support of a distribution head called with these argument intervals."""
+    if head == "normal":
+        return _LINE
+    if head == "uniform" and len(args) == 2 and args[0] is not None and args[1] is not None:
+        return (min(args[0][0], args[1][0]), max(args[0][1], args[1][1]))
+    if head in ("lognormal", "poisson", "exponential", "discrete"):
+        return _HALF
+    if head == "constant" and len(args) == 1:
+        return args[0]
+    return None
+
+
+def _interval(form: Any, env: Env) -> Optional[Interval]:
+    """The interval a pool-free form can take on any seed; ``None`` when it
+    reads a pool (not a constant). An unknown constant is the whole line."""
+    if isinstance(form, bool):
+        return None
+    if isinstance(form, (int, float)):
+        return (float(form), float(form))
+    if isinstance(form, str):
+        return None
+    if isinstance(form, Name):
+        try:
+            value = env.lookup(form.path)
+        except ExprError:
+            return None
+        return _value_interval(value)
+    if isinstance(form, Quoted):
+        return _interval(form.form, env)
+    if isinstance(form, list):
+        parts = [_interval(x, env) for x in form]
+        if any(p is None for p in parts) or not parts:
+            return None
+        return (min(p[0] for p in parts if p), max(p[1] for p in parts if p))
+    if not isinstance(form, Call):
+        return None
+    if form.head in MODULATION_HEADS:
+        return None
+    args = [_interval(a, env) for a in form.args]
+    kwargs = {k: _interval(v, env) for k, v in form.kwargs.items()}
+    if any(a is None for a in args) or any(v is None for v in kwargs.values()):
+        return None
+    ivs: list[Interval] = [a for a in args if a is not None]
+    if form.head == "op:neg" and len(ivs) == 1:
+        return (-ivs[0][1], -ivs[0][0])
+    if form.head in ("op:add", "op:sub", "op:mul", "op:div") and len(ivs) == 2:
+        a, b = ivs
+        if form.head == "op:add":
+            return (a[0] + b[0], a[1] + b[1])
+        if form.head == "op:sub":
+            return (a[0] - b[1], a[1] - b[0])
+        if form.head == "op:mul":
+            return _interval_mul(a, b)
+        return _interval_div(a, b)
+    if form.head == "op:pow" and len(ivs) == 2:
+        if _point(ivs[0]) is not None and _point(ivs[1]) is not None:
+            return _evaluated(form, env)
+        return _HALF if ivs[0][0] >= 0.0 else _LINE
+    if form.head in ("exp", "sqrt", "abs"):
+        if len(ivs) == 1 and form.head == "exp":
+            return (math.exp(ivs[0][0]) if ivs[0][0] > -math.inf else 0.0, math.exp(ivs[0][1]) if ivs[0][1] < math.inf else math.inf)
+        return _HALF
+    if form.head.startswith("op:"):
+        return _LINE
+    try:
+        kind = env.head(form.head).kind
+    except ExprError:
+        return None  # an unknown head refuses in the compiler, naming the node
+    if kind == "dist":
+        support = _dist_head_support(form.head, ivs)
+        return support if support is not None else _LINE
+    if all(_point(iv) is not None for iv in ivs) and all(_point(v) is not None for v in kwargs.values()):
+        return _evaluated(form, env)
+    return _LINE
+
+
+def _evaluated(form: Any, env: Env) -> Interval:
+    try:
+        value = evaluate(form, env)
+    except (ExprError, ArithmeticError, ValueError):
+        return _LINE
+    iv = _value_interval(value)
+    return iv if iv is not None else _LINE
+
+
+def _value_interval(value: Any) -> Optional[Interval]:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return (float(value), float(value))
+    if isinstance(value, QuotedForm):
+        return _interval(value.form, value.env)
+    if isinstance(value, Dist):
+        support = support_of(value)
+        return support if support is not None else _LINE
+    return None
+
+
+def _signed_factors(form: Any, sign: int = 1) -> tuple[list[Any], int]:
+    """The factors of the top-level product chain (multiplicands and divisors,
+    through unary minus) and the sign the unary minuses carry."""
+    if isinstance(form, Call) and form.head == "op:neg" and len(form.args) == 1 and not form.kwargs:
+        return _signed_factors(form.args[0], -sign)
+    if isinstance(form, Call) and form.head in ("op:mul", "op:div") and len(form.args) == 2 and not form.kwargs:
+        left, sign = _signed_factors(form.args[0], sign)
+        right, sign = _signed_factors(form.args[1], sign)
+        return left + right, sign
+    return [form], sign
+
+
+def _show(iv: Interval) -> str:
+    return f"[{iv[0]:g}, {iv[1]:g}]"
+
+
+def _describe(form: Any, env: Env) -> str:
+    """A factor as the author wrote it; a bound name says what it is bound to."""
+    if isinstance(form, Name):
+        try:
+            value = env.lookup(form.path)
+        except ExprError:
+            return form.path
+        shown = value.form if isinstance(value, QuotedForm) else value
+        return f"{form.path} (bound to {shown!r})"
+    return repr(form)
+
+
+def check_constant_sign(form: Any, env: Env) -> None:
+    """Refuse a rate law whose constant factor can be negative on some seed
+    (the module docstring's sign rule). Pool-reading factors are skipped:
+    their sign is the state's, read as 0 at runtime when negative."""
+    whole = _interval(form, env)
+    if whole is not None:
+        if whole[0] < 0.0:
+            if whole[0] == whole[1]:
+                raise _negative_constant(env, whole[0])
+            raise env.error(
+                f"rate law: negative rate constant possible — {_describe(form, env)} has support {_show(whole)}; "
+                "a rate constant's support must be non-negative (refused at load, on every seed)"
+            )
+        return
+    factors, sign = _signed_factors(form)
+    negatives = 0 if sign > 0 else 1
+    folded = float(sign)
+    for factor in factors:
+        iv = _interval(factor, env)
+        if iv is None:
+            continue
+        if iv == (0.0, 0.0):
+            return  # a zero factor: the law is 0 whatever the other signs
+        if iv[0] < 0.0 < iv[1]:
+            raise env.error(
+                f"rate law: negative rate constant possible — the factor {_describe(factor, env)} has support {_show(iv)}; "
+                "a rate constant's support must be non-negative (refused at load, on every seed)"
+            )
+        if iv[1] <= 0.0 and iv[0] < 0.0:
+            negatives += 1
+        point = _point(iv)
+        folded = folded * point if point is not None and not math.isnan(folded) else math.nan
+    if negatives % 2:
+        if not math.isnan(folded):
+            raise _negative_constant(env, folded)
+        raise env.error(
+            "rate law: negative rate constant — the law's constant factors multiply to a negative "
+            "number on every seed; a rate is never negative (it ran as rate 0)"
+        )
 
 
 def _pool(form: Any, env: Env) -> str:
@@ -328,6 +542,12 @@ def compile_rate(
     if isinstance(value, QuotedForm):
         return _compile_form(value.form, value.env, reactants=reactants, products=products)
     if isinstance(value, Dist):
+        support = support_of(value)
+        if support is not None and support[0] < 0.0:
+            raise env.error(
+                f"rate: negative rate constant possible — {value!r} has support {_show(support)}; "
+                "a rate constant's support must be non-negative (refused at load, on every seed)"
+            )
         return RateLaw(k=value)
     raise env.error(f"rate: expected a number, a Dist or a quoted rate law, got {type(value).__name__}")
 
@@ -381,28 +601,14 @@ def _refuse_drawn_products(form: Any, env: Env) -> None:
 def _compile_form(form: Any, env: Env, *, reactants: Sequence[str], products: Sequence[str]) -> RateLaw:
     """The product form when the law has that shape; else the general expression."""
     _refuse_drawn_products(form, env)
+    check_constant_sign(form, env)
     try:
         return _compile_product(form, env, reactants=reactants, products=products)
     except _NotProductForm:
         pass
     view_env = env.__class__(env.bindings, env.registry.view(RATE_VIEW_KINDS), env.ctx, env.ns, env.depth)
     expr = _compile_expr(form, view_env, consumed=set(reactants) | set(products))
-    if expr[0] in ("const", "neg", "mul") and _coefficient(expr) < 0.0:
-        raise _negative_constant(view_env, _coefficient(expr))
     return RateLaw(k=Constant(1.0), expr=expr)
-
-
-def _coefficient(node: Any) -> float:
-    """The constant coefficient of a product chain (``-0.2 * A`` -> -0.2);
-    every non-constant factor counts as 1."""
-    tag = node[0]
-    if tag == "const":
-        return float(node[1])
-    if tag == "neg":
-        return -_coefficient(node[1])
-    if tag == "mul":
-        return _coefficient(node[1]) * _coefficient(node[2])
-    return 1.0
 
 
 _UNARY_HEADS = {"exp", "log", "sqrt"}
@@ -495,7 +701,6 @@ def _compile_product(form: Any, env: Env, *, reactants: Sequence[str], products:
         piece = _constant(factor, view_env, "a rate factor")
         k = piece if k is None else _scale(k, piece, view_env, "the rate constant")
     k = k if k is not None else Constant(1.0)
-    _check_sign(k, view_env)
     return RateLaw(k=k, modulations=tuple(modulations))
 
 
