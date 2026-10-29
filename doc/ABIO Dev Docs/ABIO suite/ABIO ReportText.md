@@ -42,7 +42,7 @@ Fixed, top to bottom; a family section prints only when its summary returns rows
 | --- | --- | --- |
 | Header (name, commit, model, times, trials, cost, usage) | manifest, `wall_time_s` summed | Always |
 | Conditions (n, mean, std, CI per cell) | `rmap.cells` | Always |
-| Failure census (terminal reasons, illegal, errors by class, aborts) | records | Always |
+| Failure census (terminal reasons, illegal, errors by class, aborts, records with `grade_error`, records with `parse_failures` and the parse-failure total) | records | Always |
 | Interactions / contrasts | `rmap.interactions`, `rmap.contrasts` | Either is non-empty |
 | Design | manifest `design` | Declared |
 | Hazard surfacing, Objective surfacing by depth, Blind spots | `hazard` | Hazard / schedule / typed rows |
@@ -68,3 +68,4 @@ The primary contrast pools every other swept dial but drops records with `agent 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the idle pooling in `primary_contrast_result` and the `min` n of `idle_baseline_comparison` confirmed on duck-typed records against the HEAD export, the catalog's `idle_baseline` + `primary_contrast` pairing by `git grep`, no spend. Left out: each family's own columns (on its module doc) and the figure and `bio report` pages (`plots.py`, `report.py`).
 - 2026-10-28 — refreshed against `abb5796`: `primary_contrast_result` excludes the idle twin unless the axis is `agent`.
+- 2026-10-29 — refreshed for `e5ea4d0` (T091 B13): the failure census also counts `grade_error` records, `parse_failures` records and the parse-failure total, so a grid of wrong-shaped commits no longer reads as plain zeros.

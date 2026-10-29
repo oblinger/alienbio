@@ -80,6 +80,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">data flow</text>
     <line id="legend-dotted" x1="200" y1="641" x2="250" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="260" y="646" font-size="14">reads, calls</text>
-    <text id="legend-dagger" x="420" y="646" font-size="14">‡ passive only on the idle arm's ladder; continuity is None with no rung ≤ 0.2 inside the ladder</text>
+    <text id="legend-dagger" x="420" y="646" font-size="14">‡ passive only on the idle arm's ladder; continuity is None with no inner rung within 0.1 of 0.2</text>
   </g>
 </svg>

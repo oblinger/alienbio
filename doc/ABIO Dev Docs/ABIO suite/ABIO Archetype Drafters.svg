@@ -63,7 +63,7 @@
     <rect id="n-kd-box" x="920" y="40" width="260" height="110" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
     <text id="n-kd-name" x="1050" y="66" font-size="15" font-weight="600" text-anchor="middle">diagnose key</text>
     <text id="n-kd-k1" x="1050" y="88" font-size="13" text-anchor="middle">in the dynamics: target's</text>
-    <text id="n-kd-k2" x="1050" y="106" font-size="13" text-anchor="middle">feeder ×3; m0, m1 share r0</text>
+    <text id="n-kd-k2" x="1050" y="106" font-size="13" text-anchor="middle">feeder ×3; target never m0</text>
     <text id="n-kd-k3" x="1050" y="124" font-size="13" text-anchor="middle">exp03–exp05</text>
   </g>
   <g id="n-kp">

@@ -39,7 +39,7 @@ Layer 1, all kind `fn`, all with `env` injected. Each returns a block; a pool ar
     `SinkBlock.make`. ^sink
 
 **reaction**`(reactants=(), products=(), rate=None, stoich=None, container=None, role="supply", name=None)`
-    Refuses with no pool on either side. Compiles `rate` with the reactant and product pools ([ABIO RateLaw](ABIO%20RateLaw.md)). A plain constant returns a `ReactionBlock`; a law with modulations or an expression returns a `RateLawBlock` whose extra `IN` ports are the modifier pools and the pools the expression reads that are neither consumed nor produced. ^reaction
+    Refuses with no pool on either side. Compiles `rate` with the reactant and product pools ([ABIO RateLaw](ABIO%20RateLaw.md)). A plain constant returns a `ReactionBlock`; a law with modulations or an expression returns a `RateLawBlock` whose extra `IN` ports are the modifier pools and the pools the expression reads that are neither consumed nor produced. `stoich` keys are pool names spelled in this scope like the reactant and product lists (`Env.pool`), so inside a `!template` a key `A` names the port `one.A` (T091 A6). ^reaction
 
 **crux**`(precursor="precursor", kA=None, kB=None, container=None, name=None)`
     `ConflictCruxBlock.make`: one precursor pool, two routes, two sinks. ^crux
@@ -92,7 +92,7 @@ A frozen `ReactionBlock` subclass: one reaction whose rate is a compiled `RateLa
     The modifier pools and the pools the expression reads beyond the reactants and products; each is an `IN` port so `block` wires it like any other. ^extra-pools
 
 **realize**`(seed, ns, bound) -> Fragment`
-    Reactants and products from the non-extra ports with `stoich` coefficients (default 1); each modulation sampled under `seed.child("mod/<pool>")` into a non-consumed modifier; `k` drawn under `seed.child("rate")`. With an expression, the tree is drawn under `seed.child("law")`, mapped to molecule names, and every extra pool it reads rides as an inert modifier so the chemistry records the dependency. The reaction id is `"<ns>/rxn"`, placed in the first port's container or `cell`. ^realize
+    Reactants and products from the non-extra ports through `blocks._sides`, the reaction primitive's own rule: `stoich` coefficients (default 1), two ports on one pool summing theirs, a `stoich` key naming no port refused (T091 A5); each modulation sampled under `seed.child("mod/<pool>")` into a non-consumed modifier; `k` drawn under `seed.child("rate")`. With an expression, the tree is drawn under `seed.child("law")`, mapped to molecule names, and every extra pool it reads rides as an inert modifier so the chemistry records the dependency. The reaction id is `"<ns>/rxn"`, placed in the first port's container or `cell`. ^realize
 
 
 
@@ -211,3 +211,4 @@ Each attempt evaluates the world form on a child seed at the same path (`ctx.see
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `afd519c` (read with `git show`; `expr_heads.py` unchanged since `c67f052`). Run against an export of that tree: a template bound to `one:` and called as `verify`'s world materialized `root/attempt0.P` where the same template bound to `plain:` gave `root/plain.P`; two instances of a template whose body is a `population` block gave identical molecule sets, the block exposing no ports. Not run: the container merge in `block` (read from 293–301). Findings filed on T088.
 - 2026-10-28 — refreshed against 0eb23e5 (`64988be`, `719261e`): `verify` redraws on a child seed at the same path (instance names kept); `block` refuses one pool in two containers; the world heads' unread `guarded_params` removed; `k_sink_b` is a Dist key; the figure's dagger follows.
+- 2026-10-29 — refreshed for `cbcedfd` (T091 A5, A6): `reaction`'s `stoich` keys are namespaced like its ports, and `RateLawBlock.realize` builds its sides through `blocks._sides` (duplicate ports sum, a stray key refuses).

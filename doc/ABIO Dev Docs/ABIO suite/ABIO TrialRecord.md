@@ -49,6 +49,7 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 | [parse_failures](#^parse-failures) | Schema-invalid replies the agent re-asked for |
 | [aborted](#^aborted) | Why the agent gave up, if it did |
 | [grade_error](#^grade-error) | Why a commit scored 0 ungraded |
+| [runout](#^runout) | The passive run-out to a scored horizon |
 | [wall_time_s](#^wall-time-s) | Wall-clock seconds for the trial |
 | [deliberation_depth](#^deliberation-depth) | Step count of the trace, cached |
 | [info_seeking_ratio](#^info-seeking-ratio) | Share of investigative actions |
@@ -151,6 +152,9 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 **grade_error**`: Optional[str] = None`
     The `MalformedAnswer` message when a committed answer's shape did not fit the grader kind (an integer on a path, a bare string on a set): the trial scored 0.0 without comparison and stays in the denominator (T088 grade 1). `None` when it was graded. † ^grade-error
 
+**runout**`: Optional[Mapping[str, Any]] = None`
+    `{from_turn, to_turn, scored_at_s, final_state}` when the drafter declared `setup["score_horizon_turns"]` (`intervene`, T091 A1) and the trial ended before it: the turns `run` simulated passively to that horizon, the simulated second the outcome was scored at, and the state it was scored on. The record's own `final_state` and `final_timeline` stay the episode's. `None` when no run-out ran. † ^runout
+
 **wall_time_s**`: float = 0.0`
     Seconds from `run`'s entry to the record. The only field the golden hash removes. ^wall-time-s
 
@@ -197,7 +201,7 @@ A frozen dataclass: one discarded-branch probe's outcome (T026, AUP phase 1 meas
 
 
 ## trial Interface
-The module-level functions; the module has no `__all__`, and `suite/__init__` re-exports `TrialRecord`, `condition_key` and `thread_reasoning_steps`. `runner.py` imports every function but `hashable_condition_key`, which nothing outside this module imports any more (`bucket_key` is its one caller); `mass_trial.py` and `conditions.py` import `condition_key`, `store.py` `final_state_dict`.
+The module-level functions; the module has no `__all__`, and `suite/__init__` re-exports `TrialRecord`, `condition_key` and `thread_reasoning_steps`. `runner.py` imports every function but `hashable_condition_key` and `frozen_value` (which `spec.py` and `guards.py` import), which nothing outside this module imports any more (`bucket_key` is its one caller); `mass_trial.py` and `conditions.py` import `condition_key`, `store.py` `final_state_dict`.
 
 | trial | |
 | --- | --- |
@@ -206,12 +210,13 @@ The module-level functions; the module has no `__all__`, and `suite/__init__` re
 | [thread_reasoning_steps](#^thread-reasoning-steps) | Append a turn's steps to a trace |
 | [readout_values](#^readout-values) | Declared readouts summed across compartments |
 | [final_state_dict](#^final-state-dict) | Every value of a state, by id |
+| [frozen_value](#^frozen-value) | One key value as a summary buckets it |
 
 **condition_key**`(dials: Mapping[str, Any]) -> tuple[tuple[str, Any], ...]`
     `tuple(sorted(dials.items()))` by dial name, so two mappings with the same entries in any order give the same key. Values pass through raw; the result is hashable only when they are. `mass_trial.condition_grid` builds its cells with it. ^trial-condition-key
 
 **hashable_condition_key**`(condition_key: Any) -> tuple[tuple[str, Any], ...]`
-    The same pairs, each value frozen recursively: a mapping becomes a name-sorted item tuple, a list or tuple a tuple; anything else passes through, so an already-hashable key is returned equal. Keeps pair order; `bucket_key` re-sorts. Outside `trial.py` and `mass_trial.py` a grep-lint (`test_bucketing_keys.py`) forbids calling it — use `bucket_key`. ^hashable-condition-key
+    The same pairs, each value through [frozen_value](#^frozen-value): a mapping becomes a name-sorted item tuple, a list or tuple a tuple; anything else passes through, so an already-hashable key is returned equal. Keeps pair order; `bucket_key` re-sorts. Outside `trial.py` and `mass_trial.py` a grep-lint (`test_bucketing_keys.py`) forbids calling it — use `bucket_key`. ^hashable-condition-key
 
 **thread_reasoning_steps**`(trace: DeliberationTrace, turn: int, action: Action, reasoning_steps: Sequence[ReasoningStep]) -> DeliberationTrace`
     A new trace with one `DeliberationStep` per reasoning step, 1:1, each carrying `turn` and the step's `kind`/`content`, its `refs` with the action's lower-cased type name appended (`"measure"`, `"intervene"`, `"commit"`, `"wait"`). `trace` is unchanged. ^thread-reasoning-steps
@@ -221,6 +226,9 @@ The module-level functions; the module has no `__all__`, and `suite/__init__` re
 
 **final_state_dict**`(state: Any) -> dict[str, dict[str, float]]`
     `{compartment_id: {molecule_id: state.get(...)}}` for every compartment and molecule; `{}` for a state with no id axes. ^final-state-dict
+
+**frozen_value**`(value: Any, *, typed: bool = False) -> Any`
+    One condition-key value frozen recursively: a mapping becomes a key-sorted item tuple, a list or tuple a tuple, anything else passes through, so two values that bucket together compare equal. `typed=True` also tags each scalar with its type name, so `1`, `1.0` and `True` stay apart. `hashable_condition_key` applies it per pair; `spec.py` judges repeated levels and pairing levels with it, and `guards.py`'s drift check compares typed frozen levels (T091 G1). ^frozen-value
 
 
 
@@ -251,7 +259,7 @@ Every trial a sweep attempts lands exactly one record, the failed ones included:
 | --- | --- |
 | `task_id`, `condition_key`, the scores, budget trio, counts, `taint_hits`, `turns`, `error`, `usage`, `wall_time_s`, `action_log`, `deliberation_trace`, `brief`, `final_state`, `oracle`, `answer`, `name_map` | always (`budget`/`remaining` as `"inf"` when infinite) |
 | `probes`, `certainty_schedule` | only when non-empty |
-| `compaction`, `forgetting`, `monitor`, `readout_series`, `aborted`, `grade_error` | only when not `None` |
+| `compaction`, `forgetting`, `monitor`, `readout_series`, `aborted`, `grade_error`, `runout` | only when not `None` |
 | `parse_failures` | only when non-zero |
 | `ActionRecord.value`, `.delta` | only when not `None` |
 | `final_timeline` | summarised to `final_time`; the states are dropped |
@@ -308,3 +316,4 @@ Every summary family bins on `bucket_key` and skips `is_error` records; `mass_tr
 - The bare `:>>` line under the frontmatter was asked to be left out; the warden write hook re-seeds it on every write and `audit-plan` fails R-spine-09 without it, so it stays, as on the sibling suite docs.
 - 2026-10-28 — refreshed against 0eb23e5: `parse_failures`, `aborted` (`01fee6a`) and `error_class` (`9cd0632`) given blocks (figure lists them); a partial error record carries the oracle and its taint audit (`866b390`); the readers table reads `error_class`/`aborted`.
 - 2026-10-28 — refreshed against `552c1a7`: `grade_error` added (block, figure); the only-when-set table lists `parse_failures`/`aborted`/`grade_error`.
+- 2026-10-29 — refreshed for `e392c11` and `661005d` (T091 A1, G1): `runout` field (only-when-set) and `frozen_value(value, typed=)` given blocks; the figure does not show `runout`, left as is.

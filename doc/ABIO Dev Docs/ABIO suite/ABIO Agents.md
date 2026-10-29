@@ -19,6 +19,7 @@ The registry, the live-model factory and the per-trial resolver.
 | --- | --- |
 | [AgentFactoryBuilder](#^agentfactorybuilder) | `(spec) -> AgentFactory` |
 | [AGENTS](#^agents) | Name to builder |
+| [AGENT_DIALS](#^agent-dials) | The factory dials each kind reads |
 | [llm_agent_factory](#^llm-agent-factory) | The one real-model factory |
 | [_agent_factory_for](#^agent-factory-for) | The per-trial factory for a spec |
 | [ACT_VALUE](#^act-value) | `act-commit`'s intervention value |
@@ -29,6 +30,9 @@ The registry, the live-model factory and the per-trial resolver.
 
 **AGENTS**`: Mapping[str, AgentFactoryBuilder]`
     `idle`, `measure-commit`, `survey-commit`, `heuristic-commit`, `knockout-commit`, `act-commit`, `assay-commit`, `pursue-target` (each a builder that ignores the spec) and `llm`. The keys are the hyphenated names a spec stores; the Expr heads use underscores. ^agents
+
+**AGENT_DIALS**`: Mapping[str, frozenset[str]]`
+    The factory dials (`drafters.FACTORY_DIALS` less `agent`) each kind reads off its trial's dials: only `llm`, which reads `model`, `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens` and `output_schedule`. A kind absent here reads none. `guards.inert_arm_violation` refuses an axis over one of these dials when no agent kind in the grid reads it (T091 B11). ^agent-dials
 
 **llm_agent_factory**`(*, model, temperature=None, top_p=None, memory="full", token_ceiling=None, compact_at=None, compact_budget=None, history_token_limit=None, max_tokens=None, output_schedule=None) -> AgentFactory`
     The returned factory, per trial: picks `dials["model"]`, else `model`, else `PINNED_MODEL`, and refuses an unpinned one; builds one `UsageMeter` shared by the provider function and the agent; returns an `LLMAgent` whose `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens` and `output_schedule` are the trial's dial when present, else the argument. `temperature`, `top_p` and `token_ceiling` come from the arguments only. `LLMAgent` and the provider are imported inside the factory, so naming `llm` fails only when a trial is about to run without a key. ^llm-agent-factory
@@ -74,3 +78,4 @@ Zero model calls and deterministic. Each commits `Answer(value=[], kind="json")`
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `721500f` (read with `git show`; `agents.py` last changed at `01fee6a`, after the T066 memory-axis fix). No run; the behaviours are read from the policies. Findings filed on T088.
 - 2026-10-28 — refreshed against 0eb23e5: `pursue-target`'s stop rule sums the target over compartments (`64988be`).
+- 2026-10-29 — refreshed for `e5ea4d0` (T091 B11): `AGENT_DIALS` declares which factory dials each kind reads (only `llm`), read by the `inert-arm` preflight check.

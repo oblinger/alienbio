@@ -48,6 +48,7 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
 | [expected_output_tokens](#^expected-output-tokens) | Output tokens per turn, floor |
 | [expected_cache_hit_rate](#^expected-cache-hit-rate) | Cached share of input, for the estimate |
 | [registration](#^registration) | The pre-registration id claimed |
+| [source](#^source) | The file a loaded spec came from |
 
 **name**`: str`
     The experiment's name, printed by `--dry` and written as the manifest's `name`; with no `out_dir` anywhere the run writes to `runs/{name}`. ^name
@@ -65,10 +66,10 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
     The output folder when the caller passes none; `run_experiment(out_dir=…)` and `--out` win. ^out-dir
 
 **axes**`: tuple[tuple[str, tuple[Any, ...]], ...]`
-    The swept dials as `(name, levels)` pairs in declared order; one condition cell per level combination, each level on the record's `condition_key`. `spec_from_dict` reads a mapping and keeps its insertion order ([Where a dial lives](#where-a-dial-lives)). ^axes
+    The swept dials as `(name, levels)` pairs in declared order; one condition cell per level combination, each level on the record's `condition_key`. `spec_from_dict` reads a mapping and keeps its insertion order ([Where a dial lives](#where-a-dial-lives)). `_validate_axes` refuses at construction an axis declared twice, an axis with no levels, and a repeated level, judged by `trial.frozen_value` (what a summary buckets as one cell), not `repr`: `1`/`1.0`/`True`, or two dict levels differing only in key order, are one level (T091 B1/B5/B10, G1/G2). ^axes
 
 **fixed_dials**`: Mapping[str, Any] = {}`
-    Dials applied to every cell, merged under the cell's own as `{**fixed_dials, **condition}`, so an axis of the same name wins; never on a condition key. A factory dial here is refused at the `dials` check (since `c63ad42`). ^fixed-dials
+    Dials applied to every cell, merged under the cell's own as `{**fixed_dials, **condition}`; never on a condition key. A dial both fixed and swept refuses at construction, since the axis would silently override the fixed value (T091 D10). A factory dial here is refused at the `dials` check (since `c63ad42`). ^fixed-dials
 
 **drafter_kwargs**`: Mapping[str, Any] = {}`
     Keywords splatted into the drafter head on every draft: generator settings (`feed_max_rate`, `score_read`, `hop_delay_s`, `certainty_windows` …) that no other reader sees. A head dial placed here is applied and counted in play by the guards (T066); an episode dial here is refused. ^drafter-kwargs
@@ -77,7 +78,7 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
     Swept dials, beyond `WORLD_INVARIANT_DIALS`, to keep out of the seed label, so their arms draw the same worlds (M36.3, EXP-6's `ill_posed` trap). The constructor refuses a name that is not a swept axis. ^matched-dials
 
 **idle_baseline**`: bool = False`
-    Ask for the do-nothing twin of every cell. `__post_init__` appends an `agent` axis `(agent, "idle")` unless `agent` is already `idle` or an `agent` axis exists (M45.7), for both forms; the second condition makes it idempotent, so a reload does not add it twice (`60db002`; before it, only `spec_from_dict` added the axis). ^idle-baseline
+    Ask for the do-nothing twin of every cell. `__post_init__` appends an `agent` axis `(agent, "idle")`, or, when an `agent` axis is already swept, appends `"idle"` to its levels (T091 B13), for both forms (M45.7). Nothing is added when `agent` is `idle` with no agent axis or the swept axis already holds `idle`, which makes it idempotent, so a reload does not add it twice (`60db002`; before it, only `spec_from_dict` added the axis). ^idle-baseline
 
 **agent**`: str`
     The `AGENTS` kind (`llm`, `idle`, `survey-commit` …) every cell runs unless an `agent` axis sweeps it. The constructor checks `agent` axis levels against `AGENTS` but not this scalar; the YAML head resolves it by name, and the `agent` check catches the rest. ^agent
@@ -116,7 +117,7 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
     M45.6: trials in flight at once, a positive int. The ceiling check runs as each unit lands and as each worker starts, so a stop can overshoot by the units already running. ^concurrency
 
 **design**`: Optional[PowerDesign] = None`
-    M46.9: the statistical design. The constructor parses a mapping (a `PowerDesign` passes as is), refuses a `primary_contrast` that is not a swept axis and two of its levels, and refuses `trials_per_condition` below the design's required n, naming the number. ^design
+    M46.9: the statistical design. The constructor parses a mapping (a `PowerDesign` passes as is), refuses a `primary_contrast` that is not a swept axis and two of its levels (a level matched by its `trial.frozen_value`, as the grid buckets it), and refuses `trials_per_condition` below the design's required n, naming the number. ^design
 
 **key_readout**`: Optional[str] = None`
     The `suite.plots.PLOTTERS` name whose figure becomes `key.png`; `None` takes the first readout the records carry, in report order. Refused at load when not a `PLOTTERS` name. ^key-readout
@@ -141,6 +142,9 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
 
 **registration**`: Optional[str] = None`
     T030: an id in `catalog/registrations.yaml`. Only checked as a non-empty string at load; resolved by `registration_admission` at the `registration` check and again for the manifest, where the resolved entry is written. Licensed record lines carry the id. ^registration
+
+**source**`: Optional[Mapping[str, Any]] = None` (`compare=False`, `repr=False`)
+    `{"spec_path", "helper_modules"}` when `load_spec` read the spec from a file: that file and every `.py` its trusted `_includes_` ran, each relative to the repo root when under it, else absolute (T091 E1). Not part of the spec's value: never compared, never in `spec_to_dict`. The manifest carries both keys so `bio suite resume|aggregate|report` can reload the file and register its helpers. `None` for a Python-built spec. ^source
 
 
 
@@ -228,7 +232,7 @@ A spec comes from one of two places; both pass the same field validators at cons
 | `expected_turns` | derived from the declared budget (`__post_init__`) | the same |
 | `idle_baseline` | expanded into an `agent` axis (`__post_init__`) | the same |
 
-The `!experiment` head (`expr_experiment.experiment`) sorts each keyword of a quoted call into a fixed dial or a swept axis with `_split_call`, refuses an axis that no call reads unless it is in `EXPERIMENT_AXES` (`FACTORY_DIALS` since `d53605e`; it was `{agent, model}`, so a YAML `memory` axis was refused), then passes only the keywords the file set to `spec_from_dict`. Whatever the form, `preflight` runs the same seventeen checks before spend, so the dial-placement checks the head makes are caught there for the Python form too. `expected_turns` and `idle_baseline` are derived by `__post_init__` for both forms since `4b994c2` and `60db002`, and every field check moved from `spec_from_dict` into the constructor after them, so a Python-built `concurrency=0` or `temperature=2.0` refuses at construction, not at preflight or mid-run.
+The `!experiment` head (`expr_experiment.experiment`) sorts each keyword of a quoted call into a fixed dial or a swept axis with `_split_call`, refuses an axis that no call reads unless it is in `EXPERIMENT_AXES` (`FACTORY_DIALS` since `d53605e`; it was `{agent, model}`, so a YAML `memory` axis was refused), then passes only the keywords the file set to `spec_from_dict`. Whatever the form, `preflight` runs the same nineteen checks before spend, so the dial-placement checks the head makes are caught there for the Python form too. `expected_turns` and `idle_baseline` are derived by `__post_init__` for both forms since `4b994c2` and `60db002`, and every field check moved from `spec_from_dict` into the constructor after them, so a Python-built `concurrency=0` or `temperature=2.0` refuses at construction, not at preflight or mid-run.
 
 `spec_to_dict` and `spec_from_dict` are inverses for a spec built either way. `spec_to_text(spec)` (in `expr_experiment.py`) renders a spec back as an experiment file, with the declared contract `load_experiment(text=spec_to_text(spec)) == spec`: each fixed dial and axis goes on the call whose head declares it, the agent side first (a drafter that also declares `max_turns` only reads it), a dial no head declares raises, an `idle_baseline` axis is left for the load to re-add, and a scalar is written only when it differs from its default. `expected_turns` is written only when it differs from what the derivation gives (T066: the sentinel was the literal 8, so a stated 8 beside a 20-turn episode came back 20); `registration` is written (T066: it was dropped, so a licensed spec round-tripped unlicensed).
 
@@ -287,7 +291,7 @@ The factory-dial refusal exists because the guards and the estimate read the spe
 | `cost_estimate`, `cost_ceiling_usd` | `asdict(estimate_cost(spec))`, the ceiling |
 | `design` | `PowerDesign.to_dict()` |
 
-`bio suite resume <DIR>` and `aggregate` rebuild the spec from `manifest["spec"]` through `spec_from_dict`, so a stored spec is re-validated on every read, and the `resume` check compares the new spec to the stored one, allowing only more trials and added levels on an existing axis.
+`bio suite resume <DIR>` and `aggregate` rebuild the spec through `spec_from_manifest`: a manifest that names a `spec_path` has that file re-loaded first, so its helpers register (a path that no longer exists refuses, naming it). `aggregate` and `bio suite report` then use `manifest["spec"]` through `spec_from_dict`; `bio suite resume` uses the file as it is now (`current=True`), so an edit to the yaml is drift. Either way the spec is re-validated on every read, and the `resume` check compares the new spec to the stored one, allowing only more trials and added levels on an existing axis.
 
 
 
@@ -300,7 +304,7 @@ The constructor refuses what a field can be wrong about alone or beside another 
 | unknown `agent` axis level<br>bad `trials_per_condition`<br>non-int `base_seed` | a live model on a guarded drafter or dial, unlicensed |
 | `temperature`/`top_p` out of `[0, 1]`; `top_p` with `provider-fixed` | live arm with no `temperature` |
 | malformed `max_tokens`/`output_schedule`, or both | unknown dial names<br>a factory dial in `fixed_dials`<br>an episode dial in `drafter_kwargs` |
-| `matched_dials` naming an unswept axis | guarded drafter with no list-valued `levers` |
+| `matched_dials` naming an unswept axis<br>a repeated or empty axis, a repeated level<br>a dial both fixed and swept | guarded drafter with no list-valued `levers` |
 | under-powered or mis-aimed `design`<br>bad `memory`<br>non-positive `token_ceiling` or forgetting field | unknown `agent`<br>cross-field forgetting config<br>inert `compact_at` |
 | `key_readout` not a `PLOTTERS` name | unknown `drafter`; a world or brief that refuses to draft |
 | non-positive `cost_ceiling_usd`, `concurrency`, `expected_*` counts; bad `price_usd_per_mtok`; empty `registration` | unpriced model level<br>drifted spec on resume<br>records already in `out_dir` |
@@ -316,3 +320,4 @@ Not validated in `spec.py`: the scalar `agent` (the `agent` check owns it) and t
 - 2026-10-28 — four of the divergences above fixed (T084 follow-up): `expected_turns` and the idle arm are normalised in `ExperimentSpec.__post_init__` for both forms (`4b994c2`, `60db002`); `--dry` prints the model in force via the manifest's `_single_model` / `_model_axis_levels`, the `experiment` head's docstring names the factory dials, and `ABIO-Experiment`'s counts and hypotheses rows are current (one commit after those). The `memory: k ≥ T−1` over-price stands (it errs high).
 - 2026-10-28 — every field check `spec_from_dict` ran (pinned model and `model`/`agent` axis levels, output budget, cost ceiling, price override, `expected_*` counts, design, `concurrency`, `matched_dials`, `key_readout`, sampling, `expected_cache_hit_rate`, `registration`) moved into `ExperimentSpec._validate`, called from `__post_init__`, so the Python form is refused with the same messages; `spec_from_dict` now only reshapes the dict. Still unvalidated in `spec.py`: `trials_per_condition`/`base_seed` beyond the design, the scalar `agent`, `memory`, `token_ceiling` and the forgetting fields (the `agent` check owns them, per arm).
 - 2026-10-28 — refreshed against 0eb23e5 (`a4f3b63`): the constructor also refuses a bad `trials_per_condition`, `base_seed`, `memory`, `token_ceiling` and forgetting field; the refusal table and the not-validated line follow; `preflight` runs seventeen checks (the `labels` check, `1d46b37`), and the figure says so.
+- 2026-10-29 — refreshed for `e5ea4d0` and `661005d` (T091 B1/B5/B10, B13, D10, E1, G1/G2): construction refuses a repeated or empty axis, a repeated level by `trial.frozen_value`, and a dial both fixed and swept; `idle_baseline` appends `idle` to a swept agent axis; new `source` field; resume reloads the spec file as it is now, aggregate the manifest's own spec.

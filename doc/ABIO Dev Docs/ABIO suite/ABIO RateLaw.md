@@ -108,7 +108,7 @@ The entry point and its tables.
     The registry view the compiler resolves heads through; a world-building head, a drafter or a Python-only function is unknown inside a rate law. ^rate-view-kinds
 
 **compile_rate**`(value, env, *, reactants=(), products=()) -> RateLaw`
-    `None` → `k = 1`; a number → `Constant`; a `Dist` → `k`; a `QuotedForm` → compiled in its own environment (§ [Two shapes](#two-shapes)); a bool or anything else refuses. `reactants` and `products` are the reaction's pool names as the block spelled them. ^compile-rate
+    `None` → `k = 1`; a number → `Constant`, a negative one refused; a `Dist` → `k`; a `QuotedForm` → compiled in its own environment (§ [Two shapes](#two-shapes)); a bool or anything else refuses. `reactants` and `products` are the reaction's pool names as the block spelled them. ^compile-rate
 
 
 
@@ -116,7 +116,7 @@ The entry point and its tables.
 # RateLaw Semantics
 
 ## Two shapes
-`_compile_product` tries first. It flattens a chain of `*` and reads each factor: a modulation head over a pool that is neither consumed nor produced becomes a `ModulationSpec` (over a reactant or product it refuses: that is substrate-saturation kinetics); a bare name of a reactant or product is skipped (mass action over it is implicit); anything else must be a constant — a literal, a bound number or Dist, a quote, `-x`, a product of constants, or a call of a `dist` or `math` head — and the constants multiply into `k`. A product of two distributions refuses. If any factor is not of the product form (the typed `_NotProductForm`; an unbound name, which is a pool, raises it too), `_compile_expr` compiles the whole form instead: `+ - * / **`, `neg`, `exp`, `log`, `sqrt`, the modulation heads (now allowed over any pool), constants, and species. Any other refusal is final.
+`_compile_product` tries first. It flattens a chain of `*` and reads each factor: a modulation head over a pool that is neither consumed nor produced becomes a `ModulationSpec` (over a reactant or product it refuses: that is substrate-saturation kinetics); a bare name of a reactant or product sends the law to the expression path, where it is the whole rate when it names a reactant (T091 E4: `0.2 * A` over `A + B` read as `0.2·A·B` while `0.2 * A + 0.0` read as `0.2·A`; the two are now one number); anything else must be a constant — a literal, a bound number or Dist, a quote, `-x`, a product of constants, or a call of a `dist` or `math` head — and the constants multiply into `k`. Two refusals are made at load, naming the node (e.g. `sk.root.children.r.rate`), before either shape is tried (T091 E9): a product of two distributions anywhere in the law (the expression path would otherwise multiply the two draws), and a negative rate constant — a negative number, a product-form `k` or an expression product chain with a negative coefficient (it ran as rate 0; `-(-0.2)` folds to 0.2 first). If any factor is not of the product form (the typed `_NotProductForm`; an unbound name, which is a pool, raises it too), `_compile_expr` compiles the whole form instead: `+ - * / **`, `neg`, `exp`, `log`, `sqrt`, the modulation heads (now allowed over any pool), constants, and species. Any other refusal is final.
 
 | Written | Compiles to |
 | --- | --- |
@@ -125,6 +125,8 @@ The entry point and its tables.
 | `!q "Vmax * S / (Km + S)"` over reactant `S`, `Vmax` and `Km` bound | expression: the whole rate (unbound, both become pools) |
 | `!q "0.1 + hill('M', 0.5)"` | expression: a factor on mass action |
 | `!q "lognormal(0, 1) * lognormal(0, 1)"` | refused: a product of two distributions |
+| `!q "0.2 * A"` over reactant `A` | expression: the whole rate `0.2·A` |
+| `-0.2` | refused: a negative rate constant |
 
 
 
@@ -132,7 +134,7 @@ The entry point and its tables.
 A bare name bound in scope is a constant (a number or a Dist); an unbound one is a pool, spelled through `Env.pool`; a quoted string is always a pool. A pool named like a bound variable must be quoted to mean the pool. One consequence follows (‡), and one former one is fixed:
 
 - In the expression shape, an unbound name the author meant as a parameter becomes a pool: `3 * S / (Kmm + S)` with `Kmm` misspelled compiles, `Kmm` becomes an extra `IN` port and a molecule that starts at zero, and the rate reads `3 · S / S`.
-- In the product shape, a bare reactant name is compared as the pool it denotes there (`Env.pool`), so inside a template instance the factor `S` in `2 * S * hill('M', 0.5)` matches the consumed `inst.S` and is skipped, as outside one; before `64988be` it was compared as written and refused `unbound name 'S'`.
+- In the product shape, a bare reactant name is compared as the pool it denotes there (`Env.pool`), so inside a template instance the factor `S` in `2 * S * hill('M', 0.5)` matches the consumed `inst.S` and sends the law to the expression path, as outside one; before `64988be` it was compared as written and refused `unbound name 'S'`.
 
 
 
@@ -145,3 +147,4 @@ A constant factor is a Dist, drawn once per world when the block realizes: `k` u
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `afd519c` (read with `git show`; `rate_law.py` unchanged since `c67f052`). Run against an export of that tree: `2 * S * hill('M', 0.5)` compiled outside a template and refused `inst.rate: unbound name 'S'` inside one; `3 * S / (Kmm + S)` compiled with ports `S, P, Kmm`. Findings filed on T088.
 - 2026-10-28 — refreshed against 0eb23e5 (`64988be`): the numeric heads are `rate_expr.modulation_factor` (`inhibitor(1, 0)` = 0.0), the product-form fallback is the typed `_NotProductForm`, a reactant named inside a template is read as its pool; figure legend follows.
+- 2026-10-29 — refreshed for `cce3a04` (T091 E4, E9): a factor naming a reactant or product sends the law to the expression path (the whole rate when it names a reactant); a product of two distributions anywhere and a negative rate constant refuse at load, naming the node.

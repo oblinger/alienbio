@@ -24,7 +24,7 @@ Name the perturbed molecule among the candidates.
 | [diagnose_perturbation](#^diagnose-perturbation) | The factory |
 
 **draft_diagnosis_world**`(seed, *, n_nodes=4, distractor_count=0, hazard=False, hazard_rate=0.01, perturbation=None) -> (WorldImpl, CarveResult)`
-    Chain reactions `r0 …` at the default rate 1.0, distractors `d0 …` at 1.0 with no reactions; the target is `m{seed.child("target") draw}`. `hazard` adds `rh: m{n−1} → hz` at `hazard_rate` and records both ids on `added`. `perturbation` multiplies the target's `perturbed_reaction` by that factor; `None` applies `DEFAULT_PERTURBATION = 3.0` (T088), so the answer is in the dynamics (§ [What the key depends on](#what-the-key-depends-on)). With `n_nodes = 1` there is no reaction to perturb. ^draft-diagnosis-world
+    Chain reactions `r0 …` at the default rate 1.0, distractors `d0 …` at 1.0 with no reactions; the target is `m{1 + seed.child("target") draw over n−1}` — never `m0` on a chain (T091 A2). `hazard` adds `rh: m{n−1} → hz` at `hazard_rate` and records both ids on `added`. `perturbation` multiplies the target's `perturbed_reaction` by that factor; `None` applies `DEFAULT_PERTURBATION = 3.0` (T088), so the answer is in the dynamics (§ [What the key depends on](#what-the-key-depends-on)). With `n_nodes = 1` there is no reaction to perturb. ^draft-diagnosis-world
 
 **perturbed_reaction**`(world, target_id) -> Optional[str]`
     The sorted-first reaction producing the target, else the one consuming it, else `None`. ^perturbed-reaction
@@ -74,6 +74,7 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 | arch_intervene | |
 | --- | --- |
 | [draft_intervention_world](#^draft-intervention-world) | Chain and the goal |
+| [target_compartment](#^target-compartment) | The one compartment the target is read in |
 | [make_target_scorer](#^make-target-scorer) | Closeness of the final level |
 | [make_intervention_objective](#^make-intervention-objective) | Scorer as an objective |
 | [DesignInterventionRecipe](#^designinterventionrecipe) | Target in, outcome graded |
@@ -82,10 +83,13 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 **draft_intervention_world**`(seed, *, n_nodes=4, target_value=None, sim_cfg=SimConfig()) -> (WorldImpl, CarveResult, (str, float))`
     Seeded chain rates; target `m{n−1}`; with no `target_value` the goal is the sink's level at the end of `simulate(world, sim_cfg)`, 20 s by default; the `intervene` head passes the episode-horizon `sim_cfg` (T088, [ABIO Drafters](ABIO%20Drafters.md)). ^draft-intervention-world
 
-**make_target_scorer**`(target_mol_id, target_value) -> Callable[[Timeline], float]`
-    `1 / (1 + |final − goal|)` on the final state, the target's concentration summed over compartments. ^make-target-scorer
+**target_compartment**`(world, target_id, named=None) -> str`
+    The binding's `compartment` entry when given (it must be a compartment of the world), else the only compartment, else the one compartment whose initial concentrations hold the target; several holders or none refuse at draft, naming the compartments and the `compartment:` binding (T091 E2: a sum over compartments of different volumes is no quantity the task states). `DesignInterventionRecipe.build_objective` calls it. ^target-compartment
 
-**make_intervention_objective**`(target_mol_id, target_value) -> OutcomeObjective`
+**make_target_scorer**`(target_mol_id, target_value, compartment=None) -> Callable[[Timeline], float]`
+    `1 / (1 + |final − goal|)` on the final state: the target's concentration in the one compartment `target_compartment` picked. `compartment` unset is allowed only on a one-compartment state; on a multi-compartment state, or a compartment the state does not carry, the scorer raises. ^make-target-scorer
+
+**make_intervention_objective**`(target_mol_id, target_value, compartment=None) -> OutcomeObjective`
     The scorer with `target = target_value`. ^make-intervention-objective
 
 **DesignInterventionRecipe**`(target_value: float, role_name="target", verb="intervene")`
@@ -100,7 +104,7 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 # Archetype Drafters Semantics
 
 ## What the key depends on
-**Diagnose**: the reaction feeding the seed-chosen target runs at `perturbation` (default 3.0, T088) times the chain's 1.0, so every seed drafts its own world and the answer is observable. One collision remains: `r0` feeds `m1` and is the only reaction touching `m0`, so targets `m0` and `m1` draft the same world. Before T088 the default was label-only — one world for every seed, the answer at chance — and exp04, exp05 and exp04-diagnose-zero ran that way; they were re-pinned at `bf91515`.
+**Diagnose**: the reaction feeding the seed-chosen target runs at `perturbation` (default 3.0, T088) times the chain's 1.0, so every seed drafts its own world and the answer is observable. `m0` is never the target (T091 A2): its only reaction `r0` also feeds `m1`, so the two drew byte-identical worlds and about one trial in four had an unidentifiable answer; every target now perturbs a reaction no other target does. Before T088 the default was label-only — one world for every seed, the answer at chance — and exp04, exp05 and exp04-diagnose-zero ran that way; they were re-pinned at `bf91515`.
 
 **Predict**: the lever is always the chain's throttle and the target always the terminal sink, so speeding the throttle always raises it. Over 40 seeds at `n_nodes = 4` the key was `up` every time, and `same` every time with `ill_posed`. A policy that always answers `up` scores 1.0 on every well-posed trial of exp06.
 
@@ -112,3 +116,4 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the three sources at alienbio HEAD `64988be`; the identical diagnose worlds and the constant predict keys (40 seeds each arm) confirmed on the HEAD export, the catalog usage by `git grep`, no spend. The module docstring of `arch_intervene` still says the agent loop is out of scope; exp09 runs it through the runner.
 - 2026-10-28 — refreshed against `bf91515`: diagnose perturbs by default (`DEFAULT_PERTURBATION = 3.0`), `perturb_reaction_rate` keeps flows and refuses a `rate_law` reaction, the intervene head passes the episode-horizon `sim_cfg`.
+- 2026-10-29 — refreshed for `e392c11` and `62fdc9a` (T091 A2, E2): the diagnose target is drawn from `m1 … m{n−1}` (the `m0`/`m1` shared-world note deleted), and the intervene scorer reads one compartment through the new `target_compartment` (`compartment=` on the scorer and objective). A concurrent uncommitted edit adds `task=`/`hint=` keywords to `target_compartment`; not documented until it lands. Figure: the diagnose-key note "m0, m1 share r0" now reads "target never m0".

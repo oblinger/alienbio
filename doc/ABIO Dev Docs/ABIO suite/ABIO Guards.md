@@ -1,9 +1,9 @@
 ---
-description: "`guards`: every refusal a run makes before spend — `preflight` and its 17 ordered checks, the no-peeking rule and the registration licence, the declared surface, unknown and misplaced dials, the price check and one drafted world per condition. Source: `src/alienbio/suite/guards.py`."
+description: "`guards`: every refusal a run makes before spend — `preflight` and its 19 ordered checks, the no-peeking rule and the registration licence, the declared surface, unknown and misplaced dials, the price check and one drafted world per condition. Source: `src/alienbio/suite/guards.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Guards](ha://p/ABIO%20Guards) 
 # ABIO Guards
-The gate in front of every paid run: `preflight` puts an `ExperimentSpec` through seventeen checks in a fixed order and returns every verdict, so `run_experiment` can raise the first refusal and `bio suite run --dry` can print them all, before a single world is simulated or a model is called.
+The gate in front of every paid run: `preflight` puts an `ExperimentSpec` through nineteen checks in a fixed order and returns every verdict, so `run_experiment` can raise the first refusal and `bio suite run --dry` can print them all, before a single world is simulated or a model is called.
 
 ![ABIO Guards](ABIO%20Guards.svg) 
 *The no-peeking rule and the registration licence* is the topic that governs the licence group; *The draft check* governs group 5, skipped once anything above it refused.
@@ -62,7 +62,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | guards | |
 | --- | --- |
 | [preflight](#^preflight) | Run every check in order; one `Preflight` |
-| [PREFLIGHT_CHECKS](#^preflight-checks) | The seventeen check names, in run order |
+| [PREFLIGHT_CHECKS](#^preflight-checks) | The nineteen check names, in run order |
 | [registration_admission](#^registration-admission) | Resolve a `registration:` claim against the registry |
 | [no_peeking_violation](#^no-peeking-violation) | A live model on a guarded world or dial, unlicensed |
 | [unknown_dials_violation](#^unknown-dials-violation) | A dial name nothing reads |
@@ -74,22 +74,23 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | [brief_dials_violation](#^brief-dials-violation) | A malformed in-world monitor arm |
 | [certainty_windows_violation](#^certainty-windows-violation) | Certainty slices that cannot cut the turn |
 | [score_window_violation](#^score-window-violation) | A held-score window longer than the episode |
-| [inert_arm_violation](#^inert-arm-violation) | A `compact_at` that never fires |
+| [intervene_horizon_violation](#^intervene-horizon-violation) | An `intervene` budget ladder with no horizon pin |
+| [inert_arm_violation](#^inert-arm-violation) | An arm that can measure nothing |
 | [agent_construction_violation](#^agent-construction-violation) | A condition whose agent cannot be built |
 | [draft_violation](#^draft-violation) | A condition whose world refuses to draft |
 | [dials_in_play](#^dials-in-play) | Every dial name a run sets |
 
 **preflight**`(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bool = False) -> Preflight`
-    Resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; `draft` is skipped once anything refused. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` passes `resume=False`, the flag `bio suite run` itself passes ([Dry run and real run](#dry-run-and-real-run)). ^preflight
+    Resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; `draft` is skipped once anything refused, and `records-readable` and `resume` do nothing off a resume. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` passes `resume=False`, the flag `bio suite run` itself passes ([Dry run and real run](#dry-run-and-real-run)). ^preflight
 
 **PREFLIGHT_CHECKS**`: tuple[str, ...]`
-    `("registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag", "brief-dials", "certainty-windows", "score-window", "inert-arm", "agent", "price", "draft", "resume", "out_dir")`: the names `checks` carries, in the order `preflight` runs them. A declaration only; `preflight` spells each name again in its own `check(...)` calls. ^preflight-checks
+    `("registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag", "brief-dials", "certainty-windows", "score-window", "intervene-horizon", "inert-arm", "agent", "price", "draft", "records-readable", "resume", "out_dir")`: the names `checks` carries, in the order `preflight` runs them. A declaration only; `preflight` spells each name again in its own `check(...)` calls. ^preflight-checks
 
 **registration_admission**`(spec: ExperimentSpec, registry_path: Optional[Path] = None) -> Optional[Registration]`
     `None` when `spec.registration` is unset. Otherwise resolves the id in the registry (`registry_path`, default the repo's `catalog/registrations.yaml`) through `resolve_registration`, which raises on a missing or unparseable file, an unknown id or a malformed entry; then raises `ValueError` when the entry names a drafter this build does not register, or does not name `spec.drafter`. Runs as the `registration` check whatever the agent, so a scripted run with a false claim refuses too ([The registry file](#the-registry-file)). ^registration-admission
 
 **no_peeking_violation**`(spec: ExperimentSpec, registry_path: Optional[Path] = None) -> Optional[str]`
-    `None` unless `"llm"` is among `agent_kinds_in_play(spec)` (the spec's `agent` plus any `agent` axis levels). Then, in order: a guarded drafter without a licence refuses; a phase-1 down-direction `variant` without a licence refuses; the guarded dials in play, less `constitution` on a conflict-free drafter, must all sit inside the licence's `dials`, or with no licence there must be none. Calls `registration_admission` itself, so a bad claim also raises here ([The no-peeking rule and the registration licence](#the-no-peeking-rule-and-the-registration-licence)). ^no-peeking-violation
+    `None` unless `"llm"` is among `agent_kinds_in_play(spec)` (the spec's `agent` plus any `agent` axis levels). Then, in order: a falsy `opaque_names` in play refuses, licence or not (T091 D7: off, a live model reads the world's structural ids, which the taint audit cannot see); a guarded drafter without a licence refuses; a phase-1 down-direction `variant` without a licence refuses; the guarded dials in play, less `constitution` on a conflict-free drafter, must all sit inside the licence's `dials`, or with no licence there must be none. Calls `registration_admission` itself, so a bad claim also raises here ([The no-peeking rule and the registration licence](#the-no-peeking-rule-and-the-registration-licence)). ^no-peeking-violation
 
 **unknown_dials_violation**`(spec: ExperimentSpec) -> Optional[str]`
     The `fixed_dials` keys and axis names that neither the drafter head's own dials nor `runtime_dials()` read (`drafters.unknown_spec_dials`). The message, for a registered head, names what the head and the runtime do read and, when the head takes `**generator`, says generator overrides belong in `drafter_kwargs`. `drafter_kwargs` is not checked here ([Dials in play](#dials-in-play)). ^unknown-dials-violation
@@ -119,10 +120,13 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
     When `drafter_kwargs` sets a positive numeric `score_window`: refuses the first condition whose horizon `max_turns × sim_steps × sim_dt` (runner defaults for unset dials) is shorter, since no window that long exists and `score_read="held"` would score every arm at the trajectory minimum. ^score-window-violation
 
 **inert_arm_violation**`(spec: ExperimentSpec) -> Optional[str]`
-    Refuses the first condition whose `compact_at` (its dial, else `spec.compact_at`) is `>=` that cell's own `max_turns` (else the spec's derived turn count): turns are 0-based, so compaction would never fire and the arm would record `compaction: null`, indistinguishable from its control. ^inert-arm-violation
+    First refuses a factory-dial axis (other than `agent`) that no agent kind in the grid reads, by `agents.AGENT_DIALS`: its cells would differ only by label (T091 B11; only `llm` reads `memory`, the `compact_*` dials, `max_tokens` …). Then refuses the first condition whose `compact_at` (its dial, else `spec.compact_at`) is `>=` that cell's own `max_turns` (else the spec's derived turn count): turns are 0-based, so compaction would never fire and the arm would record `compaction: null`, indistinguishable from its control. ^inert-arm-violation
+
+**intervene_horizon_violation**`(spec: ExperimentSpec) -> Optional[str]`
+    On `intervene` only: refuses a `max_turns` axis when no `intervene_horizon` in play is set (an explicit `None` counts as unset, T091 F3). `intervene` derives its goal and passive reach, and scores the outcome, at that horizon, so an unpinned ladder gives every rung its own goal and reads the horizon, not the budget (T091 A4; `diagnose` has the same shape, pinned by `hazard_horizon`). ^intervene-horizon-violation
 
 **agent_construction_violation**`(spec: ExperimentSpec) -> Optional[str]`
-    Per condition: refuses an agent kind not in `agents.AGENTS`; for `llm`, calls `llm_agent.validate_agent_config` on the cell's `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens` and `output_schedule` (dial, else spec field) without building the agent, so no API key is needed; for any other kind, builds it through the spec's factory at `trial_seed.child("agent")`. ^agent-construction-violation
+    Per condition: refuses an agent kind not in `agents.AGENTS`; for `llm`, calls `llm_agent.validate_agent_config` on the cell's `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens` and `output_schedule` (dial, else spec field) without building the agent, so no API key is needed; for any other kind, builds it through the spec's factory at `trial_seed.child("agent")` and checks that its `probe`, if any, binds the runner's `(text, observation)` call (the message names T088, which widened it). That mismatch refuses only on a condition that declares `probes`; elsewhere the run never calls `probe`, so it is a `UserWarning` (T091 B8, G4). ^agent-construction-violation
 
 **draft_violation**`(spec: ExperimentSpec) -> Optional[str]`
     Refuses an unknown drafter. Otherwise drafts one world per condition at the seed its first trial will use, builds that condition's brief with the real `build_brief`, collects every config refusal (`ValueError`) and every fault (any other exception, named by class) from either, and returns them all joined by `; `, each naming its condition ([The draft check](#the-draft-check)). ^draft-violation
@@ -151,16 +155,18 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | `brief-dials` | `brief_dials_violation` | each condition's monitor dials | `resolve_monitor` refuses | T066 |
 | `certainty-windows` | `certainty_windows_violation` | `certainty_windows`, `sim_steps`, `sample_every` | slices do not divide the turn or miss the sample grid | T066; round 4 |
 | `score-window` | `score_window_violation` | `score_window`, each cell's horizon | the window exceeds the episode | T066 |
-| `inert-arm` | `inert_arm_violation` | `compact_at`, each cell's `max_turns` | compaction can never fire | T066; round 4 |
-| `agent` | `agent_construction_violation` | each condition's agent dials | the agent kind or config refuses | T066 |
+| `intervene-horizon` | `intervene_horizon_violation` | `drafter`, the axes, `intervene_horizon` | an `intervene` `max_turns` axis with no `intervene_horizon` | T091 A4 |
+| `inert-arm` | `inert_arm_violation` | factory-dial axes, `AGENT_DIALS`, `compact_at`, each cell's `max_turns` | a factory axis no agent in the grid reads; compaction can never fire | T066; round 4; T091 B11 |
+| `agent` | `agent_construction_violation` | each condition's agent dials and `probe` signature | the agent kind or config refuses; a probe that cannot take `(text, observation)` with probes declared | T066; T091 B8 |
 | `price` | `estimate_cost` | model levels, price table, turns, memory | a live model level has no price | T051 box 4 |
 | `draft` | `draft_violation` | one drafted world and brief per condition | the drafter or `build_brief` refuses the condition | T066; round 4/5; T084 |
-| `resume` | `_resume_spec_drift` | `manifest.json` under `out_dir` | `resume=True` and the manifest is unreadable, spec-less, or the spec drifted | T051 box 4; round 5; T084 |
+| `records-readable` | inline, `store.read_records` | `records.jsonl` under `out_dir` | `resume=True` and a line does not parse (`StoreError`, named by line) | T091 B4 |
+| `resume` | `_resume_spec_drift` | `manifest.json` and `records.jsonl` under `out_dir` | `resume=True` and records exist with no manifest, the manifest is unreadable or spec-less, the ceiling is below the records' spend, or the spec drifted | T051 box 4; round 5; T084; T091 B2/B3 |
 | `out_dir` | inline | `records.jsonl` under `out_dir` | records exist and `resume` is false | M46 |
 
 The condition-wise checks (`brief-dials`, `certainty-windows`, `score-window`, `inert-arm`, `agent`, `draft`) iterate the same units: one merged dial vector `{**fixed_dials, **condition}` per grid cell, paired with `base_seed.child(f"{label}/0")`, where `label` drops `WORLD_INVARIANT_DIALS` and `spec.matched_dials` exactly as `MassTrialRunner` does. Except `draft`, they stop at the first refusing condition.
 
-`resume` refuses any changed spec field except two widenings: more `trials_per_condition`, and added levels on an existing axis. `expected_turns` counts as unchanged when both sides hold their derived value (the largest `max_turns`), so widening a `max_turns` axis resumes. The manifest is read through `store.read_manifest`, which decodes the strict-JSON encoding of non-finite numbers (since `01fee6a`). An unreadable `manifest.json`, or one carrying no `spec`, refuses the resume, naming the file: only a readable manifest with a spec is compared (it used to read as no prior spec and admit the resume). A resume directory with no manifest at all has nothing to compare and passes.
+`resume` refuses any changed spec field except two widenings: more `trials_per_condition`, and added levels on an existing axis. Three fields shape no record and are never drift (`_NON_RECORD_FIELDS`): `concurrency`, `out_dir` and `cost_ceiling_usd`, so a grid the ceiling stopped can be resumed under a raised one (T091 B3); the ceiling's own rule is that it may not sit below what the records already spent (`store.records_spend_usd`). `expected_turns` counts as unchanged when both sides hold their derived value (the largest `max_turns`), so widening a `max_turns` axis resumes. Both sides are compared in the manifest's JSON normal form (tuples as lists, mapping keys as strings, `nan` equal to `nan`; T091 D3), and axis levels by their typed frozen form (`trial.frozen_value(level, typed=True)`), so `1 → 1.0` is drift and a dict level in another key order is not (T091 G1). The manifest is read through `store.read_manifest`. An unreadable `manifest.json`, or one carrying no `spec`, refuses the resume, naming the file. A directory holding `records.jsonl` but no manifest refuses too (T091 B2): with no manifest the records cannot be matched to the spec they were drawn under. An empty directory with neither has nothing to continue and passes. `records-readable` runs first, so a torn last line is named by number before the drift check reads anything.
 
 
 
@@ -245,3 +251,4 @@ The shared five are `pi`, `complexity`, `certainty`, `epistemic_access`, `consti
 - Drift found, fixed 2026-10-28 (with findings A–E below): `preflight`'s docstring "Order:" (~694) lists nine of the sixteen checks; `draft_violation`'s docstring (~354) says "at the base seed" where the code drafts at each condition's first-trial seed; the module docstring and `ABIO-Experiment` still say "the five guards", and `ABIO-Experiment`'s pre-flight table has seven rows, attributes the readout-lever refusal to `declared_surface_violation` and gives `guards.py` 307 lines (786 today).
 - 2026-10-28 — findings A–E fixed and this page updated with each: the `draft` check builds every condition's brief with the real `build_brief` (the hand-copied hidden-pool check is gone); a non-list `levers` is a `surface` refusal; an unreadable or spec-less manifest refuses a resume; only `ValueError` is a config refusal, any other drafter or brief exception a named generator error that still refuses; `--dry` prints `resume: skipped (not a resume)`. The docstrings and `ABIO-Experiment`'s pre-flight table, modules row and `--dry` list were made true in the same pass.
 - 2026-10-28 — refreshed against 0eb23e5 (`01fee6a`): the resume check reads the manifest through `store.read_manifest`; the description's check count corrected to 17.
+- 2026-10-29 — refreshed for `e392c11`, `e5ea4d0` and `661005d` (T091 A4, B2–B4, B8, B11, D3, D7, F3, G1, G4): nineteen checks (`intervene-horizon` and `records-readable` added, with a block for `intervene_horizon_violation`); resume refuses records without a manifest and a ceiling below spend, never counts `concurrency`/`out_dir`/`cost_ceiling_usd` as drift, and compares JSON-canonical, typed frozen values; no-peeking refuses a falsy `opaque_names`; `inert-arm` refuses a factory axis no agent reads; `agent` checks the probe signature (warning only without probes). Figure: the check count and two band lines updated in place, nothing redrawn.

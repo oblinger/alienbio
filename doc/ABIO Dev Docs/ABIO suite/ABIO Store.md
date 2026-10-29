@@ -8,7 +8,7 @@ The run's own evidence on disk: one canonical-JSON line per trial in `records.js
 ![ABIO Store](ABIO%20Store.svg) 
 *The record line* is the topic that governs `records.jsonl` (†): a field an experiment did not declare leaves no key, so the golden hashes stay byte-identical; *Resume and retries* governs the `originals` edge into `records.retried.jsonl`.
 
-`suite/store.py` has no primary class and no `__all__`: its two public names are the line codec `record_to_json`/`record_from_json`, and the rest are underscore helpers that other modules import by name — `experiment.py` re-exports every one, `commands/suite_cmd.py` takes `_single_model`/`_model_axis_levels` for `--dry`, and tests import the brief codec and `_build_manifest`. This page covers those, and the run directory as a whole, because the store's files are written from four modules. Who writes when is `run_experiment` and `aggregate` in `suite/experiment.py`; the record the line encodes is [ABIO TrialRecord](ABIO%20TrialRecord.md); the spec the manifest pins is [ABIO ExperimentSpec](ABIO%20ExperimentSpec.md); the resume refusal that reads the manifest is [ABIO Guards](ABIO%20Guards.md); `map.json` comes from [ABIO MassTrialRunner](ABIO%20MassTrialRunner.md)'s `ReliabilityMap`. The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's view of the run directory is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md).
+`suite/store.py` has no primary class and no `__all__`: its public names are the line codec `record_to_json`/`record_from_json`, the readers `read_manifest`/`read_records` with their `StoreError`, `records_spend_usd` and `manifest_model_label`, and the rest are underscore helpers that other modules import by name — `experiment.py` re-exports every one, `commands/suite_cmd.py` takes `_single_model`/`_model_axis_levels` for `--dry`, and tests import the brief codec and `_build_manifest`. This page covers those, and the run directory as a whole, because the store's files are written from four modules. Who writes when is `run_experiment` and `aggregate` in `suite/experiment.py`; the record the line encodes is [ABIO TrialRecord](ABIO%20TrialRecord.md); the spec the manifest pins is [ABIO ExperimentSpec](ABIO%20ExperimentSpec.md); the resume refusal that reads the manifest is [ABIO Guards](ABIO%20Guards.md); `map.json` comes from [ABIO MassTrialRunner](ABIO%20MassTrialRunner.md)'s `ReliabilityMap`. The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's view of the run directory is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md).
 
 
 
@@ -24,11 +24,14 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 | [_canonical_json](#^canonical-json) | Sorted-key compact JSON, the line's bytes |
 | [_json_safe](#^json-safe) | Sets to sorted lists, recursively |
 | [_encode_float](#^encode-float) | `inf`/`-inf`/`nan` as JSON strings |
-| [_decode_float](#^decode-float) | Their inverse |
-| [_encode_nonfinite](#^encode-nonfinite) | `_encode_float` at every depth |
-| [_decode_nonfinite](#^decode-nonfinite) | Its inverse, on the numeric fields |
-| [read_manifest](#^read-manifest) | `manifest.json` parsed, non-finite floats decoded |
+| [_decode_float](#^decode-float) | One float field of a decoded tree |
+| [_encode_nonfinite](#^encode-nonfinite) | Floats spelled, colliding strings escaped |
+| [_decode_nonfinite](#^decode-nonfinite) | Its inverse, over a whole tree |
+| [read_manifest](#^read-manifest) | `manifest.json` parsed and decoded once |
 | [read_records](#^read-records) | Every `records.jsonl` line, parsed and rebuilt |
+| [StoreError](#^storeerror) | A store line that does not parse |
+| [records_spend_usd](#^records-spend-usd) | What the lines on disk already spent |
+| [_usage_usd](#^usage-usd) | One record's usage, priced |
 | [manifest_model_label](#^manifest-model-label) | What a manifest says ran |
 | [_write_manifest](#^write-manifest) | `manifest.json`, atomically |
 | [_atomic_write_text](#^atomic-write-text) | Temp file + `os.replace` |
@@ -42,10 +45,10 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 | [_utc_now_iso](#^utc-now-iso) | The timestamp format of the manifest |
 
 **record_to_json**`(record: TrialRecord, label: str, index: int) -> dict[str, Any]`
-    The record as one line's dict, with `label` and `index` (the cell label and trial index the resume keys on) first. `final_timeline` is summarised to `final_time` (the last time, or `None`) and `final_state` — the record's own `final_state`, or, when that is empty, the last timeline state through `final_state_dict`. `oracle`/`answer` go through `_json_safe`, the whole dict through `_encode_nonfinite` (every non-finite float, at any depth, as `"inf"`/`"-inf"`/`"nan"`), and nine top-level keys are written only when set ([The record line](#the-record-line)). Does not add `agent`, `model`, `memory`, `temperature`, `top_p` or `registration`; `run_experiment` stamps those on the dict before dumping it. ^record-to-json
+    The record as one line's dict, with `label` and `index` (the cell label and trial index the resume keys on) first. `final_timeline` is summarised to `final_time` (the last time, or `None`) and `final_state` — the record's own `final_state`, or, when that is empty, the last timeline state through `final_state_dict`. `oracle`/`answer` go through `_json_safe`; `_canonical_json` then spells every non-finite float, at any depth, as `"inf"`/`"-inf"`/`"nan"` and escapes a string that would read as one, and ten top-level keys are written only when set ([The record line](#the-record-line)). Does not add `agent`, `model`, `memory`, `temperature`, `top_p` or `registration`; `run_experiment` stamps those on the dict before dumping it. ^record-to-json
 
 **record_from_json**`(d: Mapping[str, Any]) -> TrialRecord`
-    The inverse, lossy where the line is: `final_timeline` comes back as `Timeline(times=(final_time,), states=())`, a JSON list wherever a tuple went in, and the line-only keys are ignored ([Reload and its limits](#reload-and-its-limits)). The always-written keys are read with `d[...]` and raise `KeyError` when missing; every only-when-set key, and `taint_hits`, `usage`, `wall_time_s`, `oracle`, `final_state`, `name_map`, `answer` and an action's `target`/`value`/`delta`, are read with `.get` and default. The numeric fields — `objective_score`, `spent`, `usage`, condition levels, `final_state`, `oracle`, an action's `value`/`delta`, `compaction`/`forgetting`/`monitor` — go through `_decode_nonfinite`; `answer`, `name_map` and prose do not, so a non-finite float inside an `answer` reloads as its string. ^record-from-json
+    The inverse, lossy where the line is: `final_timeline` comes back as `Timeline(times=(final_time,), states=())`, a JSON list wherever a tuple went in, and the line-only keys are ignored ([Reload and its limits](#reload-and-its-limits)). The whole line is decoded once through `_decode_nonfinite` first (T091 B7), so a float NaN reloads as a float and a string level `"nan"` as the string, in every field, `answer` included. The always-written keys are then read with `d[...]` and raise `KeyError` when missing; every only-when-set key, and `taint_hits`, `usage`, `wall_time_s`, `oracle`, `final_state`, `name_map`, `answer` and an action's `target`/`value`/`delta`, are read with `.get` and default. ^record-from-json
 
 **_brief_to_json**`(brief: TaskBrief) -> dict[str, Any]`
     Every `TaskBrief` field: `question` and `monitoring` through `_json_safe`, `budget_total` through `_encode_float`, the affordances as lists. Six later keys are written only when set: `affordances.max_rates` (sorted, when non-empty; T023), `context_padding` (T027), `constitution_in_history` (when true; T029), `protocol` (T032), `monitor` (T060), `task_note` (T061). ^brief-to-json
@@ -63,19 +66,28 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
     `"inf"`, `"-inf"` or `"nan"` for a non-finite float, the value otherwise — the store's one spelling. Applied directly to `budget`, `remaining`, `brief.budget_total` and every `readout_series` value, and through `_encode_nonfinite` to everything else. ^encode-float
 
 **_decode_float**`(value: Any) -> float`
-    `"inf"`/`"-inf"`/`"nan"` back to the floats, anything else through `float()`. ^decode-float
+    `float(value)` on a field of a tree `_decode_nonfinite` has already decoded. ^decode-float
 
 **_encode_nonfinite**`(value: Any) -> Any`
-    `value` with every float through `_encode_float`; dict, list and tuple recurse, each keeping its type. A finite tree comes back equal, so its bytes do not move (the goldens prove it). ^encode-nonfinite
+    `value` with every float through `_encode_float`, and every string leaf matching `\\*(nan|inf|-inf)` given one more leading backslash, so the bare spelling on disk is only ever a float (T091 B7: a `task_note: "inf"` used to reload as a float and refuse its own resume as drift). Dict, list and tuple recurse, each keeping its type. Applied exactly once per write, by `_canonical_json` and `_write_manifest`; it is not idempotent. A finite tree with no such string comes back equal, so its bytes do not move (the goldens prove it). ^encode-nonfinite
 
 **_decode_nonfinite**`(value: Any) -> Any`
-    The strings `"inf"`/`"-inf"`/`"nan"` back to floats, dict and list recursing. Used only on fields that carry numbers ([record_from_json](#^record-from-json)). ^decode-nonfinite
+    The inverse over a whole parsed tree: a bare `"inf"`/`"-inf"`/`"nan"` becomes the float, an escaped one loses one backslash and stays a string; dict and list recurse. Applied once, to the whole line ([record_from_json](#^record-from-json), `read_records`) or manifest (`read_manifest`); since the writer escapes every colliding string, no field is skipped. ^decode-nonfinite
 
 **read_manifest**`(path: Path) -> dict[str, Any]`
-    `manifest.json` parsed, with the `"inf"`/`"-inf"`/`"nan"` spellings `_write_manifest` writes decoded back to floats on the numeric-bearing keys only (`cost_estimate`, `cost_ceiling_usd`, `cost_usd_spent`, `usage_totals`, and the spec's `axes`, `fixed_dials`, `drafter_kwargs`, `cost_ceiling_usd`, `price_usd_per_mtok`, `top_p`, `expected_cache_hit_rate`); prose fields are never decoded. The one reader every resume, drift check, `aggregate`, `bio suite resume|report` and `bio report` goes through. Raises what the read or `json.loads` raises. ^read-manifest
+    `manifest.json` parsed and decoded once through `_decode_nonfinite`, over the whole manifest: a spec carrying `inf` round-trips equal, and a string dial `"inf"` stays a string (T091 B7). The one reader every resume, drift check, `aggregate`, `bio suite resume|report` and `bio report` goes through. Raises what the read or `json.loads` raises. ^read-manifest
 
 **read_records**`(path: Path) -> Iterator[tuple[str, dict[str, Any], TrialRecord]]`
-    Every non-blank `records.jsonl` line as `(line, parsed dict, record)`; the line is kept verbatim so a resume can rewrite the store from it. The one reader the resume and `aggregate` share. ^read-records
+    Every non-blank `records.jsonl` line as `(line, decoded dict, record)`; the line is kept verbatim so a resume can rewrite the store from it. The one reader the resume and `aggregate` share. A line that is not JSON raises [StoreError](#^storeerror) naming the file and its 1-based line number, and calls it a crash artifact (an append torn by a crash or a full disk) when it is the last line with no trailing newline; nothing is dropped silently (T091 B4). ^read-records
+
+**StoreError**`(ValueError)`
+    A record store that cannot be read as written: a `records.jsonl` line that is not JSON. The message names the file, the line and the repair (delete or restore it). `preflight`'s `records-readable` check reports it before a resume. ^storeerror
+
+**records_spend_usd**`(path: Path, spec: ExperimentSpec) -> float`
+    The priced usage of every line in `records.jsonl`, reused and error lines alike, through [_usage_usd](#^usage-usd): the total a resume's cost ceiling starts from, and what the `resume` check compares a lowered ceiling against. `experiment.py` re-exports it. ^records-spend-usd
+
+**_usage_usd**`(usage: Mapping[str, Any], model: Optional[str], spec: ExperimentSpec) -> float`
+    USD for one record's provider `usage` under the model in force for its trial (`model`, else `spec.model`, else `PINNED_MODEL`), cache reads and writes included: the one pricing of a landed or retried line against the ceiling. `experiment.py` re-exports it for `run_experiment`. ^usage-usd
 
 **manifest_model_label**`(manifest: Mapping[str, Any]) -> Optional[str]`
     The manifest's `model`, else its `models` levels joined with `", "`, else `None`. `render_report`'s `Model:` line and `bio report`'s run table (kind and model column) both read it. ^manifest-model-label
@@ -137,10 +149,10 @@ A line is `record_to_json`'s dict plus the extras `run_experiment` stamps, dumpe
 | Keys | On the line |
 | --- | --- |
 | `label`, `index` | always; the resume key |
-| the `TrialRecord` core (`task_id` … `name_map`, `action_log`, `deliberation_trace`, `brief`) | always; any non-finite float as `"inf"`/`"-inf"`/`"nan"`, so the line is strict JSON |
+| the `TrialRecord` core (`task_id` … `name_map`, `action_log`, `deliberation_trace`, `brief`) | always; any non-finite float as `"inf"`/`"-inf"`/`"nan"`, so the line is strict JSON, and a string leaf with that spelling behind one more backslash |
 | `final_time`, `final_state` | always; the summarised timeline |
 | `probes`, `certainty_schedule` | only when non-empty |
-| `compaction`, `forgetting`, `monitor`, `readout_series` | only when not `None` |
+| `compaction`, `forgetting`, `monitor`, `readout_series`, `runout` | only when not `None` (`runout` `e392c11`) |
 | `parse_failures`, `aborted`, `grade_error` | only when non-zero / not `None` (`01fee6a`; `grade_error` `552c1a7`) |
 | `action_log[].value`, `.delta` | only when not `None` |
 | `agent`, `model`, `memory`, `temperature`, `top_p` | always, stamped by `run_experiment`<br>`model`, `temperature`, `top_p` null unless the trial's kind is `llm` |
@@ -156,6 +168,7 @@ The run's own proof, written by `_build_manifest` before any trial and updated i
 | Keys | What it proves | Written |
 | --- | --- | --- |
 | `name`, `spec`, `spec_sha256` | the spec the records were drawn under (`spec_to_dict`) and the sha256 of its canonical JSON | start |
+| `spec_path`, `helper_modules` | the file the spec was loaded from (repo-relative when under the repo, else absolute) and every `.py` its trusted `_includes_` ran; `resume`, `aggregate` and `report` reload that file so its drafters and agents register (T091 E1). Absent for a Python-built spec | start |
 | `alienbio_version`, `git_commit`, `git_dirty`, `python_version`, `platform`, `hostname` | the code and machine | start |
 | `model`, `models` | the one model in force (`_single_model`); under a `model` axis `model` is null and `models` lists the levels (T066) | start |
 | `model_created_at` | the generation behind the id, from `suite/models_snapshot.json` (T016); null under a `model` axis, with no model, or for an id the snapshot lacks | start |
@@ -165,6 +178,7 @@ The run's own proof, written by `_build_manifest` before any trial and updated i
 | `directive_sha256` | sha256 of `DEFAULT_DIRECTIVE`, the system-prompt preamble — not the directive in force, equal today because `agents.py` passes no other | start |
 | `design` | the power design, stated before the spend (M46.9), or null | start |
 | `cost_estimate`, `cost_ceiling_usd` | the dry-run projection, pinned so actual spend can be compared (M45.5) | start |
+| `cost_ceiling_history` | every ceiling the run has run under, in order; a resume that changes the ceiling appends the new one (T091 B3) | start, resume |
 | `started_at`, `trials_planned` | the start, and the grid size | start |
 | `finished_at`, `trials_completed`, `failed_trials` | null at start, with the lines a resume kept (0 on a fresh run); after a crash, what landed; at the end the count of records on the map, error records included, and of those the error count | start, crash, end |
 | `cost_usd_spent`, `usage_totals`, `stopped_reason` | priced usage of every landed record<br>summed token counts<br>`"cost_ceiling"` on an early stop | end |
@@ -175,7 +189,7 @@ The `models`/`memories` keys are absent, not empty, when nothing is swept, so `m
 
 
 ## Reload and its limits
-`aggregate(out_dir)` rebuilds a `ReliabilityMap` from `manifest.json` (`read_manifest`, its `spec` through `spec_from_dict`) and every non-blank `records.jsonl` line (`read_records`), sorts the lines back to run order (`mass_trial.grid_positions`, then index), then calls `aggregate_records`; no world is drafted, no trial run. Error lines ride `records` and are excluded from the cells there, as in the live run. The reload loses:
+`aggregate(out_dir)` rebuilds a `ReliabilityMap` from `manifest.json` (`read_manifest`, then `spec_from_manifest`: the manifest's own spec, after re-loading a named `spec_path` so its helpers register; a named file that no longer exists refuses, naming the path) and every non-blank `records.jsonl` line (`read_records`), sorts the lines back to run order (`mass_trial.grid_positions`, then index), then calls `aggregate_records`; no world is drafted, no trial run. Error lines ride `records` and are excluded from the cells there, as in the live run. The reload loses:
 
 - **The timeline** — `final_timeline` is `Timeline(times=(final_time,), states=())`. Scores are frozen on the line, and `final_state` survives as a mapping, so every scorer in the report reads the same; code that indexes `final_timeline.states` does not.
 - **Tuples** — a tuple condition level, oracle value or answer reloads as a list, so a reloaded `condition_key` can differ from the live one; `bucket_key` freezes both to the same key.
@@ -185,7 +199,7 @@ The `models`/`memories` keys are absent, not empty, when nothing is swept, so `m
 
 
 ## Resume and retries
-`run_experiment(spec, resume=True)` — `bio suite resume <DIR>`, with the manifest's own spec — first passes `preflight`, whose `resume` check refuses an unreadable manifest, one with no spec, or a spec that drifted beyond widening (more trials, new levels on an existing axis; `6d82c8b`, [ABIO Guards](ABIO%20Guards.md)). It then reads `records.jsonl` line by line:
+`run_experiment(spec, resume=True)` — `bio suite resume <DIR>`, with the spec file as it is now (`spec_from_manifest(manifest, current=True)`, so an edit to the yaml is drift) — first passes `preflight`: `records-readable` refuses a torn or corrupt line, and `resume` refuses records with no manifest, an unreadable manifest, one with no spec, a ceiling below what the records already spent, or a spec that drifted beyond widening (more trials, new levels on an existing axis; `concurrency`, `out_dir` and `cost_ceiling_usd` are not drift; [ABIO Guards](ABIO%20Guards.md)). It then reads `records.jsonl` line by line:
 
 | Line | What happens |
 | --- | --- |
@@ -213,3 +227,4 @@ When anything was retried, the error lines are appended to `records.retried.json
 - 2026-10-28 — fixed from the hypotheses above (alienbio `420b0cc` non-finite floats, `36ca296` atomic manifest + crash-safe retries, `002a936` resume/crash counts, `bce6629` the `model`-axis readers + docstring): every section above now states the fixed behaviour; tests in `tests/suite/test_moddoc_findings_store.py`. The retried-line skip keys on the whole line, not `(label, index)`, so a genuine second failure is still kept. The `stopped_early` reload item was fixed separately (`dbbfce1`).
 - 2026-10-28 — refreshed against 0eb23e5: `read_manifest`/`read_records` added (`01fee6a`, `3885584`); the manifest is strict JSON; `parse_failures`/`aborted` ride the line only when set; the repo root is `spec.REPO_ROOT` (`f95c6cf`); a reload sorts to run order.
 - 2026-10-28 — refreshed against `552c1a7`: `grade_error` rides the line only when set and `record_from_json` reads it back.
+- 2026-10-29 — refreshed for `e5ea4d0`, `e392c11` and `661005d` (T091 B3/B4/B7, A1, E1): colliding strings escaped and every tree decoded once, `StoreError` naming the torn line, `records_spend_usd`/`_usage_usd` documented here, `runout` on the line, `spec_path`/`helper_modules`/`cost_ceiling_history` on the manifest, and resume reading the spec file as it is now.
