@@ -64,16 +64,6 @@ def trials_for_effect(
     return max(2, math.ceil(n) + 1)
 
 
-def detectable_effect(n: int, *, alpha: float = 0.05, power: float = 0.8, two_sided: bool = True) -> float:
-    """The smallest standardized effect ``n`` trials per condition can detect
-    at the given ``alpha``/``power`` — the inverse of :func:`trials_for_effect`."""
-    if n < 2:
-        raise ValueError(f"detectable_effect: n must be >= 2, got {n!r}")
-    z_alpha = z_quantile(1.0 - alpha / 2.0) if two_sided else z_quantile(1.0 - alpha)
-    z_power = z_quantile(power)
-    return (z_alpha + z_power) * math.sqrt(2.0 / n)
-
-
 def bonferroni_alpha(alpha: float, comparisons: int) -> float:
     """``alpha / comparisons`` (``alpha`` itself when there is at most one)."""
     if comparisons <= 1:

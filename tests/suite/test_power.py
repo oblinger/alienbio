@@ -7,7 +7,6 @@ import pytest
 from alienbio.suite.power import (
     PowerDesign,
     bonferroni_alpha,
-    detectable_effect,
     trials_for_effect,
     z_quantile,
 )
@@ -30,13 +29,6 @@ def test_trials_for_effect_textbook_medium_effect():
         trials_for_effect(0.0)
     with pytest.raises(ValueError):
         trials_for_effect(0.5, alpha=1.5)
-
-
-def test_detectable_effect_inverts_trials_for_effect():
-    n = trials_for_effect(0.5)
-    d = detectable_effect(n)
-    assert d <= 0.5
-    assert trials_for_effect(d) <= n + 1
 
 
 def test_bonferroni_alpha():

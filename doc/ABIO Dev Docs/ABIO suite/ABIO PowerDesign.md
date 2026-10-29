@@ -1,5 +1,5 @@
 ---
-description: "`power`: M46.9's statistical design fixed before the spend — `PowerDesign` (target d, alpha, power, primary contrast, multiple-comparison policy) with `required_trials_per_condition` from the normal-approximation `trials_for_effect`; `detectable_effect` inverts it; `bonferroni_alpha` divides alpha. Source: `src/alienbio/suite/power.py`."
+description: "`power`: M46.9's statistical design fixed before the spend — `PowerDesign` (target d, alpha, power, primary contrast, multiple-comparison policy) with `required_trials_per_condition` from the normal-approximation `trials_for_effect`; `bonferroni_alpha` divides alpha. Source: `src/alienbio/suite/power.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO PowerDesign](ha://p/ABIO%20PowerDesign) 
 # ABIO PowerDesign
@@ -53,13 +53,12 @@ A frozen dataclass; `__post_init__` validates by sizing the design once.
 
 
 ## power Interface
-Four functions.
+Three functions.
 
 | power | |
 | --- | --- |
 | [z_quantile](#^z-quantile) | Standard-normal inverse CDF |
 | [trials_for_effect](#^trials-for-effect) | n per condition for a given d |
-| [detectable_effect](#^detectable-effect) | d detectable with a given n |
 | [bonferroni_alpha](#^bonferroni-alpha) | Alpha over the comparison count |
 
 **z_quantile**`(p: float) -> float`
@@ -67,9 +66,6 @@ Four functions.
 
 **trials_for_effect**`(d: float, *, alpha=0.05, power=0.8, two_sided=True) -> int`
     `max(2, ceil(2 · ((z_alpha + z_power) / d)²) + 1)`. `d = 0.5` → 64, `d = 1.0` → 17, `d = 10` → 2. § [The sizing formula](#the-sizing-formula). ^trials-for-effect
-
-**detectable_effect**`(n: int, *, alpha=0.05, power=0.8, two_sided=True) -> float`
-    `(z_alpha + z_power) · sqrt(2 / n)`; `ValueError` for `n < 2`. Not an exact inverse: the `+ 1` makes `detectable_effect(trials_for_effect(0.5))` read 0.495. No caller in `src/`. ^detectable-effect
 
 **bonferroni_alpha**`(alpha: float, comparisons: int) -> float`
     `alpha / comparisons`, or `alpha` when there is at most one. ^bonferroni-alpha
@@ -92,3 +88,4 @@ The normal approximation for a two-sided two-sample test on means with equal gro
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and `spec._validate_design`; the three sized ns and the non-inverse confirmed on the HEAD export, no spend. Not determined: whether the sized n should match how the primary contrast pools (T088 § suite/power).
+- 2026-10-29 — T093: `detectable_effect` retired (no caller in `src/`, `catalog/`, `demos/` or AUP; not an exact inverse of `trials_for_effect`); its test and figure node went with it.
