@@ -95,7 +95,14 @@ def _intervention_motif() -> Motif:
     return Motif(roles=(role,), edges=())
 
 
-def target_compartment(world: WorldImpl, target_id: str, named: Optional[str] = None) -> str:
+def target_compartment(
+    world: WorldImpl,
+    target_id: str,
+    named: Optional[str] = None,
+    *,
+    task: str = "intervene",
+    hint: Optional[str] = None,
+) -> str:
     """The compartment an intervene task reads its target in (T091 E2).
 
     ``named`` (the binding's ``compartment`` entry) wins and must be one of
@@ -110,12 +117,15 @@ def target_compartment(world: WorldImpl, target_id: str, named: Optional[str] = 
     So a cosmetic ``P: 0.0`` changes nothing. Several holders, or none,
     refuse — naming the compartments — because a concentration summed over
     compartments of different volumes is no quantity the task states.
+    ``task`` prefixes the refusal and ``hint`` replaces its binding advice,
+    so another scorer reading one compartment (the conflict oracle,
+    :mod:`~alienbio.suite.tradeoff`) shares the rule.
     """
     ids = [str(c.id) for c in world.compartments]
     if named is not None:
         if str(named) not in ids:
             raise ValueError(
-                f"intervene: target compartment {named!r} is not a compartment of the world {ids}"
+                f"{task}: target compartment {named!r} is not a compartment of the world {ids}"
             )
         return str(named)
     if len(ids) == 1:
@@ -124,11 +134,12 @@ def target_compartment(world: WorldImpl, target_id: str, named: Optional[str] = 
     if len(holders) == 1:
         return holders[0]
     where = f"can be held in {holders}" if holders else "is held in none"
-    raise ValueError(
-        f"intervene: target {target_id!r} {where} of the world's compartments {ids}; "
-        f"name the one to score with a {COMPARTMENT_ROLE!r} binding (binding: {{{TARGET_ROLE}: ..., "
-        f"{COMPARTMENT_ROLE}: <id>}})"
-    )
+    if hint is None:
+        hint = (
+            f"name the one to score with a {COMPARTMENT_ROLE!r} binding (binding: {{{TARGET_ROLE}: ..., "
+            f"{COMPARTMENT_ROLE}: <id>}})"
+        )
+    raise ValueError(f"{task}: target {target_id!r} {where} of the world's compartments {ids}; {hint}")
 
 
 def target_holders(world: Any, target_id: str) -> list[str]:

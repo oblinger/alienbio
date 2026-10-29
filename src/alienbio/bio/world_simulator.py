@@ -2,8 +2,8 @@
 
 The reference simulator. It matches :class:`~alienbio.bio.jax_simulator.JaxWorldSimulator`
 to 1e-9 over the supported magnitude range — concentrations, multiplicities
-and amounts from 0 to 1e6 (``bio.rate_expr``'s module docstring states the
-contract and what lies outside it). Every pass keeps the state non-negative:
+and amounts from 0 to 1e6 (``rate_expr.parity_agrees`` is the contract;
+``bio.rate_expr``'s module docstring says what lies outside it). Every pass keeps the state non-negative:
 a rationed draw's rounding residue is snapped to zero relative to the pool
 it was drawn from (``rate_expr.snap_residue``).
 """
@@ -421,12 +421,18 @@ class WorldSimulatorImpl:
 
         # Each reaction scales by the tightest ratio over its reactants.
         # 3. Apply simultaneously.
+        produced: Dict[MoleculeId, float] = {}
+        bound_by: Dict[MoleculeId, bool] = {mol_id: r < 1.0 for mol_id, r in ratio.items()}
         for reaction, ext in zip(reactions, desired):
             scale = 1.0
             for mol_id, stoich in reaction.reactants.items():
                 if stoich > 0:
                     scale = min(scale, ratio.get(mol_id, 1.0))
             extent = ext * scale
+            if ext > 0.0:
+                for mol_id, stoich in reaction.reactants.items():
+                    if stoich > 0 and scale != ratio[mol_id]:
+                        bound_by[mol_id] = False  # a consumer held back by another pool
 
             for mol_id, stoich in reaction.reactants.items():
                 remaining = new_state.get(compartment, mol_id) - extent * stoich
@@ -436,11 +442,24 @@ class WorldSimulatorImpl:
                 remaining = snap_residue(remaining, frozen.get(compartment, mol_id))
                 new_state.set(compartment, mol_id, remaining)
             for mol_id, stoich in reaction.products.items():
+                produced[mol_id] = produced.get(mol_id, 0.0) + extent * stoich
                 new_state.set(
                     compartment,
                     mol_id,
                     new_state.get(compartment, mol_id) + extent * stoich,
                 )
+
+        # An EXHAUSTED pool — rationed (ratio < 1) and the binding limit of
+        # every reaction drawing it — gives up exactly what it held, so it
+        # ends at exactly what the pass produced into it. Computing it as
+        # ``pre - draws + production`` leaves a residue of ulp(pre) whose
+        # sign and size depend on the order the draws are summed in, which
+        # the two backends do not share; a law reading that pool (``1/[x]``,
+        # a Michaelis modulator) amplified the residue into a relative gap of
+        # 1.0 (T091). ``jax_core.apply_reactions`` applies the same rule.
+        for mol_id, exhausted in bound_by.items():
+            if exhausted:
+                new_state.set(compartment, mol_id, produced.get(mol_id, 0.0))
 
     def run(
         self,

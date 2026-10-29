@@ -153,3 +153,32 @@ def test_conflict_question_names_both_targets_on_the_two_target_rungs():
         assert {A, B} <= task_readouts(task, world.chemistry)
     _world, task = DRAFTERS["conflict"](Seed(1), {"rung": "single"})
     assert task.question.structured["target"] == "root/sink_in"
+
+
+def test_a_two_compartment_record_scores_the_one_compartment_the_oracle_names():
+    """T091 E2's shape on the conflict read: ``_final_value`` summed the
+    target over every compartment. It reads the compartment the oracle's
+    ``compartments`` names (stamped by ``conflict_oracle`` only on a
+    multi-compartment world, by the intervene rule), else the record's only
+    compartment, and refuses an unnamed multi-compartment record."""
+    from types import SimpleNamespace
+
+    from alienbio.bio.world import Compartment
+
+    final = {"root": {A: 100.0, B: 100.0}, "cell": {A: 4.0, B: 2.0}}
+    named = {"conflict": {**ORACLE["conflict"], "compartments": {A: "cell", B: "cell"}}}
+    assert component_scores(_record(final, named, ())) == {A: 0.4, B: 0.2}
+    with pytest.raises(ValueError, match="names none to score"):
+        component_scores(_record(final, ORACLE, ()))
+
+    world, _, objective = draft_conflict_world(Seed(1), rung="forced")
+    assert "compartments" not in conflict_oracle(objective, "forced", world=world)  # one compartment: no line moves
+    # Two compartments: the conflict chemistry's source runs in both, so
+    # either can hold each target (target_holders) and the oracle refuses
+    # rather than stamp a guess.
+    two = SimpleNamespace(
+        chemistry=world.chemistry,
+        compartments=(Compartment("root", None, "organism", 1.0), Compartment("cell", "root", "cell", 0.1)),
+    )
+    with pytest.raises(ValueError, match=r"conflict_oracle: target .* can be held in \['root', 'cell'\]"):
+        conflict_oracle(objective, "forced", world=two)

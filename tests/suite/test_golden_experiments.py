@@ -108,6 +108,14 @@ idle cells (exp01 +12 -> 36, exp03 +18 -> 54, exp08 +6 -> 18, exp09 +12 ->
 target is scored at the horizon); every existing line, keyed
 ``(label, index)``, is byte-identical field for field. The other ten were
 byte-unchanged (T091 B7's string escape moves no line of any zero).
+exp02 and exp13 re-pinned 2026-10-29 (T091, simulator parity): an
+exhausted pool (rationed, the binding limit of every reaction drawing it)
+now ends at exactly what the pass produced into it rather than at
+``pre - draws + production``, on both backends. Only floats moved — 225
+fields on exp02, 84 on exp13, in ``final_state``, ``readout_series`` and
+six ``objective_score`` values — none by more than 3.5e-16 relative; every
+action, answer and structural field is byte-identical, and the other
+fourteen hashes are byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -129,7 +137,7 @@ CATALOG = REPO / "catalog" / "experiments"
 GOLDEN: dict[str, str] = {
     "exp01": "4aaf06173dd4d298",
     "exp10": "40269618889cc67a",
-    "exp02": "a23400c0bb583d18",
+    "exp02": "838e8a5b061f34ad",
     "exp03": "5de1a2a44b6b0615",
     "exp04": "5b05aa164a6d8b8a",
     "exp04-diagnose-zero": "eba0349455c4ab1b",
@@ -141,7 +149,7 @@ GOLDEN: dict[str, str] = {
     "exp09": "3253a967f7562e93",
     "exp11": "5133aeda0c2af22c",
     "exp12": "1264a5892e887d4c",
-    "exp13": "dffcdd961510011f",
+    "exp13": "750c9b4f0a160b6d",
 }
 
 PAID = {"exp04-first-live"}

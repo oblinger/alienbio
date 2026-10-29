@@ -3,7 +3,8 @@
 Hypothesis draws random reaction systems — stoichiometry, rate constants,
 every ``Modulation`` kind, compiled rate expressions, one or two
 compartments — and every block in the library with random parameters; the
-reference simulator and the JAX core must agree to float64 precision on
+reference simulator and the JAX core must agree under the parity contract
+(``rate_expr.parity_agrees``: ``|a − b| ≤ 1e-9 · max(1, |a|, |b|)``) on
 all of them, every concentration must stay finite and non-negative, and a
 closed 1:1 system must conserve its total.
 """
@@ -13,9 +14,10 @@ from __future__ import annotations
 import math
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import example, given, settings, strategies as st
 
 from alienbio.bio import CompartmentTreeImpl, ReactionSpec, WorldSimulatorImpl, WorldStateImpl
+from alienbio.bio.rate_expr import parity_agrees
 from alienbio.bio.reaction import Modulation
 from alienbio.expr import Env, X, evaluate
 from alienbio.suite.verify import SimConfig, simulate
@@ -164,21 +166,65 @@ def test_a_law_dividing_by_a_species_that_ran_out_agrees_on_both_backends():
     jx = JaxWorldSimulator(tree, reactions, num_molecules=3, dt=0.05).run(state, steps=2)[-1]
 
     for m in range(3):
-        assert jx.get(0, m) == pytest.approx(ref.get(0, m), abs=1e-9, rel=1e-9), m
+        assert parity_agrees(jx.get(0, m), ref.get(0, m)), (m, jx.get(0, m), ref.get(0, m))
     assert ref.get(0, 0) == pytest.approx(0.0, abs=1e-9)
     assert ref.get(0, 1) == pytest.approx(1.04, abs=1e-9)
+
+
+def _exhausted_pool_then_reciprocal_law():
+    """The property's shrunk failure (T091): r0 and r2 ration a 23197.75 pool
+    to exhaustion. The reference's two subtractions left +1.8e-12 (a few
+    ulps of the pool) where JAX's fused sum landed on 0.0, so r1's
+    ``1/[m1]`` read a 5e11 rate on the reference — which drained all of m2
+    into m0 — and zero under JAX: a relative gap of 1.0, not rounding. An
+    exhausted pool now ends at exactly what the pass produced into it, on
+    both backends (``jax_core.apply_reactions``)."""
+    tree = CompartmentTreeImpl()
+    root = tree.add_root("organism")
+    tree.add_child(root, "cell")
+    state = WorldStateImpl(tree=tree, num_molecules=3)
+    state.set(0, 1, 23197.75)
+    reactions = [
+        ReactionSpec("r0", {1: 2.0}, {0: 1.0}, 1.0, rate_law=("add", ("const", 1.0), ("const", 1.0))),
+        ReactionSpec("r1", {2: 1.0}, {0: 1.0}, 1.0, rate_law=("div", ("const", 1.0), ("species", 1))),
+        ReactionSpec("r2", {1: 2.0}, {2: 1.0}, 1.0, rate_law=("add", ("const", 0.5), ("const", 0.375))),
+    ]
+    return tree, reactions, 3, state, 0.01, 2
+
+
+def _exhausted_pool_read_by_a_modulator():
+    """Seed 7's failure, after the first: a 80078 pool exhausted while a
+    1.4e-7 trickle refilled it; ``pre - draws + production`` kept the
+    trickle plus an ulp(pre) residue whose size hung on summation order, and
+    a Michaelis modulator (K 0.18) on that pool turned the 1e-4 relative
+    difference into 5e-7 on the 8e4 pool it gates — 3e-5 relative overall."""
+    tree = CompartmentTreeImpl()
+    root = tree.add_root("organism")
+    tree.add_child(root, "cell")
+    state = WorldStateImpl(tree=tree, num_molecules=4)
+    for m, v in enumerate([1.0, 320308.75, 4.93359375, 2.932190831303099]):
+        state.set(0, m, v)
+    reactions = [
+        ReactionSpec("r0", {0: 2.0}, {1: 2.0}, 1.0, rate_law=("mul", ("species", 2), ("mod", "michaelis", 3, {"K": 0.01, "Vmax": 1.1898865509665588}))),
+        ReactionSpec("r1", {1: 2.0}, {3: 2.0}, 1.5, modulators={0: Modulation(kind="michaelis", Vmax=0.537109375, K=0.1824827486698516)}),
+        ReactionSpec("r2", {2: 2.0}, {0: 1.0}, 1.0, modulators={3: Modulation(kind="michaelis", Vmax=0.625, K=0.6906451074562778)}, rate_law=("pow", ("const", 0.078125), ("const", 1.5))),
+        ReactionSpec("r3", {3: 2.0}, {0: 1.0}, 1.875, modulators={2: Modulation(kind="activator", a=0.7721173986942964)}),
+    ]
+    return tree, reactions, 4, state, 0.05, 8
 
 
 @needs_jax
 @settings(max_examples=60, deadline=None)
 @given(system())
+@example(_exhausted_pool_then_reciprocal_law())
+@example(_exhausted_pool_read_by_a_modulator())
 def test_jax_matches_the_reference_on_random_systems(sys_):
     tree, reactions, n_mol, state, dt, steps = sys_
     ref = WorldSimulatorImpl(tree, reactions, [], num_molecules=n_mol, dt=dt).run(state, steps=steps)[-1]
     jx = JaxWorldSimulator(tree, reactions, num_molecules=n_mol, dt=dt).run(state, steps=steps)[-1]
     for c in range(tree.num_compartments):
         for m in range(n_mol):
-            assert jx.get(c, m) == pytest.approx(ref.get(c, m), abs=1e-8, rel=1e-8), (c, m)
+            assert parity_agrees(jx.get(c, m), ref.get(c, m)), (c, m, jx.get(c, m), ref.get(c, m))
 
 
 @settings(max_examples=40, deadline=None)
@@ -230,9 +276,9 @@ def test_every_block_simulates_finite_on_the_reference_and_matches_jax(name, r, 
         jx = JaxWorldSimulator(world.initial_state.tree, ref_sim._reactions, num_molecules=n_mol, dt=cfg.dt, flows=list(world.flow_objs), population_laws=list(world.population_laws))
         jx_final = jx.run(world.initial_state.copy(), steps=cfg.steps)[-1]
         for c in range(len(world.compartments)):
-            assert jx_final.get_multiplicity(c) == pytest.approx(ref.get_multiplicity(c), abs=1e-8, rel=1e-8), (name, c)
+            assert parity_agrees(jx_final.get_multiplicity(c), ref.get_multiplicity(c)), (name, c)
             for m in range(n_mol):
-                assert jx_final.get(c, m) == pytest.approx(ref.get(c, m), abs=1e-8, rel=1e-8), (name, c, m)
+                assert parity_agrees(jx_final.get(c, m), ref.get(c, m)), (name, c, m)
 
 
 @settings(max_examples=5, deadline=None)

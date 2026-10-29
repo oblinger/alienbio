@@ -275,6 +275,15 @@ def apply_reactions(
 
     extent = desired * scale  # [Rn, C]
     S_next = S + jnp.einsum("rc,rm->cm", extent, net)
+    # An exhausted pool — rationed and the binding limit of every reaction
+    # drawing it — ends at exactly what the pass produced into it, as in
+    # WorldSimulatorImpl._apply_reactions (T091: ``pre - draws`` leaves an
+    # order-dependent ulp(pre) residue the two backends do not share).
+    drawing = is_reactant[:, None, :] & (desired > 0)[:, :, None]  # [Rn, C, M]
+    bound = scale[:, :, None] == ratio[None, :, :]
+    exhausted = (ratio < 1.0) & jnp.all(jnp.where(drawing, bound, True), axis=0)  # [C, M]
+    produced = jnp.einsum("rc,rm->cm", extent, p_stoich)
+    S_next = jnp.where(exhausted, produced, S_next)
     # float rounding of an exact zero -> zero, relative to the start-of-step
     # pool (``rate_expr.snap_residue``; matches WorldSimulatorImpl, T091 C3)
     return snap_residue_jax(S_next, S)

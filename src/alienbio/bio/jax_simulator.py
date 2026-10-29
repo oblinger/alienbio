@@ -49,7 +49,7 @@ class JaxWorldSimulator:
       ``run_batch``), so flows are not left in Python on the GPU path (M24.5).
 
     dtype defaults to float64 so trajectories match the float64 reference
-    simulator (F9).  Pass ``dtype="float32"`` to trade parity for GPU speed.
+    simulator under the parity contract, ``rate_expr.parity_agrees`` (F9).  Pass ``dtype="float32"`` to trade parity for GPU speed.
 
     Requires JAX.  Raises ImportError if not available.
     """

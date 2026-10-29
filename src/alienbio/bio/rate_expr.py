@@ -24,7 +24,9 @@ the reactants is implicit and the law is the factor that multiplies it
 (``k * hill(M, K)`` — the M47.3 form). :func:`implicit_mass_action` decides.
 
 **Supported magnitudes.** The two simulators agree to 1e-9 (relative, or
-absolute near zero) for concentrations, multiplicities and amounts from 0 to
+absolute near zero: :func:`parity_agrees`, ``|a − b| ≤ PARITY_TOL ·
+max(1, |a|, |b|)``, the one statement every conformance test asserts) for
+concentrations, multiplicities and amounts from 0 to
 1e6 — the range the conformance property draws (catalog pools are ~1–100).
 Where IEEE / JAX semantics give NaN or inf, the reference gives the same NaN
 or inf, never a different finite number. Pools far beyond that range, or
@@ -46,6 +48,25 @@ from typing import Any, Callable, Hashable, Iterable, Mapping
 #: backends carried their own copies, and a `1/[x]` law amplified a 1e-16
 #: residue on one of them into a RATE_CAP extent while the other read exactly 0).
 ROUNDING_FLOOR = 1e-12
+
+
+#: The parity contract between the reference and JAX simulators (module
+#: docstring, § Supported magnitudes): see :func:`parity_agrees`.
+PARITY_TOL = 1e-9
+
+
+def parity_agrees(a: float, b: float) -> bool:
+    """True when two simulator readings agree under the parity contract:
+    ``|a − b| ≤ PARITY_TOL · max(1, |a|, |b|)`` — relative above 1, absolute
+    below — or both NaN, or the same infinity. Float64 on both sides carries
+    ~1e-16 relative per operation, so a reading off by more than 1e-9 of its
+    own magnitude is a divergence in the arithmetic, not accumulated
+    rounding."""
+    if math.isnan(a) or math.isnan(b):
+        return math.isnan(a) and math.isnan(b)
+    if math.isinf(a) or math.isinf(b):
+        return a == b
+    return abs(a - b) <= PARITY_TOL * max(1.0, abs(a), abs(b))
 
 
 def snap_residue(value: float, pre: float) -> float:
@@ -70,6 +91,7 @@ def snap_residue_jax(value: Any, pre: Any) -> Any:
 
     scale = jnp.where(pre > 1.0, pre, 1.0)
     return jnp.where((value < 0.0) & (value > -ROUNDING_FLOOR * scale), 0.0, value)
+
 
 #: The largest desired extent a reaction may ask for in one step: an infinite
 #: rate means "all of it", and the rationing then bounds it by availability.
@@ -434,6 +456,7 @@ def from_json(data: Any) -> RateNode:
 
 __all__ = [
     "MODULATION_KINDS",
+    "PARITY_TOL",
     "RATE_CAP",
     "ROUNDING_FLOOR",
     "RateNode",
@@ -443,6 +466,7 @@ __all__ = [
     "from_json",
     "implicit_mass_action",
     "inhibitor_ratio",
+    "parity_agrees",
     "snap_residue",
     "snap_residue_jax",
     "lower_jax",
