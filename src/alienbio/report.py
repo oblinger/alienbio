@@ -187,6 +187,14 @@ class Report:
         ]
 
     @property
+    def unrun_suites(self) -> list[str]:
+        """Broader-suite rows (section 2) that did not run and pass here:
+        no passing case in the JUnit file, or any failure. A JUnit file
+        holding only the capability tests read ALL PASSED beside
+        ``test_golden_experiments.py 0 passed`` (T091 B6)."""
+        return [s.module for s in self.suites if s.passed == 0 or s.failed]
+
+    @property
     def ok(self) -> bool:
         """The verdict, computed from what the page shows — never from the
         pytest exit code alone (T051 box 4: ``--junit`` hard-coded that exit
@@ -194,12 +202,14 @@ class Report:
         rows read ``3 failed`` / ``error: ExprError`` was titled ALL PASSED).
         A page whose capability rows were not proven by a passing test is not
         a pass either: a JUnit file without the proving tests read ALL PASSED
-        with every row ``not run`` (T088 report 1)."""
+        with every row ``not run`` (T088 report 1), and neither is a page
+        whose broader-suite rows did not all run and pass (T091 B6)."""
         return (
             self.pytest_exit == 0
             and self.totals.get("failed", 0) == 0
             and all(not r.error and r.failed == 0 for r in self.examples)
             and not self.unproven
+            and not self.unrun_suites
         )
 
 
@@ -403,7 +413,12 @@ def render_markdown(rep: Report) -> str:
     elif not all(not e.error and e.failed == 0 for e in rep.examples):
         verdict = "FAILURES (an example did not run clean)"
     else:
-        verdict = f"NOT PROVEN ({len(rep.unproven)} capability rows without a passing test)"
+        gaps = []
+        if rep.unproven:
+            gaps.append(f"{len(rep.unproven)} capability rows without a passing test")
+        if rep.unrun_suites:
+            gaps.append(f"{len(rep.unrun_suites)} suite rows not run")
+        verdict = f"NOT PROVEN ({'; '.join(gaps)})"
     L = [f"# ABIO test report — {verdict}", "",
          f"*{rep.generated_at} · {t['passed']} passed, {t['failed']} failed, {t['skipped']} skipped · `just test` is the gate; this page is what the gate tested.*", ""]
     L += ["## 1. Capability matrix — the 35 dimensions and the sentence each proving test carries", "",

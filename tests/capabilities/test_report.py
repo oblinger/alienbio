@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from alienbio.capabilities import DIMENSIONS, check_phrases, matrix, phrases
-from alienbio.report import build, capability_rows, example_rows, parse_junit, render_html, render_markdown
+from alienbio.report import SUITES, build, capability_rows, example_rows, parse_junit, render_html, render_markdown
 
 _JUNIT = """<?xml version="1.0"?>
 <testsuites><testsuite name="pytest">
@@ -100,6 +100,13 @@ def test_the_verdict_is_read_off_the_page_not_the_pytest_exit_code(tmp_path):
         for t in tests:
             module, name = t.split("::", 1)
             proven[(module, name)] = "passed"
+    # T091 B6: the capability tests alone are not a pass — every broader
+    # suite row must have run and passed too.
+    cap_only = build(proven, pytest_exit=0, example_runner=fine)
+    assert cap_only.ok is False and cap_only.unrun_suites
+    assert render_markdown(cap_only).startswith("# ABIO test report — NOT PROVEN")
+    for rel in SUITES:
+        proven[(Path(rel).stem, "test_ran")] = "passed"
     assert build(proven, pytest_exit=0, example_runner=fine).ok is True
 
     assert report_command(["--junit", str(junit), "--no-examples", "--out", str(tmp_path / "out")]) == 1
