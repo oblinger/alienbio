@@ -82,12 +82,12 @@ class TestC1MassConservation:
         for _ in range(20):
             cur = sim.step(cur)
             total = cur.get(0, 0) + cur.get(0, 1)
-            assert cur.get(0, 0) >= -1e-9
-            assert total <= prev_total + 1e-6, (
+            assert cur.get(0, 0) >= -1e-12
+            assert total <= prev_total + 1e-9, (
                 f"mass created: {total} > {prev_total}"
             )
             prev_total = total
-        assert cur.get(0, 1) == pytest.approx(1.0, abs=1e-5)
+        assert cur.get(0, 1) == pytest.approx(1.0, abs=1e-9)
 
     def test_jax_matches_reference_through_depletion(self):
         from alienbio.bio.jax_simulator import JaxWorldSimulator
@@ -302,7 +302,7 @@ class TestRunFast:
         jf = jx.run_fast(state, 200)
         for c in range(2):
             for m in range(2):
-                assert abs(pf.get(c, m) - jf.get(c, m)) < 1e-5
+                assert parity_agrees(pf.get(c, m), jf.get(c, m)), (c, m)
 
     def test_run_fast_with_native_flow(self):
         from alienbio.bio.jax_simulator import JaxWorldSimulator
@@ -325,7 +325,7 @@ class TestRunFast:
         jf = jx.run_fast(state, 100)
         for c in range(2):
             for m in range(2):
-                assert abs(pf.get(c, m) - jf.get(c, m)) < 1e-5
+                assert parity_agrees(pf.get(c, m), jf.get(c, m)), (c, m)
 
 
 # ── M24.4: run_batch vmap ──────────────────────────────────────────────────────
@@ -350,7 +350,7 @@ class TestRunBatch:
         for s, bf in zip(states, batched):
             single = jx.run_fast(s, 100)
             for m in range(2):
-                assert abs(single.get(0, m) - bf.get(0, m)) < 1e-6
+                assert parity_agrees(single.get(0, m), bf.get(0, m)), m
 
     def test_batch_matches_reference(self):
         from alienbio.bio.jax_simulator import JaxWorldSimulator
@@ -370,7 +370,7 @@ class TestRunBatch:
         for s, bf in zip(states, batched):
             pf = py.run(s, steps=80)[-1]
             for m in range(2):
-                assert abs(pf.get(0, m) - bf.get(0, m)) < 1e-5
+                assert parity_agrees(pf.get(0, m), bf.get(0, m)), m
 
 
 # ── M24.6: benchmark suite (opt-in) ────────────────────────────────────────────
@@ -464,7 +464,7 @@ def test_benchmark_runs():
     pf = py.run(state, steps=50)[-1]
     jf = jx.run_fast(state, 50)
     for mm in range(4):
-        assert abs(pf.get(0, mm) - jf.get(0, mm)) < 1e-5
+        assert parity_agrees(pf.get(0, mm), jf.get(0, mm)), mm
 
 
 if __name__ == "__main__":

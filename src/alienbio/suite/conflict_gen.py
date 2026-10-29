@@ -52,9 +52,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 
 from ..bio.world import WorldImpl
+from ..bio.world_state import WorldStateImpl
+from .arch_intervene import target_compartment
 from .blocks import ConflictCruxBlock, ReactionBlock, SinkBlock, SourceBlock, sweep_conflict_frontier
 from .dist import Constant, Dist, Seed
 from .skeleton import (
@@ -143,29 +145,38 @@ def _component_score(final: float, target: float) -> float:
     return 1.0 / (1.0 + (target - final))
 
 
-# The rung scorers read :func:`~alienbio.suite.skeleton.final_amount` — the
-# target summed over compartments. Safe, not routed through the intervene
-# scorer's one-compartment read (T091 E2/I6): every rung's skeleton is built
-# here from source, sink, reaction and crux blocks, none of which adds a
-# compartment, so the world is the default single compartment and the sum is
-# that one row — the same compartment the trade-off summary reads
-# (:func:`~alienbio.suite.tradeoff.conflict_oracle` stamps ``compartments``
-# only on a multi-compartment world, which no rung builds).
+# The rung scorers read each target in ONE compartment, resolved at draft by
+# :func:`~alienbio.suite.arch_intervene.target_compartment` — the rule the
+# intervene and predict scorers and the trade-off summary share (T091 E2/I6,
+# T092): a sum over compartments of different volumes is no quantity the task
+# states. Every rung today builds the default single compartment (source, sink,
+# reaction and crux blocks add none), so the read is that one row; a world
+# with several holders refuses at draft, naming them.
 
 
-def _make_single_scorer(v1_id: str, v1_target: float) -> Callable[[Timeline], float]:
+def _target_concentration(timeline: Timeline, molecule_id: str, compartment: str) -> float:
+    if not timeline.states:
+        raise ValueError("timeline has no states to score")
+    return float(cast(WorldStateImpl, timeline.states[-1]).concentration(compartment, molecule_id))
+
+
+def _conflict_compartment(world: WorldImpl, molecule_id: str) -> str:
+    return target_compartment(world, molecule_id, task="conflict", hint="a conflict target is scored in one compartment")
+
+
+def _make_single_scorer(v1_id: str, v1_target: float, v1_comp: str) -> Callable[[Timeline], float]:
     def scorer(timeline: Timeline) -> float:
-        return _component_score(final_amount(timeline, v1_id), v1_target)
+        return _component_score(_target_concentration(timeline, v1_id, v1_comp), v1_target)
 
     return scorer
 
 
 def _make_pair_scorer(
-    v1_id: str, v1_target: float, v2_id: str, v2_target: float
+    v1_id: str, v1_target: float, v2_id: str, v2_target: float, v1_comp: str, v2_comp: str
 ) -> Callable[[Timeline], float]:
     def scorer(timeline: Timeline) -> float:
-        s1 = _component_score(final_amount(timeline, v1_id), v1_target)
-        s2 = _component_score(final_amount(timeline, v2_id), v2_target)
+        s1 = _component_score(_target_concentration(timeline, v1_id, v1_comp), v1_target)
+        s2 = _component_score(_target_concentration(timeline, v2_id, v2_comp), v2_target)
         return min(s1, s2)
 
     return scorer
@@ -367,7 +378,8 @@ def draft_conflict_world(
         route = skeleton.root.children[1]
         v1_id = route.resolved_ports["out"]
         objective: Objective = OutcomeObjective(
-            scorer=_make_single_scorer(v1_id, v1_target), target=(v1_id, v1_target)
+            scorer=_make_single_scorer(v1_id, v1_target, _conflict_compartment(world, v1_id)),
+            target=(v1_id, v1_target),
         )
         return world, skeleton, objective
 
@@ -390,7 +402,9 @@ def draft_conflict_world(
     v2_id = route_b.resolved_ports["out"]
 
     objective = OutcomeObjective(
-        scorer=_make_pair_scorer(v1_id, v1_target, v2_id, v2_target),
+        scorer=_make_pair_scorer(
+            v1_id, v1_target, v2_id, v2_target, _conflict_compartment(world, v1_id), _conflict_compartment(world, v2_id)
+        ),
         target=((v1_id, v1_target), (v2_id, v2_target)),
     )
     return world, skeleton, objective

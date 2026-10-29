@@ -72,7 +72,7 @@ def test_grade_outcome_runs_and_matches_scorer() -> None:
     world, _skeleton, (target_id, target_value) = draft_intervention_world(Seed(3))
     timeline = simulate(world, SimConfig())
 
-    objective = make_intervention_objective(target_id, target_value)
+    objective = make_intervention_objective(target_id, target_value, world=world)
     assert isinstance(objective, OutcomeObjective)
     assert objective.target == pytest.approx(target_value)
 

@@ -28,7 +28,9 @@ distribution call (drawn once, at world build). A bare name that is not
 bound in scope is a **pool** (a quoted string always is). What is refused,
 at load with the node path: a head outside the rate view (a world-building
 head, a Python-only function), a bool, a product of two distributions, and
-a constant factor that can be negative.
+a constant factor that can be negative, and a math or distribution call over
+a distribution still to be drawn (``max(k, 0.05)`` with ``k: !q normal(...)``;
+draw inside the call or bind with ``!x``, T092).
 
 **A rate law's constant factor is non-negative by construction** (T091 E9,
 I1–I3). The rate-constant positions are the whole law when it reads no pool,
@@ -39,7 +41,9 @@ compile — constant arithmetic (``k - 1`` with ``k = 0.5``, ``0.2 / -1``,
 it can take *on any seed*: a number is a point, a distribution its support
 (``normal`` the whole line, ``uniform(lo, hi)`` ``[lo, hi]``, ``lognormal`` /
 ``poisson`` / ``exponential`` ``[0, ∞)``, :func:`~alienbio.suite.dist.support_of`
-for a ``Dist`` object). A factor whose interval straddles zero, or a product
+for a ``Dist`` object; a name bound to a draw with ``!x`` — drawn at load,
+outside the law — by its binding's form, so ``k: !x normal(0.3, 0.3)`` gets
+the inline draw's verdict, T092). A factor whose interval straddles zero, or a product
 whose signs (unary minus included) come out negative, refuses at LOAD,
 naming the node and the support — so the verdict never depends on the seed
 a world is drafted at, and ``--dry`` agrees with every trial. A sub-expression
@@ -61,7 +65,7 @@ from typing import Any, Mapping, Optional, Sequence
 
 from ..bio import rate_expr as rx
 from ..bio.reaction import Modulation
-from ..expr.env import Env, ExprError
+from ..expr.env import Env, ExprError, Lazy
 from ..expr.form import Call, Name, Quoted
 from ..expr.interp import QuotedForm, evaluate
 from ..expr.registry import fn
@@ -252,6 +256,10 @@ def _constant(form: Any, env: Env, what: str) -> Dist[float]:
     if isinstance(form, Call):
         head = env.head(form.head)
         if head.kind in ("dist", "math"):
+            if _quoted_draw(form, env) is not None:
+                # not a product-form constant; the expression path carries a
+                # draw through ``exp`` / ``log`` / ``sqrt`` and refuses the rest by name
+                raise _refuse(env, f"{what} ({form.head}(...) over a distribution still to be drawn)")
             try:
                 value = evaluate(form, env)
             except ExprError as exc:
@@ -275,6 +283,42 @@ def _scale(a: Dist[float], b: Dist[float], env: Env, what: str) -> Dist[float]:
     # A hard refusal, not a product-form miss: the expression path would
     # otherwise take the law and multiply the two draws (T091 E9).
     raise env.error(f"rate law: {what} is a product of two distributions ({a!r} * {b!r}); draw one")
+
+
+def _quoted_draw(form: Any, env: Env) -> Optional[Any]:
+    """The first sub-form of ``form`` that evaluates to an UNDRAWN distribution
+    — a quote, or a name bound to a quoted form or a ``Dist`` — else ``None``."""
+    if isinstance(form, Quoted):
+        return form
+    if isinstance(form, Name):
+        try:
+            value = env.lookup(form.path)
+        except ExprError:
+            return None
+        return form if isinstance(value, (QuotedForm, Dist)) and not isinstance(value, (int, float)) else None
+    if isinstance(form, (list, tuple)):
+        return next((hit for hit in (_quoted_draw(x, env) for x in form) if hit is not None), None)
+    if isinstance(form, Call):
+        parts = list(form.args) + list(form.kwargs.values())
+        return next((hit for hit in (_quoted_draw(x, env) for x in parts) if hit is not None), None)
+    return None
+
+
+def _refuse_quoted_draw_argument(form: Call, env: Env) -> None:
+    """Refuse a math or distribution call over an undrawn distribution (T092):
+    ``max(k, 0.05)`` with ``k: !q normal(0.3, 0.3)`` reached ``max`` with a
+    ``QuotedForm`` and died at world build as ``'>' not supported between
+    instances of 'float' and 'QuotedForm'``. Only the four arithmetic
+    operators, ``exp`` / ``log`` / ``sqrt`` and the modulations carry a draw
+    through a rate law; a call takes numbers."""
+    hit = _quoted_draw(form, env)
+    if hit is None:
+        return
+    raise env.error(
+        f"rate law: {form.head}(...) takes {_describe(hit, env)}, a distribution still to be drawn — "
+        f"a {form.head}(...) call in a rate law takes numbers; draw inside the call "
+        f"({form.head}(normal(...), ...)) or bind the name with !x (refused at load, on every seed)"
+    )
 
 
 def _negative_constant(env: Env, value: float) -> ExprError:
@@ -388,6 +432,11 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
             value = env.lookup(form.path)
         except ExprError:
             return None
+        drawn = _drawn_binding(form, env)
+        if drawn is not None:
+            folded = _interval(*drawn)
+            if folded is not None:
+                return folded
         return _value_interval(value)
     if isinstance(form, Quoted):
         return _interval(form.form, env)
@@ -446,6 +495,48 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
     return _LINE
 
 
+def _drawn_binding(name: Name, env: Env) -> Optional[tuple[Any, Env]]:
+    """The form a name was bound to when that form draws (``k: !x normal(0.3,
+    0.3)``), with its env; ``None`` for anything else. The draw happened at
+    load, outside the law, so the bound value is one seed's number — judging
+    it per seed refused 7 of 40 seeds mid-run (T091 J, T092). The sign rule
+    folds the binding's FORM instead, so a bound draw gets the verdict the
+    same draw gets inline. Covers file-level bindings (``Lazy``), through
+    dotted steps into a mapping's form; a value bound already evaluated (a
+    template argument) carries no form and is judged as the number it is."""
+    first, *rest = name.path.split(".")
+    raw = env.bindings.get(first)
+    if not isinstance(raw, Lazy) or raw.state != "done":
+        return None
+    form, where = raw.form, raw.env
+    for step in rest:
+        if not (isinstance(form, Mapping) and step in form):
+            return None
+        form = form[step]
+    return (form, where) if _draws(form, where) else None
+
+
+def _draws(form: Any, env: Env) -> bool:
+    """Whether evaluating ``form`` draws: it calls a distribution head (not
+    under a quote — a quoted draw is a ``Dist`` value, judged by its support
+    already), or names a binding that does."""
+    if isinstance(form, Name):
+        return _drawn_binding(form, env) is not None
+    if isinstance(form, Mapping):
+        return any(_draws(v, env) for v in form.values())
+    if isinstance(form, (list, tuple)):
+        return any(_draws(v, env) for v in form)
+    if not isinstance(form, Call):
+        return False
+    if not form.head.startswith("op:") and form.head not in MODULATION_HEADS:
+        try:
+            if env.head(form.head).kind == "dist":
+                return True
+        except ExprError:
+            return False
+    return any(_draws(a, env) for a in form.args) or any(_draws(v, env) for v in form.kwargs.values())
+
+
 def _evaluated(form: Any, env: Env) -> Interval:
     try:
         value = evaluate(form, env)
@@ -492,7 +583,8 @@ def _describe(form: Any, env: Env) -> str:
             value = env.lookup(form.path)
         except ExprError:
             return form.path
-        shown = value.form if isinstance(value, QuotedForm) else value
+        drawn = _drawn_binding(form, env)
+        shown = drawn[0] if drawn is not None else value.form if isinstance(value, QuotedForm) else value
         return f"{form.path} (bound to {shown!r})"
     return repr(form)
 
@@ -774,6 +866,7 @@ def _compile_expr(form: Any, env: Env, *, consumed: set[str]) -> Any:
             return ("mod", spec.kind, spec.pool, dict(spec.params))
         head = env.head(form.head)  # unknown / out-of-view heads fail here, naming the node
         if head.kind in ("dist", "math"):
+            _refuse_quoted_draw_argument(form, env)
             value = evaluate(form, env)
             if isinstance(value, bool):
                 raise _general_refuse(env, f"{form.head}(...) (a bool)")

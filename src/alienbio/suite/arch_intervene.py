@@ -289,7 +289,7 @@ def make_intervention_objective(
     target_value: float,
     compartment: Optional[str] = None,
     *,
-    world: Optional[WorldImpl] = None,
+    world: WorldImpl,
 ) -> OutcomeObjective:
     """Bundle the target scorer into an :class:`OutcomeObjective`.
 
@@ -298,17 +298,14 @@ def make_intervention_objective(
     shape :func:`grade_outcome` expects (``target`` is passed through untouched;
     the scorer holds any context it needs).
 
-    ``world`` (T091 I5): the compartment is resolved HERE by
-    :func:`target_compartment` — a multi-compartment world with no
+    ``world`` (T091 I5, required since T092): the compartment is resolved
+    HERE by :func:`target_compartment` — a multi-compartment world with no
     ``compartment`` named refuses at construction, with the draft-time
-    message, instead of from the scorer after every turn has been taken (and,
-    under a live agent, paid for). Every shipped caller passes it. Without a
-    world the constructor cannot see the compartments: ``compartment`` unset
-    then means the one-compartment contract, and a multi-compartment state
-    refuses only when scored.
+    message, for every caller, instead of from the scorer after every turn
+    has been taken (and, under a live agent, paid for). It was optional, and
+    a caller that left it out got that refusal only when scored.
     """
-    if world is not None:
-        compartment = target_compartment(world, target_mol_id, compartment)
+    compartment = target_compartment(world, target_mol_id, compartment)
     return OutcomeObjective(
         scorer=make_target_scorer(target_mol_id, target_value, compartment),
         target=target_value,
