@@ -351,9 +351,34 @@ def agent_construction_violation(spec: ExperimentSpec) -> Optional[str]:
                 return f"{spec.name}: condition {cond} — {exc}"
             continue
         try:
-            _agent_factory_for(spec)(trial_seed.child("agent"), dials)
+            agent = _agent_factory_for(spec)(trial_seed.child("agent"), dials)
         except Exception as exc:  # noqa: BLE001
             return f"{spec.name}: condition {cond} builds no agent — {exc}"
+        problem = _probe_signature_problem(agent)
+        if problem is not None:
+            return f"{spec.name}: condition {cond} — agent {kind!r} {problem}"
+    return None
+
+
+def _probe_signature_problem(agent: Any) -> Optional[str]:
+    """Why ``agent.probe`` cannot take the runner's ``(text, observation)``
+    call, else ``None`` (T091 B8). T088 widened ``ProbeAgent.probe`` from
+    ``(text)`` to ``(text, observation)``; an agent still on the old
+    signature raised ``TypeError`` on every probe, which the runner records
+    as probe data ("probe failure is data"), so every probe answer of the
+    run was an error and nothing refused."""
+    probe = getattr(agent, "probe", None)
+    if probe is None or not callable(probe):
+        return None
+    try:
+        inspect.signature(probe).bind("text", None)
+    except TypeError as exc:
+        return (
+            f"has probe{inspect.signature(probe)}, which cannot take (text, observation) — "
+            f"ProbeAgent.probe gained the observation argument in T088 ({exc})"
+        )
+    except ValueError:
+        return None  # no introspectable signature (a builtin): nothing to check
     return None
 
 
@@ -469,6 +494,22 @@ def inert_arm_violation(spec: ExperimentSpec) -> Optional[str]:
     marker (T066). A forgetting arm that quietly measures nothing is worse
     than one that refuses, because the contrast still gets reported.
     """
+    # T091 B11: a swept factory dial that no agent in the grid reads (only
+    # the live agent reads ``memory``, ``compact_*``, ``max_tokens`` …) gives
+    # cells byte-identical apart from their label — an axis that measures
+    # nothing, reported as a contrast.
+    from .agents import AGENT_DIALS
+
+    kinds = sorted(agent_kinds_in_play(spec))
+    for name, _levels in spec.axes:
+        if name in FACTORY_DIALS and name != "agent":
+            readers = [kind for kind in kinds if name in AGENT_DIALS.get(kind, frozenset())]
+            if not readers:
+                return (
+                    f"{spec.name}: the {name!r} axis is read by no agent in the grid "
+                    f"(agents in play: {kinds}; only {sorted(k for k, d in AGENT_DIALS.items() if name in d)} "
+                    "read it) — its cells would differ only by label"
+                )
     # Round 4: each cell's own ``max_turns``, not the grid's largest — a
     # ``max_turns: [4, 40]`` axis with ``compact_at: 10`` left the 4-turn
     # cells inert while the 40-turn ones cleared the check.
@@ -672,6 +713,10 @@ def no_peeking_violation(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+#: Spec fields that touch no record — never resume drift (T091 B3).
+_NON_RECORD_FIELDS: frozenset[str] = frozenset({"concurrency", "out_dir", "cost_ceiling_usd"})
+
+
 def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
     """T051 box 4 — the spec fields a ``resume=True`` call changed against the
     run's manifest, empty when the resume is legitimate. A resume keyed
@@ -680,7 +725,16 @@ def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
     as the new spec's cell (zero re-drafts) and the rebuilt manifest then
     asserted a spec the records were never drawn under. The two legitimate
     edits are widening: more ``trials_per_condition``, or new levels on an
-    existing axis (per-label seeds make both additive)."""
+    existing axis (per-label seeds make both additive).
+
+    T091 B3 — three fields shape no record and are never drift:
+    ``concurrency`` (how many trials are in flight; records are identical at
+    any value), ``out_dir`` (where the store lives) and ``cost_ceiling_usd``
+    (when the grid stops, not what a trial is). Without the last, a grid the
+    ceiling stopped could never be finished: raising the ceiling refused as
+    drift, and resuming under the old one re-stopped at once. The ceiling's
+    own rule — never below what the records already spent — is checked by
+    :func:`preflight`'s ``resume`` verdict."""
     if not isinstance(prior, Mapping):
         return []
     current = spec_to_dict(spec)
@@ -699,7 +753,7 @@ def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
     ] == _derived_turns(current)
     drift: list[str] = []
     for key in sorted(set(prior) | set(current)):
-        if key in ("trials_per_condition", "axes"):
+        if key in ("trials_per_condition", "axes") or key in _NON_RECORD_FIELDS:
             continue
         if key == "expected_turns" and derived_both:
             continue
@@ -743,8 +797,8 @@ class Preflight:
         """The verdicts as ``bio suite run --dry`` prints them."""
         out = [f"out_dir exists: {'yes (run refuses without resume)' if self.out_exists else 'no'}"]
         for name, why in self.checks:
-            if name == "resume" and not self.resume:
-                out.append("resume: skipped (not a resume)")
+            if name in ("resume", "records-readable") and not self.resume:
+                out.append(f"{name}: skipped (not a resume)")
             elif name in self.skipped:
                 out.append(f"{name}: skipped (an earlier check refused)")
             else:
@@ -765,7 +819,7 @@ def label_collision_violation(spec: ExperimentSpec) -> Optional[str]:
 PREFLIGHT_CHECKS: tuple[str, ...] = (
     "registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag",
     "brief-dials", "certainty-windows", "score-window", "intervene-horizon", "inert-arm", "agent", "price",
-    "draft", "resume", "out_dir",
+    "draft", "records-readable", "resume", "out_dir",
 )
 
 
@@ -792,8 +846,10 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     (a ``compact_at`` that never fires), ``agent`` (each condition's agent
     config), ``price`` (a price for every model level in play; the
     estimate), ``draft`` (each condition's world and brief; skipped once
-    anything above refused), ``resume`` (an unreadable or spec-less manifest,
-    or drift against it; skipped off a resume), and ``out_dir`` (records
+    anything above refused), ``records-readable`` (every line of an
+    existing store parses, on a resume — T091 B4), ``resume`` (records with
+    no manifest, an unreadable or spec-less manifest, drift against it, or a
+    cost ceiling below the records' spend; skipped off a resume), and ``out_dir`` (records
     present without ``resume``). ``out_dir`` is resolved exactly as the run
     resolves it and nothing here creates it.
     """
@@ -860,9 +916,34 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     # cheaper verdict.
     check("draft", lambda: _raise_if(draft_violation(spec), "draft"), only_if_clean=True)
 
+    def _records_readable() -> None:
+        # T091 B4 — a torn last line (a crash mid-append) used to kill the
+        # resume with a bare JSONDecodeError naming neither file nor line;
+        # the store is read whole here, before spend, and refuses by name.
+        if resume and records_path.exists():
+            from .store import read_records
+
+            for _row in read_records(records_path):
+                pass
+
+    check("records-readable", _records_readable)
+
     def _resume() -> None:
-        if not (resume and manifest_path.exists()):
+        if not resume:
             return
+        if not manifest_path.exists():
+            if not records_path.exists():
+                return  # nothing to continue: a resume of an empty out_dir is a fresh run
+            # T091 B2: a store with records but no manifest (hand-copied,
+            # moved without it, the manifest deleted) used to resume with
+            # no drift check at all, relabelling every stale line as the new
+            # spec's cell.
+            raise ValueError(
+                f"run_experiment: resume=True but {resolved_out} holds records.jsonl and no "
+                f"manifest.json ({manifest_path} is missing) — the drift check cannot run, so the "
+                "records cannot be matched to the spec they were drawn under; restore the manifest "
+                "or start a new out_dir"
+            )
         # T084 finding C: an unreadable manifest used to read as ``{}``, so
         # there was no prior spec to compare and a drifted spec resumed
         # unchecked. Only a readable manifest carrying a spec is compared.
@@ -890,6 +971,17 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 "a resume continues the SAME experiment (only more trials_per_condition or added axis "
                 f"levels may change); start a new out_dir for a new spec ({resolved_out})"
             )
+        ceiling = spec.cost_ceiling_usd
+        if ceiling is not None and records_path.exists():
+            from .store import records_spend_usd
+
+            spent = records_spend_usd(records_path, spec)
+            if ceiling < spent:
+                raise ValueError(
+                    f"run_experiment: resume=True with cost_ceiling_usd={ceiling} but the records "
+                    f"in {records_path} already spent ${spent:.4f} — a ceiling may be raised on a "
+                    "resume, never set below the spend"
+                )
 
     check("resume", _resume)
 

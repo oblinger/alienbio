@@ -99,6 +99,15 @@ re-pinned the same day (T091 A1): the intervene outcome is scored at the
 ``runout`` moved on all 24 lines (act-commit 0.0131 -> 0.2326,
 survey-commit 0.0216 -> 0.2930); ``final_state`` and the action logs are
 byte-identical, and the other eleven were byte-unchanged.
+exp01, exp03, exp08, exp09 and exp10 re-pinned 2026-10-29 (T091, fix A's
+observation): each declares ``idle_baseline: true`` beside a swept
+``agent`` axis, which switched the expansion off, so they ran no idle arm.
+``idle`` is now appended to a swept agent axis. Only NEW lines landed — the
+idle cells (exp01 +12 -> 36, exp03 +18 -> 54, exp08 +6 -> 18, exp09 +12 ->
+36, exp10 +15 -> 45; idle scores 0.0, and 0.257-0.320 on exp09, whose
+target is scored at the horizon); every existing line, keyed
+``(label, index)``, is byte-identical field for field. The other ten were
+byte-unchanged (T091 B7's string escape moves no line of any zero).
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -118,18 +127,18 @@ CATALOG = REPO / "catalog" / "experiments"
 
 #: name -> sha256 of the canonical record store (see module docstring).
 GOLDEN: dict[str, str] = {
-    "exp01": "df73d1293dfe65f8",
-    "exp10": "2e6b9d97e3748b30",
+    "exp01": "4aaf06173dd4d298",
+    "exp10": "40269618889cc67a",
     "exp02": "a23400c0bb583d18",
-    "exp03": "b7fa0de50ec24de2",
+    "exp03": "5de1a2a44b6b0615",
     "exp04": "5b05aa164a6d8b8a",
     "exp04-diagnose-zero": "eba0349455c4ab1b",
     "exp04-zero": "d07da8100b6e215c",
     "exp05": "3f37ce5caad5299a",
     "exp06": "ffa26959c383e674",
     "exp07": "fcba846f9a5bf0ab",
-    "exp08": "d63c1077400826a2",
-    "exp09": "be85ae8eb101318e",
+    "exp08": "85eef2a6ed114f6f",
+    "exp09": "3253a967f7562e93",
     "exp11": "5133aeda0c2af22c",
     "exp12": "1264a5892e887d4c",
     "exp13": "dffcdd961510011f",

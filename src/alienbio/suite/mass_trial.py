@@ -91,6 +91,10 @@ def condition_grid(axes: Sequence[Axis]) -> list[ConditionKey]:
     (sorted by dial name) — the exact, adapter-free shape
     :func:`~alienbio.suite.reliability_grid.aggregate_cells` bins
     :class:`~alienbio.suite.trial.TrialRecord` observations on.
+
+    No dedupe: a level repeated on one axis enumerates its cell twice.
+    :class:`~alienbio.suite.spec.ExperimentSpec` refuses a repeated level,
+    an empty axis and a repeated axis name at construction (T091 B1).
     """
     names = [name for name, _ in axes]
     levels = [tuple(lv) for _, lv in axes]
@@ -123,7 +127,8 @@ def label_collision(axes: Sequence[Axis]) -> Optional[str]:
     :func:`_condition_label`, else ``None`` (T084 C). Such cells would draw
     one world seed and share one resume key ``(label, index)``, so a resume
     would replay one cell's records as the other's. Exact duplicate levels
-    (equal ``repr``) are one cell and pass."""
+    (equal ``repr``) are not this check's to catch: ``ExperimentSpec``
+    refuses them at construction, naming the axis and the level (T091 B1)."""
     seen: dict[str, ConditionKey] = {}
     for key in condition_grid(axes):
         label = _condition_label(key)

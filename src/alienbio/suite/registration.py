@@ -44,6 +44,8 @@ from typing import Any, Mapping
 
 import yaml
 
+from .yaml_keys import refuse_duplicate_keys
+
 #: The commit-tracked registry, relative to the repository root (resolved by
 #: the caller — :mod:`~alienbio.suite.guards` passes ``spec.REPO_ROOT``).
 REGISTRY_RELPATH = Path("catalog") / "registrations.yaml"
@@ -119,25 +121,6 @@ def _parse_entry(entry_id: str, raw: Any) -> Registration:
     )
 
 
-class _UniqueKeyLoader(yaml.SafeLoader):
-    """``SafeLoader`` that refuses a mapping with two equal keys (T088
-    registration 1: ``safe_load`` keeps the last, so a second ``a:`` block
-    silently replaced the license a reviewer reads first)."""
-
-
-def _construct_unique_mapping(loader: yaml.SafeLoader, node: yaml.MappingNode, deep: bool = False) -> dict:
-    seen: set = set()
-    for key_node, _value in node.value:
-        key = loader.construct_object(key_node, deep=deep)
-        if key in seen:
-            raise ValueError(f"duplicate key {key!r} at line {key_node.start_mark.line + 1}")
-        seen.add(key)
-    return loader.construct_mapping(node, deep=deep)
-
-
-_UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping)
-
-
 def load_registry(path: Path) -> dict[str, Registration]:
     """Parse + validate the whole registry file at ``path``.
 
@@ -147,9 +130,15 @@ def load_registry(path: Path) -> dict[str, Registration]:
     entries under one id, or one field twice — refuses. Any malformed entry
     refuses every claim (fail closed: the file is one audited unit).
     """
+    text = path.read_text()
     try:
-        raw = yaml.load(path.read_text(), Loader=_UniqueKeyLoader) or {}
-    except ValueError as exc:
+        # T088 registration 1: ``safe_load`` keeps the last of two equal
+        # keys, so a second ``a:`` block silently replaced the license a
+        # reviewer reads first. The one check every suite YAML read shares
+        # (``suite.yaml_keys``); ``<<:`` merge keys load (T091 B12).
+        refuse_duplicate_keys(text, yaml.SafeLoader)
+        raw = yaml.safe_load(text) or {}
+    except (ValueError, yaml.YAMLError) as exc:
         raise ValueError(f"registration registry {path}: {exc}") from None
     if not isinstance(raw, Mapping):
         raise ValueError(f"registration registry {path}: top level must be a mapping, got {type(raw).__name__}")

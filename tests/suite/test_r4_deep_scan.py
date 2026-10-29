@@ -111,7 +111,12 @@ def test_dry_does_not_print_ok_for_a_skipped_draft_check():
     assert any(line.startswith("draft: skipped") for line in lines)
 
 
-def test_memory_axis_level_rides_each_record_line():
+def test_memory_axis_level_rides_each_record_line(monkeypatch):
+    # A memory axis on scripted arms alone is refused as inert (T091 B11);
+    # the record-line contract is checked with idle declared a reader.
+    from alienbio.suite import agents as agents_mod
+
+    monkeypatch.setitem(agents_mod.AGENT_DIALS, "idle", frozenset({"memory"}))
     out = tempfile.mkdtemp()
     run_experiment(_spec(axes={"pi": [0.5], "memory": ["none", "full"]}, memory="none"), out_dir=out)
     lines = [json.loads(line) for line in Path(out, "records.jsonl").read_text().splitlines()]

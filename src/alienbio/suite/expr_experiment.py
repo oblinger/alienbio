@@ -52,7 +52,7 @@ from ..expr.env import Env, ExprError
 from ..expr.form import Call, Name, contains_form
 from ..expr.interp import QuotedForm
 from ..expr.registry import fn, registry as _registry
-from ..expr.yaml_tags import load_text
+from ..expr.yaml_tags import ExprLoader, load_text
 from .agent import Agent
 from .arch_diagnose import DiagnosePerturbationRecipe, TARGET_ROLE as DIAGNOSE_TARGET_ROLE
 from .arch_intervene import DesignInterventionRecipe, TARGET_ROLE as INTERVENE_TARGET_ROLE, make_intervention_objective
@@ -84,6 +84,7 @@ from .types import (
     TaskInstance,
 )
 from .verify import SimConfig
+from .yaml_keys import refuse_duplicate_keys
 from .vocab import build_vocabulary
 
 # ---------------------------------------------------------------------------
@@ -667,6 +668,15 @@ def load_experiment(path: Union[str, Path], *, text: Optional[str] = None, trust
     if text is None:
         text = Path(path).read_text()
     env = Env.standard(seed=0, trusted=trusted)
+    # T091 B5: PyYAML keeps the last of two equal keys, so a second ``arm:``
+    # axis block or ``trials_per_condition:`` silently replaced the first.
+    # The registry's one check (``suite.yaml_keys``), run on the same text.
+    try:
+        refuse_duplicate_keys(text, ExprLoader)
+    except ValueError as exc:
+        raise ExprError(str(exc), source) from None
+    except yaml.YAMLError as exc:
+        raise ExprError(f"YAML error: {exc}", source) from None
     data = load_text(text)
     if isinstance(data, Call):
         from ..expr.interp import evaluate

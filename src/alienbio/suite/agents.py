@@ -409,6 +409,16 @@ AGENTS: Mapping[str, AgentFactoryBuilder] = {
     "llm": _llm_agent_factory_builder,
 }
 
+#: The factory dials (``drafters.FACTORY_DIALS`` less ``agent``) each agent
+#: kind reads off its trial's dials — only the live agent reads any. A kind
+#: absent here reads none, so an axis over one of these dials with no
+#: reader in the grid is refused as inert (T091 B11, ``guards.inert_arm_violation``).
+AGENT_DIALS: Mapping[str, frozenset[str]] = {
+    "llm": frozenset(
+        {"model", "memory", "compact_at", "compact_budget", "history_token_limit", "max_tokens", "output_schedule"}
+    ),
+}
+
 
 def _agent_factory_for(spec: ExperimentSpec) -> AgentFactory:
     """The per-trial agent factory for ``spec``, honouring ``agent`` / ``model``

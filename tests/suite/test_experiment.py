@@ -899,7 +899,9 @@ def test_a_priced_trial_lands_its_line_before_the_price_lookup(tmp_path, monkeyp
         return real_run(self, *args, **kwargs)
 
     monkeypatch.setattr(exp_mod.MassTrialRunner, "run", run_with_usage)
-    monkeypatch.setattr(exp_mod, "price_for", lambda *a, **k: (_ for _ in ()).throw(ValueError("no published price (forced)")))
+    from alienbio.suite import store as store_mod  # the one pricing of a landed line lives in the store (T091)
+
+    monkeypatch.setattr(store_mod, "price_for", lambda *a, **k: (_ for _ in ()).throw(ValueError("no published price (forced)")))
 
     with pytest.raises(ValueError, match="no published price"):
         run_experiment(spec, out_dir=tmp_path / "run")
@@ -1025,6 +1027,12 @@ def test_resume_counts_retried_spend_against_the_ceiling(tmp_path, monkeypatch):
         usage = None
 
     monkeypatch.setitem(AGENTS, "idle", lambda spec: (lambda seed, dials: _Committer()))
+    # T091 B3: a resume whose ceiling sits below what the records spent is
+    # refused before spend, the spend named — the retried lines count.
+    with pytest.raises(ValueError, match=rf"already spent \${spent_first:.4f}"):
+        run_experiment(spec, out_dir=str(out_dir), resume=True)
+    # At exactly the spend, the resume runs and stops at once.
+    spec = dataclasses.replace(spec, cost_ceiling_usd=spent_first)
     seen: list[str] = []
     second = run_experiment(spec, out_dir=str(out_dir), resume=True, progress=seen.append)
     manifest = json.loads((out_dir / "manifest.json").read_text())

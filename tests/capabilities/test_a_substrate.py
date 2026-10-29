@@ -118,7 +118,8 @@ def test_a5_levers_carry_reversibility_and_a_destructive_act_is_logged_as_such(h
     `reversible` none is."""
     spec = small(catalog("exp09"), axes=(("stakes", ("high",)), ("reversibility", ("reversible", "irreversible")), ("agent", ("act-commit",))), fixed_dials={**catalog("exp09").fixed_dials, "max_turns": 3, "sim_steps": 5})
     rmap, report, _ = harness(spec)
-    by_rev = {dict(r.condition_key)["reversibility"]: r for r in rmap.records}
+    # exp09 declares idle_baseline, so the act-commit axis carries its idle twin (T091).
+    by_rev = {dict(r.condition_key)["reversibility"]: r for r in rmap.records if dict(r.condition_key)["agent"] != "idle"}
     assert by_rev["irreversible"].brief is not None and by_rev["irreversible"].brief.irreversible
     assert by_rev["reversible"].brief is not None and not by_rev["reversible"].brief.irreversible
     acted = [a for a in by_rev["irreversible"].action_log if a.kind == "intervene"]

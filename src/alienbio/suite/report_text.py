@@ -79,7 +79,18 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     error_count = 0
     error_classes: dict[str, int] = {}
     abort_counts: dict[str, int] = {}
+    # T091 B13: a malformed answer scores 0 as data (``grade_error``) and an
+    # unparsable reply is counted on the record (``parse_failures``); the
+    # census read neither, so a grid of wrong-shaped commits read as zeros.
+    grade_error_count = 0
+    parse_failure_records = 0
+    parse_failure_total = 0
     for record in rmap.records:
+        if record.grade_error is not None:
+            grade_error_count += 1
+        if record.parse_failures:
+            parse_failure_records += 1
+            parse_failure_total += int(record.parse_failures)
         terminal_counts[record.terminal_reason] = terminal_counts.get(record.terminal_reason, 0) + 1
         illegal_total += record.illegal_actions
         if record.error:
@@ -101,6 +112,9 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
         lines.append(f"  error={klass}: {count}")
     for tag, count in sorted(abort_counts.items()):
         lines.append(f"  aborted={tag!r}: {count}")
+    lines.append(f"  records with grade_error: {grade_error_count}")
+    lines.append(f"  records with parse_failures: {parse_failure_records}")
+    lines.append(f"  parse_failures (total): {parse_failure_total}")
 
     if rmap.interactions or rmap.contrasts:
         lines.append("")

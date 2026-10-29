@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 import math
+import numbers
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
@@ -422,10 +423,19 @@ def task_readouts(task: TaskInstance, chemistry: "ChemistryImpl") -> frozenset[s
 def _target_id(item: Any) -> Optional[str]:
     """The id a target entry names: a bare id, or the id of an
     ``(id, goal)`` pair (the conflict rungs' two-target shape, T088
-    conflict_gen 1); anything else names nothing."""
+    conflict_gen 1); anything else names nothing here. A pair is exactly
+    ``(str, number)`` (T091 B9): ``[a, b]`` is two target ids, not ``a``
+    with goal ``b`` — its caller reads each item as its own entry, so ``b``
+    is a readout too and no lever may write it."""
     if isinstance(item, str):
         return item
-    if isinstance(item, (tuple, list)) and item and isinstance(item[0], str):
+    if (
+        isinstance(item, (tuple, list))
+        and len(item) == 2
+        and isinstance(item[0], str)
+        and isinstance(item[1], numbers.Real)
+        and not isinstance(item[1], bool)
+    ):
         return item[0]
     return None
 

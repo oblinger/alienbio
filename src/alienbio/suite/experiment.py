@@ -163,6 +163,7 @@ from .store import (  # noqa: F401
     _git_info,
     _json_safe,
     _trials_planned,
+    _usage_usd,
     _utc_now_iso,
     _write_manifest,
     read_manifest,
@@ -189,19 +190,6 @@ from .report_text import (  # noqa: F401
     primary_contrast_result,
     render_report,
 )
-
-
-def _usage_usd(usage: Mapping[str, Any], model: Optional[str], spec: ExperimentSpec) -> float:
-    """USD for one record's provider ``usage`` under the model in force for
-    its trial (``model``, else ``spec.model``, else :data:`PINNED_MODEL`) —
-    the one pricing of a landed or retried line against the cost ceiling."""
-    return cost_usd(
-        usage.get("input_tokens", 0),
-        usage.get("output_tokens", 0),
-        price_for(model or spec.model or PINNED_MODEL, spec.price_usd_per_mtok),
-        cache_read_tokens=usage.get("cache_read_tokens", 0),
-        cache_write_tokens=usage.get("cache_write_tokens", 0),
-    )
 
 
 def run_experiment(
@@ -316,13 +304,22 @@ def run_experiment(
         return existing_by_key.get((label, i))
 
     started_at = _utc_now_iso()
+    ceiling_history: list[Optional[float]] = [spec.cost_ceiling_usd]
     if resume and manifest_path.exists():
         # Preflight already refused an unreadable, spec-less or drifted
-        # manifest; only the start time is carried.
-        started_at = read_manifest(manifest_path).get("started_at", started_at)
+        # manifest; the start time and the ceiling history are carried.
+        prior = read_manifest(manifest_path)
+        started_at = prior.get("started_at", started_at)
+        # T091 B3 — the ceiling may change on a resume; the manifest keeps
+        # every value the run ran under, in order (a manifest from before
+        # the field starts from its spec's own ceiling).
+        ceiling_history = list(prior.get("cost_ceiling_history") or [prior["spec"].get("cost_ceiling_usd")])
+        if ceiling_history[-1] != spec.cost_ceiling_usd:
+            ceiling_history.append(spec.cost_ceiling_usd)
 
     trials_planned = _trials_planned(spec)
     manifest = _build_manifest(spec, trials_planned, started_at)
+    manifest["cost_ceiling_history"] = ceiling_history
     # T084 (ABIO Store) — every landed line, keyed (label, index) -> is_error,
     # so the manifest's counts describe the store on disk at every write: a
     # resume starts from the lines it kept, not from 0, and a run that dies

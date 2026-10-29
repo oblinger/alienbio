@@ -7,6 +7,7 @@ import json
 import math
 import os
 import platform
+import re
 import subprocess
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -19,7 +20,7 @@ from ..bio.world_state import WorldStateImpl
 from .brief import Affordances, TaskBrief
 from .deliberation import DeliberationStep, DeliberationTrace
 from .info_seeking import ActionRecord
-from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, model_created_at
+from .llm_agent import DEFAULT_DIRECTIVE, PINNED_MODEL, cost_usd, model_created_at, price_for
 from .trial import ProbeRecord, TrialRecord, final_state_dict
 from .types import (
     Timeline,
@@ -40,6 +41,14 @@ from .spec import REPO_ROOT, ExperimentSpec, agent_kinds_in_play, estimate_cost,
 #: ``allow_nan=False``) and a strict reader never meets ``NaN``/``Infinity``.
 _NONFINITE: dict[str, float] = {"inf": float("inf"), "-inf": float("-inf"), "nan": float("nan")}
 
+#: A STRING leaf that would read as a non-finite spelling — ``"nan"``,
+#: ``"inf"``, ``"-inf"``, or one of those behind any number of backslashes —
+#: is written with one more leading backslash, so the bare spelling on disk
+#: is only ever a float and a prose dial ``"nan"`` reads back as the string
+#: it was (T091 B7: ``read_manifest`` turned a ``task_note: "inf"`` into a
+#: float and a resume of the unchanged spec refused as drift).
+_ESCAPED = re.compile(r"\\*(?:nan|inf|-inf)")
+
 
 def _encode_float(value: float) -> Any:
     """A non-finite float as the JSON string ``"inf"``/``"-inf"``/``"nan"``; else the float verbatim."""
@@ -49,20 +58,26 @@ def _encode_float(value: float) -> Any:
 
 
 def _decode_float(value: Any) -> float:
-    if isinstance(value, str) and value in _NONFINITE:
-        return _NONFINITE[value]
+    """One float field of a DECODED tree (:func:`_decode_nonfinite` already ran)."""
     return float(value)
 
 
 def _encode_nonfinite(value: Any) -> Any:
-    """``value`` with every non-finite float, at any depth, through :func:`_encode_float`.
+    """``value`` as the store spells it, at any depth: every non-finite float
+    through :func:`_encode_float`, every string that could be mistaken for
+    one escaped with one more leading backslash (:data:`_ESCAPED`).
 
-    Dict/list/tuple recurse (each keeps its type); every other leaf passes
-    through. A finite tree comes back equal, so its dumped bytes are
-    unchanged.
+    Applied exactly ONCE per write — by :func:`_canonical_json` (a record
+    line, the spec hash) and :func:`_write_manifest`; the codecs above them
+    return plain trees. (It is not idempotent: an escaped string escapes
+    again.) Dict/list/tuple recurse (each keeps its type); every other leaf
+    passes through. A finite tree with no such string comes back equal, so
+    its dumped bytes are unchanged.
     """
     if isinstance(value, float):
         return _encode_float(value)
+    if isinstance(value, str):
+        return "\\" + value if _ESCAPED.fullmatch(value) else value
     if isinstance(value, dict):
         return {k: _encode_nonfinite(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -73,15 +88,18 @@ def _encode_nonfinite(value: Any) -> Any:
 
 
 def _decode_nonfinite(value: Any) -> Any:
-    """The inverse of :func:`_encode_nonfinite` over a numeric-bearing tree.
-
-    Applied only where the store writes numbers (scores, ``final_state``, an
-    action's ``value``/``delta``, the oracle, condition levels, usage and the
-    per-feature mappings) — never to ``answer``, ``name_map`` or prose, where
-    the string ``"nan"`` may be meant literally.
-    """
-    if isinstance(value, str) and value in _NONFINITE:
-        return _NONFINITE[value]
+    """The inverse of :func:`_encode_nonfinite`, over a whole parsed tree:
+    a bare ``"inf"``/``"-inf"``/``"nan"`` is the writer's float, an escaped
+    one loses one backslash and stays a string. Applied once, to the whole
+    line (:func:`record_from_json`) or manifest (:func:`read_manifest`) —
+    since the writer escapes every string it could collide with, there is
+    no field the decode must skip."""
+    if isinstance(value, str):
+        if value in _NONFINITE:
+            return _NONFINITE[value]
+        if value.startswith("\\") and _ESCAPED.fullmatch(value):
+            return value[1:]
+        return value
     if isinstance(value, dict):
         return {k: _decode_nonfinite(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -121,7 +139,7 @@ def _brief_to_json(brief: TaskBrief) -> dict[str, Any]:
             "levers": list(brief.affordances.levers),
             "assays": list(brief.affordances.assays),
         },
-        "budget_total": _encode_float(brief.budget_total),
+        "budget_total": brief.budget_total,
         "budget_unit": brief.budget_unit,
         "action_costs": dict(brief.action_costs),
         "max_turns": brief.max_turns,
@@ -200,16 +218,16 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
     final_time = times[-1] if times else None
     final_state = dict(record.final_state) or (_final_state_dict(cast(WorldStateImpl, states[-1])) if states else {})
 
-    return _encode_nonfinite({
+    return {
         "label": label,
         "index": index,
         "task_id": record.task_id,
         "condition_key": [[name, value] for name, value in record.condition_key],
         "objective_score": record.objective_score,
         "terminal_reason": record.terminal_reason,
-        "budget": _encode_float(record.budget),
+        "budget": record.budget,
         "spent": record.spent,
-        "remaining": _encode_float(record.remaining),
+        "remaining": record.remaining,
         "illegal_actions": record.illegal_actions,
         "taint_hits": list(record.taint_hits),
         "turns": record.turns,
@@ -277,11 +295,11 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
         **({"runout": _json_safe(dict(record.runout))} if record.runout is not None else {}),
         **(
             # T062 — written only when the drafter declares readouts.
-            {"readout_series": {rid: [_encode_float(v) for v in vals] for rid, vals in record.readout_series.items()}}
+            {"readout_series": {rid: list(vals) for rid, vals in record.readout_series.items()}}
             if record.readout_series is not None
             else {}
         ),
-    })
+    }
 
 
 def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
@@ -293,7 +311,11 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
     always empty; only the final time survives (``final_state`` is not
     reattached to ``final_timeline`` — it has no ``WorldState`` to become).
     """
-    condition_key = tuple((name, _decode_nonfinite(value)) for name, value in d["condition_key"])
+    # T091 B7: the whole line is decoded once (the writer escapes every
+    # string a non-finite spelling could collide with), so a string level
+    # ``"nan"`` in ``condition_key`` stays a string and a float NaN a float.
+    d = _decode_nonfinite(dict(d))
+    condition_key = tuple((name, value) for name, value in d["condition_key"])
     action_log = tuple(
         ActionRecord(
             kind=a["kind"],
@@ -301,8 +323,8 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
             accepted=a["accepted"],
             reason=a["reason"],
             target=a.get("target", ""),
-            value=_decode_nonfinite(a.get("value")),
-            delta=_decode_nonfinite(a.get("delta")),
+            value=a.get("value"),
+            delta=a.get("delta"),
         )
         for a in d["action_log"]
     )
@@ -324,20 +346,20 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         final_timeline=final_timeline,
         deliberation_trace=trace,
         action_log=action_log,
-        objective_score=_decode_nonfinite(d["objective_score"]),
+        objective_score=d["objective_score"],
         terminal_reason=d["terminal_reason"],
         budget=_decode_float(d["budget"]),
-        spent=_decode_nonfinite(d["spent"]),
+        spent=d["spent"],
         remaining=_decode_float(d["remaining"]),
         illegal_actions=d["illegal_actions"],
         taint_hits=tuple(d.get("taint_hits", ())),
         turns=d["turns"],
         brief=brief,
         error=d["error"],
-        usage=_decode_nonfinite(d.get("usage")),
+        usage=d.get("usage"),
         wall_time_s=d.get("wall_time_s", 0.0),
-        oracle=_decode_nonfinite(dict(d.get("oracle") or {})),
-        final_state=_decode_nonfinite(dict(d.get("final_state") or {})),
+        oracle=dict(d.get("oracle") or {}),
+        final_state=dict(d.get("final_state") or {}),
         name_map=dict(d.get("name_map") or {}),
         answer=d.get("answer"),
         probes=tuple(
@@ -348,13 +370,13 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
             for pr in d.get("probes") or ()
         ),
         certainty_schedule=tuple(bool(x) for x in d.get("certainty_schedule") or ()),
-        compaction=_decode_nonfinite(d.get("compaction")),
-        forgetting=_decode_nonfinite(d.get("forgetting")),
-        monitor=_decode_nonfinite(d.get("monitor")),
+        compaction=d.get("compaction"),
+        forgetting=d.get("forgetting"),
+        monitor=d.get("monitor"),
         parse_failures=int(d.get("parse_failures", 0)),
         aborted=d.get("aborted"),
         grade_error=d.get("grade_error"),
-        runout=_decode_nonfinite(d.get("runout")),
+        runout=d.get("runout"),
         readout_series=(
             {rid: tuple(_decode_float(v) for v in vals) for rid, vals in d["readout_series"].items()}
             if d.get("readout_series") is not None
@@ -441,51 +463,79 @@ def _write_manifest(path: Path, manifest: Mapping[str, Any]) -> None:
     _atomic_write_text(path, text)
 
 
-#: The spec fields that carry numbers (dial trees, ceilings, rates) — the
-#: only spec fields :func:`read_manifest` decodes; prose (``name``,
-#: ``agent``, ``memory``, ``temperature``'s ``"provider-fixed"``) never is.
-_MANIFEST_SPEC_NUMERIC = (
-    "axes", "fixed_dials", "drafter_kwargs", "cost_ceiling_usd",
-    "price_usd_per_mtok", "top_p", "expected_cache_hit_rate",
-)
-#: The manifest's own numeric-bearing keys, decoded the same way.
-_MANIFEST_NUMERIC = ("cost_estimate", "cost_ceiling_usd", "cost_usd_spent", "usage_totals")
-
-
 def read_manifest(path: Path) -> dict[str, Any]:
-    """``manifest.json`` parsed, with the non-finite spellings
-    :func:`_write_manifest` writes decoded back to floats on the
-    numeric-bearing fields — the one reader every resume, aggregate and
-    report goes through, so a spec carrying ``inf`` round-trips equal.
+    """``manifest.json`` parsed, with the store's non-finite spellings
+    decoded back (:func:`_decode_nonfinite`, over the whole manifest) — the
+    one reader every resume, aggregate and report goes through, so a spec
+    carrying ``inf`` round-trips equal, and a string dial ``"inf"`` stays a
+    string (T091 B7).
 
     Raises whatever ``json.loads`` / the read raises (callers that must
     word an unreadable manifest catch ``OSError``/``ValueError``).
     """
-    manifest = json.loads(path.read_text())
-    if not isinstance(manifest, dict):
-        return manifest
-    for key in _MANIFEST_NUMERIC:
-        if key in manifest:
-            manifest[key] = _decode_nonfinite(manifest[key])
-    spec = manifest.get("spec")
-    if isinstance(spec, dict):
-        for key in _MANIFEST_SPEC_NUMERIC:
-            if key in spec:
-                spec[key] = _decode_nonfinite(spec[key])
-    return manifest
+    return _decode_nonfinite(json.loads(path.read_text()))
+
+
+class StoreError(ValueError):
+    """A record store that cannot be read as written: a line that is not
+    JSON, named by file and 1-based line number (T091 B4)."""
 
 
 def read_records(path: Path) -> Iterator[tuple[str, dict[str, Any], TrialRecord]]:
     """Every ``records.jsonl`` line as ``(line, parsed dict, record)``, blank
     lines skipped — the one reader the resume and :func:`aggregate` share
-    (the line is kept verbatim so a resume can rewrite the store from it)."""
-    with path.open() as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            d = json.loads(line)
-            yield line, d, record_from_json(d)
+    (the line is kept verbatim so a resume can rewrite the store from it;
+    the dict is decoded like the record).
+
+    Raises:
+        StoreError: a line does not parse — named by file and line number,
+            and called out as a crash artifact when it is the last line
+            with no newline (an append torn mid-write). Nothing is dropped
+            silently: the line is evidence, and which repair is right
+            (delete the torn tail, or restore it) is the operator's call.
+    """
+    text = path.read_text()
+    lines = text.split("\n")
+    for number, raw_line in enumerate(lines, start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            raw = json.loads(line)
+        except ValueError as exc:
+            torn = number == len(lines) and not text.endswith("\n")
+            where = (
+                "the last line, with no trailing newline — an append torn by a crash or a full disk; "
+                "delete that line (or restore it) and resume"
+                if torn
+                else "edit or restore it before reading the store"
+            )
+            raise StoreError(f"{path}: line {number} is not valid JSON ({exc}) — {where}") from None
+        yield line, _decode_nonfinite(raw), record_from_json(raw)
+
+
+def _usage_usd(usage: Mapping[str, Any], model: Optional[str], spec: ExperimentSpec) -> float:
+    """USD for one record's provider ``usage`` under the model in force for
+    its trial (``model``, else ``spec.model``, else :data:`PINNED_MODEL`) —
+    the one pricing of a landed or retried line against the cost ceiling."""
+    return cost_usd(
+        usage.get("input_tokens", 0),
+        usage.get("output_tokens", 0),
+        price_for(model or spec.model or PINNED_MODEL, spec.price_usd_per_mtok),
+        cache_read_tokens=usage.get("cache_read_tokens", 0),
+        cache_write_tokens=usage.get("cache_write_tokens", 0),
+    )
+
+
+def records_spend_usd(path: Path, spec: ExperimentSpec) -> float:
+    """What the lines in ``records.jsonl`` already spent, priced as the run
+    prices them — the total a resume's cost ceiling starts from (every
+    reused line and every retried error line counts, T051 box 4)."""
+    return sum(
+        _usage_usd(record.usage, d.get("model"), spec)
+        for _line, d, record in read_records(path)
+        if record.usage
+    )
 
 
 def _append_retried(path: Path, lines: list[str]) -> None:
@@ -610,6 +660,9 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         # spend (written at the end) can be compared against what it expected.
         "cost_estimate": asdict(estimate_cost(spec)),
         "cost_ceiling_usd": spec.cost_ceiling_usd,
+        # T091 B3 — a resume may change the ceiling (never below what the
+        # records spent); every value the run has run under, in order.
+        "cost_ceiling_history": [spec.cost_ceiling_usd],
         "cost_usd_spent": 0.0,
         "stopped_reason": None,
         "usage_totals": None,

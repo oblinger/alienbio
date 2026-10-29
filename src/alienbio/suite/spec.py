@@ -143,6 +143,7 @@ class ExperimentSpec:
         # here rather than inside a trial: ``trials_per_condition: 0`` used to
         # plan an empty grid, a bool or float slipped into every seed label.
         put("trials_per_condition", _validate_positive_int("trials_per_condition", self.trials_per_condition))
+        _validate_axes(self.axes)
         if isinstance(self.base_seed, bool) or not isinstance(self.base_seed, int):
             raise ValueError(f"experiment spec: base_seed must be an int, got {self.base_seed!r}")
         if self.token_ceiling is not None:
@@ -208,15 +209,56 @@ def _validate_agent_fields(spec: "ExperimentSpec") -> None:
             _validate_positive_int(name, value)
 
 
+def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...]) -> None:
+    """T091 B1/B5/B10 — the grid's own shape, for both forms. A repeated
+    axis name kept only the last block's levels (the first vanished with no
+    message); an axis with no levels planned an empty grid with every check
+    ok; a repeated level (equal ``repr``) enumerated its cell twice, so
+    every ``(label, index)`` unit ran twice on one seed under one resume
+    key, the cell's ``n`` doubled (a false-narrow CI), and on a delta grid
+    the report then raised after the whole grid was paid for."""
+    names: set[str] = set()
+    for name, levels in axes:
+        if name in names:
+            raise ValueError(
+                f"experiment spec: axis {name!r} is declared twice — one axis per dial; "
+                "list every level on the one axis"
+            )
+        names.add(name)
+        if not levels:
+            raise ValueError(f"experiment spec: axis {name!r} has no levels — it would plan an empty grid")
+        seen: set[str] = set()
+        for level in levels:
+            if repr(level) in seen:
+                raise ValueError(
+                    f"experiment spec: axis {name!r} repeats level {level!r} — each level is one cell; "
+                    "a repeated one would run every trial of that cell twice under one resume key"
+                )
+            seen.add(repr(level))
+
+
 def _with_idle_arm(
     axes: tuple[tuple[str, tuple[Any, ...]], ...], agent: str, idle_baseline: bool
 ) -> tuple[tuple[str, tuple[Any, ...]], ...]:
-    """M45.7 — ``axes`` plus the matched idle arm: an ``agent`` axis
-    ``(agent, "idle")`` when ``idle_baseline`` asks for one, unless ``agent``
-    is already ``idle`` or an ``agent`` axis is swept (which also makes the
-    expansion idempotent). The idle twin is just another arm of the grid —
-    M46.8's matched seeds make it the baseline for the same (condition, trial)."""
-    if idle_baseline and agent != "idle" and not any(name == "agent" for name, _ in axes):
+    """M45.7 — ``axes`` plus the matched idle arm when ``idle_baseline`` asks
+    for one: a new ``agent`` axis ``(agent, "idle")``, or — when an
+    ``agent`` axis is already swept — ``"idle"`` appended to its levels.
+    Nothing is added when ``agent`` is ``idle`` with no agent axis, or the
+    swept axis already holds ``idle`` (which also makes the expansion
+    idempotent). The idle twin is just another arm of the grid — M46.8's
+    matched seeds make it the baseline for the same (condition, trial).
+
+    T091 (fix A's observation): a swept ``agent`` axis used to switch the
+    expansion off, so exp01/03/08/09/10 declared ``idle_baseline: true`` and
+    ran no idle arm, with no message."""
+    if not idle_baseline:
+        return axes
+    for pos, (name, levels) in enumerate(axes):
+        if name == "agent":
+            if "idle" in levels:
+                return axes
+            return axes[:pos] + ((name, tuple(levels) + ("idle",)),) + axes[pos + 1:]
+    if agent != "idle":
         return axes + (("agent", (agent, "idle")),)
     return axes
 
