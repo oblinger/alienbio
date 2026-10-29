@@ -2,7 +2,11 @@
 
 *A compartment tree with membrane transport and a diffusion lattice, gated by energy accounting and the boundedness check, with a predict task on a transport-limited response.*
 
-A body as a compartment tree (organism → liver → hepatocyte → mitochondrion) whose chemistry is annotated with free energies, with glucose crossing two membranes by transport before it is metabolised and pyruvate crossing a third; a tissue patch where oxygen diffuses along a lattice; two gates over the finished world — energy accounting (every internal reaction runs downhill) and the boundedness invariant (no pool grows or collapses without bound) — as guards with `on_fail: reject`; and a `predict` task whose key is computed by re-simulating the world with one step throttled.
+A body as a compartment tree (organism → liver → hepatocyte → mitochondrion) whose chemistry is annotated with free energies, with glucose crossing two membranes by transport before it is metabolised and pyruvate crossing a third; a tissue patch where oxygen diffuses along a lattice; two gates over the finished world — energy accounting (every internal reaction runs downhill) and the boundedness invariant (no pool grows or collapses without bound) — as guards with `on_fail: reject`; and a `predict` task whose key is computed by re-simulating the world with one step — drawn from the world seed — throttled.
+
+## Before and after the drawn step (T096)
+
+Before, `ferment` was throttled on every seed and the key was `down` everywhere — committing it blind scored 1.000. Now `perturbed: !x choice([...])` draws the step: `glycolysis` / `ferment` give `down`, `excrete` gives `up`, `clear` (waste alone) gives `same`; over seeds 200–259 the key is `down` 32 / `same` 16 / `up` 12, and the blind modal key (`same`) is right on 27 %. The shipped `measure_commit` zero commits nothing and scores 0.000 before and after (4 trials); no scripted solver.
 
 ## Run it
 

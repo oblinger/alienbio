@@ -509,7 +509,9 @@ GAMEABLE: dict[tuple[str, str], str] = {
         agent="measure-commit", modal="up", hit=28, cut="0.000"
     ),
     **_no_solver("organism", "measure-commit", "idle", "random"),
-    ("organism", "constant-key"): _PREDICT.format(agent="measure-commit"),
+    ("organism", "constant-key"): _PREDICT_DRAWN.format(
+        agent="measure-commit", modal="same", hit=16, cut="0.000"
+    ),
     **_no_solver("pathway_puzzles", "survey-commit", "idle"),
     ("pathway_puzzles", "constant-key"): _PATHWAY_KEY,
     ("pathway_puzzles", "random"): _PATHWAY_RANDOM,

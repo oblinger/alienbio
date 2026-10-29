@@ -55,13 +55,17 @@ tissue: !world
         patch: !lattice {k: 4, molecule: oxygen, diffusion: 0.2, initial: {0: 4.0}}
 
 # ---- a task: predict the response to a throttled step -------------------
-# `predict_q` re-simulates the world with `ferment` slowed by `factor` and
+# `predict_q` re-simulates the world with one step slowed by `factor` and
 # reads the direction lactate moves (up / down / same) — the key is computed
-# from the physics, never written down. Lactate can be held in all four
-# compartments, so `compartment:` names the one read (T091 M11).
+# from the physics, never written down. The step is drawn from the world
+# seed (T096: it was `ferment`, so the key was `down` on every seed):
+# glycolysis and ferment feed lactate, excrete drains it, clear acts on
+# waste alone (`same`). Lactate can be held in all four compartments, so
+# `compartment:` names the one read (T091 M11).
+perturbed: !x choice(["glycolysis", "ferment", "excrete", "clear"])
 task: !task
   archetype: organism-predict
-  objective: !predict_q {world: !x body, reaction_id: ferment, target_id: lactate, factor: 0.25, sim: !sim {dt: 0.1, steps: 60}, compartment: organism}
+  objective: !predict_q {world: !x body, reaction_id: !x perturbed, target_id: lactate, factor: 0.25, sim: !sim {dt: 0.1, steps: 60}, compartment: organism}
 
 # ---- an experiment over the transport rate ------------------------------
 experiment: !experiment

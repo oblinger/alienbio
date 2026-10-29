@@ -61,7 +61,19 @@ def test_the_predict_key_is_read_from_the_physics(values):
     task = values["task"]
     assert isinstance(task.objective, AnswerObjective) and task.objective.key.kind == "node_id"
     assert task.objective.key.value in ("up", "down", "same")
-    assert task.objective.key.value == "down"  # throttling ferment lowers lactate
+    # T096: the throttled step is drawn per seed; its place fixes the sign
+    expected = {"glycolysis": "down", "ferment": "down", "excrete": "up", "clear": "same"}[values["perturbed"]]
+    assert task.objective.key.value == expected
+
+
+def test_the_predict_key_varies_with_the_seed():
+    """T096: the key was `down` on every seed (ferment throttled); the drawn
+    step makes all three answers occur."""
+    seen = {}
+    for seed in range(16):
+        v = Env.standard(seed=seed, trusted=True).load(SPEC).force_all()
+        seen.setdefault(v["task"].objective.key.value, set()).add(v["perturbed"])
+    assert set(seen) == {"up", "down", "same"}, seen
 
 
 def test_the_experiment_runs_over_the_transport_rate(tmp_path):
