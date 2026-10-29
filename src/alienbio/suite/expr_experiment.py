@@ -55,7 +55,7 @@ from ..expr.registry import fn, registry as _registry
 from ..expr.yaml_tags import ExprLoader, load_text
 from .agent import Agent
 from .arch_diagnose import DiagnosePerturbationRecipe, TARGET_ROLE as DIAGNOSE_TARGET_ROLE
-from .arch_intervene import DesignInterventionRecipe, TARGET_ROLE as INTERVENE_TARGET_ROLE, make_intervention_objective
+from .arch_intervene import DesignInterventionRecipe, TARGET_ROLE as INTERVENE_TARGET_ROLE
 from .arch_predict import DEFAULT_FACTOR, PredictResponseRecipe
 from .archetypes import IdentifyPathwayRecipe
 from .carve import CarveFail, carve as _carve
@@ -126,7 +126,7 @@ def _objective_of(recipe: Any, skeleton: CarveResult, world: WorldImpl) -> dict[
     grader = recipe.grader_spec()
     objective: Objective
     if grader.kind == "outcome":
-        objective = make_intervention_objective(recipe._target_id(skeleton), recipe.target_value)
+        objective = recipe.build_objective(skeleton, world)
     else:
         objective = AnswerObjective(grader=grader, key=recipe.build_key(skeleton, world))
     return {"question": recipe.build_question(skeleton, world), "objective": objective, "skeleton": skeleton}

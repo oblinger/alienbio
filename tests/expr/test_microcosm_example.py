@@ -60,3 +60,31 @@ def test_the_experiment_runs_over_the_feed_rate(tmp_path):
     rmap = run_experiment(spec, out_dir=str(tmp_path / "run"))
     assert len(rmap.records) == 4 and rmap.provenance.failed_trials == 0
     assert all(0.0 < r.objective_score <= 1.0 for r in rmap.records)
+    # T091 E2: the score reads the pond's food, the one compartment that holds
+    # it. Feed 0.9 brings the pond nearer the goal of 6.0 (5.29 vs 4.15), so it
+    # scores higher; summed over compartments it scored 0.18 vs 0.90.
+    by_feed = {dict(r.condition_key)["feed_rate"]: r for r in rmap.records}
+    pond_food = {feed: r.final_state["pond"]["food"] for feed, r in by_feed.items()}
+    assert abs(6.0 - pond_food[0.9]) < abs(6.0 - pond_food[0.3])
+    assert by_feed[0.9].objective_score > by_feed[0.3].objective_score
+    assert by_feed[0.9].objective_score == pytest.approx(1.0 / (1.0 + abs(pond_food[0.9] - 6.0)))
+
+
+def test_the_intervene_scorer_reads_one_compartment_and_refuses_an_ambiguous_one():
+    """T091 E2: the target is read in the one compartment the binding names or
+    that holds it; a target held in several and named in none refuses at draft."""
+    from alienbio.bio.world import Compartment
+    from alienbio.suite.arch_intervene import target_compartment
+
+    world = Env.standard(seed=5, trusted=True).load(SPEC).force_all()["world"]
+    assert target_compartment(world, "food") == "pond"
+    assert target_compartment(world, "food", "adults") == "adults"
+    with pytest.raises(ValueError, match="not a compartment"):
+        target_compartment(world, "food", "lake")
+    two = WorldImpl(
+        world.chemistry,
+        (Compartment("pond", None, "environment", 10.0, concentrations={"food": 4.0}),
+         Compartment("cove", "pond", "environment", 1.0, concentrations={"food": 1.0})),
+    )
+    with pytest.raises(ValueError, match=r"held in \['pond', 'cove'\]"):
+        target_compartment(two, "food")

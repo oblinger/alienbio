@@ -490,7 +490,22 @@ GAMEABLE: dict[tuple[str, str], str] = {
     ("agent_loop", "random"): _LOOP_RANDOM,
     **_no_solver("cascade", "measure-commit", "idle", "random"),
     ("cascade", "constant-key"): _CASCADE_KEY,
-    **_no_solver("ecosystem", "act-commit", "idle", "constant-key", "max-pull", "random"),
+    # T091 E12: the world carries mass now (it was inert: every score 0.000);
+    # act-commit's one act still earns ~nothing on vash's ME2 / 4.0.
+    **{
+        ("ecosystem", cut): f"no intended solver on the live world: act-commit {i} vs {cut} {s}"
+        for cut, s, i in (
+            ("idle", "0.003", "0.014"),
+            ("constant-key", "0.046", "0.022"),
+            ("max-pull", "0.003", "0.014"),
+            ("random", "0.001", "0.014"),
+        )
+    },
+    # T091 E2: scored on the pond alone, measure-commit (which never acts)
+    # sits at passive reach; the old 0.896 vs idle 0.398 "safe" read was the
+    # concentration summed over the pond and the three population compartments.
+    ("microcosm", "idle"): "no intended solver: measure-commit never intervenes, 0.351 vs idle 0.355",
+    ("microcosm", "constant-key"): "no intended solver: measure-commit 0.351 vs constant-key 0.344 (2 seeds)",
     **_no_solver("grid", "trend-commit (wrong on every cell by design)", "idle", "random"),
     ("grid", "constant-key"): _PREDICT.format(agent="trend-commit"),
     **_no_solver("kinetics", "measure-commit", "idle", "random"),

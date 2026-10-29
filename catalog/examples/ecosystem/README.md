@@ -34,6 +34,10 @@ The file loads **trusted** because it is under `catalog/` (it executes `helpers.
 
 Deliberately **not** here: the AI-safety dials (monitoring, framing, hazard, constitution, stakes / reversibility, deception readouts) — those keep their coverage through the EXP zeros only (roadmap M48.9).
 
+## The world carries mass
+
+`initial:` seeds each organism's energy cycle (`krel.energy.ME1: 4.0`, `vash.energy.ME1: 4.0`) beside `shared_waste: 0.0`. Until T091 E12 it seeded only `shared_waste: 0.0` and nothing has a source, so every one of the 15 pools stayed 0 forever and every record scored 0. At seed 11, `dt` 0.05: after 20 steps all 15 pools are non-zero (`vash.energy.ME2` 0.149, `shared_waste` 0.323); after 200, the mass has run down the chains into `krel.S1` 0.725 / `vash.S1` 0.785. The experiment's act-commit scores rise from 0.000 to 0.008–0.019 (`vash.energy.ME2` / 4.0) — still no intended solver (`tests/suite/test_gameability.py`).
+
 ## Test
 
 `tests/expr/test_ecosystem_example.py` loads the file, checks the world's pools, evaluates a template call from Python, and runs the experiment end to end through the suite harness.

@@ -107,7 +107,10 @@ leak: !Reaction {name: leak, reactants: [ME2], products: [], rate: 0.01}
 # ---- the world ----------------------------------------------------------
 world: !world
   seed: !x seed("world")            # an explicit stream for materialisation
-  initial: {shared_waste: 0.0}      # a POOL NAME as data (a string)
+  # POOL NAMES as data (strings). Each energy cycle is seeded with mass, so
+  # the world moves; with only shared_waste: 0.0 every pool stayed 0 forever
+  # (T091 E12).
+  initial: {shared_waste: 0.0, krel.energy.ME1: 4.0, vash.energy.ME1: 4.0}
   skeleton: !skeleton
     crux: feed
     root: !block

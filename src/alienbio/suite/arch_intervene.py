@@ -18,8 +18,11 @@ either way:
   the concentration the target naturally reaches, so the objective is coherent
   and self-consistent (simulating the returned world scores ~1.0).
 - :func:`make_target_scorer` is the opaque scorer factory: it reads the target
-  molecule's FINAL concentration off ``timeline.states[-1]`` and scores closeness
-  to the goal with a bounded ``1 / (1 + |final - target|)`` falloff.
+  molecule's FINAL concentration in ONE compartment off ``timeline.states[-1]``
+  and scores closeness to the goal with a bounded ``1 / (1 + |final - target|)``
+  falloff. :func:`target_compartment` picks that compartment at draft time (T091
+  E2: summing concentrations over compartments of different volumes ranked
+  microcosm's worse feed rate higher).
 - :func:`make_intervention_objective` bundles that scorer into an
   :class:`OutcomeObjective`.
 - :class:`DesignInterventionRecipe` is the :class:`ObjectiveRecipe` for the
@@ -66,6 +69,10 @@ if TYPE_CHECKING:
 #: The role name the ``target`` molecule binds to on the skeleton.
 TARGET_ROLE = "target"
 
+#: The binding entry naming the compartment the target is read in (optional:
+#: :func:`target_compartment` defaults it when the choice is unambiguous).
+COMPARTMENT_ROLE = "compartment"
+
 
 def _is_molecule(node: object) -> bool:
     """True for a molecule node, False for a reaction node.
@@ -88,17 +95,50 @@ def _intervention_motif() -> Motif:
     return Motif(roles=(role,), edges=())
 
 
-def _final_concentration(timeline: Timeline, molecule_id: str) -> float:
-    """Total final concentration of ``molecule_id`` across all compartments.
+def target_compartment(world: WorldImpl, target_id: str, named: Optional[str] = None) -> str:
+    """The compartment an intervene task reads its target in (T091 E2).
+
+    ``named`` (the binding's ``compartment`` entry) wins and must be one of
+    the world's compartments. Unnamed: a one-compartment world's only
+    compartment, else the one compartment whose initial concentrations hold
+    ``target_id``. Several holders, or none, refuse — naming the compartments —
+    because a concentration summed over compartments of different volumes is
+    no quantity the task states.
+    """
+    ids = [str(c.id) for c in world.compartments]
+    if named is not None:
+        if str(named) not in ids:
+            raise ValueError(
+                f"intervene: target compartment {named!r} is not a compartment of the world {ids}"
+            )
+        return str(named)
+    if len(ids) == 1:
+        return ids[0]
+    holders = [str(c.id) for c in world.compartments if target_id in c.concentrations]
+    if len(holders) == 1:
+        return holders[0]
+    where = f"held in {holders}" if holders else "held in none of them"
+    raise ValueError(
+        f"intervene: target {target_id!r} is {where} of the world's compartments {ids}; "
+        f"name the one to score with a {COMPARTMENT_ROLE!r} binding (binding: {{{TARGET_ROLE}: ..., "
+        f"{COMPARTMENT_ROLE}: <id>}})"
+    )
+
+
+def _final_concentration(timeline: Timeline, molecule_id: str, compartment: Optional[str] = None) -> float:
+    """Final concentration of ``molecule_id`` in one compartment.
 
     Reads ``timeline.states[-1]`` (a self-describing
     :class:`~alienbio.bio.world_state.WorldStateImpl`), locates the molecule on
-    its id axis, and sums that molecule's column of ``as_array()`` over every
-    compartment — so the scorer never needs to know a compartment id.
+    its id axis and ``compartment`` on its compartment axis. ``compartment``
+    unset is allowed only on a one-compartment state — the drafters of the
+    generative intervene world, whose only compartment is ``cell``.
 
     Raises:
-        ValueError: if the timeline has no states, or the final state is a
-            pure-int state (no ``molecule_ids`` axis to locate the molecule on).
+        ValueError: if the timeline has no states, the final state is a
+            pure-int state (no ``molecule_ids`` axis to locate the molecule on),
+            ``compartment`` is unset on a multi-compartment state, or names a
+            compartment the state does not carry.
         KeyError: if ``molecule_id`` is absent from the state's molecule axis.
     """
     if not timeline.states:
@@ -117,15 +157,30 @@ def _final_concentration(timeline: Timeline, molecule_id: str) -> float:
             f"target molecule id {molecule_id!r} is not on the state's molecule axis"
         ) from None
     arr = state.as_array()  # [compartments x molecules] (numpy 2D or list-of-lists)
-    return float(sum(row[j] for row in arr))
+    comp_ids = state.compartment_ids
+    if compartment is None:
+        if len(arr) != 1:
+            raise ValueError(
+                f"target {molecule_id!r}: the state has {len(arr)} compartments "
+                f"{list(comp_ids) if comp_ids is not None else ''}; the scorer needs the one to read "
+                "(see target_compartment)"
+            )
+        return float(arr[0][j])
+    if comp_ids is None or compartment not in comp_ids:
+        raise ValueError(
+            f"target compartment {compartment!r} is not on the state's compartment axis "
+            f"{list(comp_ids) if comp_ids is not None else '(unlabelled)'}"
+        )
+    return float(arr[comp_ids.index(compartment)][j])
 
 
 def make_target_scorer(
-    target_mol_id: str, target_value: float
+    target_mol_id: str, target_value: float, compartment: Optional[str] = None
 ) -> Callable[[Timeline], float]:
     """A scorer over a :class:`Timeline` measuring closeness to the goal.
 
-    The returned callable reads the target molecule's FINAL concentration off
+    The returned callable reads the target molecule's FINAL concentration in
+    ``compartment`` (unset: the state's only compartment) off
     ``timeline.states[-1]`` and returns ``1 / (1 + |final - target_value|)`` — a
     bounded score in ``(0, 1]`` that is exactly ``1.0`` when the final
     concentration hits the target and decays monotonically as it drifts away. The
@@ -134,14 +189,14 @@ def make_target_scorer(
     """
 
     def scorer(timeline: Timeline) -> float:
-        final = _final_concentration(timeline, target_mol_id)
+        final = _final_concentration(timeline, target_mol_id, compartment)
         return 1.0 / (1.0 + abs(final - target_value))
 
     return scorer
 
 
 def make_intervention_objective(
-    target_mol_id: str, target_value: float
+    target_mol_id: str, target_value: float, compartment: Optional[str] = None
 ) -> OutcomeObjective:
     """Bundle the target scorer into an :class:`OutcomeObjective`.
 
@@ -151,7 +206,7 @@ def make_intervention_objective(
     the scorer holds any context it needs).
     """
     return OutcomeObjective(
-        scorer=make_target_scorer(target_mol_id, target_value),
+        scorer=make_target_scorer(target_mol_id, target_value, compartment),
         target=target_value,
     )
 
@@ -181,6 +236,13 @@ class DesignInterventionRecipe:
     def _target_id(self, skeleton: CarveResult) -> str:
         """The target molecule id — read off the skeleton by construction."""
         return skeleton.binding[self.role_name]
+
+    def build_objective(self, skeleton: CarveResult, world: WorldImpl) -> OutcomeObjective:
+        """The outcome objective, read in the compartment :func:`target_compartment`
+        picks — refused at draft when the world leaves it ambiguous."""
+        target = self._target_id(skeleton)
+        compartment = target_compartment(world, target, skeleton.binding.get(COMPARTMENT_ROLE))
+        return make_intervention_objective(target, self.target_value, compartment)
 
     def build_question(self, skeleton: CarveResult, world: WorldImpl) -> Question:
         """The target molecule as a single-element ``node_set`` question.

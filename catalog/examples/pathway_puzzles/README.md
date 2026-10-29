@@ -13,7 +13,7 @@ From Python, the pieces:
 
     from alienbio.expr import Env
     v = Env.standard(seed=11, trusted=True).load("catalog/examples/pathway_puzzles/puzzles.yaml").force_all()
-    v["puzzle"].objective.key.value    # the ordered chain, four host molecule ids
+    v["puzzle"]["objective"].key.value # the ordered chain, four host molecule ids
     v["prefix_credit"]                 # 1/3 — the first two of four nodes right (the given start earns none)
     v["question_text"]                 # the endpoints, in alien phrases
     v["plan"].containers               # the coverage plan
