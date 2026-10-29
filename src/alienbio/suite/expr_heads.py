@@ -43,6 +43,7 @@ from .blocks import (
     SourceBlock,
     SpatialLatticeBlock,
     TransportBlock,
+    _sides,
 )
 from .conflict_gen import draft_conflict_world
 from .delta_gen import draft_delta_pair
@@ -137,13 +138,13 @@ class RateLawBlock(ReactionBlock):
 
     def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
         extra = set(self.extra_pools)
-        reactants: dict[MoleculeImpl, float] = {}
-        products: dict[MoleculeImpl, float] = {}
-        for port in self.ports:
-            if port.name in extra:
-                continue
-            coef = self.stoich.get(port.name, 1.0)
-            (reactants if port.direction is PortDir.IN else products)[bound[port.name]] = coef
+        # T091 A5 — the one side builder ReactionBlock uses: duplicate ports
+        # SUM (``A + A`` is ``2 A``) and a stray ``stoich`` key refuses. This
+        # path assigned, so the same reaction lost a coefficient the moment
+        # its rate carried a modulation or an expression.
+        reactants, products = _sides(
+            tuple(port for port in self.ports if port.name not in extra), bound, self.stoich, ns
+        )
         modifiers: dict[MoleculeImpl, Any] = {bound[m.pool]: m.sample(seed.child(f"mod/{m.pool}")) for m in self.law.modulations}
         k = float(self.law.k.sample(seed.child("rate")))
         rxn_id = f"{ns}/rxn"
@@ -182,15 +183,19 @@ def reaction(
     reactant_pools = [_pool(p, env) for p in reactants]
     product_pools = [_pool(p, env) for p in products]
     law = compile_rate(rate, env, reactants=reactant_pools, products=product_pools)
+    # T091 A6 — stoich keys are pool names and are spelled in this scope like
+    # the reactant/product lists (``Env.pool``): inside a ``!template`` the
+    # ports are ``one.A`` and a bare ``A`` key named no port.
+    stoich_map = {_pool(k, env): v for k, v in dict(stoich or {}).items()}
     ports = tuple(Port(p, container, PortDir.IN) for p in reactant_pools) + tuple(
         Port(p, container, PortDir.OUT) for p in product_pools
     )
     if not law.modulations and law.expr is None:
-        return ReactionBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=dict(stoich or {}))
+        return ReactionBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map)
     consumed = set(reactant_pools) | set(product_pools)
     extra = tuple(dict.fromkeys([*law.modifier_pools, *(p for p in law.expr_pools if p not in consumed)]))
     ports = ports + tuple(Port(pool, container, PortDir.IN) for pool in extra)
-    return RateLawBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=dict(stoich or {}), law=law, extra_pools=extra)
+    return RateLawBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map, law=law, extra_pools=extra)
 
 
 @fn(summary="CRUX: one precursor pool feeding two rival routes")

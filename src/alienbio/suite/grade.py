@@ -40,7 +40,11 @@ string is truthy) and is refused otherwise.
 
 from __future__ import annotations
 
+import math
+import numbers
 from typing import Any, Callable
+
+import numpy as np
 
 from .types import Answer, GraderSpec, Timeline
 
@@ -70,9 +74,14 @@ def _as_path(a: Any) -> list:
 
 
 def _as_real(a: Any) -> float:
-    if isinstance(a, bool) or not isinstance(a, (int, float)):
+    # T091 A7 — any ``numbers.Real`` but a bool (numpy scalars included, as
+    # ``SimConfig`` accepts them); a non-finite value stays malformed.
+    if isinstance(a, bool) or isinstance(a, np.bool_) or not isinstance(a, numbers.Real):
         raise MalformedAnswer(f"scalar answer must be a number, got {type(a).__name__} {a!r}"[:200])
-    return float(a)
+    value = float(a)
+    if not math.isfinite(value):
+        raise MalformedAnswer(f"scalar answer must be finite, got {a!r}"[:200])
+    return value
 
 
 def _partial(config: Any, default: bool) -> bool:

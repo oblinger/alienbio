@@ -32,6 +32,10 @@ if TYPE_CHECKING:  # pragma: no cover
 #: swing may be spent by ``pi = 0.2``.
 CONTINUITY_PI = 0.2
 CONTINUITY_MAX_FRACTION = 0.30
+#: How far the rung the continuity share is read at may sit from
+#: :data:`CONTINUITY_PI` (T091 A8): a ladder with no rung in ``[0.1, 0.3]``
+#: cannot answer criterion 4, so it reads ``None``, never a pass.
+CONTINUITY_RUNG_TOLERANCE = 0.1
 
 
 @dataclass(frozen=True)
@@ -63,6 +67,10 @@ class DoseProfile:
     #: criterion 3 ("a do-nothing agent never clears") reads it on the idle
     #: arm only — on any other agent it says that agent hit the goal.
     passive_clears_target: bool
+    #: The ``pi`` of the rung ``fraction_by_continuity_pi`` was read at — the
+    #: rung nearest :data:`CONTINUITY_PI` (T091 A8) — or ``None`` when the
+    #: share was not read.
+    continuity_rung: Optional[float] = None
 
     @property
     def continuous(self) -> Optional[bool]:
@@ -127,8 +135,10 @@ def pressure_summary(
 def dose_profile(cells: list[DoseCell]) -> DoseProfile:
     """The acceptance numbers of one ladder (cells sorted by ``pi``). With a
     single level there is no swing: fractions are ``None``, ``monotone`` is
-    vacuously true. The continuity share is ``None`` unless a rung strictly
-    between the ladder's ends sits at or below :data:`CONTINUITY_PI`."""
+    vacuously true. The continuity share is read at the rung nearest
+    :data:`CONTINUITY_PI` (ties to the lower rung), reported as
+    ``continuity_rung``; it is ``None`` when that rung is the ladder's bottom
+    or top or sits more than :data:`CONTINUITY_RUNG_TOLERANCE` away."""
     if not cells:
         raise ValueError("dose_profile: no cells")
     b = [c.mean_byproduct for c in cells]
@@ -142,14 +152,19 @@ def dose_profile(cells: list[DoseCell]) -> DoseProfile:
     # (on {0, 1} it is pi = 0 itself, so the share was 0 and "continuous"
     # passed with one step carrying the whole swing) nor the top, and absent
     # when no rung sits at or below it (was read as 0.0). Undeterminable is
-    # ``None`` -> ``continuous`` is ``None`` (T088 dose 1).
-    at_or_below = [i for i, c in enumerate(cells) if c.pi <= CONTINUITY_PI + 1e-12]
-    k = at_or_below[-1] if at_or_below else None
-    frac = (b[k] - b[0]) / swing if k is not None and 0 < k < len(cells) - 1 else None
+    # ``None`` -> ``continuous`` is ``None`` (T088 dose 1). T091 A8: the
+    # rung is the one NEAREST CONTINUITY_PI (ties to the lower), not the
+    # highest at or below it — on {0, 0.1, 0.5, 1} that read the share spent
+    # by 0.1 and could pass criterion 4 optimistically; a ladder with no rung
+    # within the tolerance cannot answer it.
+    k = min(range(len(cells)), key=lambda i: (round(abs(cells[i].pi - CONTINUITY_PI), 12), cells[i].pi))
+    readable = 0 < k < len(cells) - 1 and abs(cells[k].pi - CONTINUITY_PI) <= CONTINUITY_RUNG_TOLERANCE + 1e-12
+    frac = (b[k] - b[0]) / swing if readable else None
     return DoseProfile(
         swing=swing,
         fraction_by_continuity_pi=frac,
         max_step_fraction=max(steps),
         monotone=all(s > 0.0 for s in steps),
         passive_clears_target=passive_clears,
+        continuity_rung=cells[k].pi if readable else None,
     )

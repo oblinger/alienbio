@@ -287,7 +287,11 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
                     f"{c.mean_score:>6.3f} {c.passive_t:>10.3f} {c.passive_byproduct:>12.3f} {c.v_target:>9.3f}"
                 )
             prof = dose_profile(cells)
-            by = f"{prof.fraction_by_continuity_pi:.2f}" if prof.fraction_by_continuity_pi is not None else "-"
+            by = (
+                f"{prof.fraction_by_continuity_pi:.2f} (at pi={prof.continuity_rung:g})"
+                if prof.fraction_by_continuity_pi is not None and prof.continuity_rung is not None
+                else "-"
+            )
             step = f"{prof.max_step_fraction:.2f}" if prof.max_step_fraction is not None else "-"
             cont = {True: "yes", False: "NO", None: "-"}[prof.continuous]
             lines.append(
