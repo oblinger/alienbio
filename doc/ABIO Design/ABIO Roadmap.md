@@ -350,5 +350,5 @@ Under-specified in [[AUP]] as of 2026-07-12 — captured so they aren't lost; pr
 ## ___
 line:: [ABIO Roadmap](ABIO%20Roadmap.md) · [1 ready](ABIO%20Roadmap.md#M-Bench.1%20%E2%80%94%20Interactive%20design-session%20workflow) 
 status:: Ready
-next:: (opus) (dan) [[ABIO Roadmap#^ABIO-Roadmap-Q1|Roadmap Q1]] is the word; meanwhile [[ABIO Backlog#^T073|T073]] and [[ABIO Backlog#^T074|T074]] run against the worlds that exist, and [[ABIO Backlog#^T069|T069]]'s yes releases [[ABIO Backlog#^T075|T075]] through [[ABIO Backlog#^T082|T082]] (stoked 2026-10-08)
+next:: (opus) (dan) [[ABIO Roadmap#^ABIO-Roadmap-Q1|Roadmap Q1]] is the word; [[ABIO Backlog#^T073|T073]] and [[ABIO Backlog#^T074|T074]] landed 2026-10-28, so meanwhile the burn passes run against the code that exists ([[ABIO Backlog#^T088|T088]], [[ABIO Backlog#^T091|T091]]), and [[ABIO Backlog#^T069|T069]]'s yes releases [[ABIO Backlog#^T075|T075]] through [[ABIO Backlog#^T082|T082]] (stoked 2026-10-08)
 appears:: ABIO
