@@ -9,7 +9,6 @@ import pytest
 
 from alienbio.suite.agent import Commit, Intervene, Measure, ReasoningStep
 from alienbio.suite.deliberation import DeliberationTrace
-from alienbio.suite.info_seeking import ActionRecord
 from alienbio.suite.reliability_grid import aggregate_cells
 from alienbio.suite.trial import TrialRecord, condition_key, thread_reasoning_steps
 from alienbio.suite.types import Answer, Timeline
