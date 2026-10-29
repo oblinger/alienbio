@@ -245,6 +245,12 @@ class TrialRecord:
     #: compared: its shape did not fit the grader kind (an integer on a path,
     #: a bare string on a set). ``None`` when it was graded (not written).
     grade_error: Optional[str] = None
+    #: T091 A1 — the passive run-out to a drafter-declared scored horizon,
+    #: when the trial ended before it: ``{"from_turn", "to_turn",
+    #: "scored_at_s", "final_state"}`` (``final_state`` is the state the
+    #: outcome was scored on; the record's own ``final_state`` stays the
+    #: episode's). ``None`` when no run-out ran (not written).
+    runout: Optional[Mapping[str, Any]] = None
 
     @property
     def bucket_key(self) -> tuple[tuple[str, Any], ...]:

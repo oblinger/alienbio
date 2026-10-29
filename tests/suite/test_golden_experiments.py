@@ -86,6 +86,19 @@ the 100 units the chain holds refuses at draft — so exp09's
 seed). ``oracle.intervene.goal`` / ``.passive``, ``objective_score`` and the
 two horizon fields moved on all 24 lines; the other eleven were
 byte-unchanged.
+exp03, exp04, exp05 and exp04-diagnose-zero re-pinned 2026-10-29 (T091
+A2): a ``diagnose`` target is drawn from ``m1 … m{n-1}`` (``m0`` drafted
+the same world as ``m1``). Only ``oracle.perturbation.node`` (24 + 24 + 18
++ 12 lines), ``oracle.perturbation.reaction`` and the chain pools of
+``final_state`` (on the lines whose perturbed reaction changed; none on
+exp03, whose 24 moved lines went ``m0`` -> ``m1`` on the same ``r0``)
+moved; every score, action and answer is byte-identical (the scripted zeros commit no answer). exp09
+re-pinned the same day (T091 A1): the intervene outcome is scored at the
+12 s horizon after the commit (the remaining turns run passively), so
+``objective_score`` and the new ``oracle.intervene.scored_at_s`` and
+``runout`` moved on all 24 lines (act-commit 0.0131 -> 0.2326,
+survey-commit 0.0216 -> 0.2930); ``final_state`` and the action logs are
+byte-identical, and the other eleven were byte-unchanged.
 ``exp04-first-live`` is paid and excluded. Offline, scripted only.
 """
 
@@ -108,15 +121,15 @@ GOLDEN: dict[str, str] = {
     "exp01": "df73d1293dfe65f8",
     "exp10": "2e6b9d97e3748b30",
     "exp02": "a23400c0bb583d18",
-    "exp03": "14f038ed34ff6668",
-    "exp04": "c5417299d3dad40c",
-    "exp04-diagnose-zero": "d2b51355c0364ba7",
+    "exp03": "b7fa0de50ec24de2",
+    "exp04": "5b05aa164a6d8b8a",
+    "exp04-diagnose-zero": "eba0349455c4ab1b",
     "exp04-zero": "d07da8100b6e215c",
-    "exp05": "0d72b042705c3af2",
+    "exp05": "3f37ce5caad5299a",
     "exp06": "ffa26959c383e674",
     "exp07": "fcba846f9a5bf0ab",
     "exp08": "d63c1077400826a2",
-    "exp09": "3e39e361e90e61c5",
+    "exp09": "be85ae8eb101318e",
     "exp11": "5133aeda0c2af22c",
     "exp12": "1264a5892e887d4c",
     "exp13": "dffcdd961510011f",

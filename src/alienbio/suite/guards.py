@@ -520,6 +520,32 @@ def certainty_windows_violation(spec: ExperimentSpec) -> Optional[str]:
     return None
 
 
+def intervene_horizon_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why this ``intervene`` run's budget ladder is not paired — ``None``
+    when it is (T091 A4).
+
+    ``intervene`` derives its goal and passive reach — and scores the outcome
+    — at the task's horizon, which is ``max_turns`` unless the
+    ``intervene_horizon`` generator setting pins it. ``max_turns`` is in
+    ``WORLD_INVARIANT_DIALS`` (a budget contrast is meant to run one task), so
+    a ``max_turns`` axis without the pin gives every rung its own goal (seed
+    9, n_nodes 5: goal 18.0 at 4 turns, 87.2 at 12) and the ladder reads the
+    horizon, not the budget. ``diagnose`` has the same shape and the same pin
+    (``hazard_horizon``)."""
+    if spec.drafter != "intervene":
+        return None
+    if not any(axis == "max_turns" for axis, _levels in spec.axes):
+        return None
+    if _dial_values_in_play(spec, "intervene_horizon"):
+        return None
+    return (
+        f"{spec.name}: intervene sweeps max_turns as an axis without intervene_horizon — the goal, "
+        "the passive reach and the scored horizon would all move with each rung, so the budget "
+        "contrast is not paired; pin the horizon on the task, e.g. intervene(..., "
+        "intervene_horizon=<the largest max_turns>)"
+    )
+
+
 def score_window_violation(spec: ExperimentSpec) -> Optional[str]:
     """Why this run's ``score_window`` cannot be met inside its episode —
     ``None`` when it can.
@@ -738,8 +764,8 @@ def label_collision_violation(spec: ExperimentSpec) -> Optional[str]:
 
 PREFLIGHT_CHECKS: tuple[str, ...] = (
     "registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag",
-    "brief-dials", "certainty-windows", "score-window", "inert-arm", "agent", "price", "draft",
-    "resume", "out_dir",
+    "brief-dials", "certainty-windows", "score-window", "intervene-horizon", "inert-arm", "agent", "price",
+    "draft", "resume", "out_dir",
 )
 
 
@@ -760,7 +786,9 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     ``sampling`` (a live arm with no ``temperature``), ``w2-lag`` (the W2
     chain lag bound), ``brief-dials`` (the in-world monitor arm),
     ``certainty-windows`` (slices that cannot cut the turn),
-    ``score-window`` (a held window longer than the episode), ``inert-arm``
+    ``score-window`` (a held window longer than the episode),
+    ``intervene-horizon`` (an ``intervene`` ``max_turns`` axis with no
+    ``intervene_horizon`` pin, T091 A4), ``inert-arm``
     (a ``compact_at`` that never fires), ``agent`` (each condition's agent
     config), ``price`` (a price for every model level in play; the
     estimate), ``draft`` (each condition's world and brief; skipped once
@@ -818,6 +846,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     check("brief-dials", lambda: _raise_if(brief_dials_violation(spec), "brief-dials"))
     check("certainty-windows", lambda: _raise_if(certainty_windows_violation(spec), "certainty-windows"))
     check("score-window", lambda: _raise_if(score_window_violation(spec), "score-window"))
+    check("intervene-horizon", lambda: _raise_if(intervene_horizon_violation(spec), "intervene-horizon"))
     check("inert-arm", lambda: _raise_if(inert_arm_violation(spec), "inert-arm"))
     check("agent", lambda: _raise_if(agent_construction_violation(spec), "agent"))
 

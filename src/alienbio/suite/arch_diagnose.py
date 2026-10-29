@@ -101,16 +101,19 @@ def draft_diagnosis_world(
     Builds ``n_nodes`` molecules ``m0 … m_{n-1}`` chained by ``n_nodes - 1``
     unidirectional reactions, plus ``distractor_count`` off-chain molecules
     ``d0 …`` (extra candidates that widen the answer set). One molecule is picked
-    as the perturbed ``target`` seed-deterministically, and a :class:`CarveResult` is
+    as the perturbed ``target`` seed-deterministically — from ``m1 … m_{n-1}``
+    when ``n_nodes > 1`` — and a :class:`CarveResult` is
     **constructed directly** (never carved) binding the sole ``target`` role to
     that molecule id.
 
     Deterministic in ``seed``: the same seed always selects the same target and
     yields the same world. The molecular structure itself is seed-invariant;
     the choice of which molecule is perturbed — and so which reaction runs
-    off-rate — varies with the seed. The source ``m0`` and its product ``m1``
-    share one perturbed reaction (``r0`` feeds ``m1`` and is the only one
-    touching ``m0``), so those two targets draft the same world.
+    off-rate — varies with the seed. The source ``m0`` is never the target
+    on a chain (T091 A2): its only reaction ``r0`` is also ``m1``'s feeding
+    reaction, so the two keys drafted byte-identical worlds and about one
+    diagnose trial in four had an unidentifiable answer. Every target now
+    perturbs a reaction no other target does.
 
     Returns ``(world, skeleton)`` — the skeleton's ``binding['target']`` is the
     ground truth this archetype's recipe reads its key off of.
@@ -169,8 +172,14 @@ def draft_diagnosis_world(
     world = WorldImpl(chem, (comp,))
 
     # Choose the perturbed node seed-deterministically (a molecule by
-    # construction — the candidate set is exactly the molecule ids).
-    target_idx = int(seed.child("target").rng().integers(n_nodes))
+    # construction — the candidate set is exactly the molecule ids). On a
+    # chain the source m0 is excluded: its perturbed reaction (r0, the one
+    # consuming it) is m1's feeding reaction, so m0 and m1 would draft the
+    # same world (T091 A2).
+    if n_nodes > 1:
+        target_idx = 1 + int(seed.child("target").rng().integers(n_nodes - 1))
+    else:
+        target_idx = 0
     target_id = node_names[target_idx]
 
     if n_nodes > 1:

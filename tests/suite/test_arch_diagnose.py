@@ -114,3 +114,20 @@ def test_diagnosis_node_set_question_round_trips():
     vocab = build_vocabulary(world)
     back = parse(render(q, vocab, verb="diagnose"), vocab, kind="node_set", verb="diagnose")
     assert back == q
+
+
+def test_no_two_targets_share_a_perturbed_world() -> None:
+    """T091 A2: the source ``m0`` is never the target on a chain — its only
+    reaction ``r0`` is also ``m1``'s feeding reaction, so the two keys drafted
+    byte-identical worlds and a perfect diagnostician capped near 0.78."""
+    from alienbio.suite.drafters import DRAFTERS
+
+    worlds: dict[str, tuple] = {}
+    for s in range(60):
+        world, task = DRAFTERS["diagnose"](Seed(s), {})
+        key = task.objective.key.value
+        assert key != "m0"
+        sig = tuple(sorted((rid, float(r.rate)) for rid, r in world.chemistry.reactions.items()))
+        assert worlds.setdefault(key, sig) == sig
+    assert set(worlds) == {"m1", "m2", "m3"}
+    assert len(set(worlds.values())) == len(worlds)

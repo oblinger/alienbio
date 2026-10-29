@@ -633,7 +633,11 @@ def run(
     An ``AnswerObjective`` task that never commits has no answer to grade and
     scores ``0.0``; an ``OutcomeObjective`` task's scorer runs on the final
     timeline regardless of whether the trial committed (it scores the WORLD
-    trajectory, not a submitted answer).
+    trajectory, not a submitted answer). When the drafter declares a scored
+    horizon (``task.setup["score_horizon_turns"]``, T091 A1 — ``intervene``)
+    and the trial ends before it, the remaining turns run passively from the
+    end state (as Wait turns would) and the scorer reads that extended
+    timeline; the run-out is on ``record.runout``.
 
     ``dials["probes"]`` (T026) declares discarded-branch probes — each a
     ``{"text", "timing"}`` mapping (see :func:`_parse_probes` /
@@ -1146,6 +1150,42 @@ def run(
 
     final_timeline = Timeline(times=tuple(turn_times), states=tuple(turn_states))
 
+    # T091 A1 — an outcome task whose drafter declares a scored horizon
+    # (``setup["score_horizon_turns"]``; ``intervene`` only) is graded at that
+    # horizon, not at the turn the trial ended: the remaining turns are
+    # integrated passively from the end state, exactly as Wait turns would run
+    # them (same chemistry, same per-turn seed paths), and the scorer reads
+    # the extended timeline. The episode's own ``final_timeline`` /
+    # ``final_state`` are untouched; the run-out rides ``record.runout``.
+    scored_timeline = final_timeline
+    runout: Optional[dict[str, Any]] = None
+    horizon_turns = task.setup.get("score_horizon_turns") if isinstance(task.setup, Mapping) else None
+    if isinstance(task.objective, OutcomeObjective) and horizon_turns is not None:
+        if isinstance(horizon_turns, bool) or not isinstance(horizon_turns, int) or horizon_turns < 1:
+            raise ValueError(f"task.setup['score_horizon_turns'] must be a positive int, got {horizon_turns!r}")
+        if certainty_cfg is not None:
+            raise ValueError("task.setup['score_horizon_turns'] cannot be combined with task.setup['certainty']")
+        if turns_executed < horizon_turns:
+            run_times = list(turn_times)
+            run_states = list(turn_states)
+            run_state = state
+            run_elapsed = elapsed
+            for t in range(turns_executed, horizon_turns):
+                passive_world = _world_from_state(compartments, chemistry, run_state, world.flows, world.population_laws)
+                timeline = simulate(passive_world, sim_cfg, seed.child(f"turn/{t}/sim"))
+                for tt, ss in zip(timeline.times[1:], timeline.states[1:]):
+                    run_times.append(run_elapsed + tt)
+                    run_states.append(cast(WorldStateImpl, ss))
+                run_elapsed += timeline.times[-1]
+                run_state = cast(WorldStateImpl, timeline.states[-1])
+            scored_timeline = Timeline(times=tuple(run_times), states=tuple(run_states))
+            runout = {
+                "from_turn": turns_executed,
+                "to_turn": horizon_turns,
+                "scored_at_s": run_elapsed,
+                "final_state": final_state_dict(run_state),
+            }
+
     grade_error: Optional[str] = None
     if reason == "committed" and isinstance(task.objective, AnswerObjective):
         assert committed_answer is not None
@@ -1166,7 +1206,7 @@ def run(
                 grade_error = str(exc)
     elif isinstance(task.objective, OutcomeObjective):
         objective_score = grade_outcome(
-            final_timeline, task.objective.scorer, task.objective.target
+            scored_timeline, task.objective.scorer, task.objective.target
         )
     else:
         objective_score = 0.0  # AnswerObjective task, no Commit: nothing to grade
@@ -1210,6 +1250,7 @@ def run(
         # T088 — the LLM agent's parse failures and abort reason (only-when-set).
         **_agent_abort_fields(agent),
         grade_error=grade_error,
+        runout=runout,
     )
     if taint_hits:
         raise TaintError(record)

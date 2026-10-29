@@ -273,6 +273,8 @@ def record_to_json(record: TrialRecord, label: str, index: int) -> dict[str, Any
         **({"parse_failures": int(record.parse_failures)} if record.parse_failures else {}),
         **({"aborted": record.aborted} if record.aborted is not None else {}),
         **({"grade_error": record.grade_error} if record.grade_error is not None else {}),
+        # T091 A1 — only when a run-out ran.
+        **({"runout": _json_safe(dict(record.runout))} if record.runout is not None else {}),
         **(
             # T062 — written only when the drafter declares readouts.
             {"readout_series": {rid: [_encode_float(v) for v in vals] for rid, vals in record.readout_series.items()}}
@@ -352,6 +354,7 @@ def record_from_json(d: Mapping[str, Any]) -> TrialRecord:
         parse_failures=int(d.get("parse_failures", 0)),
         aborted=d.get("aborted"),
         grade_error=d.get("grade_error"),
+        runout=_decode_nonfinite(d.get("runout")),
         readout_series=(
             {rid: tuple(_decode_float(v) for v in vals) for rid, vals in d["readout_series"].items()}
             if d.get("readout_series") is not None

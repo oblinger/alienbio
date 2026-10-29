@@ -222,8 +222,10 @@ def test_generative1_passive_reach_is_read_at_the_episode_horizon():
 
 
 def test_generative1_a_goal_above_the_chain_mass_refuses_at_draft():
+    # T091 A3: only on a surface with no molecule setpoint lever (a molecule
+    # lever adds mass; the default surface offers m0 … m{n-2}).
     with pytest.raises(ValueError, match="exceeds the 100 units the chain holds"):
-        DRAFTERS["intervene"](Seed(2), {"n_nodes": 4, "target_margin": 0.2})  # 50 s default: reach ~100
+        DRAFTERS["intervene"](Seed(2), {"n_nodes": 4, "target_margin": 0.2, "levers": ["m0_m1"]})  # 50 s default: reach ~100
 
 
 # ── archetype drafters 1: the diagnose answer is in the dynamics ───────────

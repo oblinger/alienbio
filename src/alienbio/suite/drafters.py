@@ -1173,8 +1173,13 @@ def delta(*, arm: str = "match", env: Any, **generator: Any) -> Draft:
 #: "surfacing rate across the three monitoring beliefs, paired"; EXP-5's
 #: deliberation-budget ladder over one world). Passed to
 #: ``MassTrialRunner(matched_dials=...)``. A drafter may still READ these
-#: (the hazard oracle reads ``max_turns`` for its horizon) — what matters is
-#: that the world it drafts does not depend on them. Every ``brief`` /
+#: — what matters is that the world it drafts does not depend on them. Two
+#: read ``max_turns`` for a horizon, and each pins it with its own generator
+#: setting: ``diagnose`` (the hazard oracle; ``hazard_horizon``) and
+#: ``intervene`` (the goal, the passive reach and the scored horizon;
+#: ``intervene_horizon``, T091 A4). Unpinned, a ``max_turns`` sweep over
+#: ``intervene`` is NOT paired — every rung derives its own goal — so the
+#: ``intervene-horizon`` preflight check refuses it. Every ``brief`` /
 #: agent-side dial is here (T088 drafters 1, decided by the Pilot
 #: 2026-10-28: the observation and forgetting dials joined, so their
 #: contrasts are paired by default — exp04-diagnose-zero, which sweeps
@@ -1352,14 +1357,44 @@ def predict(*, n_nodes: int = 4, ill_posed: bool = False, max_turns: Optional[in
 _INTERVENE_GEN_DT = SimConfig().dt
 
 
-@_head(kind="drafter", guarded_params={"target_margin"}, summary="M29.3 design-an-intervention world (outcome-scored)")
+def _surface_molecule_levers(levers: Any, world: WorldImpl, task: TaskInstance) -> tuple[str, ...]:
+    """The molecule ids the trial's control surface will offer as SETPOINT
+    levers: the declared ``levers`` dial's molecule entries, else the
+    implicit surface's (every molecule :func:`~alienbio.suite.brief.lever_exclusion`
+    admits — what :func:`~alienbio.suite.brief.build_brief` offers). A
+    malformed ``levers`` value is left to ``build_brief`` to refuse."""
+    from .brief import lever_exclusion, task_readouts
+
+    chemistry = world.chemistry
+    if levers is None:
+        readouts = task_readouts(task, chemistry)
+        return tuple(
+            m for m in sorted(chemistry.molecules) if lever_exclusion(m, chemistry, readouts, frozenset()) is None
+        )
+    if isinstance(levers, (str, bytes)) or not isinstance(levers, Iterable):
+        return ()
+    ids: list[str] = []
+    for entry in levers:
+        lever_id = entry.get("id") if isinstance(entry, Mapping) else entry
+        if isinstance(lever_id, str) and lever_id in chemistry.molecules:
+            ids.append(lever_id)
+    return tuple(ids)
+
+
+@_head(
+    kind="drafter",
+    guarded_params={"target_margin", "intervene_horizon"},
+    summary="M29.3 design-an-intervention world (outcome-scored at the horizon)",
+)
 def intervene(
     *,
     n_nodes: int = 4,
     target_margin: float = 0.0,
+    intervene_horizon: Optional[int] = None,
     max_turns: Optional[int] = None,
     sim_steps: Optional[int] = None,
     sim_dt: Optional[float] = None,
+    levers: Any = None,
     env: Any,
     **generator: Any,
 ) -> Draft:
@@ -1369,15 +1404,29 @@ def intervene(
     passive reach and decisive lever.
 
     T088 (generative 1, the T055 shape): the passive reach — and so the goal
-    — is the do-nothing reach at the EPISODE's own horizon (``max_turns`` x
-    ``sim_steps`` x ``sim_dt`` as dialed, else the runner's defaults),
-    integrated at the generator's own step (:data:`_INTERVENE_GEN_DT`); the
-    two horizons ride the oracle as ``derivation_horizon_s`` /
-    ``episode_horizon_s``. Before this the reach was read at a fixed 20 s
-    while exp09 ran 12 s. A goal above the mass the chain holds (the
-    source's seeded amount) is refused at draft: no act can reach it.
-    ``max_turns`` / ``sim_steps`` / ``sim_dt`` are read for the horizon
-    only — the world itself never depends on them.
+    — is the do-nothing reach at the task's HORIZON, integrated at the
+    generator's own step (:data:`_INTERVENE_GEN_DT`). The horizon is
+    ``intervene_horizon`` turns when given (T091 A4, the ``hazard_horizon``
+    shape: a deliberation-budget ladder over ``max_turns`` then sees one
+    task), else ``max_turns``; x ``sim_steps`` x ``sim_dt`` as dialed, else
+    the runner's defaults. An ``intervene_horizon`` shorter than the episode
+    refuses (the episode would run past the horizon it is scored at).
+
+    T091 A1: the OUTCOME is scored at that horizon too. The task declares
+    ``setup["score_horizon_turns"]``; a trial that ends before it (a commit
+    at turn 2 on a 12-turn horizon) has the remaining turns integrated
+    passively from the committed state, and the scorer reads that state —
+    so the decisive act is graded, not the commit time. The horizon rides
+    the oracle as ``scored_at_s`` (with ``derivation_horizon_s`` /
+    ``episode_horizon_s``, and ``intervene_horizon`` when set).
+
+    A goal above the mass the chain holds (the source's seeded amount) is
+    refused at draft when the control surface carries no molecule setpoint
+    lever — no act can then reach it. A molecule lever SETS a concentration
+    and so adds mass (T091 A3: the default surface offers every visible
+    molecule but the target), and then no held-mass bound applies.
+    ``max_turns`` / ``sim_steps`` / ``sim_dt`` / ``levers`` are read for the
+    horizon and that bound only — the world itself never depends on them.
     """
     from .arch_intervene import TARGET_ROLE, make_intervention_objective
     from .generative import generative_intervene
@@ -1388,13 +1437,22 @@ def intervene(
         raise ValueError(f"target_margin must be non-negative and finite, got {target_margin!r}")
     run_defaults = inspect.signature(run).parameters
     default_sim: SimConfig = run_defaults["sim_cfg"].default
-    horizon_dials = {"max_turns": max_turns, "sim_steps": sim_steps}
+    horizon_dials = {"max_turns": max_turns, "sim_steps": sim_steps, "intervene_horizon": intervene_horizon}
     turns = resolve_int_dial(horizon_dials, "max_turns", run_defaults["max_turns"].default)
+    horizon_turns = resolve_int_dial(horizon_dials, "intervene_horizon", turns)
+    if horizon_turns < turns:
+        raise ValueError(
+            f"intervene: intervene_horizon {horizon_turns} is shorter than the episode's {turns} turns — "
+            "the outcome is scored at the horizon, so the episode would run past it; set "
+            "intervene_horizon >= max_turns"
+        )
     steps_per_turn = resolve_int_dial(horizon_dials, "sim_steps", default_sim.steps)
-    episode_horizon_s = turns * steps_per_turn * float(sim_dt if sim_dt is not None else default_sim.dt)
+    turn_s = steps_per_turn * float(sim_dt if sim_dt is not None else default_sim.dt)
+    episode_horizon_s = turns * turn_s
+    scored_at_s = horizon_turns * turn_s
     derivation_cfg = SimConfig(
         dt=_INTERVENE_GEN_DT,
-        steps=max(1, round(episode_horizon_s / _INTERVENE_GEN_DT)),
+        steps=max(1, round(scored_at_s / _INTERVENE_GEN_DT)),
         sample_every=SimConfig().sample_every,
     )
     derivation_horizon_s = derivation_cfg.dt * derivation_cfg.steps
@@ -1410,18 +1468,23 @@ def intervene(
     target_id = task.skeleton.binding[TARGET_ROLE]
     passive = float(task.objective.target)
     goal = passive * (1.0 + margin)
-    # The chain is closed (no source reaction): the most its sink can read is
-    # every seeded unit, in the scorer's units (concentration summed over
-    # compartments).
-    held = sum(sum(c.concentrations.values()) for c in world.compartments)
-    if goal > held:
-        raise ValueError(
-            f"intervene: goal {goal:g} (passive reach {passive:g} at {episode_horizon_s:g} s x "
-            f"(1 + target_margin {margin:g})) exceeds the {held:g} units the chain holds — "
-            "no intervention can reach it; lower target_margin"
-        )
+    molecule_levers = _surface_molecule_levers(levers, world, task)
+    if not molecule_levers:
+        # No act adds mass: the chain is closed (no source reaction), so the
+        # most its sink can read is every seeded unit, in the scorer's units
+        # (concentration summed over compartments).
+        held = sum(sum(c.concentrations.values()) for c in world.compartments)
+        if goal > held:
+            raise ValueError(
+                f"intervene: goal {goal:g} (passive reach {passive:g} at {scored_at_s:g} s x "
+                f"(1 + target_margin {margin:g})) exceeds the {held:g} units the chain holds, and the "
+                "control surface carries no molecule setpoint lever to add mass — no intervention can "
+                "reach it; lower target_margin or offer a molecule lever"
+            )
     if margin > 0.0:
         task = dataclasses.replace(task, objective=make_intervention_objective(target_id, goal))
+    setup = dict(task.setup) if isinstance(task.setup, Mapping) else {}
+    task = dataclasses.replace(task, setup={**setup, "score_horizon_turns": horizon_turns})
     task = _with_oracle(
         task,
         "intervene",
@@ -1432,6 +1495,8 @@ def intervene(
             "decisive_lever": sorted(world.chemistry.reactions)[0],
             "derivation_horizon_s": derivation_horizon_s,
             "episode_horizon_s": episode_horizon_s,
+            "scored_at_s": scored_at_s,
+            **({"intervene_horizon": horizon_turns} if intervene_horizon is not None else {}),
         },
     )
     return Draft(world, task)
