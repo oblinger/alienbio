@@ -164,7 +164,6 @@ from .effect_size import cohens_d, welch_t
 from .reliability_grid import (
     CellStats,
     aggregate_cells,
-    cell_mean,
     two_way_interaction,
 )
 from .mass_trial import (
@@ -432,7 +431,6 @@ __all__ = [
     # M34.4 reliability-grid aggregation + interaction (wave 5)
     "CellStats",
     "aggregate_cells",
-    "cell_mean",
     "two_way_interaction",
     # M34 mass-trial runner + reliability map (F024, wave 5)
     "Axis",

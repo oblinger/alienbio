@@ -10,7 +10,6 @@ import pytest
 from alienbio.suite.reliability_grid import (
     CellStats,
     aggregate_cells,
-    cell_mean,
     two_way_interaction,
 )
 
@@ -54,40 +53,6 @@ def test_aggregate_cells_opaque_keys_not_inspected():
     assert result[("x", 1)].mean == pytest.approx(15.0)
     assert result[("x", 1)].std == pytest.approx(math.sqrt(50.0))
     assert result[("y", 2)] == CellStats(n=1, mean=5.0, std=0.0)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# cell_mean
-# ═══════════════════════════════════════════════════════════════════════════
-
-def test_cell_mean_hand_computed():
-    observations = [("c1", 1.0), ("c2", 2.0), ("c1", 3.0), ("c1", 5.0)]
-    assert cell_mean(observations, "c1") == pytest.approx(3.0)
-    assert cell_mean(observations, "c2") == pytest.approx(2.0)
-
-
-def test_cell_mean_raises_keyerror_on_missing_key():
-    observations = [("c1", 1.0), ("c2", 2.0)]
-    with pytest.raises(KeyError):
-        cell_mean(observations, "missing")
-
-
-def test_cell_mean_raises_keyerror_on_empty_observations():
-    with pytest.raises(KeyError):
-        cell_mean([], "anything")
-
-
-def test_cell_mean_agrees_with_aggregate_cells_for_self_unequal_key():
-    # float('nan') is hashable but nan != nan, so dict grouping (which
-    # aggregate_cells relies on) groups same-object NaN keys together via
-    # its identity shortcut. cell_mean must use the same identity-or-equality
-    # rule so the two functions report a consistent view of one group.
-    nan = float("nan")
-    observations = [(nan, 1.0), (nan, 3.0)]
-    grouped = aggregate_cells(observations)
-    assert grouped[nan].n == 2
-    assert grouped[nan].mean == pytest.approx(2.0)
-    assert cell_mean(observations, nan) == pytest.approx(2.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

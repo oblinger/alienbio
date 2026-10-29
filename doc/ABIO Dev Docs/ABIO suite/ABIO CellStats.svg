@@ -34,12 +34,6 @@
   </g>
   <line id="e-cs-sum" x1="900" y1="120" x2="960" y2="120" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
 
-  <g id="n-cm">
-    <rect id="n-cm-box" x="340" y="250" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
-    <text id="n-cm-name" x="460" y="276" font-size="18" font-weight="600" text-anchor="middle">cell_mean</text>
-    <text id="n-cm-kind" x="460" y="298" font-size="14" text-anchor="middle">(fn) one key; no caller</text>
-  </g>
-  <line id="e-rec-cm" x1="200" y1="160" x2="360" y2="250" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
 
   <g id="n-marg">
     <rect id="n-marg-box" x="20" y="400" width="300" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>

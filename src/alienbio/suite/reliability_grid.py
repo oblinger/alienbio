@@ -7,7 +7,6 @@ two opaque factors. Pure, closed-form — no simulation, no randomness, no I/O.
 - :class:`CellStats` — n / mean / sample std for one condition-cell.
 - :func:`aggregate_cells` — group (condition_key, value) pairs by key and
   reduce each group to a :class:`CellStats`.
-- :func:`cell_mean` — the mean for a single condition key.
 - :func:`two_way_interaction` — the additive-interaction contrast of a 2×2
   design given its four cell means.
 """
@@ -75,23 +74,6 @@ def aggregate_cells(
         std = statistics.stdev(values) if n >= 2 else 0.0
         result[key] = CellStats(n=n, mean=mean, std=std)
     return result
-
-
-def cell_mean(observations: Sequence[tuple[object, float]], key: object) -> float:
-    """Mean value of the observations whose condition key equals ``key``.
-
-    Matching uses identity-or-equality (``k is key or k == key``), the same
-    rule Python's own ``dict`` grouping uses (as :func:`aggregate_cells`
-    relies on). This keeps the two functions consistent even for a
-    self-unequal hashable key such as ``float('nan')``.
-
-    Raises:
-        KeyError: if no observation in ``observations`` carries ``key``.
-    """
-    values = [value for k, value in observations if k is key or k == key]
-    if not values:
-        raise KeyError(key)
-    return sum(values) / len(values)
 
 
 def two_way_interaction(cells: Mapping[tuple[object, object], float]) -> float:
