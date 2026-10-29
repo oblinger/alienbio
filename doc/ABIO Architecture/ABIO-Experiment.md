@@ -1,5 +1,5 @@
 ---
-description: "spec → guards → grid → records → manifest → report: the hub that every run passes through, and where every refusal happens before spend. Source: suite/experiment.py (3.2k), expr_experiment.py, registration.py, conditions.py."
+description: "spec → guards → grid → records → manifest → report: the hub that every run passes through, and where every refusal happens before spend. Source: suite/experiment.py (3.2k), expr_experiment.py, registration.py."
 ---
 :>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO-Experiment](ha://p/ABIO-Experiment) 
 # ABIO-Experiment
@@ -48,7 +48,6 @@ The retry pass is not a check: on a resume, `run_experiment` re-runs error lines
 | `experiment.py` | 518 | `run_experiment`, `aggregate`, and the facade that re-exports every name above (48 test files and AUP's launchers import from here). |
 | `expr_experiment.py` | 874 | The Expr front end: `!experiment`, the `brief`/`episode`/`power`/`llm`/`task`/`pattern`/`suite` heads, `load_experiment`, `spec_to_text` (the declared inverse). |
 | `registration.py` | 154 | `Registration`, `load_registry`, `resolve_registration`;<br>the registry test pins the filed AUP entries. |
-| `conditions.py` | 217 | The older orthogonal dial sampler (`DialAxis`, `ConditionSpec`, `sample`); not on the run path. |
 | `models_snapshot.json` | — | Pinned `models.list` snapshot, refreshed by `bio suite models`. |
 
 The `expr_experiment` ↔ `experiment` import cycle is gone (T058): `expr_experiment.py` imports `spec`/`drafters`/`agents` directly; `_Drafters.__missing__` stays to admit a drafter a catalog file's `_includes_` registers after import. The M1 `bio/experiment.py` that also exported a `run_experiment` was deleted in T056.

@@ -117,7 +117,7 @@ _FUTURE_UNITS = frozenset({"sim_steps", "deadline", "opportunity_cost"})
 #: The graded ladder for the ``"turns"`` unit (Q1 = C): a named level ->
 #: total-spend cap, from unlimited down to minimal. The EXP-10 degradation
 #: driver / EXP-5 objective-surfacing-depth axis sweep these as a
-#: ``suite.mass_trial``/``suite.conditions`` axis.
+#: ``suite.mass_trial`` axis.
 BUDGET_LADDER: Mapping[str, float] = {
     "unlimited": float("inf"),
     "20": 20.0,

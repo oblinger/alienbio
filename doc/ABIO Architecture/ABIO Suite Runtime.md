@@ -27,7 +27,7 @@ The Phase-2 layer that makes the [[ABIO Suite Construction|suite-construction]] 
 | **[[#What is not here yet]]** |  |
 | **[[#See Also]]** |  |
 
-Everything here lives in `alienbio.suite` (`agent.py`, `brief.py`, `llm_agent.py`, `runner.py`, `trial.py`, `mass_trial.py`, `conditions.py`, `hazard.py`, `tradeoff.py`, `experiment.py`, and the Expr heads in `expr_heads.py` / `expr_experiment.py` / `rate_law.py`) and is domain-neutral — scorers pattern-match on action *type*, never on a world's vocabulary.
+Everything here lives in `alienbio.suite` (`agent.py`, `brief.py`, `llm_agent.py`, `runner.py`, `trial.py`, `mass_trial.py`, `hazard.py`, `tradeoff.py`, `experiment.py`, and the Expr heads in `expr_heads.py` / `expr_experiment.py` / `rate_law.py`) and is domain-neutral — scorers pattern-match on action *type*, never on a world's vocabulary.
 
 ## The turn loop
 

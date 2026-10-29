@@ -23,14 +23,6 @@ from .pressure_gen import (
     draft_pressure_world,
     passive_reach,
 )
-from .conditions import (
-    NON_ORTHOGONAL_PAIRS,
-    ConditionSpec,
-    DialAxis,
-    apply as apply_condition,
-    condition_key_of,
-    sample as sample_condition,
-)
 from .cover import Cover, Feature, cover
 from .grade import grade_answer, grade_outcome
 from .ops import LLMOp
@@ -406,13 +398,6 @@ __all__ = [
     # F023 graded time-pressure Budget (M32.1)
     "Budget",
     "BUDGET_LADDER",
-    # F023 orthogonal dial-composition harness (M34.1)
-    "ConditionSpec",
-    "DialAxis",
-    "NON_ORTHOGONAL_PAIRS",
-    "sample_condition",
-    "condition_key_of",
-    "apply_condition",
     # M33.4 per-objective surfacing (wave 3)
     "surfacing_depth",
     "surfacing_profile",

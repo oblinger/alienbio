@@ -11,7 +11,7 @@ Alphabetical listing of all classes in the Alien Biology system, organized by su
 | [[ABIO biology\|Biology]] | Atom, Chemistry, Compartment, CompartmentTree, Flow, GeneralFlow, Molecule, Reaction, WorldState |
 | [[ABIO biology\|Execution]] | Simulator, WorldSimulator |
 | [[ABIO Suite Construction\|Suite construction (M26/M27)]] | Motif, CarveResult, Skeleton, SkeletonBlock, TaskArchetype, ObjectiveRecipe, TaskInstance, Question, Answer, AnswerObjective, OutcomeObjective, SuiteSpec, Suite, Draft, Dist, Seed, Vocabulary, Renderable, Op, LLMOp, Predicate, Directive |
-| [[ABIO Suite Runtime\|Suite runtime (Phase 2)]] | Agent, SessionAgent, ScriptedAgent, LLMAgent, Measure, Intervene, Commit, Wait, ActionOutcome, ReasoningStep, TaskBrief, Affordances, Budget, SimConfig, TrialRecord, ActionRecord, DeliberationTrace, MassTrialRunner, ReliabilityMap, Provenance, ConditionSpec, ExperimentSpec, PowerDesign |
+| [[ABIO Suite Runtime\|Suite runtime (Phase 2)]] | Agent, SessionAgent, ScriptedAgent, LLMAgent, Measure, Intervene, Commit, Wait, ActionOutcome, ReasoningStep, TaskBrief, Affordances, Budget, SimConfig, TrialRecord, ActionRecord, DeliberationTrace, MassTrialRunner, ReliabilityMap, Provenance, ExperimentSpec, PowerDesign |
 
 The biology and execution rows name the nine **protocols** in `alienbio.protocols` (`Atom`, `Molecule`, `Reaction`, `Flow`, `GeneralFlow`, `Chemistry`, `CompartmentTree`, `WorldState`, `Simulator`) and the concrete classes in `alienbio.bio` that satisfy them, which carry an `Impl` suffix (`CompartmentTreeImpl`, `WorldStateImpl`, `WorldSimulatorImpl`; `Compartment` is `CompartmentImpl`, which has no Protocol). There is no `State` or `World` protocol and no `StateImpl`: the single-compartment state and simulator went in T056, and `WorldImpl` is a concrete bundle with no Protocol of its own. `pyright src/` holds each implementation to its Protocol through `protocols/_conformance.py`. The Expr row is `alienbio.expr` ([[ABIO Expr Python API]]); the M1 execution stack (Action, Context, Experiment, Measurement, Step, Task, Test, TestHarness, Bio, Interpreter) was deleted in M47.7. The suite rows name concrete dataclasses and Protocols in `alienbio.suite` — the M26 neutral shadow types (`StateVector`, `Topology`, a neutral `World`/`Compartment`) were retired in July 2026 (F007) and the suite now builds directly on the biology classes.
 
@@ -36,7 +36,6 @@ The biology and execution rows name the nine **protocols** in `alienbio.protocol
 - **[[ABIO Chemistry]]** — Container for molecules and reactions forming a chemical system
 - **[[ABIO Compartment]]** — Nestable container for molecules, reactions, and child containers
 - **[[ABIO CompartmentTree]]** — Hierarchical topology of compartments with parent-child relationships
-- **[[ABIO Suite Runtime|ConditionSpec]]** — A dial-vector sampler over orthogonal `DialAxis` entries with quantization — how a sweep's condition grid is declared *(suite runtime; M34.1)*
 
 ## D
 - **[[ABIO Expr Python API|Draft]]** — What a drafter head returns: `(world, task)`, a 2-tuple with `.world` / `.task` *(suite; M47.4)*

@@ -92,12 +92,6 @@
   <text class="b" x="356" y="438">manifest.json — spec hash · git · cost</text>
   <text class="m" x="356" y="460">records.retried.jsonl on a resume</text>
 
-  <rect id="box-conditions" class="legacy" x="40" y="360" width="250" height="110" rx="6"/>
-  <text class="t" x="56" y="388">conditions.py</text>
-  <text class="b" x="56" y="414">the older orthogonal dial</text>
-  <text class="b" x="56" y="438">sampler (DialAxis, sample)</text>
-  <text class="m" x="56" y="460">not on the run path</text>
-
   <!-- row 3 -->
   <path id="edge-records-aggregate" class="a" d="M 505 470 L 505 520"/>
   <text class="l" x="515" y="500">reload</text>

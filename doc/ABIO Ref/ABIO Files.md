@@ -40,8 +40,8 @@ The alienbio repository as it stands, file by file.
 
 - **Data model** — `types.py` (neutral immutable value types),
   `dist.py` (distributions and deterministic seeds), `trial.py`
-  (`TrialRecord`, the frozen unit of observation), `conditions.py`
-  (orthogonal dial composition), `deliberation.py` (trace capture).
+  (`TrialRecord`, the frozen unit of observation), `deliberation.py`
+  (trace capture).
 - **World construction** — `skeleton.py` (recursive composition),
   `blocks.py` (the engine-ready block library), `carve.py`, `cover.py`,
   `augment.py`, `perturbations.py`, `observation.py`, `pressure.py`,

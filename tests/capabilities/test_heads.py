@@ -81,3 +81,11 @@ def test_the_heads_no_other_test_reaches_are_called_here():
     death = evaluate(X.DeathLaw(compartment="herd", rate=0.02, release_compartment="field", release_resource="grass", release_stoich=0.5), env)
     flow = evaluate(X.CountFlow(origin="calves", dest="herd", rate=0.05), env)
     assert growth.resource == "grass" and death.release_resource == "grass" and flow.dest == "herd"
+
+
+def test_discrete_head_draws_an_index_by_weight():
+    """``discrete(weights)`` returns the index of the one non-zero weight, and the same draw on the same seed (its only proof was a ``DialAxis.discrete(`` call, retired with ``suite/conditions.py`` in T093)."""
+    doc = "a: !x discrete([0, 0, 1])\nb: !x discrete([1, 0])\nc: !x discrete([0.5, 0.5])\n"
+    v = Env.standard(seed=1).load("<d>", text=doc).force_all()
+    assert v["a"] == 2 and v["b"] == 0 and v["c"] in (0, 1)
+    assert Env.standard(seed=1).load("<d>", text=doc).force_all()["c"] == v["c"]

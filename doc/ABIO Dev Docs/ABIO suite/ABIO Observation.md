@@ -50,7 +50,7 @@ One type alias and five functions; every random draw comes from a `Seed`'s own g
 ## Seeds per turn
 The runner passes the same `seed.child("turn/0/observe")` every turn, so the hidden set is fixed for the trial and the brief's probe list stays the legal set (M36.1: a per-turn redraw leaked the whole world over a dozen turns and made later-visible probes illegal). Noise is redrawn each turn from `seed.child(f"turn/{turn}/observe")`; turn 0 reuses the brief's observation rather than drawing again.
 
-The hidden set is drawn over all molecule ids, including the drafter's structural `hidden_ids`, which the runner removes afterwards; with those present, the visible share is below the dial. The noise for an id depends on its position among the ids still present, so changing `observability` changes the noise on every surviving id: the coupling `conditions.NON_ORTHOGONAL_PAIRS` names ([ABIO ConditionSpec](ABIO%20ConditionSpec.md)).
+The hidden set is drawn over all molecule ids, including the drafter's structural `hidden_ids`, which the runner removes afterwards; with those present, the visible share is below the dial. The noise for an id depends on its position among the ids still present, so changing `observability` changes the noise on every surviving id, so a grid crossing the two dials reads their coupling as an interaction between cells (the `conditions.NON_ORTHOGONAL_PAIRS` refusal went with `ConditionSpec`, T093).
 
 
 
