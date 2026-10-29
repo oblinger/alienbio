@@ -62,7 +62,20 @@ def test_the_insulted_trace_shows_each_hit_and_the_recovery_predicate_reads_it(v
 def test_the_predict_key_is_read_from_the_physics(values):
     task = values["task"]
     assert isinstance(task.objective, AnswerObjective)
-    assert task.objective.key.value == "down"
+    # T096: the throttled step is drawn per seed; its place fixes the sign
+    expected = {"feed": "down", "use": "down", "drain": "up", "stress": "up"}[values["perturbed"]]
+    assert task.objective.key.value == expected
+
+
+def test_the_predict_key_varies_with_the_seed():
+    """T096: the key was `down` on every seed (the consumer throttled); the
+    drawn step makes both directions occur."""
+    seen = {}
+    for seed in range(12):
+        v = Env.standard(seed=seed, trusted=True).load(SPEC).force_all()
+        seen.setdefault(v["task"].objective.key.value, set()).add(v["perturbed"])
+    assert set(seen) == {"up", "down"}, seen
+    assert seen["down"] <= {"feed", "use"} and seen["up"] <= {"drain", "stress"}
 
 
 def test_the_experiment_runs_under_the_noise_axis(tmp_path):

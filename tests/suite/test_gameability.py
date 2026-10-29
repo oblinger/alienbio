@@ -516,7 +516,9 @@ GAMEABLE: dict[tuple[str, str], str] = {
     ("pathway_puzzles", "constant-key"): _PATHWAY_KEY,
     ("pathway_puzzles", "random"): _PATHWAY_RANDOM,
     **_no_solver("stochastic", "measure-commit", "idle", "random"),
-    ("stochastic", "constant-key"): _PREDICT.format(agent="measure-commit"),
+    ("stochastic", "constant-key"): _PREDICT_DRAWN.format(
+        agent="measure-commit", modal="up", hit=28, cut="0.000"
+    ),
 }
 
 
