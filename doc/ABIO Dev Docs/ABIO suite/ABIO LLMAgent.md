@@ -27,6 +27,7 @@ A plain class that satisfies `Agent`, `SessionAgent` and `ProbeAgent` structural
 | [usage](#^usage) | Totals, per-turn and per-probe usage |
 | [prompt_texts](#^prompt-texts) | Every prompt actually sent |
 | [prompt_hashes](#^prompt-hashes) | One sha256 per prompt sent |
+| [authored_texts](#^authored-texts) | What the model itself wrote, with the prompt index |
 | [parse_failures](#^parse-failures) | Schema-invalid replies counted |
 | [aborted](#^aborted) | Why the agent gave up, if it did |
 | [compaction](#^compaction) | The compaction event, once it ran |
@@ -57,10 +58,13 @@ A plain class that satisfies `Agent`, `SessionAgent` and `ProbeAgent` structural
     `meter.snapshot()` plus `per_turn` (one usage delta per main-line or compaction call), `events` (the meter's retry log) and, once any probe has run, `per_probe`. The runner copies it onto `TrialRecord.usage`; the experiment prices it ([Metering and the two ceilings](#Metering%20and%20the%20two%20ceilings)). ^usage
 
 **prompt_texts**`: tuple[str, ...]` (property)
-    `system + "\n" + canonical(context)` for every real call — main-line, compaction and probe — in order, recorded before the output-budget key is added. `audit_prompts` scans these. ^prompt-texts
+    `system + "\n" + canonical(context)` for every real call — main-line, compaction and probe — in order, recorded before the output-budget key is added. `runner.taint_audit` scans these. ^prompt-texts
 
 **prompt_hashes**`: tuple[str, ...]` (property)
     The sha256 hex digest of each entry of `prompt_texts`. ^prompt-hashes
+
+**authored_texts**`: tuple[tuple[int, str], ...]` (property)
+    What the model itself wrote, as `(prompt_index, text)`: each turn's whole reply (action, `params`, `reasoning`, canonicalized), the compaction summary and every probe answer, `prompt_index` being the number of prompts already sent when it arrived — the first prompt that can carry it back. The runner's taint audit exempts every secret a text names from that prompt on (T091 K3, [ABIO Runner](ABIO%20Runner.md)). Read-only. ^authored-texts
 
 **parse_failures**`: int`
     Incremented by the `LLMOp` schema check on every reply that is not a well-formed action, retries included. The runner copies it onto `TrialRecord.parse_failures` ([Parsing a reply](#Parsing%20a%20reply)). ^parse-failures
@@ -370,3 +374,4 @@ A flat `max_tokens` or an `output_schedule {every, deep, shallow}` (T059), one p
 - 2026-10-27 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 2a7c8ed (`llm_agent.py` unchanged through `af28794`), with the seams checked against `agent.py`, `ops.py`, `brief.py`, `naming.py`, `runner.py`, `agents.py`, `expr_experiment.py`, `spec.py`, `guards.py`, `experiment.py`, `store.py`, `config.py`, `models_snapshot.json` and the tests `test_llm_agent.py`, `test_r4_deep_scan.py`, `test_r4r5_leftovers.py`. Left out as members: the private helpers `_estimate_tokens`, `_validate_action_json`, `_parse_action`, `_call_with_retry`, `_retry_kind`, `_keeps_no_history`, `_sleep` and the agent's `_history_window`, `_pending_compaction`, `_compacted_history`, `_maybe_compact`, `_ceiling_abort`, `_tolerant_llm_fn`, `_counting_schema`, `_make_op` (named in the semantics where a reader needs them), and the constructor keywords kept as plain attributes (`memory`, `token_ceiling`, `compact_at`, …), covered by the constructor block. Every link is a markdown link (R-ob-repo-links); the Files tree entry the facet asks for was not added — only the Dev Docs row was in scope. The figure draws `_parse_action` and `Action` as nodes for the flow, though neither has an Interface section here; `LLMOp` is drawn because it carries the cache and the schema retries.
 - 2026-10-28 — refreshed against 0eb23e5: `probe` takes the turn's `observation` and its context carries `compartments` (`01fee6a`); the ceiling abort sets `aborted` and the runner copies `parse_failures`/`aborted` onto the record; `compact_budget` is the summarizer's `max_tokens` (`bd1fd75`); `estimate_cost` prices probe and summarizer calls; the token yardstick is `ops.estimate_tokens` (`3885584`); the key-lookup docstring is current.
 - 2026-10-29 — refreshed for `661005d` (T091 D5): a non-object `params` in a reply is passed through for the runner to reject, not converted.
+- 2026-10-29 — refreshed for `54d9ad1` (T091 K3): `authored_texts` added, read by the runner's taint audit to exempt the model's own words.

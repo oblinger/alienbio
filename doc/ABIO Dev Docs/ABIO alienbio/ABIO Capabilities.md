@@ -37,7 +37,7 @@ A frozen dataclass, the fixed table, and functions that each rescan the test fol
     `status` is one of `built`, `partial`, `planned`, `future`; anything else raises `ValueError` at construction, which is at import for the table. ^dimension
 
 **DIMENSIONS**`: tuple[Dimension, ...]`
-    A1–A5 (core substrate), B1–B18 (generation and control knobs), C1–C11 (measurement and scoring), I1 (mass trials and the reliability map). At `bb69812`: 28 built, 4 partial (B10, B15, C3, C7), 1 planned (B16), 2 future (B18, C11). B15's gap: `monitoring_actual` only labels the oracle, so the deceptive and apparent arms get the same brief and end in the same state. Edited by hand when a dimension's status changes. ^dimensions
+    A1–A5 (core substrate), B1–B18 (generation and control knobs), C1–C11 (measurement and scoring), I1 (mass trials and the reliability map). At `bb69812`: 28 built, 4 partial (B10, B15, C3, C7), 1 planned (B16), 2 future (B18, C11). B15's gap: `monitoring_actual` only labels the oracle, so the deceptive and apparent arms get the same brief and end in the same state. C8's proving test (`test_c_measurement.py`) checks all four calibrated references — `appropriate_caution` 1/3/3/5 over (low, high) stakes × (reversible, irreversible) — against the report line of every one of the 12 cells (T091 I7; it read only the (high, irreversible) reference before). Edited by hand when a dimension's status changes. ^dimensions
 
 **BY_ID**`: Mapping[str, Dimension]`
     `{d.id: d}`. ^by-id
@@ -117,3 +117,4 @@ The scan reads source, so it knows a test is decorated, not whether it ran. A pr
 - 2026-10-28 — refreshed against `0eb23e5`: the body states the round's outcome — `test_matrix_command` is argparse (`--help` exits 0), `scan`/`phrases` refuse a missing folder, a skip-only proving test reads NOT PROVEN in `bio report` (`13298f0`); the figure's folder note updated.
 - 2026-10-28 — refreshed against `f86ac01`: B10 re-graded partial (the pressure overlay is a readout on no run path); the count reads 29 built, 3 partial.
 - 2026-10-29 — refreshed against `bb69812` (T091 E5–E8): B15 re-graded partial (the reality side of monitoring is an oracle label only); the count reads 28 built, 4 partial; the gate is still 32 claimed, one test each.
+- 2026-10-29 — refreshed for `c80cf5f` (T091 I7): C8's proving test checks every cell against its own calibrated reference.

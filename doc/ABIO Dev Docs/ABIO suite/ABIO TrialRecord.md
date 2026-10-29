@@ -39,6 +39,7 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 | [final_state](#^final-state) | End-of-trial values per compartment |
 | [oracle](#^oracle) | Framework-side truth the agent never sees |
 | [taint_hits](#^taint-hits) | Secret tokens found in sent prompts |
+| [taint_exempt](#^taint-exempt) | Secrets the audit stopped counting, and from when |
 | [error](#^error) | The failure message on an error record |
 | [is_error](#^is-error) | The one exclusion predicate |
 | [error_class](#^error-class) | The exception class an error record names |
@@ -120,7 +121,10 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
     A copy of the drafter's `task.setup["oracle"]` (the pressure, delta, hazard, W2 … truths) plus `"monitoring_actual"` when the monitoring dial was set. Never reaches the agent. Built before the loop, so a partial error record carries it too (`866b390`). ^oracle
 
 **taint_hits**`: tuple[str, ...] = ()`
-    The tokens `audit_prompts` found in the prompts the agent sent. Non-empty means `run` raised `TaintError` carrying this complete record, which the sweep lands as an error record. ^taint-hits
+    The tokens `runner.taint_audit` found in the prompts the agent sent. Non-empty means `run` raised `TaintError` carrying this complete record, which the sweep lands as an error record. ^taint-hits
+
+**taint_exempt**`: Mapping[str, int] = {}`
+    The secret ids the taint audit stopped counting because the agent itself wrote them first (an action target, its `reasoning`, an answer, a compaction summary, a probe reply), each mapped to the 0-based index of the first exempt prompt; earlier prompts are still audited for it (T091 K3). Ids are in the form the audit scans, surface names on an opaque world. By design an id the agent named is unaudited in prompts from then on, so the record says which ids, from when, and a reader sees how far the audit was narrowed. Empty when nothing was exempted, and then not written. ^taint-exempt
 
 **error**`: str = ""`
     `"{ExceptionClass}: {message}"` on an error record — the cause's class, not `TrialError`'s — set by `MassTrialRunner`; `""` otherwise. ^error
@@ -211,6 +215,8 @@ The module-level functions; the module has no `__all__`, and `suite/__init__` re
 | [readout_values](#^readout-values) | Declared readouts summed across compartments |
 | [final_state_dict](#^final-state-dict) | Every value of a state, by id |
 | [frozen_value](#^frozen-value) | One key value as a summary buckets it |
+| [plain_value](#^plain-value) | A value in its Python form |
+| [NAN_TOKEN](#^nan-token) | What a NaN freezes to under `nan_equal` |
 
 **condition_key**`(dials: Mapping[str, Any]) -> tuple[tuple[str, Any], ...]`
     `tuple(sorted(dials.items()))` by dial name, so two mappings with the same entries in any order give the same key. Values pass through raw; the result is hashable only when they are. `mass_trial.condition_grid` builds its cells with it. ^trial-condition-key
@@ -227,8 +233,14 @@ The module-level functions; the module has no `__all__`, and `suite/__init__` re
 **final_state_dict**`(state: Any) -> dict[str, dict[str, float]]`
     `{compartment_id: {molecule_id: state.get(...)}}` for every compartment and molecule; `{}` for a state with no id axes. ^final-state-dict
 
-**frozen_value**`(value: Any, *, typed: bool = False) -> Any`
-    One condition-key value frozen recursively: a mapping becomes a key-sorted item tuple, a list or tuple a tuple, anything else passes through, so two values that bucket together compare equal. `typed=True` also tags each scalar with its type name, so `1`, `1.0` and `True` stay apart. `hashable_condition_key` applies it per pair; `spec.py` judges repeated levels and pairing levels with it, and `guards.py`'s drift check compares typed frozen levels (T091 G1). ^frozen-value
+**frozen_value**`(value: Any, *, typed: bool = False, nan_equal: bool = False) -> Any`
+    One condition-key value, first read through [plain_value](#^plain-value), frozen recursively: a mapping becomes a key-sorted item tuple, a list or tuple a tuple, anything else passes through, so two values that bucket together compare equal. `typed=True` also tags each scalar with its type name, so `1`, `1.0` and `True` stay apart. `nan_equal=True` freezes a float NaN to `NAN_TOKEN`, so two NaN levels are one level. `hashable_condition_key` applies it per pair; `spec.py` judges repeated levels (NaN-equal, so `[nan, nan]` as two levels refuses) and pairing levels with it, and `guards.py`'s drift check compares typed, NaN-equal frozen levels (T091 G1, K G1). ^frozen-value
+
+**plain_value**`(value: Any) -> Any`
+    `value` in its Python form, recursively, mappings included: a numpy scalar is its `.item()`, a numpy array its `.tolist()`, any other `numbers.Integral` an `int` and `numbers.Real` a `float` (a `bool` stays a `bool`), any non-string sequence a `tuple` (a list stays a list). A spec built with `np.linspace` levels is then the spec its manifest's JSON read-back describes (T091 K G1). ^plain-value
+
+**NAN_TOKEN**` = ("__nonfinite__", "nan")`
+    What `frozen_value(…, nan_equal=True)` puts in place of a float NaN, since `nan != nan`; tagged `float` under `typed=True`. ^nan-token
 
 
 
@@ -260,6 +272,7 @@ Every trial a sweep attempts lands exactly one record, the failed ones included:
 | `task_id`, `condition_key`, the scores, budget trio, counts, `taint_hits`, `turns`, `error`, `usage`, `wall_time_s`, `action_log`, `deliberation_trace`, `brief`, `final_state`, `oracle`, `answer`, `name_map` | always (`budget`/`remaining` as `"inf"` when infinite) |
 | `probes`, `certainty_schedule` | only when non-empty |
 | `compaction`, `forgetting`, `monitor`, `readout_series`, `aborted`, `grade_error`, `runout` | only when not `None` |
+| `taint_exempt` | only when non-empty |
 | `parse_failures` | only when non-zero |
 | `ActionRecord.value`, `.delta` | only when not `None` |
 | `final_timeline` | summarised to `final_time`; the states are dropped |
@@ -317,3 +330,4 @@ Every summary family bins on `bucket_key` and skips `is_error` records; `mass_tr
 - 2026-10-28 — refreshed against 0eb23e5: `parse_failures`, `aborted` (`01fee6a`) and `error_class` (`9cd0632`) given blocks (figure lists them); a partial error record carries the oracle and its taint audit (`866b390`); the readers table reads `error_class`/`aborted`.
 - 2026-10-28 — refreshed against `552c1a7`: `grade_error` added (block, figure); the only-when-set table lists `parse_failures`/`aborted`/`grade_error`.
 - 2026-10-29 — refreshed for `e392c11` and `661005d` (T091 A1, G1): `runout` field (only-when-set) and `frozen_value(value, typed=)` given blocks; the figure does not show `runout`, left as is.
+- 2026-10-29 — refreshed for `54d9ad1` (T091 K3, K G1): `taint_exempt` (only when non-empty), `plain_value`, `NAN_TOKEN` and `frozen_value(…, nan_equal=)` given blocks.

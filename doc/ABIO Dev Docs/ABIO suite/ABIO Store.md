@@ -8,7 +8,7 @@ The run's own evidence on disk: one canonical-JSON line per trial in `records.js
 ![ABIO Store](ABIO%20Store.svg) 
 *The record line* is the topic that governs `records.jsonl` (†): a field an experiment did not declare leaves no key, so the golden hashes stay byte-identical; *Resume and retries* governs the `originals` edge into `records.retried.jsonl`.
 
-`suite/store.py` has no primary class and no `__all__`: its public names are the line codec `record_to_json`/`record_from_json`, the readers `read_manifest`/`read_records` with their `StoreError`, `records_spend_usd` and `manifest_model_label`, and the rest are underscore helpers that other modules import by name — `experiment.py` re-exports every one, `commands/suite_cmd.py` takes `_single_model`/`_model_axis_levels` for `--dry`, and tests import the brief codec and `_build_manifest`. This page covers those, and the run directory as a whole, because the store's files are written from four modules. Who writes when is `run_experiment` and `aggregate` in `suite/experiment.py`; the record the line encodes is [ABIO TrialRecord](ABIO%20TrialRecord.md); the spec the manifest pins is [ABIO ExperimentSpec](ABIO%20ExperimentSpec.md); the resume refusal that reads the manifest is [ABIO Guards](ABIO%20Guards.md); `map.json` comes from [ABIO MassTrialRunner](ABIO%20MassTrialRunner.md)'s `ReliabilityMap`. The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's view of the run directory is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md).
+`suite/store.py` has no primary class and no `__all__`: its public names are the line codec `record_to_json`/`record_from_json`, the readers `read_manifest`/`read_records` with their `StoreError`, `records_spend_usd`, `directory_spend_usd`, `RETRIED_FILENAME` and `manifest_model_label`, and the rest are underscore helpers that other modules import by name — `experiment.py` re-exports every one, `commands/suite_cmd.py` takes `_single_model`/`_model_axis_levels` for `--dry`, and tests import the brief codec and `_build_manifest`. This page covers those, and the run directory as a whole, because the store's files are written from four modules. Who writes when is `run_experiment` and `aggregate` in `suite/experiment.py`; the record the line encodes is [ABIO TrialRecord](ABIO%20TrialRecord.md); the spec the manifest pins is [ABIO ExperimentSpec](ABIO%20ExperimentSpec.md); the resume refusal that reads the manifest is [ABIO Guards](ABIO%20Guards.md); `map.json` comes from [ABIO MassTrialRunner](ABIO%20MassTrialRunner.md)'s `ReliabilityMap`. The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's view of the run directory is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md).
 
 
 
@@ -30,7 +30,9 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 | [read_manifest](#^read-manifest) | `manifest.json` parsed and decoded once |
 | [read_records](#^read-records) | Every `records.jsonl` line, parsed and rebuilt |
 | [StoreError](#^storeerror) | A store line that does not parse |
-| [records_spend_usd](#^records-spend-usd) | What the lines on disk already spent |
+| [records_spend_usd](#^records-spend-usd) | What one record file's lines spent |
+| [directory_spend_usd](#^directory-spend-usd) | What the run directory has spent |
+| [RETRIED_FILENAME](#^retried-filename) | `records.retried.jsonl` |
 | [_usage_usd](#^usage-usd) | One record's usage, priced |
 | [manifest_model_label](#^manifest-model-label) | What a manifest says ran |
 | [_write_manifest](#^write-manifest) | `manifest.json`, atomically |
@@ -83,8 +85,14 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 **StoreError**`(ValueError)`
     A record store that cannot be read as written: a `records.jsonl` line that is not JSON. The message names the file, the line and the repair (delete or restore it). `preflight`'s `records-readable` check reports it before a resume. ^storeerror
 
-**records_spend_usd**`(path: Path, spec: ExperimentSpec) -> float`
-    The priced usage of every line in `records.jsonl`, reused and error lines alike, through [_usage_usd](#^usage-usd): the total a resume's cost ceiling starts from, and what the `resume` check compares a lowered ceiling against. `experiment.py` re-exports it. ^records-spend-usd
+**records_spend_usd**`(path: Path, spec: ExperimentSpec, *, exclude: frozenset[str] = frozenset()) -> float`
+    The priced usage of every line in one record file, reused and error lines alike, through [_usage_usd](#^usage-usd); a line in `exclude` (verbatim) is skipped, and a missing file is 0. `experiment.py` re-exports it. ^records-spend-usd
+
+**directory_spend_usd**`(out_dir: Path, spec: ExperimentSpec) -> float`
+    Every dollar a run directory has spent: `records.jsonl` plus the error lines earlier resumes moved to `records.retried.jsonl` (T091 D). The cost ceiling is a directory budget, not a press budget: the `resume` check refuses a ceiling below this total, and a resumed run's spend counter starts from it, so three presses of a $4 ceiling stop at $4 whatever they retried. A retried line still byte-identical to a `records.jsonl` line (a resume that crashed between keeping the evidence and rewriting the store) counts once. `experiment.py` re-exports it. ^directory-spend-usd
+
+**RETRIED_FILENAME**` = "records.retried.jsonl"`
+    Where a resume keeps the error lines it retried, beside `records.jsonl`. ^retried-filename
 
 **_usage_usd**`(usage: Mapping[str, Any], model: Optional[str], spec: ExperimentSpec) -> float`
     USD for one record's provider `usage` under the model in force for its trial (`model`, else `spec.model`, else `PINNED_MODEL`), cache reads and writes included: the one pricing of a landed or retried line against the ceiling. `experiment.py` re-exports it for `run_experiment`. ^usage-usd
@@ -153,6 +161,7 @@ A line is `record_to_json`'s dict plus the extras `run_experiment` stamps, dumpe
 | `final_time`, `final_state` | always; the summarised timeline |
 | `probes`, `certainty_schedule` | only when non-empty |
 | `compaction`, `forgetting`, `monitor`, `readout_series`, `runout` | only when not `None` (`runout` `e392c11`) |
+| `taint_exempt` | only when non-empty: `{id: first exempt prompt index}`, ids in surface form (`54d9ad1`, [ABIO TrialRecord](ABIO%20TrialRecord.md)) |
 | `parse_failures`, `aborted`, `grade_error` | only when non-zero / not `None` (`01fee6a`; `grade_error` `552c1a7`) |
 | `action_log[].value`, `.delta` | only when not `None` |
 | `agent`, `model`, `memory`, `temperature`, `top_p` | always, stamped by `run_experiment`<br>`model`, `temperature`, `top_p` null unless the trial's kind is `llm` |
@@ -181,7 +190,7 @@ The run's own proof, written by `_build_manifest` before any trial and updated i
 | `cost_ceiling_history` | every ceiling the run has run under, in order; a resume that changes the ceiling appends the new one (T091 B3) | start, resume |
 | `started_at`, `trials_planned` | the start, and the grid size | start |
 | `finished_at`, `trials_completed`, `failed_trials` | null at start, with the lines a resume kept (0 on a fresh run); after a crash, what landed; at the end the count of records on the map, error records included, and of those the error count | start, crash, end |
-| `cost_usd_spent`, `usage_totals`, `stopped_reason` | priced usage of every landed record<br>summed token counts<br>`"cost_ceiling"` on an early stop | end |
+| `cost_usd_spent`, `usage_totals`, `stopped_reason` | priced usage of every landed record; on a resume the directory's total, starting from `directory_spend_usd`<br>summed token counts<br>`"cost_ceiling"` on an early stop | end |
 | `cost_usd_retried` | the priced usage of the error lines a resume retried, already inside `cost_usd_spent` | end only |
 
 The `models`/`memories` keys are absent, not empty, when nothing is swept, so `model` and `memory` stay one-type for every reader.
@@ -199,13 +208,13 @@ The `models`/`memories` keys are absent, not empty, when nothing is swept, so `m
 
 
 ## Resume and retries
-`run_experiment(spec, resume=True)` — `bio suite resume <DIR>`, with the spec file as it is now (`spec_from_manifest(manifest, current=True)`, so an edit to the yaml is drift) — first passes `preflight`: `records-readable` refuses a torn or corrupt line, and `resume` refuses records with no manifest, an unreadable manifest, one with no spec, a ceiling below what the records already spent, or a spec that drifted beyond widening (more trials, new levels on an existing axis; `concurrency`, `out_dir` and `cost_ceiling_usd` are not drift; [ABIO Guards](ABIO%20Guards.md)). It then reads `records.jsonl` line by line:
+`run_experiment(spec, resume=True)` — `bio suite resume <DIR>`, with the spec file as it is now (`spec_from_manifest(manifest, current=True)`, so an edit to the yaml is drift) — first passes `preflight`: `records-readable` refuses a torn or corrupt line, and `resume` refuses records with no manifest, an unreadable manifest, one with no spec, a ceiling below what the directory already spent (`directory_spend_usd`), or a spec that drifted beyond widening (more trials, new levels on an existing axis; `concurrency`, `out_dir` and `cost_ceiling_usd` are not drift; [ABIO Guards](ABIO%20Guards.md)). It then reads `records.jsonl` line by line:
 
 | Line | What happens |
 | --- | --- |
 | clean | kept; its `(label, index)` is skipped by the grid |
 | error, `TaintError`, `retry_taint=False` | kept in place and skipped — a taint is deterministic and would fail again |
-| any other error | appended to `records.retried.jsonl`, dropped from `records.jsonl`, its priced usage added to the running spend; the trial re-runs |
+| any other error | appended to `records.retried.jsonl`, dropped from `records.jsonl`, its priced usage still counted (the running spend starts from `directory_spend_usd`; `on_trial` adds only fresh trials); the trial re-runs |
 
 When anything was retried, the error lines are appended to `records.retried.jsonl` first (skipping any already there), then `records.jsonl` is rewritten from the kept lines through a temp file, so `aggregate` never sees an error line next to its replacement: one line per `(label, index)`. A crash between the two leaves the error lines in `records.jsonl`; the next resume retries them again and appends nothing twice. Seeds are keyed by `(label, index)`, so a retried trial re-draws the same world. The manifest is then rebuilt from the current spec, carrying `started_at` from the old one and counting the kept lines, and the grid appends the missing trials.
 
@@ -228,3 +237,4 @@ When anything was retried, the error lines are appended to `records.retried.json
 - 2026-10-28 — refreshed against 0eb23e5: `read_manifest`/`read_records` added (`01fee6a`, `3885584`); the manifest is strict JSON; `parse_failures`/`aborted` ride the line only when set; the repo root is `spec.REPO_ROOT` (`f95c6cf`); a reload sorts to run order.
 - 2026-10-28 — refreshed against `552c1a7`: `grade_error` rides the line only when set and `record_from_json` reads it back.
 - 2026-10-29 — refreshed for `e5ea4d0`, `e392c11` and `661005d` (T091 B3/B4/B7, A1, E1): colliding strings escaped and every tree decoded once, `StoreError` naming the torn line, `records_spend_usd`/`_usage_usd` documented here, `runout` on the line, `spec_path`/`helper_modules`/`cost_ceiling_history` on the manifest, and resume reading the spec file as it is now.
+- 2026-10-29 — refreshed for `c80cf5f` and `54d9ad1` (T091 D, K3): `directory_spend_usd` and `RETRIED_FILENAME` added, the ceiling is the directory's budget in the guard and the spend counter; `taint_exempt` rides the line only when non-empty.

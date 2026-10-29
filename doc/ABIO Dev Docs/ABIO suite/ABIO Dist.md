@@ -33,7 +33,7 @@ A frozen dataclass around one `int`.
 
 
 ## Dist Interface
-A `runtime_checkable` protocol, `sample(seed) -> T`, and five frozen implementations. Each `sample` builds its own generator from the seed, so a `Dist` draws one value per seed.
+A `runtime_checkable` protocol, `sample(seed) -> T`, and five frozen implementations. Each `sample` builds its own generator from the seed, so a `Dist` draws one value per seed. Each implementation also states its `support()`, the closed interval it can draw from, so a consumer judges every seed at once.
 
 | Dist | |
 | --- | --- |
@@ -42,6 +42,7 @@ A `runtime_checkable` protocol, `sample(seed) -> T`, and five frozen implementat
 | [Normal](#^normal) | Gaussian |
 | [LogNormal](#^lognormal) | `exp` of a Gaussian |
 | [Choice](#^choice) | One of the options, optionally weighted |
+| [support](#^support) | The interval a distribution draws from |
 
 **Constant**`(value: T)`
     Ignores the seed. Generators read `Constant` holes back as plain numbers (W2's lag bound, pressure's `world_variance` leave explicit `Dist`s alone). ^constant
@@ -58,6 +59,9 @@ A `runtime_checkable` protocol, `sample(seed) -> T`, and five frozen implementat
 **Choice**`(options: tuple[T, ...], weights: Optional[tuple[float, ...]] = None)`
     Draws an index, so options of any type come back as given; weights are normalized by their sum. ^choice
 
+**support**`() -> Optional[tuple[float, float]]`
+    `Constant`: `(v, v)` for a number, else `None`. `Uniform`: `(min(lo, hi), max(lo, hi))`. `Normal`: `(-inf, inf)` whatever its parameters. `LogNormal`: `(0, inf)`. `Choice`: `(min, max)` of the options when every option is a number, else `None`. `None` means unknown. ^support
+
 
 
 ## dist Interface
@@ -66,9 +70,13 @@ The tree sampler.
 | dist | |
 | --- | --- |
 | [ParamSchema](#^paramschema) | A nested tree sampled by path |
+| [support_of](#^support_of) | A distribution's support, or `None` |
 
 **ParamSchema**`(tree: Any)` with `sample(seed) -> Any`
     Walks dicts, lists and tuples; each `Dist` leaf is sampled with `seed.child(path)`, the path being `/key` segments (`\`, `/` and `[` escaped) and `[index]` segments joined from the root; other leaves pass through. Order-independent. No caller in `src/` outside the re-export. ^paramschema
+
+**support_of**`(dist: Any) -> Optional[tuple[float, float]]`
+    Calls `dist.support()` when it has one and returns it as two floats; `None` when the object has no `support` method or it returns `None`. The rate grammar reads it to refuse a rate constant that could draw negative on some seed ([ABIO RateLaw](ABIO%20RateLaw.md)). ^support_of
 
 
 
@@ -89,3 +97,4 @@ Reproducibility rests on every caller spelling its child labels the same way acr
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the path collisions and the negative-seed refusal confirmed on the HEAD export, the importer count by `git grep`, no spend.
 - 2026-10-28 — refreshed against `9db219f`: `ParamSchema` paths escape keys and spell positions `[i]`, so the key-path and key-vs-index collisions are gone.
+- 2026-10-29 — refreshed against `aa0e59a`: `support()` on all five distributions and `support_of`, which the rate grammar reads to refuse a constant that can go negative.

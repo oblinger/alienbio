@@ -64,6 +64,7 @@ The wrapper that lets any agent see and speak surface names while the runner see
 | [[#^opaqueagent\|OpaqueAgent]] | Wrap an agent with a name map |
 | [[#^inner\|inner]] | The wrapped agent |
 | [[#^name-map\|name_map]] | The map every crossing goes through |
+| [spoken](#^spoken) | The last action as the agent spoke it |
 | [[#^begin\|begin]] | Hand the inner agent the surfaced brief |
 | [[#^notice\|notice]] | Hand it the turn's outcome in surface names |
 | [[#^probe\|probe]] | Ask a probe in surface names; answer in ids |
@@ -78,17 +79,20 @@ The wrapper that lets any agent see and speak surface names while the runner see
 **name_map**`: NameMap`
     The trial's map. ^name-map
 
+**spoken**`: Optional[Action]`
+    The last action exactly as the inner agent returned it from `act`, in surface names; `None` before the first. `notice` echoes it on a rejection, and the runner's taint audit reads the agent's named id off it ([ABIO Runner](ABIO%20Runner.md)). ^spoken
+
 **begin**`(brief: TaskBrief) -> None`
     When the inner agent is a `SessionAgent`, call its `begin` with `surface_brief(brief, name_map)`; otherwise do nothing. The runner keeps the structural brief, and that is the brief stored on the record. ^begin
 
 **notice**`(outcome: ActionOutcome) -> None`
-    When the inner agent is a `SessionAgent`, call its `notice` with a copy of `outcome` whose `action` is `surface_action`'s and whose `reason` is surfaced with `surface_text`, so the agent hears its own names back, rejection reasons included. `turn`, `accepted` and `result` (a destructive assay's revealed rate, a float) are passed as they are. ^notice
+    When the inner agent is a `SessionAgent`, call its `notice` with a copy of `outcome` whose `action` is `surface_action`'s and whose `reason` is surfaced with `surface_text`, so the agent hears its own names back. A REJECTED action is echoed as the agent spoke it (T091 K2): the action is `spoken`, and the id in the reason is the agent's own token, the rest of the reason surfaced — so an agent that typed a hidden pool's structural id is told `unknown lever '<that id>'`, exactly what a typo gets; surfacing it would have translated the id into the pool's surface name and confirmed the guess. `turn`, `accepted` and `result` (a destructive assay's revealed rate, a float) are passed as they are. ^notice
 
 **probe**`(text: str, observation: Optional[Observation] = None) -> Optional[str]`
     `None` when the inner agent has no `probe`. Otherwise asks it `surface_text(text)` with the turn's observation through `surface_observation` (or `None`) and returns the answer through `structural_text`, or the answer unchanged when it is not a string. The probe's text arrives structural because the runner substitutes `{placeholder}` tokens from the drafter's `probe_vocab` first. ^probe
 
 **act**`(observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]`
-    Call the inner agent's `act` with `surface_observation(observation, name_map)`, then return `structural_action` of its action and its reasoning steps with each entry of `refs` mapped through `structural`. A step's `content` is returned verbatim, so the trace holds the model's own words in surface names ([[#What crosses, in which direction]]). ^act
+    Call the inner agent's `act` with `surface_observation(observation, name_map)`, record the inner agent's action as `spoken` and the translation it returns, then return `structural_action` of its action and its reasoning steps with each entry of `refs` mapped through `structural`. A step's `content` is returned verbatim, so the trace holds the model's own words in surface names ([[#What crosses, in which direction]]). ^act
 
 
 
@@ -104,6 +108,7 @@ The module-level functions. `__all__` lists `NameMap`, `OpaqueAgent`, `build_nam
 | [[#^surface-observation\|surface_observation]] | An observation in surface names |
 | [[#^structural-action\|structural_action]] | An agent's action back in structural ids |
 | [[#^surface-action\|surface_action]] | An action in surface names |
+| [action_target](#^action-target) | The id a `Measure` probes or an `Intervene` sets |
 
 **token_pattern**`(token: str) -> "re.Pattern[str]"`
     A compiled regex matching `token` only as a whole id: `_BOUNDARY_L + re.escape(token) + _BOUNDARY_R`. `audit_prompts` scans every prompt with it, and exempts secrets that a question leaf or a declared probe text names with it ([[#The token boundary]]). ^token-pattern
@@ -125,6 +130,9 @@ The module-level functions. `__all__` lists `NameMap`, `OpaqueAgent`, `build_nam
 
 **surface_action**`(action: Action, nm: NameMap) -> Action`
     The mirror of `structural_action`, with `surface` and `surface_value`. Used by `OpaqueAgent.notice`. ^surface-action
+
+**action_target**`(action: Any) -> Optional[str]`
+    `action.probe` for a `Measure`, `action.lever` for an `Intervene`, else `None`. `OpaqueAgent.notice` and the runner's `agent_named` map both read it. ^action-target
 
 
 
@@ -149,7 +157,7 @@ The dot rule took two fixes. T066 (deep scan round 2): the right boundary used t
 | --- | --- | --- | --- |
 | Brief, at `begin` | out | `surface_brief` | question, every printed text field, affordances, irreversible levers |
 | Observation, each turn | out | `surface_observation` | compartment keys |
-| Outcome, at `notice` | out | `surface_action`, `surface_text` | the action, the reason |
+| Outcome, at `notice` | out | `surface_action`, `surface_text`; a rejection echoes `spoken` | the action, the reason |
 | Probe question | out | `surface_text` | the whole text |
 | Action, from `act` | in | `structural_action` | probe, lever, answer value |
 | Reasoning steps | in | `structural` | each `refs` entry |
@@ -172,7 +180,7 @@ Inside the crossing, `surface_brief` surfaces every field `render_brief` prints,
 
 
 ## The taint audit
-`audit_prompts` (in `suite/runner.py`) scans the prompts an agent actually sent — `prompt_texts`, forwarded through `OpaqueAgent` — after the loop. It forms its secrets in structural ids (hidden molecules, reaction ids the brief did not hand over, answer-key tokens, minus what the question and the declared probes name, matched with `token_pattern`). Under a name map it then replaces them with `{surface(s) for s in secrets} | set(to_surface)`: a secret leaks in its surface form, and any structural id in a prompt is itself a leak. Each secret is searched with `token_pattern`; hits land on `TrialRecord.taint_hits` and raise `TaintError` carrying the record. A scripted agent has no `prompt_texts` and audits clean.
+`taint_audit` (in `suite/runner.py`) scans the prompts an agent actually sent — `prompt_texts`, forwarded through `OpaqueAgent` — after the loop. It forms its secrets in structural ids (hidden molecules, reaction ids the brief did not hand over, answer-key tokens, minus what the question and the declared probes name, matched with `token_pattern`). Under a name map it then replaces them with `{surface(s) for s in secrets} | set(to_surface)`: a secret leaks in its surface form, and any structural id in a prompt is itself a leak. Each secret is searched with `token_pattern`; hits land on `TrialRecord.taint_hits` and raise `TaintError` carrying the record. An id the agent itself named, in the form it spoke it (`spoken`), is exempt from the prompt that can echo it onward, and the exemption lands on `TrialRecord.taint_exempt` in surface form. A scripted agent has no `prompt_texts` and audits clean.
 
 
 
@@ -181,3 +189,4 @@ Inside the crossing, `surface_brief` surfaces every field `render_brief` prints,
 - 2026-10-19 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD 84f8190; the dot boundary, the per-kind padding and `protocol` passing through `surface_brief` unsurfaced were confirmed by running them against the venv, not inferred. Left out: `__getattr__` as a member block (its block id would be `^--getattr--`; the forwarding is in the OpaqueAgent paragraph), `NameMap`'s dataclass constructor (it takes the private compiled patterns; `of` is the way in), and `TrialRecord.name_map` and the store's `name_map` key as members (they belong to the trial and store docs). The figure omits `brief.py` and `llm_agent.py` as nodes, for density.
 - 2026-10-28 — refreshed against 0eb23e5: `OpaqueAgent.probe` takes the turn's `observation` and surfaces it for the inner agent (`01fee6a`); the dot boundary, `protocol` surfacing and `token_pattern` export were already current.
 - 2026-10-29 — refreshed for `661005d` (T091 D7, D8): `build_name_map` widens the index until no surface name equals a structural id; `opaque_names` is a declared world-invariant dial, and only `True` is admitted on a live arm.
+- 2026-10-29 — refreshed for `54d9ad1` (T091 K2, K3): `OpaqueAgent.spoken` and `action_target` added; a rejection echoes the agent's own token, never the surface name; the taint audit exempts the spoken id.

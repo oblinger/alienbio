@@ -75,6 +75,7 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 | --- | --- |
 | [draft_intervention_world](#^draft-intervention-world) | Chain and the goal |
 | [target_compartment](#^target-compartment) | The one compartment the target is read in |
+| [target_holders](#^target-holders) | Compartments the chemistry can put the target in |
 | [make_target_scorer](#^make-target-scorer) | Closeness of the final level |
 | [make_intervention_objective](#^make-intervention-objective) | Scorer as an objective |
 | [DesignInterventionRecipe](#^designinterventionrecipe) | Target in, outcome graded |
@@ -83,14 +84,17 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 **draft_intervention_world**`(seed, *, n_nodes=4, target_value=None, sim_cfg=SimConfig()) -> (WorldImpl, CarveResult, (str, float))`
     Seeded chain rates; target `m{n−1}`; with no `target_value` the goal is the sink's level at the end of `simulate(world, sim_cfg)`, 20 s by default; the `intervene` head passes the episode-horizon `sim_cfg` (T088, [ABIO Drafters](ABIO%20Drafters.md)). ^draft-intervention-world
 
-**target_compartment**`(world, target_id, named=None) -> str`
-    The binding's `compartment` entry when given (it must be a compartment of the world), else the only compartment, else the one compartment whose initial concentrations hold the target; several holders or none refuse at draft, naming the compartments and the `compartment:` binding (T091 E2: a sum over compartments of different volumes is no quantity the task states). `DesignInterventionRecipe.build_objective` calls it. ^target-compartment
+**target_compartment**`(world, target_id, named=None, *, task="intervene", hint=None) -> str`
+    The binding's `compartment` entry when given (it must be a compartment of the world), else the only compartment, else the one compartment `target_holders` returns — read off the chemistry, not off the `initial` listing, so a cosmetic `P: 0.0` changes nothing (T091 I4); several holders or none refuse at draft, naming the compartments and the `compartment:` binding (T091 E2: a sum over compartments of different volumes is no quantity the task states). `task` prefixes the refusal and `hint` replaces its binding advice, so the conflict oracle shares the rule ([ABIO Tradeoff](ABIO%20Tradeoff.md)). `make_intervention_objective(…, world=)` calls it. ^target-compartment
+
+**target_holders**`(world, target_id) -> list[str]`
+    The compartments, in world order, that can ever hold the target: a fixpoint over what each compartment can contain — initial amounts above zero; the products of every reaction whose reactants can all be there (both simulators run every reaction in every compartment, so a reactant-free source counts everywhere; a rate of 0 counts, since an Intervene may set it); what a transport flux carries by direction (forward species origin → dest, back species dest → origin) while its driver can be in the origin; what a death law releases. Duck-typed: a world without `flows` or `population_laws` has none. ^target-holders
 
 **make_target_scorer**`(target_mol_id, target_value, compartment=None) -> Callable[[Timeline], float]`
     `1 / (1 + |final − goal|)` on the final state: the target's concentration in the one compartment `target_compartment` picked. `compartment` unset is allowed only on a one-compartment state; on a multi-compartment state, or a compartment the state does not carry, the scorer raises. ^make-target-scorer
 
-**make_intervention_objective**`(target_mol_id, target_value, compartment=None) -> OutcomeObjective`
-    The scorer with `target = target_value`. ^make-intervention-objective
+**make_intervention_objective**`(target_mol_id, target_value, compartment=None, *, world=None) -> OutcomeObjective`
+    The scorer with `target = target_value`. With `world=` the compartment is resolved here by `target_compartment`, so an ambiguous multi-compartment world refuses at construction with the draft-time message (T091 I5); every shipped caller passes it (`DesignInterventionRecipe.build_objective`, the `intervene` drafter, `generative_intervene`). Without it the refusal comes only when scored; kept optional for external callers. ^make-intervention-objective
 
 **DesignInterventionRecipe**`(target_value: float, role_name="target", verb="intervene")`
     Question: `{target}` as a `node_set`; key: a scalar placeholder; grader kind `outcome`, so `build_suite` requires the drafter's objective. ^designinterventionrecipe
@@ -117,3 +121,4 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 - 2026-10-28 — written as an ABIO module doc (T084), from the three sources at alienbio HEAD `64988be`; the identical diagnose worlds and the constant predict keys (40 seeds each arm) confirmed on the HEAD export, the catalog usage by `git grep`, no spend. The module docstring of `arch_intervene` still says the agent loop is out of scope; exp09 runs it through the runner.
 - 2026-10-28 — refreshed against `bf91515`: diagnose perturbs by default (`DEFAULT_PERTURBATION = 3.0`), `perturb_reaction_rate` keeps flows and refuses a `rate_law` reaction, the intervene head passes the episode-horizon `sim_cfg`.
 - 2026-10-29 — refreshed for `e392c11` and `62fdc9a` (T091 A2, E2): the diagnose target is drawn from `m1 … m{n−1}` (the `m0`/`m1` shared-world note deleted), and the intervene scorer reads one compartment through the new `target_compartment` (`compartment=` on the scorer and objective). A concurrent uncommitted edit adds `task=`/`hint=` keywords to `target_compartment`; not documented until it lands. Figure: the diagnose-key note "m0, m1 share r0" now reads "target never m0".
+- 2026-10-29 — refreshed for `6fe6921` and `198f307` (T091 I4, I5): the target's compartment is the one `target_holders` derives from the chemistry, and `make_intervention_objective(…, world=)` refuses an ambiguous world at construction; `target_compartment` takes `task=`/`hint=` for the conflict oracle.

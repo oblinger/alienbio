@@ -1,14 +1,14 @@
 ---
-description: "`runner`: the live agent turn loop — `run` (observe, act, validate, simulate, record), `Budget`, `TrialError`, `TaintError`, `audit_prompts`. Source: `src/alienbio/suite/runner.py`."
+description: "`runner`: the live agent turn loop — `run` (observe, act, validate, simulate, record), `Budget`, `TrialError`, `TaintError`, `taint_audit`, `audit_prompts`. Source: `src/alienbio/suite/runner.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Runner](ha://p/ABIO%20Runner) 
 # ABIO Runner
 The agent turn loop: `run` plays one agent against one drafted world, turn by turn, and returns one frozen `TrialRecord` — every action it took, accepted or rejected, every probe answer, the trajectory and the score.
 
 ![[ABIO Runner.svg|2400]] 
-*Rejection as data* is the topic that governs the validate-action node (reject, clamp, negative setpoint); *The taint audit* governs `audit_prompts` and `TaintError`.
+*Rejection as data* is the topic that governs the validate-action node (reject, clamp, negative setpoint); *The taint audit* governs `taint_audit`, `audit_prompts` and `TaintError`.
 
-`suite/runner.py` has no primary class: its export is `run`, plus the spend cap `Budget`, the two exceptions a trial can end in, and the prompt scanner `audit_prompts`. This page covers the loop and those four. The brief the agent is handed is built in `suite/brief.py` (`build_brief`, `TaskBrief`, `Affordances`), the surface-name boundary in `suite/naming.py` (`NameMap`, `OpaqueAgent`, `token_pattern`), the record in `suite/trial.py`, the agent protocols and action types in `suite/agent.py`, the live model in `suite/llm_agent.py`, and the grid driver that calls `run` per trial in `suite/mass_trial.py`. Each turn's physics is one `verify.simulate` burst over [[ABIO WorldSimulatorImpl]], reading and writing [[ABIO WorldStateImpl]] snapshots of an [[ABIO WorldImpl]]. The subsystem view is [[ABIO-Runtime]]; the operator's description is [[ABIO Suite Runtime]].
+`suite/runner.py` has no primary class: its export is `run`, plus the spend cap `Budget`, the two exceptions a trial can end in, and the prompt scanner `taint_audit` with its hits-only wrapper `audit_prompts`. This page covers the loop and those five. The brief the agent is handed is built in `suite/brief.py` (`build_brief`, `TaskBrief`, `Affordances`), the surface-name boundary in `suite/naming.py` (`NameMap`, `OpaqueAgent`, `token_pattern`), the record in `suite/trial.py`, the agent protocols and action types in `suite/agent.py`, the live model in `suite/llm_agent.py`, and the grid driver that calls `run` per trial in `suite/mass_trial.py`. Each turn's physics is one `verify.simulate` burst over [[ABIO WorldSimulatorImpl]], reading and writing [[ABIO WorldStateImpl]] snapshots of an [[ABIO WorldImpl]]. The subsystem view is [[ABIO-Runtime]]; the operator's description is [[ABIO Suite Runtime]].
 
 
 
@@ -74,7 +74,8 @@ The module-level exports. `alienbio.suite` re-exports `run`, `Budget` and `BUDGE
 | runner | |
 | --- | --- |
 | [[#^run\|run]] | Play one agent against one world; one record |
-| [[#^audit-prompts\|audit_prompts]] | Scan the prompts an agent sent for secrets |
+| [taint_audit](#^taint-audit) | Scan the prompts an agent sent for secrets; hits and exemptions |
+| [[#^audit-prompts\|audit_prompts]] | The hits of `taint_audit` |
 | [[#^budget-ladder\|BUDGET_LADDER]] | Named budget levels, unlimited down to 4 |
 | [[#^probe-timings\|PROBE_TIMINGS]] | The three probe schedule points |
 | [[#^default-assay-kill\|DEFAULT_ASSAY_KILL]] | Share of the culture a destructive assay kills |
@@ -84,10 +85,13 @@ The module-level exports. `alienbio.suite` re-exports `run`, `Budget` and `BUDGE
 | [[#^certainty-slice-problem\|certainty_slice_problem]] | Why certainty windows cannot cut a turn |
 
 **run**`(world: WorldImpl, task: TaskInstance, agent: Agent, dials: Mapping[str, Any], seed: Seed, *, sim_cfg: SimConfig = SimConfig(steps=10, sample_every=10), max_turns: int = 50, assay_kill: float = DEFAULT_ASSAY_KILL, illegal_action_limit: int = 10, illegal_action_cost: Optional[float] = None, swept: Optional[Collection[str]] = None) -> TrialRecord`
-    Narrows the turn-0 truth, builds the brief, wraps the agent for opaque names when asked, then loops turns ([[#One turn of the loop]]) until a `Commit`, the illegal-action limit, budget exhaustion or `max_turns`; grades, audits the prompts, and returns the record. `sim_cfg`, `max_turns` and `assay_kill` are defaults a condition's dials override (`max_turns`, `sim_steps`, `sim_dt`, `sample_every`, `assay_kill`); `illegal_action_cost`, when set, is what a rejected action costs instead of its verb's cost; `swept` projects the record's `condition_key` to those dials only, the key a grid record carries. Never mutates `world`, its chemistry or its initial state, so it is deterministic in `(world, task, agent, dials, seed)`. Raises `ValueError` before turn 0 for a malformed dial (a non-positive-int episode dial, `assay_kill` outside `[0, 1]`, a bad `probes` list, a bad `task.setup["certainty"]`) or whatever `build_brief` refuses; `TrialError` for a failure inside the loop; `TaintError` for a tainted prompt. ^run
+    Narrows the turn-0 truth, builds the brief, wraps the agent for opaque names when asked, then loops turns ([[#One turn of the loop]]) until an accepted `Commit`, the illegal-action limit, budget exhaustion or `max_turns`; grades, audits the prompts, and returns the record. `sim_cfg`, `max_turns` and `assay_kill` are defaults a condition's dials override (`max_turns`, `sim_steps`, `sim_dt`, `sample_every`, `assay_kill`); `illegal_action_cost`, when set, is what a rejected action costs instead of its verb's cost; `swept` projects the record's `condition_key` to those dials only, the key a grid record carries. Never mutates `world`, its chemistry or its initial state, so it is deterministic in `(world, task, agent, dials, seed)`. Raises `ValueError` before turn 0 for a malformed dial (a non-positive-int episode dial, `assay_kill` outside `[0, 1]`, a bad `probes` list, a bad `task.setup["certainty"]`) or whatever `build_brief` refuses; `TrialError` for a failure inside the loop; `TaintError` for a tainted prompt. ^run
+
+**taint_audit**`(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: TaskInstance, name_map: Optional[NameMap] = None, probe_texts: tuple[str, ...] = (), agent_named: Optional[Mapping[str, int]] = None) -> tuple[tuple[str, ...], dict[str, int]]`
+    Returns `(hits, exempt)`: the sorted tokens among the trial's secrets that appear, as whole ids, in any of `agent.prompt_texts`, and the map of secrets the audit stopped counting, `{id: first exempt prompt index}` (empty when nothing was exempted). Returns `((), {})` at once for an agent with no `prompt_texts` (every scripted agent); an `OpaqueAgent` forwards its inner agent's. `agent_named` maps an id the agent named in a `Measure` or `Intervene`, as it spelled it, to the count of prompts it had sent when it first did; an agent exposing `authored_texts` (`LLMAgent`) adds every secret any of its own texts names, from that text's index. What counts as a secret, what is exempt and how the match works are in [[#The taint audit]]. `run` calls it once after the loop, and on a partial record, and writes `exempt` to `TrialRecord.taint_exempt`. ^taint-audit
 
 **audit_prompts**`(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: TaskInstance, name_map: Optional[NameMap] = None, probe_texts: tuple[str, ...] = (), agent_named: Optional[Mapping[str, int]] = None) -> tuple[str, ...]`
-    The sorted tokens among the trial's secrets that appear, as whole ids, in any of `agent.prompt_texts`. Returns `()` at once for an agent with no `prompt_texts` (every scripted agent); an `OpaqueAgent` forwards its inner agent's. What counts as a secret, what is exempt and how the match works are in [[#The taint audit]]. `agent_named` maps an id the agent itself named in a `Measure` or `Intervene` to the count of prompts it had sent when it first did; from that prompt on, the id is its own guess echoed back and is not counted. `run` calls it once, after the loop, with the declared probe texts and that map; the tests call it directly. ^audit-prompts
+    `taint_audit(…)[0]`: the hit tokens only. The tests call it directly. ^audit-prompts
 
 **BUDGET_LADDER**`: Mapping[str, float]`
     `{"unlimited": inf, "20": 20.0, "12": 12.0, "8": 8.0, "4": 4.0}`: the level names [[#^from-dial|from_dial]] accepts, swept as an axis by the degradation experiments (`degradation.py`). ^budget-ladder
@@ -133,7 +137,7 @@ Before turn 0, `run` resolves the episode dials and the `Budget`, narrows the in
 | monitor log | on a monitor `logs_turn`, the ledger counts the action | `monitor.logs_turn` |
 | simulate | one `sim_cfg` burst, or `windows` slices under the certainty dial; its end-state is the next state | `verify.simulate` |
 | record | the readouts at the turn boundary | `trial.readout_values` |
-| stop | `Commit`, then the illegal limit, then the budget | [[#Budget and what ends an episode]] |
+| stop | an accepted `Commit`, then the illegal limit, then the budget | [[#Budget and what ends an episode]] |
 
 `Measure` and `Wait` change nothing in the world; a `Wait`'s `duration` is not read, since every turn already plays one fixed burst. Time passes every turn whatever the agent did, rejected actions included. The persistent `chemistry` and `state` are only ever rebound to new objects, never mutated, which is what keeps two `run` calls on the same `world` independent. The timeline keeps every sample of every burst, dropping each later burst's first sample (it duplicates the previous turn's last), with times offset by the elapsed simulated time.
 
@@ -146,19 +150,19 @@ An illegal action never raises. It is logged as an `ActionRecord` with `accepted
 
 | Action | Check | `reason` |
 | --- | --- | --- |
-| any | `params` absent or a JSON object | `params must be a JSON object, got …` |
+| any, `Commit` included | `params` absent, `null` (both read as `{}`) or a JSON object | `params must be a JSON object, got …` |
 | | `params["assay"]` absent or a JSON boolean | `params.assay must be a JSON boolean, got …` |
 | `Measure`, `params["assay"]` is `True` | probe in `brief.affordances.assays` | `unknown assay '…'` |
 | | probe is a reaction in this world | `assay '…' is allowlisted but not a reaction in this world` |
 | `Measure` | probe in `brief.affordances.probes` | `unknown probe '…'` |
-| `Intervene` | lever in `brief.affordances.levers`; on a miss, `brief.lever_exclusion` names why the brief left it off, except for a `hidden_ids` pool | `'…' is this task's readout molecule …`, `'…' is a reaction with a compiled rate law …`, else `unknown lever '…'` |
+| `Intervene` | lever in `brief.affordances.levers`; on a miss, `brief.lever_exclusion` names why only for a compiled-rate-law reaction | `'…' is a reaction with a compiled rate law …`, else `unknown lever '…'` (a readout and a `hidden_ids` pool included) |
 | | lever is a reaction or a molecule here | `lever '…' is allowlisted but not resolvable in this world` |
 | | value is a finite real, not a `bool` | `non-finite value …` |
 | | value `>= 0` | `negative value …` |
 | `Commit`, `Wait` | none | |
 | any other type | none passes | `unknown action type '…'` (charged only `illegal_action_cost`: an unknown verb has no normal cost) |
 
-The affordances are read off the structural brief, before any surface naming, and `OpaqueAgent` has already translated the agent's surface names back to structural ids. The readout and rate-law refusals are one check, not two: the brief never puts those ids on the surface, so an `Intervene` naming one fails the membership test, and `lever_exclusion` (the same function `build_brief` uses to leave them off) supplies the reason; a rate-law lever would otherwise have its law replaced by mass action at the setpoint. A `hidden_ids` pool is rejected `unknown lever '…'`, the text an id the world does not hold gets (T091 D1): the reason reaches the agent through `notice`, and naming the pool confirmed a guess at it. A `params` that is not an object, or an `assay` flag that is not a boolean, is rejected before any verb check (T091 D5/D6): a string `params` used to crash the trial after the paid call, and `"false"` ran the destructive assay. A negative setpoint is refused because the engine has no guard on input: a molecule set to −5 ran on −5 in every compartment, and a negative rate would be floored to 0 by the stepper with no note on the record. An action that is none of the four types is rejected as data like the rest (since `484db58`); it does not raise.
+The affordances are read off the structural brief, before any surface naming, and `OpaqueAgent` has already translated the agent's surface names back to structural ids. The readout and rate-law refusals are one check, not two: the brief never puts those ids on the surface, so an `Intervene` naming one fails the membership test, and `lever_exclusion` (the same function `build_brief` uses to leave them off) supplies the reason for a compiled-rate-law reaction, which would otherwise have its law replaced by mass action at the setpoint. A readout or a `hidden_ids` pool is rejected `unknown lever '…'`, the text a typo gets, on the record and to the agent (T091 D1, K2): the reason reaches the agent through `notice`, and "…writes the answer into the measurement" or "…a structurally hidden pool" named the measurement and confirmed a guess at it. Those reasons are spec-refusal text for a declared lever, which `build_brief` and the `draft` check refuse before the agent exists. On an opaque world `OpaqueAgent` echoes the agent's own token in the rejection, never the surface name ([ABIO NameMap](ABIO%20NameMap.md)). A `params` that is neither absent, `null` nor an object (`[]`, `""`, `false`, `3`), or an `assay` flag that is not a boolean, is rejected before any verb check on every action kind (T091 D5/D6, K1); a rejected `Commit` is an illegal action like any other, never sets `committed_answer`, and the trial goes on: a string `params` used to crash the trial after the paid call, and `"false"` ran the destructive assay. A negative setpoint is refused because the engine has no guard on input: a molecule set to −5 ran on −5 in every compartment, and a negative rate would be floored to 0 by the stepper with no note on the record. An action that is none of the four types is rejected as data like the rest (since `484db58`); it does not raise.
 
 Each rejection increments the record's `illegal_actions`; once it reaches `illegal_action_limit` (default 10) the trial ends with `"illegal_limit"` at the bottom of that turn. An accepted `Intervene` over its lever's cap is not a rejection ([[#Intervene is a set, and the lever cap]]).
 
@@ -184,7 +188,7 @@ A declared lever may not name a `hidden_ids` pool: an `Intervene` on a molecule 
 
 
 ## The taint audit
-`audit_prompts` scans the prompts an agent actually sent, after the loop, for anything it could not otherwise have known. The secrets are built, then trimmed:
+`taint_audit` scans the prompts an agent actually sent, after the loop, for anything it could not otherwise have known. The secrets are built, then trimmed:
 
 | Step | Set |
 | --- | --- |
@@ -196,7 +200,7 @@ A declared lever may not name a `hidden_ids` pool: an `Intervene` on a molecule 
 | remove | the empty string |
 | opaque names | the remaining secrets in surface form, plus every structural id in the map |
 
-The question reaches the agent by construction, so a key token it names (an `identify_pathway` question's endpoints, `describe_the_link`'s `linked` inside its ask sentence) is not a secret, and neither is a token a spec-authored probe names after `probe_vocab` substitution. A key token that is a visible id is not a secret either: the observation already names it, and the secret there is structure, which no token scan sees. Under opaque names the agent was spoken to in surface names, so a secret leaks in surface form, and any structural id in a prompt is itself a leak. An id the agent itself named in a `Measure` or `Intervene` is exempt from the prompt where it first named it onward (`agent_named`, T091 D1): later prompts echo its guess back through its history and rejection reasons. Earlier prompts are still scanned, so a leak the agent then acted on is still a hit.
+The question reaches the agent by construction, so a key token it names (an `identify_pathway` question's endpoints, `describe_the_link`'s `linked` inside its ask sentence) is not a secret, and neither is a token a spec-authored probe names after `probe_vocab` substitution. A key token that is a visible id is not a secret either: the observation already names it, and the secret there is structure, which no token scan sees. Under opaque names the agent was spoken to in surface names, so a secret leaks in surface form, and any structural id in a prompt is itself a leak. The agent's own words are exempt (T091 D1, K3): the audit's job is prompt text the harness authored. An id the agent named in a `Measure` or `Intervene` (as it spelled it; on an opaque world the wrapper keeps the untranslated action, `OpaqueAgent.spoken`), or that any text it authored names — its `reasoning`, an answer, a compaction summary, a probe reply (`LLMAgent.authored_texts`) — is exempt from the first prompt that can carry it back onward. Earlier prompts are still scanned, so a hidden id a prompt handed the agent before it said it is still a hit. By design a hidden id the agent named is thereafter unaudited in prompts (telling its echo from a later harness leak of the same token would need provenance the prompt text does not carry), so the narrowing is on the record: `TrialRecord.taint_exempt`, `{id: first exempt prompt index}`, written only when non-empty.
 
 Matching is whole-token through `naming.token_pattern`, the one spelling of the id boundary that the surfacing in `naming.py` also uses: a match may not touch another id character (letters, digits, `_`, `/`, `-`), nor a `.` that continues the id. `OutcomeObjective` targets are not scanned. Hits land on the record's `taint_hits`, and `run` raises `TaintError` with the record. The audit runs only on a trial that left the loop normally.
 
@@ -225,7 +229,7 @@ The stop checks run at the bottom of a turn, after its burst and readouts, in th
 
 | `terminal_reason` | When |
 | --- | --- |
-| `committed` | the turn's action was a `Commit` |
+| `committed` | the turn's action was an accepted `Commit` |
 | `illegal_limit` | rejections so far `>= illegal_action_limit` |
 | `budget_exhausted` | `Budget.exhausted(spent)` |
 | `max_turns` | the loop ran `max_turns` turns without any of the above |
@@ -287,3 +291,4 @@ The monitor's `logs_turn` and `shows_turn` derive their own draws from the seed 
 - 2026-10-28 — refreshed against 0eb23e5: blocks added for `trial_preamble`/`TrialPreamble` (`131609f`), `resolve_int_dial` (public since `f95c6cf`) and `certainty_slice_problem`; `probe` receives the turn's observation and the record carries `parse_failures`/`aborted` (`01fee6a`).
 - 2026-10-28 — refreshed against `552c1a7`: the grading block catches `MalformedAnswer` — score 0, message on `grade_error`.
 - 2026-10-29 — refreshed for `e392c11` and `661005d` (T091 A1, D1, D5/D6): an `intervene` outcome is scored on a passive run-out to `score_horizon_turns` (`record.runout`), a hidden-pool lever is rejected `unknown lever`, `params` and its `assay` flag are type-checked as data, and the taint audit exempts an id the agent named from that prompt on (`agent_named`).
+- 2026-10-29 — refreshed for `54d9ad1` (T091 K1–K3): only an accepted `Commit` ends a trial; absent or `null` `params` read as `{}`, any other non-object is rejected on every kind; a readout or hidden pool is `unknown lever` on the record too; `taint_audit` returns `(hits, exempt)`, exempts the agent's own words and `audit_prompts` wraps it.

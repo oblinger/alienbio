@@ -100,6 +100,7 @@ The entry point and its tables.
 | [MODULATION_HEADS](#^modulation-heads) | Kind to positional and keyword parameters |
 | [RATE_VIEW_KINDS](#^rate-view-kinds) | The head kinds a rate law may call |
 | [compile_rate](#^compile-rate) | A `rate:` value to a `RateLaw` |
+| [check_constant_sign](#^check-constant-sign) | Refuse a constant factor that can be negative |
 
 **MODULATION_HEADS**`: Mapping[str, tuple[tuple[str, ...], tuple[str, ...]]]`
     `hill: (K; n, Vmax)`, `michaelis: (K; Vmax)`, `activator: (a; —)`, `inhibitor: (Ki; —)`; the pool is always the first argument. ^modulation-heads
@@ -108,7 +109,10 @@ The entry point and its tables.
     The registry view the compiler resolves heads through; a world-building head, a drafter or a Python-only function is unknown inside a rate law. ^rate-view-kinds
 
 **compile_rate**`(value, env, *, reactants=(), products=()) -> RateLaw`
-    `None` → `k = 1`; a number → `Constant`, a negative one refused; a `Dist` → `k`; a `QuotedForm` → compiled in its own environment (§ [Two shapes](#two-shapes)); a bool or anything else refuses. `reactants` and `products` are the reaction's pool names as the block spelled them. ^compile-rate
+    `None` → `k = 1`; a number → `Constant`, a negative one refused; a `Dist` → `k`, refused when its `support_of` reaches below zero; a `QuotedForm` → compiled in its own environment (§ [Two shapes](#two-shapes)); a bool or anything else refuses. `reactants` and `products` are the reaction's pool names as the block spelled them. ^compile-rate
+
+**check_constant_sign**`(form: Any, env: Env) -> None`
+    The sign rule (§ [Sign rule](#sign-rule)), run by `_compile_form` on every quoted law before either shape is tried. Raises `ExprError` naming the node, the factor and its support; returns `None` when no constant position can be negative. ^check-constant-sign
 
 
 
@@ -116,7 +120,7 @@ The entry point and its tables.
 # RateLaw Semantics
 
 ## Two shapes
-`_compile_product` tries first. It flattens a chain of `*` and reads each factor: a modulation head over a pool that is neither consumed nor produced becomes a `ModulationSpec` (over a reactant or product it refuses: that is substrate-saturation kinetics); a bare name of a reactant or product sends the law to the expression path, where it is the whole rate when it names a reactant (T091 E4: `0.2 * A` over `A + B` read as `0.2·A·B` while `0.2 * A + 0.0` read as `0.2·A`; the two are now one number); anything else must be a constant — a literal, a bound number or Dist, a quote, `-x`, a product of constants, or a call of a `dist` or `math` head — and the constants multiply into `k`. Two refusals are made at load, naming the node (e.g. `sk.root.children.r.rate`), before either shape is tried (T091 E9): a product of two distributions anywhere in the law (the expression path would otherwise multiply the two draws), and a negative rate constant — a negative number, a product-form `k` or an expression product chain with a negative coefficient (it ran as rate 0; `-(-0.2)` folds to 0.2 first). If any factor is not of the product form (the typed `_NotProductForm`; an unbound name, which is a pool, raises it too), `_compile_expr` compiles the whole form instead: `+ - * / **`, `neg`, `exp`, `log`, `sqrt`, the modulation heads (now allowed over any pool), constants, and species. Any other refusal is final.
+`_compile_product` tries first. It flattens a chain of `*` and reads each factor: a modulation head over a pool that is neither consumed nor produced becomes a `ModulationSpec` (over a reactant or product it refuses: that is substrate-saturation kinetics); a bare name of a reactant or product sends the law to the expression path, where it is the whole rate when it names a reactant (T091 E4: `0.2 * A` over `A + B` read as `0.2·A·B` while `0.2 * A + 0.0` read as `0.2·A`; the two are now one number); anything else must be a constant — a literal, a bound number or Dist, a quote, `-x`, a product of constants, or a call of a `dist` or `math` head — and the constants multiply into `k`. Two refusals are made at load, naming the node (e.g. `sk.root.children.r.rate`), before either shape is tried (T091 E9): a product of two distributions anywhere in the law (the expression path would otherwise multiply the two draws), and a constant factor that can be negative on some seed (§ [Sign rule](#sign-rule)). If any factor is not of the product form (the typed `_NotProductForm`; an unbound name, which is a pool, raises it too), `_compile_expr` compiles the whole form instead: `+ - * / **`, `neg`, `exp`, `log`, `sqrt`, the modulation heads (now allowed over any pool), constants, and species. Any other refusal is final.
 
 | Written | Compiles to |
 | --- | --- |
@@ -127,6 +131,16 @@ The entry point and its tables.
 | `!q "lognormal(0, 1) * lognormal(0, 1)"` | refused: a product of two distributions |
 | `!q "0.2 * A"` over reactant `A` | expression: the whole rate `0.2·A` |
 | `-0.2` | refused: a negative rate constant |
+| `!q "normal(1, 0.1) * A"` | refused: the factor's support is `[-inf, inf]` |
+| `!q "-0.2 * (A - 5)"` | refused: constant factor `-0.2` |
+| `!q "0.2 * (5 - A)"` | expression: loads; read as 0 while `A > 5` |
+
+
+
+## Sign rule
+A rate law's constant factor is non-negative by construction, judged at load for every seed at once (T091 I1–I3). The constant positions are the whole law when it reads no pool, and otherwise each factor of the top-level product chain (multiplicands and divisors, through unary minus) that reads no pool. Each is folded to the interval it can take on any seed: a number is a point; constant arithmetic is folded in either spelling (`k - 1` with `k = 0.5`, `0.2 / -1`, `exp(-1)`); a distribution head or `Dist` is its support (`normal` the whole line, `uniform(lo, hi)` `[lo, hi]`, `lognormal`/`poisson`/`exponential` `[0, inf)`, `support_of` for a `Dist` object — [ABIO Dist](ABIO%20Dist.md)). A factor whose interval straddles zero, or factors whose signs multiply negative, refuse naming the node and the support; a zero factor ends the check. So the verdict never depends on the seed a world is drafted at, and `--dry` agrees with every trial.
+
+A factor that reads a pool is not a constant: a law negative because of state loads and both simulators read it as 0. Hence `-0.2 * (A - 5)` refuses while the equal `0.2 * (5 - A)` loads; terms of a sum are not constant positions, so `5 - A` and `0.2 * (5 - A)` get the same verdict. A name bound with `!x normal(...)` is drawn outside the law, so the law sees a number and is judged per seed: a negative draw refuses on that seed only.
 
 
 
@@ -148,3 +162,4 @@ A constant factor is a Dist, drawn once per world when the block realizes: `k` u
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `afd519c` (read with `git show`; `rate_law.py` unchanged since `c67f052`). Run against an export of that tree: `2 * S * hill('M', 0.5)` compiled outside a template and refused `inst.rate: unbound name 'S'` inside one; `3 * S / (Kmm + S)` compiled with ports `S, P, Kmm`. Findings filed on T088.
 - 2026-10-28 — refreshed against 0eb23e5 (`64988be`): the numeric heads are `rate_expr.modulation_factor` (`inhibitor(1, 0)` = 0.0), the product-form fallback is the typed `_NotProductForm`, a reactant named inside a template is read as its pool; figure legend follows.
 - 2026-10-29 — refreshed for `cce3a04` (T091 E4, E9): a factor naming a reactant or product sends the law to the expression path (the whole rate when it names a reactant); a product of two distributions anywhere and a negative rate constant refuse at load, naming the node.
+- 2026-10-29 — refreshed for `aa0e59a` (T091 I1–I3): `check_constant_sign` refuses at load any constant factor whose support can be negative on some seed, folding constant arithmetic in both spellings; a `Dist` rate is checked by its support.

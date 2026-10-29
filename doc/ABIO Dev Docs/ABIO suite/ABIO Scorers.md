@@ -85,7 +85,7 @@ Over objective scores, rankings and points.
 
 
 ## score_divergence Interface
-Over two timelines' final states, per-id totals summed across compartments.
+Over two timelines' final states, per-id totals summed across compartments — the `skeleton.final_amount` reading, not the intervene scorer's one-compartment read (T091 E2). Safe for the shipped caller, `delta`'s paired summary over the `delta` drafter's matched pair, whose worlds are one compartment by construction (`delta_gen` builds them from source, sink and reaction blocks only); a multi-compartment pair would compare totals over compartments of different volumes and must be read per compartment (T091 I6).
 
 | score_divergence | |
 | --- | --- |
@@ -165,3 +165,4 @@ Six boolean signals to six labels.
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the six sources at alienbio HEAD `64988be`; the tie rule, the 0.67 ladder, the unchecked Brier outcome and the ECE edge case confirmed on the HEAD export, the caller census by `git grep` over `src/`, no spend.
+- 2026-10-29 — refreshed for `c80cf5f` (T091 I6): the `score_divergence` sum over compartments is stated as safe only for its one-compartment caller.

@@ -44,7 +44,7 @@
   <g id="n-fv">
     <rect id="n-fv-box" x="20" y="440" width="240" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-fv-name" x="140" y="466" font-size="17" font-weight="600" text-anchor="middle">_final_value</text>
-    <text id="n-fv-kind" x="140" y="488" font-size="14" text-anchor="middle">(fn) sum over cells</text>
+    <text id="n-fv-kind" x="140" y="488" font-size="14" text-anchor="middle">(fn) one compartment</text>
   </g>
   <g id="n-cs">
     <rect id="n-cs-box" x="330" y="380" width="240" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>

@@ -37,6 +37,8 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 | [[#^snap-residue-jax\|snap_residue_jax]] | The same snap over JAX arrays |
 | [[#^rounding-floor\|ROUNDING_FLOOR]] | Below this magnitude a value is zero |
 | [[#^rate-cap\|RATE_CAP]] | The largest desired extent per step |
+| [PARITY_TOL](#^parity-tol) | The parity contract's tolerance |
+| [parity_agrees](#^parity-agrees) | Two simulator readings agree |
 
 **RateNode**`= tuple`
     A type alias only, for annotations; nothing checks a tree's shape when it is built by hand. The tags and arities are in [[#The node grammar]]. ^ratenode
@@ -97,6 +99,12 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 
 **RATE_CAP**`: float = 1e150`
     The largest desired extent a reaction may ask for in one step: an infinite rate means "all of it", and the rationing then bounds it by availability. Not applied in this module; `WorldSimulatorImpl._desired_extent` and `jax_core.apply_reactions` clamp to it ([[#Rounding floor and rate cap]]). ^rate-cap
+
+**PARITY_TOL**`: float = 1e-9`
+    The tolerance of the parity contract between the reference and JAX simulators ([One tree, two evaluators](#one-tree-two-evaluators)). ^parity-tol
+
+**parity_agrees**`(a: float, b: float) -> bool`
+    True when `|a − b| ≤ PARITY_TOL · max(1, |a|, |b|)` — relative above 1, absolute below — or both are NaN, or both the same infinity. Float64 carries about 1e-16 relative per operation, so a reading off by more than 1e-9 of its own magnitude is a divergence in the arithmetic, not accumulated rounding. Every assertion in `tests/capabilities/test_simulator_conformance.py` goes through it. ^parity-agrees
 
 
 
@@ -180,7 +188,7 @@ The floor lives here because the two backends once carried their own copies, and
 | `inhibitor` with `Ki = 0` | `ZeroDivisionError` | factor 1 at `m = 0`, 0 otherwise (since `40c5c09`; it was `nan` at `m = 0`) |
 | `hill` with `K < 0`, or `K = 0` and `n` negative or fractional | NaN; JAX raised or cast a complex at trace time | refused at compile (`_check_modulation_params`, since `3269751`) |
 
-The supported range is concentrations, multiplicities and amounts from 0 to 1e6 (the range the conformance property draws; catalog pools are ~1–100): there the two agree to 1e-9, relative or absolute near zero, and where JAX gives NaN or inf the reference gives the same. Pools far beyond it, or spread across more orders of magnitude than float64 carries, are out of contract.
+The supported range is concentrations, multiplicities and amounts from 0 to 1e6 (the range the conformance property draws; catalog pools are ~1–100): there the two agree under `parity_agrees`, and where JAX gives NaN or inf the reference gives the same. Pools far beyond it, or spread across more orders of magnitude than float64 carries, are out of contract.
 
 The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_reference_on_modulations_and_expression_laws` (a Michaelis–Menten quotient, a `sqrt`·`exp` sum and every modulation kind, to 1e-9) and `tests/capabilities/test_simulator_conformance.py`, whose generated laws use every operator — `add`, `sub`, `mul`, `div`, `pow` (exponents −1, 0.5, 1.5, 2, 3, over a species or a `sub` that can go negative), `sqrt`, `exp`, `log` — and `michaelis`, plus one pinned `1/[x]` case on an exhausted species; `tests/bio/test_moddoc_findings_rate_expr.py` pins each row of the table above.
 
@@ -193,3 +201,4 @@ The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_referenc
 - 2026-10-28 — refreshed against 0eb23e5: `inhibitor_ratio` (`40c5c09`, the `Ki = 0` perfect-inhibitor limit) given a block and index row; `modulation_factor`, the factor table and the parity table follow. Figure still true.
 - 2026-10-28 — refreshed against `bf91515`: `modulation()` refuses a negative or NaN `Ki`; `inhibitor_ratio` is exported. Figure still true.
 - 2026-10-29 — refreshed for `3269751` (T091 C1–C3) and `db300c9` (F5): `check_rate_law`, `snap_residue`, `snap_residue_jax` exported and documented, the snap is relative to the pre-pass value, a hill with no finite real `K**n` refuses at compile (`modulation`, `from_json`, `check_rate_law`, and `Modulation.__post_init__`), `ieee_pow` reads a negative base under a fractional exponent as NaN in the overflow branch too, and the 0–1e6 supported range is stated. Figure still true.
+- 2026-10-29 — refreshed for `198f307`: `PARITY_TOL` and `parity_agrees`, the one parity statement both simulators' tests assert.

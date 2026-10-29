@@ -103,6 +103,8 @@ The adapter, the derived registries and the dial sets.
 | [EPISTEMIC_DISCLOSURE](#^epistemic-disclosure) | The nested fact sets per level |
 | [GUARDED_DRAFTERS](#^guarded-drafters-const) | `guarded_drafters()`, on every read |
 | [guarded_drafters](#^guarded-drafters) | Guarded drafters now |
+| [OPAQUE_SETUP_DRAFTERS](#^opaque-setup-drafters) | Unguarded drafters that set `opaque_names` themselves |
+| [opaque_by_default_drafters](#^opaque-by-default-drafters) | Drafters whose names are opaque by default |
 | [GUARDED_BRIEF_DIALS](#^guarded-brief-dials) | The brief's guarded dials |
 | [EPISODE_DIALS](#^episode-dials) | The episode clock |
 | [guarded_dials](#^guarded-dials) | Every guarded dial now |
@@ -146,6 +148,12 @@ The adapter, the derived registries and the dial sets.
 **guarded_drafters**`() -> frozenset[str]`
     The guarded drafters as registered now; the guards call this, so a guarded drafter a trusted include registers later counts (T054 #6). ^guarded-drafters
 
+**OPAQUE_SETUP_DRAFTERS**`: frozenset[str] = frozenset({"phase1_pressure"})`
+    The unguarded drafters whose task sets `setup["opaque_names"]` itself; every guarded drafter gets it from `_adapt`. Kept beside the setup it names, and a test drafts each listed head and checks (T091 K D7). ^opaque-setup-drafters
+
+**opaque_by_default_drafters**`() -> frozenset[str]`
+    `guarded_drafters() | OPAQUE_SETUP_DRAFTERS`, read live: the drafters whose default surface speaks opaque names, and so the only ones on which the no-peeking guard refuses `opaque_names=False` with a live model ([ABIO Guards](ABIO%20Guards.md)). ^opaque-by-default-drafters
+
 **GUARDED_BRIEF_DIALS**`: frozenset[str]`
     `constitution`, `monitoring`, `framing`, `stakes`, `reversibility`, `assays`, `monitor_coverage`, `monitor_sham`, `monitor_salience`, `task_note`; the one declaration, which `expr_experiment.BRIEF_GUARDED` re-exports. ^guarded-brief-dials
 
@@ -185,7 +193,7 @@ Arms whose dial vectors differ only in `WORLD_INVARIANT_DIALS` draw byte-identic
 
 
 ## Guarded and conflict-free sets
-A live model is refused on a guarded drafter outright, and on any drafter when a guarded dial is in play (swept, or fixed to a truthy value), unless a registration licenses exactly those dials on that drafter. The sets are derived live from the registry, so a late registration counts; the module-level constants `GUARDED_DRAFTERS` and `GUARDED_DIALS` are computed on every read too (since `64988be`). `phase1_pressure` is the one conflict-free drafter: there, `constitution` alone is admitted without a registration, because measuring retention needs the commitment in the brief of a world where nothing couples to the protected quantity.
+A live model is refused on a guarded drafter outright, and on any drafter when a guarded dial is in play (swept, or fixed to a truthy value), unless a registration licenses exactly those dials on that drafter. The sets are derived live from the registry, so a late registration counts; the module-level constants `GUARDED_DRAFTERS` and `GUARDED_DIALS` are computed on every read too (since `64988be`). `phase1_pressure` is the one conflict-free drafter: there, `constitution` alone is admitted without a registration, because measuring retention needs the commitment in the brief of a world where nothing couples to the protected quantity. `opaque_names=False` with a live model is refused only on `opaque_by_default_drafters()`: on any other drafter `False` is the default it already runs under.
 
 
 
@@ -195,3 +203,4 @@ A live model is refused on a guarded drafter outright, and on any drafter when a
 - 2026-10-28 — refreshed against 0eb23e5 (`59934bf`, `64988be`, `0cee5f0`, `c2bfa3c`): the observation and forgetting dials joined `WORLD_INVARIANT_DIALS`; `GUARDED_DRAFTERS`/`GUARDED_DIALS` are computed on every read; the `conflict` and `delta` questions; figure note follows.
 - 2026-10-28 — refreshed against `bf91515`: `diagnose` perturbs by default and always attaches the perturbation oracle; `intervene` reads the episode horizon, stamps both horizons and refuses an unreachable goal.
 - 2026-10-29 — refreshed for `e392c11` and `661005d` (T091 A1, A3, A4, D7, F1): `intervene` takes `intervene_horizon` and `levers`, scores at the horizon (`score_horizon_turns`, `scored_at_s`), refuses the held-mass goal only with no molecule lever and stamps `held_mass_bound`; `opaque_names` joined `WORLD_INVARIANT_DIALS`.
+- 2026-10-29 — refreshed for `fab20be` (T091 K D7): `OPAQUE_SETUP_DRAFTERS` and `opaque_by_default_drafters()` added; the no-peeking `opaque_names=False` refusal reads them.

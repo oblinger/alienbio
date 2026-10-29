@@ -283,10 +283,10 @@ The module-level exports: the two path aliases and three readers of a simulated 
     `"root/source.out"`: a `BlockRef` plus `.` and a port name; the port is split off at the last `.`. ^portref
 
 **final_amount**`(timeline: Timeline, molecule_id: str) -> float`
-    `state_amount(timeline.states[-1], molecule_id)`. Raises `ValueError` on a timeline with no states. ^final-amount
+    `state_amount(timeline.states[-1], molecule_id)`: the final concentration summed over every compartment. Raises `ValueError` on a timeline with no states. The reading every crux's `ground_truth`, the pressure, phase-1, W2, delta and conflict scorers and the discover gate use; it does not mirror the intervene scorer, which reads one compartment (T091 E2, [ABIO Archetype Drafters](ABIO%20Archetype%20Drafters.md)). The sum is safe because every caller's world has one compartment by construction — only `TransportBlock`, `SpatialLatticeBlock` and `PopulationBlock` add one — so it is the one row; a caller bringing a multi-compartment world must read one compartment instead (T091 I6). ^final-amount
 
 **state_amount**`(state: Any, molecule_id: str) -> float`
-    The molecule's column of the state's `as_array()`, summed over every compartment. Raises `ValueError` when the state carries no `molecule_ids` axis, `KeyError` when the molecule is not on it. ^state-amount
+    The molecule's column of the state's `as_array()`, summed over every compartment — the per-sample read `final_amount` takes at `states[-1]` and a windowed scorer at every sample; safe only for the one-compartment worlds `final_amount` names. Raises `ValueError` when the state carries no `molecule_ids` axis, `KeyError` when the molecule is not on it. ^state-amount
 
 **final_multiplicity**`(timeline: Timeline, compartment_id: str) -> float`
     The last state's `get_multiplicity` for the compartment. Raises `ValueError` on no states or no `compartment_ids` axis, `KeyError` on an unknown compartment. ^final-multiplicity
@@ -409,3 +409,4 @@ Depth is capped on the Expr side only: every template level counts toward `limit
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD `09c4c05`; pool ids, the vacuous conservation result, the modifier-only pass, the container drop and the `indirection_depth` values were read from local materializations of W1, the clean-only ablation, phase 1 and two toy trees, no spend. The block library is one table, not a member block per block: each block's own signature is in `blocks.py`, and the generators' blocks are on their own pages. Left out: the design decisions' history (on [ABIO Skeleton Arch](../../ABIO%20Design/ABIO%20Skeleton%20Arch/ABIO%20Skeleton%20Arch.md)), the private helpers (`_realize_tree`, `_UnionFind`, `_block_by_path`, `_global_ports`, `_collect_global_edges`, `_bfs_distance`, `_seed_initial`), described in prose only, and the boundedness module's own interface.
 - 2026-10-28 — refreshed against 0eb23e5: `Skeleton.conservation` added (`40c5c09`); `Fragment.merge` accepts a parentless compartment declaration beside a placed one (`6631831`).
+- 2026-10-29 — refreshed for `c80cf5f` (T091 I6): `final_amount`/`state_amount` documented as compartment sums, safe because every caller's world is one compartment; the callers named.
