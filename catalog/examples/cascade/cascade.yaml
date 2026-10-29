@@ -2,8 +2,8 @@
 # receptor drives a `depth`-stage enzymatic amplification chain into a
 # hill-shaped output, with negative feedback (the output accelerates the
 # drain of the first signal) and a reversible buffer absorbing output
-# spikes. One amplification step is throttled to a quarter of its rate; the
-# `diagnose` task asks which node was perturbed. The indirection-depth dial
+# spikes. One stage, drawn per seed, is throttled to a quarter of its rate;
+# the `diagnose` task asks which node was perturbed. The indirection-depth dial
 # (`depth`) and the observability / noise dials are swept — scripted only.
 #
 # AUP pre-registration condition (2026-08-31, leak check on M48.9): any LLM
@@ -25,17 +25,20 @@ sk: !skeleton
 
 world: !world {skeleton: !x sk, initial: {L: 1.2, R: 1.0, P: 1.5, E: 0.5, B: 1.5, S0: 0.2}}
 
-# the perturbation the task is about: the first amplification step, throttled
-pworld: !x throttle(world, "amp0", factor=0.25)
+# the perturbation the task is about: one stage — the receptor, an
+# amplification step or the output — drawn from the world seed and throttled
+# to a quarter of its rate (T096: it was amp0 on every seed)
+locus: !x cascade_locus(depth)
+pworld: !x throttle(world, locus, factor=0.25)
 
-# diagnose: which node was perturbed? The key is amp0's product, S1 — bound
-# here by construction, exactly what the skeleton oracle holds.
+# diagnose: which node was perturbed? The key is the throttled stage's
+# product — bound here by construction, exactly what the skeleton oracle holds.
 task: !task
   archetype: cascade-diagnose
   objective: !diagnose_q
     world: !x pworld
     binding:
-      target: !x 'mol_of(world, "S1")'
+      target: !x 'mol_of(world, stage_product(locus, depth))'
 
 
 experiment: !experiment

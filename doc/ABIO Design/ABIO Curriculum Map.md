@@ -30,7 +30,7 @@ Scripted readouts are `$0` zeros run 2026-10-27 (the shipped agent vs `idle`); "
 | [agent_loop](../../catalog/examples/agent_loop/) | 3 | A5, C1, C2 | rung 3 gated (T096): passive reach 0.083 vs goal 3.0, scored at the horizon, feed the one lever — `act-commit` 0.888 beats `idle` 0.255 (was 0.25 vs 0.91) | keep — session-memory and rejection harness |
 | [microcosm](../../catalog/examples/microcosm/) | 3 | A1, C2 | rung 3: scored on the pond alone, `measure-commit`, which never intervenes, sits at passive reach — 0.351 vs `idle` 0.355 (`test_gameability.py`); the old 0.55 vs 0.23 summed the pond and the three population compartments (T091 E2) | keep — populations as counts |
 | [ecosystem](../../catalog/examples/ecosystem/) | 3 | A2, B3, B14, C2 | rung 3: the world carries mass now (T091 E12), but every arm scores 0.001–0.046 — `act-commit` 0.014 vs `idle` 0.003 (`test_gameability.py`); no intended solver | keep — the Expr smoke test |
-| [cascade](../../catalog/examples/cascade/) | 4 (locus only) | A4, B3, C2 | rung 4: key bound to `S1` at every depth and seed; names a locus, not a mechanism | **replace** — draw the throttled stage per seed, then ask for the mechanism |
+| [cascade](../../catalog/examples/cascade/) | 4 (locus only) | A4, B3, C2 | rung 4: the throttled stage is drawn per seed over the receptor, each amplification step and the output (T096; blind modal key right on 43 % of depth-1 seeds, was 100 %); still names a locus, not a mechanism, and `measure-commit` scores 0.0 | **replace** — ask for the mechanism |
 | `pressure` (W1) | 3 | A5, B4, B8, B12, B13, B15, B17, C7, C10 | — | keep — AUP's registered instrument; llm refused without a registration |
 | `pressure_w2` | 3 | B3, B8, B12, C7 | — | keep — AUP's phase-4 world |
 | `phase1_pressure` commitment_no_coupling | 3 | B4, C1 | — | keep — AUP retention substrate |
@@ -44,9 +44,9 @@ The six AUP rows stay out of the curriculum on the M48.9 rule: nothing neutral m
 ## The gaps
 
 - **Rung 2, a world-dependent key** — all four predict keys are `down`, and the perturbed reaction is a default lever, so the agent can also just run it. Smallest fix: grid with the throttled step two hops from the target across a branch or a feedback, keys balanced over up/down/same across seeds, the perturbed reaction left off the levers.
-- **Rung 3, a passive gate on a neutral world** — Smallest fix: agent_loop's chain with `target_value` = passive reach × (1 + margin), W1's `_assert_passive_gate` at draft, the score read at the horizon, not at commit.
+- **Rung 3, a passive gate on a neutral world** — built T096 (`agent_loop`: the drain lowers the passive reach rather than the goal rising; `helpers.passive_gate`, scored at the horizon). Smallest fix as filed: agent_loop's chain with `target_value` = passive reach × (1 + margin), W1's `_assert_passive_gate` at draft, the score read at the horizon, not at commit.
 - **Rung 4, a hypothesis answer** — nothing neutral asks for a mechanism (`discover`'s catalyst sits behind guarded `symbiosis`). Smallest fix: H5 restored — one hidden reaction in a four-pool chain, a json `{reactants, products}` answer graded set-wise.
-- **Diagnosis locus, drawn per seed** — cascade's key is constant. Smallest fix: cascade with the throttled stage drawn from the world seed.
+- **Diagnosis locus, drawn per seed** — cascade's key is constant. Smallest fix: cascade with the throttled stage drawn from the world seed. Built T096 (`helpers.cascade_locus`).
 - **An intended solution per rung** — no scripted agent solves a neutral rung except by a constant key (M-Bench.2's "intended solution succeeds" has no content yet). Smallest fix: one oracle-policy scripted agent per promoted world, asserted to score 1.0 against `idle`'s ≤ 0.2.
 - **Dimensions no world exercises** — B16 (planned), B18 and C11 (future); out of the curriculum's scope.
 

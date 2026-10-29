@@ -435,8 +435,9 @@ _LINK_KEY = (
     "— needs unlinked / down keys drawn per seed"
 )
 _CASCADE_KEY = (
-    "the diagnosis key is root/S1 on every seed: committing it blind scores 1.000 vs "
-    "measure-commit 0.000 — needs the throttled stage drawn per seed"
+    "no intended solver: measure-commit 0.000; the locus is drawn per seed since T096 (the "
+    "blind modal key root/S1 is right on 26 of 60 depth-1 seeds), and at seed 1 (key root/O) "
+    "constant-key 0.000 ties it"
 )
 _PATHWAY_KEY = (
     "the key is ['r0', 'r1', 'r2'] on every seed and spelled in the visible ids (probes "

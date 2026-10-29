@@ -58,6 +58,27 @@ def cascade_children(depth: int, *, env: Any) -> dict[str, Any]:
     return out
 
 
+def _stage_products(depth: int) -> dict[str, str]:
+    """Every perturbable stage of the cascade and the pool it produces: the
+    receptor (``S0``), each amplification step (``S{i+1}``), the output (``O``)."""
+    depth = max(1, int(depth))
+    return {"receptor": "S0", **{f"amp{i}": f"S{i + 1}" for i in range(depth)}, "output": "O"}
+
+
+@fn(summary="the throttled stage, drawn from this node's seed over the cascade's `depth + 2` stages")
+def cascade_locus(depth: int, *, env: Any) -> str:
+    stages = sorted(_stage_products(depth))
+    return stages[int(env.ctx.rng.integers(len(stages)))]
+
+
+@fn(summary="the pool a cascade stage produces (the diagnose key when that stage is throttled)")
+def stage_product(stage: str, depth: int) -> str:
+    products = _stage_products(depth)
+    if stage not in products:
+        raise ValueError(f"stage_product: {stage!r} is not a stage of a depth-{int(depth)} cascade ({sorted(products)})")
+    return products[stage]
+
+
 @fn(summary="the id of the reaction whose skeleton node is `name` (e.g. amp0)")
 def reaction_of(world, name: str) -> str:
     matches = [rid for rid in world.chemistry.reactions if rid.endswith(f"/{name}/rxn")]

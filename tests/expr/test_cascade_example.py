@@ -50,11 +50,27 @@ def test_the_depth_dial_sizes_the_amplification_chain(values):
 def test_the_diagnose_key_is_the_throttled_steps_product(values):
     task = values["task"]
     assert isinstance(task.objective, AnswerObjective)
-    assert task.objective.key.value.endswith("/S1") and task.objective.key.kind == "node_id"
+    locus = values["locus"]
+    product = {"receptor": "S0", "amp0": "S1", "amp1": "S2", "output": "O"}[locus]
+    assert task.objective.key.value.endswith(f"/{product}") and task.objective.key.kind == "node_id"
     assert task.objective.key.value in task.question.structured and task.question.kind == "node_set"
-    # the perturbation is real: amp0 runs at a quarter of the clean rate
+    # the perturbation is real: the drawn stage runs at a quarter of its clean rate
     clean, perturbed = values["world"], values["pworld"]
-    assert _rxn(perturbed, "amp0").rate == pytest.approx(_rxn(clean, "amp0").rate * 0.25)
+    assert _rxn(perturbed, locus).rate == pytest.approx(_rxn(clean, locus).rate * 0.25)
+    for other in {"receptor", "amp0", "amp1", "output"} - {locus}:
+        assert _rxn(perturbed, other).rate == pytest.approx(_rxn(clean, other).rate)
+
+
+def test_the_locus_is_drawn_from_the_seed_over_every_stage():
+    """T096: the throttled stage was amp0 (key S1) on every seed; it is drawn
+    over the receptor, each amplification step and the output, so a blind
+    commit of the modal key is right about one time in depth + 2."""
+    keys = [DRAFTERS["cascade"](Seed(s), {"depth": 1})[1].objective.key.value.rsplit("/", 1)[-1] for s in range(60)]
+    counts = {k: keys.count(k) for k in set(keys)}
+    assert set(counts) == {"S0", "S1", "O"}, counts
+    assert max(counts.values()) <= 30, counts
+    deep = {DRAFTERS["cascade"](Seed(s), {"depth": 3})[1].objective.key.value.rsplit("/", 1)[-1] for s in range(60)}
+    assert deep == {"S0", "S1", "S2", "S3", "O"}
 
 
 def test_observability_narrows_the_brief_probes(tmp_path):
