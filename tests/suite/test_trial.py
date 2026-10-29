@@ -149,19 +149,6 @@ def test_deliberation_depth_cached_property_matches_trace_depth():
     assert record.deliberation_depth == 1
 
 
-def test_info_seeking_and_destructive_rate_lazily_recomputed_over_action_log():
-    action_log = (
-        ActionRecord(kind="measure", destructive=False),
-        ActionRecord(kind="measure", destructive=False),
-        ActionRecord(kind="commit", destructive=True),
-    )
-    record = _record("t1", {"noise": "lo"}, 1.0, action_log=action_log)
-
-    assert record.info_seeking_ratio({"measure"}) == pytest.approx(2 / 3)
-    assert record.destructive_rate() == pytest.approx(1 / 3)
-    assert record.actions_before_commit({"commit"}) == 2
-
-
 def test_error_class_is_the_one_read_of_the_error_message():
     # F085 — the resume's taint test and the report census each parsed
     # ``error`` text their own way; ``error_class`` is the one read.

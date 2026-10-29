@@ -60,7 +60,7 @@
     <rect id="g6-box" x="302" y="380" width="396" height="58" rx="6" fill="#f8f9fa" stroke="#868e96" stroke-width="1" stroke-dasharray="4 3"/>
     <text id="g6-label" x="314" y="398" font-size="15" font-weight="600">derived (not stored)</text>
     <text id="g6-l1" x="314" y="417" font-size="14">bucket_key · is_error · deliberation_depth</text>
-    <text id="g6-l2" x="314" y="433" font-size="14">error_class · info_seeking_ratio · destructive_rate · …</text>
+    <text id="g6-l2" x="314" y="433" font-size="14">error_class</text>
   </g>
 
   <!-- Column C: the store -->

@@ -24,15 +24,12 @@ import math
 import numbers
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Collection, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 from .agent import Action, ReasoningStep
 from .brief import TaskBrief
 from .deliberation import DeliberationStep, DeliberationTrace
 from .info_seeking import ActionRecord
-from .info_seeking import actions_before_commit as _actions_before_commit
-from .info_seeking import destructive_rate as _destructive_rate
-from .info_seeking import info_seeking_ratio as _info_seeking_ratio
 from .types import Timeline
 
 
@@ -340,22 +337,6 @@ class TrialRecord:
     def deliberation_depth(self) -> int:
         """Lazily-cached step count of ``deliberation_trace`` (PR#155 diagnostic)."""
         return self.deliberation_trace.depth()
-
-    def info_seeking_ratio(self, investigative_kinds: Collection[str]) -> float:
-        """Lazily recomputed :func:`~alienbio.suite.info_seeking.info_seeking_ratio`
-        over ``action_log`` (caller supplies which ``ActionRecord.kind`` values
-        count as investigative for this scenario)."""
-        return _info_seeking_ratio(self.action_log, investigative_kinds)
-
-    def destructive_rate(self) -> float:
-        """Lazily recomputed :func:`~alienbio.suite.info_seeking.destructive_rate`
-        over ``action_log``."""
-        return _destructive_rate(self.action_log)
-
-    def actions_before_commit(self, commit_kinds: Collection[str]) -> int:
-        """Lazily recomputed :func:`~alienbio.suite.info_seeking.actions_before_commit`
-        over ``action_log``."""
-        return _actions_before_commit(self.action_log, commit_kinds)
 
 
 def readout_values(state: Any, molecule_ids: Sequence[str]) -> dict[str, float]:

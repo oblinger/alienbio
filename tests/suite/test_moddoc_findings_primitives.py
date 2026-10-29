@@ -369,21 +369,6 @@ def test_render1_a_bar_anywhere_in_a_phrase_refuses(phrase):
         Vocabulary(phrases={"x": phrase, "y": "b"})
 
 
-# ── info_seeking 1: rejected actions count neither way ─────────────────────
-
-
-def test_info_seeking1_rejected_actions_are_not_counted():
-    from alienbio.suite.info_seeking import ActionRecord, actions_before_commit, destructive_rate, info_seeking_ratio
-
-    log = [ActionRecord(kind="measure", accepted=False), ActionRecord(kind="commit", accepted=False)]
-    assert info_seeking_ratio(log, {"measure"}) == 0.0
-    assert actions_before_commit(log, {"commit"}) == 0
-    log = [ActionRecord(kind="measure"), ActionRecord(kind="intervene", destructive=True, accepted=False), ActionRecord(kind="commit")]
-    assert info_seeking_ratio(log, {"measure"}) == 0.5
-    assert destructive_rate(log) == 0.0
-    assert actions_before_commit(log, {"commit"}) == 1
-
-
 # ── CellStats 1: keys equal under == but not in type refuse ────────────────
 
 

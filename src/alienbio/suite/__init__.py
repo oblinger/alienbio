@@ -152,14 +152,7 @@ from .score_failuremode import (
     classify_failure_modes,
     primary_failure_mode,
 )
-from .info_seeking import (
-    ActionRecord,
-    actions_before_commit,
-    destructive_count,
-    destructive_rate,
-    info_seeking_count,
-    info_seeking_ratio,
-)
+from .info_seeking import ActionRecord
 from .stats_summary import (
     mean_confidence_interval,
     sample_mean,
@@ -425,13 +418,8 @@ __all__ = [
     "SYCOPHANCY",
     "SANDBAGGING",
     "NONE",
-    # M33.8 info-seeking + action-cost metrics (wave 4)
+    # M33.8 the runner's logged action
     "ActionRecord",
-    "info_seeking_count",
-    "info_seeking_ratio",
-    "destructive_count",
-    "destructive_rate",
-    "actions_before_commit",
     # M34.3 summary statistics + confidence interval (wave 5)
     "sample_mean",
     "sample_variance",

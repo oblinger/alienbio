@@ -53,9 +53,6 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 | [runout](#^runout) | The passive run-out to a scored horizon |
 | [wall_time_s](#^wall-time-s) | Wall-clock seconds for the trial |
 | [deliberation_depth](#^deliberation-depth) | Step count of the trace, cached |
-| [info_seeking_ratio](#^info-seeking-ratio) | Share of investigative actions |
-| [destructive_rate](#^destructive-rate) | Share of destructive actions |
-| [actions_before_commit](#^actions-before-commit) | Actions before the first commit |
 
 **task_id**`: str`
     The task's `world` name (`task.world`); on a bare error record with no task drafted, the condition label instead. ^task-id
@@ -165,15 +162,6 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
 **deliberation_depth**`: int` (cached property)
     `deliberation_trace.depth()`, computed once per instance. ^deliberation-depth
 
-**info_seeking_ratio**`(investigative_kinds: Collection[str]) -> float`
-    `info_seeking.info_seeking_ratio` over `action_log`; the caller names which `kind`s count as investigative. Recomputed on each call. ^info-seeking-ratio
-
-**destructive_rate**`() -> float`
-    `info_seeking.destructive_rate` over `action_log`. ^destructive-rate
-
-**actions_before_commit**`(commit_kinds: Collection[str]) -> int`
-    `info_seeking.actions_before_commit` over `action_log`; the caller names the committing `kind`s. ^actions-before-commit
-
 
 
 ## ProbeRecord Interface
@@ -248,7 +236,7 @@ The module-level functions; the module has no `__all__`, and `suite/__init__` re
 # TrialRecord Semantics
 
 ## One record per trial
-Every trial a sweep attempts lands exactly one record, the failed ones included: `MassTrialRunner(on_error="record")` turns a drafter, factory or run exception into an error record instead of ending a paid sweep, and keeps every record, in run order, on `ReliabilityMap.records`. The record is distilled, not the raw log: `objective_score` is frozen in because every cell statistic needs it, while the diagnostic metrics (`deliberation_depth`, `info_seeking_ratio`, …) are recomputed over the frozen core, so a scorer revision never invalidates a collected batch. Frozen means no field is reassigned; the `Mapping` fields are plain `dict`s and are not deep-frozen.
+Every trial a sweep attempts lands exactly one record, the failed ones included: `MassTrialRunner(on_error="record")` turns a drafter, factory or run exception into an error record instead of ending a paid sweep, and keeps every record, in run order, on `ReliabilityMap.records`. The record is distilled, not the raw log: `objective_score` is frozen in because every cell statistic needs it, while the diagnostic `deliberation_depth` is recomputed over the frozen core, so a scorer revision never invalidates a collected batch. Frozen means no field is reassigned; the `Mapping` fields are plain `dict`s and are not deep-frozen.
 
 
 
@@ -331,3 +319,4 @@ Every summary family bins on `bucket_key` and skips `is_error` records; `mass_tr
 - 2026-10-28 — refreshed against `552c1a7`: `grade_error` added (block, figure); the only-when-set table lists `parse_failures`/`aborted`/`grade_error`.
 - 2026-10-29 — refreshed for `e392c11` and `661005d` (T091 A1, G1): `runout` field (only-when-set) and `frozen_value(value, typed=)` given blocks; the figure does not show `runout`, left as is.
 - 2026-10-29 — refreshed for `54d9ad1` (T091 K3, K G1): `taint_exempt` (only when non-empty), `plain_value`, `NAN_TOKEN` and `frozen_value(…, nan_equal=)` given blocks.
+- 2026-10-29 — T093: the three `info_seeking` wrappers (`info_seeking_ratio`, `destructive_rate`, `actions_before_commit`) retired with the metrics they wrapped — no caller in `src/` or AUP.
