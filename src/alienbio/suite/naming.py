@@ -212,6 +212,15 @@ def structural_action(action: Action, nm: NameMap) -> Action:
     return action
 
 
+def action_target(action: Any) -> Optional[str]:
+    """The id a ``Measure`` probes or an ``Intervene`` sets, else ``None``."""
+    if isinstance(action, Measure):
+        return action.probe
+    if isinstance(action, Intervene):
+        return action.lever
+    return None
+
+
 def surface_action(action: Action, nm: NameMap) -> Action:
     if isinstance(action, Measure):
         return dataclasses.replace(action, probe=nm.surface(action.probe))
@@ -233,21 +242,37 @@ class OpaqueAgent:
     def __init__(self, agent: Any, name_map: NameMap) -> None:
         self.inner = agent
         self.name_map = name_map
+        #: T091 K2 — the last action exactly as the wrapped agent spoke it,
+        #: and the structural action handed to the runner for it: a rejection
+        #: echoes the agent's own token, never a translation of it.
+        self.spoken: Optional[Action] = None
+        self._structural: Optional[Action] = None
 
     def begin(self, brief: TaskBrief) -> None:
         if isinstance(self.inner, SessionAgent):
             self.inner.begin(surface_brief(brief, self.name_map))
 
     def notice(self, outcome: ActionOutcome) -> None:
+        """The outcome in surface names. A REJECTED action (T091 K2) is
+        echoed as the agent spoke it: an agent that typed a hidden pool's
+        structural id is told ``unknown lever '<that id>'``, exactly what a
+        structural-looking typo gets — surfacing the reason would have
+        translated the id into the pool's surface name and confirmed the
+        guess."""
         if isinstance(self.inner, SessionAgent):
             nm = self.name_map
-            self.inner.notice(
-                dataclasses.replace(
-                    outcome,
-                    action=surface_action(outcome.action, nm),
-                    reason=nm.surface_text(outcome.reason) if outcome.reason else outcome.reason,
-                )
-            )
+            spoken = self.spoken if outcome.action is self._structural else None
+            reason = outcome.reason
+            if reason:
+                said = action_target(spoken) if spoken is not None and not outcome.accepted else None
+                meant = action_target(outcome.action)
+                if said is not None and meant is not None and repr(meant) in reason:
+                    marker = "\x00spoken\x00"
+                    reason = nm.surface_text(reason.replace(repr(meant), marker)).replace(marker, repr(said))
+                else:
+                    reason = nm.surface_text(reason)
+            action = spoken if spoken is not None and not outcome.accepted else surface_action(outcome.action, nm)
+            self.inner.notice(dataclasses.replace(outcome, action=action, reason=reason))
 
     def probe(self, text: str, observation: Optional[Observation] = None) -> Optional[str]:
         """T026 — a discarded-branch probe, translated at the boundary like
@@ -267,7 +292,9 @@ class OpaqueAgent:
         nm = self.name_map
         action, steps = self.inner.act(surface_observation(observation, nm))
         back = tuple(dataclasses.replace(s, refs=tuple(nm.structural(r) for r in s.refs)) for s in steps)
-        return structural_action(action, nm), back
+        structural = structural_action(action, nm)
+        self.spoken, self._structural = action, structural
+        return structural, back
 
     def __getattr__(self, name: str) -> Any:  # forwarded diagnostics (usage, prompt_texts, …)
         return getattr(self.inner, name)
@@ -286,6 +313,7 @@ def opaque_names_requested(task_setup: Any, dials: Mapping[str, Any]) -> bool:
 __all__ = [
     "NameMap",
     "OpaqueAgent",
+    "action_target",
     "build_name_map",
     "opaque_names_requested",
     "structural_action",

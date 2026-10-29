@@ -172,7 +172,7 @@ def test_an_audit_failure_on_the_partial_record_leaves_the_trial_error(monkeypat
     def broken(*a, **k):
         raise ValueError("audit broke")
 
-    monkeypatch.setattr(runner_mod, "audit_prompts", broken)
+    monkeypatch.setattr(runner_mod, "taint_audit", broken)
     with pytest.raises(TrialError) as info:
         run(world, task, _LeakThenCrash(leak), dials, Seed(5), max_turns=5)
     assert isinstance(info.value.cause, RuntimeError)

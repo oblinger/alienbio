@@ -456,13 +456,16 @@ def lever_exclusion(
     """Why ``lever`` can never be on this trial's control surface, or ``None``.
 
     The one source for both sides of the surface: :func:`build_brief` drops
-    such a lever from the default surface and refuses it declared, and the
-    runner names this reason when it rejects an ``Intervene`` on it.
+    such a lever from the default surface and refuses it declared. At
+    runtime the agent is told this reason only for a compiled-rate-law
+    reaction; an ``Intervene`` on a readout or a hidden pool gets
+    ``unknown lever '<id>'``, the text a typo gets (T091 K2) — those reasons
+    name the measurement, and the agent never sees a refusal of the spec.
     """
     # A hidden pool is named first: W2 declares its hidden chain and ledger
     # among ``setup["readouts"]`` too (T091 D2), and the spec author's
     # refusal should say the stronger reason. The agent never sees either
-    # text for a hidden id — the runner tells it ``unknown lever`` (T091 D1).
+    # text — the runner tells it ``unknown lever`` (T091 D1, K2).
     if lever in hidden_ids:
         return (
             f"{lever!r} names a structurally hidden pool (task.setup['hidden_ids']) — the agent "
@@ -719,6 +722,25 @@ def build_brief(
     # the one the trial offers — under ``observability`` < 1 the implicit
     # surface carries only the molecules the turn-0 observation shows.
     bound = task.setup.get("held_mass_bound") if isinstance(task.setup, Mapping) else None
+    # K F1 — and seed-independently: under ``observability`` < 1 the turn-0
+    # observation is drawn per TRIAL seed, so whether the implicit surface
+    # holds a molecule varies trial by trial within one world, while the
+    # ``draft`` preflight drafts one seed per condition. Unless a declared
+    # ``levers`` names a molecule, the surface MAY lack one, which is refused
+    # on every seed (conservative). ``observability`` = 1 keeps the
+    # per-surface check below.
+    observability = dials.get("observability")
+    if (
+        bound
+        and observability is not None
+        and float(observability) < 1.0
+        and not (levers_dial is not None and any(lever in chemistry.molecules for lever in levers))
+    ):
+        raise ValueError(
+            f"build_brief: {bound} — under observability {float(observability):g} < 1 the offered "
+            "surface depends on the trial seed and may carry no molecule; declare a molecule lever "
+            "in `levers`, or set observability to 1"
+        )
     if bound and not any(lever in chemistry.molecules for lever in levers):
         raise ValueError(f"build_brief: {bound} (the surface this trial offers: {sorted(levers)})")
 

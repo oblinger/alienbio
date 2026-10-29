@@ -83,7 +83,9 @@ class Commit:
     """Submit a terminal :class:`~alienbio.suite.types.Answer`.
 
     The unambiguous terminal verb: a trial ends when (and only when) a
-    ``Commit`` action is emitted.
+    ``Commit`` action is emitted and accepted — a Commit whose ``params`` is
+    not an object is rejected as an illegal action and the trial goes on
+    (T091 K1).
     """
 
     answer: Answer

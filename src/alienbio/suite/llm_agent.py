@@ -795,6 +795,9 @@ class LLMAgent:
         self._history: list[dict[str, Any]] = []
         self._prompt_hashes: list[str] = []
         self._prompt_texts: list[str] = []
+        #: T091 K3 — every text the MODEL wrote, each with the number of
+        #: prompts sent when it arrived (so the first prompt that can echo it).
+        self._authored: list[tuple[int, str]] = []
         self._system: Directive = directive
         #: M46.4 — every schema-invalid reply (each retry) is counted, never
         #: silently absorbed; ``aborted`` names why this agent gave up, if it did.
@@ -842,6 +845,16 @@ class LLMAgent:
         model call, in order — what the runner's taint audit (M46.10) scans
         against that trial's hidden ids and answer key. Read-only."""
         return tuple(self._prompt_texts)
+
+    @property
+    def authored_texts(self) -> tuple[tuple[int, str], ...]:
+        """T091 K3 — what the model itself wrote, as ``(prompt_index, text)``:
+        each turn's whole reply (action, ``params``, ``reasoning``), the
+        compaction summary and every probe answer, ``prompt_index`` being the
+        number of prompts already sent when it arrived — the first prompt
+        that can carry it back. The runner's taint audit exempts an id from
+        that prompt on (:func:`~alienbio.suite.runner.audit_prompts`). Read-only."""
+        return tuple(self._authored)
 
     @property
     def prompt_hashes(self) -> tuple[str, ...]:
@@ -961,7 +974,9 @@ class LLMAgent:
             self._probe_tokens += delta.get("input_tokens", 0) + delta.get("output_tokens", 0)
         if raw is None:
             return None
-        return raw if isinstance(raw, str) else canonical(raw)
+        answer = raw if isinstance(raw, str) else canonical(raw)
+        self._authored.append((len(self._prompt_texts), answer))
+        return answer
 
     def _history_window(self, history: Optional[list[dict[str, Any]]] = None) -> Optional[list[dict[str, Any]]]:
         """The ``_history`` slice this turn's context should carry, or ``None``
@@ -1049,6 +1064,8 @@ class LLMAgent:
                 {"turn": self._turn, "compaction": True, **{k: after[k] - before[k] for k in after}}
             )
         summary = raw.strip() if isinstance(raw, str) and raw.strip() else None
+        if summary is not None:
+            self._authored.append((len(self._prompt_texts), summary))
         self._history = self._compacted_history(
             displaced, summary if summary is not None else "(summarizer reply unusable; prior turns discarded)"
         )
@@ -1219,6 +1236,7 @@ class LLMAgent:
         after = self.meter.snapshot()
         self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}, **budget_stamp})
         action, reasoning = _parse_action(raw)
+        self._authored.append((len(self._prompt_texts), canonical(raw)))
         self._history.append(
             {
                 "turn": turn,

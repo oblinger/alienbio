@@ -19,6 +19,9 @@ never invalidates an already-collected batch.
 
 from __future__ import annotations
 
+import collections.abc
+import math
+import numbers
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Collection, Mapping, Optional, Sequence
@@ -58,17 +61,56 @@ def hashable_condition_key(condition_key: Any) -> tuple[tuple[str, Any], ...]:
     return tuple((name, frozen_value(value)) for name, value in condition_key)
 
 
-def frozen_value(value: Any, *, typed: bool = False) -> Any:
+#: T091 K G1 — what a NaN freezes to when ``nan_equal`` is asked for, so two
+#: NaN levels compare equal (``float('nan') != float('nan')``).
+NAN_TOKEN = ("__nonfinite__", "nan")
+
+
+def plain_value(value: Any) -> Any:
+    """``value`` in its Python form (T091 K G1): a numpy scalar is its
+    ``.item()``, a numpy array its ``.tolist()``, any other
+    ``numbers.Integral`` an ``int`` and ``numbers.Real`` a ``float`` (a
+    ``bool`` stays a ``bool``), any non-string sequence a ``tuple`` —
+    recursively, mappings included. A spec built with ``np.linspace`` levels
+    is then the spec its manifest's JSON read-back describes."""
+    tolist = getattr(value, "tolist", None)
+    if type(value).__module__ == "numpy" and callable(tolist):
+        value = tolist()  # a numpy scalar's tolist() is its .item()
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return value
+    if isinstance(value, numbers.Integral):
+        return int(value)
+    if isinstance(value, numbers.Real):
+        return float(value)
+    if isinstance(value, Mapping):
+        return {k: plain_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [plain_value(v) for v in value]
+    if isinstance(value, collections.abc.Sequence) and not isinstance(value, (bytes, bytearray)):
+        return tuple(plain_value(v) for v in value)
+    return value
+
+
+def frozen_value(value: Any, *, typed: bool = False, nan_equal: bool = False) -> Any:
     """One condition-key value as a summary buckets it (list -> tuple,
     mapping -> sorted item tuple, recursively) — so two values that bucket
-    together compare equal here. ``typed=True`` also tags every scalar with
-    its type name, so ``1`` / ``1.0`` / ``True`` stay apart (T091 G1: the
-    resume drift check reads a changed level type as a changed level)."""
+    together compare equal here. Every scalar is first read in its Python
+    form (:func:`plain_value`: numpy scalars and arrays, other ``Real`` /
+    sequence types). ``typed=True`` also tags every scalar with its type
+    name, so ``1`` / ``1.0`` / ``True`` stay apart (T091 G1: the resume
+    drift check reads a changed level type as a changed level).
+    ``nan_equal=True`` freezes a float NaN to :data:`NAN_TOKEN`, so two NaN
+    levels are one level (the axis check and the drift check; K G1)."""
+    value = plain_value(value)
     if isinstance(value, Mapping):
-        return tuple(sorted((str(k), frozen_value(v, typed=typed)) for k, v in value.items()))
+        return tuple(
+            sorted((str(k), frozen_value(v, typed=typed, nan_equal=nan_equal)) for k, v in value.items())
+        )
     if isinstance(value, (list, tuple)):
-        return tuple(frozen_value(v, typed=typed) for v in value)
-    return (type(value).__name__, value) if typed else value
+        return tuple(frozen_value(v, typed=typed, nan_equal=nan_equal) for v in value)
+    if nan_equal and isinstance(value, float) and math.isnan(value):
+        value = NAN_TOKEN
+    return (type(value).__name__ if value is not NAN_TOKEN else "float", value) if typed else value
 
 
 def thread_reasoning_steps(
@@ -257,6 +299,17 @@ class TrialRecord:
     #: outcome was scored on; the record's own ``final_state`` stays the
     #: episode's). ``None`` when no run-out ran (not written).
     runout: Optional[Mapping[str, Any]] = None
+    #: T091 K3 — the secret ids the taint audit stopped counting because the
+    #: AGENT itself wrote them first (an action target, its ``reasoning``, an
+    #: answer, a compaction summary, a probe reply), each mapped to the
+    #: 0-based index of the first prompt exempt for it (prompts before it
+    #: are still audited for it). Ids are in the form the audit scans —
+    #: surface names on an opaque world. By design a hidden id the agent
+    #: named is thereafter unaudited in prompts: its own words replayed into
+    #: a later prompt are not a leak the harness authored, and the record
+    #: says which ids, from when, so a reader sees how far the audit was
+    #: narrowed. Empty when nothing was exempted (not written).
+    taint_exempt: Mapping[str, int] = field(default_factory=dict)
 
     @property
     def bucket_key(self) -> tuple[tuple[str, Any], ...]:

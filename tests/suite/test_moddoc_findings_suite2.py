@@ -114,7 +114,9 @@ def test_the_default_surface_omits_the_readout_on_a_neutral_world(name, spec_fil
     assert readout in record.brief.affordances.probes
     acts = [a for a in record.action_log if a.kind == "intervene"]
     assert acts and all(not a.accepted for a in acts)
-    assert all("readout" in a.reason for a in acts)
+    # T091 K2 — at runtime the agent gets the typo text; the readout reason
+    # is for a DECLARED lever (refused at build_brief), which it never sees.
+    assert all(a.reason == f"unknown lever {readout!r}" for a in acts)
 
 
 @pytest.mark.parametrize("name,spec_file,readout", NEUTRAL_READOUTS)
