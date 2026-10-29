@@ -143,7 +143,7 @@ _op("floordiv", lambda a, b: a // b)
 
 
 _DIGITS = re.compile(r"\d+")
-_REPR_CONVERSION = re.compile(r"%[^a-zA-Z%]*[ra]")
+_REPR_CONVERSION = re.compile(r"%(?:\([^)]*\))?[^a-zA-Z%]*[ra]")  # T091 F6: and the %(key)a mapping form
 
 
 def _width_bound(spec: Any) -> int:

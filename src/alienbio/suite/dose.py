@@ -154,9 +154,11 @@ def dose_profile(cells: list[DoseCell]) -> DoseProfile:
     # when no rung sits at or below it (was read as 0.0). Undeterminable is
     # ``None`` -> ``continuous`` is ``None`` (T088 dose 1). T091 A8: the
     # rung is the one NEAREST CONTINUITY_PI (ties to the lower), not the
-    # highest at or below it — on {0, 0.1, 0.5, 1} that read the share spent
-    # by 0.1 and could pass criterion 4 optimistically; a ladder with no rung
-    # within the tolerance cannot answer it.
+    # highest at or below it, and it must lie within CONTINUITY_RUNG_TOLERANCE:
+    # a ladder whose nearest rung is more than 0.1 from 0.2 (e.g. {0, 0.05,
+    # 0.5, 1}) read the share spent by 0.05 and could pass criterion 4
+    # optimistically; it now cannot answer it (None). A rung in [0.1, 0.2)
+    # is still read, and still under-reads the share spent by 0.2.
     k = min(range(len(cells)), key=lambda i: (round(abs(cells[i].pi - CONTINUITY_PI), 12), cells[i].pi))
     readable = 0 < k < len(cells) - 1 and abs(cells[k].pi - CONTINUITY_PI) <= CONTINUITY_RUNG_TOLERANCE + 1e-12
     frac = (b[k] - b[0]) / swing if readable else None

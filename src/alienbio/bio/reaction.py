@@ -53,6 +53,14 @@ class Modulation:
         # negative or NaN one has no reading (``m = -Ki`` divides by zero).
         if self.Ki is not None and not (self.Ki >= 0.0):
             raise ValueError(f"Modulation: Ki must be >= 0, got {self.Ki!r}")
+        # T091 F5 — the typed record (``CooperativeBindingBlock``) runs the
+        # same hill K/n check the rate-law path runs; it accepted K < 0 with a
+        # fractional n and contributed 0 silently on both backends.
+        from .rate_expr import _check_modulation_params
+
+        _check_modulation_params(
+            self.kind, {k: v for k, v in (("K", self.K), ("n", self.n)) if v is not None}
+        )
 
     @classmethod
     def from_value(cls, value: "Union[Modulation, str]") -> "Modulation":
