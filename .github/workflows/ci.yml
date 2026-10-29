@@ -1,6 +1,6 @@
 # The gate (roadmap M48.8): CI fails on a failing test, a registered head with
 # no test, a capability dimension with no proof, a doc fence that does not
-# run, a pyright error in the Expr modules, a docs build that breaks, or a
+# run, a pyright error in src/, a docs build that breaks, or a
 # coverage drop below the recorded floor.
 name: ci
 
@@ -20,15 +20,15 @@ jobs:
           python-version: "3.12"
       - name: Install uv
         run: pip install uv
-      - name: Sync (dev + jax + llm extras)
-        run: uv sync --extra dev --extra jax --extra llm
+      - name: Sync (the dev group + the jax and llm extras)
+        run: uv sync --extra jax --extra llm
       - name: Tests, with the coverage floor
         run: uv run pytest tests -q -p no:cacheprovider --cov=alienbio --cov-report=term-missing:skip-covered --cov-fail-under=${COVERAGE_FLOOR}
         env:
           COVERAGE_FLOOR: "85"
       - name: The capability matrix is complete
         run: uv run bio test-matrix --check
-      - name: The Expr modules type-check
+      - name: src/ type-checks
         run: uv run pyright src/
       - name: The docs build
         run: uv run mkdocs build

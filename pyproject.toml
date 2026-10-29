@@ -11,34 +11,19 @@ authors = [
 keywords = ["ai", "testing", "biology", "agents", "reasoning"]
 
 dependencies = [
-    "pydantic>=2.0",
     "numpy>=1.26",
     "matplotlib>=3.8",
     "pyyaml>=6.0",
-    # dvc_dat: symlinked from ../dvc-dat during development (see M1.2 in roadmap)
+    # Not on PyPI: pinned to a pushed commit of https://github.com/oblinger/dvc-dat
+    # (2.40.1). Bump the sha to take a newer dvc-dat; the gitignored
+    # src/dvc_dat symlink to a local checkout is a dev convenience only.
+    "dvc-dat @ git+https://github.com/oblinger/dvc-dat.git@c3dce2d5d717db6a09134133204fe36cda39a692",
 ]
 
 [project.scripts]
 bio = "alienbio.cli:main"
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-cov>=5.0",
-    "hypothesis>=6.100",
-    "ruff>=0.1",
-    "pyright>=1.1",
-    "mkdocs-material>=9.0",
-    "mkdocstrings[python]>=0.24",
-    "mkdocs-awesome-pages-plugin>=2.9",
-    "mkdocs-roamlinks-plugin>=0.3",
-    "mkdocs-jupyter>=0.25",
-    # dvc_dat's dat_tools imports pandas at module scope, and tests/unit's
-    # dat/io suites exercise it through the src/dvc_dat symlink. Declared
-    # here (2026-10-07) after the dvc-dat repo moved into ~/ob/grove and the
-    # live copy grew the import: without it 55 unit tests fail to collect.
-    "pandas>=2.0",
-]
 # M24 JAX simulator (vectorized/GPU-ready). Optional: without it the JAX/M24
 # tests skip. Install with `uv sync --extra jax`.
 jax = [
@@ -53,6 +38,10 @@ llm = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# dvc-dat is a git URL dependency; hatchling refuses a direct reference unless told.
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/alienbio"]
@@ -71,14 +60,25 @@ extraPaths = ["src"]
 exclude = ["src/dvc_dat"]   # vendored third-party library, not ours to type
 reportUnsupportedDunderAll = "error"   # a name in __all__ that does not exist is a broken export
 
+# The one dev list: a bare `uv sync` installs it, so `just test`, `just check`,
+# `just lint` and `just docs` run after it. (A `dev` extra used to carry half of
+# this beside the group; a bare sync missed hypothesis and the suite would not
+# collect.) CI adds `--extra jax --extra llm`.
 [dependency-groups]
 dev = [
-    "ipykernel>=6.0",
+    "pytest>=9.0.2",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.1",
+    "pyright>=1.1.407",
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.24",
+    "mkdocs-awesome-pages-plugin>=2.9",
+    "mkdocs-roamlinks-plugin>=0.3",
     "mkdocs-jupyter>=0.25",
+    "ipykernel>=6.0",
     "nbconvert>=7.17.0",
     "nbformat>=5.10.4",
-    "pyright>=1.1.407",
-    "pytest>=9.0.2",
 ]
 
 [tool.pytest.ini_options]
@@ -91,3 +91,6 @@ dev = [
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib"]
 pythonpath = ["."]
+markers = [
+    "capability(id, ...): the end-to-end proof of a capability dimension (bio test-matrix)",
+]

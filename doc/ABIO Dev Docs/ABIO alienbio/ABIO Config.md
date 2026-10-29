@@ -60,7 +60,7 @@ Every function re-reads the file on each call; nothing is cached. The paths are 
     Sorted union of the providers with a key in the file and those with a `PROVIDER_ENV_VARS` variable set. The generic `ALIENBIO_<P>_API_KEY` of an unlisted provider is not counted, though `get_api_key` honours it. ^list-providers
 
 **check_api_key**`(provider: str) -> tuple[bool, str]`
-    Resolves the key, then for `anthropic` sends one `messages.create` with `max_tokens=1` to `PINNED_MODEL` (a real, billed request of a few tokens), for `openai` lists models; any exception becomes `(False, message)`, a missing SDK `(False, "… not installed")`, any other provider `(False, "… not implemented")`. Named `check_`, not `test_` (it was `test_api_key`): pytest would collect a `test_` name a test module imported. ^check-api-key
+    Resolves the key, then for `anthropic` sends one `messages.create` with `max_tokens=1` to `PINNED_MODEL` (a real, billed request of a few tokens); any exception becomes `(False, message)`, a missing SDK `(False, "… not installed")`, any other provider (`openai` included: no OpenAI path exists, so its SDK is not a dependency) `(False, "… not implemented")`. Named `check_`, not `test_` (it was `test_api_key`): pytest would collect a `test_` name a test module imported. ^check-api-key
 
 
 

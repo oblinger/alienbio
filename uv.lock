@@ -21,26 +21,13 @@ name = "alienbio"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "dvc-dat" },
     { name = "matplotlib" },
     { name = "numpy" },
-    { name = "pydantic" },
     { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
-dev = [
-    { name = "hypothesis" },
-    { name = "mkdocs-awesome-pages-plugin" },
-    { name = "mkdocs-jupyter" },
-    { name = "mkdocs-material" },
-    { name = "mkdocs-roamlinks-plugin" },
-    { name = "mkdocstrings", extra = ["python"] },
-    { name = "pandas" },
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
 jax = [
     { name = "jax" },
 ]
@@ -50,44 +37,47 @@ llm = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "hypothesis" },
     { name = "ipykernel" },
+    { name = "mkdocs-awesome-pages-plugin" },
     { name = "mkdocs-jupyter" },
+    { name = "mkdocs-material" },
+    { name = "mkdocs-roamlinks-plugin" },
+    { name = "mkdocstrings", extra = ["python"] },
     { name = "nbconvert" },
     { name = "nbformat" },
     { name = "pyright" },
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "anthropic", marker = "extra == 'llm'", specifier = ">=0.40" },
-    { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.100" },
+    { name = "dvc-dat", git = "https://github.com/oblinger/dvc-dat.git?rev=c3dce2d5d717db6a09134133204fe36cda39a692" },
     { name = "jax", marker = "extra == 'jax'", specifier = ">=0.4" },
     { name = "matplotlib", specifier = ">=3.8" },
-    { name = "mkdocs-awesome-pages-plugin", marker = "extra == 'dev'", specifier = ">=2.9" },
-    { name = "mkdocs-jupyter", marker = "extra == 'dev'", specifier = ">=0.25" },
-    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.0" },
-    { name = "mkdocs-roamlinks-plugin", marker = "extra == 'dev'", specifier = ">=0.3" },
-    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'", specifier = ">=0.24" },
     { name = "numpy", specifier = ">=1.26" },
-    { name = "pandas", marker = "extra == 'dev'", specifier = ">=2.0" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
 ]
-provides-extras = ["dev", "jax", "llm"]
+provides-extras = ["jax", "llm"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "hypothesis", specifier = ">=6.100" },
     { name = "ipykernel", specifier = ">=6.0" },
+    { name = "mkdocs-awesome-pages-plugin", specifier = ">=2.9" },
     { name = "mkdocs-jupyter", specifier = ">=0.25" },
+    { name = "mkdocs-material", specifier = ">=9.0" },
+    { name = "mkdocs-roamlinks-plugin", specifier = ">=0.3" },
+    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.24" },
     { name = "nbconvert", specifier = ">=7.17.0" },
     { name = "nbformat", specifier = ">=5.10.4" },
     { name = "pyright", specifier = ">=1.1.407" },
     { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=5.0" },
+    { name = "ruff", specifier = ">=0.1" },
 ]
 
 [[package]]
@@ -661,6 +651,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e0/4d/f332313098c1de1b2d2ff91cf2674415cc7cddab2ca1b01ae29774bd5fdf/docstring_parser-0.18.0.tar.gz", hash = "sha256:292510982205c12b1248696f44959db3cdd1740237a968ea1e2e7a900eeb2015", size = 29341, upload-time = "2026-04-14T04:09:19.867Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/5f/ed01f9a3cdffbd5a008556fc7b2a08ddb1cc6ace7effa7340604b1d16699/docstring_parser-0.18.0-py3-none-any.whl", hash = "sha256:b3fcbed555c47d8479be0796ef7e19c2670d428d72e96da63f3a40122860374b", size = 22484, upload-time = "2026-04-14T04:09:18.638Z" },
+]
+
+[[package]]
+name = "dvc-dat"
+version = "2.40.1"
+source = { git = "https://github.com/oblinger/dvc-dat.git?rev=c3dce2d5d717db6a09134133204fe36cda39a692#c3dce2d5d717db6a09134133204fe36cda39a692" }
+dependencies = [
+    { name = "pandas" },
+    { name = "pyyaml" },
 ]
 
 [[package]]

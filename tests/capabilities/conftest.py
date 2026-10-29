@@ -19,11 +19,9 @@ from alienbio.suite.experiment import ExperimentSpec, load_spec, render_report, 
 REPO = Path(__file__).resolve().parents[2]
 CATALOG = REPO / "catalog" / "experiments"
 
+# Registered in pyproject.toml ([tool.pytest.ini_options] markers): this
+# line runs at import, before any conftest pytest_configure could register it.
 capability = pytest.mark.capability
-
-
-def pytest_configure(config: pytest.Config) -> None:
-    config.addinivalue_line("markers", "capability(id, ...): the end-to-end proof of a capability dimension (bio test-matrix)")
 
 
 def small(spec: ExperimentSpec, *, axes: Optional[Sequence[tuple[str, tuple[Any, ...]]]] = None, trials: int = 1, **overrides: Any) -> ExperimentSpec:

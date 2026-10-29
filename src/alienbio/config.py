@@ -272,17 +272,5 @@ def check_api_key(provider: str) -> tuple[bool, str]:
         except Exception as e:
             return False, f"API key test failed: {e}"
 
-    elif provider == "openai":
-        try:
-            import openai  # type: ignore[import-not-found]
-            client = openai.OpenAI(api_key=key)
-            # Make a minimal API call
-            client.models.list()
-            return True, "API key is valid"
-        except ImportError:
-            return False, "openai package not installed"
-        except Exception as e:
-            return False, f"API key test failed: {e}"
-
     else:
         return False, f"API key testing not implemented for {provider}"
