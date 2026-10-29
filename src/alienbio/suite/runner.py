@@ -91,7 +91,7 @@ from ..bio.chemistry import ChemistryImpl
 from ..bio.reaction import ReactionImpl
 from ..bio.world import Compartment, PopulationLawSpec, Transport, WorldImpl
 from ..bio.world_state import WorldStateImpl
-from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, ProbeAgent, SessionAgent, Wait
+from .agent import Action, Agent, ActionOutcome, Commit, Intervene, Measure, ProbeAgent, ProbeSkipped, SessionAgent, Wait
 from .brief import DEFAULT_ACTION_COSTS, TaskBrief, build_brief, lever_exclusion, resolve_monitoring, task_readouts
 from .monitor import auditor_block, logs_turn, resolve_monitor, shows_turn
 from .naming import NameMap, OpaqueAgent, action_target, build_name_map, opaque_names_requested, token_pattern
@@ -683,8 +683,9 @@ def run(
     # back (its history, the rejection reason); that echo is not a leak, so
     # the taint audit exempts the id there — and only there: a prompt sent
     # BEFORE the agent named it is still audited for it. K3: the agent's
-    # other words (``reasoning``, answers, summaries, probe replies) count
-    # the same way through its ``authored_texts``.
+    # other words (``reasoning``, answers, summaries — not probe replies,
+    # which no prompt replays, Q6) count the same way through its
+    # ``authored_texts``.
     agent_named: dict[str, int] = {}
     # M45.15 — on a non-neutral world (or under the ``opaque_names`` dial) the
     # agent sees and speaks surface names; the runner keeps the world's own.
@@ -778,6 +779,10 @@ def run(
             if isinstance(agent, ProbeAgent):
                 try:
                     answer = agent.probe(text, observation)
+                except ProbeSkipped:
+                    # T091 Q4 — no probe on or after an abort: nothing ran,
+                    # so nothing is recorded.
+                    continue
                 except Exception as exc:  # noqa: BLE001 — probe failure is data
                     error = f"{type(exc).__name__}: {exc}"
             probe_records.append(ProbeRecord(turn=turn, timing=timing, text=text, answer=answer, error=error))
@@ -1391,8 +1396,9 @@ def taint_audit(
     **The agent's own words are exempt (T091 D1, K3).** The audit's job is
     prompt text the HARNESS authored. Anything the agent authored and the
     harness replays into a later prompt — an action target, its
-    ``reasoning``, an answer, a compaction summary, a probe reply — is not a
-    leak. ``agent_named`` maps an id the agent named in a ``Measure`` /
+    ``reasoning``, an answer, a compaction summary — is not a leak. A probe
+    reply is NOT exempt (T091 Q6): it never enters a later prompt, so a
+    hidden id it names that a later prompt carries came from the harness. ``agent_named`` maps an id the agent named in a ``Measure`` /
     ``Intervene``, as it spelled it, to the number of prompts it had sent
     when it first did; an agent exposing ``authored_texts``
     (``(prompt_index, text)`` pairs, :class:`~alienbio.suite.llm_agent.LLMAgent`)

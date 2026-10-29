@@ -47,12 +47,15 @@ concern (F021's ``Budget``, identical across ``ScriptedAgent`` and
 tracks its own coarse token estimate (chars / 4 over the rendered
 directive+context) and, since M45.5, the provider-reported usage on the
 shared :class:`UsageMeter` (uncached input + output; cache tokens do not
-count), reading whichever total is larger, and, once ``token_ceiling``
-would be exceeded, short-circuits with a ``Commit`` of a null answer tagged
-``params={"aborted": "token_ceiling"}`` plus a ``ReasoningStep`` naming the
-abort — ending the trial (recorded as ``"committed"``, with
-``TrialRecord.aborted`` naming the tag, not a new runner-level terminal
-reason) without ever calling the model again.
+count). BEFORE every paid main-line call — the turn's first, the compaction
+summarizer, and every schema retry (T091 Q1/Q3) — it tests
+``max(measured, estimate_so_far) + this call's estimate > token_ceiling``
+(this call's estimate = its prompt plus the turn's output budget when one
+is set); a call that would cross is never sent. The trial then ends with a
+``Commit`` of a null answer tagged ``params={"aborted": "token_ceiling"}``
+plus a short ``ReasoningStep`` (``aborted: token ceiling``), recorded as
+``"committed"`` with ``TrialRecord.aborted`` naming the tag, and no probe
+runs on or after the aborting turn (Q4).
 """
 
 from __future__ import annotations
@@ -61,13 +64,14 @@ import datetime
 import hashlib
 import json
 import logging
+import math
 import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence, Union, cast
 
-from .agent import Action, ActionOutcome, Commit, Intervene, Measure, ReasoningStep, Wait
+from .agent import Action, ActionOutcome, Commit, Intervene, Measure, ProbeSkipped, ReasoningStep, Wait
 from .brief import TaskBrief, render_brief
 from .dist import Seed
 from .observation import Observation
@@ -389,6 +393,19 @@ def is_compact_context(context: Any) -> bool:
     return isinstance(context, Mapping) and "compact" in context
 
 
+#: T091 Q7 — the realism judge's marker key at the ``LLMFn`` seam
+#: (``suite.realism.realism_judge`` adds it to every judge context). Like
+#: ``"probe"`` / ``"compact"``, a provider fn that sees it sends no forced
+#: ``emit_action`` tool and returns the reply as text — the judge's verdict
+#: ``{"real": "A"|"B"}`` can never be an action.
+JUDGE_CONTEXT_KEY = "judge"
+
+
+def is_judge_context(context: Any) -> bool:
+    """T091 Q7 — is ``context`` a realism-judge call's context?"""
+    return isinstance(context, Mapping) and JUDGE_CONTEXT_KEY in context
+
+
 #: T059 (AUP Protocol Atlas ask, 2026-09-15) — the per-turn output budget's
 #: key at the ``LLMFn`` seam. :meth:`LLMAgent.act` adds it to the context of
 #: a main-line call when the agent carries a budget (``max_tokens`` or an
@@ -556,9 +573,23 @@ def _estimate_tokens(directive: Directive, context: Any) -> int:
 #: The action verbs an ``LLMAgent`` reply's ``"type"`` field may name.
 _ACTION_KINDS = frozenset({"measure", "intervene", "commit", "wait"})
 
+#: The answer kinds a ``commit`` may name (``ACTION_INPUT_SCHEMA``'s enum).
+_ANSWER_KINDS: tuple[str, ...] = ("node_set", "ordered_path", "node_id", "scalar", "json")
+
+
+def _is_number(value: Any) -> bool:
+    """A JSON-schema ``number``: an int or float, never a bool, never NaN/inf."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
 
 def _validate_action_json(out: Any) -> bool:
-    """The ``LLMOp.out_schema``: is ``out`` a well-formed ``Action`` JSON reply?"""
+    """The ``LLMOp.out_schema``: is ``out`` a well-formed ``Action`` JSON reply?
+
+    Enforces :data:`ACTION_INPUT_SCHEMA`'s types (T091 Q11): a ``number``
+    field is a finite non-bool number, a ``string`` field a string, and a
+    commit's answer ``kind`` one of :data:`_ANSWER_KINDS` — a bool, NaN or
+    out-of-enum kind used to pass here and surface later as an illegal action
+    or a grade error instead of riding the schema-retry path."""
     if not isinstance(out, dict):
         return False
     kind = out.get("type")
@@ -567,17 +598,15 @@ def _validate_action_json(out: Any) -> bool:
     if kind == "measure":
         return isinstance(out.get("probe"), str)
     if kind == "intervene":
-        return isinstance(out.get("lever"), str) and isinstance(
-            out.get("value"), (int, float)
-        )
+        return isinstance(out.get("lever"), str) and _is_number(out.get("value"))
     if kind == "wait":
-        return isinstance(out.get("duration"), (int, float))
+        return _is_number(out.get("duration"))
     # kind == "commit"
     answer = out.get("answer")
     return (
         isinstance(answer, dict)
         and "value" in answer
-        and isinstance(answer.get("kind"), str)
+        and answer.get("kind") in _ANSWER_KINDS
     )
 
 
@@ -643,10 +672,7 @@ ACTION_INPUT_SCHEMA: dict[str, Any] = {
             "type": "object",
             "properties": {
                 "value": {},
-                "kind": {
-                    "type": "string",
-                    "enum": ["node_set", "ordered_path", "node_id", "scalar", "json"],
-                },
+                "kind": {"type": "string", "enum": list(_ANSWER_KINDS)},
             },
             "required": ["value", "kind"],
         },
@@ -659,16 +685,31 @@ ACTION_INPUT_SCHEMA: dict[str, Any] = {
 _FENCE_RE = re.compile(r"```(?:json|JSON)?\s*(.*?)```", re.DOTALL)
 
 
-def extract_action_json(text: str) -> Optional[dict[str, Any]]:
-    """Pull the one JSON object out of a model reply that is not bare JSON (M46.4).
+_PLACEHOLDER_RE = re.compile(r"^<[^<>]*>$")
 
-    Real replies arrive fenced (```` ```json ... ``` ````), prefaced ("Here is
-    my action:"), or with trailing prose. Tries, in order: the whole text as
-    JSON; the contents of each fenced block; the first balanced ``{...}``
-    object found by scanning every ``{`` with ``JSONDecoder.raw_decode``.
-    Returns the first candidate that is a ``dict``, else ``None`` — the
-    caller's ``out_schema`` then decides whether it is a well-formed action.
-    Pure; no model involved.
+
+def _is_template_echo(out: Mapping[str, Any]) -> bool:
+    """A candidate whose target is an angle-bracket placeholder (``"<id>"``)
+    is the directive's own example shape echoed back, not an action."""
+    return any(
+        isinstance(out.get(field), str) and _PLACEHOLDER_RE.match(out[field]) is not None
+        for field in ("probe", "lever")
+    )
+
+
+def _accept_action(out: Any) -> bool:
+    return _validate_action_json(out) and not _is_template_echo(out)
+
+
+def extract_json_object(text: str, accept: Callable[[Any], bool]) -> Optional[dict[str, Any]]:
+    """The first JSON object in ``text`` that ``accept`` admits, else ``None``.
+
+    Tries, in order: the whole text as JSON; the contents of each fenced
+    block; then every balanced TOP-LEVEL ``{...}`` object, left to right
+    (``JSONDecoder.raw_decode`` at each ``{`` not inside an object already
+    decoded). T091 Q11: the first candidate that ``accept`` admits wins —
+    not merely the first dict — so prose that quotes an observation dict
+    before the action still yields the action. Pure; no model involved.
     """
     candidates: list[str] = [text]
     candidates.extend(m.group(1) for m in _FENCE_RE.finditer(text))
@@ -679,16 +720,34 @@ def extract_action_json(text: str) -> Optional[dict[str, Any]]:
             parsed = json.loads(stripped)
         except (json.JSONDecodeError, TypeError):
             continue
-        if isinstance(parsed, dict):
+        if isinstance(parsed, dict) and accept(parsed):
             return parsed
-    for match in re.finditer(r"\{", text):
+    pos = 0
+    while True:
+        start = text.find("{", pos)
+        if start < 0:
+            return None
         try:
-            parsed, _ = decoder.raw_decode(text, match.start())
+            parsed, end = decoder.raw_decode(text, start)
         except json.JSONDecodeError:
+            pos = start + 1
             continue
-        if isinstance(parsed, dict):
+        if isinstance(parsed, dict) and accept(parsed):
             return parsed
-    return None
+        pos = end
+
+
+def extract_action_json(text: str) -> Optional[dict[str, Any]]:
+    """Pull the action JSON object out of a model reply that is not bare JSON (M46.4).
+
+    Real replies arrive fenced (```` ```json ... ``` ````), prefaced ("Here is
+    my action:"), or with trailing prose. Returns the first candidate
+    (:func:`extract_json_object`) that is a schema-valid action and not the
+    directive's own example echoed back (a ``"<id>"`` placeholder target —
+    an echoed system prompt is a parse failure, not a ``Measure``), else
+    ``None``, which the caller's ``out_schema`` counts as one parse failure.
+    """
+    return extract_json_object(text, _accept_action)
 
 
 def reply_from_content(blocks: Sequence[Any]) -> Any:
@@ -711,6 +770,12 @@ def reply_from_content(blocks: Sequence[Any]) -> Any:
     )
     extracted = extract_action_json(text)
     return extracted if extracted is not None else text
+
+
+class _CeilingReached(Exception):
+    """T091 Q3 — raised by :meth:`LLMAgent._tolerant_llm_fn` before a schema
+    retry that would cross the token ceiling; caught in ``act``. Not a
+    ``ValueError``, so ``LLMOp`` never reads it as an invalid reply."""
 
 
 class LLMAgent:
@@ -807,6 +872,13 @@ class LLMAgent:
         #: money stays visible) that must never alter main-line control flow.
         self._probe_usage: list[dict[str, Any]] = []
         self._probe_tokens = 0
+        #: T091 Q3 — the attempt index within the current turn's ``LLMOp``
+        #: call and that call's estimate (prompt + output budget).
+        self._attempt = 0
+        self._call_estimate = 0
+        #: T091 Q4 — ``act`` has selected this turn's action and ``notice``
+        #: has not yet reported its fate (the after_action / at_commit point).
+        self._selected = False
         self._op: LLMOp[dict[str, Any]] = self._make_op()
 
     def _tolerant_llm_fn(self, directive: Directive, context: Any, seed: Seed) -> Any:
@@ -815,6 +887,15 @@ class LLMAgent:
         the turn's output budget rides the context under
         :data:`OUTPUT_BUDGET_KEY` (added here, AFTER ``prompt_texts`` recorded
         the model-facing text, and popped by the provider fn)."""
+        # T091 Q3 — every schema retry is a full paid call on the same
+        # prompt: the ceiling is tested before each attempt after the first
+        # (``act`` tested the first), and each attempt is charged to the
+        # heuristic running total.
+        if self._attempt > 0:
+            if self._over_ceiling(self._call_estimate):
+                raise _CeilingReached()
+            self._tokens_spent += self._call_estimate
+        self._attempt += 1
         if self._turn_budget is not None and isinstance(context, Mapping):
             context = {**context, OUTPUT_BUDGET_KEY: self._turn_budget}
         out = self.llm_fn(directive, context, seed)
@@ -849,11 +930,14 @@ class LLMAgent:
     @property
     def authored_texts(self) -> tuple[tuple[int, str], ...]:
         """T091 K3 — what the model itself wrote, as ``(prompt_index, text)``:
-        each turn's whole reply (action, ``params``, ``reasoning``), the
-        compaction summary and every probe answer, ``prompt_index`` being the
-        number of prompts already sent when it arrived — the first prompt
-        that can carry it back. The runner's taint audit exempts an id from
-        that prompt on (:func:`~alienbio.suite.runner.audit_prompts`). Read-only."""
+        each turn's whole reply (action, ``params``, ``reasoning``) and the
+        compaction summary, ``prompt_index`` being the number of prompts
+        already sent when it arrived — the first prompt that can carry it
+        back. The runner's taint audit exempts an id from that prompt on
+        (:func:`~alienbio.suite.runner.audit_prompts`). Only channels a later
+        prompt replays are here (T091 Q6): a probe answer never enters the
+        history, so it has no echo path and exempts nothing — a hidden id in
+        a prompt after a probe named it is still a leak. Read-only."""
         return tuple(self._authored)
 
     @property
@@ -919,6 +1003,7 @@ class LLMAgent:
         token-ceiling abort turn still appends its own entry, so this should
         always find one in practice).
         """
+        self._selected = False
         for entry in self._history:
             if entry["turn"] == outcome.turn:
                 entry["outcome"] = {"accepted": outcome.accepted, "reason": outcome.reason}
@@ -949,7 +1034,17 @@ class LLMAgent:
         — the run continues as if the probe never happened. The probe prompt
         IS appended to ``prompt_texts``/``prompt_hashes`` so the taint audit
         covers it like any other prompt.
+
+        T091 Q4 — no probe runs on or after an abort: once ``aborted`` is set
+        (the abort's own ``at_commit`` / ``after_action`` point included), or
+        when this turn's ``act`` will abort on the token ceiling before its
+        call (an ``every_turn`` probe on the aborting turn), it raises
+        :class:`~alienbio.suite.agent.ProbeSkipped` and the runner records
+        nothing. Reads the main line's guard, never moves it.
         """
+        pre_act = not self._selected  # every_turn: this turn's act has not run
+        if self.aborted is not None or (pre_act and observation is not None and self._turn_aborts(observation)):
+            raise ProbeSkipped("trial aborted" if self.aborted is not None else "token ceiling reached")
         window = self._history_window()
         context: dict[str, Any] = {"probe": text, "turn": self._turn}
         if observation is not None:
@@ -974,9 +1069,8 @@ class LLMAgent:
             self._probe_tokens += delta.get("input_tokens", 0) + delta.get("output_tokens", 0)
         if raw is None:
             return None
-        answer = raw if isinstance(raw, str) else canonical(raw)
-        self._authored.append((len(self._prompt_texts), answer))
-        return answer
+        # T091 Q6 — not authored text: the answer is never replayed.
+        return raw if isinstance(raw, str) else canonical(raw)
 
     def _history_window(self, history: Optional[list[dict[str, Any]]] = None) -> Optional[list[dict[str, Any]]]:
         """The ``_history`` slice this turn's context should carry, or ``None``
@@ -1016,7 +1110,14 @@ class LLMAgent:
         displaced = [e for e in self._history if e["turn"] < self.compact_at]
         if not displaced:
             return None
-        context: dict[str, Any] = {"compact": displaced, "turn": self._turn}
+        # T091 Q5 — the summarizer sees what the agent could still see: the
+        # memory window, never an entry a finite ``memory=k`` had already
+        # displaced (the T029 constitution included — once forgotten it is
+        # not re-presented through a summary). Everything older than
+        # ``compact_at`` is still dropped from the history.
+        window = self._history_window() or []
+        summarized = [e for e in window if e["turn"] < self.compact_at]
+        context: dict[str, Any] = {"compact": summarized, "turn": self._turn}
         if self.compact_budget is not None:
             context["budget_tokens"] = self.compact_budget
         # "compact" must stay the marker key (is_compact_context).
@@ -1075,59 +1176,71 @@ class LLMAgent:
             "displaced": len(displaced),
             "summary": summary,
         }
+        if isinstance(self.memory, int):
+            # T091 Q5 — only under a finite window, where it can differ from
+            # ``displaced``: how many entries the summarizer was shown.
+            self.compaction["summarized_turns"] = len(context["compact"])
 
-    def _ceiling_abort(
-        self, observation: Observation, *, estimate: int = 0
-    ) -> Optional[tuple[Action, tuple[ReasoningStep, ...]]]:
-        """The runaway-cost guard: the abort turn when this trial's spend is
-        over ``token_ceiling``, else ``None``.
+    def _over_ceiling(self, estimate: int) -> bool:
+        """T091 Q1 — would a call of ``estimate`` tokens cross ``token_ceiling``?
 
-        ``estimate`` is this turn's prompt estimate when there is one. Called
-        TWICE per turn (T066): once with no estimate before anything can
-        spend — so the compaction call, which is a real metered model call on
-        the whole history, is not paid for on a turn the trial has already
-        overrun — and once with the estimate, which is the original
-        would-be-exceeded test."""
+        ``max(measured, rough) + estimate > ceiling``: the larger of the
+        main-line metered usage (uncached input + output, probe spend
+        subtracted, T026) and the chars/4 running total, plus THIS call's
+        estimate. The old test added the estimate to the heuristic only, so
+        once real usage led (it counts output; the heuristic does not) it
+        asked "already over?" and the call that crossed the ceiling ran."""
         if self.token_ceiling is None:
-            return None
+            return False
         meter_tokens = self.meter.input_tokens + self.meter.output_tokens - self._probe_tokens
-        spent_so_far = max(self._tokens_spent + estimate, meter_tokens)
-        if spent_so_far <= self.token_ceiling:
-            return None
-        self.aborted = "token_ceiling"
-        content = (
-            f"token ceiling ({self.token_ceiling}) would be exceeded "
-            f"at turn {self._turn} (spent~{self._tokens_spent}, "
-            f"+~{estimate}); aborting trial as a runaway-cost guard"
-        )
-        reasoning = (ReasoningStep(kind="abort", content=content),)
-        action: Action = Commit(
-            answer=Answer(value=None, kind="json"),
-            params={"aborted": "token_ceiling"},
-        )
+        return max(self._tokens_spent, meter_tokens) + estimate > self.token_ceiling
+
+    def _abort(
+        self, observation: Observation, tag: str, content: str, turn: Optional[int] = None
+    ) -> tuple[Action, tuple[ReasoningStep, ...]]:
+        """End the trial: a null ``Commit`` tagged ``params={"aborted": tag}``
+        plus one short ``abort`` step (T091 Q12: ``content`` is a reason like
+        ``aborted: token ceiling`` — never the system prompt or guard wording;
+        the tag rides ``TrialRecord.aborted``)."""
+        turn = self._turn if turn is None else turn
+        self.aborted = tag
         self._history.append(
             {
-                "turn": self._turn,
+                "turn": turn,
                 "observation": [dict(c) for c in observation],
-                "action": {"type": "commit", "aborted": "token_ceiling"},
+                "action": {"type": "commit", "aborted": tag},
                 "reasoning": None,
                 "outcome": None,
             }
         )
         self._turn += 1
-        return action, reasoning
+        self._selected = True
+        return (
+            Commit(answer=Answer(value=None, kind="json"), params={"aborted": tag}),
+            (ReasoningStep(kind="abort", content=content),),
+        )
 
-    def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:
-        # T066 — the ceiling first. `_maybe_compact` makes a real, metered
-        # model call whose context is the whole history about to be
-        # displaced, and it used to run as this method's FIRST statement,
-        # ~25 lines before the runaway-cost guard: a trial already over its
-        # token_ceiling at turn `compact_at` paid for the summarizer and
-        # only then aborted. Same shape as box 4's "the cost ceiling
-        # overshoots by up to concurrency". The ceiling test needs no
-        # context, so it is hoisted whole; the compaction then happens only
-        # on a turn the trial is allowed to spend on.
-        # The estimate of this turn as it stands BEFORE compaction.
+    def _ceiling_abort(
+        self, observation: Observation, *, estimate: int = 0
+    ) -> Optional[tuple[Action, tuple[ReasoningStep, ...]]]:
+        """The runaway-cost guard: the abort turn when a call of ``estimate``
+        tokens would cross ``token_ceiling`` (:meth:`_over_ceiling`), else
+        ``None``. Tested BEFORE every paid main-line call: the turn's first
+        (twice — once before the compaction call can spend, once on the
+        post-compaction prompt, T066) and every schema retry (Q3)."""
+        if not self._over_ceiling(estimate):
+            return None
+        return self._abort(observation, "token_ceiling", "aborted: token ceiling")
+
+    def _output_estimate(self, turn: int) -> int:
+        """The output side of a main-line call's estimate: the turn's output
+        budget when the agent carries one (the bound the provider enforces),
+        else 0 (the chars/4 heuristic never counted output)."""
+        return output_budget_for_turn(turn, self.max_tokens, self.output_schedule) or 0
+
+    def _pre_estimate(self, observation: Observation) -> int:
+        """The turn's estimate BEFORE compaction — what ``act``'s first
+        ceiling test reads (see there)."""
         pre_window = self._history_window()
         pre_context = (
             render_observation(observation, self._turn)
@@ -1135,22 +1248,6 @@ class LLMAgent:
             else render_context(observation, self._turn, pre_window)
         )
         pre_estimate = _estimate_tokens(self._system, pre_context)
-        # Round 4/5 leftover (2026-10-27): on the compaction turn the turn
-        # costs the summarizer's prompt PLUS the post-compaction prompt, and
-        # both are known before the call: the summarizer's context is the
-        # displaced history, and the post-compaction prompt is at least the
-        # kept turns behind an EMPTY summary entry (the real summary only
-        # adds; compaction and fill truncation are one-per-arm, so the window
-        # is count-based), plus ``compact_budget`` tokens for the summary when
-        # set — the summarizer's ``max_tokens``, so it bounds the summary.
-        # The old pre-check read the pre-compaction prompt alone, which is
-        # smaller than that sum (the summarizer reads the displaced history
-        # and the system prompt again), so a turn the summarizer call put over
-        # the ceiling passed, paid, then aborted on the post-check. Still
-        # tested BEFORE the call (T066), never after; never below the old
-        # read, so no arm is less guarded than it was. With no
-        # ``compact_budget`` the summary is unbounded and a long one can
-        # still cross the ceiling on the post-check.
         pending = self._pending_compaction()
         if pending is not None:
             displaced, compact_system, compact_context = pending
@@ -1162,6 +1259,33 @@ class LLMAgent:
                 + (self.compact_budget or 0)
             )
             pre_estimate = max(pre_estimate, with_compaction)
+        return pre_estimate + self._output_estimate(self._turn)
+
+    def _turn_aborts(self, observation: Observation) -> bool:
+        """Will ``act(observation)`` abort on the ceiling before its call?
+        (Q4 — the pre-act probe's gate; the same test ``act`` runs first.)"""
+        return self._over_ceiling(self._pre_estimate(observation))
+
+    def act(self, observation: Observation) -> tuple[Action, tuple[ReasoningStep, ...]]:
+        # T066 — the ceiling first. `_maybe_compact` makes a real, metered
+        # model call whose context is the whole history about to be
+        # displaced, and it used to run as this method's FIRST statement,
+        # ~25 lines before the runaway-cost guard: a trial already over its
+        # token_ceiling at turn `compact_at` paid for the summarizer and
+        # only then aborted. Same shape as box 4's "the cost ceiling
+        # overshoots by up to concurrency". The ceiling test needs no
+        # context, so it is hoisted whole; the compaction then happens only
+        # on a turn the trial is allowed to spend on.
+        # The estimate of this turn as it stands BEFORE compaction (Round 4/5
+        # leftover, 2026-10-27): on the compaction turn the turn costs the
+        # summarizer's prompt PLUS the post-compaction prompt, both known
+        # before the call — the summarizer's context is the windowed
+        # displaced history, and the post-compaction prompt is at least the
+        # kept turns behind an EMPTY summary entry, plus ``compact_budget``
+        # tokens for the summary when set (its ``max_tokens``). With no
+        # ``compact_budget`` the summary is unbounded and a long one can still
+        # cross the ceiling on the post-check. See :meth:`_pre_estimate`.
+        pre_estimate = self._pre_estimate(observation)
         abort = self._ceiling_abort(observation, estimate=pre_estimate)
         if abort is not None:
             return abort
@@ -1179,8 +1303,8 @@ class LLMAgent:
             if window is None
             else render_context(observation, self._turn, window)
         )
-        estimate = _estimate_tokens(self._system, context)
         turn = self._turn
+        estimate = _estimate_tokens(self._system, context) + self._output_estimate(turn)
         # M45.5: once the meter has real usage, the ceiling check uses
         # whichever of the heuristic chars/4 running total or the real
         # provider-reported total is larger — real usage never makes the
@@ -1204,35 +1328,27 @@ class LLMAgent:
         # mock `llm_fn` in tests that never touches `self.meter` leaves every
         # delta at zero (see `usage`'s docstring).
         before = self.meter.snapshot()
+        self._attempt = 0
+        self._call_estimate = estimate
         try:
             raw = self._op(context)
-        except ValueError as exc:
+        except _CeilingReached:
+            # T091 Q3 — a schema retry would have crossed the ceiling: the
+            # retry is not sent and the trial aborts as on the turn's own test.
+            after = self.meter.snapshot()
+            self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}, **budget_stamp})
+            return self._abort(observation, "token_ceiling", "aborted: token ceiling", turn)
+        except ValueError:
             after = self.meter.snapshot()
             self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}, **budget_stamp})
             # M46.4: parse exhaustion is data, not a raise — the trial ends with
             # a tagged null Commit (like the token-ceiling guard) so the record
-            # carries the failure and a mass-trial sweep keeps going.
-            self.aborted = "parse_exhausted"
-            content = (
-                f"no schema-valid action after {self.max_retries} attempts at turn "
-                f"{turn} ({self.parse_failures} invalid replies so far): {exc}"
+            # carries the failure and a mass-trial sweep keeps going. T091 Q12:
+            # the step says why in a few words; ``LLMOp``'s message (which
+            # embeds the system prompt) stays out of the trace.
+            return self._abort(
+                observation, "parse_exhausted", f"aborted: parse exhausted after {self.max_retries} attempts", turn
             )
-            reasoning = (ReasoningStep(kind="abort", content=content),)
-            action = Commit(
-                answer=Answer(value=None, kind="json"),
-                params={"aborted": "parse_exhausted"},
-            )
-            self._history.append(
-                {
-                    "turn": turn,
-                    "observation": [dict(c) for c in observation],
-                    "action": {"type": "commit", "aborted": "parse_exhausted"},
-                    "reasoning": None,
-                    "outcome": None,
-                }
-            )
-            self._turn += 1
-            return action, reasoning
         after = self.meter.snapshot()
         self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}, **budget_stamp})
         action, reasoning = _parse_action(raw)
@@ -1247,6 +1363,7 @@ class LLMAgent:
             }
         )
         self._turn += 1
+        self._selected = True
         return action, reasoning
 
 
@@ -1356,8 +1473,9 @@ def default_anthropic_llm_fn(
         # this fn's max_tokens; the model never sees the key.
         turn_budget, context = pop_output_budget(context)
         call_max_tokens = turn_budget if turn_budget is not None else max_tokens
-        # T028/T049 — probe and compaction replies are free text, no forced tool.
-        probe_mode = is_probe_context(context) or is_compact_context(context)
+        # T028/T049/T091 Q7 — probe, compaction and realism-judge replies are
+        # free text, no forced tool.
+        probe_mode = is_probe_context(context) or is_compact_context(context) or is_judge_context(context)
         system: Any = (
             [{"type": "text", "text": directive, "cache_control": {"type": "ephemeral"}}]
             if cache_system

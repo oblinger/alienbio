@@ -170,7 +170,7 @@ def test_llm_agent_probe_forks_and_never_touches_the_live_history():
         calls.append(context)
         if isinstance(context, dict) and "probe" in context:
             return "probe answer text"
-        return {"action": "wait", "duration": 1.0, "reasoning": []}
+        return {"type": "wait", "duration": 1.0}
 
     agent = LLMAgent(llm_fn, SEED.child("llm"), memory="full", token_ceiling=None)
     assert isinstance(agent, ProbeAgent)
@@ -237,7 +237,7 @@ def test_probe_call_overrides_the_action_format_instruction():
         directives.append(directive)
         if isinstance(context, dict) and "probe" in context:
             return "plain text answer"
-        return {"action": "wait", "duration": 1.0, "reasoning": []}
+        return {"type": "wait", "duration": 1.0}
 
     agent = LLMAgent(llm_fn, SEED.child("llm"), memory="full")
     agent.act(({"m": 1.0},))

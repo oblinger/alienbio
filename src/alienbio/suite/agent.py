@@ -197,6 +197,14 @@ class SessionAgent(Protocol):
     def notice(self, outcome: ActionOutcome) -> None: ...
 
 
+class ProbeSkipped(Exception):
+    """T091 Q4 — raised by :meth:`ProbeAgent.probe` when the probe must not
+    run at all (the trial has aborted, or this turn's act will abort on its
+    token ceiling): no call is made and ``suite.runner.run`` records no
+    :class:`~alienbio.suite.trial.ProbeRecord` for it. Distinct from a probe
+    FAILURE, which is recorded as data."""
+
+
 @runtime_checkable
 class ProbeAgent(Protocol):
     """Optional discarded-branch-probe extension of :class:`Agent` (T026).

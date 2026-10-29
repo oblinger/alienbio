@@ -43,6 +43,7 @@ from typing import Any, Iterable, Mapping, Optional, Union
 from .brief import TaskBrief, render_brief
 from .dist import Seed
 from .naming import NameMap
+from .llm_agent import JUDGE_CONTEXT_KEY, extract_json_object
 from .ops import LLMFn, LLMOp
 from .trial import TrialRecord
 
@@ -105,8 +106,35 @@ def _verdict_ok(out: Any) -> bool:
 def realism_judge(llm_fn: LLMFn, seed: Seed = Seed(0), max_retries: int = 3) -> LLMOp[Mapping[str, Any]]:
     """The pairwise judge as an :class:`~alienbio.suite.ops.LLMOp`: context is
     ``{"A": <transcript>, "B": <transcript>}``, output ``{"real": "A"|"B"}``
-    (anything else rides the op's schema-retry path)."""
-    return LLMOp(directive=REALISM_DIRECTIVE, out_schema=_verdict_ok, llm_fn=llm_fn, seed=seed, max_retries=max_retries)
+    (anything else rides the op's schema-retry path).
+
+    T091 Q7 — every call ``llm_fn`` sees carries the
+    :data:`~alienbio.suite.llm_agent.JUDGE_CONTEXT_KEY` marker, so the
+    repo's provider fn (``default_anthropic_llm_fn``, structured or not)
+    sends no forced ``emit_action`` tool and returns text, exactly as for a
+    probe or a compaction call; a text reply is read for its
+    ``{"real": …}`` object (fenced or in prose)."""
+
+    def judged(directive: str, context: Any, attempt_seed: Seed) -> Any:
+        marked = {**context, JUDGE_CONTEXT_KEY: True} if isinstance(context, Mapping) else context
+        out = llm_fn(directive, marked, attempt_seed)
+        if isinstance(out, str):
+            found = extract_json_object(out, _verdict_ok)
+            return found if found is not None else out
+        return out
+
+    return LLMOp(directive=REALISM_DIRECTIVE, out_schema=_verdict_ok, llm_fn=judged, seed=seed, max_retries=max_retries)
+
+
+def _pair(trial_transcript: str, reference_transcript: str, seed: Seed) -> tuple[dict[str, str], bool]:
+    """The judge context for one comparison and whether the trial is ``A``."""
+    trial_is_a = seed.value % 2 == 0
+    a, b = (
+        (trial_transcript, reference_transcript)
+        if trial_is_a
+        else (reference_transcript, trial_transcript)
+    )
+    return {"A": a, "B": b}, trial_is_a
 
 
 def judge_pair(
@@ -118,13 +146,8 @@ def judge_pair(
     """One comparison: ``True`` iff the judge called the TRIAL transcript the
     genuine one. ``seed`` decides which position (A or B) the trial transcript
     takes, so position bias cancels over a pool of comparisons."""
-    trial_is_a = seed.value % 2 == 0
-    a, b = (
-        (trial_transcript, reference_transcript)
-        if trial_is_a
-        else (reference_transcript, trial_transcript)
-    )
-    verdict = judge({"A": a, "B": b})
+    context, trial_is_a = _pair(trial_transcript, reference_transcript, seed)
+    verdict = judge(context)
     return (verdict["real"] == "A") == trial_is_a
 
 
@@ -164,13 +187,21 @@ def wilson_interval(wins: int, n: int, z: float = 1.959963984540054) -> tuple[fl
 
 @dataclass(frozen=True)
 class RealismSummary:
-    """One condition's realism read: comparisons made, trial-judged-genuine
-    count, the win rate, and its Wilson 95 % interval."""
+    """One condition's realism read: distinct judgments (``n``), the
+    trial-judged-genuine count among them, the win rate, its Wilson 95 %
+    interval, and ``comparisons`` — every comparison drawn, repeats included.
+
+    T091 Q9: the judge's op caches on its context, so a repeated
+    ``(trial transcript, reference, position)`` triple replays one verdict
+    rather than drawing a new one; such repeats are counted once, and ``n``,
+    ``wins`` and the interval are over DISTINCT judgments only
+    (``comparisons - n`` were deduplicated)."""
 
     n: int
     wins: int
     win_rate: float
     ci: tuple[float, float]
+    comparisons: int = 0
 
 
 def realism_win_rates(
@@ -184,7 +215,9 @@ def realism_win_rates(
     Each non-error record is rendered (:func:`render_transcript`), paired
     with a seed-chosen reference transcript from ``pool``, and judged once
     (:func:`judge_pair`, position seed-balanced); wins bucket by
-    ``condition_key``. Deterministic in ``(records order, pool, seed)`` given
+    ``condition_key``. A pair already judged in the bucket (same trial
+    transcript, reference and position) is not judged or counted again —
+    ``n`` is distinct judgments, ``comparisons`` all draws (T091 Q9). Deterministic in ``(records order, pool, seed)`` given
     a deterministic judge.
 
     Bucket keys are canonicalized hashably (list -> tuple, mapping -> sorted
@@ -201,18 +234,30 @@ def realism_win_rates(
     if not pool:
         raise ValueError("realism_win_rates: the reference pool is empty")
     outcomes: dict[tuple[tuple[str, Any], ...], list[bool]] = {}
+    seen: dict[tuple[tuple[str, Any], ...], set[tuple[str, str]]] = {}
+    drawn: dict[tuple[tuple[str, Any], ...], int] = {}
     for i, record in enumerate(records):
         if record.is_error:
             continue
         child = seed.child(f"realism/{i}")
         reference = pool[child.child("ref").value % len(pool)]
-        win = judge_pair(judge, render_transcript(record), reference, child.child("order"))
-        outcomes.setdefault(record.bucket_key, []).append(win)
+        key = record.bucket_key
+        drawn[key] = drawn.get(key, 0) + 1
+        context, trial_is_a = _pair(render_transcript(record), reference, child.child("order"))
+        # T091 Q9 — a repeated pair is one judgment (the op would replay it).
+        pair = (context["A"], context["B"])
+        if pair in seen.setdefault(key, set()):
+            continue
+        seen[key].add(pair)
+        verdict = judge(context)
+        outcomes.setdefault(key, []).append((verdict["real"] == "A") == trial_is_a)
     summaries: dict[tuple[tuple[str, Any], ...], RealismSummary] = {}
     for key, wins_list in outcomes.items():
         n = len(wins_list)
         wins = sum(wins_list)
-        summaries[key] = RealismSummary(n=n, wins=wins, win_rate=wins / n, ci=wilson_interval(wins, n))
+        summaries[key] = RealismSummary(
+            n=n, wins=wins, win_rate=wins / n, ci=wilson_interval(wins, n), comparisons=drawn[key]
+        )
     return summaries
 
 
