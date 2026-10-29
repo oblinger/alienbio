@@ -7,8 +7,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from alienbio.bio.world import WorldImpl
+from alienbio.bio.chemistry import ChemistryImpl
+from alienbio.bio.world import Compartment, WorldImpl
 from alienbio.expr import Env, X, evaluate, fn
+from alienbio.infra.mk import mk
 from alienbio.suite.experiment import Draft
 from alienbio.suite.archetypes import _is_molecule
 from alienbio.suite.grade import grade_answer
@@ -63,6 +65,41 @@ def is_molecule(node: Any) -> bool:
     return _is_molecule(node)
 
 
+# ---- the host: a hidden chain among distractors, under opaque per-seed ids --
+
+@fn(summary="a chain of `pathway_length` molecules among `distractors` inert ones, every id opaque and drawn from the seed")
+def opaque_host(pathway_length: int, distractors: int, *, env: Any) -> WorldImpl:
+    """The ``identify_pathway`` host (``pipeline.draft_world``'s shape: a
+    linear chain seeded at 100 at its start, rates uniform in [0.1, 1.0],
+    inert distractors at 1.0) under ids that do not spell the route (T096).
+
+    ``draft_world`` names the chain's molecules after its roles (``r0`` …)
+    and its reactions after their ends (``r0_r1``), so the visible ids state
+    the answer and every seed shares one key. Here the chain and the
+    distractors are dealt a seed-drawn permutation of ``m1`` … ``mN`` (zero-padded to one width) and
+    the reactions one of ``x1`` … — the order is in the stoichiometry alone,
+    and the key varies with the seed."""
+    n, d = int(pathway_length), int(distractors)
+    if n < 2 or d < 0:
+        raise ValueError(f"opaque_host: pathway_length must be >= 2 and distractors >= 0, got {n}, {d}")
+    rng = env.ctx.rng
+    width = len(str(n + d))
+    names = [f"m{i:0{width}d}" for i in rng.permutation(n + d) + 1]
+    chain, filler = names[:n], names[n:]
+    molecules = {name: mk.M(name) for name in names}
+    rxn_names = [f"x{i:0{len(str(n - 1))}d}" for i in rng.permutation(n - 1) + 1]
+    rates = rng.uniform(0.1, 1.0, size=n - 1)
+    reactions = [
+        mk.R(rxn_names[i], {molecules[chain[i]]: 1.0}, {molecules[chain[i + 1]]: 1.0}, rate=float(rates[i]))
+        for i in range(n - 1)
+    ]
+    chem = mk.C("host", list(molecules.values()), reactions)
+    assert isinstance(chem, ChemistryImpl)
+    concentrations = {name: 0.0 for name in chain} | {name: 1.0 for name in filler}
+    concentrations[chain[0]] = 100.0
+    return WorldImpl(chem, (Compartment("cell", None, "cell", 1.0, concentrations=concentrations),))
+
+
 # ---- coverage predicates: features of a puzzle world ----------------------
 
 @fn(summary="a puzzle whose chain has at most three nodes")
@@ -93,7 +130,7 @@ def at_most_two(features: frozenset[Any]) -> bool:
 
 # ---- reject-sampling: the perturbation and the validity predicate ---------
 
-@fn(summary="the host with its first reaction throttled to a tenth (suite.perturbations)")
+@fn(summary="the host with its lexically first reaction (a chain step) throttled to a tenth (suite.perturbations)")
 def knockout_first(world: WorldImpl) -> WorldImpl:
     return perturb_rate(world, min(world.chemistry.reactions), 0.1)
 

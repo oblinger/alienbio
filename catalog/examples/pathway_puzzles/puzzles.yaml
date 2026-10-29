@@ -10,10 +10,12 @@ _includes_: [helpers.py]
 pathway_length: 4
 distractors: 3
 
-# 1. a host: the neutral identify_pathway drafter grows `distractors` filler
-#    nodes around the carved chain (suite.augment) — the puzzle's noise
-draft: !x identify_pathway(pathway_length=pathway_length, distractor_count=distractors)
-host: !x draft.world
+# 1. a host: a hidden chain of `pathway_length` molecules among `distractors`
+#    inert filler nodes — the puzzle's noise — every id opaque and drawn from
+#    the seed (helpers.opaque_host; T096: the identify_pathway drafter's host
+#    named its nodes r0 … and its reactions r0_r1 …, so the ids spelled the
+#    route and every seed had one key)
+host: !x opaque_host(pathway_length, distractors)
 
 # 2. the pattern the puzzle is about, carved into the host by name (M27 carve):
 #    the chain is bound to the host's own molecules, never minted fresh
@@ -53,10 +55,10 @@ plan: !cover
   admissible: at_most_two
   aggressiveness: 0.5
 
-# 6. reject-sampling: redraw the host until knocking out the chain's first
-#    step visibly changes the trajectory (validity.non_obvious_causal)
+# 6. reject-sampling: redraw the host until knocking out a chain step
+#    visibly changes the trajectory (validity.non_obvious_causal)
 checked: !verify
-  world: !x identify_pathway(pathway_length=pathway_length, distractor_count=distractors).world
+  world: !x opaque_host(pathway_length, distractors)
   perturb: knockout_first
   valid: non_obvious
   max_redraws: 6

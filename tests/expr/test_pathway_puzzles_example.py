@@ -46,6 +46,25 @@ def test_the_identify_key_is_the_carved_chain_and_grades_with_partial_credit(val
     assert values["task"].objective is obj
 
 
+def test_the_key_varies_with_the_seed_and_the_ids_do_not_spell_it():
+    """T096: the identify_pathway host named its chain r0 … and its reactions
+    r0_r1 …, so the key was ['r0', 'r1', 'r2'] on every seed and readable off
+    the ids. The opaque host deals m1 … / x1 … from the seed: the key varies,
+    and no id carries a role name or a reaction's ends."""
+    keys = set()
+    for seed in range(12):
+        v = Env.standard(seed=seed, trusted=True).load(SPEC).force_all()
+        key = v["puzzle"]["objective"].key.value
+        keys.add(tuple(key))
+        host = v["host"]
+        assert all(m.startswith("m") and m[1:].isdigit() for m in host.chemistry.molecules)
+        assert all(r.startswith("x") and r[1:].isdigit() for r in host.chemistry.reactions)
+        # the route lives in the stoichiometry alone
+        steps = {(next(iter(r.reactants)).name, next(iter(r.products)).name) for r in host.chemistry.reactions.values()}
+        assert steps == set(zip(key, key[1:]))
+    assert len(keys) == 12
+
+
 def test_the_question_survives_the_vocabulary_round_trip(values):
     q, text, back = values["puzzle"]["question"], values["question_text"], values["question_back"]
     assert isinstance(q, Question) and isinstance(back, Question)

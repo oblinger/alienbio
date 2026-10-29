@@ -441,12 +441,13 @@ _CASCADE_KEY = (
     "constant-key 0.000 ties it"
 )
 _PATHWAY_KEY = (
-    "the key is ['r0', 'r1', 'r2'] on every seed and spelled in the visible ids (probes "
-    "r0..r2, reactions r0_r1, r1_r2): committing it blind scores 1.000 vs survey-commit "
-    "0.000 — needs opaque, per-seed node names"
+    "no intended solver: survey-commit 0.000 (out of turns); the host's ids are opaque and "
+    "dealt per seed since T096 (52 distinct keys over 60 seeds, the blind modal key right on "
+    "none), so constant-key 0.000 ties it"
 )
 _PATHWAY_RANDOM = (
-    "a random middle node scores 0.333 (prefix credit for the given start) vs survey-commit 0.000"
+    "no intended solver: survey-commit 0.000; a random middle node scores 0.000 at seeds 1 "
+    "and 2 (prefix credit 1/3 when it lands) and ties it"
 )
 
 

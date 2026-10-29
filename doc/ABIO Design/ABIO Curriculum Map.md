@@ -22,7 +22,7 @@ Scripted readouts are `$0` zeros run 2026-10-27 (the shipped agent vs `idle`); "
 
 | World | Rung | Exercises | Claims, does not isolate | Verdict |
 |---|---|---|---|---|
-| [pathway_puzzles](../../catalog/examples/pathway_puzzles/) | 1 | A2, B1, B2, B3, C2 | — (no scripted solver: `survey-commit` 0.0) | **promote** — opaque per-seed key, a length dial, partial credit |
+| [pathway_puzzles](../../catalog/examples/pathway_puzzles/) | 1 | A2, B1, B2, B3, C2 | — (no scripted solver: `survey-commit` 0.0); since T096 the host's ids are opaque and dealt per seed (`helpers.opaque_host`), 52 distinct keys over 60 seeds — was `['r0','r1','r2']` on every seed, spelled in the ids | **promote** — opaque per-seed key, a length dial, partial credit |
 | [grid](../../catalog/examples/grid/) | 2 | A2, B3, C2 | rung 2: the throttled reaction is drawn per seed — row 0's step down, its drain up, row 1's step same; key up 22 / same 20 / down 18 over 60 seeds (T096); `prior-commit` 0.33 and `trend-commit` 0.33 per cell, was 1.0 and 0.0 | **replace** — the best-shaped rung-2 harness; the key varies now, the perturbed reaction is still a default lever |
 | [kinetics](../../catalog/examples/kinetics/) | 2 | A1, C2 | rung 2: the throttled step is drawn per seed over `r_mm`, `r_mass` (down) and `r_michaelis`, `d1` (up) — key down 32 / up 28 over 60 seeds, was down on every seed (T096); `measure-commit` 0.0 | keep — rate-law and parity showcase |
 | [organism](../../catalog/examples/organism/) | 2 | A1, A3, C2 | rung 2: the throttled step is drawn per seed — `glycolysis`/`ferment` down, `excrete` up, `clear` same; key down 32 / same 16 / up 12 over 60 seeds, was down on every seed (T096); `measure-commit` 0.0 | keep — compartments, energy, boundedness |
@@ -50,7 +50,7 @@ The six AUP rows stay out of the curriculum on the M48.9 rule: nothing neutral m
 - **An intended solution per rung** — no scripted agent solves a neutral rung except by a constant key (M-Bench.2's "intended solution succeeds" has no content yet). Smallest fix: one oracle-policy scripted agent per promoted world, asserted to score 1.0 against `idle`'s ≤ 0.2.
 - **Dimensions no world exercises** — B16 (planned), B18 and C11 (future); out of the curriculum's scope.
 
-Added by the M-Bench.4 red-team the same night (`tests/suite/test_gameability.py`, 58 strict xfails): `pathway_puzzles`' key is `['r0','r1','r2']` on every seed and spelled out in the ids the agent sees, so its rung-1 promotion needs opaque node names drawn per seed; and every neutral world accepts an `Intervene` on its own readout (the 4c guard runs only on guarded drafters) — on `agent_loop` that scores 0.85 against the intended 0.25.
+Added by the M-Bench.4 red-team the same night (`tests/suite/test_gameability.py`, 58 strict xfails): `pathway_puzzles`' key is `['r0','r1','r2']` on every seed and spelled out in the ids the agent sees, so its rung-1 promotion needs opaque node names drawn per seed (built T096); and every neutral world accepts an `Intervene` on its own readout (the 4c guard runs only on guarded drafters) — on `agent_loop` that scores 0.85 against the intended 0.25.
 
 ## Proposed roadmap edits
 
