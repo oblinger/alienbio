@@ -133,6 +133,6 @@ def generative_intervene(
         world, skeleton, (target_id, goal) = draft_intervention_world(
             seed, n_nodes=n_nodes, target_value=target_value, sim_cfg=sim_cfg
         )
-        return world, skeleton, make_intervention_objective(target_id, goal)
+        return world, skeleton, make_intervention_objective(target_id, goal, world=world)
 
     return replace(base, drafter=drafter)

@@ -98,3 +98,73 @@ def test_the_resume_ceiling_counts_every_retried_dollar(monkeypatch, tmp_path):
     assert len(third.records) == 0 and third.provenance.stopped_early is True
     assert manifest["cost_usd_spent"] == pytest.approx(6.0)
     assert manifest["stopped_reason"] == "cost_ceiling"
+
+
+# ---- I4 / I5: the intervene compartment rule reads the chemistry ------------
+
+_PIPE = """
+sk: !skeleton
+  root: !block
+    children:
+      make: !reaction {{reactants: [A], products: [P], rate: 0.5, container: cell}}
+      pipe: !transport {{pool: P, container: cell, dest_container: cell2, rate: 2.0}}
+w: !world {{skeleton: !x sk, initial: {initial}, container: cell}}
+task: !task
+  archetype: t
+  objective: !intervene_q {{world: !x w, target_value: 3.0, binding: {binding}}}
+"""
+
+
+def _pipe(initial: str, binding: str = "{target: root/P}"):
+    from alienbio.expr import Env
+
+    return Env.standard(seed=1).load("<pipe>", text=_PIPE.format(initial=initial, binding=binding)).force_all()
+
+
+@pytest.mark.parametrize("initial", ["{A: 4.0}", "{A: 4.0, P: 0.0}"])
+def test_a_cosmetic_zero_cannot_turn_the_refusal_into_a_choice(initial):
+    """P is made in `cell` and piped to `cell2`: it can be held in both, so an
+    unnamed target refuses whether or not `initial` lists `P: 0.0` (round E
+    scored `cell` silently once the zero was listed)."""
+    from alienbio.expr import ExprError
+
+    with pytest.raises(ExprError, match=r"can be held in \['cell', 'cell2'\]"):
+        _pipe(initial)
+    assert _pipe(initial, "{target: root/P, compartment: cell2}")["task"] is not None
+
+
+def test_a_listed_zero_where_nothing_can_reach_is_not_a_holder():
+    from alienbio.bio.world import Compartment, WorldImpl
+    from alienbio.suite.arch_intervene import target_compartment, target_holders
+
+    world = _pipe_world()
+    lonely = WorldImpl(
+        world.chemistry,
+        (Compartment("cell", None, "cell", 1.0, concentrations={"root/A": 4.0}),
+         Compartment("side", "cell", "cell", 1.0, concentrations={"root/P": 0.0})),
+    )
+    # `make` runs in every compartment, but `side` never has A: only `cell` can make P
+    assert target_holders(lonely, "root/P") == ["cell"]
+    assert target_compartment(lonely, "root/P") == "cell"
+
+
+def _pipe_world():
+    from alienbio.expr import Env
+
+    doc = _PIPE.split("task:")[0].format(initial="{A: 4.0}")
+    return Env.standard(seed=1).load("<pipe>", text=doc).force_all()["w"]
+
+
+def test_the_python_api_refuses_an_ambiguous_world_at_construction():
+    """Round E's objective built cleanly and refused from the scorer after the
+    episode; given the world, it refuses before anything runs."""
+    from alienbio.expr import Env
+    from alienbio.suite.arch_intervene import make_intervention_objective
+
+    world = Env.standard(seed=5, trusted=True).load(str(REPO / "catalog/examples/microcosm/microcosm.yaml")).force_all()["world"]
+    with pytest.raises(ValueError, match=r"intervene: target 'food' can be held in .*name the one to score"):
+        make_intervention_objective("food", 6.0, world=world)
+    objective = make_intervention_objective("food", 6.0, "pond", world=world)
+    assert objective.target == 6.0
+    with pytest.raises(ValueError, match="not a compartment"):
+        make_intervention_objective("food", 6.0, "lake", world=world)

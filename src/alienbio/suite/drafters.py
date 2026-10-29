@@ -1487,7 +1487,7 @@ def intervene(
     if goal > held and not _surface_molecule_levers(levers, world, task):
         raise ValueError(bound_message)
     if margin > 0.0:
-        task = dataclasses.replace(task, objective=make_intervention_objective(target_id, goal))
+        task = dataclasses.replace(task, objective=make_intervention_objective(target_id, goal, world=world))
     setup = dict(task.setup) if isinstance(task.setup, Mapping) else {}
     extra: dict[str, Any] = {"score_horizon_turns": horizon_turns}
     if goal > held:

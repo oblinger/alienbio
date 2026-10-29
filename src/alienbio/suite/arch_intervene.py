@@ -43,7 +43,7 @@ direct :func:`alienbio.suite.verify.simulate` + :func:`grade_outcome`.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from ..bio.chemistry import ChemistryImpl
 from ..bio.world import Compartment, WorldImpl
@@ -100,10 +100,16 @@ def target_compartment(world: WorldImpl, target_id: str, named: Optional[str] = 
 
     ``named`` (the binding's ``compartment`` entry) wins and must be one of
     the world's compartments. Unnamed: a one-compartment world's only
-    compartment, else the one compartment whose initial concentrations hold
-    ``target_id``. Several holders, or none, refuse — naming the compartments —
-    because a concentration summed over compartments of different volumes is
-    no quantity the task states.
+    compartment, else the one compartment that can hold ``target_id`` —
+    read off the chemistry, not off the ``initial`` listing (T091 I4): a
+    compartment holds the target when its initial amount there is > 0, or
+    a reaction can make it there (every reaction runs in every compartment,
+    so one whose reactants can all be present there — a reactant-free source
+    always can), or a transport flow carries it in from a compartment that
+    can hold it, or a death law releases it there (:func:`target_holders`).
+    So a cosmetic ``P: 0.0`` changes nothing. Several holders, or none,
+    refuse — naming the compartments — because a concentration summed over
+    compartments of different volumes is no quantity the task states.
     """
     ids = [str(c.id) for c in world.compartments]
     if named is not None:
@@ -114,15 +120,71 @@ def target_compartment(world: WorldImpl, target_id: str, named: Optional[str] = 
         return str(named)
     if len(ids) == 1:
         return ids[0]
-    holders = [str(c.id) for c in world.compartments if target_id in c.concentrations]
+    holders = target_holders(world, target_id)
     if len(holders) == 1:
         return holders[0]
-    where = f"held in {holders}" if holders else "held in none of them"
+    where = f"can be held in {holders}" if holders else "is held in none"
     raise ValueError(
-        f"intervene: target {target_id!r} is {where} of the world's compartments {ids}; "
+        f"intervene: target {target_id!r} {where} of the world's compartments {ids}; "
         f"name the one to score with a {COMPARTMENT_ROLE!r} binding (binding: {{{TARGET_ROLE}: ..., "
         f"{COMPARTMENT_ROLE}: <id>}})"
     )
+
+
+def target_holders(world: Any, target_id: str) -> list[str]:
+    """The compartments (in world order) that can ever hold ``target_id``: a
+    fixpoint over what each compartment can contain — its initial amounts
+    above zero, the products of every reaction whose reactants can all be
+    there (the simulators run every reaction in every compartment; a rate
+    of 0 still counts, since an Intervene may set it), what a transport flux
+    carries while its driver can be in the origin, and what a death law
+    releases. Duck-typed: a world without ``flows`` / ``population_laws``
+    has none (T091 I4)."""
+    comps = list(world.compartments)
+    present: dict[str, set[str]] = {
+        str(c.id): {str(m) for m, v in dict(c.concentrations).items() if float(v) > 0.0} for c in comps
+    }
+    reactions = [
+        ({m.name for m in r.reactants}, {m.name for m in r.products})
+        for r in dict(world.chemistry.reactions).values()
+    ]
+    # A transport flux runs origin -> dest while its driver is in the origin;
+    # a positive count carries a species to dest, a negative one back (bio/flow.py).
+    flows = [
+        (
+            str(f.origin),
+            str(f.dest),
+            str(f.driver_molecule),
+            {str(m) for m, n in dict(f.stoichiometry).items() if float(n) > 0},
+            {str(m) for m, n in dict(f.stoichiometry).items() if float(n) < 0},
+        )
+        for f in getattr(world, "flows", ()) or ()
+    ]
+    releases = [
+        (str(law.release_compartment), str(law.release_resource))
+        for law in getattr(world, "population_laws", ()) or ()
+        if getattr(law, "release_compartment", None) is not None and getattr(law, "release_resource", None) is not None
+    ]
+    for comp, resource in releases:
+        if comp in present:
+            present[comp].add(resource)
+    changed = True
+    while changed:
+        changed = False
+        for held in present.values():
+            for reactants, products in reactions:
+                if reactants <= held and not products <= held:
+                    held |= products
+                    changed = True
+        for origin, dest, driver, forward, back in flows:
+            if origin not in present or dest not in present or driver not in present[origin]:
+                continue
+            for src, dst, carried in ((origin, dest, forward), (dest, origin, back)):
+                moved = (carried & present[src]) - present[dst]
+                if moved:
+                    present[dst] |= moved
+                    changed = True
+    return [str(c.id) for c in comps if target_id in present[str(c.id)]]
 
 
 def _final_concentration(timeline: Timeline, molecule_id: str, compartment: Optional[str] = None) -> float:
@@ -196,7 +258,11 @@ def make_target_scorer(
 
 
 def make_intervention_objective(
-    target_mol_id: str, target_value: float, compartment: Optional[str] = None
+    target_mol_id: str,
+    target_value: float,
+    compartment: Optional[str] = None,
+    *,
+    world: Optional[WorldImpl] = None,
 ) -> OutcomeObjective:
     """Bundle the target scorer into an :class:`OutcomeObjective`.
 
@@ -204,7 +270,18 @@ def make_intervention_objective(
     ``target_value``) and the ``target_value`` as its opaque ``target`` — the
     shape :func:`grade_outcome` expects (``target`` is passed through untouched;
     the scorer holds any context it needs).
+
+    ``world`` (T091 I5): the compartment is resolved HERE by
+    :func:`target_compartment` — a multi-compartment world with no
+    ``compartment`` named refuses at construction, with the draft-time
+    message, instead of from the scorer after every turn has been taken (and,
+    under a live agent, paid for). Every shipped caller passes it. Without a
+    world the constructor cannot see the compartments: ``compartment`` unset
+    then means the one-compartment contract, and a multi-compartment state
+    refuses only when scored.
     """
+    if world is not None:
+        compartment = target_compartment(world, target_mol_id, compartment)
     return OutcomeObjective(
         scorer=make_target_scorer(target_mol_id, target_value, compartment),
         target=target_value,
@@ -241,8 +318,7 @@ class DesignInterventionRecipe:
         """The outcome objective, read in the compartment :func:`target_compartment`
         picks — refused at draft when the world leaves it ambiguous."""
         target = self._target_id(skeleton)
-        compartment = target_compartment(world, target, skeleton.binding.get(COMPARTMENT_ROLE))
-        return make_intervention_objective(target, self.target_value, compartment)
+        return make_intervention_objective(target, self.target_value, skeleton.binding.get(COMPARTMENT_ROLE), world=world)
 
     def build_question(self, skeleton: CarveResult, world: WorldImpl) -> Question:
         """The target molecule as a single-element ``node_set`` question.

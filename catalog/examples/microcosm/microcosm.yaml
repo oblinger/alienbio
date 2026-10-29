@@ -43,7 +43,9 @@ world: !World
 # it to a level, with the supply and the drain the only levers.
 task: !task
   archetype: microcosm-intervene
-  objective: !intervene_q {world: !x world, target_value: 6.0, binding: {target: food}}
+  # The supply runs in every compartment, so food can be held in all four:
+  # the pond is named (T091 I4), not inferred from where `initial` lists it.
+  objective: !intervene_q {world: !x world, target_value: 6.0, binding: {target: food, compartment: pond}}
 
 experiment: !experiment
   name: microcosm-zero

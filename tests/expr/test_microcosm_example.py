@@ -48,7 +48,7 @@ def test_counts_move_and_the_food_is_drawn_down_and_returned(values):
 def test_the_intervene_task_scores_the_carrying_capacity(values):
     task = values["task"]
     assert isinstance(task.objective, OutcomeObjective) and task.objective.target == 6.0
-    assert task.skeleton.binding == {"target": "food"}
+    assert task.skeleton.binding == {"target": "food", "compartment": "pond"}
     tl = simulate(values["world"], SimConfig(dt=0.1, steps=20, sample_every=20))
     score = task.objective.scorer(tl)
     assert 0.0 < score <= 1.0
@@ -72,12 +72,16 @@ def test_the_experiment_runs_over_the_feed_rate(tmp_path):
 
 def test_the_intervene_scorer_reads_one_compartment_and_refuses_an_ambiguous_one():
     """T091 E2: the target is read in the one compartment the binding names or
-    that holds it; a target held in several and named in none refuses at draft."""
+    that can hold it; a target held in several and named in none refuses at
+    draft. T091 I4: "can hold" reads the chemistry — the supply runs in every
+    compartment, so food can be held in all four and the example names the pond."""
     from alienbio.bio.world import Compartment
     from alienbio.suite.arch_intervene import target_compartment
 
     world = Env.standard(seed=5, trusted=True).load(SPEC).force_all()["world"]
-    assert target_compartment(world, "food") == "pond"
+    with pytest.raises(ValueError, match=r"can be held in \['pond', 'juveniles', 'adults', 'rivals'\]"):
+        target_compartment(world, "food")
+    assert target_compartment(world, "food", "pond") == "pond"
     assert target_compartment(world, "food", "adults") == "adults"
     with pytest.raises(ValueError, match="not a compartment"):
         target_compartment(world, "food", "lake")
