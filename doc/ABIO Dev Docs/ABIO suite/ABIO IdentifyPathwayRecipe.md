@@ -64,7 +64,7 @@ One constant, one predicate and the factory.
 # IdentifyPathwayRecipe Semantics
 
 ## The key by construction
-The key is whatever chain `carve` bound, so it is right by construction only if no other chain of the same length joins the endpoints. Over 12 seeds of `pathway_length = 3` through the Expr head, every world had exactly one molecule chain of that length between the endpoints. The question supplies both endpoints, so the grader withholds credit for the given start (`given_prefix: 1`, T088): echoing the question, `[r0, r2]` against the key `[r0, r1, r2]`, scores 0 (0.33 before), a bare `[r0]` 0, and `[r0, r1]` 0.5. The `pathway_puzzles` example shows it: `prefix_credit` (first two of four nodes) 1/3, `echo_credit` 0. The agent sees opaque, seed-shuffled names ([ABIO NameMap](ABIO%20NameMap.md)), so the internal ids' ordering does not leak.
+The key is whatever chain `carve` bound, so it is right by construction only if no other chain of the same length joins the endpoints. Over 12 seeds of `pathway_length = 3` through the Expr head, every world had exactly one molecule chain of that length between the endpoints. The question supplies both endpoints, so the grader withholds credit for the given start (`given_prefix: 1`, T088): echoing the question, `[r0, r2]` against the key `[r0, r1, r2]`, scores 0 (0.33 before), a bare `[r0]` 0, and `[r0, r1]` 0.5. The `pathway_puzzles` example shows it: `prefix_credit` (first two of four nodes) 1/3, `echo_credit` 0. That example's agent sees opaque, seed-shuffled names through the example's own `helpers.opaque_host` (T096), not through [ABIO NameMap](ABIO%20NameMap.md): the chain and the distractors are dealt a seed-drawn permutation of `m1` … `mN` and the reactions one of `x1` …, so the route shows only in the reactions and the key varies with the seed. The shared `identify_pathway` drafter is unchanged — it still names the chain `r0` … and its reactions `r0_r1` … (the goldens hold).
 
 
 
@@ -72,3 +72,4 @@ The key is whatever chain `carve` bound, so it is right by construction only if 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and the `identify_pathway` drafter; the 0.33 echo score and the one-chain check over 12 seeds measured on the HEAD export, no spend.
 - 2026-10-28 — refreshed against `552c1a7`: `grader_spec` adds `given_prefix: 1`, so echoing the endpoints scores 0 (was 0.33).
+- 2026-10-29 — refreshed for `aa53388` (T096): the `pathway_puzzles` example's opaque names come from its `helpers.opaque_host`, not NameMap; the shared drafter is unchanged.

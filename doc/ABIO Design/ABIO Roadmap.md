@@ -247,7 +247,7 @@ content (still owed), so the checkbox means one thing.
 ## [ ] M-Bench.3 — Curriculum design
 - [ ] Graded difficulty ladder; each rung isolates one target capability (structure → dynamics → intervention → hidden-mechanism hypothesis)
 - [x] Gap analysis vs. the worlds that exist — [ABIO Curriculum Map](ABIO%20Curriculum%20Map.md) (2026-10-27, T073): `pathway_puzzles` promoted to rung 1; the H1–H5 hello-worlds were deleted at M47.7
-- [ ] Rungs 2–4 as neutral worlds: a predict key that varies with the world (grid, branched), a passive-gated intervention (agent_loop, gated), a hidden-reaction hypothesis (H5 restored); cascade's locus drawn per seed; an oracle agent per rung
+- [ ] Rungs 2–4 as neutral worlds: a predict key that varies with the world (grid, branched), a passive-gated intervention (agent_loop, gated), a hidden-reaction hypothesis (H5 restored); cascade's locus drawn per seed; an oracle agent per rung  *(2026-10-29, [ABIO Backlog#^T096](../ABIO%20Track/ABIO%20Backlog.md#^T096): the predict keys vary with the world on kinetics, organism, stochastic and grid, agent_loop is passive-gated and cascade's locus is drawn per seed; still owed: grid branched, H5 restored, an oracle agent per rung)*
 
 ## [ ] M-Bench.4 — Gameability / red-team of a design
 - [ ] Can an agent short the scoring without doing the "biology"? Fable adversarially probes each design

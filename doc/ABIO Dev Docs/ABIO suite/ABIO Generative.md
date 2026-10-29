@@ -28,7 +28,7 @@ Three factories, each returning a `TaskArchetype` with `drafter` set.
     Fixes the perturbed reaction `m0_m1` and the target `m{n−1}` in the recipe, which is correct only because the drafted structure is seed-invariant; the drafter `assert`s the drafted reaction id equals `m0_m1`. Adds `extra_answer_tokens = ("up", "down", "same")`. Raises `ValueError` for `n_nodes < 2`. ^generative-predict
 
 **generative_intervene**`(*, n_nodes=4, target_value=None, sim_cfg=SimConfig()) -> TaskArchetype`
-    The drafter calls `draft_intervention_world(seed, n_nodes, target_value, sim_cfg)` and returns `make_intervention_objective(target_id, goal)`: the goal is a per-world value, so the drafter, not the recipe, builds the outcome objective. The recipe's own `target_value` is a `0.0` placeholder that only feeds the unused answer key. § [The horizon of the goal](#the-horizon-of-the-goal). ^generative-intervene
+    The drafter calls `draft_intervention_world(seed, n_nodes, target_value, sim_cfg)` and returns `make_intervention_objective(target_id, goal, world=world)` (`world` required since T092, so an ambiguous world refuses at construction): the goal is a per-world value, so the drafter, not the recipe, builds the outcome objective. The recipe's own `target_value` is a `0.0` placeholder that only feeds the unused answer key. § [The horizon of the goal](#the-horizon-of-the-goal). ^generative-intervene
 
 
 
@@ -49,3 +49,4 @@ With `target_value=None`, `draft_intervention_world` sets the goal to the sink's
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`, the three `draft_*_world` functions and the drafter heads in `drafters.py`; the 20 s versus 12 s reaches measured with `draft_intervention_world` on the HEAD export (seeds 9–11 directly, not through `build_suite`'s child seeds), no spend. Not determined: what an exp09 trial's own seeds give (T088 § suite/generative).
 - 2026-10-28 — refreshed against `bf91515`: code unchanged; the intervene head now passes the episode-horizon `sim_cfg`, so the 20 s goal mismatch is fixed.
+- 2026-10-29 — refreshed for `ec1cdd9`/`086b4eb` (T092): `generative_intervene` passes the required `world=` to `make_intervention_objective`.
