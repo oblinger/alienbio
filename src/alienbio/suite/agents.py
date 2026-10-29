@@ -344,7 +344,12 @@ def llm_agent_factory(
     """
 
     def factory(seed: Seed, dials: Mapping[str, Any]) -> Agent:
-        from .llm_agent import LLMAgent, UsageMeter, default_anthropic_llm_fn
+        from .llm_agent import (
+            PROVIDER_DEFAULT_MAX_TOKENS,
+            LLMAgent,
+            UsageMeter,
+            default_anthropic_llm_fn,
+        )
 
         # M46.8: a ``model`` axis level overrides the spec's model per trial,
         # so two generations run inside one grid under identical world seeds.
@@ -356,7 +361,9 @@ def llm_agent_factory(
         # the llm_fn was built meterless and the agent metered nothing.)
         meter = UsageMeter()
         return LLMAgent(
-            default_anthropic_llm_fn(chosen, meter=meter, temperature=temperature, top_p=top_p),
+            default_anthropic_llm_fn(
+                chosen, max_tokens=PROVIDER_DEFAULT_MAX_TOKENS, meter=meter, temperature=temperature, top_p=top_p
+            ),
             seed,
             # T066: ``memory`` is in FACTORY_DIALS and WORLD_INVARIANT_DIALS,
             # so a memory axis passes the dial check, becomes a condition key
@@ -375,6 +382,9 @@ def llm_agent_factory(
             # T059 — the per-turn output budget, sweepable the same way.
             max_tokens=dials.get("max_tokens", max_tokens),
             output_schedule=dials.get("output_schedule", output_schedule),
+            # T091 X2 — the bound the provider fn sends with no budget on the
+            # call, so the ceiling estimate is never output-blind.
+            default_output_bound=PROVIDER_DEFAULT_MAX_TOKENS,
         )
 
     return factory

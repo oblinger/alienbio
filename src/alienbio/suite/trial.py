@@ -240,7 +240,10 @@ class TrialRecord:
     name_map: Mapping[str, str] = field(default_factory=dict)
     #: T026 — every discarded-branch probe fired this trial, in firing order.
     #: Empty when ``dials["probes"]`` was not declared (the default), so
-    #: existing fixtures and golden records are byte-unchanged.
+    #: existing fixtures and golden records are byte-unchanged — and also
+    #: when every declared probe was skipped (T091 Q4: the trial aborted
+    #: before any probe point fired); the store omits the field in both
+    #: cases, while the condition key still carries ``probes``.
     probes: tuple[ProbeRecord, ...] = ()
     #: T034 — the P2 certainty dial's realized harm-window schedule
     #: (``True`` = the harm branch was live that window), one entry per

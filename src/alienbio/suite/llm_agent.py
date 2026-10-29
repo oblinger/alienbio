@@ -429,6 +429,13 @@ def is_judge_context(context: Any) -> bool:
 #: and sends it as the call's ``max_tokens``, so the model never sees the
 #: knob and an agent without a budget sends a byte-identical context.
 OUTPUT_BUDGET_KEY = "max_tokens"
+
+#: T091 X2 — the output bound :func:`default_anthropic_llm_fn` sends as a
+#: call's ``max_tokens`` when no budget rides the call. The ``llm`` factory
+#: hands the same number to :class:`LLMAgent` as ``default_output_bound``, so
+#: a ceiling estimate with no ``max_tokens`` / ``output_schedule`` /
+#: ``compact_budget`` still counts the reply the provider may return.
+PROVIDER_DEFAULT_MAX_TOKENS = 1024
 #: The keys an ``output_schedule`` carries, exactly: ``{"every": n, "deep": a,
 #: "shallow": b}`` — turns ``0, n, 2n, …`` get ``a`` output tokens, every other
 #: turn ``b``, so a deep-dive protocol pools the same total into fewer,
@@ -594,8 +601,16 @@ _ANSWER_KINDS: tuple[str, ...] = ("node_set", "ordered_path", "node_id", "scalar
 
 
 def _is_number(value: Any) -> bool:
-    """A JSON-schema ``number``: an int or float, never a bool, never NaN/inf."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    """A JSON-schema ``number``: an int or float, never a bool, never NaN/inf.
+    An integer beyond float range is malformed, not a crash (T091 X3):
+    ``math.isfinite`` raises ``OverflowError`` on it, and that would escape
+    ``LLMOp`` after the paid call instead of riding the schema retry."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _validate_action_json(out: Any) -> bool:
@@ -714,50 +729,66 @@ def _is_template_echo(out: Mapping[str, Any]) -> bool:
 
 
 def _accept_action(out: Any) -> bool:
+    """The one action validator for both reply paths (T091 X5): schema-valid
+    and not the directive's ``"<id>"`` example echoed back. The text path
+    (:func:`extract_action_json`) and the ``tool_use`` path (``LLMAgent``'s
+    ``out_schema``) both read it, so an echo is a parse failure either way."""
     return _validate_action_json(out) and not _is_template_echo(out)
 
 
 def extract_json_object(text: str, accept: Callable[[Any], bool]) -> Optional[dict[str, Any]]:
-    """The first JSON object in ``text`` that ``accept`` admits, else ``None``.
+    """The LAST JSON object in ``text`` that ``accept`` admits, else ``None``.
 
-    Tries, in order: the whole text as JSON; the contents of each fenced
-    block; then every balanced TOP-LEVEL ``{...}`` object, left to right
+    The whole text as JSON wins when it parses and is admitted. Otherwise
+    every balanced TOP-LEVEL ``{...}`` object is decoded left to right
     (``JSONDecoder.raw_decode`` at each ``{`` not inside an object already
-    decoded). T091 Q11: the first candidate that ``accept`` admits wins —
-    not merely the first dict — so prose that quotes an observation dict
-    before the action still yields the action. Pure; no model involved.
+    decoded — fenced blocks included, since their objects are top-level
+    too), and the last one ``accept`` admits wins; failing that, the last
+    admitted fenced block. T091 Q11: only admitted candidates count — prose
+    quoting an observation dict before the action still yields the action.
+    T091 X6: when a reply holds two admitted actions ("I could {wait}, but I
+    will {commit}") the LAST is the model's final answer after
+    deliberation, so it wins over the alternative it rejected. Pure; no
+    model involved.
     """
-    candidates: list[str] = [text]
-    candidates.extend(m.group(1) for m in _FENCE_RE.finditer(text))
+    try:
+        whole = json.loads(text.strip())
+    except (json.JSONDecodeError, TypeError):
+        whole = None
+    if isinstance(whole, dict) and accept(whole):
+        return whole
     decoder = json.JSONDecoder()
-    for candidate in candidates:
-        stripped = candidate.strip()
-        try:
-            parsed = json.loads(stripped)
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if isinstance(parsed, dict) and accept(parsed):
-            return parsed
+    found: Optional[dict[str, Any]] = None
     pos = 0
     while True:
         start = text.find("{", pos)
         if start < 0:
-            return None
+            break
         try:
             parsed, end = decoder.raw_decode(text, start)
         except json.JSONDecodeError:
             pos = start + 1
             continue
         if isinstance(parsed, dict) and accept(parsed):
-            return parsed
+            found = parsed
         pos = end
+    if found is not None:
+        return found
+    for m in reversed(list(_FENCE_RE.finditer(text))):
+        try:
+            parsed = json.loads(m.group(1).strip())
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(parsed, dict) and accept(parsed):
+            return parsed
+    return None
 
 
 def extract_action_json(text: str) -> Optional[dict[str, Any]]:
     """Pull the action JSON object out of a model reply that is not bare JSON (M46.4).
 
     Real replies arrive fenced (```` ```json ... ``` ````), prefaced ("Here is
-    my action:"), or with trailing prose. Returns the first candidate
+    my action:"), or with trailing prose. Returns the last candidate
     (:func:`extract_json_object`) that is a schema-valid action and not the
     directive's own example echoed back (a ``"<id>"`` placeholder target —
     an echoed system prompt is a parse failure, not a ``Measure``), else
@@ -831,7 +862,13 @@ class LLMAgent:
         history_token_limit: Optional[int] = None,
         max_tokens: Optional[int] = None,
         output_schedule: Optional[Mapping[str, int]] = None,
+        default_output_bound: Optional[int] = None,
     ) -> None:
+        # T091 X2 — ``default_output_bound`` is the ``max_tokens`` the provider
+        # fn sends when no budget rides a call (the factory passes
+        # PROVIDER_DEFAULT_MAX_TOKENS); the ceiling estimate counts it for a
+        # main-line call with no output budget and for a summarizer call with
+        # no ``compact_budget``. ``None`` (a bare test agent) counts 0.
         # T059 — the per-turn output budget (AUP's Protocol Atlas): a flat
         # ``max_tokens`` or an ``{"every", "deep", "shallow"}`` schedule, carried
         # to the provider fn through OUTPUT_BUDGET_KEY on main-line calls
@@ -844,6 +881,11 @@ class LLMAgent:
             max_tokens=max_tokens,
             output_schedule=output_schedule,
         )
+        if default_output_bound is not None and (
+            isinstance(default_output_bound, bool) or not isinstance(default_output_bound, int) or default_output_bound < 1
+        ):
+            raise ValueError(f"default_output_bound must be a positive int, got {default_output_bound!r}")
+        self.default_output_bound = default_output_bound
         self.max_tokens = max_tokens
         self.output_schedule = dict(output_schedule) if output_schedule is not None else None
         self._turn_budget: Optional[int] = None
@@ -922,7 +964,9 @@ class LLMAgent:
         return out
 
     def _counting_schema(self, out: Any) -> bool:
-        ok = _validate_action_json(out)
+        # T091 X5 — the same validator as the text path: a ``tool_use``
+        # reply echoing ``"<id>"`` is a parse failure, not a Measure.
+        ok = _accept_action(out)
         if not ok:
             self.parse_failures += 1
         return ok
@@ -1251,8 +1295,15 @@ class LLMAgent:
     def _output_estimate(self, turn: int) -> int:
         """The output side of a main-line call's estimate: the turn's output
         budget when the agent carries one (the bound the provider enforces),
-        else 0 (the chars/4 heuristic never counted output)."""
-        return output_budget_for_turn(turn, self.max_tokens, self.output_schedule) or 0
+        else the provider's default bound (``default_output_bound``, T091
+        X2), else 0."""
+        budget = output_budget_for_turn(turn, self.max_tokens, self.output_schedule)
+        return budget if budget is not None else (self.default_output_bound or 0)
+
+    def _summary_estimate(self) -> int:
+        """The summarizer reply's bound: ``compact_budget`` when set, else the
+        provider's default bound (T091 X2), else 0."""
+        return self.compact_budget if self.compact_budget is not None else (self.default_output_bound or 0)
 
     def _pre_estimate(self, observation: Observation) -> int:
         """The turn's estimate BEFORE compaction — what ``act``'s first
@@ -1272,7 +1323,7 @@ class LLMAgent:
             with_compaction = (
                 _estimate_tokens(compact_system, compact_context)
                 + _estimate_tokens(self._system, render_context(observation, self._turn, floor_window))
-                + (self.compact_budget or 0)
+                + self._summary_estimate()
             )
             pre_estimate = max(pre_estimate, with_compaction)
         return pre_estimate + self._output_estimate(self._turn)
@@ -1346,6 +1397,7 @@ class LLMAgent:
         before = self.meter.snapshot()
         self._attempt = 0
         self._call_estimate = estimate
+        failures_before = self.parse_failures
         try:
             raw = self._op(context)
         except _CeilingReached:
@@ -1357,13 +1409,20 @@ class LLMAgent:
         except ValueError:
             after = self.meter.snapshot()
             self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}, **budget_stamp})
+            # T091 X4 — ``LLMOp`` does not catch ``llm_fn`` exceptions, so a
+            # provider ``ValueError`` lands here too. Parse exhaustion is the
+            # case where every attempt this turn failed the schema; anything
+            # else is the provider's error and stays one (T088: a provider
+            # error is an error record, its class the exception's own).
+            if self.parse_failures - failures_before < self.max_retries:
+                raise
             # M46.4: parse exhaustion is data, not a raise — the trial ends with
             # a tagged null Commit (like the token-ceiling guard) so the record
             # carries the failure and a mass-trial sweep keeps going. T091 Q12:
             # the step says why in a few words; ``LLMOp``'s message (which
             # embeds the system prompt) stays out of the trace.
             return self._abort(
-                observation, "parse_exhausted", f"aborted: parse exhausted after {self.max_retries} attempts", turn
+                observation, "parse_exhausted", f"aborted: parse exhausted after {self._attempt} attempts", turn
             )
         after = self.meter.snapshot()
         self._turn_usage.append({"turn": turn, **{k: after[k] - before[k] for k in after}, **budget_stamp})
@@ -1385,7 +1444,7 @@ class LLMAgent:
 
 def default_anthropic_llm_fn(
     model: str = PINNED_MODEL,
-    max_tokens: int = 1024,
+    max_tokens: int = PROVIDER_DEFAULT_MAX_TOKENS,
     *,
     structured: bool = True,
     meter: Optional[UsageMeter] = None,

@@ -1,8 +1,10 @@
 """Test-wide safety net: no test reaches a live model provider (T091 Q, plausible 3).
 
 Every test runs with ``ANTHROPIC_API_KEY`` / ``ALIENBIO_ANTHROPIC_API_KEY``
-removed from the environment, and with the real SDK's client constructors
-(``anthropic.Anthropic``, ``anthropic.AsyncAnthropic``) replaced by a function
+removed from the environment, and with the real SDK's client classes
+``__init__`` (``anthropic.Anthropic``, ``anthropic.AsyncAnthropic`` — so every
+alias, ``anthropic.Client`` / ``AsyncClient`` included, and every module-scope
+``from anthropic import Anthropic``) replaced by a function
 raising ``RuntimeError("live provider in tests")`` — so the real provider
 factory, ``suite.llm_agent.default_anthropic_llm_fn``, raises before any
 request even when a key would otherwise resolve (a dev shell that exports it
@@ -53,6 +55,10 @@ def _no_live_provider(request: pytest.FixtureRequest, monkeypatch: pytest.Monkey
         import anthropic  # type: ignore[import-not-found]
     except ImportError:
         return  # no SDK, no live path
+    # The classes' own ``__init__``, not the module names: every alias
+    # (``anthropic.Client`` / ``AsyncClient``) and every ``from anthropic
+    # import Anthropic`` taken at module scope reach the same class (T091 X8).
     for name in ("Anthropic", "AsyncAnthropic"):
-        if hasattr(anthropic, name):
-            monkeypatch.setattr(anthropic, name, _refuse_live_provider)
+        cls = getattr(anthropic, name, None)
+        if isinstance(cls, type):
+            monkeypatch.setattr(cls, "__init__", _refuse_live_provider)

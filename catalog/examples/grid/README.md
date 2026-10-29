@@ -31,7 +31,7 @@ Before, row 0's first step was throttled on every seed and the key was `down` in
 | matched world seeds across arms (M46.8) | `matched_dials` |
 | the automatic idle baseline as an arm of the grid (M45.7) | `idle_baseline` |
 | bounded concurrency (M45.6) | `concurrency` |
-| cost accounting and the dry-run estimate (M45.5) | `expected_*`, `price_usd_per_mtok`, `cost_ceiling_usd` |
+| cost accounting and the dry-run estimate (M45.5) | `expected_*`, `price_usd_per_mtok` (`{model_id: [input, output]}`, unpriced models only), `cost_ceiling_usd` |
 | the record store, manifest, resume, aggregate, report (M46.5 / M46.7 / M46.11) | `tests/expr/test_grid_example.py` |
 | agents registered from a catalog file, beside the framework's own, swept as an axis | `helpers.trend_commit`, `helpers.prior_commit` |
 
