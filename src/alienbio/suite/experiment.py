@@ -246,6 +246,9 @@ def run_experiment(
     flight = preflight(spec, out_dir=out_dir, resume=resume)
     if flight.refusal is not None:
         raise flight.refusal
+    if progress is not None:
+        for note in flight.notes:
+            progress(note)
     resolved_out = flight.out_dir
     resolved_out.mkdir(parents=True, exist_ok=True)
     records_path = resolved_out / "records.jsonl"

@@ -288,24 +288,32 @@ def _condition_units(spec: ExperimentSpec) -> list[tuple[dict[str, Any], Any]]:
     refusal the run would have hit on its first trial of that condition.
     """
     from .dist import Seed
+
+    base = Seed(spec.base_seed)
+    return [(dials, base.child(f"{seed_label}/0")) for _label, dials, seed_label in _condition_seed_labels(spec)]
+
+
+def _condition_seed_labels(spec: ExperimentSpec) -> list[tuple[str, dict[str, Any], str]]:
+    """One ``(label, dials, seed_label)`` triple per grid condition: the
+    record label ``MassTrialRunner`` writes, the merged dial vector, and the
+    label its trial seeds derive from (``base_seed.child(f"{seed_label}/{i}")``)."""
     from .drafters import WORLD_INVARIANT_DIALS
     from .mass_trial import _condition_label, condition_grid
 
     axes = tuple((name, tuple(levels)) for name, levels in spec.axes)
     keys = condition_grid(axes) if axes else [()]
-    base = Seed(spec.base_seed)
     # Exactly what ``run_experiment`` passes the runner: the world-invariant
     # dials (so an agent / model / budget axis keeps the matched world seed,
     # M46.8) plus the spec's own ``matched_dials``.
     matched = set(WORLD_INVARIANT_DIALS) | set(spec.matched_dials or ())
-    units: list[tuple[dict[str, Any], Any]] = []
+    out: list[tuple[str, dict[str, Any], str]] = []
     for key in keys:
         label = _condition_label(key)
         seed_label = (
             _condition_label(tuple((n, v) for n, v in key if n not in matched)) if matched else label
         )
-        units.append(({**spec.fixed_dials, **dict(key)}, base.child(f"{seed_label}/0")))
-    return units
+        out.append((label, {**spec.fixed_dials, **dict(key)}, seed_label))
+    return out
 
 
 def _condition_dial_vectors(spec: ExperimentSpec) -> list[dict[str, Any]]:
@@ -414,6 +422,97 @@ def _first_brief(world: Any, task: Any, dials: Mapping[str, Any], trial_seed: An
         max_turns=params["max_turns"].default,
         assay_kill=params["assay_kill"].default,
     ).brief
+
+
+def _first_difference(recorded: Any, fresh: Any, path: str) -> Optional[str]:
+    """The first path at which two canonical JSON values differ, ``None`` when equal."""
+    if isinstance(recorded, dict) and isinstance(fresh, dict):
+        for key in sorted(set(recorded) | set(fresh)):
+            if key not in recorded or key not in fresh:
+                return f"{path}.{key}"
+            found = _first_difference(recorded[key], fresh[key], f"{path}.{key}")
+            if found is not None:
+                return found
+        return None
+    if isinstance(recorded, list) and isinstance(fresh, list):
+        if len(recorded) != len(fresh):
+            return f"{path} (length {len(recorded)} recorded vs {len(fresh)} drafted)"
+        for i, (a, b) in enumerate(zip(recorded, fresh)):
+            found = _first_difference(a, b, f"{path}[{i}]")
+            if found is not None:
+                return found
+        return None
+    return None if recorded == fresh else path
+
+
+def _world_identity(task_id: Any, oracle: Any, brief: Any) -> dict[str, Any]:
+    """What a stored record holds about its world AT DRAFT, as canonical JSON:
+    the task id, the oracle (generator-held truth: ``v_target``-style stamps,
+    ``hidden_ids``-derived facts, the drawn rates a generator publishes), and
+    the brief's question and affordances (the probe/lever/assay lists and the
+    caps). ``final_state`` is not identity — it is what the agent did."""
+    import json
+
+    from .store import _canonical_json
+
+    brief = brief if isinstance(brief, Mapping) else {}
+    payload = {
+        "task_id": task_id,
+        "oracle": oracle,
+        "brief.question": brief.get("question"),
+        "brief.affordances": brief.get("affordances"),
+    }
+    return _json_canonical(json.loads(_canonical_json(payload)))
+
+
+def unstamped_store_violation(spec: ExperimentSpec, records_path: Path) -> tuple[Optional[str], int]:
+    """T091 R2 follow-up — whether a store written before the ``world_scheme``
+    stamp was drawn under THIS code's seed scheme. For every condition with a
+    clean record, its lowest-index record is re-drafted at that record's own
+    seed (``base_seed.child(f"{seed_label}/{index}")``, the derivation
+    :class:`~alienbio.suite.mass_trial.MassTrialRunner` uses) through the
+    drafter and the brief the run uses, and :func:`_world_identity` of the
+    fresh draft is compared with the record's. Returns ``(problem, checked)``:
+    ``problem`` names the condition, seed and first differing field, ``None``
+    when every checked condition matches; ``checked`` is the condition count.
+    Error records are skipped (a resume retries them); labels the current
+    grid does not render are left to the drift check."""
+    from .brief import resolve_monitoring
+    from .dist import Seed
+    from .store import _brief_to_json, _json_safe, read_records
+
+    units = {label: (dials, seed_label) for label, dials, seed_label in _condition_seed_labels(spec)}
+    first: dict[str, tuple[int, dict[str, Any]]] = {}
+    for _line, d, record in read_records(records_path):
+        label, index = d.get("label"), d.get("index")
+        if record.error or label not in units or not isinstance(index, int):
+            continue
+        if label not in first or index < first[label][0]:
+            first[label] = (index, d)
+    drafter = DRAFTERS[spec.drafter]
+    kwargs = dict(spec.drafter_kwargs or {})
+    base = Seed(spec.base_seed)
+    for label, (index, d) in sorted(first.items()):
+        dials, seed_label = units[label]
+        trial_seed = base.child(f"{seed_label}/{index}")
+        where = f"condition {label!r} trial {index} (seed {seed_label}/{index})"
+        try:
+            world, task = drafter(trial_seed.child("draft"), dials, **kwargs)
+            brief = _first_brief(world, task, dials, trial_seed)
+        except Exception as exc:  # noqa: BLE001 — a world this code cannot draft is no match
+            return f"{where} no longer drafts under this alienbio ({type(exc).__name__}: {exc})", len(first)
+        oracle: dict[str, Any] = {}
+        if isinstance(task.setup, Mapping) and isinstance(task.setup.get("oracle"), Mapping):
+            oracle.update(task.setup["oracle"])
+        _surfaced, monitoring_actual = resolve_monitoring(dials)
+        if monitoring_actual is not None:
+            oracle["monitoring_actual"] = monitoring_actual
+        fresh = _world_identity(task.world, _json_safe(oracle), _brief_to_json(brief))
+        recorded = _world_identity(d.get("task_id"), d.get("oracle"), d.get("brief"))
+        diff = _first_difference(recorded, fresh, "record")
+        if diff is not None:
+            return f"{where} re-drafts a different world: first differing field {diff}", len(first)
+    return None, len(first)
 
 
 def draft_violation(spec: ExperimentSpec) -> Optional[str]:
@@ -859,6 +958,9 @@ class Preflight:
     #: nothing to compare and prints as ``skipped (not a resume)``, never
     #: ``ok`` (T084 finding E).
     resume: bool = False
+    #: What a passing check wants said on the progress channel — today the
+    #: verified pre-stamp store (T091 R2), which the run then stamps.
+    notes: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -874,6 +976,7 @@ class Preflight:
                 out.append(f"{name}: skipped (an earlier check refused)")
             else:
                 out.append(f"{name}: ok" if why is None else f"{name}: REFUSED — {why}")
+        out.extend(self.notes)
         return out
 
 
@@ -933,6 +1036,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     refusal: Optional[BaseException] = None
     estimate: Optional[CostEstimate] = None
     skipped: list[str] = []
+    notes: list[str] = []
 
     def check(name: str, run_it: Callable[[], Any], *, only_if_clean: bool = False) -> None:
         """One verdict. ``only_if_clean`` marks a check that does real work
@@ -1051,13 +1155,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
 
         current_scheme = world_scheme()
         prior_scheme = prior_manifest.get("world_scheme")
-        if prior_scheme is None:
-            raise ValueError(
-                f"run_experiment: resume=True but {manifest_path} has no world_scheme field — its records "
-                "were written before the seed-scheme stamp and cannot prove which scheme drew their "
-                f"worlds (this alienbio draws under {current_scheme}); start a new out_dir"
-            )
-        if prior_scheme != current_scheme:
+        if prior_scheme is not None and prior_scheme != current_scheme:
             raise ValueError(
                 f"run_experiment: resume=True but {manifest_path} has world_scheme {prior_scheme!r} and this "
                 f"alienbio draws under {current_scheme!r} — the records were drawn under another seed "
@@ -1069,6 +1167,23 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 f"run_experiment: resume=True but the spec differs from the run's manifest on {drift} — "
                 "a resume continues the SAME experiment (only more trials_per_condition or added axis "
                 f"levels may change); start a new out_dir for a new spec ({resolved_out})"
+            )
+        if prior_scheme is None and records_path.exists():
+            # A store from before the stamp is VERIFIED, not refused: each
+            # recorded condition's first trial is re-drafted at its own seed
+            # and compared with what the record holds about its world. Equal
+            # everywhere, the resume proceeds and the rebuilt manifest
+            # carries the current stamp; any difference refuses.
+            problem, checked = unstamped_store_violation(spec, records_path)
+            if problem is not None:
+                raise ValueError(
+                    f"run_experiment: resume=True but {manifest_path} has no world_scheme field and {problem} — "
+                    "the records were drawn under another seed scheme, so new trials would not match their "
+                    f"worlds (this alienbio draws under {current_scheme!r}); start a new out_dir"
+                )
+            notes.append(
+                f"resume: {manifest_path} had no world_scheme stamp; {checked} recorded condition(s) "
+                f"re-drafted identically, stamping {current_scheme}"
             )
         ceiling = spec.cost_ceiling_usd
         if ceiling is not None:
@@ -1095,4 +1210,4 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
             )
 
     check("out_dir", _out_dir)
-    return Preflight(resolved_out, out_exists, tuple(checks), estimate, refusal, tuple(skipped), resume)
+    return Preflight(resolved_out, out_exists, tuple(checks), estimate, refusal, tuple(skipped), resume, tuple(notes))

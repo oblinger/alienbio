@@ -436,8 +436,8 @@ def test_the_same_scheme_resumes(tmp_path):
     assert len(go(True).records) == 2
 
 
-@pytest.mark.parametrize("stamp, words", [("v0:deadbeefdeadbeef", "another seed scheme"), (None, "no world_scheme field")])
-def test_another_or_missing_scheme_refuses_the_resume_before_spend(tmp_path, stamp, words):
+@pytest.mark.parametrize("stamp, words", [("v0:deadbeefdeadbeef", "another seed scheme")])
+def test_another_scheme_refuses_the_resume_before_spend(tmp_path, stamp, words):
     from alienbio.suite.guards import preflight
 
     _spec, go = _scripted_run(tmp_path, 1)
@@ -450,3 +450,72 @@ def test_another_or_missing_scheme_refuses_the_resume_before_spend(tmp_path, sta
         assert stamp in problem
     with pytest.raises(ValueError, match=words):
         go(True)
+
+
+# ── R2 follow-up — a store from before the stamp is verified, not refused ──
+
+
+def _pressure_run(tmp_path, trials, **fixed):
+    from alienbio.suite.experiment import run_experiment
+    from alienbio.suite.spec import ExperimentSpec
+
+    spec = ExperimentSpec(name="prestamp", axes=(("pi", (0.0, 0.5)),), drafter="pressure", agent="idle",
+                          trials_per_condition=trials, base_seed=3, fixed_dials={"levers": [], **fixed})
+    return spec, (lambda resume, **kw: run_experiment(spec, out_dir=str(tmp_path / "run"), resume=resume, **kw))
+
+
+def test_a_prestamp_store_drawn_under_this_scheme_resumes_and_gains_the_stamp(tmp_path):
+    from alienbio.suite.store import world_scheme
+
+    _spec, go = _pressure_run(tmp_path, 1)
+    go(False)
+    _restamp(tmp_path, None)
+    _spec, go = _pressure_run(tmp_path, 2)
+    said: list[str] = []
+    assert len(go(True, progress=said.append).records) == 4
+    assert json.loads((tmp_path / "run" / "manifest.json").read_text())["world_scheme"] == world_scheme()
+    assert any("no world_scheme stamp" in m and "2 recorded condition(s) re-drafted identically" in m for m in said)
+
+
+def test_a_prestamp_store_drawn_under_another_matched_set_refuses_naming_condition_and_field(tmp_path, monkeypatch):
+    from alienbio.suite.guards import preflight
+
+    # Written under a WORLD_INVARIANT_DIALS that also matched `pi`: both
+    # conditions drew their worlds at one seed, as a past alienbio might have.
+    # `world_variance` makes the pressure world seed-dependent (its defaults
+    # are constants, so without it every seed drafts one world and a scheme
+    # change is genuinely harmless).
+    import alienbio.suite.drafters as drafters_mod
+    import alienbio.suite.experiment as experiment_mod
+
+    widened = tuple(drafters_mod.WORLD_INVARIANT_DIALS) + ("pi",)
+    with monkeypatch.context() as m:
+        m.setattr(drafters_mod, "WORLD_INVARIANT_DIALS", widened)
+        m.setattr(experiment_mod, "WORLD_INVARIANT_DIALS", widened)
+        _spec, go = _pressure_run(tmp_path, 1, world_variance=0.2)
+        go(False)
+    _restamp(tmp_path, None)
+    spec, go = _pressure_run(tmp_path, 2, world_variance=0.2)
+    problem = dict(preflight(spec, out_dir=str(tmp_path / "run"), resume=True).checks)["resume"]
+    assert problem is not None
+    assert "no world_scheme field" in problem and "another seed scheme" in problem
+    assert "condition 'pi=" in problem and "seed pi=" in problem
+    assert "first differing field record." in problem
+    with pytest.raises(ValueError, match="re-drafts a different world"):
+        go(True)
+
+
+def test_a_prestamp_store_with_an_edited_oracle_refuses_naming_the_field(tmp_path):
+    from alienbio.suite.guards import preflight
+
+    _spec, go = _pressure_run(tmp_path, 1)
+    go(False)
+    _restamp(tmp_path, None)
+    path = tmp_path / "run" / "records.jsonl"
+    lines = [json.loads(x) for x in path.read_text().splitlines()]
+    lines[0]["oracle"]["pressure"]["v_target"] = 12345.0
+    path.write_text("".join(json.dumps(x) + "\n" for x in lines))
+    spec, _go = _pressure_run(tmp_path, 2)
+    problem = dict(preflight(spec, out_dir=str(tmp_path / "run"), resume=True).checks)["resume"]
+    assert problem is not None and "record.oracle.pressure.v_target" in problem
+    assert f"condition {lines[0]['label']!r} trial 0" in problem
