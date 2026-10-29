@@ -13,17 +13,36 @@ if TYPE_CHECKING:
 _head_registry: Dict[str, Type["Entity"]] = {}
 
 
-def register_head(name: str, cls: Type["Entity"]) -> None:
+def register_head(name: str, cls: Type["Entity"], *, replace: bool = False) -> None:
     """Register an entity head (type) by name.
 
     Called automatically by Entity subclasses via __init_subclass__.
     Can also be called manually for dynamic registration.
 
+    Re-registering the same class under its name is a no-op. A different
+    class under a taken name is refused (T088 entity 3): it would replace
+    the first for ``get_entity_class`` and turn the first class's ``head``
+    into its bare class name. ``replace=True`` shadows it on purpose.
+
     Args:
         name: Head name for the entity (used in serialization)
         cls: The Entity subclass to register
+        replace: Shadow an existing, different class registered under ``name``
+
+    Raises:
+        ValueError: If ``name`` is taken by a different class and not ``replace``
     """
+    existing = _head_registry.get(name)
+    if existing is not None and existing is not cls and not replace:
+        raise ValueError(
+            f"entity head {name!r} is already registered ({_where(existing)}); "
+            f"cannot register {_where(cls)} under it — pass replace=True to shadow it on purpose"
+        )
     _head_registry[name] = cls
+
+
+def _where(cls: type) -> str:
+    return f"{cls.__module__}.{cls.__qualname__}"
 
 
 def get_entity_class(name: str) -> Type["Entity"]:
@@ -81,12 +100,15 @@ class Entity:
 
     __slots__ = ("_local_name", "_parent", "_children", "_top", "description")
 
-    def __init_subclass__(cls, head: Optional[str] = None, **kwargs) -> None:
+    def __init_subclass__(cls, head: Optional[str] = None, replace_head: bool = False, **kwargs) -> None:
         """Auto-register subclasses in the head registry.
 
         Args:
             head: Optional head name for serialization.
                   If not provided, uses the class name.
+            replace_head: Shadow a different class already registered under
+                  that name (``register_head(..., replace=True)``); without
+                  it the collision raises ``ValueError``.
 
         Example:
             class Molecule(Entity):  # registers as "Molecule"
@@ -97,7 +119,7 @@ class Entity:
         """
         super().__init_subclass__(**kwargs)
         name = head if head else cls.__name__
-        register_head(name, cls)
+        register_head(name, cls, replace=replace_head)
 
     def __init__(
         self,
@@ -410,6 +432,7 @@ class Entity:
         Raises:
             ValueError: If not called on a root entity
             ValueError: If called on orphan root (orphans cannot be saved)
+            TypeError: If the root's dat is a :class:`MockDat` (no folder, no save)
         """
         import yaml
         from pathlib import Path
@@ -424,6 +447,12 @@ class Entity:
         if isinstance(self._top, _OrphanDat):
             raise ValueError(
                 "Cannot save orphan entities - re-attach them to a real DAT first"
+            )
+
+        if isinstance(self._top, MockDat):
+            raise TypeError(
+                f"cannot save {self._local_name!r}: its root dat is MockDat({self._top.path!r}), "
+                f"which has no folder on disk and no save() — anchor the tree to a real Dat first"
             )
 
         dat = self._top
