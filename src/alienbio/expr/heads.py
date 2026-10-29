@@ -143,7 +143,11 @@ _op("floordiv", lambda a, b: a // b)
 
 
 _DIGITS = re.compile(r"\d+")
-_REPR_CONVERSION = re.compile(r"%(?:\([^)]*\))?[^a-zA-Z%]*[ra]")  # T091 F6: and the %(key)a mapping form
+#: T091 F6 / K: a ``%r`` / ``%a`` conversion in any spelling — the
+#: ``%(key)a`` mapping form, flags/width/precision, and the ignored length
+#: modifiers ``h`` / ``l`` / ``L`` (``%(k)la``, ``%ha``, ``%lr``), each of which
+#: Python accepts and which escaped the charge before.
+_REPR_CONVERSION = re.compile(r"%(?:\([^)]*\))?[^a-zA-Z%]*[hlL]?[ra]")
 
 
 def _width_bound(spec: Any) -> int:

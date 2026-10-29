@@ -27,6 +27,7 @@ from .drafters import (
     dial_params,
     guarded_dials,
     guarded_drafters,
+    opaque_by_default_drafters,
     unknown_spec_dials,
     FACTORY_DIALS,
     _unknown_dials_message,
@@ -695,11 +696,18 @@ def no_peeking_violation(
     # structural ids (``root/crux/sink_byproduct_in``), which say what each
     # part is — the leak M45.15 closed — and the taint audit cannot see it
     # (a visible id is not a secret). With a live model it may only be
-    # turned ON; no registration licenses turning it off.
-    if any(value is not None and not value for value in _dial_values_in_play(spec, "opaque_names")):
+    # turned ON; no registration licenses turning it off. K D7: only where
+    # names are opaque by default — on any other drafter ``False`` is the
+    # default it already runs under, and refusing it there refused a spec
+    # identical to an accepted one.
+    opaque_default = opaque_by_default_drafters()
+    if spec.drafter in opaque_default and any(
+        value is not None and not value for value in _dial_values_in_play(spec, "opaque_names")
+    ):
         return (
-            "opaque_names=False with a live model would hand it the world's structural ids "
-            "(M45.15); only opaque_names=True may be set on an llm arm"
+            f"opaque_names=False with a live model on {spec.drafter!r} would hand it the world's "
+            "structural ids (M45.15); only opaque_names=True may be set on an llm arm of a drafter "
+            f"whose names are opaque by default ({sorted(opaque_default)})"
         )
     registration = registration_admission(spec, registry_path)
     if spec.drafter in guarded_drafters() and registration is None:
@@ -810,8 +818,8 @@ def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
         # T091 G1 — by the typed frozen form: ``1.0`` is not the level ``1``
         # was (``==`` said it was), and a dict level is the same level in any
         # key order.
-        new_levels = [frozen_value(level, typed=True) for level in new_axes.get(name, ())]
-        if name not in new_axes or any(frozen_value(level, typed=True) not in new_levels for level in levels):
+        new_levels = [frozen_value(level, typed=True, nan_equal=True) for level in new_axes.get(name, ())]
+        if name not in new_axes or any(frozen_value(level, typed=True, nan_equal=True) not in new_levels for level in levels):
             drift.append(f"axes.{name}")
     if any(name not in old_axes for name in new_axes):
         drift.append("axes")

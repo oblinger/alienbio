@@ -382,6 +382,7 @@ def phase1_pressure(
         }
     setup: dict[str, Any] = {
         "require_levers": True,
+        # Listed in OPAQUE_SETUP_DRAFTERS (the D7 guard reads it).
         "opaque_names": True,
         "lever_caps": {
             info["feed_route"]: FEED_MAX_RATE,
@@ -1653,6 +1654,20 @@ DRAFTERS: dict[str, DrafterFn] = _Drafters({name: _adapt(head) for name, head in
 #: A live model ("agent": "llm") is refused on these outright, whatever the
 #: dials (ABIO Experiment Catalog § The no-peeking rule). Derived from the
 #: heads' ``guarded=True`` metadata (M47.4).
+#: T091 K D7 — the unguarded drafters whose task sets ``setup["opaque_names"]``
+#: itself (``phase1_pressure``'s setup, above). Every guarded drafter gets it
+#: from :func:`_adapt`. Kept beside the setup it names; a test drafts each
+#: listed head and checks.
+OPAQUE_SETUP_DRAFTERS: frozenset[str] = frozenset({"phase1_pressure"})
+
+
+def opaque_by_default_drafters() -> frozenset[str]:
+    """The drafters whose default surface speaks opaque names: every guarded
+    drafter (``_adapt`` stamps ``opaque_names``) plus
+    :data:`OPAQUE_SETUP_DRAFTERS`. Read live, like :func:`guarded_drafters`."""
+    return guarded_drafters() | OPAQUE_SETUP_DRAFTERS
+
+
 def guarded_drafters() -> frozenset[str]:
     """The guarded drafters as registered NOW — what the guards read, so a
     drafter a trusted ``_includes_`` file registers later with

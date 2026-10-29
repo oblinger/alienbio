@@ -257,7 +257,7 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...]) -> None:
         # and were pooled into one with ``n`` doubled.
         frozen_seen: list[tuple[Any, Any]] = []
         for level in levels:
-            frozen = frozen_value(level)
+            frozen = frozen_value(level, nan_equal=True)
             twin = next((prior for prior, f in frozen_seen if f == frozen), _NO_LEVEL)
             if twin is not _NO_LEVEL:
                 same = repr(twin) == repr(level)

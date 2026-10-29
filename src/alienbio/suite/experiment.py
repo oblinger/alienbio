@@ -456,28 +456,36 @@ def run_experiment(
 def spec_from_manifest(manifest: Mapping[str, Any], *, current: bool = False) -> ExperimentSpec:
     """The spec a run directory's manifest describes (T091 E1).
 
-    A manifest that names its ``spec_path`` has that file re-loaded through
-    :func:`load_spec`, which executes its trusted ``_includes_`` helpers — so
-    a catalog example's drafter and agents are registered before the spec
-    is read (they were not, and every example's resume, aggregate and
-    report refused on "unknown agent axis level(s)"). A recorded path that
-    no longer exists refuses, naming it.
-
     ``current=False`` (aggregate, report) returns the spec the records were
-    drawn under — the manifest's own. ``current=True`` (resume) returns the
-    file as it is NOW, so the resume's drift check compares the edited file
-    against the manifest (a ``bio suite resume`` could not see an edit to
-    the yaml before; it rebuilt the manifest's spec and compared it with
-    itself). A manifest without ``spec_path`` (a Python-built spec) is read
-    from its ``spec`` alone either way."""
+    drawn under — the manifest's own. The experiment file is re-loaded
+    through :func:`load_spec` only when the manifest lists
+    ``helper_modules`` (K E1): its trusted ``_includes_`` helpers register
+    the run's drafter and agents, which the manifest's spec names but cannot
+    rebuild (every catalog example's aggregate and report refused on
+    "unknown agent axis level(s)" before). Without helpers the manifest
+    alone is enough, so a finished run whose yaml was since deleted, moved
+    or edited still aggregates; with helpers a missing file refuses, naming
+    it.
+
+    ``current=True`` (resume) returns the file as it is NOW, so the resume's
+    drift check compares the edited file against the manifest (drift is
+    what a resume checks); a recorded file that no longer exists refuses,
+    naming the path. A manifest without ``spec_path`` (a Python-built spec)
+    is read from its ``spec`` alone either way."""
     recorded = manifest.get("spec_path")
     if recorded is None:
+        return spec_from_dict(manifest["spec"])
+    if not current and not manifest.get("helper_modules"):
         return spec_from_dict(manifest["spec"])
     path = resolve_source_path(str(recorded))
     if not path.is_file():
         raise FileNotFoundError(
             f"the run's manifest names spec_path {recorded!r} ({path}), which does not exist — "
-            "restore the experiment file (it registers the run's drafter and agents)"
+            + (
+                "restore the experiment file (a resume compares it against the manifest)"
+                if current
+                else "restore the experiment file (it registers the run's drafter and agents)"
+            )
         )
     loaded = load_spec(path)
     return loaded if current else spec_from_dict(manifest["spec"])

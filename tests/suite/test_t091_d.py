@@ -188,7 +188,11 @@ def test_opaque_names_is_a_runtime_dial_and_cannot_be_turned_off_for_a_live_mode
     base = dict(name="d7", axes=(("n_nodes", (4,)),), drafter="diagnose", trials_per_condition=1, base_seed=1)
     on = ExperimentSpec(**base, agent="survey-commit", fixed_dials={"opaque_names": True})
     assert dict(preflight(on).checks)["dials"] is None
-    off_live = ExperimentSpec(**base, agent="llm", temperature=0.0, fixed_dials={"opaque_names": False})
+    # K D7 — refused on a drafter whose names are opaque by default only.
+    off_live = ExperimentSpec(
+        **{**base, "drafter": "phase1_pressure", "axes": (("variant", ("commitment_no_coupling",)),)},
+        agent="llm", temperature=0.0, fixed_dials={"opaque_names": False},
+    )
     assert "opaque_names=False" in (dict(preflight(off_live).checks)["no-peeking"] or "")
 
 
@@ -271,9 +275,11 @@ def test_a_resume_reads_the_experiment_file_as_it_is_now(tmp_path):
     drifted = _bio("resume", str(out))
     assert drifted.returncode == 1 and "base_seed" in drifted.stderr
     spec_file.unlink()
-    for verb in ("resume", "aggregate", "report"):
-        missing = _bio(verb, str(out))
-        assert missing.returncode == 1 and str(spec_file.resolve()) in missing.stderr, verb
+    missing = _bio("resume", str(out))
+    assert missing.returncode == 1 and str(spec_file.resolve()) in missing.stderr
+    # K E1 — no helpers: aggregate and report read the manifest's own spec.
+    for verb in ("aggregate", "report"):
+        assert _bio(verb, str(out)).returncode == 0, verb
 
 
 # ── F1 / F3 — the intervene bounds on the surface the trial offers ────────────
