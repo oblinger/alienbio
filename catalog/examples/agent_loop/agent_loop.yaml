@@ -17,15 +17,21 @@
 # Loads trusted (helpers.py). See README.md.
 _includes_: [helpers.py]
 
+# Behind the passive gate (T096; helpers.passive_gate): the drain holds the
+# do-nothing reach of C far below the goal (0.083 at 15 turns), so an idle
+# agent cannot clear the task; the one declared lever is the feed's rate, and
+# act_commit's one pull (10.0) brings C to the goal by the scored horizon.
 target_level: 3.0
+feed_rate: 0.25
+drain_rate: 3.0
 
 sk: !skeleton
   root: !block
     children:
-      feed: !source {pool: A, rate: 0.5}
+      feed: !source {pool: A, rate: !x feed_rate}
       s1: !reaction {reactants: [A], products: [B], rate: 0.3}
       s2: !reaction {reactants: [B], products: [C], rate: 0.3}
-      drain: !sink {pool: C, rate: 0.1}
+      drain: !sink {pool: C, rate: !x drain_rate}
 
 world: !world {skeleton: !x sk, initial: {A: 1.0}}
 
@@ -41,6 +47,9 @@ experiment: !experiment
   name: agent-loop-zero
   task: !q loop_world()
   episode: !q episode(max_turns=15, sim_steps=10)
+  # the control surface: the feed's rate alone (the drain lever let
+  # act_commit's first pull empty the target, T074)
+  brief: !q brief(levers=["root/feed/rxn"])
   agent: act_commit
   axes: {agent: [act_commit, retry_commit, clumsy_commit, idle]}
   trials_per_condition: 2

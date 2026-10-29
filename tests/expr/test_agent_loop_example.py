@@ -38,6 +38,32 @@ def test_the_outcome_task_is_on_the_chain():
     assert isinstance(task.objective, OutcomeObjective)
 
 
+def test_the_passive_gate_refuses_a_world_an_idle_agent_clears():
+    """T096: the pre-gate world (feed 0.5, drain 0.1) let a do-nothing agent
+    reach C = 2.9 against the goal 3.0 (idle 0.912 vs act-commit 0.251); the
+    gate refuses it, and admits the shipped world far below the goal."""
+    from alienbio.suite.verify import SimConfig
+
+    horizon = SimConfig(dt=0.1, steps=150, sample_every=10)
+    scope = Env.standard(seed=21, trusted=True).load(SPEC)
+    gate = scope.head("passive_gate").fn
+    shipped = scope.force_all()["world"]
+    assert gate(shipped, "root/C", 3.0, horizon) < 0.1
+    scope = Env.standard(seed=21, trusted=True).load(SPEC)
+    scope.bindings.update(feed_rate=0.5, drain_rate=0.1)
+    with pytest.raises(ValueError, match="passive gate"):
+        gate(scope.force_all()["world"], "root/C", 3.0, horizon)
+
+
+def test_the_intended_agent_beats_idle(rmap):
+    """T096: act-commit's one pull on the feed lever is graded at the
+    horizon and beats the do-nothing twin on every trial."""
+    by = _by_agent(rmap)
+    act = [r.objective_score for r in by["act-commit"]]
+    idle = [r.objective_score for r in by["idle"]]
+    assert min(act) > max(idle) + 0.5, (act, idle)
+
+
 def test_rejection_as_data_is_noticed_and_recoverable(rmap):
     """retry-commit's first probe is illegal; the notice lets it recover
     through the brief and commit — one illegal action, no crash."""

@@ -446,13 +446,6 @@ _PATHWAY_KEY = (
 _PATHWAY_RANDOM = (
     "a random middle node scores 0.333 (prefix credit for the given start) vs survey-commit 0.000"
 )
-_LOOP_IDLE = (
-    "idle 0.912 vs act-commit 0.251: the target sits at passive reach — needs W1's passive gate"
-)
-_LOOP_NOW = (
-    "commit-now 0.252 ties act-commit 0.251: the intended agent's one intervention earns nothing"
-)
-_LOOP_RANDOM = "random 0.303 vs act-commit 0.251 — the intended agent's act lowers the score"
 
 
 def _phase1_rows() -> dict[tuple[str, str], str]:
@@ -485,9 +478,6 @@ GAMEABLE: dict[tuple[str, str], str] = {
         "phase1/describe_the_link", "pursue-target (never commits json)", "idle", "random"
     ),
     ("phase1/describe_the_link", "constant-key"): _LINK_KEY,
-    ("agent_loop", "idle"): _LOOP_IDLE,
-    ("agent_loop", "constant-key"): _LOOP_NOW,
-    ("agent_loop", "random"): _LOOP_RANDOM,
     **_no_solver("cascade", "measure-commit", "idle", "random"),
     ("cascade", "constant-key"): _CASCADE_KEY,
     # T091 E12: the world carries mass now (it was inert: every score 0.000);
