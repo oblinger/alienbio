@@ -12,7 +12,6 @@ from alienbio.bio.world import Compartment, WorldImpl
 from alienbio.infra.mk import mk
 from alienbio.suite.boundedness import (
     check_boundedness,
-    repair_static,
     simulate_boundedness,
     static_bounded_fate,
 )
@@ -58,29 +57,6 @@ def test_static_bounded_fate_passes_well_formed_chemistry():
     chem = _chem([x], source, sink)
 
     assert static_bounded_fate(chem) == []
-
-
-def test_repair_static_gives_bounded_fate_and_is_idempotent():
-    x = _mol("x")
-    source = _rxn("source", reactants=None, products={x: 1})
-    chem = _chem([x], source)
-
-    repaired = repair_static(chem)
-
-    assert static_bounded_fate(repaired) == []
-    assert len(repaired.reactions) == 2  # original source + the added dilution sink
-
-    # A chemistry with nothing flagged is returned unchanged.
-    assert repair_static(repaired) is repaired
-
-
-def test_repair_static_is_noop_on_a_clean_chemistry():
-    x = _mol("x")
-    source = _rxn("source", reactants=None, products={x: 1})
-    sink = _rxn("sink", reactants={x: 1}, products=None, rate=0.5)
-    chem = _chem([x], source, sink)
-
-    assert repair_static(chem) is chem
 
 
 # ── Dynamic layer ────────────────────────────────────────────────────────────

@@ -43,14 +43,6 @@
   <line id="e-dyn-sim" x1="710" y1="500" x2="710" y2="570" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="l-dyn-sim" x="720" y="540" font-size="14" fill="#1971c2" font-style="italic">timeline, amount()</text>
 
-  <g id="n-repair">
-    <rect id="n-repair-box" x="590" y="230" width="240" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-repair-name" x="710" y="256" font-size="18" font-weight="600" text-anchor="middle">repair_static</text>
-    <text id="n-repair-kind" x="710" y="278" font-size="14" text-anchor="middle">(fn) pool → ∅ at 0.01;</text>
-    <text id="n-repair-kind2" x="710" y="298" font-size="14" text-anchor="middle">returns a chemistry</text>
-  </g>
-  <line id="e-repair-static" x1="710" y1="230" x2="710" y2="140" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
-  <text id="l-repair-static" x="720" y="190" font-size="14" fill="#1971c2" font-style="italic">calls</text>
 
   <g id="n-up">
     <rect id="n-up-box" x="900" y="60" width="280" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>

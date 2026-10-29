@@ -1,5 +1,5 @@
 ---
-description: "`boundedness`: the opt-in F019 homeostasis gate — `static_bounded_fate` flags pools that are produced but never a reactant and fed by a boundary source, `repair_static` gives each a dilution sink, `simulate_boundedness` classifies every pool's growth over a trailing window, `check_boundedness` runs both into a `BoundednessReport`. Source: `src/alienbio/suite/boundedness.py`."
+description: "`boundedness`: the opt-in F019 homeostasis gate — `static_bounded_fate` flags pools that are produced but never a reactant and fed by a boundary source, `simulate_boundedness` classifies every pool's growth over a trailing window, `check_boundedness` runs both into a `BoundednessReport`. Source: `src/alienbio/suite/boundedness.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Boundedness](ha://p/ABIO%20Boundedness) 
 # ABIO Boundedness
@@ -13,20 +13,16 @@ The gate that asks whether any pool of an assembled world grows or collapses wit
 
 
 ## boundedness Interface
-Four functions; the defaults are module constants `_DEFAULT_THETA = 10.0`, `_DEFAULT_WINDOW = 0.25`, `_DEFAULT_REPAIR_RATE = 0.01` and the denominator floor `_EPS = 1e-9`. Every trip is logged at `WARNING`.
+Three functions; the defaults are module constants `_DEFAULT_THETA = 10.0`, `_DEFAULT_WINDOW = 0.25` and the denominator floor `_EPS = 1e-9`. Every trip is logged at `WARNING`.
 
 | boundedness | |
 | --- | --- |
 | [static_bounded_fate](#^static-bounded-fate) | Source-fed pools produced but never consumed |
-| [repair_static](#^repair-static) | Add a dilution sink per flagged pool |
 | [simulate_boundedness](#^simulate-boundedness) | Classify each pool over the window |
 | [check_boundedness](#^check-boundedness) | Both layers in one report |
 
 **static_bounded_fate**`(chemistry: ChemistryImpl) -> list[UnboundedPool]`
     Collects every molecule that is a product of some reaction, a reactant of none, and fed by a boundary source (a reaction with no reactants, `∅ → X`) directly or through a chain of reactions, sorted by name, each with a reason naming the producing reactions. Reads `chemistry.reactions` only: modifiers, flows and population laws count neither way. § [The two layers](#the-two-layers). ^static-bounded-fate
-
-**repair_static**`(chemistry: ChemistryImpl, *, rate: float = 0.01) -> ChemistryImpl`
-    Returns `chemistry` itself when nothing is flagged; otherwise a new chemistry named `f"{local_name}_bounded"` with one `pool → ∅` reaction `_boundedness/<pool>_dilution` at `rate` per flagged pool, molecules and atoms copied. Raises `ValueError` when that id already exists. Returns a chemistry, not a world: compartments, flows and population laws are the caller's to rebuild. ^repair-static
 
 **simulate_boundedness**`(world: WorldImpl, seed: Seed = Seed(0), *, theta: float = 10.0, window: float = 0.25, sim_cfg: SimConfig = SimConfig()) -> BoundednessReport`
     Simulates `world`, finds the first sampled time at or after `t_end − window · horizon`, and for each molecule compares its total amount over compartments there with the final state: `factor = |final| / max(|start|, 1e-9)`. Diverging when `factor ≥ theta`; collapsing when `|start| > 1e-9` and `factor ≤ 1/theta`; else bounded. Raises `ValueError` on an empty timeline or a final state without `molecule_ids`. The report's `static_unbounded` is empty. Neither `theta` nor `window` is validated. ^simulate-boundedness
@@ -110,8 +106,8 @@ The dynamic layer compares two samples, not a trend. A pool that is zero at the 
 
 
 
-## Repair, not redraw
-F019 Q2 = C: a static accumulator has one unambiguous fix, a dilution sink, so `repair_static` makes it. A dynamic divergence has no local fix that leaves the author's crux intact, so it is reported only; redrawing is the caller's.
+## Report, not repair
+F019 Q2 = C: a dynamic divergence has no local fix that leaves the author's crux intact, so it is reported only; redrawing is the caller's. A static accumulator is reported the same way since `repair_static` (a dilution sink per flagged pool, no caller) was retired in T093.
 
 
 
@@ -119,3 +115,4 @@ F019 Q2 = C: a static accumulator has one unambiguous fix, a dilution sink, so `
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the closed-batch false flags (static `c`, collapsing `a` and `b`) and the vacuous `window = 0` confirmed by running `check_boundedness` on a three-pool world from the HEAD export, no spend. Consumer census: `catalog/examples/organism/helpers.py` and `tests/suite/test_boundedness.py`. Not determined: whether any generator should call it (T088 § suite/boundedness).
 - 2026-10-28 — refreshed against `9db219f`: the static walk flags a produced-never-consumed pool only when a boundary source feeds it, so a closed world's terminal product is no longer flagged.
+- 2026-10-29 — T093: `repair_static` retired (no caller in `src/`, `catalog/`, `demos/` or AUP; the Organism guard calls `check_boundedness`, which never repaired); its tests and figure node went with it.

@@ -12,8 +12,7 @@ that a static check can only necessarily bound, never sufficiently. Two layers:
 - :func:`static_bounded_fate` — a cheap necessary-condition graph walk: does every pool
   produced/injected by some reaction also have a consuming reaction, sink, or dilution
   term? A pool that is only ever a product (never a reactant, anywhere) is a pure
-  accumulator and a structural guarantee of divergence. :func:`repair_static` gives
-  each such pool an unambiguous fix — a dilution/sink reaction.
+  accumulator and a structural guarantee of divergence.
 - :func:`simulate_boundedness` — because the static check is *necessary, not
   sufficient* (a pool with a genuine consumer can still diverge under nonlinear
   kinetics if inflow outpaces a saturating consumer), run the assembled world with
@@ -21,11 +20,9 @@ that a static check can only necessarily bound, never sufficiently. Two layers:
   a trailing window of the horizon (Q1=A): diverging (grows by more than a factor
   ``theta``), collapsing (shrinks below the symmetric floor ``1/theta``), or bounded.
 
-Per F019 Q2=C: a *statically* unbounded pool has one obvious fix (give it a fate), so
-:func:`repair_static` repairs it directly. A *dynamic* divergence has no unique local
-repair (which term to add, and where, changes the crux the author drew) — this module
-only reports it (:class:`PoolTrajectory`); redrawing from the generator is the
-caller's responsibility, not built here.
+Both layers only report (:class:`PoolTrajectory`); repairing or redrawing is the
+caller's responsibility. ``repair_static`` (a dilution sink per flagged pool) had no
+caller in ``src/`` or AUP and was retired in T093.
 
 :func:`check_boundedness` is the one-call convenience a generator opts into: static
 layer first (cheap, explanatory), then the dynamic simulate-and-check confirmation.
@@ -39,9 +36,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Union, cast
 
 from ..bio.chemistry import ChemistryImpl
-from ..bio.reaction import ReactionImpl
 from ..bio.world import WorldImpl
-from ..infra.mk import mk
 from .dist import Seed
 from .skeleton import Skeleton
 from .verify import SimConfig, simulate
@@ -54,8 +49,6 @@ logger = logging.getLogger(__name__)
 # Q1=A defaults: relative-growth-over-a-window, both tunable per call.
 _DEFAULT_THETA = 10.0
 _DEFAULT_WINDOW = 0.25
-# The dilution rate constant repair_static gives a repaired accumulator pool.
-_DEFAULT_REPAIR_RATE = 0.01
 # Floor for treating a near-zero amount as "started at zero" (denominator guard).
 _EPS = 1e-9
 
@@ -155,47 +148,6 @@ def static_bounded_fate(chemistry: ChemistryImpl) -> list[UnboundedPool]:
     return unbounded
 
 
-def repair_static(chemistry: ChemistryImpl, *, rate: float = _DEFAULT_REPAIR_RATE) -> ChemistryImpl:
-    """Give every statically-unbounded pool a bounded fate: add a dilution sink.
-
-    Adds one ``pool -> ∅`` reaction (a boundary sink, exempt from the F012 balance
-    gate) at constant rate ``rate`` for each pool :func:`static_bounded_fate` flags.
-    Idempotent to a fixpoint: a chemistry with nothing flagged is returned unchanged
-    (same object); re-running on an already-repaired chemistry is a no-op, since every
-    added sink makes its pool consumed and it will not be re-flagged.
-    """
-    unbounded = static_bounded_fate(chemistry)
-    if not unbounded:
-        return chemistry
-
-    reactions = dict(chemistry.reactions)
-    for pool in unbounded:
-        molecule = chemistry.molecules[pool.name]
-        rxn_id = f"_boundedness/{pool.name}_dilution"
-        if rxn_id in reactions:
-            raise ValueError(
-                f"repair_static: dilution-sink id {rxn_id!r} already exists in "
-                f"{chemistry.local_name!r} — cannot repair {pool.name!r}"
-            )
-        reactions[rxn_id] = cast(ReactionImpl, mk.R(rxn_id, {molecule: 1.0}, {}, rate=rate))
-        logger.warning(
-            "boundedness: repaired accumulator pool %r with dilution sink %r (rate=%s)",
-            pool.name,
-            rxn_id,
-            rate,
-        )
-
-    return cast(
-        ChemistryImpl,
-        mk.C(
-            f"{chemistry.local_name}_bounded",
-            dict(chemistry.molecules),
-            reactions,
-            atoms=dict(chemistry.atoms),
-        ),
-    )
-
-
 def _total_amount(state: "WorldStateImpl", molecule_index: int) -> float:
     """Sum of a molecule's ``amount`` (extensive count) across every compartment."""
     return sum(state.amount(c, molecule_index) for c in range(state.num_compartments))
@@ -291,8 +243,7 @@ def check_boundedness(
     Deterministic given ``seed`` (materialize and simulate are both pure functions of
     it). NOT called by :meth:`Skeleton.materialize` — purely opt-in; callers (e.g. a
     generator) invoke it explicitly and act on ``report.static_unbounded`` /
-    ``report.diverging`` / ``report.collapsing`` themselves (repair via
-    :func:`repair_static`, or redraw for a dynamic divergence per F019 Q2=C).
+    ``report.diverging`` / ``report.collapsing`` themselves (redraw, per F019 Q2=C).
     """
     world = world_or_skeleton.materialize(seed) if isinstance(world_or_skeleton, Skeleton) else world_or_skeleton
     static = static_bounded_fate(world.chemistry)
