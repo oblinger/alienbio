@@ -101,6 +101,8 @@ The entry point and its tables.
 | [RATE_VIEW_KINDS](#^rate-view-kinds) | The head kinds a rate law may call |
 | [compile_rate](#^compile-rate) | A `rate:` value to a `RateLaw` |
 | [check_constant_sign](#^check-constant-sign) | Refuse a constant factor that can be negative |
+| [check_modulation_supports](#^check-modulation-supports) | Refuse a modulation parameter that can leave its domain |
+| [SUPPORTED_DIST_HEADS](#^supported-dist-heads) | The dist heads a support check knows |
 
 **MODULATION_HEADS**`: Mapping[str, tuple[tuple[str, ...], tuple[str, ...]]]`
     `hill: (K; n, Vmax)`, `michaelis: (K; Vmax)`, `activator: (a; —)`, `inhibitor: (Ki; —)`; the pool is always the first argument. ^modulation-heads
@@ -112,7 +114,13 @@ The entry point and its tables.
     `None` → `k = 1`; a number → `Constant`, a negative one refused; a `Dist` → `k`, refused when its `support_of` reaches below zero; a `QuotedForm` → compiled in its own environment (§ [Two shapes](#two-shapes)); a bool or anything else refuses. `reactants` and `products` are the reaction's pool names as the block spelled them. ^compile-rate
 
 **check_constant_sign**`(form: Any, env: Env) -> None`
-    The sign rule (§ [Sign rule](#sign-rule)), run by `_compile_form` on every quoted law before either shape is tried. Raises `ExprError` naming the node, the factor and its support; returns `None` when no constant position can be negative. ^check-constant-sign
+    The sign rule (§ [Sign rule](#sign-rule)), run by `_compile_form` on every quoted law before either shape is tried. Raises `ExprError` naming the node, the factor and its support; returns `None` when no constant position can be negative. Runs `check_modulation_supports` first. The negative-constant message reports the folded value of the expression as written, dividing by a divisor (`0.2 / -4 * A` → `negative rate constant -0.05`; it multiplied until `fa72cb8`). ^check-constant-sign
+
+**check_modulation_supports**`(form: Any, env: Env) -> None`
+    The sign rule for modulation parameters, recursing through every argument, so a modulation inside a sum is checked too. `K`, `Ki`, `Vmax` and `a` are rate constants in all but name: each must have a non-negative support. A `hill` whose `K` can be 0 needs a point, non-negative integer `n` (default 2); with `K > 0` on every seed `n` may be anything. Raises `ExprError` naming the parameter and the node (`hill.K can be negative — k (bound to …) has support [-4, 1]`). A drawn `Ki` used to refuse per seed, after other trials had spent; a drawn `K`, `Vmax` or `a` ran at rate 0 on some seeds. Not in `__all__`. Since `fa72cb8` (T091 M2). ^check-modulation-supports
+
+**SUPPORTED_DIST_HEADS**` = ("normal", "uniform", "lognormal", "poisson", "exponential", "discrete", "choice", "constant")`
+    The distribution heads the support check knows. Any other `dist` head in a constant position refuses at load as unsupported for a support check, naming the list; until `fa72cb8` it was read as the whole line, which refused an all-positive law with a misleading support (T091 M3). Not in `__all__`. ^supported-dist-heads
 
 
 
@@ -134,13 +142,15 @@ The entry point and its tables.
 | `!q "normal(1, 0.1) * A"` | refused: the factor's support is `[-inf, inf]` |
 | `!q "-0.2 * (A - 5)"` | refused: constant factor `-0.2` |
 | `!q "0.2 * (5 - A)"` | expression: loads; read as 0 while `A > 5` |
+| `!q "choice([-0.1, 0.2]) * A"` | refused: support `[-0.1, 0.2]` |
+| `!q "hill(B, k, n=1.5) * A"`, `k` drawn from `uniform(0, 1)` | refused: `K` can be 0 with a fractional `n` |
 
 
 
 ## Sign rule
-A rate law's constant factor is non-negative by construction, judged at load for every seed at once (T091 I1–I3). The constant positions are the whole law when it reads no pool, and otherwise each factor of the top-level product chain (multiplicands and divisors, through unary minus) that reads no pool. Each is folded to the interval it can take on any seed: a number is a point; constant arithmetic is folded in either spelling (`k - 1` with `k = 0.5`, `0.2 / -1`, `exp(-1)`); a distribution head or `Dist` is its support (`normal` the whole line, `uniform(lo, hi)` `[lo, hi]`, `lognormal`/`poisson`/`exponential` `[0, inf)`, `support_of` for a `Dist` object — [ABIO Dist](ABIO%20Dist.md)). A factor whose interval straddles zero, or factors whose signs multiply negative, refuse naming the node and the support; a zero factor ends the check. So the verdict never depends on the seed a world is drafted at, and `--dry` agrees with every trial.
+A rate law's constant factor is non-negative by construction, judged at load for every seed at once (T091 I1–I3). The constant positions are the whole law when it reads no pool, and otherwise each factor of the top-level product chain (multiplicands and divisors, through unary minus) that reads no pool. Each is folded to the interval it can take on any seed: a number is a point; constant arithmetic is folded in either spelling (`k - 1` with `k = 0.5`, `0.2 / -1`, `exp(-1)`); a distribution head or `Dist` is its support (`normal` the whole line, `uniform(lo, hi)` `[lo, hi]` with `low=` / `high=` keywords read too, `lognormal`/`poisson`/`exponential`/`discrete` `[0, inf)`, `choice([...])` the min and max of its members, `constant(x)` the interval of `x`, `support_of` for a `Dist` object — [ABIO Dist](ABIO%20Dist.md)); a head outside `SUPPORTED_DIST_HEADS` refuses as unsupported. `log`, `min`, `max` and `pow` / `**` fold to their real intervals: `log` over a non-negative interval, `min` / `max` of their members' bounds, an even integer power from 0 (or the smaller end) up, an odd one monotone, a negative exponent over a positive base inverted. `min` / `max` over a drawn constant still refuse, because those heads evaluate at world build and cannot compare a `QuotedForm`. A factor whose interval straddles zero, or factors whose signs multiply negative, refuse naming the node and the support; a zero factor ends the check. So the verdict never depends on the seed a world is drafted at, and `--dry` agrees with every trial.
 
-A factor that reads a pool is not a constant: a law negative because of state loads and both simulators read it as 0. Hence `-0.2 * (A - 5)` refuses while the equal `0.2 * (5 - A)` loads; terms of a sum are not constant positions, so `5 - A` and `0.2 * (5 - A)` get the same verdict. A name bound with `!x normal(...)` is drawn outside the law, so the law sees a number and is judged per seed: a negative draw refuses on that seed only.
+A factor that reads a pool is not a constant: a law negative because of state loads and both simulators read it as 0. Hence `-0.2 * (A - 5)` refuses while the equal `0.2 * (5 - A)` loads; terms of a sum are not constant positions, so `5 - A` and `0.2 * (5 - A)` get the same verdict. Modulation parameters (`K`, `Ki`, `Vmax`, `a`, and a hill's `n` when `K` can be 0) carry the same rule ([check_modulation_supports](#^check-modulation-supports)), modulations inside sums included. A name bound with `!x normal(...)` is drawn outside the law, so the law sees a number and is judged per seed: a negative draw refuses on that seed only.
 
 
 
@@ -163,3 +173,4 @@ A constant factor is a Dist, drawn once per world when the block realizes: `k` u
 - 2026-10-28 — refreshed against 0eb23e5 (`64988be`): the numeric heads are `rate_expr.modulation_factor` (`inhibitor(1, 0)` = 0.0), the product-form fallback is the typed `_NotProductForm`, a reactant named inside a template is read as its pool; figure legend follows.
 - 2026-10-29 — refreshed for `cce3a04` (T091 E4, E9): a factor naming a reactant or product sends the law to the expression path (the whole rate when it names a reactant); a product of two distributions anywhere and a negative rate constant refuse at load, naming the node.
 - 2026-10-29 — refreshed for `aa0e59a` (T091 I1–I3): `check_constant_sign` refuses at load any constant factor whose support can be negative on some seed, folding constant arithmetic in both spellings; a `Dist` rate is checked by its support.
+- 2026-10-29 — refreshed for `fa72cb8` (T091 M2, M3, lows): `check_modulation_supports` and `SUPPORTED_DIST_HEADS` given blocks; `choice`, `uniform` keywords, `log` / `min` / `max` / `pow` intervals; an unsupported dist head refuses; the negative-constant message divides by a divisor. Figure still true.

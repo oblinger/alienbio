@@ -13,7 +13,7 @@ The compiled form of a rate law: a small tree of tuples, built once from the rat
 
 
 ## rate_expr Interface
-Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and sixteen functions (the two constants since 2026-10, `inhibitor_ratio` since `bf91515`, `check_rate_law`, `snap_residue` and `snap_residue_jax` since `3269751`); the constants and the snap are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` by name.
+Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and sixteen functions (the two constants since 2026-10, `inhibitor_ratio` since `bf91515`, `check_rate_law`, `snap_residue` and `snap_residue_jax` since `3269751`); the constants and the snap are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers, `asks_all` and `asks_all_jax` are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` and `asks_all` by name, `jax_core.py` imports `asks_all_jax`.
 
 | rate_expr | |
 | --- | --- |
@@ -35,6 +35,8 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 | [[#^check-rate-law\|check_rate_law]] | Refuse a malformed tree or an unevaluable hill |
 | [[#^snap-residue\|snap_residue]] | Snap a negative residue relative to the pre-pass value |
 | [[#^snap-residue-jax\|snap_residue_jax]] | The same snap over JAX arrays |
+| [asks_all](#^asks-all) | Whether a pass asks a pool for all it holds |
+| [asks_all_jax](#^asks-all-jax) | The same test over JAX arrays |
 | [[#^rounding-floor\|ROUNDING_FLOOR]] | Below this magnitude a value is zero |
 | [[#^rate-cap\|RATE_CAP]] | The largest desired extent per step |
 | [PARITY_TOL](#^parity-tol) | The parity contract's tolerance |
@@ -93,6 +95,12 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 
 **snap_residue_jax**`(value: Any, pre: Any) -> Any`
     `snap_residue` as `jnp.where` over arrays, the same arithmetic; `jax_core.apply_reactions` returns `snap_residue_jax(S', S)`. Imports `jax.numpy` inside the call. Since `3269751`. ^snap-residue-jax
+
+**asks_all**`(demand: float, avail: float) -> bool`
+    The exhausted-pool test both reaction steppers share: `demand > 0` and `demand ≥ avail − ROUNDING_FLOOR · max(1, avail)`, the tolerance `snap_residue` uses. A pool it holds for, and that binds every reaction drawing it, ends the pass at exactly what the pass produced into it (`WorldSimulatorImpl._apply_reactions`, `jax_core.apply_reactions`). It replaced `ratio < 1`: draws whose `k·dt` sum to 1 ask a pool for itself to within an ulp, `ratio` rounds to 1.0, and the two backends, which sum the draws in different orders, landed on opposite sides of an exact `≥` (11 of 400 such pools kept a residue on one backend only; a `1/[x]` law amplified it to a relative gap of 1.0). Since `efc4556` (T091 M1). ^asks-all
+
+**asks_all_jax**`(demand: Any, avail: Any) -> Any`
+    `asks_all` as `jnp` ops over arrays, the same arithmetic; `jax_core.apply_reactions` calls `asks_all_jax(demand, S)` over `[C, M]`. Imports `jax.numpy` inside the call. Since `efc4556`. ^asks-all-jax
 
 **ROUNDING_FLOOR**`: float = 1e-12`
     Below this magnitude a value is float residue of an exact zero. Read by `eval_rate`'s and `lower_jax`'s `div` as an absolute bound, and by `snap_residue` / `snap_residue_jax` as a tolerance scaled by `max(1, pre)` ([[#Rounding floor and rate cap]]). ^rounding-floor
@@ -190,7 +198,7 @@ The floor lives here because the two backends once carried their own copies, and
 
 The supported range is concentrations, multiplicities and amounts from 0 to 1e6 (the range the conformance property draws; catalog pools are ~1–100): there the two agree under `parity_agrees`, and where JAX gives NaN or inf the reference gives the same. Pools far beyond it, or spread across more orders of magnitude than float64 carries, are out of contract.
 
-The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_reference_on_modulations_and_expression_laws` (a Michaelis–Menten quotient, a `sqrt`·`exp` sum and every modulation kind, to 1e-9) and `tests/capabilities/test_simulator_conformance.py`, whose generated laws use every operator — `add`, `sub`, `mul`, `div`, `pow` (exponents −1, 0.5, 1.5, 2, 3, over a species or a `sub` that can go negative), `sqrt`, `exp`, `log` — and `michaelis`, plus one pinned `1/[x]` case on an exhausted species; `tests/bio/test_moddoc_findings_rate_expr.py` pins each row of the table above.
+The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_reference_on_modulations_and_expression_laws` (a Michaelis–Menten quotient, a `sqrt`·`exp` sum and every modulation kind, to 1e-9) and `tests/capabilities/test_simulator_conformance.py`, whose generated laws use every operator — `add`, `sub`, `mul`, `div`, `pow` (exponents −1, 0.5, 1.5, 2, 3, over a species or a `sub` that can go negative), `sqrt`, `exp`, `log` — and `michaelis`, plus pinned `1/[x]` cases on an exhausted species, one of them a pool asked for exactly what it holds (`_pool_asked_for_exactly_what_it_holds`, `efc4556`); its closed one-to-one systems conserve their total to `rel=1e-12, abs=1e-9` (relative too, since a 5e5 total rounds ~1.2e-10 per add); `tests/bio/test_moddoc_findings_rate_expr.py` pins each row of the table above.
 
 
 
@@ -202,3 +210,4 @@ The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_referenc
 - 2026-10-28 — refreshed against `bf91515`: `modulation()` refuses a negative or NaN `Ki`; `inhibitor_ratio` is exported. Figure still true.
 - 2026-10-29 — refreshed for `3269751` (T091 C1–C3) and `db300c9` (F5): `check_rate_law`, `snap_residue`, `snap_residue_jax` exported and documented, the snap is relative to the pre-pass value, a hill with no finite real `K**n` refuses at compile (`modulation`, `from_json`, `check_rate_law`, and `Modulation.__post_init__`), `ieee_pow` reads a negative base under a fractional exponent as NaN in the overflow branch too, and the 0–1e6 supported range is stated. Figure still true.
 - 2026-10-29 — refreshed for `198f307`: `PARITY_TOL` and `parity_agrees`, the one parity statement both simulators' tests assert.
+- 2026-10-29 — refreshed for `efc4556` (T091 M1): `asks_all` and `asks_all_jax`, the exhausted-pool test both steppers share, replacing `ratio < 1`; the conformance file's new pinned case and the canary's `rel=1e-12, abs=1e-9`. Figure still true.

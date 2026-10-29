@@ -57,13 +57,13 @@ Predict the terminal sink's response to speeding the chain's first reaction.
 **draft_prediction_world**`(seed, *, n_nodes=4, factor=3.0, ill_posed=False) -> (WorldImpl, CarveResult, str)`
     Reactions `m_i_m_{i+1}` at seeded rates in `[0.1, 1.0)`; `ill_posed` sets `m1_m2` to rate 0 (needs `n_nodes ≥ 3`). The perturbed reaction is always `m0_m1`, the target always `m{n−1}`. ^draft-prediction-world
 
-**predicted_response**`(world, target_id, reaction_id, factor, sim_cfg=SimConfig(), seed=Seed(0), *, tol=1e-6) -> str`
-    Simulates the world and its `perturb_rate` twin and compares the target's final concentration in the first compartment: `up`, `down`, or `same` within `tol`. ^predicted-response
+**predicted_response**`(world, target_id, reaction_id, factor, sim_cfg=SimConfig(), seed=Seed(0), *, tol=1e-6, compartment=None) -> str`
+    Simulates the world and its `perturb_rate` twin and compares the target's final concentration in one compartment, picked by [target_compartment](#^target-compartment)'s rule (`compartment` when named, else the only compartment, else the one holder; a multi-holder world with none named refuses, `task="predict"`, hinting `predict_q(..., compartment=<id>)`): `up`, `down`, or `same` within `tol`. It read `world.compartments[0]` whatever the world until `fa72cb8` (T091 M11). ^predicted-response
 
-**PredictResponseRecipe**`(reaction_id, target_id, factor=3.0, verb="predict", sim_cfg=SimConfig(), seed=Seed(0), tol=1e-6)`
-    Question: `{reaction_id, target_id}` as a `node_set`; key: `predicted_response(...)`; grader `node_id`. ^predictresponserecipe
+**PredictResponseRecipe**`(reaction_id, target_id, factor=3.0, verb="predict", sim_cfg=SimConfig(), seed=Seed(0), tol=1e-6, compartment=None)`
+    Question: `{reaction_id, target_id}` as a `node_set`; key: `predicted_response(..., compartment=)`; grader `node_id`. `predict_q(..., compartment=)` sets `compartment`; Organism's binding names `compartment: organism`, since lactate can be held in all four compartments. ^predictresponserecipe
 
-**predict_response**`(reaction_id, target_id, factor=3.0, *, sim_cfg, seed, archetype_id) -> TaskArchetype`
+**predict_response**`(reaction_id, target_id, factor=3.0, *, sim_cfg, seed, archetype_id, compartment=None) -> TaskArchetype`
     Two gated roles (`perturbed` a reaction, `target` a molecule), no edges. ^predict-response
 
 
@@ -88,7 +88,7 @@ Drive the chain's sink to a goal concentration; outcome-scored.
     The binding's `compartment` entry when given (it must be a compartment of the world), else the only compartment, else the one compartment `target_holders` returns — read off the chemistry, not off the `initial` listing, so a cosmetic `P: 0.0` changes nothing (T091 I4); several holders or none refuse at draft, naming the compartments and the `compartment:` binding (T091 E2: a sum over compartments of different volumes is no quantity the task states). `task` prefixes the refusal and `hint` replaces its binding advice, so the conflict oracle shares the rule ([ABIO Tradeoff](ABIO%20Tradeoff.md)). `make_intervention_objective(…, world=)` calls it. ^target-compartment
 
 **target_holders**`(world, target_id) -> list[str]`
-    The compartments, in world order, that can ever hold the target: a fixpoint over what each compartment can contain — initial amounts above zero; the products of every reaction whose reactants can all be there (both simulators run every reaction in every compartment, so a reactant-free source counts everywhere; a rate of 0 counts, since an Intervene may set it); what a transport flux carries by direction (forward species origin → dest, back species dest → origin) while its driver can be in the origin; what a death law releases. Duck-typed: a world without `flows` or `population_laws` has none. ^target-holders
+    The compartments, in world order, that can ever hold the target: a fixpoint over what each compartment can contain — initial amounts above zero; the products of every reaction whose reactants can all be there (both simulators run every reaction in every compartment, so a reactant-free source counts everywhere; a rate of 0 counts, since an Intervene may set it); what a transport flux carries by direction (forward species origin → dest, back species dest → origin) while its driver can be in the origin; what a death law releases; and whatever a `CountFlow`'s origin can hold, its dest can come to hold, since it moves individuals with their contents (`fa72cb8`, T091 M7). Duck-typed: a world without `flows` or `population_laws` has none. ^target-holders
 
 **make_target_scorer**`(target_mol_id, target_value, compartment=None) -> Callable[[Timeline], float]`
     `1 / (1 + |final − goal|)` on the final state: the target's concentration in the one compartment `target_compartment` picked. `compartment` unset is allowed only on a one-compartment state; on a multi-compartment state, or a compartment the state does not carry, the scorer raises. ^make-target-scorer
@@ -122,3 +122,4 @@ Drive the chain's sink to a goal concentration; outcome-scored.
 - 2026-10-28 — refreshed against `bf91515`: diagnose perturbs by default (`DEFAULT_PERTURBATION = 3.0`), `perturb_reaction_rate` keeps flows and refuses a `rate_law` reaction, the intervene head passes the episode-horizon `sim_cfg`.
 - 2026-10-29 — refreshed for `e392c11` and `62fdc9a` (T091 A2, E2): the diagnose target is drawn from `m1 … m{n−1}` (the `m0`/`m1` shared-world note deleted), and the intervene scorer reads one compartment through the new `target_compartment` (`compartment=` on the scorer and objective). A concurrent uncommitted edit adds `task=`/`hint=` keywords to `target_compartment`; not documented until it lands. Figure: the diagnose-key note "m0, m1 share r0" now reads "target never m0".
 - 2026-10-29 — refreshed for `6fe6921` and `198f307` (T091 I4, I5): the target's compartment is the one `target_holders` derives from the chemistry, and `make_intervention_objective(…, world=)` refuses an ambiguous world at construction; `target_compartment` takes `task=`/`hint=` for the conflict oracle.
+- 2026-10-29 — refreshed for `fa72cb8` (T091 M7, M11): `predict` reads its target in one compartment by `target_compartment`'s rule (`compartment=` on `predicted_response`, the recipe, the factory and `predict_q`), a multi-holder world with none named refuses; `target_holders` follows `CountFlow` origin → dest. Figure still true.

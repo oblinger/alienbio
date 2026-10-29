@@ -83,7 +83,7 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
     Every non-blank `records.jsonl` line as `(line, decoded dict, record)`; the line is kept verbatim so a resume can rewrite the store from it. The one reader the resume and `aggregate` share. A line that is not JSON raises [StoreError](#^storeerror) naming the file and its 1-based line number, and calls it a crash artifact (an append torn by a crash or a full disk) when it is the last line with no trailing newline; nothing is dropped silently (T091 B4). ^read-records
 
 **StoreError**`(ValueError)`
-    A record store that cannot be read as written: a `records.jsonl` line that is not JSON. The message names the file, the line and the repair (delete or restore it). `preflight`'s `records-readable` check reports it before a resume. ^storeerror
+    A record store that cannot be read as written: a `records.jsonl` or `records.retried.jsonl` line that is not JSON, or a `records.retried.jsonl` whose last line has no trailing newline when a resume would append to it. The message names the file, the line and the repair (delete or restore it). `preflight`'s `records-readable` check reports it before a resume, reading both files whenever they exist. ^storeerror
 
 **records_spend_usd**`(path: Path, spec: ExperimentSpec, *, exclude: frozenset[str] = frozenset()) -> float`
     The priced usage of every line in one record file, reused and error lines alike, through [_usage_usd](#^usage-usd); a line in `exclude` (verbatim) is skipped, and a missing file is 0. `experiment.py` re-exports it. ^records-spend-usd
@@ -107,7 +107,7 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
     The same temp-file + `os.replace` for text; a resume's `records.jsonl` rewrite. ^atomic-write-text
 
 **_append_retried**`(path: Path, lines: list[str]) -> None`
-    Appends to `records.retried.jsonl` every line not already in it byte for byte, so a resume replayed after a crash adds nothing; a trial that fails again on a later press writes a different line and is kept. ^append-retried
+    Appends to `records.retried.jsonl` every line not already in it byte for byte, so a resume replayed after a crash adds nothing; a trial that fails again on a later press writes a different line and is kept. Refuses with [StoreError](#^storeerror) when the file's last line has no trailing newline (a torn tail): appending onto it glued the new evidence into the unparseable line. `records-readable` refuses first; this is the store's own guard (`fa72cb8`, T091 M4). ^append-retried
 
 **_build_manifest**`(spec: ExperimentSpec, trials_planned: int, started_at: str) -> dict[str, Any]`
     The manifest as `run_experiment` writes it before the grid: the spec and its sha256, provenance, the model and memory in force, sampling, the resolved registration, the directive hash, the counters at zero and the dry-run `cost_estimate` ([The manifest](#the-manifest)). Calls `estimate_cost(spec)` and `registration_admission(spec)`, so it raises whatever they raise; `preflight` has already run both. ^build-manifest
@@ -208,7 +208,7 @@ The `models`/`memories` keys are absent, not empty, when nothing is swept, so `m
 
 
 ## Resume and retries
-`run_experiment(spec, resume=True)` — `bio suite resume <DIR>`, with the spec file as it is now (`spec_from_manifest(manifest, current=True)`, so an edit to the yaml is drift) — first passes `preflight`: `records-readable` refuses a torn or corrupt line, and `resume` refuses records with no manifest, an unreadable manifest, one with no spec, a ceiling below what the directory already spent (`directory_spend_usd`), or a spec that drifted beyond widening (more trials, new levels on an existing axis; `concurrency`, `out_dir` and `cost_ceiling_usd` are not drift; [ABIO Guards](ABIO%20Guards.md)). It then reads `records.jsonl` line by line:
+`run_experiment(spec, resume=True)` — `bio suite resume <DIR>`, with the spec file as it is now (`spec_from_manifest(manifest, current=True)`, so an edit to the yaml is drift) — first passes `preflight`: `records-readable` refuses a torn or corrupt line in `records.jsonl` or `records.retried.jsonl` (each read whenever it exists, ceiling or not, so nothing has moved yet), and `resume` refuses records with no manifest, an unreadable manifest, one with no spec, a ceiling below what the directory already spent (`directory_spend_usd`), or a spec that drifted beyond widening (more trials, new levels on an existing axis; `concurrency`, `out_dir` and `cost_ceiling_usd` are not drift; [ABIO Guards](ABIO%20Guards.md)). It then reads `records.jsonl` line by line:
 
 | Line | What happens |
 | --- | --- |
@@ -238,3 +238,4 @@ When anything was retried, the error lines are appended to `records.retried.json
 - 2026-10-28 — refreshed against `552c1a7`: `grade_error` rides the line only when set and `record_from_json` reads it back.
 - 2026-10-29 — refreshed for `e5ea4d0`, `e392c11` and `661005d` (T091 B3/B4/B7, A1, E1): colliding strings escaped and every tree decoded once, `StoreError` naming the torn line, `records_spend_usd`/`_usage_usd` documented here, `runout` on the line, `spec_path`/`helper_modules`/`cost_ceiling_history` on the manifest, and resume reading the spec file as it is now.
 - 2026-10-29 — refreshed for `c80cf5f` and `54d9ad1` (T091 D, K3): `directory_spend_usd` and `RETRIED_FILENAME` added, the ceiling is the directory's budget in the guard and the spend counter; `taint_exempt` rides the line only when non-empty.
+- 2026-10-29 — refreshed for `fa72cb8` (T091 M4): on a resume `records-readable` reads `records.jsonl` and `records.retried.jsonl` whenever they exist, ceiling or not; `_append_retried` refuses a torn tail. Figure still true.
