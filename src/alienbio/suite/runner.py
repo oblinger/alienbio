@@ -676,6 +676,13 @@ def run(
     first_observation = preamble.first_observation
     brief = preamble.brief
     lever_readouts = task_readouts(task, chemistry)
+    # T091 D1 — every id the agent itself named in a Measure / Intervene, with
+    # the number of prompts it had sent when it first named it. A prompt from
+    # that index on may echo the agent's own guess back (its history, the
+    # rejection reason); that echo is not a leak, so the taint audit exempts
+    # the id there — and only there: a prompt sent BEFORE the agent named it
+    # is still audited for it.
+    agent_named: dict[str, int] = {}
     # M45.15 — on a non-neutral world (or under the ``opaque_names`` dial) the
     # agent sees and speaks surface names; the runner keeps the world's own.
     name_map: Optional[NameMap] = None
@@ -834,6 +841,11 @@ def run(
                 monitor_shown.append(turn)
             _fire_probes(turn, "every_turn", observation)
             action, reasoning_steps = agent.act(observation)
+            named_id = (
+                action.probe if isinstance(action, Measure) else action.lever if isinstance(action, Intervene) else None
+            )
+            if isinstance(named_id, str) and named_id not in agent_named:
+                agent_named[named_id] = len(getattr(agent, "prompt_texts", None) or ())
             trace = thread_reasoning_steps(trace, turn, action, reasoning_steps)
             # T026 — "after the action is selected, before it executes": the fork
             # point measures 3/4 probe at; ``at_commit`` is the same point gated
@@ -851,8 +863,26 @@ def run(
             # feed and a throttle-up both read "moved").
             intervene_value: Optional[float] = None
             intervene_delta: Optional[float] = None
-            is_assay = isinstance(action, Measure) and bool(action.params.get("assay"))
-            if isinstance(action, Measure) and is_assay:
+            # T091 D5/D6 — ``params`` is a JSON object and its ``assay`` flag a
+            # JSON boolean; anything else is an illegal action as data. A
+            # string ``params`` used to crash the trial after the paid call,
+            # and ``bool("false")`` ran the destructive assay.
+            params = getattr(action, "params", None)
+            params_problem = ""
+            if params is not None and not isinstance(params, Mapping):
+                params_problem = f"params must be a JSON object, got {type(params).__name__}"
+            elif params is not None and "assay" in params and not isinstance(params["assay"], bool):
+                params_problem = f"params.assay must be a JSON boolean, got {params['assay']!r}"
+            is_assay = (
+                not params_problem
+                and isinstance(action, Measure)
+                and isinstance(params, Mapping)
+                and params.get("assay") is True
+            )
+            if params_problem:
+                accepted = False
+                reject_reason = params_problem
+            elif isinstance(action, Measure) and is_assay:
                 if action.probe not in brief.affordances.assays:
                     accepted = False
                     reject_reason = f"unknown assay {action.probe!r}"
@@ -868,11 +898,16 @@ def run(
                     intervene_value = float(action.value)
                 if action.lever not in brief.affordances.levers:
                     # The brief is the one source: an id it left off the
-                    # surface for a reason (readout, hidden pool, rate law)
-                    # is rejected naming that reason.
+                    # surface for a reason (readout, rate law) is rejected
+                    # naming that reason. A structurally hidden pool is the
+                    # exception (T091 D1): the reason reaches the agent via
+                    # ``notice``, and "names a structurally hidden pool"
+                    # confirmed a guess at the ledger — it gets exactly the
+                    # text an id the world does not hold gets.
                     accepted = False
-                    reject_reason = lever_exclusion(
-                        action.lever, chemistry, lever_readouts, setup_hidden
+                    reject_reason = (
+                        None if action.lever in setup_hidden
+                        else lever_exclusion(action.lever, chemistry, lever_readouts, setup_hidden)
                     ) or f"unknown lever {action.lever!r}"
                 elif action.lever not in chemistry.reactions and action.lever not in chemistry.molecules:
                     accepted = False
@@ -1136,6 +1171,7 @@ def run(
             partial_hits = audit_prompts(
                 agent, brief, chemistry, task, name_map,
                 probe_texts=tuple(text for _timing, text in probe_decls),
+                agent_named=agent_named,
             )
         except Exception as audit_exc:
             err = TrialError(partial, exc)
@@ -1211,7 +1247,11 @@ def run(
     else:
         objective_score = 0.0  # AnswerObjective task, no Commit: nothing to grade
 
-    taint_hits = audit_prompts(agent, brief, chemistry, task, name_map, probe_texts=tuple(text for _timing, text in probe_decls))
+    taint_hits = audit_prompts(
+        agent, brief, chemistry, task, name_map,
+        probe_texts=tuple(text for _timing, text in probe_decls),
+        agent_named=agent_named,
+    )
     wall_time_s = time.perf_counter() - start_time
 
     record = TrialRecord(
@@ -1303,7 +1343,15 @@ def _leaf_strings(value: Any) -> set[str]:
     return set()
 
 
-def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: TaskInstance, name_map: Optional[NameMap] = None, probe_texts: tuple[str, ...] = ()) -> tuple[str, ...]:
+def audit_prompts(
+    agent: Any,
+    brief: TaskBrief,
+    chemistry: ChemistryImpl,
+    task: TaskInstance,
+    name_map: Optional[NameMap] = None,
+    probe_texts: tuple[str, ...] = (),
+    agent_named: Optional[Mapping[str, int]] = None,
+) -> tuple[str, ...]:
     """M46.10 — scan the prompts an agent actually sent for that trial's secrets.
 
     Applies only to an agent exposing ``prompt_texts`` (``LLMAgent``); a
@@ -1323,6 +1371,14 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
     that name nothing visible. Matching is whole-token (the ids contain ``/``
     and ``_``, so the boundary is "not adjacent to another id character").
     Returns the sorted hit tokens.
+
+    ``agent_named`` (T091 D1) maps a structural id the agent itself named in
+    a ``Measure``/``Intervene`` to the number of prompts it had sent when it
+    first did: from that prompt on, the id (in the form the agent spoke it)
+    is the agent's own guess echoed back — its history, the rejection
+    reason — and is not counted. Every earlier prompt is still audited for
+    it, so a leak the agent then acted on is still a hit. The audit is about
+    what the prompts handed the agent, never about what the agent guessed.
     """
     prompts = getattr(agent, "prompt_texts", None)
     if not prompts:
@@ -1358,9 +1414,15 @@ def audit_prompts(agent: Any, brief: TaskBrief, chemistry: ChemistryImpl, task: 
         secrets = {name_map.surface(s) for s in secrets} | set(name_map.to_surface)
     if not secrets:
         return ()
+    echoed_from: dict[str, int] = {}
+    for named, index in (agent_named or {}).items():
+        token = name_map.surface(named) if name_map is not None else named
+        echoed_from[token] = min(index, echoed_from.get(token, index))
     hits: set[str] = set()
-    for text in prompts:
+    for i, text in enumerate(prompts):
         for token in secrets:
+            if token in echoed_from and i >= echoed_from[token]:
+                continue
             if token_pattern(token).search(text):
                 hits.add(token)
     return tuple(sorted(hits))

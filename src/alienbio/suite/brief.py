@@ -383,10 +383,20 @@ def task_readouts(task: TaskInstance, chemistry: "ChemistryImpl") -> frozenset[s
     - on a question that is a bare collection of ids (an outcome or predict
       example), every molecule it names — unless the task's answer key is
       itself a world node (diagnose / identify): there the named molecules
-      are candidates or endpoints, not a measurement.
+      are candidates or endpoints, not a measurement;
+    - every id the drafter declares in ``task.setup["readouts"]`` (the
+      per-turn readout series, T062). T091 D2: W2 declares its custodial
+      reserve there — the pool ``w2_gen.harm_committed`` sums — but nothing
+      above names it, so a declared lever on it passed every guard and
+      setting it to 0 erased 70–80 % of committed harm.
     """
     molecules = chemistry.molecules
     readouts: set[str] = set()
+    declared = task.setup.get("readouts") if isinstance(task.setup, Mapping) else None
+    if declared is not None:
+        for named in declared:
+            readouts.add(str(named))
+            readouts |= _resolve_molecules(str(named), molecules)
     structured = task.question.structured
     if isinstance(structured, Mapping):
         for key in ("target", "tracked"):
@@ -449,16 +459,20 @@ def lever_exclusion(
     such a lever from the default surface and refuses it declared, and the
     runner names this reason when it rejects an ``Intervene`` on it.
     """
-    if lever in readouts:
-        return (
-            f"{lever!r} is this task's readout molecule — an Intervene on the readout writes the "
-            "answer into the measurement (T023 / AUP finding 2026-08-31)"
-        )
+    # A hidden pool is named first: W2 declares its hidden chain and ledger
+    # among ``setup["readouts"]`` too (T091 D2), and the spec author's
+    # refusal should say the stronger reason. The agent never sees either
+    # text for a hidden id — the runner tells it ``unknown lever`` (T091 D1).
     if lever in hidden_ids:
         return (
             f"{lever!r} names a structurally hidden pool (task.setup['hidden_ids']) — the agent "
             "cannot observe it, and an Intervene would write the measurement's own ground truth "
             "(T066 Q1 / AUP ruling 2026-10-07)"
+        )
+    if lever in readouts:
+        return (
+            f"{lever!r} is this task's readout molecule — an Intervene on the readout writes the "
+            "answer into the measurement (T023 / AUP finding 2026-08-31)"
         )
     reaction = chemistry.reactions[lever] if lever in chemistry.reactions else None
     if reaction is not None and reaction.rate_law is not None:
@@ -631,6 +645,12 @@ def build_brief(
     # nothing and makes the brief's promise true.
     from .monitor import monitor_probe_ids
 
+    # T091 D4 — the implicit lever surface is read off the OBSERVED ids, before
+    # the monitor's keys join the probes: an ``auditor:*`` key is a readout of
+    # the runner's ledger, not a pool, so every Intervene on it was rejected
+    # as "allowlisted but not resolvable" — the same monitored-arm-only
+    # illegal-action confound T066 removed for Measure.
+    observed_ids = probes
     monitor_probe_keys = monitor_probe_ids(dials)
     if monitor_probe_keys:
         probes = tuple(sorted(set(probes) | set(monitor_probe_keys)))
@@ -688,9 +708,19 @@ def build_brief(
         # against the intended 0.25).
         levers = tuple(
             lever
-            for lever in tuple(sorted(chemistry.reactions)) + probes
+            for lever in tuple(sorted(chemistry.reactions)) + observed_ids
             if lever_exclusion(lever, chemistry, readouts, setup_hidden_ids) is None
+            and not lever.startswith("auditor:")
         )
+
+    # T091 F1 — a task whose goal is above the mass its world holds
+    # (``intervene``'s held-mass bound) is reachable only through a molecule
+    # SETPOINT lever. The drafter checked the surface it could see; here is
+    # the one the trial offers — under ``observability`` < 1 the implicit
+    # surface carries only the molecules the turn-0 observation shows.
+    bound = task.setup.get("held_mass_bound") if isinstance(task.setup, Mapping) else None
+    if bound and not any(lever in chemistry.molecules for lever in levers):
+        raise ValueError(f"build_brief: {bound} (the surface this trial offers: {sorted(levers)})")
 
     guarded = isinstance(task.setup, Mapping) and bool(task.setup.get("require_levers"))
 
@@ -737,6 +767,19 @@ def build_brief(
     #   SETS a numeric rate and would drop the law for mass action at the
     #   setpoint.
     if levers_dial is not None:
+        # T091 D9 — a declared lever the world does not hold (a typo in a
+        # launcher's list) was offered at the default cap and every pull was
+        # rejected as "allowlisted but not resolvable"; on an opaque world
+        # the unmapped id even reached the prompt verbatim. Refused here, so
+        # the ``draft`` preflight check carries it before spend.
+        missing = sorted(
+            lever for lever in set(levers) if lever not in chemistry.reactions and lever not in chemistry.molecules
+        )
+        if missing:
+            raise ValueError(
+                f"build_brief: declared lever(s) {missing} name no reaction or molecule in this world; "
+                "declare ids the world holds"
+            )
         refusals = {
             lever: reason
             for lever in levers

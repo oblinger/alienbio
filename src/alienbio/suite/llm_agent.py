@@ -592,7 +592,12 @@ def _parse_action(out: dict[str, Any]) -> tuple[Action, tuple[ReasoningStep, ...
         if reasoning_text
         else ()
     )
-    params = dict(out.get("params") or {})
+    # T091 D5 — a schema-valid reply may still carry a non-object ``params``
+    # (``"assay"``, ``3``): ``dict(...)`` over it raised out of ``act`` after
+    # the paid call and the trial was lost. It is passed through as written,
+    # and the runner rejects the action as data naming the field.
+    raw_params = out.get("params")
+    params: Any = {} if raw_params is None else dict(raw_params) if isinstance(raw_params, dict) else raw_params
     kind = out["type"]
     if kind == "measure":
         return Measure(probe=out["probe"], params=params), reasoning

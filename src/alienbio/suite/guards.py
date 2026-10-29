@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import inspect
+import math
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
@@ -14,6 +16,7 @@ from .phase1_gen import (
 )
 
 from .registration import REGISTRY_RELPATH, Registration, resolve_registration
+from .trial import frozen_value
 
 
 from .drafters import (
@@ -356,7 +359,15 @@ def agent_construction_violation(spec: ExperimentSpec) -> Optional[str]:
             return f"{spec.name}: condition {cond} builds no agent — {exc}"
         problem = _probe_signature_problem(agent)
         if problem is not None:
-            return f"{spec.name}: condition {cond} — agent {kind!r} {problem}"
+            # T091 G4 — the runner calls ``probe`` only when probes are
+            # declared; on a probe-free condition the old signature never
+            # runs, so it is a note there, not a refusal.
+            if dials.get("probes"):
+                return f"{spec.name}: condition {cond} — agent {kind!r} {problem}"
+            warnings.warn(
+                f"{spec.name}: agent {kind!r} {problem}; no probes are declared, so the run never calls it",
+                stacklevel=2,
+            )
     return None
 
 
@@ -577,7 +588,8 @@ def intervene_horizon_violation(spec: ExperimentSpec) -> Optional[str]:
         return None
     if not any(axis == "max_turns" for axis, _levels in spec.axes):
         return None
-    if _dial_values_in_play(spec, "intervene_horizon"):
+    # T091 F3 — an explicit ``intervene_horizon=None`` is "unset", not a pin.
+    if any(value is not None for value in _dial_values_in_play(spec, "intervene_horizon")):
         return None
     return (
         f"{spec.name}: intervene sweeps max_turns as an axis without intervene_horizon — the goal, "
@@ -678,6 +690,17 @@ def no_peeking_violation(
     outside the scope still refuse, and a mismatched claim raises."""
     if "llm" not in agent_kinds_in_play(spec):
         return None
+    # T091 D7 — ``opaque_names`` is a declared dial now, so a spec can reach
+    # the runner's off switch. Off, a live model reads the world's
+    # structural ids (``root/crux/sink_byproduct_in``), which say what each
+    # part is — the leak M45.15 closed — and the taint audit cannot see it
+    # (a visible id is not a secret). With a live model it may only be
+    # turned ON; no registration licenses turning it off.
+    if any(value is not None and not value for value in _dial_values_in_play(spec, "opaque_names")):
+        return (
+            "opaque_names=False with a live model would hand it the world's structural ids "
+            "(M45.15); only opaque_names=True may be set on an llm arm"
+        )
     registration = registration_admission(spec, registry_path)
     if spec.drafter in guarded_drafters() and registration is None:
         return f"drafter {spec.drafter!r} is a conflict/pressure/delta substrate"
@@ -717,6 +740,22 @@ def no_peeking_violation(
 _NON_RECORD_FIELDS: frozenset[str] = frozenset({"concurrency", "out_dir", "cost_ceiling_usd"})
 
 
+def _json_canonical(value: Any) -> Any:
+    """``value`` as a JSON round trip would leave it, for comparison only:
+    tuples and other sequences/sets as lists (sets sorted by ``repr``),
+    mapping keys as strings, and a non-finite float as its own spelling so
+    ``nan`` compares equal to ``nan``."""
+    if isinstance(value, Mapping):
+        return {str(k): _json_canonical(v) for k, v in value.items()}
+    if isinstance(value, (set, frozenset)):
+        return [_json_canonical(v) for v in sorted(value, key=repr)]
+    if isinstance(value, (list, tuple)):
+        return [_json_canonical(v) for v in value]
+    if isinstance(value, float) and not math.isfinite(value):
+        return {"__nonfinite__": repr(value)}
+    return value
+
+
 def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
     """T051 box 4 — the spec fields a ``resume=True`` call changed against the
     run's manifest, empty when the resume is legitimate. A resume keyed
@@ -737,7 +776,11 @@ def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
     :func:`preflight`'s ``resume`` verdict."""
     if not isinstance(prior, Mapping):
         return []
-    current = spec_to_dict(spec)
+    # T091 D3 — both sides in the manifest's own JSON normal form: a Python
+    # spec's ``levers=(id,)`` is a tuple in ``spec_to_dict`` and a list once
+    # read back, and ``(id,) != [id]`` refused the identical spec's resume.
+    prior = _json_canonical(prior)
+    current = _json_canonical(spec_to_dict(spec))
 
     def _derived_turns(d: Mapping[str, Any]) -> int:
         axes = tuple((name, tuple(levels)) for name, levels in dict(d.get("axes") or {}).items())
@@ -764,7 +807,11 @@ def _resume_spec_drift(prior: Any, spec: ExperimentSpec) -> list[str]:
     old_axes = dict(prior.get("axes") or {})
     new_axes = dict(current.get("axes") or {})
     for name, levels in old_axes.items():
-        if name not in new_axes or any(level not in list(new_axes[name]) for level in levels):
+        # T091 G1 — by the typed frozen form: ``1.0`` is not the level ``1``
+        # was (``==`` said it was), and a dict level is the same level in any
+        # key order.
+        new_levels = [frozen_value(level, typed=True) for level in new_axes.get(name, ())]
+        if name not in new_axes or any(frozen_value(level, typed=True) not in new_levels for level in levels):
             drift.append(f"axes.{name}")
     if any(name not in old_axes for name in new_axes):
         drift.append("axes")

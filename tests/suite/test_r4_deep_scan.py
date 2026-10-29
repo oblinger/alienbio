@@ -33,7 +33,9 @@ from alienbio.suite.experiment import run_experiment, spec_from_dict
 from alienbio.suite.guards import certainty_windows_violation, inert_arm_violation, preflight
 from alienbio.suite.llm_agent import LLMAgent, _retry_kind
 
-W1_LEVERS = ["root/uptake_fast_in", "root/uptake_clean_in"]
+# T091 D9: the pressure world's feed ids (``root/uptake_*`` named nothing, and
+# every pull was an unresolvable lever until build_brief refused the typo).
+W1_LEVERS = ["root/crux/uptake_waste_in", "root/crux/uptake_fast_in"]
 
 
 def _spec(**over):

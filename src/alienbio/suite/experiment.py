@@ -79,6 +79,7 @@ from .spec import (  # noqa: F401
     agent_kinds_in_play,
     estimate_cost,
     load_spec,
+    resolve_source_path,
     spec_from_dict,
     spec_to_dict,
 )
@@ -444,6 +445,36 @@ def run_experiment(
     return rmap
 
 
+def spec_from_manifest(manifest: Mapping[str, Any], *, current: bool = False) -> ExperimentSpec:
+    """The spec a run directory's manifest describes (T091 E1).
+
+    A manifest that names its ``spec_path`` has that file re-loaded through
+    :func:`load_spec`, which executes its trusted ``_includes_`` helpers — so
+    a catalog example's drafter and agents are registered before the spec
+    is read (they were not, and every example's resume, aggregate and
+    report refused on "unknown agent axis level(s)"). A recorded path that
+    no longer exists refuses, naming it.
+
+    ``current=False`` (aggregate, report) returns the spec the records were
+    drawn under — the manifest's own. ``current=True`` (resume) returns the
+    file as it is NOW, so the resume's drift check compares the edited file
+    against the manifest (a ``bio suite resume`` could not see an edit to
+    the yaml before; it rebuilt the manifest's spec and compared it with
+    itself). A manifest without ``spec_path`` (a Python-built spec) is read
+    from its ``spec`` alone either way."""
+    recorded = manifest.get("spec_path")
+    if recorded is None:
+        return spec_from_dict(manifest["spec"])
+    path = resolve_source_path(str(recorded))
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"the run's manifest names spec_path {recorded!r} ({path}), which does not exist — "
+            "restore the experiment file (it registers the run's drafter and agents)"
+        )
+    loaded = load_spec(path)
+    return loaded if current else spec_from_dict(manifest["spec"])
+
+
 def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
     """Rebuild a :class:`~alienbio.suite.mass_trial.ReliabilityMap` from
     ``records.jsonl`` + ``manifest.json`` alone — no world is re-drafted, no
@@ -458,7 +489,7 @@ def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
     if not manifest_path.exists():
         raise FileNotFoundError(f"aggregate: no manifest.json in {base}")
     manifest = read_manifest(manifest_path)
-    spec = spec_from_dict(manifest["spec"])
+    spec = spec_from_manifest(manifest)
 
     records_path = base / "records.jsonl"
     rows = [(d, record) for _line, d, record in read_records(records_path)] if records_path.exists() else []

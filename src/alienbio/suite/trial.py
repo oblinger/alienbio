@@ -55,14 +55,20 @@ def hashable_condition_key(condition_key: Any) -> tuple[tuple[str, Any], ...]:
     resets the key to the swept axes). Hashable values pass through
     unchanged, so existing summary keys are identical."""
 
-    def freeze(value: Any) -> Any:
-        if isinstance(value, Mapping):
-            return tuple(sorted((str(k), freeze(v)) for k, v in value.items()))
-        if isinstance(value, (list, tuple)):
-            return tuple(freeze(v) for v in value)
-        return value
+    return tuple((name, frozen_value(value)) for name, value in condition_key)
 
-    return tuple((name, freeze(value)) for name, value in condition_key)
+
+def frozen_value(value: Any, *, typed: bool = False) -> Any:
+    """One condition-key value as a summary buckets it (list -> tuple,
+    mapping -> sorted item tuple, recursively) — so two values that bucket
+    together compare equal here. ``typed=True`` also tags every scalar with
+    its type name, so ``1`` / ``1.0`` / ``True`` stay apart (T091 G1: the
+    resume drift check reads a changed level type as a changed level)."""
+    if isinstance(value, Mapping):
+        return tuple(sorted((str(k), frozen_value(v, typed=typed)) for k, v in value.items()))
+    if isinstance(value, (list, tuple)):
+        return tuple(frozen_value(v, typed=typed) for v in value)
+    return (type(value).__name__, value) if typed else value
 
 
 def thread_reasoning_steps(

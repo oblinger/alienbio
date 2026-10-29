@@ -114,8 +114,10 @@ def test_a_non_list_surface_is_a_surface_refusal(value, tmp_path):
 
 
 def test_a_non_list_axis_level_is_a_surface_refusal():
-    spec = _w1(axes={"levers": [list(W1_LEVERS), None]})
-    spec = spec_from_dict({**spec_to_dict(spec), "fixed_dials": {"pi": 0.5}})
+    # T091 D10: a dial may not be both fixed and swept, so ``levers`` is on the axis only.
+    spec = spec_from_dict(
+        {**spec_to_dict(_w1()), "axes": {"levers": [list(W1_LEVERS), None]}, "fixed_dials": {"pi": 0.5}}
+    )
     why = declared_surface_violation(spec)
     assert why is not None and "None" in why
 

@@ -11,6 +11,7 @@ from typing import Any, Mapping, Optional, Sequence, Union, cast
 
 from .llm_agent import PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, validate_output_budget, load_models_snapshot, price_for
 from .power import PowerDesign
+from .trial import frozen_value
 
 
 #: The repository root — the one definition; ``catalog/`` and the
@@ -112,6 +113,14 @@ class ExperimentSpec:
     #: (:func:`registration_admission`), refuses visibly on any mismatch,
     #: and the id is stamped on every record line + the manifest.
     registration: Optional[str] = None
+    #: T091 E1 — where :func:`load_spec` read this spec from:
+    #: ``{"spec_path": ..., "helper_modules": [...]}`` (each relative to the
+    #: repo root when under it, else absolute). Not part of the spec's value
+    #: (never compared, never in :func:`spec_to_dict`); the run manifest
+    #: carries it so ``bio suite resume|aggregate|report`` can reload the
+    #: file, which registers its ``_includes_`` helpers. ``None`` for a
+    #: Python-built spec.
+    source: Optional[Mapping[str, Any]] = field(default=None, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         """The one normaliser both forms pass through (T084): the YAML form
@@ -144,6 +153,16 @@ class ExperimentSpec:
         # plan an empty grid, a bool or float slipped into every seed label.
         put("trials_per_condition", _validate_positive_int("trials_per_condition", self.trials_per_condition))
         _validate_axes(self.axes)
+        # T091 D10 — a dial both fixed and swept: the axis silently won, every
+        # check passed, and ``spec_to_text`` wrote ``pi=0.5, pi=pi``, which
+        # reloads as a different spec. The Expr form cannot spell it; neither
+        # may the Python form.
+        both = sorted(set(self.fixed_dials) & {name for name, _levels in self.axes})
+        if both:
+            raise ValueError(
+                f"experiment spec: dial(s) {both} are both fixed and swept — the axis would silently "
+                "override the fixed value; keep one"
+            )
         if isinstance(self.base_seed, bool) or not isinstance(self.base_seed, int):
             raise ValueError(f"experiment spec: base_seed must be an int, got {self.base_seed!r}")
         if self.token_ceiling is not None:
@@ -209,6 +228,10 @@ def _validate_agent_fields(spec: "ExperimentSpec") -> None:
             _validate_positive_int(name, value)
 
 
+#: "No earlier level" for :func:`_validate_axes` (a level may itself be ``None``).
+_NO_LEVEL = object()
+
+
 def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...]) -> None:
     """T091 B1/B5/B10 — the grid's own shape, for both forms. A repeated
     axis name kept only the last block's levels (the first vanished with no
@@ -227,14 +250,24 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...]) -> None:
         names.add(name)
         if not levels:
             raise ValueError(f"experiment spec: axis {name!r} has no levels — it would plan an empty grid")
-        seen: set[str] = set()
+        # T091 G1/G2 — "repeated" is what the summary buckets as one cell
+        # (``trial.frozen_value``), not equal ``repr``: ``1``/``1.0``/``True``
+        # ran the whole grid and then ``aggregate_cells`` refused the merge,
+        # and two dict levels differing only in key order ran as two cells
+        # and were pooled into one with ``n`` doubled.
+        frozen_seen: list[tuple[Any, Any]] = []
         for level in levels:
-            if repr(level) in seen:
+            frozen = frozen_value(level)
+            twin = next((prior for prior, f in frozen_seen if f == frozen), _NO_LEVEL)
+            if twin is not _NO_LEVEL:
+                same = repr(twin) == repr(level)
                 raise ValueError(
-                    f"experiment spec: axis {name!r} repeats level {level!r} — each level is one cell; "
-                    "a repeated one would run every trial of that cell twice under one resume key"
+                    f"experiment spec: axis {name!r} repeats level {level!r}"
+                    + ("" if same else f" (as {twin!r}: the summary buckets them as one cell)")
+                    + " — each level is one cell; a repeated one would run every trial of that "
+                    "cell twice under one resume key"
                 )
-            seen.add(repr(level))
+            frozen_seen.append((level, frozen))
 
 
 def _with_idle_arm(
@@ -467,11 +500,13 @@ def _validate_design(value: Any, trials_per_condition: int, axes: Sequence[tuple
         raise ValueError(f"experiment spec: design must be a mapping, got {value!r}")
     pc = design.primary_contrast
     if pc is not None:
-        levels_by_axis = {name: set(levels) for name, levels in axes}
+        # Frozen forms: a dict-valued level (``output_schedule``) is unhashable,
+        # and ``set(levels)`` raised a bare TypeError here (T091 G, pre-existing).
+        levels_by_axis = {name: [frozen_value(level) for level in levels] for name, levels in axes}
         if pc["axis"] not in levels_by_axis:
             raise ValueError(f"experiment spec: design.primary_contrast axis {pc['axis']!r} is not a swept axis")
         for end in ("low", "high"):
-            if pc[end] not in levels_by_axis[pc["axis"]]:
+            if frozen_value(pc[end]) not in levels_by_axis[pc["axis"]]:
                 raise ValueError(
                     f"experiment spec: design.primary_contrast {end}={pc[end]!r} is not a level of axis {pc['axis']!r}"
                 )
@@ -610,13 +645,37 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
             declares, sweeps an axis nothing reads, or fails any of the
             spec validations — a typo must never silently become a no-op.
     """
+    from ..expr.include import recording_python_files
     from .expr_experiment import load_experiment
 
     # The framework's own catalog is trusted (its files may include Python
     # helpers); anything else loads untrusted.
     resolved = Path(path).resolve()
     trusted = (REPO_ROOT / "catalog").resolve() in resolved.parents
-    return load_experiment(path, trusted=trusted)
+    with recording_python_files() as executed:
+        spec = load_experiment(path, trusted=trusted)
+    helpers: list[str] = []
+    for module in executed:
+        shown = source_relpath(module)
+        if shown not in helpers:
+            helpers.append(shown)
+    object.__setattr__(spec, "source", {"spec_path": source_relpath(resolved), "helper_modules": helpers})
+    return spec
+
+
+def source_relpath(path: Union[str, Path]) -> str:
+    """``path`` relative to the repo root when it lies under it, else absolute
+    (the form the manifest records, T091 E1)."""
+    resolved = Path(path).resolve()
+    root = REPO_ROOT.resolve()
+    return str(resolved.relative_to(root)) if root in resolved.parents else str(resolved)
+
+
+def resolve_source_path(recorded: str) -> Path:
+    """The file a manifest's ``spec_path`` names: relative entries are read
+    against the repo root."""
+    p = Path(recorded)
+    return p if p.is_absolute() else REPO_ROOT / p
 
 
 # ═══════════════════════════════════════════════════════════════════════════

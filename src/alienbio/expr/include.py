@@ -17,10 +17,12 @@ file's directory; ``.py`` includes and ``!py`` raise
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import importlib
 import runpy
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Iterator, Mapping, Optional
 
 from .env import ExprError
 from .form import Call, Include, PyRef, Quoted
@@ -58,6 +60,23 @@ def resolve_path(path: str, base: Path, *, trusted: bool) -> Path:
     return _resolve_contained_path(path, str(base))
 
 
+#: The ``.py`` files a load executed, while :func:`recording_python_files`
+#: is active (T091 E1: the run manifest names an experiment's helpers).
+_EXECUTED: contextvars.ContextVar[Optional[list[Path]]] = contextvars.ContextVar("alienbio_executed_py", default=None)
+
+
+@contextlib.contextmanager
+def recording_python_files() -> Iterator[list[Path]]:
+    """Collect, in order, every ``.py`` file :func:`run_python_file` executes
+    inside the block (a trusted load's ``_includes_`` helpers)."""
+    executed: list[Path] = []
+    token = _EXECUTED.set(executed)
+    try:
+        yield executed
+    finally:
+        _EXECUTED.reset(token)
+
+
 def run_python_file(target: Path) -> dict[str, Any]:
     """Execute ``target`` (a trusted ``.py`` include); its public names.
 
@@ -66,6 +85,9 @@ def run_python_file(target: Path) -> dict[str, Any]:
     and any other module-level side effect (a counter, a mutated global in a
     shared helper) repeats per load (T088 include 3). A catalog helper keeps
     its module level to definitions."""
+    executed = _EXECUTED.get()
+    if executed is not None:
+        executed.append(Path(target).resolve())
     namespace = runpy.run_path(str(target), run_name=f"alienbio_include_{target.stem}")
     return {k: v for k, v in namespace.items() if not k.startswith("__")}
 
@@ -79,9 +101,18 @@ def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] 
         raise ExprError(f"!include: no such file {path!r} (relative to {base})", str(base))
     suffix = target.suffix.lower()
     if suffix in YAML_SUFFIXES:
-        from .yaml_tags import load_text
+        from ..suite.yaml_keys import refuse_duplicate_keys
+        from .yaml_tags import ExprLoader, load_text
 
-        data = load_text(target.read_text())
+        text = target.read_text()
+        # T091 G3 — the duplicate-key check every experiment file gets (B5),
+        # one file down: PyYAML keeps the last of two equal keys, so an
+        # included fragment's second ``tpc:`` silently replaced its first.
+        try:
+            refuse_duplicate_keys(text, ExprLoader)
+        except ValueError as exc:
+            raise ExprError(str(exc), str(target)) from None
+        data = load_text(text)
         inner_seen = seen | {target}
         if isinstance(data, Mapping) and "_includes_" in data:
             # T088 include 1: only ``Env.load`` popped ``_includes_``, so an
@@ -192,4 +223,13 @@ def include_bindings(
     return merged, modules
 
 
-__all__ = ["UnsafeSpecError", "hydrate", "include_bindings", "load_include", "resolve_path", "resolve_py", "run_python_file"]
+__all__ = [
+    "UnsafeSpecError",
+    "hydrate",
+    "include_bindings",
+    "load_include",
+    "recording_python_files",
+    "resolve_path",
+    "resolve_py",
+    "run_python_file",
+]

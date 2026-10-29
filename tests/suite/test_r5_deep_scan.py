@@ -26,7 +26,9 @@ from alienbio.suite.llm_agent import PINNED_MODEL
 from alienbio.suite.runner import certainty_slice_problem
 from alienbio.suite.store import _build_manifest
 
-W1_LEVERS = ["root/uptake_fast_in", "root/uptake_clean_in"]
+# T091 D9: the pressure world's feed ids (``root/uptake_*`` named nothing, and
+# every pull was an unresolvable lever until build_brief refused the typo).
+W1_LEVERS = ["root/crux/uptake_waste_in", "root/crux/uptake_fast_in"]
 
 
 def _d(**over):

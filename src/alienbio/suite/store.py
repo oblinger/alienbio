@@ -615,6 +615,20 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "name": spec.name,
         "spec": spec_dict,
         "spec_sha256": spec_sha256,
+        # T091 E1 — the file the spec was loaded from and the helper modules
+        # its trusted ``_includes_`` executed, so ``bio suite
+        # resume|aggregate|report`` reload the file (registering the helpers'
+        # drafters and agents) and a resume compares the file as it is now
+        # against the spec the records were drawn under. Absent for a
+        # Python-built spec.
+        **(
+            {
+                "spec_path": spec.source.get("spec_path"),
+                "helper_modules": list(spec.source.get("helper_modules") or ()),
+            }
+            if spec.source
+            else {}
+        ),
         "alienbio_version": __version__,
         "git_commit": git_commit,
         "git_dirty": git_dirty,

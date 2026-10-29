@@ -1223,6 +1223,10 @@ WORLD_INVARIANT_DIALS: tuple[str, ...] = (
     "compact_at",
     "compact_budget",
     "history_token_limit",
+    # T091 D7 — the runner's opaque-names switch (``naming.opaque_names_requested``):
+    # a boundary translation, never the drafted world. Listed here it is also
+    # a declared runtime dial, so the unknown-dial check stops refusing it.
+    "opaque_names",
 )
 
 #: Default danger threshold for an injected hazard (``hazard_threshold``).
@@ -1468,23 +1472,30 @@ def intervene(
     target_id = task.skeleton.binding[TARGET_ROLE]
     passive = float(task.objective.target)
     goal = passive * (1.0 + margin)
-    molecule_levers = _surface_molecule_levers(levers, world, task)
-    if not molecule_levers:
-        # No act adds mass: the chain is closed (no source reaction), so the
-        # most its sink can read is every seeded unit, in the scorer's units
-        # (concentration summed over compartments).
-        held = sum(sum(c.concentrations.values()) for c in world.compartments)
-        if goal > held:
-            raise ValueError(
-                f"intervene: goal {goal:g} (passive reach {passive:g} at {scored_at_s:g} s x "
-                f"(1 + target_margin {margin:g})) exceeds the {held:g} units the chain holds, and the "
-                "control surface carries no molecule setpoint lever to add mass — no intervention can "
-                "reach it; lower target_margin or offer a molecule lever"
-            )
+    # No act but a molecule SETPOINT adds mass: the chain is closed (no source
+    # reaction), so the most its sink can read is every seeded unit, in the
+    # scorer's units (concentration summed over compartments).
+    held = sum(sum(c.concentrations.values()) for c in world.compartments)
+    bound_message = (
+        f"intervene: goal {goal:g} (passive reach {passive:g} at {scored_at_s:g} s x "
+        f"(1 + target_margin {margin:g})) exceeds the {held:g} units the chain holds, and the "
+        "control surface carries no molecule setpoint lever to add mass — no intervention can "
+        "reach it; lower target_margin or offer a molecule lever"
+    )
+    if goal > held and not _surface_molecule_levers(levers, world, task):
+        raise ValueError(bound_message)
     if margin > 0.0:
         task = dataclasses.replace(task, objective=make_intervention_objective(target_id, goal))
     setup = dict(task.setup) if isinstance(task.setup, Mapping) else {}
-    task = dataclasses.replace(task, setup={**setup, "score_horizon_turns": horizon_turns})
+    extra: dict[str, Any] = {"score_horizon_turns": horizon_turns}
+    if goal > held:
+        # T091 F1 — the drafter does not see the trial's ``observability``, and
+        # the implicit surface offers only the molecules the turn-0
+        # observation shows, so the bound is re-checked by ``build_brief``
+        # against the surface the trial actually offers (and so by the
+        # ``draft`` preflight check, before spend).
+        extra["held_mass_bound"] = bound_message
+    task = dataclasses.replace(task, setup={**setup, **extra})
     task = _with_oracle(
         task,
         "intervene",

@@ -37,7 +37,8 @@ def test_python_form_derives_expected_turns_from_fixed_max_turns():
 
 
 def test_python_form_derives_expected_turns_from_largest_axis_level():
-    spec = _live(axes=(("pi", (0.0,)), ("max_turns", (4, 40))), fixed_dials={"max_turns": 4})
+    # T091 D10: ``max_turns`` on the axis only (fixed and swept at once refuses).
+    spec = _live(axes=(("pi", (0.0,)), ("max_turns", (4, 40))))
     assert spec.expected_turns == 40
 
 

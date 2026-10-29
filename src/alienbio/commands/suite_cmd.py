@@ -24,7 +24,7 @@ from alienbio.suite.experiment import (
     preflight,
     render_report,
     run_experiment,
-    spec_from_dict,
+    spec_from_manifest,
 )
 from alienbio.suite.store import _model_axis_levels, _single_model, read_manifest
 
@@ -179,7 +179,10 @@ def _resume(out_dir: str, verbose: bool) -> int:
         raise FileNotFoundError(f"bio suite resume: no manifest.json in {out_dir}")
 
     manifest = read_manifest(manifest_path)
-    spec = spec_from_dict(manifest["spec"])
+    # T091 E1 — the experiment file as it is now (its helpers registered, and
+    # an edit to it caught by the resume's drift check), when the manifest
+    # names one; else the manifest's own spec.
+    spec = spec_from_manifest(manifest, current=True)
 
     def progress(message: str) -> None:
         if verbose:

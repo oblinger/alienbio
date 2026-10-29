@@ -141,11 +141,21 @@ def build_name_map(chemistry: "ChemistryImpl", seed: Seed) -> NameMap:
             "reaction; one surface name cannot stand for two entities"
         )
 
+    # T091 D8 — a surface name must never equal a structural id of the same
+    # world: the generative worlds' ids are bare ``m0…``/``r0…``, so at 11
+    # nodes structural ``m10`` and the surface ``m10`` of another molecule
+    # were one token — the taint audit read the clean brief as a leak and
+    # ``surface_text`` re-mapped the agent's own words. The width grows one
+    # digit until no surface name is a structural id (no golden world
+    # reaches the collision, so every shipped map is unchanged).
+    structural_ids = set(chemistry.molecules) | set(chemistry.reactions)
     out: dict[str, str] = {}
     for prefix, ids, salt in (("m", sorted(chemistry.molecules), "molecules"), ("r", sorted(chemistry.reactions), "reactions")):
         order = list(ids)
         random.Random(seed.child(f"names/{salt}").value).shuffle(order)
         width = max(2, len(str(len(order))))
+        while any(f"{prefix}{i:0{width}d}" in structural_ids for i in range(1, len(order) + 1)):
+            width += 1
         for i, structural in enumerate(order, start=1):
             out[structural] = f"{prefix}{i:0{width}d}"
     return NameMap.of(out)

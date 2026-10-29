@@ -220,9 +220,13 @@ class _OldProbe:
 
 def test_an_agent_on_the_old_probe_signature_refuses_at_preflight(monkeypatch):
     monkeypatch.setitem(agents_mod.AGENTS, "old-probe", lambda spec: (lambda seed, dials: _OldProbe(_survey_commit_agent_factory(seed, dials))))
-    flight = preflight(_spec(agent="old-probe"))
+    probes = [{"text": "What will you do next?", "timing": "every_turn"}]
+    flight = preflight(_spec(agent="old-probe", fixed_dials={"levers": [], "probes": probes}))
     why = str(dict(flight.checks)["agent"])
     assert "'old-probe'" in why and "(text, observation)" in why and "T088" in why
+    # T091 G4 — with no probes declared the runner never calls it: a note, not a refusal.
+    with pytest.warns(UserWarning, match="no probes are declared"):
+        assert dict(preflight(_spec(agent="old-probe")).checks)["agent"] is None
 
 
 # ── B9 — a target pair is exactly (str, number) ────────────────────────────
