@@ -635,19 +635,24 @@ def _single_model(spec: ExperimentSpec) -> Optional[str]:
     return (spec.model or PINNED_MODEL) if "llm" in agent_kinds_in_play(spec) else spec.model
 
 
-def world_scheme() -> str:
+def world_scheme(spec: ExperimentSpec) -> str:
     """The seed-scheme stamp a manifest carries (T091 R2): ``v<N>:<hash>``,
     ``N`` = :data:`~alienbio.suite.mass_trial.SEED_SCHEME_VERSION` and the
-    hash a stable sha256 over that version plus the sorted
-    :data:`~alienbio.suite.drafters.WORLD_INVARIANT_DIALS` set — the two
-    things in code (not in the spec) that decide which world a trial draws.
-    A resume refuses a store stamped with another scheme (``guards`` § resume)."""
+    hash a stable sha256 over that version plus the sorted matched dials IN
+    PLAY for ``spec`` — the swept axes that are in
+    :data:`~alienbio.suite.drafters.WORLD_INVARIANT_DIALS` or the spec's own
+    ``matched_dials``. Those are exactly what the seed derivation consumes
+    (``seed_label`` drops a swept key only when it is matched; a fixed or
+    unswept dial never enters the label), so a dial added to
+    ``WORLD_INVARIANT_DIALS`` that this spec does not sweep leaves the stamp —
+    and the store's resume — untouched (T091 X1). A resume refuses a store
+    stamped with another scheme (``guards`` § resume)."""
     from .drafters import WORLD_INVARIANT_DIALS
     from .mass_trial import SEED_SCHEME_VERSION
 
-    payload = _canonical_json(
-        {"seed_scheme_version": SEED_SCHEME_VERSION, "world_invariant_dials": sorted(set(WORLD_INVARIANT_DIALS))}
-    )
+    swept = {name for name, _levels in spec.axes}
+    in_play = sorted((set(WORLD_INVARIANT_DIALS) | set(spec.matched_dials or ())) & swept)
+    payload = _canonical_json({"seed_scheme_version": SEED_SCHEME_VERSION, "matched_dials_in_play": in_play})
     return f"v{SEED_SCHEME_VERSION}:{hashlib.sha256(payload.encode('utf-8')).hexdigest()[:16]}"
 
 
@@ -682,7 +687,7 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "git_commit": git_commit,
         "git_dirty": git_dirty,
         # T091 R2 — which seed scheme drew this store's worlds (see world_scheme).
-        "world_scheme": world_scheme(),
+        "world_scheme": world_scheme(spec),
         "python_version": platform.python_version(),
         "platform": platform.platform(),
         "hostname": platform.node(),

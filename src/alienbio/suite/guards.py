@@ -465,9 +465,15 @@ def _world_identity(task_id: Any, oracle: Any, brief: Any) -> dict[str, Any]:
     return _json_canonical(json.loads(_canonical_json(payload)))
 
 
-def unstamped_store_violation(spec: ExperimentSpec, records_path: Path) -> tuple[Optional[str], int]:
-    """T091 R2 follow-up — whether a store written before the ``world_scheme``
-    stamp was drawn under THIS code's seed scheme. For every condition with a
+def recorded_worlds_violation(spec: ExperimentSpec, records_path: Path) -> tuple[Optional[str], int]:
+    """T091 R2 follow-up, widened by Y1 — whether a store's records were
+    drawn under THIS code's worlds, run on EVERY resume, stamped or not (the
+    stamp is a fast refusal for a known scheme change; this is the proof — a
+    drafter that now draws a different world from the same seed and dials
+    moves no stamp). Any record whose label the current grid does not render
+    is drift and refuses naming the label (Y1: such records were skipped, so
+    a store whose labels an older rule spelled verified "0 conditions" and
+    resumed with every cell's n doubled). For every condition with a
     clean record, its lowest-index record is re-drafted at that record's own
     seed (``base_seed.child(f"{seed_label}/{index}")``, the derivation
     :class:`~alienbio.suite.mass_trial.MassTrialRunner` uses) through the
@@ -475,17 +481,24 @@ def unstamped_store_violation(spec: ExperimentSpec, records_path: Path) -> tuple
     fresh draft is compared with the record's. Returns ``(problem, checked)``:
     ``problem`` names the condition, seed and first differing field, ``None``
     when every checked condition matches; ``checked`` is the condition count.
-    Error records are skipped (a resume retries them); labels the current
-    grid does not render are left to the drift check."""
+    Error records are not re-drafted (a resume retries them) but their
+    labels are checked like any other. Bounded: one draft per recorded
+    condition."""
     from .brief import resolve_monitoring
     from .dist import Seed
     from .store import _brief_to_json, _json_safe, read_records
 
     units = {label: (dials, seed_label) for label, dials, seed_label in _condition_seed_labels(spec)}
     first: dict[str, tuple[int, dict[str, Any]]] = {}
-    for _line, d, record in read_records(records_path):
+    for line_no, (_line, d, record) in enumerate(read_records(records_path), 1):
         label, index = d.get("label"), d.get("index")
-        if record.error or label not in units or not isinstance(index, int):
+        if label not in units:
+            return (
+                f"record {line_no} names condition {label!r}, which this spec's grid does not "
+                "render (a label written under another label rule or another grid)",
+                0,
+            )
+        if record.error or not isinstance(index, int):
             continue
         if label not in first or index < first[label][0]:
             first[label] = (index, d)
@@ -1150,10 +1163,13 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
         # T091 R2 — the spec drift check reads only the spec, but the seed
         # derivation and the matched-dial set live in code: a resume under
         # another alienbio could mix worlds drawn under two schemes in one
-        # cell. A store stamped otherwise — or not at all — refuses.
+        # cell. A store stamped otherwise refuses; an unstamped one is
+        # verified by re-draft below. The stamp covers only the matched
+        # dials this spec sweeps (X1), so an unswept dial joining
+        # WORLD_INVARIANT_DIALS moves nothing.
         from .store import world_scheme
 
-        current_scheme = world_scheme()
+        current_scheme = world_scheme(spec)
         prior_scheme = prior_manifest.get("world_scheme")
         if prior_scheme is not None and prior_scheme != current_scheme:
             raise ValueError(
@@ -1168,19 +1184,23 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 "a resume continues the SAME experiment (only more trials_per_condition or added axis "
                 f"levels may change); start a new out_dir for a new spec ({resolved_out})"
             )
-        if prior_scheme is None and records_path.exists():
-            # A store from before the stamp is VERIFIED, not refused: each
-            # recorded condition's first trial is re-drafted at its own seed
-            # and compared with what the record holds about its world. Equal
-            # everywhere, the resume proceeds and the rebuilt manifest
-            # carries the current stamp; any difference refuses.
-            problem, checked = unstamped_store_violation(spec, records_path)
+        checked = 0
+        if records_path.exists():
+            # Every resume, stamped or not (T091 Y1): each recorded
+            # condition's first trial is re-drafted at its own seed and
+            # compared with what the record holds about its world, and a
+            # recorded label the grid does not render refuses. An unstamped
+            # store that passes gains the current stamp on the rebuilt
+            # manifest; any difference refuses.
+            problem, checked = recorded_worlds_violation(spec, records_path)
             if problem is not None:
+                stamp_says = "has no world_scheme field and" if prior_scheme is None else "is stamped alike but"
                 raise ValueError(
-                    f"run_experiment: resume=True but {manifest_path} has no world_scheme field and {problem} — "
+                    f"run_experiment: resume=True but {manifest_path} {stamp_says} {problem} — "
                     "the records were drawn under another seed scheme, so new trials would not match their "
                     f"worlds (this alienbio draws under {current_scheme!r}); start a new out_dir"
                 )
+        if prior_scheme is None and records_path.exists():
             notes.append(
                 f"resume: {manifest_path} had no world_scheme stamp; {checked} recorded condition(s) "
                 f"re-drafted identically, stamping {current_scheme}"

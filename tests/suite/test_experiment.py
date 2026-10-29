@@ -384,9 +384,10 @@ def test_resume_only_drafts_new_trials(tmp_path, monkeypatch):
     calls.clear()
     spec2 = _conflict_idle_spec("resume", trials_per_condition=2)
     run_experiment(spec2, out_dir=str(out_dir), resume=True)
-    # only the NEW (index=1) trial per condition is run — the other two are
-    # the pre-flight drafts, which a resume repeats and which cost nothing.
-    assert len(calls) == 4
+    # only the NEW (index=1) trial per condition is run — the other four are
+    # the pre-flight drafts and T091 Y1's re-draft proof (one per recorded
+    # condition, on every resume), which cost nothing.
+    assert len(calls) == 6
 
     lines = (out_dir / "records.jsonl").read_text().strip().splitlines()
     assert len(lines) == 4
@@ -498,10 +499,11 @@ def test_resume_keeps_taint_records_in_place_and_the_census_names_the_class(tmp_
     seen: list[str] = []
     rmap = run_experiment(spec, out_dir=str(out_dir), resume=True, progress=seen.append)
 
-    # T066 — pre-flight drafts one world per condition (2 here), and that is
-    # all: no TRIAL was re-drafted, which is what "a taint line is not
-    # retried by default" means.
-    assert drafts["n"] == 2, "a taint line must not be re-drafted by default"
+    # T066 — pre-flight drafts one world per condition (2 here), plus T091
+    # Y1's re-draft proof of the one clean recorded condition (an error
+    # record is not re-drafted), and that is all: no TRIAL was re-drafted,
+    # which is what "a taint line is not retried by default" means.
+    assert drafts["n"] == 3, "a taint line must not be re-drafted by default"
     assert any("keeping 1 TaintError record(s)" in m for m in seen)
     assert not (out_dir / "records.retried.jsonl").exists()
     report = (out_dir / "report.txt").read_text()
@@ -510,8 +512,9 @@ def test_resume_keeps_taint_records_in_place_and_the_census_names_the_class(tmp_
     # Opting in retries it like any other error line.
     drafts["n"] = 0
     run_experiment(spec, out_dir=str(out_dir), resume=True, retry_taint=True, progress=seen.append)
-    # the one retried trial, plus the two pre-flight drafts (T066)
-    assert drafts["n"] == 3
+    # the one retried trial, plus the two pre-flight drafts (T066) and the
+    # one clean condition's re-draft proof (T091 Y1)
+    assert drafts["n"] == 4
     assert any("retrying 1 error record(s)" in m for m in seen)
     del rmap, TaintError
 

@@ -266,6 +266,15 @@ def test_prose_quoting_an_observation_then_the_action_parses_the_action():
     assert extract_action_json(text) == {"type": "measure", "probe": "m01"}
 
 
+def test_two_valid_actions_the_last_wins():
+    """T091 X6 — the reply's final action after deliberation, not the
+    alternative it named first and rejected."""
+    text = 'I could {"type": "wait", "duration": 1} but I will {"type": "measure", "probe": "m02"}'
+    assert extract_action_json(text) == {"type": "measure", "probe": "m02"}
+    fenced = '```json\n{"type": "wait", "duration": 1}\n```\nfinal:\n```json\n{"type": "measure", "probe": "m02"}\n```'
+    assert extract_action_json(fenced) == {"type": "measure", "probe": "m02"}
+
+
 def test_an_echoed_system_prompt_is_a_parse_failure_not_a_measure():
     assert extract_action_json(DEFAULT_DIRECTIVE) is None
     agent = LLMAgent(lambda d, c, s: DEFAULT_DIRECTIVE, Seed(1), max_retries=2)
@@ -431,7 +440,7 @@ def test_the_same_scheme_resumes(tmp_path):
 
     _spec, go = _scripted_run(tmp_path, 1)
     go(False)
-    assert json.loads((tmp_path / "run" / "manifest.json").read_text())["world_scheme"] == world_scheme()
+    assert json.loads((tmp_path / "run" / "manifest.json").read_text())["world_scheme"] == world_scheme(_spec)
     _spec, go = _scripted_run(tmp_path, 2)
     assert len(go(True).records) == 2
 
@@ -473,7 +482,7 @@ def test_a_prestamp_store_drawn_under_this_scheme_resumes_and_gains_the_stamp(tm
     _spec, go = _pressure_run(tmp_path, 2)
     said: list[str] = []
     assert len(go(True, progress=said.append).records) == 4
-    assert json.loads((tmp_path / "run" / "manifest.json").read_text())["world_scheme"] == world_scheme()
+    assert json.loads((tmp_path / "run" / "manifest.json").read_text())["world_scheme"] == world_scheme(_spec)
     assert any("no world_scheme stamp" in m and "2 recorded condition(s) re-drafted identically" in m for m in said)
 
 
