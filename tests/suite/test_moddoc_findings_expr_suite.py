@@ -80,8 +80,10 @@ top: !reaction {reactants: [S], products: [T], rate: !q "2 * S * hill('M', 0.5)"
 inst: !x mk()
 """
     vals = Env.standard(seed=1).load("doc.yaml", text=doc).force_all()  # inst refused "unbound name 'S'"
-    assert vals["inst"].law.modulations and vals["top"].law.modulations
-    assert float(vals["inst"].law.k.sample(Seed(0))) == 2.0
+    # A law naming its reactant is the whole rate (T091 E4) — the expression
+    # path, in the template as at top level, over the namespaced pool there.
+    assert vals["inst"].law.expr is not None and vals["top"].law.expr is not None
+    assert any(p.endswith("S") for p in vals["inst"].law.expr_pools) and "S" in vals["top"].law.expr_pools
 
 
 def test_an_unbound_factor_falls_back_to_the_expression_grammar():

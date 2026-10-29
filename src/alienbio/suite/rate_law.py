@@ -19,12 +19,16 @@ substrate-saturation kinetics written over a *reactant* (``Vmax * S / (Km +
 S)``), several modulations mixed with algebra — compiles to a
 :mod:`~alienbio.bio.rate_expr` tree (``RateLaw.expr``) that both simulators
 evaluate: the whole rate when the law names a reactant, else the factor on
-mass action. ``k`` and every parameter may be a number, a bound constant, a
-bound ``Dist`` or a distribution call (drawn once, at world build). A bare
-name that is not bound in scope is a **pool** (a quoted string always is).
-What is still refused, at load with the node path: a head outside the rate
-view (a world-building head, a Python-only function), a bool, a product of
-two distributions.
+mass action. A law that names a reactant or product pool as a factor is
+never the product form (T091 E4: ``0.2 * A`` over ``A + B`` read as
+``0.2·A·B`` while ``0.2 * A + 0.0`` read as ``0.2·A``) — it takes the
+expression path, so ``0.2 * A`` and ``0.2 * A + 0.0`` are one number. ``k``
+and every parameter may be a number, a bound constant, a bound ``Dist`` or a
+distribution call (drawn once, at world build). A bare name that is not
+bound in scope is a **pool** (a quoted string always is). What is refused,
+at load with the node path: a head outside the rate view (a world-building
+head, a Python-only function), a bool, a product of two distributions, and
+a negative rate constant (it ran as rate 0).
 """
 
 from __future__ import annotations
@@ -207,6 +211,11 @@ def _constant(form: Any, env: Env, what: str) -> Dist[float]:
         return QuotedForm(form.form, env)
     if isinstance(form, Call) and form.head in ("op:neg",):
         inner = _constant(form.args[0], env, what)
+        # folded, so the sign check sees `-(-0.2)` as the 0.2 it is
+        if isinstance(inner, Constant):
+            return Constant(-float(inner.value))
+        if isinstance(inner, _Scaled):
+            return _Scaled(inner.base, -inner.factor)
         return _Scaled(inner, -1.0)
     if isinstance(form, Call) and form.head in ("op:mul",) and len(form.args) == 2:
         a, b = (_constant(x, env, what) for x in form.args)
@@ -234,7 +243,21 @@ def _scale(a: Dist[float], b: Dist[float], env: Env, what: str) -> Dist[float]:
         return _Scaled(b, float(a.value))
     if isinstance(b, Constant):
         return _Scaled(a, float(b.value))
-    raise _refuse(env, f"{what}: a product of two distributions")
+    # A hard refusal, not a product-form miss: the expression path would
+    # otherwise take the law and multiply the two draws (T091 E9).
+    raise env.error(f"rate law: {what} is a product of two distributions ({a!r} * {b!r}); draw one")
+
+
+def _negative_constant(env: Env, value: float) -> ExprError:
+    return env.error(f"rate law: negative rate constant {value:g} — a rate is never negative (it ran as rate 0)")
+
+
+def _check_sign(k: Dist[float], env: Env) -> None:
+    """Refuse a rate constant that is negative by construction (T091 E9)."""
+    if isinstance(k, Constant) and float(k.value) < 0.0:
+        raise _negative_constant(env, float(k.value))
+    if isinstance(k, _Scaled) and k.factor < 0.0:
+        raise env.error(f"rate law: negative rate constant ({k!r}) — a rate is never negative (it ran as rate 0)")
 
 
 def _pool(form: Any, env: Env) -> str:
@@ -299,6 +322,8 @@ def compile_rate(
     if isinstance(value, bool):
         raise env.error("rate: expected a number, a Dist or a quoted rate law, got a bool")
     if isinstance(value, (int, float)):
+        if float(value) < 0.0:
+            raise _negative_constant(env, float(value))
         return RateLaw(k=Constant(float(value)))
     if isinstance(value, QuotedForm):
         return _compile_form(value.form, value.env, reactants=reactants, products=products)
@@ -307,15 +332,77 @@ def compile_rate(
     raise env.error(f"rate: expected a number, a Dist or a quoted rate law, got {type(value).__name__}")
 
 
+def _is_draw(form: Any, env: Env) -> bool:
+    """A factor drawn at world build: a distribution call, a name bound to a
+    non-constant Dist, or a quoted form."""
+    if isinstance(form, Quoted):
+        return True
+    if isinstance(form, Name):
+        try:
+            value = env.lookup(form.path)
+        except ExprError:
+            return False
+        return isinstance(value, Dist) and not isinstance(value, Constant)
+    if isinstance(form, Call) and not form.head.startswith("op:") and form.head not in MODULATION_HEADS:
+        try:
+            return env.head(form.head).kind == "dist"
+        except ExprError:
+            return False
+    return False
+
+
+def _product_factors(form: Any) -> list[Any]:
+    """The factors of a product chain, through unary minus."""
+    if isinstance(form, Call) and form.head == "op:neg" and len(form.args) == 1:
+        return _product_factors(form.args[0])
+    if isinstance(form, Call) and form.head == "op:mul" and len(form.args) == 2 and not form.kwargs:
+        return _product_factors(form.args[0]) + _product_factors(form.args[1])
+    return [form]
+
+
+def _refuse_drawn_products(form: Any, env: Env) -> None:
+    """Refuse a product of two distributions anywhere in the law (T091 E9:
+    ``lognormal(0,1) * lognormal(0,1) * A`` loaded and multiplied two draws)."""
+    if not isinstance(form, Call):
+        return
+    if form.head in ("op:mul", "op:neg"):
+        factors = _product_factors(form)
+        if sum(1 for f in factors if _is_draw(f, env)) > 1:
+            raise env.error("rate law: a product of two distributions; draw one rate constant")
+        for f in factors:
+            _refuse_drawn_products(f, env)
+        return
+    for arg in form.args:
+        _refuse_drawn_products(arg, env)
+    for arg in form.kwargs.values():
+        _refuse_drawn_products(arg, env)
+
+
 def _compile_form(form: Any, env: Env, *, reactants: Sequence[str], products: Sequence[str]) -> RateLaw:
     """The product form when the law has that shape; else the general expression."""
+    _refuse_drawn_products(form, env)
     try:
         return _compile_product(form, env, reactants=reactants, products=products)
     except _NotProductForm:
         pass
     view_env = env.__class__(env.bindings, env.registry.view(RATE_VIEW_KINDS), env.ctx, env.ns, env.depth)
     expr = _compile_expr(form, view_env, consumed=set(reactants) | set(products))
+    if expr[0] in ("const", "neg", "mul") and _coefficient(expr) < 0.0:
+        raise _negative_constant(view_env, _coefficient(expr))
     return RateLaw(k=Constant(1.0), expr=expr)
+
+
+def _coefficient(node: Any) -> float:
+    """The constant coefficient of a product chain (``-0.2 * A`` -> -0.2);
+    every non-constant factor counts as 1."""
+    tag = node[0]
+    if tag == "const":
+        return float(node[1])
+    if tag == "neg":
+        return -_coefficient(node[1])
+    if tag == "mul":
+        return _coefficient(node[1]) * _coefficient(node[2])
+    return 1.0
 
 
 _UNARY_HEADS = {"exp", "log", "sqrt"}
@@ -392,11 +479,13 @@ def _compile_product(form: Any, env: Env, *, reactants: Sequence[str], products:
             modulations.append(spec)
             continue
         if isinstance(factor, Name) and view_env.pool(factor.path) in consumed:
-            # mass action over a reactant is implicit — naming it is allowed
-            # and inert. Compared as the pool the name denotes HERE: inside a
-            # template the reactants arrive namespaced (`inst.S`), so the bare
-            # path never matched and the law refused (T088 rate_law 1).
-            continue
+            # A law naming a reactant is the whole rate (and one naming a
+            # product only is a factor on mass action) — the expression
+            # path's rule, so `0.2 * A` and `0.2 * A + 0.0` agree (T091 E4;
+            # this branch used to drop the name as "inert"). Compared as the
+            # pool the name denotes HERE: inside a template the reactants
+            # arrive namespaced (`inst.S`) (T088 rate_law 1).
+            raise _refuse(view_env, f"a factor naming the consumed pool {factor.path!r}")
         if isinstance(factor, Call) and factor.head.startswith("op:") and factor.head not in ("op:neg", "op:mul"):
             raise _refuse(view_env, f"the operator {factor.head[3:]!r}")
         if isinstance(factor, Call) and factor.head not in ("op:neg", "op:mul"):
@@ -405,7 +494,9 @@ def _compile_product(form: Any, env: Env, *, reactants: Sequence[str], products:
                 raise _refuse(view_env, f"a call of {factor.head!r}")
         piece = _constant(factor, view_env, "a rate factor")
         k = piece if k is None else _scale(k, piece, view_env, "the rate constant")
-    return RateLaw(k=k if k is not None else Constant(1.0), modulations=tuple(modulations))
+    k = k if k is not None else Constant(1.0)
+    _check_sign(k, view_env)
+    return RateLaw(k=k, modulations=tuple(modulations))
 
 
 __all__ = ["RateLaw", "ModulationSpec", "compile_rate", "hill", "michaelis", "activator", "inhibitor", "RATE_VIEW_KINDS"]
