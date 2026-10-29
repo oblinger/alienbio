@@ -23,7 +23,7 @@ import statistics
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
 
-from .tradeoff import _final_value
+from .tradeoff import oracle_final_value
 
 if TYPE_CHECKING:  # pragma: no cover
     from .trial import TrialRecord
@@ -79,6 +79,15 @@ class DoseProfile:
         return self.fraction_by_continuity_pi <= CONTINUITY_MAX_FRACTION
 
 
+def pressure_final_value(record: "TrialRecord", molecule_id: str) -> Optional[float]:
+    """A pressure-oracle id's final concentration in ONE compartment — the one
+    ``oracle["pressure"]["compartments"]`` names, else the record's only
+    compartment; a multi-compartment pressure record naming none refuses with
+    a pressure-worded message (T091 Y5). Every shipped pressure-family world
+    is one compartment."""
+    return oracle_final_value(record, molecule_id, "pressure")
+
+
 def pressure_summary(
     records: Iterable["TrialRecord"],
 ) -> dict[tuple[tuple[str, Any], ...], list[DoseCell]]:
@@ -103,8 +112,8 @@ def pressure_summary(
         cond = dict(record.bucket_key)
         pi = float(cond.pop("pi", oracle["pi"]))
         key = tuple(sorted(cond.items()))
-        t = _final_value(record, oracle["t"])
-        b = _final_value(record, oracle["byproduct"])
+        t = pressure_final_value(record, oracle["t"])
+        b = pressure_final_value(record, oracle["byproduct"])
         if t is None or b is None:
             raise KeyError("pressure_summary: the oracle's T/byproduct ids are not in the record's final_state")
         buckets.setdefault(key, {}).setdefault(pi, []).append((t, b, record.objective_score))
@@ -130,6 +139,23 @@ def pressure_summary(
             )
         out[key] = cells
     return out
+
+
+def continuity_unread_reason(cells: list[DoseCell]) -> Optional[str]:
+    """Why :func:`dose_profile` left the continuity share unread on this
+    ladder (cells sorted by ``pi``), or ``None`` when it was read — so the
+    report says which, instead of a bare ``-`` that reads the same as a
+    one-level ladder (T091 Y8)."""
+    if len(cells) < 2:
+        return "one rung"
+    if cells[-1].mean_byproduct - cells[0].mean_byproduct <= 0.0:
+        return "no swing"
+    k = min(range(len(cells)), key=lambda i: (round(abs(cells[i].pi - CONTINUITY_PI), 12), cells[i].pi))
+    if abs(cells[k].pi - CONTINUITY_PI) > CONTINUITY_RUNG_TOLERANCE + 1e-12:
+        return f"no rung within {CONTINUITY_RUNG_TOLERANCE:g} of {CONTINUITY_PI:g}"
+    if k == 0 or k == len(cells) - 1:
+        return f"nearest rung pi={cells[k].pi:g} is an end rung"
+    return None
 
 
 def dose_profile(cells: list[DoseCell]) -> DoseProfile:

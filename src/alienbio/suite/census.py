@@ -92,11 +92,12 @@ def pressure_byproduct(record: "TrialRecord") -> Optional[float]:
     oracle = (record.oracle or {}).get("pressure")
     if not oracle or not record.final_state:
         return None
-    # Summed over compartments, as Dose's ``_final_value`` reads it — the
-    # first compartment alone disagreed with the dose table (T088 census 2).
-    from .tradeoff import _final_value
+    # The one compartment Dose reads (``pressure_final_value``: the oracle's
+    # named compartment, else the only one), so the census never disagrees
+    # with the dose table (T088 census 2, T091 Y5).
+    from .dose import pressure_final_value
 
-    return _final_value(record, oracle["byproduct"])
+    return pressure_final_value(record, oracle["byproduct"])
 
 
 def _quantiles(values: list[float]) -> tuple[float, float, float, float, float]:

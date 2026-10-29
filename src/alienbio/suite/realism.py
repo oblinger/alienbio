@@ -38,7 +38,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Callable, Iterable, Mapping, Optional, Union
 
 from .brief import TaskBrief, render_brief
 from .dist import Seed
@@ -261,12 +261,33 @@ def realism_win_rates(
     return summaries
 
 
+def realism_lines(
+    summaries: Mapping[tuple[tuple[str, Any], ...], RealismSummary],
+    label: Optional[Callable[[tuple[tuple[str, Any], ...]], str]] = None,
+) -> list[str]:
+    """The realism report section: one row per condition with ``n`` (distinct
+    judgments) beside ``comparisons`` (every draw), so a reader sees when
+    repeats were collapsed (T091 Y8), then wins, the win rate and its Wilson
+    interval."""
+    label = label or (lambda key: ", ".join(f"{k}={v}" for k, v in key) or "(all)")
+    lines = [
+        "Realism (M45.9 — pairwise judge vs the reference pool; n = distinct judgments, comparisons = all draws):",
+        f"  {'condition':<40} {'n':>4} {'comparisons':>11} {'wins':>4} {'win_rate':>8} {'ci_low':>7} {'ci_high':>7}",
+    ]
+    for key, s in sorted(summaries.items(), key=lambda kv: str(kv[0])):
+        lines.append(
+            f"  {label(key) or '(all)':<40} {s.n:>4} {s.comparisons:>11} {s.wins:>4} {s.win_rate:>8.3f} {s.ci[0]:>7.3f} {s.ci[1]:>7.3f}"
+        )
+    return lines
+
+
 __all__ = [
     "REALISM_DIRECTIVE",
     "RealismSummary",
     "judge_pair",
     "load_reference_pool",
     "realism_judge",
+    "realism_lines",
     "realism_win_rates",
     "render_transcript",
     "wilson_interval",

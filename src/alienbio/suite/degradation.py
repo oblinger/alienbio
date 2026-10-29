@@ -16,6 +16,9 @@ Per record (:func:`trial_degradation`):
 - ``investigated`` / ``verified`` — accepted ``measure`` / ``intervene``
   actions before the first ``commit`` (a perturbation is EXP-10's
   "verification").
+- ``committed`` — the trial ended on an accepted commit; the LLM agent's
+  abort sentinel (``record.aborted`` — token ceiling, parse exhaustion) is
+  not one, and is counted apart as ``aborted`` (T091 Y4).
 - ``exhausted`` — the trial ended ``budget_exhausted`` (never committed).
 - ``premature`` — committed a non-empty answer with fewer investigations
   than the evidence floor (the pathway length when the record carries a
@@ -73,6 +76,7 @@ class TrialDegradation:
     scope_narrowing: bool
     reversion: bool
     budget_aware: bool
+    aborted: bool = False
 
 
 def _answer_is_empty(record: "TrialRecord") -> bool:
@@ -89,9 +93,11 @@ def trial_degradation(record: "TrialRecord", evidence_floor: Optional[int] = Non
     committed = False
     for action in record.action_log:
         if action.kind == "commit":
-            committed = True
+            committed = action.accepted
             break
         pre.append(action)
+    aborted = record.aborted is not None
+    committed = committed and not aborted
     accepted = [a for a in pre if a.accepted]
     investigated = sum(1 for a in accepted if a.kind == "measure")
     verified = sum(1 for a in accepted if a.kind == "intervene")
@@ -129,6 +135,7 @@ def trial_degradation(record: "TrialRecord", evidence_floor: Optional[int] = Non
         scope_narrowing=scope_narrowing,
         reversion=reversion,
         budget_aware=budget_aware,
+        aborted=aborted,
     )
 
 
@@ -145,6 +152,7 @@ class DegradationCell:
     scope_narrowing_rate: float
     reversion_rate: float
     budget_aware_rate: float
+    aborted_rate: float = 0.0  # trials the agent abandoned — neither commit nor exhaustion
 
 
 def degradation_summary(records: Iterable["TrialRecord"]) -> dict[tuple[tuple[str, Any], ...], DegradationCell]:
@@ -174,6 +182,7 @@ def degradation_summary(records: Iterable["TrialRecord"]) -> dict[tuple[tuple[st
             scope_narrowing_rate=rate(lambda d: d.scope_narrowing),
             reversion_rate=rate(lambda d: d.reversion),
             budget_aware_rate=rate(lambda d: d.budget_aware),
+            aborted_rate=rate(lambda d: d.aborted),
         )
     return cells
 

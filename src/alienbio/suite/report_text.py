@@ -11,7 +11,7 @@ from .delta import delta_summary
 from .effect_size import cohens_d, welch_t
 from .hazard import DEPTHS, OBJECTIVE_TYPES, blindspot_summary, consideration_summary, hazard_surfacing_summary
 from .tradeoff import conflict_summary, precedence_ladder
-from .dose import dose_profile, pressure_summary
+from .dose import continuity_unread_reason, dose_profile, pressure_summary
 from .caution import CAUTION_AXES, appropriate_caution, caution_factorial, caution_summary, caution_trend
 from .degradation import degradation_ladder, degradation_summary
 from .faking import monitoring_divergence, monitoring_summary
@@ -28,9 +28,17 @@ def _condition_label(key: Sequence[tuple[str, Any]]) -> str:
     return "&".join(f"{name}={value}" for name, value in key)
 
 
-def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
+def render_report(
+    rmap: ReliabilityMap,
+    manifest: Mapping[str, Any],
+    realism: Optional[Mapping[tuple[tuple[str, Any], ...], Any]] = None,
+) -> str:
     """A plain-text report: header + per-condition table + failure census +
-    interaction/contrast lines (when present). No third-party formatting."""
+    interaction/contrast lines (when present). No third-party formatting.
+
+    ``realism`` — a :func:`~alienbio.suite.realism.realism_win_rates` result,
+    when the caller judged one (the report itself never calls the judge: it
+    spends) — adds the Realism section (:func:`~alienbio.suite.realism.realism_lines`)."""
     lines: list[str] = []
     lines.append(f"Experiment: {manifest.get('name')}")
     lines.append(f"Commit: {manifest.get('git_commit')} (dirty={manifest.get('git_dirty')})")
@@ -85,7 +93,14 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     grade_error_count = 0
     parse_failure_records = 0
     parse_failure_total = 0
+    # T091 Y6: the ids the audit was narrowed for (``taint_exempt``: ids the
+    # agent itself named, exempt from the leak scan) — no surface showed them.
+    taint_exempt_records = 0
+    taint_exempt_ids: set[str] = set()
     for record in rmap.records:
+        if record.taint_exempt:
+            taint_exempt_records += 1
+            taint_exempt_ids.update(str(k) for k in record.taint_exempt)
         if record.grade_error is not None:
             grade_error_count += 1
         if record.parse_failures:
@@ -115,6 +130,8 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     lines.append(f"  records with grade_error: {grade_error_count}")
     lines.append(f"  records with parse_failures: {parse_failure_records}")
     lines.append(f"  parse_failures (total): {parse_failure_total}")
+    exempt = f" (ids: {', '.join(sorted(taint_exempt_ids))})" if taint_exempt_ids else ""
+    lines.append(f"  records with taint_exempt: {taint_exempt_records}{exempt}")
 
     if rmap.interactions or rmap.contrasts:
         lines.append("")
@@ -212,11 +229,11 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     if caution_rows and any(dict(k).get("stakes") is not None or dict(k).get("reversibility") is not None or any(r.oracle.get("discover") for r in rmap.records) for k in caution_rows):
         lines.append("")
         lines.append("Caution (M36.7 / M36.8 / M33.8, EXP-1 / EXP-9 — info-seeking, destructive acts, abstention per condition):")
-        lines.append(f"  {'condition':<52} {'n':>3} {'score':>6} {'info':>5} {'destr':>5} {'commit':>6} {'abstain':>7} {'false+':>6}")
+        lines.append(f"  {'condition':<52} {'n':>3} {'score':>6} {'info':>5} {'destr':>5} {'commit':>6} {'abort':>5} {'abstain':>7} {'false+':>6}")
         for key, cell in sorted(caution_rows.items(), key=lambda kv: str(kv[0])):
             lines.append(
                 f"  {_condition_label(key):<52} {cell.n:>3} {cell.mean_score:>6.3f} {cell.mean_info_seeking:>5.2f} "
-                f"{cell.mean_destructive:>5.2f} {cell.commit_rate:>6.2f} {cell.abstain_rate:>7.2f} {cell.false_positive_rate:>6.2f}"
+                f"{cell.mean_destructive:>5.2f} {cell.commit_rate:>6.2f} {cell.aborted_rate:>5.2f} {cell.abstain_rate:>7.2f} {cell.false_positive_rate:>6.2f}"
             )
         for axis in CAUTION_AXES:
             for group, trend in sorted(caution_trend(caution_rows, axis).items(), key=lambda kv: str(kv[0])):
@@ -257,11 +274,11 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
     if degradation_rows and any("budget" in dict(k) for k in degradation_rows):
         lines.append("")
         lines.append("Degradation (M36.9 / M33.9, EXP-10 — the budget ladder, loosest to tightest):")
-        lines.append(f"  {'condition':<44} {'n':>3} {'acc':>5} {'inv':>5} {'ver':>4} {'commit':>6} {'exhst':>5} {'premat':>6} {'skipv':>5} {'narrow':>6} {'revert':>6} {'aware':>5}")
+        lines.append(f"  {'condition':<44} {'n':>3} {'acc':>5} {'inv':>5} {'ver':>4} {'commit':>6} {'abort':>5} {'exhst':>5} {'premat':>6} {'skipv':>5} {'narrow':>6} {'revert':>6} {'aware':>5}")
         for key, cell in sorted(degradation_rows.items(), key=lambda kv: (str(dict(kv[0]).get("agent", "")), -__import__("alienbio.suite.degradation", fromlist=["budget_total"]).budget_total(dict(kv[0]).get("budget")), str(kv[0]))):
             lines.append(
                 f"  {_condition_label(key):<44} {cell.n:>3} {cell.accuracy:>5.2f} {cell.mean_investigated:>5.2f} {cell.mean_verified:>4.2f} "
-                f"{cell.commit_rate:>6.2f} {cell.exhausted_rate:>5.2f} {cell.premature_rate:>6.2f} {cell.skipped_verification_rate:>5.2f} "
+                f"{cell.commit_rate:>6.2f} {cell.aborted_rate:>5.2f} {cell.exhausted_rate:>5.2f} {cell.premature_rate:>6.2f} {cell.skipped_verification_rate:>5.2f} "
                 f"{cell.scope_narrowing_rate:>6.2f} {cell.reversion_rate:>6.2f} {cell.budget_aware_rate:>5.2f}"
             )
         for group, ladder in sorted(degradation_ladder(degradation_rows).items(), key=lambda kv: str(kv[0])):
@@ -301,11 +318,11 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
                     f"{c.mean_score:>6.3f} {c.passive_t:>10.3f} {c.passive_byproduct:>12.3f} {c.v_target:>9.3f}"
                 )
             prof = dose_profile(cells)
-            by = (
-                f"{prof.fraction_by_continuity_pi:.2f} (at pi={prof.continuity_rung:g})"
-                if prof.fraction_by_continuity_pi is not None and prof.continuity_rung is not None
-                else "-"
-            )
+            if prof.fraction_by_continuity_pi is not None and prof.continuity_rung is not None:
+                by = f"{prof.fraction_by_continuity_pi:.2f} (at pi={prof.continuity_rung:g})"
+            else:
+                reason = continuity_unread_reason(cells)
+                by = f"- ({reason})" if reason else "-"
             step = f"{prof.max_step_fraction:.2f}" if prof.max_step_fraction is not None else "-"
             cont = {True: "yes", False: "NO", None: "-"}[prof.continuous]
             lines.append(
@@ -348,6 +365,12 @@ def render_report(rmap: ReliabilityMap, manifest: Mapping[str, Any]) -> str:
             lines.append(
                 f"  {cond}: {live_agent}={live_mean:.4f} idle={idle_mean:.4f} delta={delta:+.4f} (n={n})"
             )
+
+    if realism:
+        from .realism import realism_lines
+
+        lines.append("")
+        lines.extend(realism_lines(realism, label=_condition_label))
 
     lines.append("")
     return "\n".join(lines)

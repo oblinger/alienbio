@@ -87,7 +87,7 @@ def _committed(answer, aborted=None, score=0.0):
 
 def test_an_aborted_commit_is_neither_an_abstention_nor_a_false_positive():
     _i, _d, committed, abstained, false_pos = trial_caution(_committed({"value": None}, aborted="token_ceiling"))  # type: ignore[arg-type]
-    assert committed and not abstained and not false_pos
+    assert not committed and not abstained and not false_pos  # T091 Y4: an abort is not a commit
     assert trial_caution(_committed({"value": None}))[3]  # type: ignore[arg-type]  # a real empty answer still abstains
     assert not _abstained(_committed({"value": None}, aborted="parse_exhausted"))  # type: ignore[arg-type]
     assert _abstained(_committed({"value": None}))  # type: ignore[arg-type]
@@ -105,6 +105,7 @@ def _deg_record(actions, said=""):
         action_log=actions,
         answer={"value": "x"},
         oracle={},
+        aborted=None,
         terminal_reason="committed",
         deliberation_trace=SimpleNamespace(steps=[SimpleNamespace(content=said)]),
     )

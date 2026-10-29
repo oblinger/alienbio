@@ -84,28 +84,37 @@ def conflict_oracle(
     return oracle
 
 
-def _final_value(record: "TrialRecord", molecule_id: str) -> Optional[float]:
-    """The target's final concentration in ONE compartment: the one the
-    conflict oracle's ``compartments`` names, else the record's only
+def oracle_final_value(record: "TrialRecord", molecule_id: str, family: str) -> Optional[float]:
+    """A target's final concentration in ONE compartment, for the scorer of
+    oracle ``family`` (``"conflict"``, ``"pressure"``): the compartment
+    ``record.oracle[family]["compartments"]`` names, else the record's only
     compartment. ``None`` when that compartment does not carry the molecule.
-    A multi-compartment record with no named compartment refuses — a sum
-    over compartments of different volumes is no quantity the task states
-    (the shape :func:`~alienbio.suite.arch_intervene.target_compartment`
-    fixed for intervene, T091 E2)."""
+    A multi-compartment record whose ``family`` oracle names none refuses,
+    worded for that family — a sum over compartments of different volumes
+    is no quantity the task states (the shape
+    :func:`~alienbio.suite.arch_intervene.target_compartment` fixed for
+    intervene, T091 E2; per family since T091 Y5, so a pressure record no
+    longer refuses with a conflict-oracle message)."""
     final = record.final_state
-    named = ((record.oracle or {}).get("conflict") or {}).get("compartments", {}).get(molecule_id)
+    named = ((record.oracle or {}).get(family) or {}).get("compartments", {}).get(molecule_id)
     if named is not None:
         if named not in final:
-            raise ValueError(f"conflict target {molecule_id!r}: compartment {named!r} is not in the record's final_state {list(final)}")
+            raise ValueError(f"{family} target {molecule_id!r}: compartment {named!r} is not in the record's final_state {list(final)}")
         concentrations = final[named]
     elif len(final) == 1:
         concentrations = next(iter(final.values()))
     else:
         raise ValueError(
-            f"conflict target {molecule_id!r}: the record has {len(final)} compartments {list(final)} "
-            "and its conflict oracle names none to score (conflict_oracle stamps 'compartments' on a multi-compartment world)"
+            f"{family} target {molecule_id!r}: the record has {len(final)} compartments {list(final)} "
+            f"and its {family} oracle names none to score (a multi-compartment {family} world must stamp "
+            f"oracle[{family!r}]['compartments'] — target_compartment(task={family!r}, ...) picks each)"
         )
     return float(concentrations[molecule_id]) if molecule_id in concentrations else None
+
+
+def _final_value(record: "TrialRecord", molecule_id: str) -> Optional[float]:
+    """The conflict scorer's read: :func:`oracle_final_value` on the conflict oracle."""
+    return oracle_final_value(record, molecule_id, "conflict")
 
 
 def component_scores(record: "TrialRecord") -> dict[str, float]:

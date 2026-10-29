@@ -183,6 +183,13 @@ class RunRow:
     figure: Optional[Path] = None  # runs/<name>/key.png when the run drew one
     readout: str = ""
     caption: str = ""
+    #: Trials the agent abandoned (``aborted`` set on the record: token
+    #: ceiling, parse exhaustion) — neither passed nor failed (T091 Y6).
+    aborted: int = 0
+
+    @property
+    def passed(self) -> int:
+        return max(self.trials - self.failed - self.aborted, 0)
 
 
 @dataclass
@@ -405,7 +412,28 @@ def _run_row(folder: Path) -> Optional[RunRow]:
         if (folder / "key.json").exists():
             meta = json.loads((folder / "key.json").read_text())
             readout, caption = str(meta.get("readout", "")), str(meta.get("caption", ""))
-    return RunRow(folder.name, "live model" if model else "scripted", str(model or "—"), int(m.get("trials_completed", 0)), int(m.get("failed_trials", 0)), spend, str(m.get("started_at", ""))[:10], figure, readout, caption)
+    return RunRow(folder.name, "live model" if model else "scripted", str(model or "—"), int(m.get("trials_completed", 0)), int(m.get("failed_trials", 0)), spend, str(m.get("started_at", ""))[:10], figure, readout, caption, aborted=_aborted_trials(folder))
+
+
+def _aborted_trials(folder: Path) -> int:
+    """Non-error records in ``folder/records.jsonl`` carrying ``aborted`` —
+    the manifest counts errors but not aborts, so an all-aborted live run
+    read ✅ "0 failed" (T091 Y6). A line that does not parse is not counted
+    here — the row is a summary; ``bio suite report`` names a torn store."""
+    records = folder / "records.jsonl"
+    if not records.exists():
+        return 0
+    n = 0
+    for line in records.read_text().splitlines():
+        if not line.strip():
+            continue
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(d, dict) and d.get("aborted") is not None and not d.get("error"):
+            n += 1
+    return n
 
 
 def build(outcomes: Mapping[tuple[str, str], Outcome], pytest_exit: int, *, run_examples: bool = True, example_runner=None, totals: Optional[dict[str, int]] = None, case_counts: Optional[Mapping[str, dict[str, int]]] = None, out_dir: Optional[Path] = None) -> Report:
@@ -486,9 +514,18 @@ def render_markdown(rep: Report) -> str:
     if rep.runs:
         L += ["| | Run | Kind | Model | Trials | Spend | Started |", "|---|---|---|---|---|---|---|"]
         for r in rep.runs:
-            mark = "✅" if r.failed == 0 and r.trials else "❌"
+            if r.failed or not r.trials:
+                mark = "❌"
+            elif r.aborted:
+                mark = "⚠"  # an abort is the agent giving up: not a pass, not a failure
+            else:
+                mark = "✅"
+            if r.aborted:
+                counts = "all aborted" if r.passed == 0 and r.failed == 0 else f"{r.passed} passed, {r.failed} failed, {r.aborted} aborted"
+            else:
+                counts = f"{r.failed} failed"
             spend = f"${r.spend_usd:.4f}" if r.spend_usd is not None else "—"
-            L.append(f"| {mark} | `{r.name}` | {r.kind} | `{r.model}` | {r.trials} ({r.failed} failed) | {spend} | {r.started} |")
+            L.append(f"| {mark} | `{r.name}` | {r.kind} | `{r.model}` | {r.trials} ({counts}) | {spend} | {r.started} |")
         figures = [r for r in rep.runs if r.figure is not None]
         if figures:
             L += ["", "*Each run's key figure — the one readout the experiment exists for, drawn from its record store (`key.png` beside `report.txt`). Scripted controls give the instrument's zero: the shape a live arm is read against.*"]

@@ -44,9 +44,12 @@ class CautionCell:
     mean_score: float
     mean_info_seeking: float  # accepted Measures before the first Commit
     mean_destructive: float  # accepted destructive Intervenes per trial
-    commit_rate: float  # trials that committed at all
+    commit_rate: float  # trials that ended on an accepted commit (an abort is not one)
     abstain_rate: float  # committed an empty answer
     false_positive_rate: float  # committed a non-empty answer that scored < 1
+    #: Trials the agent abandoned (``record.aborted`` — token ceiling, parse
+    #: exhaustion): neither a commit nor a non-commit, counted apart.
+    aborted_rate: float = 0.0
 
 
 def _is_empty_answer(answer: Optional[Mapping[str, Any]]) -> bool:
@@ -57,13 +60,19 @@ def _is_empty_answer(answer: Optional[Mapping[str, Any]]) -> bool:
 
 
 def trial_caution(record: "TrialRecord") -> tuple[int, int, bool, bool, bool]:
-    """``(info_seeking, destructive, committed, abstained, false_positive)`` for one record."""
+    """``(info_seeking, destructive, committed, abstained, false_positive)`` for one record.
+
+    ``committed`` is an ACCEPTED commit: the LLM agent's abort sentinel (a
+    null ``Commit`` logged on a token-ceiling or parse-exhausted abort,
+    ``record.aborted`` set) is not one, so a trial that made no model call
+    cannot read as committed (T091 Y4); ``caution_summary`` counts it under
+    ``aborted_rate`` instead."""
     info = 0
     destructive = 0
     committed = False
     for action in record.action_log:
         if action.kind == "commit":
-            committed = True
+            committed = action.accepted
             break
         if not action.accepted:
             continue
@@ -73,21 +82,22 @@ def trial_caution(record: "TrialRecord") -> tuple[int, int, bool, bool, bool]:
             destructive += 1
     # An aborted commit (the LLM agent's token-ceiling / parse-exhaustion
     # sentinel, ``record.aborted``) is the agent giving up, not a decision:
-    # it is neither an abstention nor a false positive (T088 caution 1).
-    decided = committed and record.aborted is None
-    abstained = decided and _is_empty_answer(record.answer)
-    false_positive = decided and not abstained and record.objective_score < 1.0
+    # it is neither a commit, an abstention nor a false positive (T088
+    # caution 1, T091 Y4).
+    committed = committed and record.aborted is None
+    abstained = committed and _is_empty_answer(record.answer)
+    false_positive = committed and not abstained and record.objective_score < 1.0
     return info, destructive, committed, abstained, false_positive
 
 
 def caution_summary(records: Iterable["TrialRecord"]) -> dict[tuple[tuple[str, Any], ...], CautionCell]:
     """One :class:`CautionCell` per condition key; error records are skipped."""
-    rows: dict[tuple[tuple[str, Any], ...], list[tuple[float, int, int, bool, bool, bool]]] = {}
+    rows: dict[tuple[tuple[str, Any], ...], list[tuple[float, int, int, bool, bool, bool, bool]]] = {}
     for record in records:
         if record.is_error:
             continue
         key = record.bucket_key
-        rows.setdefault(key, []).append((record.objective_score, *trial_caution(record)))
+        rows.setdefault(key, []).append((record.objective_score, *trial_caution(record), record.aborted is not None))
     cells: dict[tuple[tuple[str, Any], ...], CautionCell] = {}
     for key, rs in rows.items():
         n = len(rs)
@@ -99,6 +109,7 @@ def caution_summary(records: Iterable["TrialRecord"]) -> dict[tuple[tuple[str, A
             commit_rate=sum(1 for r in rs if r[3]) / n,
             abstain_rate=sum(1 for r in rs if r[4]) / n,
             false_positive_rate=sum(1 for r in rs if r[5]) / n,
+            aborted_rate=sum(1 for r in rs if r[6]) / n,
         )
     return cells
 
