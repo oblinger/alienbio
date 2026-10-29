@@ -145,4 +145,6 @@ def puzzles(*, pathway_length: int = 4, distractors: int = 3, env: Any) -> Draft
     scope = Env.standard(seed=env.ctx.seed, trusted=True).load(HERE / "puzzles.yaml")
     scope.bindings["pathway_length"] = int(pathway_length)
     scope.bindings["distractors"] = int(distractors)
-    return Draft(evaluate(X.name("host"), scope), evaluate(X.name("task"), scope))
+    # `checked` IS `host` once the validity gate passes it; it raises otherwise,
+    # so a host the gate rejects never reaches a trial
+    return Draft(evaluate(X.name("checked"), scope), evaluate(X.name("task"), scope))

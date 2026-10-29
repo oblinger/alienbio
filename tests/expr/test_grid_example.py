@@ -45,6 +45,24 @@ def test_the_predict_key_varies_with_the_seed():
     assert seen == {"down": {"row0_step0"}, "up": {"drain0"}, "same": {"row1_step0"}}, seen
 
 
+@pytest.mark.parametrize("n_nodes", [1, 2, 4])
+def test_the_perturbed_reaction_is_one_the_drafted_world_holds(n_nodes):
+    """T096 follow-up P2: a literal three-way choice named `row1_step0` on a
+    one-row grid (13 of 30 seeds raised in the drafter, past a clean
+    `--dry`). The draw is over the reactions the world has."""
+    from alienbio.suite.dist import Seed
+    from alienbio.suite.experiment import DRAFTERS
+
+    load_spec(SPEC)  # registers the `grid` drafter
+    keys = set()
+    for seed in range(30):
+        world, task = DRAFTERS["grid"](Seed(seed).child("draft"), {"complexity": 1, "n_nodes": n_nodes})
+        (rid,) = [r for r in task.question.structured if r.endswith("/rxn")]
+        assert rid in world.chemistry.reactions
+        keys.add(task.objective.key.value)
+    assert keys == ({"up", "down"} if n_nodes == 1 else {"up", "down", "same"})
+
+
 def test_the_spec_declares_the_full_harness():
     spec = load_spec(SPEC)
     assert spec.drafter == "grid"

@@ -8,7 +8,7 @@ One neutral chain (`A -> B -> C`, fed and drained) under an outcome task (raise 
 
 ## Before and after the passive gate (T096)
 
-Before, the target sat at the passive reach (feed 0.5, drain 0.1: `C` = 2.90 at 15 turns against the goal 3.0), the drain was the first default lever, and the score was read at the commit — so doing nothing won. Now the drain is 3.0 and the feed 0.25 (passive `C` = 0.083, on `setup["oracle"]["loop"]`), and `act_commit`'s one pull sets the feed to 10.
+Before, the target sat at the passive reach (feed 0.5, drain 0.1: `C` = 3.0965 at 15 turns, above the goal 3.0), the drain was the first default lever, and the score was read at the commit — so doing nothing won. Now the drain is 3.0 and the feed 0.25 (passive `C` = 0.083, on `setup["oracle"]["loop"]`), and `act_commit`'s one pull sets the feed to 10.
 
 | Agent (base seed 21, 2 trials) | before | after |
 |---|---|---|

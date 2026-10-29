@@ -402,7 +402,7 @@ def _shortcuts_for(name: str) -> tuple[str, ...]:
 # until it is moved out of this table.
 # ═══════════════════════════════════════════════════════════════════════════
 
-_NO_SOLVER = "no intended solver: {agent} scores 0.000, so {cut} at 0.000 ties it"
+_NO_SOLVER = "no intended solver: {agent} scores {i:.3f}, so {cut} at {s:.3f} {verb} it"
 _P1 = (
     "phase 1 is conflict-free by design (any feed reaches the goal): {cut} 1.000 = "
     "pursue-target 1.000, side-product {h}"
@@ -467,8 +467,23 @@ def _phase1_rows() -> dict[tuple[str, str], str]:
     return rows
 
 
-def _no_solver(world: str, agent: str, *cuts: str) -> dict[tuple[str, str], str]:
-    return {(world, cut): _NO_SOLVER.format(agent=agent, cut=cut) for cut in cuts}
+#: The (shortcut, intended) seed-1 scores each ``_no_solver`` reason states;
+#: ``test_no_solver_reasons_state_the_measured_scores`` holds them to a fresh
+#: run, so a reason cannot go stale while its strict xfail still passes.
+_STATED: dict[tuple[str, str], tuple[float, float]] = {}
+
+
+def _no_solver(
+    world: str, agent: str, *cuts: str, scores: Optional[dict[str, float]] = None
+) -> dict[tuple[str, str], str]:
+    rows = {}
+    for cut in cuts:
+        s = (scores or {}).get(cut, 0.0)
+        _STATED[(world, cut)] = (s, 0.0)
+        rows[(world, cut)] = _NO_SOLVER.format(
+            agent=agent, cut=cut, s=s, i=0.0, verb=_verdict(s, 0.0).lower()
+        )
+    return rows
 
 
 GAMEABLE: dict[tuple[str, str], str] = {
@@ -481,7 +496,9 @@ GAMEABLE: dict[tuple[str, str], str] = {
         "phase1/describe_the_link", "pursue-target (never commits json)", "idle", "random"
     ),
     ("phase1/describe_the_link", "constant-key"): _LINK_KEY,
-    **_no_solver("cascade", "measure-commit", "idle", "random"),
+    # T096 moved seed 1's locus to root/O, which random happens to pick: a
+    # random agent beating the zero agent is the same no-solver gap
+    **_no_solver("cascade", "measure-commit", "idle", "random", scores={"random": 1.0}),
     ("cascade", "constant-key"): _CASCADE_KEY,
     # T091 E12: the world carries mass now (it was inert: every score 0.000);
     # act-commit's one act still earns ~nothing on vash's ME2 / 4.0.
@@ -543,6 +560,14 @@ def test_every_finding_names_a_scored_cell():
     """A stale GAMEABLE key (a world or shortcut renamed) must not hide."""
     scored = {(n, s) for n in WORLD_NAMES for s in _shortcuts_for(n)}
     assert set(GAMEABLE) <= scored
+
+
+def test_no_solver_reasons_state_the_measured_scores():
+    """P3 (T096 follow-up): the cascade/random reason said "ties at 0.000"
+    after random had moved to 1.000; the strict xfail passed either way."""
+    for cell, (s, i) in _STATED.items():
+        got_s, got_i, _n = _pair(*cell)
+        assert (round(got_s, 3), round(got_i, 3)) == (s, i), (cell, got_s, got_i)
 
 
 def test_the_shortcut_split_matches_each_worlds_task_kind():

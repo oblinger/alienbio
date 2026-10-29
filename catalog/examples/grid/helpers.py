@@ -44,6 +44,19 @@ def reaction_named(world, name: str) -> str:
     return matches[0]
 
 
+#: The grid nodes the task may throttle, in draw order: row 0's first step
+#: (key `down`), row 0's drain (`up`), row 1's first step (`same`).
+THROTTLE_NODES = ("row0_step0", "drain0", "row1_step0")
+
+
+@fn(summary="the throttle candidates (row0_step0, drain0, row1_step0) the drafted world actually holds")
+def throttle_candidates(world) -> list[str]:
+    """The :data:`THROTTLE_NODES` present in ``world`` — a one-row grid has no
+    ``row1_step0``, and a literal three-way choice named it on a third of the
+    seeds (an error record, past a clean ``--dry``)."""
+    return [n for n in THROTTLE_NODES if any(rid.endswith(f"/{n}/rxn") for rid in world.chemistry.reactions)]
+
+
 @fn(summary="the id of the molecule whose pool is `name`")
 def molecule_id(world, name: str) -> str:
     matches = [m for m in world.chemistry.molecules if m == name or m.endswith(f"/{name}")]

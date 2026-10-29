@@ -2,8 +2,8 @@
 # pipeline end to end on a neutral world: a host drafted with distractors,
 # a chain pattern carved into it, an identify objective graded with partial
 # credit, an opaque vocabulary with the question rendered and parsed back,
-# a coverage plan over puzzle features, and reject-sampling (`!verify`) that
-# keeps only hosts where the pathway is causally non-obvious. Loads trusted
+# a coverage plan over puzzle features, and a validity gate (`!verify`) that
+# delivers only a host where the pathway is causally non-obvious. Loads trusted
 # (helpers.py). See README.md.
 _includes_: [helpers.py]
 
@@ -55,13 +55,17 @@ plan: !cover
   admissible: at_most_two
   aggressiveness: 0.5
 
-# 6. reject-sampling: redraw the host until knocking out a chain step
-#    visibly changes the trajectory (validity.non_obvious_causal)
+# 6. the validity gate: the puzzle's own `host` must show a visible change
+#    when a chain step is knocked out (validity.non_obvious_causal). It reads
+#    the `host` node, not a second draw — a fresh `opaque_host(...)` here
+#    checked a host drawn at its own seed and never gated the one delivered —
+#    and the drafter delivers `checked`, so a host that fails is refused, never
+#    delivered. A referenced host redraws identically, hence no redraws.
 checked: !verify
-  world: !x opaque_host(pathway_length, distractors)
+  world: !x host
   perturb: knockout_first
   valid: non_obvious
-  max_redraws: 6
+  max_redraws: 0
   sim: !sim {dt: 0.05, steps: 60}
 
 experiment: !experiment

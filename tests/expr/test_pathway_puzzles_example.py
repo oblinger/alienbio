@@ -87,6 +87,49 @@ def test_reject_sampling_returns_a_causally_non_obvious_host(values):
     assert isinstance(checked, WorldImpl) and len(checked.chemistry.reactions) >= 3
 
 
+def _scope(seed: int, length: int = 4):
+    from alienbio.suite.dist import Seed
+
+    scope = Env.standard(seed=Seed(seed), trusted=True).load(SPEC)
+    scope.bindings["pathway_length"] = length
+    return scope
+
+
+def test_the_validity_gate_checks_the_host_the_puzzle_delivers():
+    """T096 follow-up P6: `checked` drafted its own `opaque_host(...)` at its
+    own node seed, so the gate never saw the puzzle's host. It reads `host`
+    now, and the drafter delivers what the gate passed."""
+    from alienbio.expr import X, evaluate
+    from alienbio.suite.dist import Seed
+    from alienbio.suite.experiment import DRAFTERS
+
+    load_spec(SPEC)  # registers the example's heads, the `puzzles` drafter among them
+    for seed in range(8):
+        v = _scope(seed).force_all()
+        assert v["checked"] is v["host"], seed
+        world, task = DRAFTERS["puzzles"](Seed(seed), {"pathway_length": 4})
+        scope = _scope(seed)
+        assert world.chemistry.reactions.keys() == evaluate(X.name("host"), scope).chemistry.reactions.keys()
+        assert task.objective.key.value == evaluate(X.name("puzzle"), scope)["objective"].key.value
+
+
+def test_a_host_the_gate_rejects_is_never_delivered():
+    """An inert host (nothing to move, so a knockout changes nothing) refuses
+    at the gate: `checked` raises instead of handing it on."""
+    from dataclasses import replace
+
+    from alienbio.expr import ExprError, X, evaluate
+
+    scope = _scope(3)
+    host = evaluate(X.name("host"), scope)
+    inert = WorldImpl(host.chemistry, tuple(
+        replace(c, concentrations={m: 0.0 for m in c.concentrations}) for c in host.compartments
+    ))
+    scope.bindings["host"] = inert
+    with pytest.raises(ExprError, match="no world passed the validity predicate"):
+        evaluate(X.name("checked"), scope)
+
+
 def test_the_experiment_runs_over_the_chain_length(tmp_path):
     spec = load_spec(SPEC)
     assert spec.drafter == "puzzles" and spec.axes == (("pathway_length", (3, 5)),)

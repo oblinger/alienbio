@@ -24,8 +24,9 @@ world: !world {skeleton: !x sk, initial: {S0: 1.0}}
 # throttled? The reaction is drawn from the world seed (T096: it was row 0's
 # first step, so the key was `down` on every cell): row 0's first step
 # (`down`), row 0's drain (`up`) or row 1's first step, which never reaches
-# P0 (`same`)
-perturbed: !x choice(["row0_step0", "drain0", "row1_step0"])
+# P0 (`same`) — drawn from the reactions this world holds, so a one-row grid
+# (`n_nodes: 1`, no row 1) draws from the first two
+perturbed: !x choice(throttle_candidates(world))
 task: !task
   archetype: grid-predict
   objective: !predict_q
