@@ -225,9 +225,25 @@ def test_predict_refuses_an_ambiguous_world_and_reads_the_named_compartment():
     assert predicted_response(world, "P", "conv", 3.0, cfg, compartment="b") == "up"
 
 
-def test_the_organism_example_names_its_compartment_and_keeps_its_answer():
+def test_the_organism_example_names_its_compartment_and_reads_its_answer_there():
     from pathlib import Path
 
+    from alienbio.suite.arch_predict import predicted_response
+
     path = Path(__file__).resolve().parents[2] / "catalog/examples/organism/organism.yaml"
-    task = evaluate(X.name("task"), Env.standard(seed=1, trusted=True).load(path))
-    assert task.objective.key.value == "down"  # compartments[0] = organism read "down" before the rule too
+    # T096: the throttled step is drawn per seed, so the key moves with the
+    # world (it was "down" on every seed); the named compartment is still the
+    # one read, and the key is the physics' answer for the drawn step there.
+    expected = {"glycolysis": "down", "ferment": "down", "excrete": "up", "clear": "same"}
+    keys = {}
+    for seed in (1, 2, 3, 4, 5, 6):
+        scope = Env.standard(seed=seed, trusted=True).load(path)
+        task = evaluate(X.name("task"), scope)
+        perturbed = evaluate(X.name("perturbed"), scope)
+        keys[seed] = task.objective.key.value
+        assert keys[seed] == expected[perturbed]
+        # the key is the named compartment's read (lactate is held in all four)
+        body = evaluate(X.name("body"), scope)
+        cfg = SimConfig(dt=0.1, steps=60)
+        assert keys[seed] == predicted_response(body, "lactate", perturbed, 0.25, cfg, compartment="organism")
+    assert len(set(keys.values())) >= 2, keys
