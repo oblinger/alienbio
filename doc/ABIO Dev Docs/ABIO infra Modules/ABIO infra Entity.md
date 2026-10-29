@@ -88,7 +88,7 @@ A plain class with `__slots__` (`_local_name`, `_parent`, `_children`, `_top`, `
     Pre-order over the children dicts. ^descendants
 
 **save**`() -> None`
-    Only on a root, and not on the orphan root (`ValueError` for either). Dumps `to_dict(recursive=True)` as YAML to `<dat.get_path()>/entities.yaml`, then calls `dat.save()`. A `MockDat` root writes under `/mock/…`, which does not exist, so it raises `FileNotFoundError`. `IO._load_dat_entity` is the reader (§ [Serialized form](#serialized-form)). ^save
+    Only on a root, and not on the orphan root (`ValueError` for either). Dumps `to_dict(recursive=True)` as YAML to `<dat.get_path()>/entities.yaml`, then calls `dat.save()`. A `MockDat` root is refused with `TypeError` before anything is written (it has no folder on disk and no `save()`; anchor the tree to a real `Dat` first). `IO._load_dat_entity` is the reader (§ [Serialized form](#serialized-form)). ^save
 
 
 
@@ -108,7 +108,7 @@ The anchor every test, generator and maker uses in place of a dvc-dat `Dat`: a p
     `path`, which becomes a root entity's `full_name`. ^get-path-name
 
 **get_path**`() -> str`
-    `"/mock/" + path`, the folder `save` writes into. ^get-path
+    `"/mock/" + path`, a path that exists nowhere; `save` refuses a `MockDat` root rather than writing there. ^get-path
 
 
 
@@ -122,8 +122,8 @@ The module-level surface: the head registry and the anchor alias.
 | [get_registered_heads](#^get-registered-heads) | Copy of the registry |
 | [DatLike](#^datlike) | The anchor type, `Any` |
 
-**register_head**`(name: str, cls: type[Entity]) -> None`
-    Writes `_head_registry[name] = cls`, replacing any earlier class silently. Called by `Entity.__init_subclass__` with the `head=` class keyword or the class name, and once at import for `Entity` itself. ^register-head
+**register_head**`(name: str, cls: type[Entity], *, replace: bool = False) -> None`
+    Writes `_head_registry[name] = cls`. Registering the same class again is a no-op; a different class under a taken name raises `ValueError` naming both classes unless `replace=True`, so a refused collision leaves the first class and its `head` as they were. Called by `Entity.__init_subclass__` with the `head=` class keyword or the class name (the class keyword `replace_head=True` passes `replace`), and once at import for `Entity` itself. ^register-head
 
 **get_entity_class**`(name: str) -> type[Entity]`
     `KeyError` naming an unknown head. Its one `src/` caller is `IO._create_entity_from_dict`, which lets the `KeyError` through. ^get-entity-class
@@ -163,3 +163,4 @@ One slot answers both "which dat" and "which root". A root's `_top` is its dat; 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `7d390d6` (read from a `git archive` export, a concurrent worker editing `src/suite/`). Run against that export: the name-collision `set_parent` leaving the entity in neither tree; a cycle through a non-root raising `RecursionError` and through a root succeeding; a shadowed class's `head` falling back to its class name. Callers counted by `git grep -w` over `src/` and `tests/` at that sha. Not determined: whether any caller outside `src/` (AUP's launchers) uses `save`, `detach` or `to_dict`. Findings filed on T088.
 - 2026-10-28 — refreshed against `234de0d`: `set_parent` refuses a name clash or a cycle before moving anything; `__str__` falls back to `full_name` only when no IO is attached; `get_entity_class`'s `KeyError` now reaches the loader's caller (`76bfc54`).
+- 2026-10-29 — refreshed against `5a1f603` (T088 entity 3–4): `register_head` refuses a different class under a taken head unless `replace=True` (`replace_head=` on a subclass header); `save` refuses a `MockDat` root with `TypeError` before writing. The three `mol/` strips in the generators were checked correct for every root they build (606 molecules over three heads, all `MockDat`-rooted).
