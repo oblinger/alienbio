@@ -34,8 +34,18 @@ needs_jax = pytest.mark.skipif(not HAS_JAX, reason="JAX not installed")
 # ---------------------------------------------------------------------------
 
 positive = st.floats(min_value=0.01, max_value=2.0, allow_nan=False, allow_infinity=False)
-conc = st.floats(min_value=0.0, max_value=5.0, allow_nan=False, allow_infinity=False)
-POW_EXPONENTS = [-1.0, 0.5, 1.5, 2.0, 3.0]
+#: Concentrations span the supported magnitude range (``bio.rate_expr``'s
+#: module docstring: 0 to 1e6); most draws stay at
+#: catalog scale, the rest reach the top of the range, where the rounding
+#: snap must be relative (T091 C3).
+conc = st.one_of(
+    st.floats(min_value=0.0, max_value=5.0, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0.0, max_value=1e6, allow_nan=False, allow_infinity=False),
+)
+#: 1100.5 overflows: inf over a base above 1, NaN over a negative ``sub`` base
+#: (CPython raises OverflowError there, which the reference once read as inf
+#: — T091 C1).
+POW_EXPONENTS = [-1.0, 0.5, 1.5, 2.0, 3.0, 1100.5]
 
 
 @st.composite

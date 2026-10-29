@@ -1,4 +1,12 @@
-"""WorldSimulator: multi-compartment simulation with reactions and flows."""
+"""WorldSimulator: multi-compartment simulation with reactions and flows.
+
+The reference simulator. It matches :class:`~alienbio.bio.jax_simulator.JaxWorldSimulator`
+to 1e-9 over the supported magnitude range — concentrations, multiplicities
+and amounts from 0 to 1e6 (``bio.rate_expr``'s module docstring states the
+contract and what lies outside it). Every pass keeps the state non-negative:
+a rationed draw's rounding residue is snapped to zero relative to the pool
+it was drawn from (``rate_expr.snap_residue``).
+"""
 
 from __future__ import annotations
 
@@ -15,13 +23,14 @@ from .population import PopulationLaw, apply_population_laws
 from .reaction import Modulation
 from .rate_expr import (
     RATE_CAP,
-    ROUNDING_FLOOR,
+    check_rate_law,
     eval_rate,
     ieee_div,
     inhibitor_ratio,
     ieee_pow,
     implicit_mass_action,
     map_species,
+    snap_residue,
 )
 
 if TYPE_CHECKING:
@@ -89,6 +98,8 @@ class ReactionSpec:
         #: M47.10 — a compiled rate expression (``bio.rate_expr`` tree, species by
         #: molecule ID). When it names a reactant it IS the rate; otherwise mass
         #: action over the reactants is implicit and the law multiplies it.
+        if rate_law is not None:
+            check_rate_law(rate_law)
         self.rate_law = rate_law
         self.implicit_mass_action = (
             implicit_mass_action(rate_law, reactants) if rate_law is not None else True
@@ -420,9 +431,9 @@ class WorldSimulatorImpl:
             for mol_id, stoich in reaction.reactants.items():
                 remaining = new_state.get(compartment, mol_id) - extent * stoich
                 # Exact arithmetic never goes below zero (the rationing proof);
-                # float rounding can leave -1e-17. Snap that to zero (M48.6).
-                if -ROUNDING_FLOOR < remaining < 0.0:
-                    remaining = 0.0
+                # float rounding leaves a residue on the pool's own scale.
+                # Snap it, relative to the start-of-step pool (M48.6, T091 C3).
+                remaining = snap_residue(remaining, frozen.get(compartment, mol_id))
                 new_state.set(compartment, mol_id, remaining)
             for mol_id, stoich in reaction.products.items():
                 new_state.set(

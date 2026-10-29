@@ -38,7 +38,7 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple, cast
 #: A JAX array in annotations — ``Any`` so the module types without JAX installed.
 Array = Any
 
-from .rate_expr import RATE_CAP, ROUNDING_FLOOR, lower_jax
+from .rate_expr import RATE_CAP, lower_jax, snap_residue_jax
 
 try:
     import jax
@@ -274,9 +274,10 @@ def apply_reactions(
     scale = jnp.where(has_reactant[:, None], scale, 1.0)
 
     extent = desired * scale  # [Rn, C]
-    S = S + jnp.einsum("rc,rm->cm", extent, net)
-    # float rounding of an exact zero -> zero (matches WorldSimulatorImpl, M48.6)
-    return jnp.where((S < 0.0) & (S > -ROUNDING_FLOOR), 0.0, S)
+    S_next = S + jnp.einsum("rc,rm->cm", extent, net)
+    # float rounding of an exact zero -> zero, relative to the start-of-step
+    # pool (``rate_expr.snap_residue``; matches WorldSimulatorImpl, T091 C3)
+    return snap_residue_jax(S_next, S)
 
 
 def apply_native_flows(

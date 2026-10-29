@@ -14,7 +14,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Optional, Sequence, TYPE_CHECKING
 
-from .rate_expr import ROUNDING_FLOOR
+from .rate_expr import snap_residue
 
 logger = logging.getLogger(__name__)
 
@@ -431,13 +431,14 @@ class TransportFlux(Flow):
                 f"{self._origin} (size {origin_scale}) and {self._dest} (size {dest_scale})"
             )
             delta_n = event_count * count
-            remaining = state.get(self._origin, mol) - delta_n / origin_scale
-            # A draw rationed to the whole pool can leave -1e-17 of
-            # rounding; snap it, as the reaction pass does (M48.6).
-            if -ROUNDING_FLOOR < remaining < 0.0:
-                remaining = 0.0
-            state.set(self._origin, mol, remaining)
-            state.set(self._dest, mol, state.get(self._dest, mol) + delta_n / dest_scale)
+            # A draw rationed to the whole pool can leave a rounding residue;
+            # snap it as the reaction pass does (M48.6, ``snap_residue``). The
+            # losing pool is dest for an antiported species (negative count),
+            # so both writes are snapped (T091 C3).
+            pre_origin = state.get(self._origin, mol)
+            pre_dest = state.get(self._dest, mol)
+            state.set(self._origin, mol, snap_residue(pre_origin - delta_n / origin_scale, pre_origin))
+            state.set(self._dest, mol, snap_residue(pre_dest + delta_n / dest_scale, pre_dest))
 
     def attributes(self) -> Dict[str, Any]:
         """Semantic content for serialization."""

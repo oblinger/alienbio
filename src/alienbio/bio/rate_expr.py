@@ -22,6 +22,16 @@ A law's **value is the whole rate** when it names a reactant (``Vmax * S /
 (Km + S)`` over substrate ``S``); when it names no reactant, mass action over
 the reactants is implicit and the law is the factor that multiplies it
 (``k * hill(M, K)`` — the M47.3 form). :func:`implicit_mass_action` decides.
+
+**Supported magnitudes.** The two simulators agree to 1e-9 (relative, or
+absolute near zero) for concentrations, multiplicities and amounts from 0 to
+1e6 — the range the conformance property draws (catalog pools are ~1–100).
+Where IEEE / JAX semantics give NaN or inf, the reference gives the same NaN
+or inf, never a different finite number. Pools far beyond that range, or
+spread across more orders of magnitude than float64 carries (a 1e100 pool
+refilled by a 1e6 one: JAX's fused update loses the 1e6 below the 1e100
+pool's ulp, the reference's sequential update does not), are out of
+contract (T091 C3).
 """
 
 from __future__ import annotations
@@ -36,6 +46,30 @@ from typing import Any, Callable, Hashable, Iterable, Mapping
 #: backends carried their own copies, and a `1/[x]` law amplified a 1e-16
 #: residue on one of them into a RATE_CAP extent while the other read exactly 0).
 ROUNDING_FLOOR = 1e-12
+
+
+def snap_residue(value: float, pre: float) -> float:
+    """``value`` with a negative rounding residue snapped to exactly zero.
+
+    A pass that rations a pool to exhaustion leaves, in exact arithmetic,
+    exactly zero; in float64 it leaves a residue on the order of the pool's
+    own ulp. So the tolerance is RELATIVE: a post-pass value within
+    ``ROUNDING_FLOOR * max(1, pre)`` below zero — ``pre`` the value the pass
+    started from — is zero. (T091 C3: the absolute ``-1e-12`` snap left a
+    rationed 1e5 pool at -1.1e-11, negative on both backends and
+    disagreeing between them.) Every pass that draws a pool — reactions on
+    both backends (:func:`snap_residue_jax` is the same arithmetic over
+    arrays), the flow pass, the population pass — calls this one rule."""
+    scale = pre if pre > 1.0 else 1.0
+    return 0.0 if -ROUNDING_FLOOR * scale < value < 0.0 else value
+
+
+def snap_residue_jax(value: Any, pre: Any) -> Any:
+    """:func:`snap_residue` over arrays, the same arithmetic as JAX ops."""
+    import jax.numpy as jnp
+
+    scale = jnp.where(pre > 1.0, pre, 1.0)
+    return jnp.where((value < 0.0) & (value > -ROUNDING_FLOOR * scale), 0.0, value)
 
 #: The largest desired extent a reaction may ask for in one step: an infinite
 #: rate means "all of it", and the rationing then bounds it by availability.
@@ -58,13 +92,23 @@ def _odd_integer(b: float) -> bool:
     return b == b and math.isfinite(b) and b == int(b) and int(b) % 2 == 1
 
 
+def _integer(b: float) -> bool:
+    return math.isfinite(b) and b == int(b)
+
+
 def ieee_pow(a: float, b: float) -> float:
     """``a ** b`` as IEEE-754 / ``jnp.power`` reads it: inf on a zero base with
     a negative exponent or an overflow (signed for a negative base under an
-    odd integer exponent), NaN where the real result does not exist."""
+    odd integer exponent), NaN where the real result does not exist — a
+    negative base under a non-integer exponent is NaN on every path, the
+    overflow included (CPython raises ``OverflowError`` for ``(-2.0) **
+    1100.5`` before it would return a complex; T091 C1: read as inf, the
+    reference consumed a whole reactant where JAX ran no reaction)."""
     try:
         result = a**b
     except (ZeroDivisionError, OverflowError):
+        if a < 0.0 and not _integer(b):
+            return math.nan
         negative = math.copysign(1.0, a) < 0.0 and _odd_integer(b)
         return -math.inf if negative else math.inf
     if isinstance(result, complex):
@@ -112,7 +156,32 @@ def modulation(kind: str, pool: Hashable, params: Mapping[str, float]) -> RateNo
     out = {k: float(v) for k, v in params.items()}
     if "Ki" in out and not (out["Ki"] >= 0.0):
         raise ValueError(f"modulation: Ki must be >= 0, got {params['Ki']!r}")
+    _check_modulation_params(kind, out)
     return ("mod", kind, pool, out)
+
+
+def _check_modulation_params(kind: str, params: Mapping[str, Any]) -> None:
+    """Refuse a hill whose ``K ** n`` has no real value or no finite one.
+
+    A hill modulation is ``Vmax * m**n / (K**n + m**n)``. ``K`` (the
+    half-saturation concentration) must be ``>= 0``; ``K == 0`` is allowed
+    only with a non-negative integer ``n`` (the default is 2). Any ``n`` goes
+    with ``K > 0``. Outside that, ``K ** n`` is complex (``K < 0`` under a
+    fractional ``n``) or a division by zero (``K == 0, n < 0``): the JAX
+    lowering computes it in Python at trace time and either raised
+    ``ZeroDivisionError`` or cast a complex to real, while the reference read
+    NaN (T091 C2). Refused here, at compile time, with one message for both
+    simulators — :func:`modulation`, :func:`from_json` and
+    :func:`check_rate_law` (which ``ReactionSpec`` calls) all run it."""
+    if kind != "hill" or "K" not in params:
+        return
+    K = float(params["K"])
+    n = float(params.get("n", 2.0))
+    if not (K >= 0.0) or (K == 0.0 and not (n >= 0.0 and _integer(n))):
+        raise ValueError(
+            f"hill modulation: K={K!r} with n={n!r} has no finite real K**n — "
+            "K must be >= 0, and K == 0 needs a non-negative integer n"
+        )
 
 
 def species_of(node: RateNode) -> set:
@@ -267,7 +336,9 @@ def _lower_modulation(kind: str, m: Any, p: Mapping[str, float], jnp: Any) -> An
     if kind == "hill":
         n = p.get("n", 2.0)
         m_n = m**n
-        denom = p["K"] ** n + m_n
+        # ``_check_modulation_params`` admitted (K, n) at compile time, so this
+        # trace-time constant is the reference's ``ieee_pow`` value.
+        denom = ieee_pow(float(p["K"]), float(n)) + m_n
         return jnp.where(denom > 0.0, p.get("Vmax", 1.0) * m_n / jnp.where(denom > 0.0, denom, 1.0), 0.0)
     raise ValueError(f"unknown modulation kind {kind!r}")
 
@@ -317,6 +388,7 @@ def _check_tree(node: Any) -> None:
     elif tag == "mod":
         if len(node) != 4 or node[1] not in MODULATION_KINDS or not isinstance(node[3], Mapping):
             raise ValueError(f"malformed modulation node: {node!r}")
+        _check_modulation_params(node[1], node[3])
     elif tag in _UNARY:
         if len(node) != 2:
             raise ValueError(f"rate node {tag!r} takes one operand: {node!r}")
@@ -328,6 +400,13 @@ def _check_tree(node: Any) -> None:
         _check_tree(node[2])
     else:
         raise ValueError(f"unknown rate node {tag!r}")
+
+
+def check_rate_law(node: Any) -> None:
+    """Refuse a malformed tree or a modulation no simulator can evaluate the
+    same way (see :func:`_check_modulation_params`). ``ReactionSpec`` calls it,
+    so both simulators refuse one law with one message at construction."""
+    _check_tree(node)
 
 
 def from_json(data: Any) -> RateNode:
@@ -343,7 +422,9 @@ def from_json(data: Any) -> RateNode:
     if tag in ("const", "species"):
         return (tag, data[1])
     if tag == "mod":
-        return ("mod", data[1], data[2], dict(data[3]))
+        node = ("mod", data[1], data[2], dict(data[3]))
+        _check_tree(node)
+        return node
     if tag in _UNARY:
         return (tag, from_json(data[1]))
     if tag in _BINARY:
@@ -356,11 +437,14 @@ __all__ = [
     "RATE_CAP",
     "ROUNDING_FLOOR",
     "RateNode",
+    "check_rate_law",
     "const",
     "eval_rate",
     "from_json",
     "implicit_mass_action",
     "inhibitor_ratio",
+    "snap_residue",
+    "snap_residue_jax",
     "lower_jax",
     "map_species",
     "modulation",

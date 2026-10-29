@@ -48,7 +48,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, FrozenSet, List, Optional, Sequence, TYPE_CHECKING
 
-from .rate_expr import ROUNDING_FLOOR
+from .rate_expr import snap_residue
 
 if TYPE_CHECKING:
     from .world_state import WorldStateImpl
@@ -635,8 +635,8 @@ def apply_population_laws(
             mult_delta[comp] = mult_delta.get(comp, 0.0) + delta * scale
 
     def _post_mult(comp: CompartmentId) -> float:
-        value = new_state.get_multiplicity(comp) + mult_delta.get(comp, 0.0)
-        return 0.0 if -ROUNDING_FLOOR < value < 0.0 else value
+        pre = new_state.get_multiplicity(comp)
+        return snap_residue(pre + mult_delta.get(comp, 0.0), pre)
 
     def _ends_empty(comp: CompartmentId) -> bool:
         return _post_mult(comp) * new_state.get_volume(comp) <= 0.0
@@ -673,9 +673,11 @@ def apply_population_laws(
             accounted.update((carry.src, m) for m in carry.skip)
 
     amounts: Dict[tuple[CompartmentId, MoleculeId], float] = {}
+    pre_amounts: Dict[tuple[CompartmentId, MoleculeId], float] = {}
     if accounted:
         # Read everything off the pre-pass state before writing anything.
         amounts = {key: new_state.amount(*key) for key in accounted}
+        pre_amounts = dict(amounts)
         for carry in scaled_carries:
             for m in range(num_molecules):
                 q = carry.count * per_instance(carry.src, m)
@@ -689,19 +691,17 @@ def apply_population_laws(
         for key, delta in mol_delta.items():
             amounts[key] += delta
 
-    for comp, delta in mult_delta.items():
-        value = new_state.get_multiplicity(comp) + delta
-        if -ROUNDING_FLOOR < value < 0.0:
-            value = 0.0
-        new_state.set_multiplicity(comp, value)
+    for comp in mult_delta:
+        new_state.set_multiplicity(comp, _post_mult(comp))
     for (comp, mol_id), amount in amounts.items():
         size = new_state.get_multiplicity(comp) * new_state.get_volume(comp)
         if size <= 0.0:
             continue  # holds no amount; its concentration is moot
-        value = amount / size
         # Every draw is rationed, so exact arithmetic never goes below zero;
-        # float rounding can leave -1e-16 — snap it, as the reaction pass does
-        # (found by `bio report`, 2026-08-30).
-        if -ROUNDING_FLOOR < value < 0.0:
-            value = 0.0
+        # float rounding leaves a residue — snap it, as the reaction pass does
+        # (found by `bio report`, 2026-08-30). The rule is ``snap_residue``,
+        # read on the AMOUNT against the pre-pass amount: the compartment's
+        # size changes in this pass, so a concentration tolerance would scale
+        # with the new size rather than with the pool (T091 C3).
+        value = snap_residue(amount, pre_amounts[(comp, mol_id)]) / size
         new_state.set(comp, mol_id, value)
