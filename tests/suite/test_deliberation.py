@@ -44,40 +44,6 @@ def test_extend_returns_new_instance_and_leaves_original_unchanged():
     assert updated.steps == (step0, step1, step2)
 
 
-def test_steps_of_kind_filters_and_preserves_order():
-    trace = _trace()
-    reason_steps = trace.steps_of_kind("reason")
-
-    assert [s.content for s in reason_steps] == ["thinking a", "thinking b"]
-    assert trace.steps_of_kind("act") == (trace.steps[1],)
-    assert trace.steps_of_kind("nonexistent") == ()
-
-
-def test_first_ref_turn_earliest_and_absent():
-    trace = _trace()
-
-    assert trace.first_ref_turn("obj1") == 0  # earliest turn, even though re-referenced at turn 1
-    assert trace.first_ref_turn("obj2") == 0
-    assert trace.first_ref_turn("obj3") == 1
-    assert trace.first_ref_turn("obj_missing") is None
-
-
-def test_refs_by_turn_merges_refs_sharing_a_turn():
-    trace = _trace()
-    by_turn = trace.refs_by_turn()
-
-    assert by_turn == {
-        0: frozenset({"obj1", "obj2"}),
-        1: frozenset({"obj1", "obj3"}),
-        2: frozenset(),
-    }
-
-
-def test_all_refs_is_the_union():
-    trace = _trace()
-    assert trace.all_refs() == frozenset({"obj1", "obj2", "obj3"})
-
-
 def test_depth_counts_steps():
     trace = _trace()
     assert trace.depth() == 4

@@ -1,5 +1,5 @@
 ---
-description: "`deliberation`: M33.1's reasoning-trace data model — `DeliberationStep` (turn, kind, content, refs) and the immutable `DeliberationTrace` with `append`/`extend` returning new traces and five readers (`steps_of_kind`, `first_ref_turn`, `refs_by_turn`, `all_refs`, `depth`). Source: `src/alienbio/suite/deliberation.py`."
+description: "`deliberation`: M33.1's reasoning-trace data model — `DeliberationStep` (turn, kind, content, refs) and the immutable `DeliberationTrace` with `append`/`extend` returning new traces and `depth`. Source: `src/alienbio/suite/deliberation.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO DeliberationTrace](ha://p/ABIO%20DeliberationTrace) 
 # ABIO DeliberationTrace
@@ -44,10 +44,6 @@ A frozen dataclass over a tuple of steps; the two writers return a new trace.
 | [steps](#^steps) | The steps, in order |
 | [append](#^append) | New trace plus one step |
 | [extend](#^extend) | New trace plus several |
-| [steps_of_kind](#^steps-of-kind) | Steps with one kind |
-| [first_ref_turn](#^first-ref-turn) | Earliest turn naming a ref |
-| [refs_by_turn](#^refs-by-turn) | Union of refs per turn |
-| [all_refs](#^all-refs) | Every ref named |
 | [depth](#^depth) | Number of steps |
 
 **steps**`: tuple[DeliberationStep, ...] = ()`
@@ -58,18 +54,6 @@ A frozen dataclass over a tuple of steps; the two writers return a new trace.
 
 **extend**`(steps: Iterable[DeliberationStep]) -> DeliberationTrace`
     `self.steps + tuple(steps)`; each call copies the whole tuple. ^extend
-
-**steps_of_kind**`(kind: str) -> tuple[DeliberationStep, ...]`
-    Filter, order kept. ^steps-of-kind
-
-**first_ref_turn**`(ref: str) -> Optional[int]`
-    The turn of the first step whose `refs` contains `ref`; `None` when never. ^first-ref-turn
-
-**refs_by_turn**`() -> dict[int, frozenset[str]]`
-    Turn to the union of its steps' refs; turns with no step are absent. ^refs-by-turn
-
-**all_refs**`() -> frozenset[str]`
-    Union over every step. ^all-refs
 
 **depth**`() -> int`
     `len(steps)`; read by `TrialRecord.deliberation_depth`. ^depth
@@ -82,10 +66,11 @@ A frozen dataclass over a tuple of steps; the two writers return a new trace.
 ## Refs and action tags
 A turn on which the agent emitted no reasoning step leaves no trace entry, so the trace is not a turn log: a scripted agent without reasoning produces an empty trace, and the action itself is only in `action_log`. When the agent does reason, every step of that turn carries the action tag (`measure`, `intervene`, `commit`, `wait`) at the end of its refs, beside whatever ids the agent named. A reader asking `first_ref_turn("commit")` gets the first turn the agent committed with reasoning attached, and an id spelled like an action tag would read as surfaced on every such turn. Molecule and consideration ids are path-shaped (`root/…`), so no current id collides.
 
-`steps_of_kind`, `first_ref_turn`, `refs_by_turn` and `all_refs` have no caller in `src/`; the scorers scan `steps` themselves.
+The scorers scan `steps` themselves.
 
 
 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and `trial.thread_reasoning_steps`, no spend. Consumer census: `runner`, `trial`, `store`, `mass_trial` (empty trace on an error record), and the four scorers that read `steps`.
+- 2026-10-29 — T093: the four readers `steps_of_kind`, `first_ref_turn`, `refs_by_turn` and `all_refs` retired (no caller in `src/`, `catalog/`, `demos/` or AUP); `depth` stays (`TrialRecord.deliberation_depth`).

@@ -45,11 +45,9 @@
   <line id="e-trace-rec" x1="900" y1="220" x2="960" y2="220" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
 
   <g id="n-readers">
-    <rect id="n-readers-box" x="300" y="340" width="360" height="100" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
-    <text id="n-readers-name" x="480" y="366" font-size="17" font-weight="600" text-anchor="middle">the trace's own readers</text>
-    <text id="n-readers-k1" x="480" y="390" font-size="14" text-anchor="middle">steps_of_kind · first_ref_turn</text>
-    <text id="n-readers-k2" x="480" y="410" font-size="14" text-anchor="middle">refs_by_turn · all_refs: no caller;</text>
-    <text id="n-readers-k3" x="480" y="430" font-size="14" text-anchor="middle">depth: deliberation_depth</text>
+    <rect id="n-readers-box" x="300" y="340" width="360" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-readers-name" x="480" y="366" font-size="17" font-weight="600" text-anchor="middle">the trace's one reader</text>
+    <text id="n-readers-k3" x="480" y="400" font-size="14" text-anchor="middle">depth: deliberation_depth</text>
   </g>
   <line id="e-trace-readers" x1="700" y1="260" x2="600" y2="340" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
 
