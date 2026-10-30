@@ -15,16 +15,31 @@ The suite is plain pytest over `tests/` (`testpaths = ["tests"]`,
 
 `just test` runs the same thing as `uv run pytest tests/ -v`; calling the
 venv's interpreter directly avoids `uv run` picking another Python. Run
-`uv sync --extra jax --extra dev --extra llm` after a fresh clone: without
-the `jax` extra the JAX simulator tests skip, and `llm` is the Anthropic
-SDK (no test spends money; the live-model agent is never called in CI).
+`uv sync --extra jax --extra llm` after a fresh clone: without the `jax`
+extra the JAX simulator tests skip, and `llm` is the Anthropic SDK. The
+test, type-check and docs tooling (pytest, pytest-cov, hypothesis, ruff,
+pyright, mkdocs and its plugins, the notebook tools) is one `dev`
+dependency group in `pyproject.toml`, which `uv sync` installs by default.
+
+No test reaches a live model provider. `tests/conftest.py` removes
+`ANTHROPIC_API_KEY` and `ALIENBIO_ANTHROPIC_API_KEY` from every test's
+environment and replaces the `__init__` of `anthropic.Anthropic` and
+`anthropic.AsyncAnthropic` (so every alias, `Client` and `AsyncClient`
+included) with one raising `RuntimeError("live provider in tests")`; a
+test that stubs the SDK in `sys.modules` is unaffected. A test that must
+reach the real provider is marked `@pytest.mark.live`: it keeps the
+environment and the SDK, and is skipped unless `ABIO_LLM_E2E=1` is set.
+The one such test is the LLM agent's end-to-end trial in
+`tests/suite/test_llm_agent.py`.
 
 The other recipes in the `justfile` that touch testing are `just check`
-(`pyright src/`), `just lint` (`ruff check`) and `just report` (below).
-There are no tiers, smoke tests or custom markers: every test runs on
-every invocation. The markers in use are pytest's own (`parametrize`,
-`skipif` for an absent JAX, strict `xfail`) and the `@capability`
-marker described below.
+(`pyright src/`), `just lint` (`ruff check src/ tests/`) and `just report`
+(below). `just lint` is not a gate: it reports some two thousand findings
+and CI does not run it. There are no tiers or smoke tests: every test
+runs on every invocation, the `live` one skipped. The markers in use are
+pytest's own (`parametrize`, `skipif` for an absent JAX, strict `xfail`),
+`live` (registered in `conftest.py`) and `capability` (registered under
+`[tool.pytest.ini_options] markers` in `pyproject.toml`), described below.
 
 ## The test tree
 

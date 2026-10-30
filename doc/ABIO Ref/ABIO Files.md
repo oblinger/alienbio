@@ -142,12 +142,13 @@ package, T088).
 
 ## Everything else at the root
 
-- **`pyproject.toml`** — dependencies and the four extras (`dev`, `jax`,
-  `llm`); run `uv sync --extra jax --extra dev --extra llm` after a fresh
+- **`pyproject.toml`** — dependencies (`dvc-dat` as a git pin), the two
+  extras (`jax`, `llm`) and one `dev` dependency group (test, type-check
+  and docs tooling); run `uv sync --extra jax --extra llm` after a fresh
   clone.
 - **`justfile`** — `just test`, `just check`, `just report`, `just docs`,
   `just docs-deploy`.
-- **`mkdocs.yml`** — the site built from `docs/`.
+- **`mkdocs.yml`** — the site built from `doc/` (`doc/_hooks/strip_spine.py` drops the spine line at build).
 - **`docs/`** — a READ-ONLY mirror of the vault's `ABIO Docs/`; edit the
   vault, then `code sync`, then `just docs-deploy`.
 - **`demos/`** — the notebook gallery (`notebooks/`, `output/` and

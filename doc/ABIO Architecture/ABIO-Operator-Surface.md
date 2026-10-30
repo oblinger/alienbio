@@ -29,7 +29,7 @@ Exit codes: 0, 1 for a reported user error or gate failure, 2 for bad usage.
 | GATE | Steps |
 | --- | --- |
 | `justfile` | `test` (pytest) · `check` (pyright `src/`) · `report` (`bio report --open`) · `fmt` · `lint` · `docs` (mkdocs) · `docs-deploy` (rsync `site/` to `oblinger.github.io/abio-docs`, commit, push) |
-| `ci.yml` (one job, push to main + PR) | `uv sync --extra dev --extra jax --extra llm` → `pytest --cov-fail-under=85` → `bio test-matrix --check` → `pyright src/` → `mkdocs build` |
+| `ci.yml` (one job, push to main + PR) | `uv sync --extra jax --extra llm` → `pytest --cov-fail-under=85` → `bio test-matrix --check` → `pyright src/` → `mkdocs build` |
 
 `bio report` is not in CI; it is a local operator artifact.
 
