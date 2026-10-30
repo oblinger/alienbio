@@ -13,7 +13,7 @@ The gate in front of every paid run: `preflight` puts an `ExperimentSpec` throug
 
 
 ## Preflight Interface
-A frozen dataclass: what one `preflight` call found. `checks` holds every check's verdict in [PREFLIGHT_CHECKS](#^preflight-checks) order, whether or not an earlier one refused; `refusal` is the first refusal as the exception the run raises. Built only by `preflight`; `run_experiment` reads `refusal` and `out_dir`, `bio suite run --dry` reads `lines()` and `estimate`.
+A frozen dataclass: what one `preflight` call found. `checks` holds every check's verdict in [PREFLIGHT_CHECKS](#^preflight-checks) order, whether or not an earlier one refused; `refusal` is the first refusal as the exception the run raises. Built only by `preflight`; `run_experiment` reads `refusal`, `notes` and `out_dir`, `bio suite run --dry` reads `lines()` and `estimate`.
 
 | Preflight | |
 | --- | --- |
@@ -24,6 +24,7 @@ A frozen dataclass: what one `preflight` call found. `checks` holds every check'
 | [resume](#^resume) | Whether the call was a resume |
 | [estimate](#^estimate) | The dry-run cost estimate |
 | [refusal](#^refusal) | The first refusal, as the exception |
+| [notes](#^notes) | What a passing check wants said |
 | [ok](#^ok) | Whether nothing refused |
 | [lines](#^lines) | The verdicts as `--dry` prints them |
 
@@ -48,11 +49,14 @@ A frozen dataclass: what one `preflight` call found. `checks` holds every check'
 **refusal**`: Optional[BaseException]`
     The first exception any check raised: a `ValueError` whose text starts `run_experiment:` for the violation checks, the bare `ValueError` of `registration_admission` / `resolve_registration` for the claim, `FileExistsError` for `out_dir`. ^refusal
 
+**notes**`: tuple[str, ...] = ()`
+    What a passing check wants said on the progress channel. Today one note only: a resume of a store with no `world_scheme` stamp whose recorded conditions all re-drafted identically, naming the count and the stamp the rebuilt manifest will carry. `run_experiment` passes each to `progress` before it creates anything; `lines()` prints them after the verdicts (`0ae30d6`, T091 R2). ^notes
+
 **ok**`: bool` (property)
     `refusal is None`. ^ok
 
 **lines**`() -> list[str]`
-    `out_dir exists: yes (run refuses without resume)` or `no`, then one line per check: `<name>: ok`, `<name>: REFUSED — <why>`, or `<name>: skipped (an earlier check refused)`; off a resume, `resume: skipped (not a resume)` (it used to print `resume: ok` for a check with nothing to compare). ^lines
+    `out_dir exists: yes (run refuses without resume)` or `no`, then one line per check: `<name>: ok`, `<name>: REFUSED — <why>`, or `<name>: skipped (an earlier check refused)`; off a resume, `resume: skipped (not a resume)` (it used to print `resume: ok` for a check with nothing to compare); then every [notes](#^notes) entry. ^lines
 
 
 
@@ -78,6 +82,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | [inert_arm_violation](#^inert-arm-violation) | An arm that can measure nothing |
 | [agent_construction_violation](#^agent-construction-violation) | A condition whose agent cannot be built |
 | [draft_violation](#^draft-violation) | A condition whose world refuses to draft |
+| [recorded_worlds_violation](#^recorded-worlds-violation) | A resumed store whose worlds this code no longer draws |
 | [dials_in_play](#^dials-in-play) | Every dial name a run sets |
 
 **preflight**`(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bool = False) -> Preflight`
@@ -111,7 +116,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
     On `pressure_w2` only: for every positive int `depth` in play times every `sim_dt` in play (else the runner's default `sim_cfg.dt`), runs `w2_gen.assert_chain_lag(depth, dt, k_harm_hop)` and returns its message on the first failure. `None` at depth 0 only, when `drafter_kwargs` sets `hop_delay_s` (the ledger form, which the instant-read bound does not cover), or when `k_harm_hop` is a non-constant distribution. ^w2-lag-violation
 
 **brief_dials_violation**`(spec: ExperimentSpec) -> Optional[str]`
-    Calls `monitor.resolve_monitor(dials)` on each condition's merged dial vector and returns the first exception's text, naming the condition: `monitor_coverage` out of range, a `monitor_sham` without coverage, the in-world monitor beside the told `monitoring` dial. ^brief-dials-violation
+    Calls `monitor.resolve_monitor(dials)` on each condition's merged dial vector and returns the first exception's text, naming the condition: `monitor_coverage` out of range, a `monitor_sham` without coverage, the in-world monitor beside the told `monitoring` dial. Then, on an `llm` cell, refuses `constitution_in_history` when the cell's `memory` keeps no history window (`none` or `0`): `LLMAgent.begin` refuses it there, so a `memory` axis holding either level printed a clean `--dry` and wrote an error record per trial (`f0604df`, T091 Q10). ^brief-dials-violation
 
 **certainty_windows_violation**`(spec: ExperimentSpec) -> Optional[str]`
     When `drafter_kwargs` sets `certainty_windows`: refuses a non-int or `< 1` value, then, per condition, `runner.certainty_slice_problem(sim_steps, windows, sample_every)` with the runner's defaults for an unset dial: `windows` must divide `sim_steps`, and when `windows > 1` each slice must be a multiple or a divisor of `sample_every`, or the recorded sample grid moves with the dial. A malformed `sim_steps` or `sample_every` is skipped here; the runner's own validation owns it. ^certainty-windows-violation
@@ -130,6 +135,9 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 
 **draft_violation**`(spec: ExperimentSpec) -> Optional[str]`
     Refuses an unknown drafter. Otherwise drafts one world per condition at the seed its first trial will use, builds that condition's brief with the real `build_brief`, collects every config refusal (`ValueError`) and every fault (any other exception, named by class) from either, and returns them all joined by `; `, each naming its condition ([The draft check](#the-draft-check)). ^draft-violation
+
+**recorded_worlds_violation**`(spec: ExperimentSpec, records_path: Path) -> tuple[Optional[str], int]`
+    Run by the `resume` check on EVERY resume, stamped or not. A record whose label the current grid does not render refuses at once, naming the label (`b6d1607`, T091 Y1: such records used to be skipped, so a store whose labels an older rule spelled verified "0 conditions" and resumed with every cell's n doubled). For each condition with a clean record, its lowest-index record is re-drafted at that record's own seed (`base_seed.child(f"{seed_label}/{index}")`, as `MassTrialRunner` derives it) through the run's drafter and `_first_brief`, and the fresh `task_id`, oracle, `brief.question` and `brief.affordances` are compared canonically with the record's. Returns `(problem, checked)`: `problem` names the condition, trial index, seed label and first differing field, `None` when all match; `checked` is the condition count. Error records are not re-drafted but their labels are checked. One draft per recorded condition ([Resume and the seed scheme](#resume-and-the-seed-scheme)). ^recorded-worlds-violation
 
 **dials_in_play**`(spec: ExperimentSpec) -> frozenset[str]`
     Every axis name, every `fixed_dials` key with a truthy value, and every `drafter_kwargs` key the drafter head declares as a dial, with a truthy value. What the no-peeking rule intersects with `guarded_dials()` ([Dials in play](#dials-in-play)). ^dials-in-play
@@ -152,21 +160,33 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | `surface` | `declared_surface_violation` | `guarded_drafters()`, `levers` | a guarded drafter with no `levers`, or a non-list one | M45.2; T084 |
 | `sampling` | `sampling_violation` | agent kinds, `temperature` | a live arm with sampling unstated | M45.18 |
 | `w2-lag` | `w2_lag_violation` | `depth`, `sim_dt`, `k_harm_hop`, `hop_delay_s` | the instant-read chain lag exceeds the bound | AUP leg 3, 2026-09-15 |
-| `brief-dials` | `brief_dials_violation` | each condition's monitor dials | `resolve_monitor` refuses | T066 |
+| `brief-dials` | `brief_dials_violation` | each condition's monitor dials, `constitution_in_history`, `memory` | `resolve_monitor` refuses; `constitution_in_history` on an `llm` cell with no history window | T066; T091 Q10 |
 | `certainty-windows` | `certainty_windows_violation` | `certainty_windows`, `sim_steps`, `sample_every` | slices do not divide the turn or miss the sample grid | T066; round 4 |
 | `score-window` | `score_window_violation` | `score_window`, each cell's horizon | the window exceeds the episode | T066 |
 | `intervene-horizon` | `intervene_horizon_violation` | `drafter`, the axes, `intervene_horizon` | an `intervene` `max_turns` axis with no `intervene_horizon` | T091 A4 |
 | `inert-arm` | `inert_arm_violation` | factory-dial axes, `AGENT_DIALS`, `compact_at`, each cell's `max_turns` | a factory axis no agent in the grid reads; compaction can never fire | T066; round 4; T091 B11 |
 | `agent` | `agent_construction_violation` | each condition's agent dials and `probe` signature | the agent kind or config refuses; a probe that cannot take `(text, observation)` with probes declared | T066; T091 B8 |
-| `price` | `estimate_cost` | model levels, price table, turns, memory | a live model level has no price | T051 box 4 |
+| `price` | `estimate_cost` | model levels, price table, `price_usd_per_mtok`, turns, memory | a live model level has no price; a scalar price override beside a published live model | T051 box 4; T091 Q2 |
 | `draft` | `draft_violation` | one drafted world and brief per condition | the drafter or `build_brief` refuses the condition | T066; round 4/5; T084 |
 | `records-readable` | inline, `store.read_records` | `records.jsonl` and `records.retried.jsonl` under `out_dir`, each whenever it exists, ceiling or not | `resume=True` and a line of either does not parse (`StoreError`, named by line), so a torn line refuses before the resume moves anything | T091 B4, M4 |
-| `resume` | `_resume_spec_drift` | `manifest.json` and `records.jsonl` under `out_dir` | `resume=True` and records exist with no manifest, the manifest is unreadable or spec-less, the ceiling is below the directory's spend (`records.jsonl` + `records.retried.jsonl`), or the spec drifted | T051 box 4; round 5; T084; T091 B2/B3 |
+| `resume` | `_resume_spec_drift`, `store.world_scheme`, `recorded_worlds_violation` | `manifest.json` and `records.jsonl` under `out_dir` | `resume=True` and records exist with no manifest, the manifest is unreadable or spec-less, it carries another `world_scheme`, the spec drifted, a recorded label is not on the grid or a recorded condition re-drafts a different world, or the ceiling is below the directory's spend (`records.jsonl` + `records.retried.jsonl`) | T051 box 4; round 5; T084; T091 B2/B3, R2, Y1 |
 | `out_dir` | inline | `records.jsonl` under `out_dir` | records exist and `resume` is false | M46 |
 
-The condition-wise checks (`brief-dials`, `certainty-windows`, `score-window`, `inert-arm`, `agent`, `draft`) iterate the same units: one merged dial vector `{**fixed_dials, **condition}` per grid cell, paired with `base_seed.child(f"{label}/0")`, where `label` drops `WORLD_INVARIANT_DIALS` and `spec.matched_dials` exactly as `MassTrialRunner` does. Except `draft`, they stop at the first refusing condition.
+The condition-wise checks (`brief-dials`, `certainty-windows`, `score-window`, `inert-arm`, `agent`, `draft`) iterate the same units: one merged dial vector `{**fixed_dials, **condition}` per grid cell, paired with `base_seed.child(f"{label}/0")`, where `label` drops `WORLD_INVARIANT_DIALS` and `spec.matched_dials` exactly as `MassTrialRunner` does; the private `_condition_seed_labels` derives `(record label, dials, seed label)` once for these units and for `recorded_worlds_violation`. Except `draft`, they stop at the first refusing condition.
 
 `resume` refuses any changed spec field except two widenings: more `trials_per_condition`, and added levels on an existing axis. Three fields shape no record and are never drift (`_NON_RECORD_FIELDS`): `concurrency`, `out_dir` and `cost_ceiling_usd`, so a grid the ceiling stopped can be resumed under a raised one (T091 B3); the ceiling is the directory's budget and may not sit below what the directory already spent, `records.jsonl` plus `records.retried.jsonl` (`store.directory_spend_usd`; T091 D). `expected_turns` counts as unchanged when both sides hold their derived value (the largest `max_turns`), so widening a `max_turns` axis resumes. Both sides are compared in the manifest's JSON normal form (tuples as lists, mapping keys as strings, `nan` equal to `nan`; T091 D3), and axis levels by their typed, NaN-equal frozen form (`trial.frozen_value(level, typed=True, nan_equal=True)`, which first reads each level through `trial.plain_value`), so `1 → 1.0` is drift, a dict level in another key order is not, a numpy level (`np.linspace`) equals its JSON read-back and resumes, and a NaN level equals itself (T091 G1, K G1). The manifest is read through `store.read_manifest`. An unreadable `manifest.json`, or one carrying no `spec`, refuses the resume, naming the file. A directory holding `records.jsonl` but no manifest refuses too (T091 B2): with no manifest the records cannot be matched to the spec they were drawn under. An empty directory with neither has nothing to continue and passes. `records-readable` runs first, so a torn last line is named by number before the drift check reads anything.
+
+
+
+## Resume and the seed scheme
+The drift check reads only the spec, but the seed derivation and the matched-dial set live in code, so a resume under another alienbio could mix worlds drawn under two schemes in one cell. The `resume` check therefore adds two steps after reading the manifest (T091 R2, X1, Y1):
+
+| Step | Refuses when |
+| --- | --- |
+| stamp (before the drift check) | the manifest's `world_scheme` is present and differs from `store.world_scheme(spec)`, naming both |
+| re-draft (after it, whenever `records.jsonl` exists) | `recorded_worlds_violation` finds an unrendered label or a recorded condition that re-drafts differently — worded "has no world_scheme field and …" for an unstamped store, "is stamped alike but … re-drafts a different world" for a stamped one |
+
+The stamp covers `SEED_SCHEME_VERSION` and only the matched dials the spec sweeps, so a dial joining `WORLD_INVARIANT_DIALS` that the spec does not sweep moves nothing. An unstamped store that passes the re-draft resumes; the rebuilt manifest carries the current stamp, and a [notes](#^notes) entry says so. Limit: the initial world state is not on the record, so a world identical at every seed (plain `pressure` without `world_variance`) cannot show a scheme change, nor be harmed by one.
 
 
 
@@ -216,7 +236,7 @@ Each drafted condition's brief is then built by the real `build_brief`, through 
 
 
 ## Price and the cost ceiling
-The `price` check is `estimate_cost(spec)`: zero live trials price at $0.00 with no lookup; otherwise every `model` axis level (or `spec.model`, else the pinned model) must resolve through `price_for`, with `spec.price_usd_per_mtok` as an override, or the check refuses before anything is drafted. Turns default to the largest declared `max_turns`, else the runner's 50; a `memory` axis is priced per level. The estimate is advisory: it rides the manifest and `--dry`'s output, and nothing compares it with `cost_ceiling_usd`. The ceiling is enforced at run time by `run_experiment`'s `stop()`, against the priced usage of every landed record, so it stops a grid after the unit that crossed it, not before.
+The `price` check is `estimate_cost(spec)`: zero live trials price at $0.00 with no lookup; otherwise every `model` axis level (or `spec.model`, else the pinned model) must resolve through `price_for`, or the check refuses before anything is drafted. `spec.price_usd_per_mtok` prices only models absent from the published table: a pair `(in, out)` applies to every unpriced model, a mapping `{model: (in, out)}` prices them by name; a mapping naming a published model refuses when the spec is built, and a pair beside a published live model refuses here, naming the models, since a published price is never replaced (`f0604df`, T091 Q2). Turns default to the largest declared `max_turns`, else the runner's 50; a `memory` axis is priced per level. The estimate is advisory: it rides the manifest and `--dry`'s output, and nothing compares it with `cost_ceiling_usd`. The ceiling is enforced at run time by `run_experiment`'s `stop()`, against the priced usage of every landed record, so it stops a grid after the unit that crossed it, not before.
 
 
 
@@ -255,3 +275,4 @@ The shared five are `pi`, `complexity`, `certainty`, `epistemic_access`, `consti
 - 2026-10-29 — refreshed for `e392c11`, `e5ea4d0` and `661005d` (T091 A4, B2–B4, B8, B11, D3, D7, F3, G1, G4): nineteen checks (`intervene-horizon` and `records-readable` added, with a block for `intervene_horizon_violation`); resume refuses records without a manifest and a ceiling below spend, never counts `concurrency`/`out_dir`/`cost_ceiling_usd` as drift, and compares JSON-canonical, typed frozen values; no-peeking refuses a falsy `opaque_names`; `inert-arm` refuses a factory axis no agent reads; `agent` checks the probe signature (warning only without probes). Figure: the check count and two band lines updated in place, nothing redrawn.
 - 2026-10-29 — refreshed for `c80cf5f` and `fab20be` (T091 D, K D7, K G1): the resume ceiling is checked against `directory_spend_usd`; `opaque_names=False` refuses only on opaque-by-default drafters; drift compares plain-valued, NaN-equal frozen levels.
 - 2026-10-29 — refreshed for `fa72cb8` (T091 M4): `records-readable` reads `records.retried.jsonl` too, whenever it exists, ceiling or not, so a torn tail there refuses before a resume moves its error lines. Figure still true.
+- 2026-10-29 — refreshed for `f0604df`, `1e08068`, `0ae30d6` and `b6d1607` (T091 Q2, Q10, R2, X1, Y1): `Preflight.notes` and `recorded_worlds_violation` added; § Resume and the seed scheme new; `brief-dials` refuses `constitution_in_history` with no history window; `price` refuses a scalar override beside a published model. Figure not redrawn; its check count is unchanged.

@@ -8,7 +8,7 @@ The run's own evidence on disk: one canonical-JSON line per trial in `records.js
 ![ABIO Store](ABIO%20Store.svg) 
 *The record line* is the topic that governs `records.jsonl` (†): a field an experiment did not declare leaves no key, so the golden hashes stay byte-identical; *Resume and retries* governs the `originals` edge into `records.retried.jsonl`.
 
-`suite/store.py` has no primary class and no `__all__`: its public names are the line codec `record_to_json`/`record_from_json`, the readers `read_manifest`/`read_records` with their `StoreError`, `records_spend_usd`, `directory_spend_usd`, `RETRIED_FILENAME` and `manifest_model_label`, and the rest are underscore helpers that other modules import by name — `experiment.py` re-exports every one, `commands/suite_cmd.py` takes `_single_model`/`_model_axis_levels` for `--dry`, and tests import the brief codec and `_build_manifest`. This page covers those, and the run directory as a whole, because the store's files are written from four modules. Who writes when is `run_experiment` and `aggregate` in `suite/experiment.py`; the record the line encodes is [ABIO TrialRecord](ABIO%20TrialRecord.md); the spec the manifest pins is [ABIO ExperimentSpec](ABIO%20ExperimentSpec.md); the resume refusal that reads the manifest is [ABIO Guards](ABIO%20Guards.md); `map.json` comes from [ABIO MassTrialRunner](ABIO%20MassTrialRunner.md)'s `ReliabilityMap`. The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's view of the run directory is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md).
+`suite/store.py` has no primary class and no `__all__`: its public names are the line codec `record_to_json`/`record_from_json`, the readers `read_manifest`/`read_records` with their `StoreError`, `records_spend_usd`, `directory_spend_usd`, `RETRIED_FILENAME`, `manifest_model_label` and `world_scheme`, and the rest are underscore helpers that other modules import by name — `experiment.py` re-exports every one, `commands/suite_cmd.py` takes `_single_model`/`_model_axis_levels` for `--dry`, and tests import the brief codec and `_build_manifest`. This page covers those, and the run directory as a whole, because the store's files are written from four modules. Who writes when is `run_experiment` and `aggregate` in `suite/experiment.py`; the record the line encodes is [ABIO TrialRecord](ABIO%20TrialRecord.md); the spec the manifest pins is [ABIO ExperimentSpec](ABIO%20ExperimentSpec.md); the resume refusal that reads the manifest is [ABIO Guards](ABIO%20Guards.md); `map.json` comes from [ABIO MassTrialRunner](ABIO%20MassTrialRunner.md)'s `ReliabilityMap`. The subsystem view is [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md); the operator's view of the run directory is [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md).
 
 
 
@@ -35,6 +35,7 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 | [RETRIED_FILENAME](#^retried-filename) | `records.retried.jsonl` |
 | [_usage_usd](#^usage-usd) | One record's usage, priced |
 | [manifest_model_label](#^manifest-model-label) | What a manifest says ran |
+| [world_scheme](#^world-scheme) | The seed-scheme stamp a manifest carries |
 | [_write_manifest](#^write-manifest) | `manifest.json`, atomically |
 | [_atomic_write_text](#^atomic-write-text) | Temp file + `os.replace` |
 | [_append_retried](#^append-retried) | Retried lines, never twice |
@@ -99,6 +100,9 @@ Module-level functions only. The codecs are pure; `run_experiment` decides when 
 
 **manifest_model_label**`(manifest: Mapping[str, Any]) -> Optional[str]`
     The manifest's `model`, else its `models` levels joined with `", "`, else `None`. `render_report`'s `Model:` line and `bio report`'s run table (kind and model column) both read it. ^manifest-model-label
+
+**world_scheme**`(spec: ExperimentSpec) -> str`
+    `v<N>:<sha16>`: `N` is `mass_trial.SEED_SCHEME_VERSION`, the hash a sha256 over that version plus the sorted matched dials the spec SWEEPS — its axes that are in `WORLD_INVARIANT_DIALS` or its own `matched_dials`. Those are exactly what the seed derivation consumes (a fixed or unswept dial never enters a seed label), so a dial added to `WORLD_INVARIANT_DIALS` that this spec does not sweep leaves the stamp, and the store's resume, untouched (`b6d1607`, T091 X1). `_build_manifest` writes it on every manifest build; `preflight`'s `resume` check refuses a store stamped with another ([ABIO Guards](ABIO%20Guards.md)). ^world-scheme
 
 **_write_manifest**`(path: Path, manifest: Mapping[str, Any]) -> None`
     `json.dumps(_encode_nonfinite(manifest), indent=2, allow_nan=False)` written through `_atomic_write_text` (`manifest.json.tmp` beside `path`, fsync, `os.replace`); on any failure the temp file is removed and the old manifest stands. The manifest is strict JSON like every record line; a finite manifest's bytes are unchanged. ^write-manifest
@@ -188,6 +192,7 @@ The run's own proof, written by `_build_manifest` before any trial and updated i
 | `design` | the power design, stated before the spend (M46.9), or null | start |
 | `cost_estimate`, `cost_ceiling_usd` | the dry-run projection, pinned so actual spend can be compared (M45.5) | start |
 | `cost_ceiling_history` | every ceiling the run has run under, in order; a resume that changes the ceiling appends the new one (T091 B3) | start, resume |
+| `world_scheme` | the seed scheme the worlds were drawn under ([world_scheme](#^world-scheme)); a resume refuses another, and a store that has none gains it once its re-draft check passes (`1e08068`, `0ae30d6`) | start, resume |
 | `started_at`, `trials_planned` | the start, and the grid size | start |
 | `finished_at`, `trials_completed`, `failed_trials` | null at start, with the lines a resume kept (0 on a fresh run); after a crash, what landed; at the end the count of records on the map, error records included, and of those the error count | start, crash, end |
 | `cost_usd_spent`, `usage_totals`, `stopped_reason` | priced usage of every landed record; on a resume the directory's total, starting from `directory_spend_usd`<br>summed token counts<br>`"cost_ceiling"` on an early stop | end |
@@ -208,7 +213,7 @@ The `models`/`memories` keys are absent, not empty, when nothing is swept, so `m
 
 
 ## Resume and retries
-`run_experiment(spec, resume=True)` — `bio suite resume <DIR>`, with the spec file as it is now (`spec_from_manifest(manifest, current=True)`, so an edit to the yaml is drift) — first passes `preflight`: `records-readable` refuses a torn or corrupt line in `records.jsonl` or `records.retried.jsonl` (each read whenever it exists, ceiling or not, so nothing has moved yet), and `resume` refuses records with no manifest, an unreadable manifest, one with no spec, a ceiling below what the directory already spent (`directory_spend_usd`), or a spec that drifted beyond widening (more trials, new levels on an existing axis; `concurrency`, `out_dir` and `cost_ceiling_usd` are not drift; [ABIO Guards](ABIO%20Guards.md)). It then reads `records.jsonl` line by line:
+`run_experiment(spec, resume=True)` — `bio suite resume <DIR>`, with the spec file as it is now (`spec_from_manifest(manifest, current=True)`, so an edit to the yaml is drift) — first passes `preflight`: `records-readable` refuses a torn or corrupt line in `records.jsonl` or `records.retried.jsonl` (each read whenever it exists, ceiling or not, so nothing has moved yet), and `resume` refuses records with no manifest, an unreadable manifest, one with no spec, a `world_scheme` stamp other than this code's, a spec that drifted beyond widening (more trials, new levels on an existing axis; `concurrency`, `out_dir` and `cost_ceiling_usd` are not drift), a recorded condition whose first clean trial re-drafts a different world or whose label the grid does not render, or a ceiling below what the directory already spent (`directory_spend_usd`; all in [ABIO Guards](ABIO%20Guards.md)). An unstamped store that passes the re-draft is stamped on the rebuilt manifest, and the run says so on `progress`. It then reads `records.jsonl` line by line:
 
 | Line | What happens |
 | --- | --- |
@@ -239,3 +244,4 @@ When anything was retried, the error lines are appended to `records.retried.json
 - 2026-10-29 — refreshed for `e5ea4d0`, `e392c11` and `661005d` (T091 B3/B4/B7, A1, E1): colliding strings escaped and every tree decoded once, `StoreError` naming the torn line, `records_spend_usd`/`_usage_usd` documented here, `runout` on the line, `spec_path`/`helper_modules`/`cost_ceiling_history` on the manifest, and resume reading the spec file as it is now.
 - 2026-10-29 — refreshed for `c80cf5f` and `54d9ad1` (T091 D, K3): `directory_spend_usd` and `RETRIED_FILENAME` added, the ceiling is the directory's budget in the guard and the spend counter; `taint_exempt` rides the line only when non-empty.
 - 2026-10-29 — refreshed for `fa72cb8` (T091 M4): on a resume `records-readable` reads `records.jsonl` and `records.retried.jsonl` whenever they exist, ceiling or not; `_append_retried` refuses a torn tail. Figure still true.
+- 2026-10-29 — refreshed for `1e08068`, `0ae30d6` and `b6d1607` (T091 R2, X1, Y1): `world_scheme` added — written on every manifest build, hashing `SEED_SCHEME_VERSION` and the swept matched dials only; the resume paragraph names the scheme refusal, the re-draft proof run on every resume, and the stamp an unstamped store gains. Figure still true.

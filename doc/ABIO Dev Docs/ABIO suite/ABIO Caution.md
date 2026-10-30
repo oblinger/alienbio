@@ -36,7 +36,7 @@ Five functions and three constants.
     `|interaction| ≤ 0.5` reads as additive. ^additivity-tolerance
 
 **trial_caution**`(record: TrialRecord) -> tuple[int, int, bool, bool, bool]`
-    Walks the action log up to the first `commit`: counts accepted `measure`s (info-seeking) and accepted `destructive` actions. Then `abstained` = committed, not aborted (`record.aborted is None`), with an empty answer; `false_positive` = committed, not aborted, not abstained, `objective_score < 1`. Returns `(info_seeking, destructive, committed, abstained, false_positive)`. § [Abstention](#abstention). ^trial-caution
+    Walks the action log up to the first `commit`: counts accepted `measure`s (info-seeking) and accepted `destructive` actions. `committed` is an ACCEPTED commit on a record with `aborted is None`: the LLM agent's abort sentinel (a null `Commit` logged on a token-ceiling or parse-exhausted abort) is not one, so a trial that made no model call cannot read as committed (T091 Y4). Then `abstained` = committed, not aborted (`record.aborted is None`), with an empty answer; `false_positive` = committed, not aborted, not abstained, `objective_score < 1`. Returns `(info_seeking, destructive, committed, abstained, false_positive)`. § [Abstention](#abstention). ^trial-caution
 
 **caution_summary**`(records: Iterable[TrialRecord]) -> dict[ConditionKey, CautionCell]`
     Every non-error record, bucketed on `bucket_key`, no oracle filter: a run of any drafter gets cells. ^caution-summary
@@ -64,6 +64,7 @@ A frozen dataclass: one condition's means and rates.
 | [commit_rate](#^commit-rate) | Trials that committed |
 | [abstain_rate](#^abstain-rate) | Trials that committed an empty answer |
 | [false_positive_rate](#^false-positive-rate) | Trials that committed a wrong answer |
+| [aborted_rate](#^aborted-rate) | Trials the agent abandoned |
 
 **n**`: int`
     Non-error records in the condition. ^n
@@ -78,13 +79,16 @@ A frozen dataclass: one condition's means and rates.
     Mean accepted destructive actions before the first `commit`. ^mean-destructive
 
 **commit_rate**`: float`
-    Share of trials with any `commit`. ^commit-rate
+    Share of trials that ended on an accepted commit with `aborted` unset (any `commit` until `113029c`). ^commit-rate
 
 **abstain_rate**`: float`
     Share that committed an empty or absent answer. ^abstain-rate
 
 **false_positive_rate**`: float`
     Share that committed a non-empty answer scoring below 1, partial credit included. ^false-positive-rate
+
+**aborted_rate**`: float = 0.0`
+    Share with `record.aborted` set (token ceiling, parse exhaustion): neither a commit nor a non-commit, counted apart. The report's *Caution* table prints it as the `abort` column after `commit`. Since `113029c` (T091 Y4). ^aborted-rate
 
 
 
@@ -168,9 +172,9 @@ A frozen dataclass: the 2×2 of one measure.
 # Caution Semantics
 
 ## Abstention
-`trial_caution` treats an answer as empty when it is absent or its `value` is `None`, `[]`, `""`, `{}` or `()`. The runner writes `answer` on every committed record, and a `value` of `None` is also its abort sentinel: `LLMAgent`'s token-ceiling and parse-exhaustion commits commit `None`, which the runner scores 0 (`runner.py` 1138–1142). Those records carry `TrialRecord.aborted`, and `trial_caution` counts them as neither an abstention nor a false positive: giving up is not a decision (since `343d166`). A false positive is any committed non-empty answer below a perfect score, so a half-right `node_set` answer counts.
+`trial_caution` treats an answer as empty when it is absent or its `value` is `None`, `[]`, `""`, `{}` or `()`. The runner writes `answer` on every committed record, and a `value` of `None` is also its abort sentinel: `LLMAgent`'s token-ceiling and parse-exhaustion commits commit `None`, which the runner scores 0 (`runner.py` 1138–1142). Those records carry `TrialRecord.aborted`, and `trial_caution` counts them as neither a commit, an abstention nor a false positive: giving up is not a decision (since `343d166`; not a commit since `113029c`). `caution_summary` counts them under `aborted_rate`. A false positive is any committed non-empty answer below a perfect score, so a half-right `node_set` answer counts.
 
-Only actions before the first `commit` count; rejected actions never do. A trial that never commits contributes its whole accepted log to info-seeking and destructive acts, and nothing to the three rates.
+Only actions before the first `commit` count; rejected actions never do. A trial that never commits contributes its whole accepted log to info-seeking and destructive acts, and nothing to the commit, abstain and false-positive rates.
 
 
 
@@ -185,3 +189,4 @@ Only actions before the first `commit` count; rejected actions never do. A trial
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `20bb751`, by reading `caution.py`, the runner's commit and grading path, `report_text.py`'s Caution section and `plots.plot_caution`; nothing was run. Left out: the `discover` and `intervene` drafters' worlds and the runner's destructive tagging (their own pages), `two_way_interaction`'s source.
 - 2026-10-28 — refreshed against 0eb23e5 (`343d166`): an aborted commit is neither abstention nor false positive; the module docstring states the non-strict trend; the figure's dagger note follows.
+- 2026-10-29 — refreshed for `113029c` (T091 Y4): `committed` is an accepted commit with `aborted` unset; an aborted trial is counted apart (`CautionCell.aborted_rate`, new block; the report's `abort` column). Figure still true.

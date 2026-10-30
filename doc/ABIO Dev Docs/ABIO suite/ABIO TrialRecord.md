@@ -100,7 +100,7 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
     The P2 certainty dial's realized windows, `True` where the harm branch was live: one per turn, or `certainty_windows` per turn in window order. Empty when `certainty` was not in play. The expected effects stay on `oracle`. † ^certainty-schedule
 
 **probes**`: tuple[ProbeRecord, ...] = ()`
-    Every probe fired this trial, in firing order; empty when `dials["probes"]` was not declared. † ^probes
+    Every probe fired this trial, in firing order; empty when `dials["probes"]` was not declared, and omitting any probe the agent skipped (`ProbeSkipped`: none runs on or after an abort, so empty when every probe was skipped). † ^probes
 
 **terminal_reason**`: str = ""`
     `"committed"`, `"budget_exhausted"`, `"max_turns"` or `"illegal_limit"` from `run`; `"error"` on an error record; `""` on a hand-built fixture. An agent abort (token ceiling, parse exhaustion) is `"committed"` with [aborted](#^aborted) set. ^terminal-reason
@@ -121,7 +121,7 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
     The tokens `runner.taint_audit` found in the prompts the agent sent. Non-empty means `run` raised `TaintError` carrying this complete record, which the sweep lands as an error record. ^taint-hits
 
 **taint_exempt**`: Mapping[str, int] = {}`
-    The secret ids the taint audit stopped counting because the agent itself wrote them first (an action target, its `reasoning`, an answer, a compaction summary, a probe reply), each mapped to the 0-based index of the first exempt prompt; earlier prompts are still audited for it (T091 K3). Ids are in the form the audit scans, surface names on an opaque world. By design an id the agent named is unaudited in prompts from then on, so the record says which ids, from when, and a reader sees how far the audit was narrowed. Empty when nothing was exempted, and then not written. ^taint-exempt
+    The secret ids the taint audit stopped counting because the agent itself wrote them first (an action target, its `reasoning`, an answer, a compaction summary; never a probe reply, which no later prompt replays), each mapped to the 0-based index of the first exempt prompt; earlier prompts are still audited for it (T091 K3). Ids are in the form the audit scans, surface names on an opaque world. By design an id the agent named is unaudited in prompts from then on, so the record says which ids, from when, and a reader sees how far the audit was narrowed. Empty when nothing was exempted, and then not written. ^taint-exempt
 
 **error**`: str = ""`
     `"{ExceptionClass}: {message}"` on an error record — the cause's class, not `TrialError`'s — set by `MassTrialRunner`; `""` otherwise. ^error
@@ -133,7 +133,7 @@ A frozen dataclass, one per trial: `runner.run` builds it once, after the loop, 
     The exception class an error record names — `error` up to its first `:` — or `""`. The one reader of the class: the resume's taint test (`TaintError` lines stay) and the report's failure census use it. ^error-class
 
 **compaction**`: Optional[Mapping[str, Any]] = None`
-    `{"turn", "budget", "displaced", "summary"}` when the agent's `compact_at` trigger ran (`summary` is `None` when the reply was unusable; the displacement still happened); read off the agent's `compaction` attribute. † ^compaction
+    `{"turn", "budget", "displaced", "summary"}` when the agent's `compact_at` trigger ran (`summary` is `None` when the reply was unusable; the displacement still happened), plus `summarized_turns` under an int `memory`, the entries the summarizer was shown; read off the agent's `compaction` attribute. † ^compaction
 
 **forgetting**`: Optional[Mapping[str, Any]] = None`
     `{"constitution_displaced_at": turn}` — the first turn whose window lacked a constitution seeded into history; `None` when it never left or was never seeded. Read off the agent. † ^forgetting
@@ -320,3 +320,4 @@ Every summary family bins on `bucket_key` and skips `is_error` records; `mass_tr
 - 2026-10-29 — refreshed for `e392c11` and `661005d` (T091 A1, G1): `runout` field (only-when-set) and `frozen_value(value, typed=)` given blocks; the figure does not show `runout`, left as is.
 - 2026-10-29 — refreshed for `54d9ad1` (T091 K3, K G1): `taint_exempt` (only when non-empty), `plain_value`, `NAN_TOKEN` and `frozen_value(…, nan_equal=)` given blocks.
 - 2026-10-29 — T093: the three `info_seeking` wrappers (`info_seeking_ratio`, `destructive_rate`, `actions_before_commit`) retired with the metrics they wrapped — no caller in `src/` or AUP.
+- 2026-10-29 — refreshed for `e605978` and `aa8a3dd` (T091 Q4–Q6): `probes` omits skipped probes; `compaction` carries `summarized_turns` under an int memory; a probe reply exempts nothing from the taint audit.

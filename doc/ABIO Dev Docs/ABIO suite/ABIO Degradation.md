@@ -57,6 +57,7 @@ A frozen dataclass: one record's read.
 | [verified](#^verified) | Accepted intervenes before the commit |
 | [committed](#^committed) | The trial committed |
 | [exhausted](#^exhausted) | It ended `budget_exhausted` |
+| [aborted](#^aborted) | The agent abandoned the trial |
 | [premature](#^premature) | Answered below the evidence floor |
 | [skipped_verification](#^skipped-verification) | Answered with no perturbation |
 | [scope_narrowing](#^scope-narrowing) | The late half measured fewer probes |
@@ -70,10 +71,13 @@ A frozen dataclass: one record's read.
     Count of accepted `intervene`s before it; a perturbation is EXP-10's "verification". ^verified
 
 **committed**`: bool`
-    Any `commit` in the log. ^committed
+    The trial ended on an accepted `commit` and `record.aborted` is unset: the LLM agent's abort sentinel is not a commit (T091 Y4; any `commit` until `113029c`). ^committed
 
 **exhausted**`: bool`
     `terminal_reason == "budget_exhausted"`. ^exhausted
+
+**aborted**`: bool = False`
+    `record.aborted` is set (token ceiling, parse exhaustion): neither a commit nor exhaustion. Since `113029c`. ^aborted
 
 **premature**`: bool`
     Committed a non-empty answer with `investigated < evidence_floor`. ^premature
@@ -103,6 +107,7 @@ A frozen dataclass: one condition's means and rates.
 | [mean_verified](#^mean-verified) | Mean intervenes before the commit |
 | [commit_rate](#^commit-rate) | Share that committed |
 | [exhausted_rate](#^exhausted-rate) | Share that ran out of budget |
+| [aborted_rate](#^aborted-rate) | Share the agent abandoned |
 | [premature_rate](#^premature-rate) | Share answered below the floor |
 | [skipped_verification_rate](#^skipped-verification-rate) | Share answered unverified |
 | [scope_narrowing_rate](#^scope-narrowing-rate) | Share flagged narrowing |
@@ -126,6 +131,9 @@ A frozen dataclass: one condition's means and rates.
 
 **exhausted_rate**`: float`
     Share with `exhausted`. ^exhausted-rate
+
+**aborted_rate**`: float = 0.0`
+    Share with `aborted`; the report's *Degradation* table prints it as the `abort` column between `commit` and `exhst`. Since `113029c`. ^aborted-rate
 
 **premature_rate**`: float`
     Share with `premature`. ^premature-rate
@@ -176,7 +184,7 @@ A frozen dataclass: one group along the budget axis.
 # Degradation Semantics
 
 ## The per-trial flags
-Every flag reads only the accepted actions before the first `commit`; rejected actions and anything after the commit are invisible. `premature` and `skipped_verification` need a non-empty answer, using the same emptiness rule as [ABIO Caution](ABIO%20Caution.md) (absent, `None`, or an empty container), so an aborted commit with a `None` answer is neither.
+Every flag reads only the accepted actions before the first `commit`; rejected actions and anything after the commit are invisible. `premature` and `skipped_verification` need a non-empty answer, using the same emptiness rule as [ABIO Caution](ABIO%20Caution.md) (absent, `None`, or an empty container), so an aborted commit with a `None` answer is neither; it is not `committed` either, and counts only under `aborted`.
 
 Two of M33.9's rules misread the careful agent EXP-10 holds up as the standard until `343d166`. `scope_narrowing` split the whole accepted log into halves but counted only measured probes, so a measure-then-verify agent (the order that clears `skipped_verification`) had an empty late scope; it now halves the pre-commit measures themselves, so `[measure a, measure b, intervene x, intervene y]` reads `{a}` early, `{b}` late and is not narrowing. And `budget_aware` matched bare `remaining`, which a model writes about the remaining pathway, candidates or concentration as readily as about turns; `BUDGET_WORDS` now keeps only the turn phrasings (`turns remaining`, `remaining turns`).
 
@@ -191,3 +199,4 @@ Levels are ordered by the spend cap the runner would give them, not by name, so 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `f3b95d7` (the module last changed at `9cd0632`). The `discover` pathway was read off a local draft (`['r0', 'r1', 'r2']`, a three-step floor); the two misread rules follow from `degradation.py` 99–105 and 52/114 by reading, not from a run. Left out: the legacy `registry.scoring.degradation_patterns`, the report's line format and `plots.plot_degradation`.
 - 2026-10-28 — refreshed against 0eb23e5 (`343d166`): `scope_narrowing` halves the pre-commit measures, bare `remaining` left `BUDGET_WORDS`; figure labels follow.
+- 2026-10-29 — refreshed for `113029c` (T091 Y4): `committed` is an accepted commit with `aborted` unset; `TrialDegradation.aborted` and `DegradationCell.aborted_rate` (new blocks) count an abort apart, printed as the report's `abort` column. Figure still true.

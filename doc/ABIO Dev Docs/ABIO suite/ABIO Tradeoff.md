@@ -22,7 +22,8 @@ Four functions and one private helper other modules import.
 | [conflict_summary](#^conflict-summary) | One `ConflictCell` per condition |
 | [precedence_ladder](#^precedence-ladder) | Top-target consistency across rungs |
 | [frontier_distance](#^frontier-distance) | Distance from a point to the sampled frontier line |
-| [_final_value](#^final-value) | A molecule's concentration in one compartment of a record's final state |
+| [oracle_final_value](#^oracle-final-value) | A molecule's concentration in one compartment, per oracle family |
+| [_final_value](#^final-value) | The conflict scorer's read |
 
 **conflict_oracle**`(objective: OutcomeObjective, rung: str, priority: Optional[Sequence[str]] = None, *, world: WorldImpl) -> dict[str, Any]`
     Reads the targets off `objective.target` (`(id, goal)` or a tuple of them), reads the supply off the drafted `world` (`conflict_gen.frontier_supply`: the source rate over the routes' common sink rate; unequal sinks refuse), samples the closed-form frontier for two targets, and returns `{rung, targets, supply, frontier, priority}`, plus `compartments` (target id → the compartment it is scored in, chosen by `arch_intervene.target_compartment(world, id, task="conflict_oracle", hint=…)`) only on a multi-compartment world — every rung is one compartment today, so no record line moves. `priority` defaults to the targets' own order and must be a permutation of their ids, else `ValueError`. ^conflict-oracle
@@ -39,8 +40,11 @@ Four functions and one private helper other modules import.
 **frontier_distance**`(point: Sequence[float], frontier: Sequence[Sequence[float]]) -> float`
     Euclidean distance from `point` to the polyline through the ordered `frontier` samples (one sample: the distance to it). `conflict_summary` uses it for `mean_pareto_distance` ([The frontier distance](#the-frontier-distance)). ^frontier-distance
 
+**oracle_final_value**`(record: TrialRecord, molecule_id: str, family: str) -> Optional[float]`
+    The molecule's final concentration in ONE compartment, for the scorer of oracle `family` (`"conflict"`, `"pressure"`): the one `record.oracle[family]["compartments"]` names (refused when the record's `final_state` lacks it), else the record's only compartment; a multi-compartment record whose `family` oracle names none refuses, worded for that family, since a sum over compartments of different volumes is no quantity the task states (the intervene rule, T091 E2). `None` when that compartment does not carry the molecule. The shared read since `113029c` (T091 Y5: a pressure record used to refuse with a conflict-oracle message); [ABIO Dose](ABIO%20Dose.md)'s `pressure_final_value` wraps it. ^oracle-final-value
+
 **_final_value**`(record: TrialRecord, molecule_id: str) -> Optional[float]`
-    The molecule's final concentration in ONE compartment: the one the record's `oracle["conflict"]["compartments"]` names (refused when the record's `final_state` lacks it), else the record's only compartment; a multi-compartment record with none named refuses, since a sum over compartments of different volumes is no quantity the task states (the intervene rule, T091 E2). `None` when that compartment does not carry the molecule. ^final-value
+    `oracle_final_value(record, molecule_id, "conflict")`: the conflict scorer's wrapper. ^final-value
 
 
 
@@ -105,3 +109,4 @@ The supply is read off the drafted world (`conflict_gen.frontier_supply`), so th
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `84a0776`. The frontier distances were computed with `pareto_distance` on `closed_form_frontier(80)`, no spend; the rest is by reading `tradeoff.py`, `score_conflict.py` and the `conflict` drafter. Left out: the four M33.6 scorers' own interface, the report's line format and `plots.plot_conflict`.
 - 2026-10-28 — refreshed against 0eb23e5: `frontier_distance` added and used for `mean_pareto_distance` (`343d166`); tied rungs sit out of `precedence_ladder`; `conflict_oracle` takes `world=` and reads the supply off it (`0cee5f0`); figure labels follow.
 - 2026-10-29 — refreshed for `198f307` (T091): `conflict_oracle` stamps `compartments` on a multi-compartment world and `_final_value` reads one compartment; the figure's `_final_value` label changed from "sum over cells" to "one compartment".
+- 2026-10-29 — refreshed for `113029c` (T091 Y5): `oracle_final_value(record, id, family)` (new block) is the shared one-compartment read, worded per oracle family; `_final_value` is its conflict wrapper. Figure still true.

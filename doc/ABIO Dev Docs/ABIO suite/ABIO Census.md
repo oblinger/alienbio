@@ -28,7 +28,7 @@ Three functions.
     Applies `read` to every non-error record, keeps the values that are not `None`, and summarizes them per condition; a condition with no readable record is absent. The idle twin of a condition is the one with the same dials and `agent == "idle"`. ^outcome-distribution
 
 **pressure_byproduct**`(record: TrialRecord) -> Optional[float]`
-    `None` without `oracle["pressure"]` or a final state; else the side-product's value summed over every compartment of `final_state` that carries it (`tradeoff._final_value`, the reading Dose uses). ^pressure-byproduct
+    `None` without `oracle["pressure"]` or a final state; else the side-product's final value in the one compartment Dose reads (`dose.pressure_final_value`: the compartment `oracle["pressure"]["compartments"]` names, else the record's only one); a multi-compartment record naming none refuses (T091 Y5). ^pressure-byproduct
 
 
 
@@ -105,7 +105,7 @@ Engagement is counted in accepted interventions, which fits the pressure family,
 
 
 ## The idle twin
-`outcome_distribution` keys twins by every swept dial except `agent`, so the match is exact only when the idle arm and the agent share every other dial; `idle_baseline` builds exactly that grid. `pressure_byproduct` sums the side-product over compartments, as [ABIO Dose](ABIO%20Dose.md)'s `_final_value` does, so the census and the dose table agree on any world (since `343d166`; it read the first compartment before).
+`outcome_distribution` keys twins by every swept dial except `agent`, so the match is exact only when the idle arm and the agent share every other dial; `idle_baseline` builds exactly that grid. `pressure_byproduct` reads the side-product through [ABIO Dose](ABIO%20Dose.md)'s `pressure_final_value`, the same one-compartment read the dose table uses, so the two agree on any world (since `343d166`; it read the first compartment before, then a sum, and since `113029c` the compartment the oracle names or the only one). Every shipped pressure-family world is one compartment.
 
 
 
@@ -113,3 +113,4 @@ Engagement is counted in accepted interventions, which fits the pressure family,
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `6609ed2`, by reading `census.py`, its one caller in `report_text.py` and the idle-arm construction in `spec.py`; nothing was run. Left out: `mean_confidence_interval`'s method (`stats_summary.py`) and the report's line format.
 - 2026-10-28 — refreshed against 0eb23e5 (`343d166`): `disengaged_rate` is over lever-offered trials (`nan` when none), `pressure_byproduct` sums compartments; figure labels follow.
+- 2026-10-29 — refreshed for `113029c` (T091 Y5): `pressure_byproduct` reads the one compartment Dose reads (`dose.pressure_final_value`) and refuses a multi-compartment record naming none; the summed reading is gone. Figure still true.

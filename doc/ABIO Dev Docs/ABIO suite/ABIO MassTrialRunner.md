@@ -129,6 +129,7 @@ What produced a map. Frozen; the two counters default so a hand-built fixture co
 | [aggregate_records](#^aggregate-records) | Rebuild a map from stored records |
 | [grid_positions](#^grid-positions) | Each cell label's place in run order |
 | [label_collision](#^label-collision) | Two cells sharing one label, if any |
+| [SEED_SCHEME_VERSION](#^seed-scheme-version) | The version of the per-trial seed derivation |
 | [ConditionKey](#^conditionkey) | One cell's sorted `(dial, level)` pairs |
 | [Axis](#^axis) | A dial name and its levels |
 | [WorldDrafter](#^worlddrafter) | `(seed, dials)` → world and task |
@@ -145,6 +146,9 @@ What produced a map. Frozen; the two counters default so a hand-built fixture co
 
 **label_collision**`(axes: Sequence[Axis]) -> Optional[str]`
     The problem when two distinct cells render the same condition label (`1` and `"1"`, a level carrying `&b=`), else `None`. Exact duplicate levels (equal `repr`) are not this check's: `ExperimentSpec` refuses them first. `run` raises it before any unit and `guards.label_collision_violation` is preflight's `labels` check ([The grid and seeding](#The%20grid%20and%20seeding)). ^label-collision
+
+**SEED_SCHEME_VERSION**`: int = 1`
+    The version of the per-trial seed derivation this module owns: `base_seed.child(f"{seed_label}/{i}")`, then `.child("draft")`/`("agent")`/`("run")`. Half of the manifest's `world_scheme` stamp (`store.world_scheme`; the other half is the matched dials the spec sweeps), which a resume compares so a store never mixes worlds drawn under two schemes in one cell. Its comment carries the bump rule: bump it whenever the derivation changes (the label format, a child path, how matched dials are projected out) or a drafter starts drawing a different world from the same seed and dials; a change to `WORLD_INVARIANT_DIALS` moves the stamp by itself, but only for a spec that sweeps the dial (`1e08068`, `b6d1607`, T091 R2, X1). Defined below the imports. ^seed-scheme-version
 
 **ConditionKey**` = tuple[tuple[str, Any], ...]`
     One cell: `(dial, level)` pairs sorted by dial name, the shape `trial.condition_key` produces. Levels stay raw here; `bucket_key` is the hashable form. ^conditionkey
@@ -174,7 +178,7 @@ A cell is one combination of swept levels; a unit is one `(cell, trial index)`. 
 | Fixed | `spec.fixed_dials` → `extra_dials` | no | no |
 | Generator kwarg | `spec.drafter_kwargs`, closed over by the drafter | no | no |
 
-`run_experiment` passes `matched_dials = WORLD_INVARIANT_DIALS + spec.matched_dials`: the brief-, agent-, observation- and episode-side dials (`agent`, `model`, `monitoring`, `framing`, `constitution`, `max_turns`, `budget`, `memory`, `levers`, `probes`, `max_tokens`, the monitor dials, `task_note`, `observability`, `observation_noise`, `sample_every`, the forgetting dials and the rest in `drafters.py`; the `sim_steps`/`sim_dt` clock stays out, since drafters read it), so a control arm and a live arm, or the rungs of a budget ladder, run on byte-identical worlds. The label handed to `skip` and `on_trial` and stored as each line's `label` is always the full cell label, matched dials included.
+`run_experiment` passes `matched_dials = WORLD_INVARIANT_DIALS + spec.matched_dials`: the brief-, agent-, observation- and episode-side dials (`agent`, `model`, `monitoring`, `framing`, `constitution`, `max_turns`, `budget`, `memory`, `levers`, `probes`, `max_tokens`, the monitor dials, `task_note`, `observability`, `observation_noise`, `sample_every`, the forgetting dials and the rest in `drafters.py`; the `sim_steps`/`sim_dt` clock stays out, since drafters read it), so a control arm and a live arm, or the rungs of a budget ladder, run on byte-identical worlds. The label handed to `skip` and `on_trial` and stored as each line's `label` is always the full cell label, matched dials included. Any change to this derivation bumps [SEED_SCHEME_VERSION](#^seed-scheme-version), so an older store refuses to resume rather than mixing two schemes' worlds in one cell ([ABIO Guards](ABIO%20Guards.md) § Resume and the seed scheme).
 
 
 
@@ -230,3 +234,4 @@ Computed for each pair of swept axes in which both axes have exactly two levels,
 - 2026-10-28 — the divergences above fixed (T084): `e8a9ef2` the interactions/contrasts path looks cells up, pools and sorts on the frozen `bucket_key` form (list and mapping axes aggregate; `test_bucketing_keys.py` lints `mass_trial.py` for a bare `condition_key(` lookup); `dbbfce1` `experiment.aggregate` reads `stopped_early` back from the manifest's `stopped_reason`; `1d46b37` a grid whose levels share a condition label is refused (`label_collision`, in `run` and as preflight's `labels` check) rather than re-rendered, so no stored seed moves; the stale docstrings, [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md) § Sweeps and [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md)'s resume-drift row corrected in the same pass. Tests: `tests/suite/test_moddoc_findings_mass_trial.py`.
 - 2026-10-28 — refreshed against 0eb23e5: `grid_positions` (new, `01fee6a`) and `label_collision` given blocks; a reload sorts back to run order; an exception at `concurrency > 1` lands every in-flight unit before it propagates.
 - 2026-10-29 — refreshed for `e5ea4d0` (T091 B1): `condition_grid` does not dedupe, and `label_collision` leaves exact duplicate levels to `ExperimentSpec`, which refuses them at construction.
+- 2026-10-29 — refreshed for `1e08068` and `b6d1607` (T091 R2, X1): `SEED_SCHEME_VERSION` given a block with its bump rule; the seeding section points to the resume's scheme check.

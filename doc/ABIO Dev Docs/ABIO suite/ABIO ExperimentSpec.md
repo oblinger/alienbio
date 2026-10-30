@@ -42,7 +42,7 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
 | [design](#^design) | The committed statistical design |
 | [key_readout](#^key-readout) | The readout drawn as the key figure |
 | [cost_ceiling_usd](#^cost-ceiling-usd) | Spend at which the grid stops |
-| [price_usd_per_mtok](#^price-usd-per-mtok) | Price override for every model level |
+| [price_usd_per_mtok](#^price-usd-per-mtok) | Price for models the table lacks |
 | [expected_turns](#^expected-turns) | Turns the estimate prices per trial |
 | [expected_prompt_tokens](#^expected-prompt-tokens) | Prompt tokens per turn, for the estimate |
 | [expected_output_tokens](#^expected-output-tokens) | Output tokens per turn, floor |
@@ -125,8 +125,8 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
 **cost_ceiling_usd**`: Optional[float] = None`
     M45.5: positive, or absent. `run_experiment`'s `stop()` halts the grid once the priced usage of landed records reaches it; nothing compares it with the estimate ([Expected turns and the estimate](#expected-turns-and-the-estimate)). ^cost-ceiling-usd
 
-**price_usd_per_mtok**`: Optional[tuple[float, float]] = None`
-    `(input, output)` USD per million tokens, two non-negative numbers; when set, `price_for` returns it for every model level, so no level can refuse as unpriced. ^price-usd-per-mtok
+**price_usd_per_mtok**`: Optional[Union[tuple[float, float], Mapping[str, tuple[float, float]]]] = None`
+    USD per million tokens for models absent from the published price table, never a reprice (`f0604df`, T091 Q2): a pair `(input, output)` of non-negative numbers prices every unpriced model in play; a mapping `{model_id: (input, output)}` prices them by name. A mapping naming a published model refuses at construction; a pair beside a published live model refuses in `estimate_cost` (the `price` check), naming the models. `spec_to_dict` writes the mapping as `{model: [in, out]}`. ^price-usd-per-mtok
 
 **expected_turns**`: Optional[int] = None`
     Turns per trial the estimate prices. Left `None`, `__post_init__` derives it from the declared episode budget, for both forms; a stated value is checked as a positive int. Always an int after construction (`4b994c2`; before it a directly built spec kept the literal 8) ([Expected turns and the estimate](#expected-turns-and-the-estimate)). ^expected-turns
@@ -169,7 +169,7 @@ A frozen dataclass: the dry-run price of a spec's grid, built only by [estimate_
     `spec.expected_turns`, set even when `llm_trials` is 0. ^turns-per-trial
 
 **calls_per_trial**`: int = 0`
-    One call per turn, plus each per-turn probe's forked call every turn, each `at_commit` probe once, and one summarizer call when `compact_at` is declared; 0 on an all-scripted spec. The only field with a default, added with the probe pricing (`245f79c`). ^calls-per-trial
+    One call per turn, plus each per-turn probe's forked call every turn, each `at_commit` probe once, and one summarizer call when `compact_at` is declared (the count `bury_commitment` filler is multiplied by); 0 on an all-scripted spec. The only field with a default, added with the probe pricing (`245f79c`). ^calls-per-trial
 
 **input_tokens**`: int`
     Per-trial input tokens (the main line averaged over `memory` axis levels, plus probe and summarizer calls) × `llm_trials`, rounded; 0 with no live trial. ^input-tokens
@@ -184,7 +184,7 @@ A frozen dataclass: the dry-run price of a spec's grid, built only by [estimate_
     `None` with no live trial; the single id priced (`spec.model`, else `PINNED_MODEL`); or `"mixed(a, b)"` under a `model` axis. ^costestimate-model
 
 **formula**`: str`
-    One line naming trials, turns, memory levels, the extra probe and summarizer calls (`N calls/trial incl. …`), per-trial tokens, cache hit and prices, ending `= $usd`; `"0 llm trials -> $0.00"` when there are none. `--dry` prints it after the total. ^formula
+    One line naming trials, turns, memory levels, the extra probe and summarizer calls and the `bury_commitment` filler (`N calls/trial incl. …`), per-trial tokens, cache hit and prices, ending `= $usd`; `"0 llm trials -> $0.00"` when there are none. `--dry` prints it after the total. ^formula
 
 
 
@@ -212,7 +212,7 @@ The module-level functions. A spec's fields are validated in one place, `Experim
     `spec.agent` plus every `agent` axis level. The no-peeking and sampling checks test it for `"llm"`; the manifest uses it to name the model in force. ^agent-kinds-in-play
 
 **estimate_cost**`(spec: ExperimentSpec) -> CostEstimate`
-    Prices the grid from its shape alone, probe and summarizer calls included: no world drafted, no trial run. With no live trial it returns $0 and never looks up a price; otherwise it prices every model level and raises `ValueError` from `price_for` when one has no published price and no override ([Expected turns and the estimate](#expected-turns-and-the-estimate)). ^estimate-cost
+    Prices the grid from its shape alone, probe and summarizer calls included: no world drafted, no trial run. With no live trial it returns $0 and never looks up a price; otherwise it prices every model level and raises `ValueError` from `price_for` when one has no published price and no override, or itself when a pair override sits beside a published model ([Expected turns and the estimate](#expected-turns-and-the-estimate)). ^estimate-cost
 
 
 
@@ -270,10 +270,11 @@ The factory-dial refusal exists because the guards and the estimate read the spe
 | output per turn | the largest of `expected_output_tokens`, `max_tokens` and every `deep`/`shallow` value, spec field or axis level (T066: an 8192-token arm was priced at 300) |
 | probes | the largest declared `probes` set (fixed dial or axis level): each `every_turn` / `after_action` probe repeats the main line's input and output (as if every turn acts), each `at_commit` probe adds one last-turn call (`245f79c`) |
 | compaction | with `compact_at` declared (field or axis, latest level), one summarizer call: input `P × (1 + c/2)`, output the largest `compact_budget`, else the per-turn output (`245f79c`) |
+| `bury_commitment` | T027's filler (estimated tokens) sits in the system prompt of every call, so it is added to the input of each of `calls_per_trial`; the fixed dial, or the mean of a swept axis's levels (`f0604df`, T091 Q8) |
 | models | every `model` axis level with an equal share of the trials, else `spec.model`, else `PINNED_MODEL` (T051 box 4) |
 | cache | `expected_cache_hit_rate` of input at 10% of the input price |
 
-`P` is `expected_prompt_tokens`, `T` is `expected_turns`. Each rule reads high where the true count is unknown. `price_for` raises for a level with no published price unless `price_usd_per_mtok` overrides, and since the `price` check is `estimate_cost(spec)`, an unpriced level refuses before anything is drafted, not mid-grid after a paid call. `bio suite run --dry` prints `estimated cost: $… for N llm trials x T turns — <formula>`, or `$0.00, no llm arm`, or `unavailable (pricing refused above)`, then the ceiling. The estimate is advisory; spend is stopped only by `cost_ceiling_usd` at run time.
+`P` is `expected_prompt_tokens`, `T` is `expected_turns`. Each rule reads high where the true count is unknown. `price_for` raises for a level with no published price unless `price_usd_per_mtok` prices it, a pair override beside a published model refuses (a published price is never replaced), and since the `price` check is `estimate_cost(spec)`, an unpriced level refuses before anything is drafted, not mid-grid after a paid call. `bio suite run --dry` prints `estimated cost: $… for N llm trials x T turns — <formula>`, or `$0.00, no llm arm`, or `unavailable (pricing refused above)`, then the ceiling. The estimate is advisory; spend is stopped only by `cost_ceiling_usd` at run time.
 
 
 
@@ -307,7 +308,7 @@ The constructor refuses what a field can be wrong about alone or beside another 
 | `matched_dials` naming an unswept axis<br>a repeated or empty axis, a repeated level<br>a dial both fixed and swept | guarded drafter with no list-valued `levers` |
 | under-powered or mis-aimed `design`<br>bad `memory`<br>non-positive `token_ceiling` or forgetting field | unknown `agent`<br>cross-field forgetting config<br>inert `compact_at` |
 | `key_readout` not a `PLOTTERS` name | unknown `drafter`; a world or brief that refuses to draft |
-| non-positive `cost_ceiling_usd`, `concurrency`, `expected_*` counts; bad `price_usd_per_mtok`; empty `registration` | unpriced model level<br>drifted spec on resume<br>records already in `out_dir` |
+| non-positive `cost_ceiling_usd`, `concurrency`, `expected_*` counts; bad `price_usd_per_mtok`, or a mapping naming a published model; empty `registration` | unpriced model level; a pair `price_usd_per_mtok` beside a published live model<br>drifted spec, another `world_scheme` or a re-drafted world that differs, on resume<br>records already in `out_dir` |
 
 Not validated in `spec.py`: the scalar `agent` (the `agent` check owns it) and the cross-field forgetting rules, which stay with the `agent` check because a swept axis may supply the partner field (`a4f3b63` moved each field's own shape into the constructor).
 
@@ -322,3 +323,4 @@ Not validated in `spec.py`: the scalar `agent` (the `agent` check owns it) and t
 - 2026-10-28 — refreshed against 0eb23e5 (`a4f3b63`): the constructor also refuses a bad `trials_per_condition`, `base_seed`, `memory`, `token_ceiling` and forgetting field; the refusal table and the not-validated line follow; `preflight` runs seventeen checks (the `labels` check, `1d46b37`), and the figure says so.
 - 2026-10-29 — refreshed for `e5ea4d0` and `661005d` (T091 B1/B5/B10, B13, D10, E1, G1/G2): construction refuses a repeated or empty axis, a repeated level by `trial.frozen_value`, and a dial both fixed and swept; `idle_baseline` appends `idle` to a swept agent axis; new `source` field; resume reloads the spec file as it is now, aggregate the manifest's own spec.
 - 2026-10-29 — refreshed for `fab20be` (T091 K E1, K G1): `spec_from_manifest` reloads the yaml for aggregate/report only when `helper_modules` is non-empty, always for resume; repeated axis levels are judged NaN-equal.
+- 2026-10-29 — refreshed for `f0604df` and `1e08068`/`b6d1607` (T091 Q2, Q8, R2, Y1): `price_usd_per_mtok` may be a per-model mapping and never reprices a published model; the estimate adds `bury_commitment` filler to every priced call; the preflight column names the resume's scheme and re-draft refusals.

@@ -50,6 +50,16 @@ The optional discarded-branch extension (T026): a question put to the agent whos
 **probe**`(text: str, observation: Optional[Observation] = None) -> Optional[str]`
     Returns the answer text, or `None` when the agent cannot answer. `observation` is the turn's observation — the one `act` is about to see (`every_turn`) or just saw (`after_action`, `at_commit`) — so the probe is asked in the act's own context. The runner calls it at the probe's schedule point (`every_turn` before `act`, `after_action` once the action is chosen, `at_commit` when that action is a `Commit`) and stores a `ProbeRecord`; for an agent that does not implement the Protocol it stores `answer=None` without calling anything. An exception raised here is caught and recorded on the `ProbeRecord.error`, never propagated. ^probe
 
+## ProbeSkipped Interface
+An `Exception` subclass (T091 Q4, `e605978`), exported from `alienbio.suite`: `probe` raises it when the probe must not run at all — the trial has aborted, or this turn's act will abort on its token ceiling. No call is made and the runner records no `ProbeRecord` for it ([ABIO Runner](ABIO%20Runner.md)). Distinct from a probe failure, which is recorded as data on `ProbeRecord.error`.
+
+| ProbeSkipped | |
+| --- | --- |
+| [ProbeSkipped](#^probe-skipped) | The probe is not run and not recorded |
+
+**ProbeSkipped**`(Exception)`
+    Raised by `LLMAgent.probe` on or after an abort ([ABIO LLMAgent](ABIO%20LLMAgent.md)). A ceiling hit visible only after a call cannot be foreseen, so that turn's pre-act probe still runs. ^probe-skipped
+
 
 
 ## Measure Interface
@@ -315,3 +325,4 @@ A policy that needs the declared surface is a plain class with `begin`, `notice`
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD a799468; members traced to `suite/agent.py`, behavior to `suite/runner.py` (turn loop, rejection, costs since `d0a2797`, unknown-type rejection since `484db58`, rate-law and readout refusals through `brief.lever_exclusion` since `f1b2af0`/`a799468`), `suite/agents.py`, `suite/llm_agent.py` (`_parse_action`), `suite/naming.py`, `suite/mass_trial.py` (seed paths), `suite/info_seeking.py` (`ActionRecord`) and `tests/suite/test_agent.py`, `test_runner.py`, `test_gameability.py`. Left out: `ScriptedAgent._pos` (private), the private agent classes and factories of `suite/agents.py` as members (they are tabled under Agent families, and belong to a future `agents` doc), and `ActionRecord` as an Interface section (it is defined in `suite/info_seeking.py`). The default costs are read from `brief.DEFAULT_ACTION_COSTS`. The brief's task list named a `prior-commit` agent; it is not a framework entry in `AGENTS` but the grid example's own, added to `AGENTS` when `catalog/examples/grid/helpers.py` is loaded, so it is not listed.
 - 2026-10-28 — refreshed against 0eb23e5: `ProbeAgent.probe` takes the turn's observation (`01fee6a`); the turn-contract rows and the figure's ProbeAgent box pass it.
+- 2026-10-29 — refreshed for `e605978` (T091 Q4): `ProbeSkipped` given an interface block — raised by `probe` when it must not run; the runner records nothing for it.
