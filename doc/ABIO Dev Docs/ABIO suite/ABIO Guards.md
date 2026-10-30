@@ -29,7 +29,7 @@ A frozen dataclass: what one `preflight` call found. `checks` holds every check'
 | [lines](#^lines) | The verdicts as `--dry` prints them |
 
 **out_dir**`: Path`
-    `Path(out_dir or spec.out_dir or f"runs/{spec.name}")`. `preflight` never creates it; `run_experiment` does, after a clean preflight. ^out-dir
+    [resolved_out_dir](#^resolved-out-dir)`(spec, out_dir)`. `preflight` never creates it; `run_experiment` does, after a clean preflight. ^out-dir
 
 **out_exists**`: bool`
     `records.jsonl` exists under `out_dir` at the moment of the call; the `out_dir` check refuses on it unless `resume`. ^out-exists
@@ -66,6 +66,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | guards | |
 | --- | --- |
 | [preflight](#^preflight) | Run every check in order; one `Preflight` |
+| [resolved_out_dir](#^resolved-out-dir) | The run directory a run writes |
 | [PREFLIGHT_CHECKS](#^preflight-checks) | The nineteen check names, in run order |
 | [registration_admission](#^registration-admission) | Resolve a `registration:` claim against the registry |
 | [no_peeking_violation](#^no-peeking-violation) | A live model on a guarded world or dial, unlicensed |
@@ -86,7 +87,10 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | [dials_in_play](#^dials-in-play) | Every dial name a run sets |
 
 **preflight**`(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bool = False) -> Preflight`
-    Resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; `draft` is skipped once anything refused, and `records-readable` and `resume` do nothing off a resume. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` passes `resume=False`, the flag `bio suite run` itself passes ([Dry run and real run](#dry-run-and-real-run)). ^preflight
+    Refuses, by raising `ValueError`, a spec built with `validation="recorded"` (T091 Y2): that spec is for reading a finished run, and a run or resume needs `"run"`; this is the one raise, before any check. Otherwise resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; `draft` is skipped once anything refused, and `records-readable` and `resume` do nothing off a resume. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` passes `resume=True` exactly when the resolved directory already holds `records.jsonl`, previewing `bio suite resume <DIR>` ([Dry run and real run](#dry-run-and-real-run)). ^preflight
+
+**resolved_out_dir**`(spec: ExperimentSpec, out_dir: Optional[str] = None) -> Path`
+    `Path(out_dir or spec.out_dir or f"runs/{spec.name}")`: the one out-dir resolution the run, `preflight` and `--dry` share (T091 Y7). Creates nothing. ^resolved-out-dir
 
 **PREFLIGHT_CHECKS**`: tuple[str, ...]`
     `("registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag", "brief-dials", "certainty-windows", "score-window", "intervene-horizon", "inert-arm", "agent", "price", "draft", "records-readable", "resume", "out_dir")`: the names `checks` carries, in the order `preflight` runs them. A declaration only; `preflight` spells each name again in its own `check(...)` calls. ^preflight-checks
@@ -244,10 +248,12 @@ The `price` check is `estimate_cost(spec)`: zero live trials price at $0.00 with
 
 | | `run_experiment` | `bio suite run --dry` |
 | --- | --- | --- |
-| calls | `preflight(spec, out_dir=…, resume=…)` | `preflight(spec, out_dir=…, resume=False)` |
+| calls | `preflight(spec, out_dir=…, resume=…)` | `preflight(spec, out_dir=…, resume=R)`, `R` = the resolved directory holds `records.jsonl` |
 | on a refusal | raises `flight.refusal`, the first | prints every `lines()` verdict<br>then `preflight: REFUSED`, exits 1 |
 | on success | creates `out_dir`, writes the manifest, runs the grid | prints the plan, the estimate and the ceiling, exits 0 |
-| `resume` check | runs when `resume=True` (`bio suite resume <DIR>`) | `resume: skipped (not a resume)`: `bio suite run` never resumes, so neither does its `--dry`; a directory holding records refuses on `out_dir`, as the run does |
+| `resume` check | runs when `resume=True` (`bio suite resume <DIR>`) | on an empty directory `resume: skipped (not a resume)`; on one holding records it prints `preview: resume — …` and the verdicts `bio suite resume <DIR>` would get (`records-readable`, `resume`, the re-draft check and its note), though `bio suite run` itself refuses that directory (T091 Y7) |
+
+A recorded-mode spec never reaches either: `preflight` raises on it before any check.
 
 A refusal message from a violation check starts `run_experiment:` in both, since the text is the same exception; the no-peeking one adds the rule's name.
 
@@ -276,3 +282,4 @@ The shared five are `pi`, `complexity`, `certainty`, `epistemic_access`, `consti
 - 2026-10-29 — refreshed for `c80cf5f` and `fab20be` (T091 D, K D7, K G1): the resume ceiling is checked against `directory_spend_usd`; `opaque_names=False` refuses only on opaque-by-default drafters; drift compares plain-valued, NaN-equal frozen levels.
 - 2026-10-29 — refreshed for `fa72cb8` (T091 M4): `records-readable` reads `records.retried.jsonl` too, whenever it exists, ceiling or not, so a torn tail there refuses before a resume moves its error lines. Figure still true.
 - 2026-10-29 — refreshed for `f0604df`, `1e08068`, `0ae30d6` and `b6d1607` (T091 Q2, Q10, R2, X1, Y1): `Preflight.notes` and `recorded_worlds_violation` added; § Resume and the seed scheme new; `brief-dials` refuses `constitution_in_history` with no history window; `price` refuses a scalar override beside a published model. Figure not redrawn; its check count is unchanged.
+- 2026-10-29 — refreshed for `7fcdf33` (T091 Y2, Y7): `preflight` raises on a `validation="recorded"` spec before any check (so `run_experiment` refuses one); new `resolved_out_dir`, the one out-dir resolution; `--dry` on a directory holding records previews the resume. Figure still true.

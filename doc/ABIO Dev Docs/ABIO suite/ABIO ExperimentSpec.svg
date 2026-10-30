@@ -32,7 +32,7 @@
   <g id="n-spec">
     <rect id="n-spec-box" x="290" y="30" width="430" height="498" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-spec-name" x="505" y="58" font-size="20" font-weight="600" text-anchor="middle">ExperimentSpec</text>
-    <text id="n-spec-kind" x="505" y="80" font-size="14" text-anchor="middle">(frozen dataclass) one run as data, 31 fields</text>
+    <text id="n-spec-kind" x="505" y="80" font-size="14" text-anchor="middle">(frozen dataclass) one run as data, 31 value fields</text>
 
     <rect id="g1-box" x="302" y="92" width="406" height="66" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
     <text id="g1-label" x="314" y="110" font-size="15" font-weight="600">identity and task</text>

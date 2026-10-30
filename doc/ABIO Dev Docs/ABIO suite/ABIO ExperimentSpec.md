@@ -48,6 +48,8 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
 | [expected_output_tokens](#^expected-output-tokens) | Output tokens per turn, floor |
 | [expected_cache_hit_rate](#^expected-cache-hit-rate) | Cached share of input, for the estimate |
 | [registration](#^registration) | The pre-registration id claimed |
+| [validation](#^validation) | Rule set: `run` or `recorded` |
+| [recorded_warnings](#^recorded-warnings) | Run-only rules a recorded spec breaks |
 | [source](#^source) | The file a loaded spec came from |
 
 **name**`: str`
@@ -143,8 +145,14 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
 **registration**`: Optional[str] = None`
     T030: an id in `catalog/registrations.yaml`. Only checked as a non-empty string at load; resolved by `registration_admission` at the `registration` check and again for the manifest, where the resolved entry is written. Licensed record lines carry the id. ^registration
 
-**source**`: Optional[Mapping[str, Any]] = None` (`compare=False`, `repr=False`)
-    `{"spec_path", "helper_modules"}` when `load_spec` read the spec from a file: that file and every `.py` its trusted `_includes_` ran, each relative to the repo root when under it, else absolute (T091 E1). Not part of the spec's value: never compared, never in `spec_to_dict`. The manifest carries both keys so `bio suite resume` can reload the file, and `aggregate|report` can when `helper_modules` is non-empty, to register its helpers. `None` for a Python-built spec. ^source
+**validation**`: Literal["run", "recorded"] = "run"` (`compare=False`, `repr=False`)
+    Which rule set the constructor applies (T091 Y2). `"run"` refuses every rule and is the only mode `preflight`, and so `run_experiment`, accepts. `"recorded"` is how `spec_from_manifest(current=False)` rebuilds a finished run's spec for `aggregate` and `bio suite aggregate|report`: each rule in [RECORDED_NOTE_RULES](#^recorded-note-rules) lands on `recorded_warnings` instead of raising, so a run written under an older rule set still reads. Still refused in both modes: `axes` not a mapping, a level list not a list, a repeated axis name, an unknown `agent` level, a non-string model, bad field types. Any other value raises. ^validation
+
+**recorded_warnings**`: tuple[str, ...] = ()` (`init=False`, `compare=False`, `repr=False`)
+    The refusal message of each run-only rule a `validation="recorded"` spec broke, in check order; always `()` in `"run"` mode, which raises instead. `bio suite aggregate` prints them to stderr, `bio suite report` at the top of the report and `report.txt` ([ABIO SuiteCmd](../ABIO%20alienbio/ABIO%20SuiteCmd.md)). ^recorded-warnings
+
+**source**`: Optional[Mapping[str, Any]] = None` (`init=False`, `compare=False`, `repr=False`)
+    `{"spec_path", "helper_modules"}` when `load_spec` read the spec from a file: that file and every `.py` its trusted `_includes_` ran, each relative to the repo root when under it, else absolute (T091 E1). Not part of the spec's value: never compared, never in `spec_to_dict`. Not an init field (T091 Y3): `dataclasses.replace` builds a spec no file describes, so the copy carries `None` and its manifest names no `spec_path`; only `load_spec`, through [with_source](#^with-source), sets it. The manifest carries both keys so `bio suite resume` can reload the file and `aggregate|report` can run the helpers. `None` for a Python-built spec. ^source
 
 
 
@@ -195,6 +203,8 @@ The module-level functions. A spec's fields are validated in one place, `Experim
 | --- | --- |
 | [spec_to_dict](#^spec-to-dict) | Spec to a JSON-able dict |
 | [spec_from_dict](#^spec-from-dict) | Dict to a validated spec |
+| [with_source](#^with-source) | Stamp a spec with its file |
+| [RECORDED_NOTE_RULES](#^recorded-note-rules) | Rules recorded mode notes |
 | [load_spec](#^load-spec) | Load an experiment file |
 | [agent_kinds_in_play](#^agent-kinds-in-play) | Every agent kind a run can build |
 | [estimate_cost](#^estimate-cost) | Price the grid without running it |
@@ -202,11 +212,17 @@ The module-level functions. A spec's fields are validated in one place, `Experim
 **spec_to_dict**`(spec: ExperimentSpec) -> dict[str, Any]`
     Every field under its own name, `axes` as a `{name: [levels]}` mapping, tuples as lists, `design` through `PowerDesign.to_dict()`. What the manifest stores as `spec` and hashes as `spec_sha256`. Emits `expected_turns` as a number always, so reloading keeps the value rather than re-deriving it; with `__post_init__` deriving it for both forms, `spec_from_dict(spec_to_dict(s)) == s` for a spec built either way. ^spec-to-dict
 
-**spec_from_dict**`(d: Mapping[str, Any]) -> ExperimentSpec`
-    The dict codec's inbound half: reads the required keys (`KeyError` for a missing one), turns the `axes` mapping into ordered tuples, `None` for an empty `drafter_kwargs`/`fixed_dials`, coerces `idle_baseline` to bool, passes an unset `expected_turns` as `None`, and hands the rest to the constructor, whose validators raise `ValueError` naming the field. Optional keys default as the class does ([Refused at load, refused at preflight](#refused-at-load-refused-at-preflight)). ^spec-from-dict
+**spec_from_dict**`(d: Mapping[str, Any], *, validation: Literal["run", "recorded"] = "run") -> ExperimentSpec`
+    The dict codec's inbound half: reads the required keys (`KeyError` for a missing one), refuses an `axes` that is not a mapping or a level list that is not a list (a string included) in either mode, turns the `axes` mapping into ordered tuples, `None` for an empty `drafter_kwargs`/`fixed_dials`, coerces `idle_baseline` to bool, passes an unset `expected_turns` as `None`, and hands the rest to the constructor, whose validators raise `ValueError` naming the field. Optional keys default as the class does ([Refused at load, refused at preflight](#refused-at-load-refused-at-preflight)). `validation` is passed to the constructor: `"recorded"` for a finished run's manifest spec read back by a read-only verb. ^spec-from-dict
+
+**with_source**`(spec: ExperimentSpec, source: Optional[Mapping[str, Any]]) -> ExperimentSpec`
+    Sets `spec.source` in place on the frozen spec and returns it (T091 Y3); `load_spec` stamps its result this way. ^with-source
+
+**RECORDED_NOTE_RULES**`: tuple[str, ...]`
+    The run-only rules `validation="recorded"` notes rather than refuses, each one that exists to stop a RUN and has tightened since runs were recorded: `fixed-and-swept` (D10), `empty-axis` (B10), `repeated-level` (equal or bucket-equal, B5/G1/G2), `published-price-override` (Q2), `unpinned-model` (the models snapshot moves), `under-powered-design` (M46.9). Documentation only; the validators route these through one `refuse` callback. ^recorded-note-rules
 
 **load_spec**`(path: Union[str, Path]) -> ExperimentSpec`
-    Hands the file to `expr_experiment.load_experiment`, trusted when it sits under the repo's `catalog/` (it may then `_includes_` Python), untrusted otherwise. Raises `ExprError` for a non-experiment document, the pre-M47.4 flat form, a dial no head declares, an unread axis, or any `spec_from_dict` refusal. ^load-spec
+    Hands the file to `expr_experiment.load_experiment`, trusted when it sits under the repo's `catalog/` (it may then `_includes_` Python), untrusted otherwise. Raises `ExprError` for a non-experiment document, the pre-M47.4 flat form, a dial no head declares, an unread axis, or any `spec_from_dict` refusal. Stamps the result's `source` through `with_source`. ^load-spec
 
 **agent_kinds_in_play**`(spec: ExperimentSpec) -> frozenset[str]`
     `spec.agent` plus every `agent` axis level. The no-peeking and sampling checks test it for `"llm"`; the manifest uses it to name the model in force. ^agent-kinds-in-play
@@ -292,7 +308,7 @@ The factory-dial refusal exists because the guards and the estimate read the spe
 | `cost_estimate`, `cost_ceiling_usd` | `asdict(estimate_cost(spec))`, the ceiling |
 | `design` | `PowerDesign.to_dict()` |
 
-`bio suite resume <DIR>`, `aggregate` and `bio suite report` rebuild the spec through `spec_from_manifest`. `aggregate` and `report` (`current=False`) use `manifest["spec"]` through `spec_from_dict`, re-loading the named `spec_path` first only when the manifest lists `helper_modules`, so its helpers register (then a missing file refuses, naming it); without helpers the manifest alone is enough, so a finished run whose yaml was since deleted, moved or edited still aggregates (T091 K E1). `bio suite resume` (`current=True`) always re-loads the file and uses it as it is now, so an edit to the yaml is drift and a missing file refuses, naming the path. Either way the spec is re-validated on every read, and the `resume` check compares the new spec to the stored one, allowing only more trials and added levels on an existing axis.
+`bio suite resume <DIR>`, `aggregate` and `bio suite report` rebuild the spec through `spec_from_manifest`. `aggregate` and `report` (`current=False`) execute the manifest's `helper_modules` directly, so their `_includes_` register the run's drafter and agents, then build `manifest["spec"]` with `validation="recorded"`: the experiment file is never re-read, so a finished run whose yaml was since deleted, moved or edited still aggregates, and a rule the run predates is a note on `recorded_warnings`, not a refusal (T091 K E1, Y2). A helper that is missing, or lies outside the trusted `catalog/` root, refuses, naming it. `bio suite resume` (`current=True`) re-loads the file as it is now, strictly validated, so an edit to the yaml is drift and a missing file refuses, naming the path; a manifest with no `spec_path` (a Python-built or replaced spec) is read from its `spec`, strictly. The `resume` check compares the new spec to the stored one, allowing only more trials and added levels on an existing axis.
 
 
 
@@ -310,6 +326,8 @@ The constructor refuses what a field can be wrong about alone or beside another 
 | `key_readout` not a `PLOTTERS` name | unknown `drafter`; a world or brief that refuses to draft |
 | non-positive `cost_ceiling_usd`, `concurrency`, `expected_*` counts; bad `price_usd_per_mtok`, or a mapping naming a published model; empty `registration` | unpriced model level; a pair `price_usd_per_mtok` beside a published live model<br>drifted spec, another `world_scheme` or a re-drafted world that differs, on resume<br>records already in `out_dir` |
 
+Under `validation="recorded"` the [RECORDED_NOTE_RULES](#^recorded-note-rules) in the left column (fixed-and-swept, empty axis, repeated level, published price in a mapping, unpinned model, under-powered design) become `recorded_warnings`, and `preflight` refuses the spec outright.
+
 Not validated in `spec.py`: the scalar `agent` (the `agent` check owns it) and the cross-field forgetting rules, which stay with the `agent` check because a swept axis may supply the partner field (`a4f3b63` moved each field's own shape into the constructor).
 
 
@@ -324,3 +342,4 @@ Not validated in `spec.py`: the scalar `agent` (the `agent` check owns it) and t
 - 2026-10-29 — refreshed for `e5ea4d0` and `661005d` (T091 B1/B5/B10, B13, D10, E1, G1/G2): construction refuses a repeated or empty axis, a repeated level by `trial.frozen_value`, and a dial both fixed and swept; `idle_baseline` appends `idle` to a swept agent axis; new `source` field; resume reloads the spec file as it is now, aggregate the manifest's own spec.
 - 2026-10-29 — refreshed for `fab20be` (T091 K E1, K G1): `spec_from_manifest` reloads the yaml for aggregate/report only when `helper_modules` is non-empty, always for resume; repeated axis levels are judged NaN-equal.
 - 2026-10-29 — refreshed for `f0604df` and `1e08068`/`b6d1607` (T091 Q2, Q8, R2, Y1): `price_usd_per_mtok` may be a per-model mapping and never reprices a published model; the estimate adds `bury_commitment` filler to every priced call; the preflight column names the resume's scheme and re-draft refusals.
+- 2026-10-29 — refreshed for `7fcdf33` (T091 Y2, Y3): new `validation` and `recorded_warnings` fields and `RECORDED_NOTE_RULES` (read-only verbs rebuild the manifest spec in recorded mode, run-only rules as notes); `spec_from_dict(validation=)` refuses a non-mapping `axes` or non-list levels in both modes; `source` is `init=False`, set only by the new `with_source`, so `replace` drops it; the manifest-view paragraph rewritten (helpers run directly, the yaml never re-read on a read). Figure: "31 fields" now reads "31 value fields" (34 with `validation`, `recorded_warnings`, `source`).
