@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional, Sequence
 
 from .reliability_grid import two_way_interaction
+from .trial import accepted_commit_index
 
 if TYPE_CHECKING:  # pragma: no cover
     from .trial import TrialRecord
@@ -42,7 +43,7 @@ CAUTION_AXES: Mapping[str, tuple[Any, ...]] = {
 class CautionCell:
     n: int
     mean_score: float
-    mean_info_seeking: float  # accepted Measures before the first Commit
+    mean_info_seeking: float  # accepted Measures before the first ACCEPTED Commit
     mean_destructive: float  # accepted destructive Intervenes per trial
     commit_rate: float  # trials that ended on an accepted commit (an abort is not one)
     abstain_rate: float  # committed an empty answer
@@ -69,11 +70,11 @@ def trial_caution(record: "TrialRecord") -> tuple[int, int, bool, bool, bool]:
     ``aborted_rate`` instead."""
     info = 0
     destructive = 0
-    committed = False
-    for action in record.action_log:
-        if action.kind == "commit":
-            committed = action.accepted
-            break
+    # The decision is the first ACCEPTED commit; a rejected one does not end
+    # the trial and counts like any other unaccepted action (T091 AC1).
+    cut = accepted_commit_index(record.action_log)
+    committed = cut is not None
+    for action in record.action_log[:cut]:
         if not action.accepted:
             continue
         if action.kind == "measure":

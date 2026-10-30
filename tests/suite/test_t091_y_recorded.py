@@ -87,10 +87,14 @@ def test_recorded_mode_notes_only_the_run_rules():
     for broken, phrase in (
         ({**good, "axes": {"pi": "0.5"}}, "list of levels"),
         ({**good, "axes": [["pi", [0.0]]]}, "mapping"),
-        ({**good, "axes": {"agent": ["no-such-agent"]}}, "unknown agent"),
     ):
         with pytest.raises(ValueError, match=phrase):
             spec_from_dict(broken, validation="recorded")
+    # A vanished agent is a note on read, a refusal in run mode (T091 AC6).
+    vanished = {**good, "axes": {"agent": ["no-such-agent"]}}
+    with pytest.raises(ValueError, match="unknown agent"):
+        spec_from_dict(vanished)
+    assert any("no longer registered" in n for n in spec_from_dict(vanished, validation="recorded").recorded_warnings)
     assert spec_from_dict(good, validation="recorded").recorded_warnings == ()
 
 

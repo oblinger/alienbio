@@ -82,6 +82,7 @@ from .spec import (  # noqa: F401
     resolve_source_path,
     spec_from_dict,
     spec_to_dict,
+    with_source,
 )
 from .drafters import (  # noqa: F401
     CATALYST_ID,
@@ -482,13 +483,20 @@ def spec_from_manifest(manifest: Mapping[str, Any], *, current: bool = False) ->
     the manifest (drift is what a resume checks); a recorded file that no
     longer exists refuses, naming the path. A manifest without
     ``spec_path`` (a Python-built or replaced spec) is read from its
-    ``spec`` alone either way, strictly on a resume."""
+    ``spec`` (after its recorded helpers run) either way, strictly on a
+    resume."""
     if not current:
         _run_recorded_helpers(manifest.get("helper_modules") or ())
         return spec_from_dict(manifest["spec"], validation="recorded")
     recorded = manifest.get("spec_path")
     if recorded is None:
-        return spec_from_dict(manifest["spec"])
+        # A replaced catalog spec (T091 AC2) names its helpers but no file:
+        # run them so its drafter and agents resolve, and keep them on the
+        # spec so the resumed run's manifest still names them.
+        helpers = list(manifest.get("helper_modules") or ())
+        _run_recorded_helpers(helpers)
+        spec = spec_from_dict(manifest["spec"])
+        return with_source(spec, {"helper_modules": helpers}) if helpers else spec
     path = resolve_source_path(str(recorded))
     if not path.is_file():
         raise FileNotFoundError(

@@ -342,6 +342,20 @@ class TrialRecord:
         return self.deliberation_trace.depth()
 
 
+def accepted_commit_index(action_log: Sequence[Any]) -> Optional[int]:
+    """Index in ``action_log`` of the commit that DECIDED the trial — the
+    first ACCEPTED one — or ``None`` when no commit was accepted.
+
+    A rejected commit (a non-object ``params``, an unknown key) does not end
+    the trial (T091 K1), so it is never the decision. The ONE reader of
+    "did the trial commit, and what came before": Caution and Degradation
+    both cut the log here (T091 AC1)."""
+    for i, action in enumerate(action_log):
+        if action.kind == "commit" and action.accepted:
+            return i
+    return None
+
+
 def readout_values(state: Any, molecule_ids: Sequence[str]) -> dict[str, float]:
     """``{molecule_id: amount summed across compartments}`` read off a
     self-describing state — the same read :func:`final_state_dict` feeds the

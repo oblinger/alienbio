@@ -674,16 +674,11 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         # the helpers (registering their drafters and agents) and read the
         # manifest's spec; a resume reloads the file and compares it as it is
         # now against the spec the records were drawn under. Absent for a
-        # Python-built spec and for a ``dataclasses.replace`` copy (T091 Y3:
-        # ``source`` is not an init field), which no file describes.
-        **(
-            {
-                "spec_path": spec.source.get("spec_path"),
-                "helper_modules": list(spec.source.get("helper_modules") or ()),
-            }
-            if spec.source
-            else {}
-        ),
+        # Python-built spec; a ``dataclasses.replace`` copy, which no file
+        # describes, names no ``spec_path`` but keeps its helpers (T091 Y3,
+        # AC2); with no helpers it names neither.
+        **({"spec_path": spec.source["spec_path"]} if spec.source and spec.source.get("spec_path") else {}),
+        **({"helper_modules": list(spec.source.get("helper_modules") or ())} if spec.source else {}),
         "alienbio_version": __version__,
         "git_commit": git_commit,
         "git_dirty": git_dirty,

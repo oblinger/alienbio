@@ -14,7 +14,7 @@ verification.
 Per record (:func:`trial_degradation`):
 
 - ``investigated`` / ``verified`` — accepted ``measure`` / ``intervene``
-  actions before the first ``commit`` (a perturbation is EXP-10's
+  actions before the first accepted ``commit`` (a perturbation is EXP-10's
   "verification").
 - ``committed`` — the trial ended on an accepted commit; the LLM agent's
   abort sentinel (``record.aborted`` — token ceiling, parse exhaustion) is
@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
 
 from .runner import Budget
+from .trial import accepted_commit_index
 
 if TYPE_CHECKING:  # pragma: no cover
     from .trial import TrialRecord
@@ -89,13 +90,12 @@ def _answer_is_empty(record: "TrialRecord") -> bool:
 
 def trial_degradation(record: "TrialRecord", evidence_floor: Optional[int] = None) -> TrialDegradation:
     """The per-record read (see the module docstring)."""
-    pre: list[Any] = []
-    committed = False
-    for action in record.action_log:
-        if action.kind == "commit":
-            committed = action.accepted
-            break
-        pre.append(action)
+    # The decision is the first ACCEPTED commit (T091 AC1): a rejected
+    # commit before it sits in ``pre`` and is filtered out with the other
+    # unaccepted actions below.
+    cut = accepted_commit_index(record.action_log)
+    committed = cut is not None
+    pre: list[Any] = list(record.action_log[:cut])
     aborted = record.aborted is not None
     committed = committed and not aborted
     accepted = [a for a in pre if a.accepted]

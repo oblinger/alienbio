@@ -123,7 +123,7 @@ class ExperimentSpec:
     #: a finished run's manifest spec: the rules that exist to stop a RUN
     #: (:data:`RECORDED_NOTE_RULES`) become :attr:`recorded_warnings`, so a run
     #: written under an older rule set still reads; a rule that makes the spec
-    #: unreadable (malformed axes, an unknown agent, a bad field type) still
+    #: unreadable (malformed axes, a bad field type) still
     #: refuses.
     validation: Literal["run", "recorded"] = field(default="run", compare=False, repr=False)
     #: T091 Y2 — the run-only rules a ``validation="recorded"`` spec broke,
@@ -135,11 +135,15 @@ class ExperimentSpec:
     #: (never compared, never in :func:`spec_to_dict`); the run manifest
     #: carries it so ``bio suite resume|aggregate|report`` can reload the
     #: file, which registers its ``_includes_`` helpers. ``None`` for a
-    #: Python-built spec. Not an init field (T091 Y3): ``dataclasses.replace``
-    #: builds a spec the file does not describe, so the copy carries no
-    #: source and its manifest names no ``spec_path``; only :func:`load_spec`
-    #: (or :func:`with_source`) sets it.
-    source: Optional[Mapping[str, Any]] = field(default=None, init=False, compare=False, repr=False)
+    #: Python-built spec. ``dataclasses.replace`` builds a spec the file does
+    #: not describe, so the constructor keeps only a passed source's
+    #: ``helper_modules`` (T091 Y3, AC2): a replaced copy names no
+    #: ``spec_path`` (its resume compares the manifest's spec), yet its
+    #: manifest still names the helpers that register its drafter and
+    #: agents, so a fresh process can aggregate, report and resume it. A
+    #: copy with no helpers carries ``None``. Only :func:`load_spec` (or
+    #: :func:`with_source`) sets a ``spec_path``.
+    source: Optional[Mapping[str, Any]] = field(default=None, compare=False, repr=False, kw_only=True)
 
     def __post_init__(self) -> None:
         """The one normaliser both forms pass through (T084): the YAML form
@@ -155,6 +159,9 @@ class ExperimentSpec:
         # arm, so a directly built ``idle_baseline=True`` spec ran none, while
         # ``aggregate`` and ``bio suite resume`` rebuilt it WITH the arm.
         object.__setattr__(self, "axes", _with_idle_arm(self.axes, self.agent, self.idle_baseline))
+        if self.source is not None:
+            helpers = list(self.source.get("helper_modules") or ())
+            object.__setattr__(self, "source", {"helper_modules": helpers} if helpers else None)
         if self.validation not in ("run", "recorded"):
             raise ValueError(f"experiment spec: validation must be 'run' or 'recorded', got {self.validation!r}")
         self._validate()
@@ -206,8 +213,10 @@ class ExperimentSpec:
         for name, levels in self.axes:
             if name == "agent":
                 unknown = sorted(str(level) for level in levels if str(level) not in AGENTS)
-                if unknown:
+                if unknown and self.validation == "run":
                     raise ValueError(f"experiment spec: unknown agent axis level(s) {unknown}; expected one of {sorted(AGENTS)}")
+                for level in unknown:
+                    notes.append(_vanished_note("agent", level))
             if name == "model":
                 for level in levels:
                     _refuse_unpinned(level, refuse)
@@ -236,7 +245,27 @@ class ExperimentSpec:
             _validate_unit_float("expected_cache_hit_rate", self.expected_cache_hit_rate) or 0.0,
         )
         put("registration", _validate_registration_id(self.registration))
+        if self.validation == "recorded":
+            # T091 AC6 — a finished run whose helper agent or drafter has
+            # since been renamed still aggregates and reports: the records
+            # hold everything those verbs read. One note, scalar or axis
+            # level alike; a resume (run mode) still refuses — the agent at
+            # the ``agent`` check, the drafter at the ``drafter`` check.
+            if self.agent not in AGENTS and not any(name == "agent" for name, _levels in self.axes):
+                notes.append(_vanished_note("agent", self.agent))
+            from .drafters import DRAFTERS  # drafters imports this module; resolve late
+
+            try:
+                DRAFTERS[self.drafter]  # `__missing__` resolves late-registered heads
+            except KeyError:
+                notes.append(_vanished_note("drafter", self.drafter))
         put("recorded_warnings", tuple(notes))
+
+
+def _vanished_note(kind: str, name: Any) -> str:
+    """The one recorded-mode note for an agent or drafter no longer
+    registered (T091 AC6)."""
+    return f"{kind} {str(name)!r} is no longer registered; its records are kept as recorded"
 
 
 #: T091 Y2 — the constructor rules a ``validation="recorded"`` spec notes
@@ -251,12 +280,14 @@ RECORDED_NOTE_RULES: tuple[str, ...] = (
     "published-price-override",  # T091 Q2 (f0604df)
     "unpinned-model",  # M45.11 / T016 (the models.list snapshot moves)
     "under-powered-design",  # M46.9
+    "unregistered-agent-or-drafter",  # T091 AC6 (scalar agent, agent axis level, drafter)
 )
 
 
 def with_source(spec: ExperimentSpec, source: Optional[Mapping[str, Any]]) -> ExperimentSpec:
-    """``spec`` stamped with where it was read from (T091 Y3: ``source`` is
-    not an init field, so a replaced spec carries none until stamped)."""
+    """``spec`` stamped with where it was read from (T091 Y3: the
+    constructor keeps only a passed source's ``helper_modules``, so a
+    replaced spec names no ``spec_path`` until stamped)."""
     object.__setattr__(spec, "source", source)
     return spec
 

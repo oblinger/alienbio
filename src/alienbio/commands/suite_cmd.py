@@ -27,6 +27,7 @@ from alienbio.suite.experiment import (
     spec_from_manifest,
 )
 from alienbio.suite.guards import resolved_out_dir
+from alienbio.suite.spec import ExperimentSpec, source_relpath, spec_to_dict
 from alienbio.suite.store import _model_axis_levels, _single_model, read_manifest
 
 
@@ -105,12 +106,53 @@ def suite_command(args: list[str], verbose: bool = False) -> int:
         return 1
 
 
-def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> int:
-    spec = load_spec(spec_path)
+def _grid(spec: ExperimentSpec) -> tuple[int, int]:
+    """``(conditions, trials planned)`` for ``spec``."""
     grid_size = 1
     for _name, levels in spec.axes:
         grid_size *= len(levels)
-    trials_planned = grid_size * spec.trials_per_condition
+    return grid_size, grid_size * spec.trials_per_condition
+
+
+def _resume_preview_spec(
+    cli_spec: ExperimentSpec, cli_path: str, resolved_out: Path
+) -> tuple[ExperimentSpec, list[str]]:
+    """The spec ``bio suite resume DIR`` would use for ``resolved_out`` — the
+    one its manifest names (T091 AC4) — and the lines saying so: which spec
+    the verdicts are for, and, when the yaml on the command line differs
+    from it, that difference as drift. A directory with no readable
+    manifest previews the command-line spec (its ``resume`` check refuses).
+    A manifest whose spec cannot be loaded raises, as the resume would."""
+    manifest_path = resolved_out / "manifest.json"
+    try:
+        manifest = read_manifest(manifest_path)
+    except (OSError, ValueError):
+        return cli_spec, []
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("spec"), dict):
+        return cli_spec, []
+    spec = spec_from_manifest(manifest, current=True)
+    named = manifest.get("spec_path")
+    lines = [
+        "preview: verdicts for the spec the manifest names "
+        + (f"({named})" if named else "(its recorded spec — the run names no file)")
+        + ", which `bio suite resume` uses"
+    ]
+    mine, theirs = spec_to_dict(cli_spec), spec_to_dict(spec)
+    differ = sorted(k for k in set(mine) | set(theirs) if mine.get(k) != theirs.get(k))
+    other_file = named is not None and str(named) != source_relpath(cli_path)
+    if differ or other_file:
+        what = f"differs on {differ}" if differ else "describes the same spec"
+        file_note = f" (the manifest names {named})" if other_file else ""
+        lines.append(
+            f"preview: drift — the yaml on the command line ({source_relpath(cli_path)}){file_note} {what}; "
+            "`bio suite resume` ignores it"
+        )
+    return spec, lines
+
+
+def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> int:
+    spec = load_spec(spec_path)
+    grid_size, trials_planned = _grid(spec)
 
     if dry:
         # T057 — the same preflight the run makes, every verdict printed;
@@ -121,13 +163,24 @@ def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> in
         # ``records-readable`` and recorded-worlds checks print, with any
         # re-draft note); ``bio suite run`` itself refuses such a directory.
         # An empty one previews the run (the resume checks print skipped).
-        resuming = (resolved_out_dir(spec, out_dir) / "records.jsonl").exists()
+        # T091 AC4 — previewed against the spec the manifest names (what the
+        # resume loads), not the yaml on the command line; a difference
+        # between the two is printed as drift.
+        resolved_out = resolved_out_dir(spec, out_dir)
+        resuming = (resolved_out / "records.jsonl").exists()
+        preview_lines: list[str] = []
+        if resuming:
+            spec, preview_lines = _resume_preview_spec(spec, spec_path, resolved_out)
+            grid_size, trials_planned = _grid(spec)
+            out_dir = str(resolved_out)
         flight = preflight(spec, out_dir=out_dir, resume=resuming)
         if resuming:
             print(
                 f"preview: resume — {flight.out_dir} already holds records.jsonl; these are the verdicts of "
                 f"`bio suite resume {flight.out_dir}` (`bio suite run` refuses this directory)"
             )
+            for line in preview_lines:
+                print(line)
         print(f"name: {spec.name}")
         print(f"conditions: {grid_size}")
         print(f"trials planned: {trials_planned}")
@@ -215,11 +268,13 @@ def _recorded(out_dir: str, verb: str):
 
 
 def _recorded_notes(spec) -> list[str]:
-    """The header lines naming each run-only rule the recorded spec breaks."""
+    """The header lines naming each run-only rule the recorded spec breaks
+    and each agent or drafter it names that is no longer registered."""
     if not spec.recorded_warnings:
         return []
     return [
-        "Recorded-spec notes — rules this run predates (read here as notes; a resume refuses them):",
+        "Recorded-spec notes — rules this run predates, or an agent or drafter no longer registered "
+        "(read here as notes; a resume refuses them):",
         *(f"  - {note}" for note in spec.recorded_warnings),
         "",
     ]

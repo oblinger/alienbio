@@ -1,4 +1,4 @@
-"""Every refusal a run makes before spend — ``preflight`` and its seventeen ordered checks (:data:`PREFLIGHT_CHECKS`), one ``*_violation`` function per check (T058; split out of ``experiment.py``)."""
+"""Every refusal a run makes before spend — ``preflight`` and its ordered checks (:data:`PREFLIGHT_CHECKS`), one ``*_violation`` function per check (T058; split out of ``experiment.py``)."""
 
 from __future__ import annotations
 
@@ -88,10 +88,28 @@ def sampling_violation(spec: ExperimentSpec) -> Optional[str]:
         )
     return None
 
+def unknown_drafter_violation(spec: ExperimentSpec) -> Optional[str]:
+    """Why ``spec.drafter`` names no registered drafter — ``None`` when it
+    does. The ONE wording (T091 AC5): ``preflight``'s first check, the
+    ``draft`` check, the resume re-draft and :func:`unknown_dials_violation`
+    all say it this way."""
+    try:
+        # `DRAFTERS.__missing__` resolves a head an experiment file's
+        # `_includes_` registered after import (the catalog examples), so the
+        # lookup is the membership test — `in` is False for those.
+        DRAFTERS[spec.drafter]
+    except KeyError:
+        return f"{spec.name}: unknown drafter {spec.drafter!r}; expected one of {sorted(DRAFTERS)}"
+    return None
+
+
 def unknown_dials_violation(spec: ExperimentSpec) -> Optional[str]:
     """Why ``spec`` carries a dial nobody reads — ``None`` when it does not.
     Checked before spend (``run_experiment``, ``bio suite run --dry``) so a
     misplaced key refuses the run instead of becoming N error records."""
+    problem = unknown_drafter_violation(spec)
+    if problem is not None:
+        return problem
     unknown = unknown_spec_dials(spec)
     if not unknown:
         return None
@@ -502,6 +520,9 @@ def recorded_worlds_violation(spec: ExperimentSpec, records_path: Path) -> tuple
             continue
         if label not in first or index < first[label][0]:
             first[label] = (index, d)
+    problem = unknown_drafter_violation(spec)
+    if problem is not None:
+        return problem, 0
     drafter = DRAFTERS[spec.drafter]
     kwargs = dict(spec.drafter_kwargs or {})
     base = Seed(spec.base_seed)
@@ -559,13 +580,10 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     named with its class (``generator error``), and refuses too, since the
     run would crash on the same draft (T084 finding D).
     """
-    try:
-        # `DRAFTERS.__missing__` resolves a head an experiment file's
-        # `_includes_` registered after import (the catalog examples), so the
-        # lookup is the membership test — `in` is False for those.
-        drafter = DRAFTERS[spec.drafter]
-    except KeyError:
-        return f"{spec.name}: unknown drafter {spec.drafter!r}; expected one of {sorted(DRAFTERS)}"
+    problem = unknown_drafter_violation(spec)
+    if problem is not None:
+        return problem
+    drafter = DRAFTERS[spec.drafter]
     kwargs = dict(spec.drafter_kwargs or {})
     refusals: list[str] = []
     for dials, trial_seed in _condition_units(spec):
@@ -1004,7 +1022,7 @@ def label_collision_violation(spec: ExperimentSpec) -> Optional[str]:
 
 
 PREFLIGHT_CHECKS: tuple[str, ...] = (
-    "registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag",
+    "drafter", "registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag",
     "brief-dials", "certainty-windows", "score-window", "intervene-horizon", "inert-arm", "agent", "price",
     "draft", "records-readable", "resume", "out_dir",
 )
@@ -1025,7 +1043,9 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     all-ok and refused on the run — and the per-model price check and the
     resume-drift check (box 4) had been added to one side only.
 
-    Order (:data:`PREFLIGHT_CHECKS`): ``registration`` (the claim
+    Order (:data:`PREFLIGHT_CHECKS`): ``drafter`` (the spec's drafter is
+    registered — every later check reads it, so on a refusal each is
+    skipped, T091 AC5), ``registration`` (the claim
     resolves), ``no-peeking`` (a live model on a guarded drafter, variant or
     dial, unlicensed), ``dials`` (a name nothing reads; a factory dial in
     ``fixed_dials``), ``labels`` (two axis levels that render one seed
@@ -1044,7 +1064,9 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     existing store parses, on a resume, ``records.jsonl`` and
     ``records.retried.jsonl`` both — T091 B4, M4), ``resume`` (records with
     no manifest, an unreadable or spec-less manifest, drift against it, or a
-    cost ceiling below the records' spend; skipped off a resume), and ``out_dir`` (records
+    cost ceiling below the records' spend; the re-draft of each recorded
+    condition runs only when every earlier check passed; skipped off a
+    resume), and ``out_dir`` (records
     present without ``resume``). ``out_dir`` is resolved exactly as the run
     resolves it and nothing here creates it.
     """
@@ -1063,13 +1085,18 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     skipped: list[str] = []
     notes: list[str] = []
 
+    #: T091 AC5 — an unregistered drafter refuses first, and every later
+    #: check (each reads the drafter) is skipped rather than reporting a
+    #: confusing second-hand symptom (``unknown dial(s)``, a bare KeyError).
+    no_drafter = False
+
     def check(name: str, run_it: Callable[[], Any], *, only_if_clean: bool = False) -> None:
         """One verdict. ``only_if_clean`` marks a check that does real work
         (drafting every condition's world): an already-refused spec is not
         going to run, so there is nothing to learn from drafting it, and a
         cheaper verdict should not be shadowed by a slower one."""
         nonlocal refusal
-        if only_if_clean and refusal is not None:
+        if (only_if_clean and refusal is not None) or no_drafter:
             # Round 4: named as skipped — ``--dry`` printed ``draft: ok``
             # for a check that never ran.
             checks.append((name, None))
@@ -1091,6 +1118,8 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 f"§ The no-peeking rule) forbids agent 'llm' here: {problem}"
             )
 
+    check("drafter", lambda: _raise_if(unknown_drafter_violation(spec), "drafter"))
+    no_drafter = refusal is not None
     check("registration", lambda: registration_admission(spec))
     check("no-peeking", lambda: _raise_if(no_peeking_violation(spec), "no-peeking"))
     check("dials", lambda: (_raise_if(unknown_dials_violation(spec), "dials"),
@@ -1172,6 +1201,17 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 "checked against the spec the records were drawn under; restore the manifest or start a "
                 "new out_dir"
             )
+        # Drift first (T091 AC3): the stamp depends on the spec too (its swept
+        # axes and matched dials, X1), so an edited spec would otherwise be
+        # told "another seed scheme" and sent after a code change that never
+        # happened. After this check the stamp speaks only for code.
+        drift = _resume_spec_drift(prior_spec, spec)
+        if drift:
+            raise ValueError(
+                f"run_experiment: resume=True but the spec differs from the run's manifest on {drift} — "
+                "a resume continues the SAME experiment (only more trials_per_condition or added axis "
+                f"levels may change); start a new out_dir for a new spec ({resolved_out})"
+            )
         # T091 R2 — the spec drift check reads only the spec, but the seed
         # derivation and the matched-dial set live in code: a resume under
         # another alienbio could mix worlds drawn under two schemes in one
@@ -1189,15 +1229,12 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 f"alienbio draws under {current_scheme!r} — the records were drawn under another seed "
                 "scheme, so new trials would not match their worlds; start a new out_dir"
             )
-        drift = _resume_spec_drift(prior_spec, spec)
-        if drift:
-            raise ValueError(
-                f"run_experiment: resume=True but the spec differs from the run's manifest on {drift} — "
-                "a resume continues the SAME experiment (only more trials_per_condition or added axis "
-                f"levels may change); start a new out_dir for a new spec ({resolved_out})"
-            )
         checked = 0
-        if records_path.exists():
+        if records_path.exists() and refusal is not None:
+            # T091 AC5 — the re-draft is real work and reads every check
+            # above; a spec already refused is not going to resume.
+            notes.append("resume: re-draft of the recorded conditions skipped (an earlier check refused)")
+        elif records_path.exists():
             # Every resume, stamped or not (T091 Y1): each recorded
             # condition's first trial is re-drafted at its own seed and
             # compared with what the record holds about its world, and a
@@ -1212,7 +1249,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                     "the records were drawn under another seed scheme, so new trials would not match their "
                     f"worlds (this alienbio draws under {current_scheme!r}); start a new out_dir"
                 )
-        if prior_scheme is None and records_path.exists():
+        if prior_scheme is None and records_path.exists() and refusal is None:
             notes.append(
                 f"resume: {manifest_path} had no world_scheme stamp; {checked} recorded condition(s) "
                 f"re-drafted identically, stamping {current_scheme}"
