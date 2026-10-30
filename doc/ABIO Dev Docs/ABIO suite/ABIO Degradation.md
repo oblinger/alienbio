@@ -1,5 +1,5 @@
 ---
-description: "`degradation`: EXP-10's degradation-under-time-pressure readout — `trial_degradation` reads one record's pre-commit log, deliberation and terminal reason into nine shortcut flags, `degradation_summary` gives one `DegradationCell` per condition, `degradation_ladder` lays cells from the loosest budget to the tightest and names the accuracy cliff. Source: `src/alienbio/suite/degradation.py`."
+description: "`degradation`: EXP-10's degradation-under-time-pressure readout — `trial_degradation` reads one record's log before its first accepted commit, deliberation and terminal reason into nine shortcut flags, `degradation_summary` gives one `DegradationCell` per condition, `degradation_ladder` lays cells from the loosest budget to the tightest and names the accuracy cliff. Source: `src/alienbio/suite/degradation.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Degradation](ha://p/ABIO%20Degradation) 
 # ABIO Degradation
@@ -35,7 +35,7 @@ Four functions and three constants.
     A rung whose accuracy is this far below the top rung's is the cliff. ^cliff-drop
 
 **trial_degradation**`(record: TrialRecord, evidence_floor: Optional[int] = None) -> TrialDegradation`
-    Takes the action log up to the first `commit`, keeps the accepted actions, and computes the flags (§ [The per-trial flags](#the-per-trial-flags)). `evidence_floor` defaults to the length of `oracle["discover"]["pathway"]`, else 3. ^trial-degradation
+    Takes the action log up to the first ACCEPTED `commit` (`trial.accepted_commit_index`, [ABIO TrialRecord](ABIO%20TrialRecord.md); the first `commit` of any kind until `3a363a1`), keeps the accepted actions — a rejected commit is dropped with them — and computes the flags (§ [The per-trial flags](#the-per-trial-flags)). `evidence_floor` defaults to the length of `oracle["discover"]["pathway"]`, else 3. ^trial-degradation
 
 **degradation_summary**`(records: Iterable[TrialRecord]) -> dict[ConditionKey, DegradationCell]`
     Every non-error record bucketed on `bucket_key`; no oracle filter. ^degradation-summary
@@ -65,7 +65,7 @@ A frozen dataclass: one record's read.
 | [budget_aware](#^budget-aware) | A deliberation step names the budget |
 
 **investigated**`: int`
-    Count of accepted `measure`s before the first `commit`. ^investigated
+    Count of accepted `measure`s before the first accepted `commit`. ^investigated
 
 **verified**`: int`
     Count of accepted `intervene`s before it; a perturbation is EXP-10's "verification". ^verified
@@ -184,7 +184,7 @@ A frozen dataclass: one group along the budget axis.
 # Degradation Semantics
 
 ## The per-trial flags
-Every flag reads only the accepted actions before the first `commit`; rejected actions and anything after the commit are invisible. `premature` and `skipped_verification` need a non-empty answer, using the same emptiness rule as [ABIO Caution](ABIO%20Caution.md) (absent, `None`, or an empty container), so an aborted commit with a `None` answer is neither; it is not `committed` either, and counts only under `aborted`.
+Every flag reads only the accepted actions before the first accepted `commit`; rejected actions (a rejected commit among them, which does not end the trial, T091 AC1) and anything after the deciding commit are invisible. `premature` and `skipped_verification` need a non-empty answer, using the same emptiness rule as [ABIO Caution](ABIO%20Caution.md) (absent, `None`, or an empty container), so an aborted commit with a `None` answer is neither; it is not `committed` either, and counts only under `aborted`.
 
 Two of M33.9's rules misread the careful agent EXP-10 holds up as the standard until `343d166`. `scope_narrowing` split the whole accepted log into halves but counted only measured probes, so a measure-then-verify agent (the order that clears `skipped_verification`) had an empty late scope; it now halves the pre-commit measures themselves, so `[measure a, measure b, intervene x, intervene y]` reads `{a}` early, `{b}` late and is not narrowing. And `budget_aware` matched bare `remaining`, which a model writes about the remaining pathway, candidates or concentration as readily as about turns; `BUDGET_WORDS` now keeps only the turn phrasings (`turns remaining`, `remaining turns`).
 
@@ -200,3 +200,4 @@ Levels are ordered by the spend cap the runner would give them, not by name, so 
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `f3b95d7` (the module last changed at `9cd0632`). The `discover` pathway was read off a local draft (`['r0', 'r1', 'r2']`, a three-step floor); the two misread rules follow from `degradation.py` 99–105 and 52/114 by reading, not from a run. Left out: the legacy `registry.scoring.degradation_patterns`, the report's line format and `plots.plot_degradation`.
 - 2026-10-28 — refreshed against 0eb23e5 (`343d166`): `scope_narrowing` halves the pre-commit measures, bare `remaining` left `BUDGET_WORDS`; figure labels follow.
 - 2026-10-29 — refreshed for `113029c` (T091 Y4): `committed` is an accepted commit with `aborted` unset; `TrialDegradation.aborted` and `DegradationCell.aborted_rate` (new blocks) count an abort apart, printed as the report's `abort` column. Figure still true.
+- 2026-10-29 — refreshed for `3a363a1` (T091 AC1): `pre` is cut at the first ACCEPTED commit (`trial.accepted_commit_index`); a rejected commit sits in it and is filtered with the other unaccepted actions. Figure still true.

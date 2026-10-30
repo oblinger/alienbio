@@ -23,7 +23,7 @@
   <g id="n-tc">
     <rect id="n-tc-box" x="320" y="200" width="230" height="84" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-tc-name" x="435" y="226" font-size="18" font-weight="600" text-anchor="middle">trial_caution</text>
-    <text id="n-tc-kind" x="435" y="248" font-size="14" text-anchor="middle">(fn) up to first commit;</text>
+    <text id="n-tc-kind" x="435" y="248" font-size="14" text-anchor="middle">(fn) to 1st accepted commit;</text>
     <text id="n-tc-kind2" x="435" y="268" font-size="14" text-anchor="middle">empty answer = abstain ‡</text>
   </g>
   <line id="e-rec-tc" x1="250" y1="242" x2="320" y2="242" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>

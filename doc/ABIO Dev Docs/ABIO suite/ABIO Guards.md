@@ -1,9 +1,9 @@
 ---
-description: "`guards`: every refusal a run makes before spend — `preflight` and its 19 ordered checks, the no-peeking rule and the registration licence, the declared surface, unknown and misplaced dials, the price check and one drafted world per condition. Source: `src/alienbio/suite/guards.py`."
+description: "`guards`: every refusal a run makes before spend — `preflight` and its 20 ordered checks (an unregistered drafter refuses first), the no-peeking rule and the registration licence, the declared surface, unknown and misplaced dials, the price check and one drafted world per condition. Source: `src/alienbio/suite/guards.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Guards](ha://p/ABIO%20Guards) 
 # ABIO Guards
-The gate in front of every paid run: `preflight` puts an `ExperimentSpec` through nineteen checks in a fixed order and returns every verdict, so `run_experiment` can raise the first refusal and `bio suite run --dry` can print them all, before a single world is simulated or a model is called.
+The gate in front of every paid run: `preflight` puts an `ExperimentSpec` through twenty checks in a fixed order and returns every verdict, so `run_experiment` can raise the first refusal and `bio suite run --dry` can print them all, before a single world is simulated or a model is called.
 
 ![ABIO Guards](ABIO%20Guards.svg) 
 *The no-peeking rule and the registration licence* is the topic that governs the licence group; *The draft check* governs group 5, skipped once anything above it refused.
@@ -38,7 +38,7 @@ A frozen dataclass: what one `preflight` call found. `checks` holds every check'
     One `(name, verdict)` pair per check: `None` for a pass (or a skip), else `str(exc)` of the refusal. A refusing check does not stop later ones ([The preflight order](#the-preflight-order)). ^checks
 
 **skipped**`: tuple[str, ...] = ()`
-    Names of the checks marked `only_if_clean` that did not run because something earlier refused; today only `draft`. Their `checks` entry carries `None`, so read this before reading a `None` as a pass. ^skipped
+    Names of the checks that did not run because something earlier refused: `draft` (marked `only_if_clean`) after any refusal, and every check after `drafter` when the `drafter` check refused (T091 AC5, since `3a363a1`). Their `checks` entry carries `None`, so read this before reading a `None` as a pass. ^skipped
 
 **resume**`: bool = False`
     The `resume` argument. When false, the `resume` check had nothing to compare and `lines()` prints it as skipped. ^resume
@@ -50,7 +50,7 @@ A frozen dataclass: what one `preflight` call found. `checks` holds every check'
     The first exception any check raised: a `ValueError` whose text starts `run_experiment:` for the violation checks, the bare `ValueError` of `registration_admission` / `resolve_registration` for the claim, `FileExistsError` for `out_dir`. ^refusal
 
 **notes**`: tuple[str, ...] = ()`
-    What a passing check wants said on the progress channel. Today one note only: a resume of a store with no `world_scheme` stamp whose recorded conditions all re-drafted identically, naming the count and the stamp the rebuilt manifest will carry. `run_experiment` passes each to `progress` before it creates anything; `lines()` prints them after the verdicts (`0ae30d6`, T091 R2). ^notes
+    What a check wants said on the progress channel. Two notes: a resume of a store with no `world_scheme` stamp whose recorded conditions all re-drafted identically, naming the count and the stamp the rebuilt manifest will carry; and `resume: re-draft of the recorded conditions skipped (an earlier check refused)` when the re-draft did not run (T091 AC5). `run_experiment` passes each to `progress` before it creates anything; `lines()` prints them after the verdicts (`0ae30d6`, T091 R2). ^notes
 
 **ok**`: bool` (property)
     `refusal is None`. ^ok
@@ -67,7 +67,8 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | --- | --- |
 | [preflight](#^preflight) | Run every check in order; one `Preflight` |
 | [resolved_out_dir](#^resolved-out-dir) | The run directory a run writes |
-| [PREFLIGHT_CHECKS](#^preflight-checks) | The nineteen check names, in run order |
+| [PREFLIGHT_CHECKS](#^preflight-checks) | The twenty check names, in run order |
+| [unknown_drafter_violation](#^unknown-drafter-violation) | A drafter name no head registers |
 | [registration_admission](#^registration-admission) | Resolve a `registration:` claim against the registry |
 | [no_peeking_violation](#^no-peeking-violation) | A live model on a guarded world or dial, unlicensed |
 | [unknown_dials_violation](#^unknown-dials-violation) | A dial name nothing reads |
@@ -87,13 +88,16 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 | [dials_in_play](#^dials-in-play) | Every dial name a run sets |
 
 **preflight**`(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bool = False) -> Preflight`
-    Refuses, by raising `ValueError`, a spec built with `validation="recorded"` (T091 Y2): that spec is for reading a finished run, and a run or resume needs `"run"`; this is the one raise, before any check. Otherwise resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; `draft` is skipped once anything refused, and `records-readable` and `resume` do nothing off a resume. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` passes `resume=True` exactly when the resolved directory already holds `records.jsonl`, previewing `bio suite resume <DIR>` ([Dry run and real run](#dry-run-and-real-run)). ^preflight
+    Refuses, by raising `ValueError`, a spec built with `validation="recorded"` (T091 Y2): that spec is for reading a finished run, and a run or resume needs `"run"`; this is the one raise, before any check. Otherwise resolves `out_dir`, then runs each check of [PREFLIGHT_CHECKS](#^preflight-checks) in order, catching any `Exception` as that check's refusal and keeping the first as `refusal`; every check after `drafter` is skipped when it refused, `draft` once anything refused, and `records-readable` and `resume` do nothing off a resume. Never raises for a refusal, creates nothing, spends nothing. `run_experiment` calls it with its own `out_dir` and `resume`; `--dry` passes `resume=True` exactly when the resolved directory already holds `records.jsonl`, previewing `bio suite resume <DIR>` ([Dry run and real run](#dry-run-and-real-run)). ^preflight
 
 **resolved_out_dir**`(spec: ExperimentSpec, out_dir: Optional[str] = None) -> Path`
     `Path(out_dir or spec.out_dir or f"runs/{spec.name}")`: the one out-dir resolution the run, `preflight` and `--dry` share (T091 Y7). Creates nothing. ^resolved-out-dir
 
 **PREFLIGHT_CHECKS**`: tuple[str, ...]`
-    `("registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag", "brief-dials", "certainty-windows", "score-window", "intervene-horizon", "inert-arm", "agent", "price", "draft", "records-readable", "resume", "out_dir")`: the names `checks` carries, in the order `preflight` runs them. A declaration only; `preflight` spells each name again in its own `check(...)` calls. ^preflight-checks
+    `("drafter", "registration", "no-peeking", "dials", "labels", "episode-dials", "surface", "sampling", "w2-lag", "brief-dials", "certainty-windows", "score-window", "intervene-horizon", "inert-arm", "agent", "price", "draft", "records-readable", "resume", "out_dir")`: the names `checks` carries, in the order `preflight` runs them. A declaration only; `preflight` spells each name again in its own `check(...)` calls. ^preflight-checks
+
+**unknown_drafter_violation**`(spec: ExperimentSpec) -> Optional[str]`
+    `None` when `DRAFTERS[spec.drafter]` resolves (the lookup, not `in`, so a head an experiment file's `_includes_` registered after import counts), else `<name>: unknown drafter 'X'; expected one of [...]`. The one wording (T091 AC5, since `3a363a1`): the `drafter` check, `unknown_dials_violation`, `draft_violation` and `recorded_worlds_violation` all return it. ^unknown-drafter-violation
 
 **registration_admission**`(spec: ExperimentSpec, registry_path: Optional[Path] = None) -> Optional[Registration]`
     `None` when `spec.registration` is unset. Otherwise resolves the id in the registry (`registry_path`, default the repo's `catalog/registrations.yaml`) through `resolve_registration`, which raises on a missing or unparseable file, an unknown id or a malformed entry; then raises `ValueError` when the entry names a drafter this build does not register, or does not name `spec.drafter`. Runs as the `registration` check whatever the agent, so a scripted run with a false claim refuses too ([The registry file](#the-registry-file)). ^registration-admission
@@ -102,7 +106,7 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
     `None` unless `"llm"` is among `agent_kinds_in_play(spec)` (the spec's `agent` plus any `agent` axis levels). Then, in order: a falsy `opaque_names` in play refuses, licence or not, when the spec's drafter is in `drafters.opaque_by_default_drafters()` (every guarded drafter plus `OPAQUE_SETUP_DRAFTERS`, i.e. `phase1_pressure`), the message naming the drafter and that set (T091 D7: off, a live model reads the world's structural ids, which the taint audit cannot see; on any other drafter `False` is the default it already runs under, K D7); a guarded drafter without a licence refuses; a phase-1 down-direction `variant` without a licence refuses; the guarded dials in play, less `constitution` on a conflict-free drafter, must all sit inside the licence's `dials`, or with no licence there must be none. Calls `registration_admission` itself, so a bad claim also raises here ([The no-peeking rule and the registration licence](#the-no-peeking-rule-and-the-registration-licence)). ^no-peeking-violation
 
 **unknown_dials_violation**`(spec: ExperimentSpec) -> Optional[str]`
-    The `fixed_dials` keys and axis names that neither the drafter head's own dials nor `runtime_dials()` read (`drafters.unknown_spec_dials`). The message, for a registered head, names what the head and the runtime do read and, when the head takes `**generator`, says generator overrides belong in `drafter_kwargs`. `drafter_kwargs` is not checked here ([Dials in play](#dials-in-play)). ^unknown-dials-violation
+    An unregistered drafter first, in [unknown_drafter_violation](#^unknown-drafter-violation)'s wording; then the `fixed_dials` keys and axis names that neither the drafter head's own dials nor `runtime_dials()` read (`drafters.unknown_spec_dials`). The message, for a registered head, names what the head and the runtime do read and, when the head takes `**generator`, says generator overrides belong in `drafter_kwargs`. `drafter_kwargs` is not checked here ([Dials in play](#dials-in-play)). ^unknown-dials-violation
 
 **fixed_factory_dials_violation**`(spec: ExperimentSpec) -> Optional[str]`
     Refuses any of `FACTORY_DIALS` (`agent`, `model`, `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens`, `output_schedule`) in `fixed_dials`: the factory reads the merged dial vector, but the guards and `estimate_cost` read the spec field and the axes, so `fixed_dials: {agent: llm}` passed every check, estimated $0.00 and ran a paid trial. Runs inside the `dials` check, after `unknown_dials_violation` (since `c63ad42`). ^fixed-factory-dials-violation
@@ -138,10 +142,10 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
     Per condition: refuses an agent kind not in `agents.AGENTS`; for `llm`, calls `llm_agent.validate_agent_config` on the cell's `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens` and `output_schedule` (dial, else spec field) without building the agent, so no API key is needed; for any other kind, builds it through the spec's factory at `trial_seed.child("agent")` and checks that its `probe`, if any, binds the runner's `(text, observation)` call (the message names T088, which widened it). That mismatch refuses only on a condition that declares `probes`; elsewhere the run never calls `probe`, so it is a `UserWarning` (T091 B8, G4). ^agent-construction-violation
 
 **draft_violation**`(spec: ExperimentSpec) -> Optional[str]`
-    Refuses an unknown drafter. Otherwise drafts one world per condition at the seed its first trial will use, builds that condition's brief with the real `build_brief`, collects every config refusal (`ValueError`) and every fault (any other exception, named by class) from either, and returns them all joined by `; `, each naming its condition ([The draft check](#the-draft-check)). ^draft-violation
+    Refuses an unknown drafter through `unknown_drafter_violation`. Otherwise drafts one world per condition at the seed its first trial will use, builds that condition's brief with the real `build_brief`, collects every config refusal (`ValueError`) and every fault (any other exception, named by class) from either, and returns them all joined by `; `, each naming its condition ([The draft check](#the-draft-check)). ^draft-violation
 
 **recorded_worlds_violation**`(spec: ExperimentSpec, records_path: Path) -> tuple[Optional[str], int]`
-    Run by the `resume` check on EVERY resume, stamped or not. A record whose label the current grid does not render refuses at once, naming the label (`b6d1607`, T091 Y1: such records used to be skipped, so a store whose labels an older rule spelled verified "0 conditions" and resumed with every cell's n doubled). For each condition with a clean record, its lowest-index record is re-drafted at that record's own seed (`base_seed.child(f"{seed_label}/{index}")`, as `MassTrialRunner` derives it) through the run's drafter and `_first_brief`, and the fresh `task_id`, oracle, `brief.question` and `brief.affordances` are compared canonically with the record's. Returns `(problem, checked)`: `problem` names the condition, trial index, seed label and first differing field, `None` when all match; `checked` is the condition count. Error records are not re-drafted but their labels are checked. One draft per recorded condition ([Resume and the seed scheme](#resume-and-the-seed-scheme)). ^recorded-worlds-violation
+    Run by the `resume` check on EVERY resume, stamped or not. A record whose label the current grid does not render refuses at once, naming the label (`b6d1607`, T091 Y1: such records used to be skipped, so a store whose labels an older rule spelled verified "0 conditions" and resumed with every cell's n doubled). An unregistered drafter returns `unknown_drafter_violation`'s text with `checked = 0`. For each condition with a clean record, its lowest-index record is re-drafted at that record's own seed (`base_seed.child(f"{seed_label}/{index}")`, as `MassTrialRunner` derives it) through the run's drafter and `_first_brief`, and the fresh `task_id`, oracle, `brief.question` and `brief.affordances` are compared canonically with the record's. Returns `(problem, checked)`: `problem` names the condition, trial index, seed label and first differing field, `None` when all match; `checked` is the condition count. Error records are not re-drafted but their labels are checked. One draft per recorded condition ([Resume and the seed scheme](#resume-and-the-seed-scheme)). ^recorded-worlds-violation
 
 **dials_in_play**`(spec: ExperimentSpec) -> frozenset[str]`
     Every axis name, every `fixed_dials` key with a truthy value, and every `drafter_kwargs` key the drafter head declares as a dial, with a truthy value. What the no-peeking rule intersects with `guarded_dials()` ([Dials in play](#dials-in-play)). ^dials-in-play
@@ -152,10 +156,11 @@ The module-level exports, in the order a run meets them. `experiment.py` re-expo
 # Guards Semantics
 
 ## The preflight order
-`preflight` runs the checks below top to bottom. Each catches its own exception, so `checks` holds a verdict for every one; only `draft` is conditional, skipped once anything above it refused, because drafting every condition is the slowest check and a spec that already refuses will not run. `price` precedes `draft` for the same reason: an unpriced model level is the cheaper verdict. The order and names match [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md) § Every refusal happens before spend and [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md)'s pre-flight table at this source.
+`preflight` runs the checks below top to bottom. Each catches its own exception, so `checks` holds a verdict for every one. `drafter` comes first because every later check reads the drafter: when it refuses, each later check is skipped rather than reporting a second-hand symptom (`unknown dial(s)`, a bare `KeyError`; T091 AC5). Otherwise only `draft` is conditional, skipped once anything above it refused, because drafting every condition is the slowest check and a spec that already refuses will not run. `price` precedes `draft` for the same reason: an unpriced model level is the cheaper verdict. The order and names match [ABIO Suite Runtime](../../ABIO%20Architecture/ABIO%20Suite%20Runtime.md) § Every refusal happens before spend and [ABIO-Experiment](../../ABIO%20Architecture/ABIO-Experiment.md)'s pre-flight table, except that neither lists `drafter` yet (added at `3a363a1`).
 
 | Check | Function | Reads | Refuses when | Since |
 | --- | --- | --- | --- | --- |
+| `drafter` | `unknown_drafter_violation` | `spec.drafter`, `DRAFTERS` (late-registered heads included) | no head registers the drafter; every later check is then skipped | T091 AC5 |
 | `registration` | `registration_admission` | `spec.registration`, the registry file, `DRAFTERS` | the claim does not resolve, or does not cover the drafter | T030 |
 | `no-peeking` | `no_peeking_violation` | agent kinds, `guarded_drafters()`, `guarded_dials()`, the licence | a live model meets a guarded drafter, variant or dial unlicensed | 2026-08-27 ruling; T030, T025, T048 |
 | `dials` | `unknown_dials_violation`, `fixed_factory_dials_violation` | `fixed_dials` keys, axis names, head `dial_params`, `runtime_dials()` | a name nothing reads; a factory dial in `fixed_dials` | AUP 2026-09-10; round 4 |
@@ -183,14 +188,14 @@ The condition-wise checks (`brief-dials`, `certainty-windows`, `score-window`, `
 
 
 ## Resume and the seed scheme
-The drift check reads only the spec, but the seed derivation and the matched-dial set live in code, so a resume under another alienbio could mix worlds drawn under two schemes in one cell. The `resume` check therefore adds two steps after reading the manifest (T091 R2, X1, Y1):
+The drift check reads only the spec, but the seed derivation and the matched-dial set live in code, so a resume under another alienbio could mix worlds drawn under two schemes in one cell. The `resume` check therefore adds two steps after reading the manifest and checking drift (T091 R2, X1, Y1, AC3):
 
 | Step | Refuses when |
 | --- | --- |
-| stamp (before the drift check) | the manifest's `world_scheme` is present and differs from `store.world_scheme(spec)`, naming both |
-| re-draft (after it, whenever `records.jsonl` exists) | `recorded_worlds_violation` finds an unrendered label or a recorded condition that re-drafts differently — worded "has no world_scheme field and …" for an unstamped store, "is stamped alike but … re-drafts a different world" for a stamped one |
+| stamp (after the drift check, since `3a363a1`) | the manifest's `world_scheme` is present and differs from `store.world_scheme(spec)`, naming both |
+| re-draft (after it, whenever `records.jsonl` exists and every earlier check passed; else a `skipped` note) | `recorded_worlds_violation` finds an unrendered label or a recorded condition that re-drafts differently — worded "has no world_scheme field and …" for an unstamped store, "is stamped alike but … re-drafts a different world" for a stamped one |
 
-The stamp covers `SEED_SCHEME_VERSION` and only the matched dials the spec sweeps, so a dial joining `WORLD_INVARIANT_DIALS` that the spec does not sweep moves nothing. An unstamped store that passes the re-draft resumes; the rebuilt manifest carries the current stamp, and a [notes](#^notes) entry says so. Limit: the initial world state is not on the record, so a world identical at every seed (plain `pressure` without `world_variance`) cannot show a scheme change, nor be harmed by one.
+Drift is checked first because the stamp depends on the spec too (its swept axes and matched dials): an edited spec used to be told "another seed scheme" and sent after a code change that never happened; after the drift check the stamp speaks only for code (AC3). The re-draft is real work and reads every check above, so a spec already refused skips it (AC5), and the unstamped-store note is written only when nothing refused. The stamp covers `SEED_SCHEME_VERSION` and only the matched dials the spec sweeps, so a dial joining `WORLD_INVARIANT_DIALS` that the spec does not sweep moves nothing. An unstamped store that passes the re-draft resumes; the rebuilt manifest carries the current stamp, and a [notes](#^notes) entry says so. Limit: the initial world state is not on the record, so a world identical at every seed (plain `pressure` without `world_variance`) cannot show a scheme change, nor be harmed by one.
 
 
 
@@ -283,3 +288,4 @@ The shared five are `pi`, `complexity`, `certainty`, `epistemic_access`, `consti
 - 2026-10-29 — refreshed for `fa72cb8` (T091 M4): `records-readable` reads `records.retried.jsonl` too, whenever it exists, ceiling or not, so a torn tail there refuses before a resume moves its error lines. Figure still true.
 - 2026-10-29 — refreshed for `f0604df`, `1e08068`, `0ae30d6` and `b6d1607` (T091 Q2, Q10, R2, X1, Y1): `Preflight.notes` and `recorded_worlds_violation` added; § Resume and the seed scheme new; `brief-dials` refuses `constitution_in_history` with no history window; `price` refuses a scalar override beside a published model. Figure not redrawn; its check count is unchanged.
 - 2026-10-29 — refreshed for `7fcdf33` (T091 Y2, Y7): `preflight` raises on a `validation="recorded"` spec before any check (so `run_experiment` refuses one); new `resolved_out_dir`, the one out-dir resolution; `--dry` on a directory holding records previews the resume. Figure still true.
+- 2026-10-29 — refreshed for `3a363a1` (T091 AC3, AC5): `drafter` is the first of twenty checks (`unknown_drafter_violation`, new block, the one wording shared with `unknown_dials_violation`, `draft_violation` and `recorded_worlds_violation`); a `drafter` refusal skips every later check; on a resume drift is checked before the seed-scheme stamp, and the re-draft runs only when every earlier check passed (else a `skipped` note). Figure: the check count and the licence band's first line updated in place.

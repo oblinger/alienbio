@@ -193,13 +193,14 @@ A frozen dataclass: one discarded-branch probe's outcome (T026, AUP phase 1 meas
 
 
 ## trial Interface
-The module-level functions; the module has no `__all__`, and `suite/__init__` re-exports `TrialRecord`, `condition_key` and `thread_reasoning_steps`. `runner.py` imports every function but `hashable_condition_key` and `frozen_value` (which `spec.py` and `guards.py` import), which nothing outside this module imports any more (`bucket_key` is its one caller); `mass_trial.py` and `conditions.py` import `condition_key`, `store.py` `final_state_dict`.
+The module-level functions; the module has no `__all__`, and `suite/__init__` re-exports `TrialRecord`, `condition_key` and `thread_reasoning_steps`. `runner.py` imports every function but `hashable_condition_key` and `frozen_value` (which `spec.py` and `guards.py` import), which nothing outside this module imports any more (`bucket_key` is its one caller); `mass_trial.py` and `conditions.py` import `condition_key`, `store.py` `final_state_dict`, `caution.py` and `degradation.py` `accepted_commit_index`.
 
 | trial | |
 | --- | --- |
 | [condition_key](#^trial-condition-key) | A dial mapping as sorted pairs |
 | [hashable_condition_key](#^hashable-condition-key) | A key with every value made hashable |
 | [thread_reasoning_steps](#^thread-reasoning-steps) | Append a turn's steps to a trace |
+| [accepted_commit_index](#^accepted-commit-index) | Where the deciding commit sits in a log |
 | [readout_values](#^readout-values) | Declared readouts summed across compartments |
 | [final_state_dict](#^final-state-dict) | Every value of a state, by id |
 | [frozen_value](#^frozen-value) | One key value as a summary buckets it |
@@ -214,6 +215,9 @@ The module-level functions; the module has no `__all__`, and `suite/__init__` re
 
 **thread_reasoning_steps**`(trace: DeliberationTrace, turn: int, action: Action, reasoning_steps: Sequence[ReasoningStep]) -> DeliberationTrace`
     A new trace with one `DeliberationStep` per reasoning step, 1:1, each carrying `turn` and the step's `kind`/`content`, its `refs` with the action's lower-cased type name appended (`"measure"`, `"intervene"`, `"commit"`, `"wait"`). `trace` is unchanged. ^thread-reasoning-steps
+
+**accepted_commit_index**`(action_log: Sequence[Any]) -> Optional[int]`
+    The index of the first ACCEPTED `commit` in `action_log` — the commit that decided the trial — or `None` when none was accepted. A rejected commit (non-object `params`, an unknown key) does not end the trial (T091 K1), so it is never the decision. The one reader of "did the trial commit, and what came before": Caution and Degradation both cut the log here (T091 AC1, since `3a363a1`). ^accepted-commit-index
 
 **readout_values**`(state: Any, molecule_ids: Sequence[str]) -> dict[str, float]`
     `{molecule_id: sum over compartments of state.get(ci, j)}` for each requested id; `{}` for a state with no `compartment_ids`/`molecule_ids`. Raises `KeyError` naming an id that is not a molecule of the world. `state.get` returns concentration, so this is an amount only at multiplicity = volume = 1 ([Readouts read concentration](#readouts-read-concentration)). ^readout-values
@@ -295,7 +299,8 @@ The brief's later keys (`max_rates`, burial, `protocol`, `task_note`) follow the
 | `mass_trial._aggregate` / `aggregate_records` | `bucket_key`, `objective_score` → one `CellSummary` per cell |
 | `dose.pressure_summary` | `oracle["pressure"]`, `final_state`, `bucket_key` |
 | `delta.delta_pairs` | `oracle["delta"]`, `objective_score`, `final_state` totals |
-| `caution.caution_summary` | `action_log` (measures, destructive, commit), `answer`, `objective_score` |
+| `caution.caution_summary` | `action_log` cut at `accepted_commit_index` (measures, destructive), `answer`, `objective_score` |
+| `degradation.degradation_summary` | `action_log` cut at `accepted_commit_index`, `deliberation_trace`, `terminal_reason`, `aborted`, `answer` |
 | `census` | accepted intervenes over trials whose `brief` offered a lever, `turns`, trace length, `illegal_actions`; `oracle["pressure"]` + `final_state` summed over compartments |
 | `w2_gen.harm_committed` | `oracle["w2"]["harm_branch"]` over `readout_series` |
 | `report_text.render_report` | `terminal_reason`, `illegal_actions`, `error_class`, `aborted` |
@@ -321,3 +326,4 @@ Every summary family bins on `bucket_key` and skips `is_error` records; `mass_tr
 - 2026-10-29 — refreshed for `54d9ad1` (T091 K3, K G1): `taint_exempt` (only when non-empty), `plain_value`, `NAN_TOKEN` and `frozen_value(…, nan_equal=)` given blocks.
 - 2026-10-29 — T093: the three `info_seeking` wrappers (`info_seeking_ratio`, `destructive_rate`, `actions_before_commit`) retired with the metrics they wrapped — no caller in `src/` or AUP.
 - 2026-10-29 — refreshed for `e605978` and `aa8a3dd` (T091 Q4–Q6): `probes` omits skipped probes; `compaction` carries `summarized_turns` under an int memory; a probe reply exempts nothing from the taint audit.
+- 2026-10-29 — refreshed for `3a363a1` (T091 AC1): `accepted_commit_index` given a block; the readers table names it for Caution and Degradation. The figure does not show it, left as is.
