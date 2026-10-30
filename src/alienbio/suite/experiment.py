@@ -49,7 +49,7 @@ from __future__ import annotations
 import dataclasses
 import json
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 from ..bio.world import WorldImpl
 from .dist import Seed
@@ -203,6 +203,7 @@ def run_experiment(
     on_error: str = "record",
     progress: Optional[Callable[[str], None]] = None,
     retry_taint: bool = False,
+    notes: Optional[Callable[[str], None]] = None,
 ) -> ReliabilityMap:
     """Run (or resume) ``spec`` into ``out_dir``, persisting as it goes.
 
@@ -246,9 +247,13 @@ def run_experiment(
     flight = preflight(spec, out_dir=out_dir, resume=resume)
     if flight.refusal is not None:
         raise flight.refusal
-    if progress is not None:
+    # T091 Y7 — ``notes`` (default: ``progress``) takes what a passing check
+    # wants said (the re-drafted pre-stamp store), so the CLI can print it
+    # without ``-v``.
+    say_note = notes if notes is not None else progress
+    if say_note is not None:
         for note in flight.notes:
-            progress(note)
+            say_note(note)
     resolved_out = flight.out_dir
     resolved_out.mkdir(parents=True, exist_ok=True)
     records_path = resolved_out / "records.jsonl"
@@ -457,48 +462,72 @@ def run_experiment(
 
 
 def spec_from_manifest(manifest: Mapping[str, Any], *, current: bool = False) -> ExperimentSpec:
-    """The spec a run directory's manifest describes (T091 E1).
+    """The spec a run directory's manifest describes (T091 E1, Y2).
 
-    ``current=False`` (aggregate, report) returns the spec the records were
-    drawn under — the manifest's own. The experiment file is re-loaded
-    through :func:`load_spec` only when the manifest lists
-    ``helper_modules`` (K E1): its trusted ``_includes_`` helpers register
-    the run's drafter and agents, which the manifest's spec names but cannot
-    rebuild (every catalog example's aggregate and report refused on
-    "unknown agent axis level(s)" before). Without helpers the manifest
-    alone is enough, so a finished run whose yaml was since deleted, moved
-    or edited still aggregates; with helpers a missing file refuses, naming
-    it.
+    ``current=False`` (aggregate, report — the read-only verbs) returns the
+    spec the records were drawn under — the manifest's own, rebuilt with
+    ``validation="recorded"``: a rule that exists to stop a RUN and has
+    tightened since the run was written (fixed-and-swept, a published price
+    in the override mapping, …; :data:`~alienbio.suite.spec.RECORDED_NOTE_RULES`)
+    lands on ``spec.recorded_warnings`` instead of refusing, so a finished
+    run still reads. The recorded ``helper_modules`` (K E1) are executed
+    directly — their ``_includes_`` decorators register the run's drafter
+    and agents, which the manifest's spec names but cannot rebuild — and the
+    experiment file itself is never re-read, so a run whose yaml was since
+    deleted, moved or edited still aggregates. A helper that no longer
+    exists, or lies outside the trusted ``catalog/`` root, refuses, naming it.
 
-    ``current=True`` (resume) returns the file as it is NOW, so the resume's
-    drift check compares the edited file against the manifest (drift is
-    what a resume checks); a recorded file that no longer exists refuses,
-    naming the path. A manifest without ``spec_path`` (a Python-built spec)
-    is read from its ``spec`` alone either way."""
+    ``current=True`` (resume) returns the file as it is NOW, strictly
+    validated, so the resume's drift check compares the edited file against
+    the manifest (drift is what a resume checks); a recorded file that no
+    longer exists refuses, naming the path. A manifest without
+    ``spec_path`` (a Python-built or replaced spec) is read from its
+    ``spec`` alone either way, strictly on a resume."""
+    if not current:
+        _run_recorded_helpers(manifest.get("helper_modules") or ())
+        return spec_from_dict(manifest["spec"], validation="recorded")
     recorded = manifest.get("spec_path")
     if recorded is None:
-        return spec_from_dict(manifest["spec"])
-    if not current and not manifest.get("helper_modules"):
         return spec_from_dict(manifest["spec"])
     path = resolve_source_path(str(recorded))
     if not path.is_file():
         raise FileNotFoundError(
             f"the run's manifest names spec_path {recorded!r} ({path}), which does not exist — "
-            + (
-                "restore the experiment file (a resume compares it against the manifest)"
-                if current
-                else "restore the experiment file (it registers the run's drafter and agents)"
-            )
+            "restore the experiment file (a resume compares it against the manifest)"
         )
-    loaded = load_spec(path)
-    return loaded if current else spec_from_dict(manifest["spec"])
+    return load_spec(path)
 
 
-def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
+def _run_recorded_helpers(helpers: Sequence[Any]) -> None:
+    """Execute each recorded helper module (T091 Y2): a trusted load's
+    ``_includes_`` registrations, without re-reading the experiment file.
+    Only a file under the trusted ``catalog/`` root runs — the manifest is a
+    file on disk, and only a catalog spec could have recorded a helper."""
+    from ..expr.include import run_python_file
+
+    trusted_root = (_REPO_ROOT / "catalog").resolve()
+    for recorded in helpers:
+        path = resolve_source_path(str(recorded)).resolve()
+        if trusted_root not in path.parents:
+            raise ValueError(
+                f"the run's manifest names helper module {recorded!r} ({path}) outside the trusted "
+                f"catalog root {trusted_root} — a recorded helper is executed only from there"
+            )
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"the run's manifest names helper module {recorded!r} ({path}), which does not exist — "
+                "restore it (it registers the run's drafter and agents)"
+            )
+        run_python_file(path)
+
+
+def aggregate(out_dir: Union[str, Path], *, spec: Optional[ExperimentSpec] = None) -> ReliabilityMap:
     """Rebuild a :class:`~alienbio.suite.mass_trial.ReliabilityMap` from
     ``records.jsonl`` + ``manifest.json`` alone — no world is re-drafted, no
     trial is re-run. ``Provenance.stopped_early`` is read back from the
-    manifest's ``stopped_reason``.
+    manifest's ``stopped_reason``. ``spec`` is the recorded spec when the
+    caller already loaded it (:func:`spec_from_manifest`, to print its
+    ``recorded_warnings``); else it is loaded here, in recorded mode.
 
     Raises:
         FileNotFoundError: ``out_dir`` has no ``manifest.json``.
@@ -508,7 +537,8 @@ def aggregate(out_dir: Union[str, Path]) -> ReliabilityMap:
     if not manifest_path.exists():
         raise FileNotFoundError(f"aggregate: no manifest.json in {base}")
     manifest = read_manifest(manifest_path)
-    spec = spec_from_manifest(manifest)
+    if spec is None:
+        spec = spec_from_manifest(manifest)
 
     records_path = base / "records.jsonl"
     rows = [(d, record) for _line, d, record in read_records(records_path)] if records_path.exists() else []

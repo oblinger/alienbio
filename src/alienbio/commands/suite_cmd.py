@@ -2,7 +2,7 @@
 
 Usage:
     bio suite run <spec.yaml> [--out DIR] [--dry] [-v]   # Run (or dry-preview) an ExperimentSpec
-    bio suite resume <DIR>                          # Resume a crashed/partial run
+    bio suite resume <DIR>                          # Resume a crashed/partial run (strict: today's rules)
     bio suite aggregate <DIR>                       # Rebuild map.json/map.csv from records.jsonl alone
     bio suite report <DIR>                          # Print + rewrite report.txt (and key.png) from the record store
     bio suite models                                # Refresh the recorded models.list snapshot (T016; free)
@@ -26,6 +26,7 @@ from alienbio.suite.experiment import (
     run_experiment,
     spec_from_manifest,
 )
+from alienbio.suite.guards import resolved_out_dir
 from alienbio.suite.store import _model_axis_levels, _single_model, read_manifest
 
 
@@ -115,11 +116,18 @@ def _run(spec_path: str, out_dir: Optional[str], dry: bool, verbose: bool) -> in
         # T057 — the same preflight the run makes, every verdict printed;
         # exit 1 when the run would refuse (it used to print two of the
         # guards and exit 0 on a spec the run then refused).
-        # The resume flag the real run passes: ``bio suite run`` never
-        # resumes (``bio suite resume <DIR>`` does, from the manifest's own
-        # spec), so the resume verdict prints as skipped and a directory that
-        # already holds records refuses on ``out_dir``, as the run would.
-        flight = preflight(spec, out_dir=out_dir, resume=False)
+        # T091 Y7 — an out dir that already holds records is previewed as
+        # the resume ``bio suite resume <DIR>`` would make (the ``resume``,
+        # ``records-readable`` and recorded-worlds checks print, with any
+        # re-draft note); ``bio suite run`` itself refuses such a directory.
+        # An empty one previews the run (the resume checks print skipped).
+        resuming = (resolved_out_dir(spec, out_dir) / "records.jsonl").exists()
+        flight = preflight(spec, out_dir=out_dir, resume=resuming)
+        if resuming:
+            print(
+                f"preview: resume — {flight.out_dir} already holds records.jsonl; these are the verdicts of "
+                f"`bio suite resume {flight.out_dir}` (`bio suite run` refuses this directory)"
+            )
         print(f"name: {spec.name}")
         print(f"conditions: {grid_size}")
         print(f"trials planned: {trials_planned}")
@@ -188,13 +196,40 @@ def _resume(out_dir: str, verbose: bool) -> int:
         if verbose:
             print(message)
 
-    rmap = run_experiment(spec, out_dir=out_dir, resume=True, progress=progress)
+    # T091 Y7 — a note (the re-drafted pre-stamp store being stamped) prints
+    # without ``-v``: a plain resume restamped a store silently.
+    rmap = run_experiment(spec, out_dir=out_dir, resume=True, progress=progress, notes=print)
     _report_stop(rmap, int(manifest.get("trials_planned") or len(rmap.records)))
     return 0
 
 
+def _recorded(out_dir: str, verb: str):
+    """The run's manifest and its recorded spec (T091 Y2: read-only verbs
+    rebuild it with ``validation="recorded"``, so a rule the run predates is
+    a note, not a refusal)."""
+    manifest_path = Path(out_dir) / "manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"bio suite {verb}: no manifest.json in {out_dir}")
+    manifest = read_manifest(manifest_path)
+    return manifest, spec_from_manifest(manifest)
+
+
+def _recorded_notes(spec) -> list[str]:
+    """The header lines naming each run-only rule the recorded spec breaks."""
+    if not spec.recorded_warnings:
+        return []
+    return [
+        "Recorded-spec notes — rules this run predates (read here as notes; a resume refuses them):",
+        *(f"  - {note}" for note in spec.recorded_warnings),
+        "",
+    ]
+
+
 def _aggregate_cmd(out_dir: str, verbose: bool) -> int:
-    rmap = aggregate(out_dir)
+    _manifest, spec = _recorded(out_dir, "aggregate")
+    for line in _recorded_notes(spec):
+        print(line, file=sys.stderr)
+    rmap = aggregate(out_dir, spec=spec)
     (Path(out_dir) / "map.json").write_text(rmap.to_json())
     (Path(out_dir) / "map.csv").write_text(rmap.to_csv())
     if verbose:
@@ -203,13 +238,9 @@ def _aggregate_cmd(out_dir: str, verbose: bool) -> int:
 
 
 def _report_cmd(out_dir: str, verbose: bool) -> int:
-    manifest_path = Path(out_dir) / "manifest.json"
-    if not manifest_path.exists():
-        raise FileNotFoundError(f"bio suite report: no manifest.json in {out_dir}")
-
-    manifest = read_manifest(manifest_path)
-    rmap = aggregate(out_dir)
-    text = render_report(rmap, manifest)
+    manifest, spec = _recorded(out_dir, "report")
+    rmap = aggregate(out_dir, spec=spec)
+    text = "\n".join([*_recorded_notes(spec), render_report(rmap, manifest)])
     print(text)
     (Path(out_dir) / "report.txt").write_text(text)
     from alienbio.suite.plots import write_key_figure

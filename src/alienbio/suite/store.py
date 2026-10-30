@@ -670,11 +670,12 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "spec": spec_dict,
         "spec_sha256": spec_sha256,
         # T091 E1 — the file the spec was loaded from and the helper modules
-        # its trusted ``_includes_`` executed, so ``bio suite
-        # resume|aggregate|report`` reload the file (registering the helpers'
-        # drafters and agents) and a resume compares the file as it is now
-        # against the spec the records were drawn under. Absent for a
-        # Python-built spec.
+        # its trusted ``_includes_`` executed: ``aggregate|report`` re-run
+        # the helpers (registering their drafters and agents) and read the
+        # manifest's spec; a resume reloads the file and compares it as it is
+        # now against the spec the records were drawn under. Absent for a
+        # Python-built spec and for a ``dataclasses.replace`` copy (T091 Y3:
+        # ``source`` is not an init field), which no file describes.
         **(
             {
                 "spec_path": spec.source.get("spec_path"),

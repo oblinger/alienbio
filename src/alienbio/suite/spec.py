@@ -6,7 +6,7 @@ import inspect
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Union, cast
+from typing import Any, Callable, Literal, Mapping, Optional, Sequence, Union, cast
 
 
 from .llm_agent import MODEL_PRICES_USD_PER_MTOK, PINNED_MODEL, PROVIDER_FIXED_SAMPLING, cost_usd, validate_output_budget, load_models_snapshot, price_for
@@ -116,14 +116,30 @@ class ExperimentSpec:
     #: (:func:`registration_admission`), refuses visibly on any mismatch,
     #: and the id is stamped on every record line + the manifest.
     registration: Optional[str] = None
+    #: T091 Y2 — which rule set the constructor applies. ``"run"`` (the
+    #: default, and the only mode :func:`run_experiment` / :func:`preflight`
+    #: accept) refuses every authoring rule. ``"recorded"`` is how the
+    #: read-only verbs (``aggregate``, ``bio suite aggregate|report``) rebuild
+    #: a finished run's manifest spec: the rules that exist to stop a RUN
+    #: (:data:`RECORDED_NOTE_RULES`) become :attr:`recorded_warnings`, so a run
+    #: written under an older rule set still reads; a rule that makes the spec
+    #: unreadable (malformed axes, an unknown agent, a bad field type) still
+    #: refuses.
+    validation: Literal["run", "recorded"] = field(default="run", compare=False, repr=False)
+    #: T091 Y2 — the run-only rules a ``validation="recorded"`` spec broke,
+    #: one message each (always ``()`` in ``"run"`` mode, which refuses).
+    recorded_warnings: tuple[str, ...] = field(default=(), init=False, compare=False, repr=False)
     #: T091 E1 — where :func:`load_spec` read this spec from:
     #: ``{"spec_path": ..., "helper_modules": [...]}`` (each relative to the
     #: repo root when under it, else absolute). Not part of the spec's value
     #: (never compared, never in :func:`spec_to_dict`); the run manifest
     #: carries it so ``bio suite resume|aggregate|report`` can reload the
     #: file, which registers its ``_includes_`` helpers. ``None`` for a
-    #: Python-built spec.
-    source: Optional[Mapping[str, Any]] = field(default=None, compare=False, repr=False)
+    #: Python-built spec. Not an init field (T091 Y3): ``dataclasses.replace``
+    #: builds a spec the file does not describe, so the copy carries no
+    #: source and its manifest names no ``spec_path``; only :func:`load_spec`
+    #: (or :func:`with_source`) sets it.
+    source: Optional[Mapping[str, Any]] = field(default=None, init=False, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         """The one normaliser both forms pass through (T084): the YAML form
@@ -139,6 +155,8 @@ class ExperimentSpec:
         # arm, so a directly built ``idle_baseline=True`` spec ran none, while
         # ``aggregate`` and ``bio suite resume`` rebuilt it WITH the arm.
         object.__setattr__(self, "axes", _with_idle_arm(self.axes, self.agent, self.idle_baseline))
+        if self.validation not in ("run", "recorded"):
+            raise ValueError(f"experiment spec: validation must be 'run' or 'recorded', got {self.validation!r}")
         self._validate()
 
     def _validate(self) -> None:
@@ -151,18 +169,27 @@ class ExperimentSpec:
         def put(name: str, value: Any) -> None:
             object.__setattr__(self, name, value)
 
+        notes: list[str] = []
+
+        def refuse(message: str) -> None:
+            """A run-only rule (:data:`RECORDED_NOTE_RULES`): refused in
+            ``"run"`` mode, noted in ``"recorded"`` mode."""
+            if self.validation == "run":
+                raise ValueError(message)
+            notes.append(message)
+
         # T088 leftovers — the run's shape and the agent-side fields, refused
         # here rather than inside a trial: ``trials_per_condition: 0`` used to
         # plan an empty grid, a bool or float slipped into every seed label.
         put("trials_per_condition", _validate_positive_int("trials_per_condition", self.trials_per_condition))
-        _validate_axes(self.axes)
+        _validate_axes(self.axes, refuse)
         # T091 D10 — a dial both fixed and swept: the axis silently won, every
         # check passed, and ``spec_to_text`` wrote ``pi=0.5, pi=pi``, which
         # reloads as a different spec. The Expr form cannot spell it; neither
         # may the Python form.
         both = sorted(set(self.fixed_dials) & {name for name, _levels in self.axes})
         if both:
-            raise ValueError(
+            refuse(
                 f"experiment spec: dial(s) {both} are both fixed and swept — the axis would silently "
                 "override the fixed value; keep one"
             )
@@ -172,7 +199,7 @@ class ExperimentSpec:
             _validate_positive_int("token_ceiling", self.token_ceiling)
         _validate_agent_fields(self)
         if self.model is not None:
-            require_pinned_model(self.model)
+            _refuse_unpinned(self.model, refuse)
         # M46.8: an ``agent`` / ``model`` axis is validated like the scalar fields.
         from .agents import AGENTS  # agents imports this module; resolve late
 
@@ -183,10 +210,10 @@ class ExperimentSpec:
                     raise ValueError(f"experiment spec: unknown agent axis level(s) {unknown}; expected one of {sorted(AGENTS)}")
             if name == "model":
                 for level in levels:
-                    require_pinned_model(level)
+                    _refuse_unpinned(level, refuse)
         put("output_schedule", _validate_output_schedule(self.max_tokens, self.output_schedule))
         put("cost_ceiling_usd", _validate_cost_ceiling(self.cost_ceiling_usd))
-        put("price_usd_per_mtok", _validate_price_override(self.price_usd_per_mtok))
+        put("price_usd_per_mtok", _validate_price_override(self.price_usd_per_mtok, refuse))
         # The 2026-10-28 module-doc finding: a directly built spec kept the
         # literal ``expected_turns = 8``, so a Python-form 20-turn live spec
         # was estimated at 8 turns, and ``spec_to_dict`` pinned the 8 through
@@ -198,7 +225,7 @@ class ExperimentSpec:
         put("expected_turns", turns)
         put("expected_prompt_tokens", _validate_positive_int("expected_prompt_tokens", self.expected_prompt_tokens))
         put("expected_output_tokens", _validate_positive_int("expected_output_tokens", self.expected_output_tokens))
-        put("design", _validate_design(self.design, self.trials_per_condition, self.axes))
+        put("design", _validate_design(self.design, self.trials_per_condition, self.axes, refuse))
         put("concurrency", _validate_positive_int("concurrency", self.concurrency))
         put("matched_dials", _validate_matched_dials(self.matched_dials, self.axes))
         put("key_readout", _validate_key_readout(self.key_readout))
@@ -209,6 +236,41 @@ class ExperimentSpec:
             _validate_unit_float("expected_cache_hit_rate", self.expected_cache_hit_rate) or 0.0,
         )
         put("registration", _validate_registration_id(self.registration))
+        put("recorded_warnings", tuple(notes))
+
+
+#: T091 Y2 — the constructor rules a ``validation="recorded"`` spec notes
+#: instead of refusing: each exists to stop a RUN, and each has tightened
+#: since runs were recorded (a manifest written under yesterday's rules must
+#: still aggregate). Documentation; the validators route these through
+#: ``refuse``.
+RECORDED_NOTE_RULES: tuple[str, ...] = (
+    "fixed-and-swept",  # T091 D10 (661005d)
+    "empty-axis",  # T091 B10
+    "repeated-level",  # T091 B5 / G1 / G2 (equal or bucket-equal levels)
+    "published-price-override",  # T091 Q2 (f0604df)
+    "unpinned-model",  # M45.11 / T016 (the models.list snapshot moves)
+    "under-powered-design",  # M46.9
+)
+
+
+def with_source(spec: ExperimentSpec, source: Optional[Mapping[str, Any]]) -> ExperimentSpec:
+    """``spec`` stamped with where it was read from (T091 Y3: ``source`` is
+    not an init field, so a replaced spec carries none until stamped)."""
+    object.__setattr__(spec, "source", source)
+    return spec
+
+
+def _refuse_unpinned(model: Any, refuse: Callable[[str], None]) -> None:
+    """:func:`require_pinned_model` through the mode's ``refuse``: a
+    non-string model is unreadable (always raises); an unpinned one is a
+    run-only rule."""
+    if not isinstance(model, str) or not model:
+        raise ValueError(f"experiment spec: model must be a non-empty string, got {model!r}")
+    try:
+        require_pinned_model(model)
+    except ValueError as exc:
+        refuse(str(exc))
 
 
 def _validate_agent_fields(spec: "ExperimentSpec") -> None:
@@ -235,14 +297,21 @@ def _validate_agent_fields(spec: "ExperimentSpec") -> None:
 _NO_LEVEL = object()
 
 
-def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...]) -> None:
+def _raise(message: str) -> None:
+    raise ValueError(message)
+
+
+def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...], refuse: Callable[[str], None] = _raise) -> None:
     """T091 B1/B5/B10 — the grid's own shape, for both forms. A repeated
     axis name kept only the last block's levels (the first vanished with no
     message); an axis with no levels planned an empty grid with every check
     ok; a repeated level (equal ``repr``) enumerated its cell twice, so
     every ``(label, index)`` unit ran twice on one seed under one resume
     key, the cell's ``n`` doubled (a false-narrow CI), and on a delta grid
-    the report then raised after the whole grid was paid for."""
+    the report then raised after the whole grid was paid for.
+
+    ``refuse`` takes the run-only rules (an empty axis, a repeated level);
+    a repeated axis name always raises."""
     names: set[str] = set()
     for name, levels in axes:
         if name in names:
@@ -252,7 +321,7 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...]) -> None:
             )
         names.add(name)
         if not levels:
-            raise ValueError(f"experiment spec: axis {name!r} has no levels — it would plan an empty grid")
+            refuse(f"experiment spec: axis {name!r} has no levels — it would plan an empty grid")
         # T091 G1/G2 — "repeated" is what the summary buckets as one cell
         # (``trial.frozen_value``), not equal ``repr``: ``1``/``1.0``/``True``
         # ran the whole grid and then ``aggregate_cells`` refused the merge,
@@ -264,12 +333,13 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...]) -> None:
             twin = next((prior for prior, f in frozen_seen if f == frozen), _NO_LEVEL)
             if twin is not _NO_LEVEL:
                 same = repr(twin) == repr(level)
-                raise ValueError(
+                refuse(
                     f"experiment spec: axis {name!r} repeats level {level!r}"
                     + ("" if same else f" (as {twin!r}: the summary buckets them as one cell)")
                     + " — each level is one cell; a repeated one would run every trial of that "
                     "cell twice under one resume key"
                 )
+                continue
             frozen_seen.append((level, frozen))
 
 
@@ -347,14 +417,23 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
     }
 
 
-def spec_from_dict(d: Mapping[str, Any]) -> ExperimentSpec:
+def spec_from_dict(d: Mapping[str, Any], *, validation: Literal["run", "recorded"] = "run") -> ExperimentSpec:
     """A dict (as produced by :func:`spec_to_dict`, or a validated YAML load)
     -> :class:`ExperimentSpec`. Optional keys default exactly as the class does.
 
     Only the dict's own shape is handled here (required keys, the ``axes``
     mapping to tuples, ``None`` for an empty mapping); every value check runs
-    in the constructor (:meth:`ExperimentSpec._validate`), for both forms."""
+    in the constructor (:meth:`ExperimentSpec._validate`), for both forms.
+    ``validation`` is the constructor's (T091 Y2): ``"recorded"`` for a
+    finished run's manifest spec read back by a read-only verb."""
+    axes = d["axes"]
+    if not isinstance(axes, Mapping):
+        raise ValueError(f"experiment spec: axes must be a mapping of axis name to levels, got {axes!r}")
+    for name, levels in axes.items():
+        if isinstance(levels, (str, bytes)) or not isinstance(levels, Sequence):
+            raise ValueError(f"experiment spec: axis {name!r} must be a list of levels, got {levels!r}")
     return ExperimentSpec(
+        validation=validation,
         name=d["name"],
         axes=tuple((name, tuple(levels)) for name, levels in d["axes"].items()),
         drafter=d["drafter"],
@@ -489,7 +568,10 @@ def _validate_matched_dials(value: Any, axes: Sequence[tuple[str, tuple[Any, ...
     return names
 
 
-def _validate_design(value: Any, trials_per_condition: int, axes: Sequence[tuple[str, tuple[Any, ...]]]) -> Optional[PowerDesign]:
+def _validate_design(
+    value: Any, trials_per_condition: int, axes: Sequence[tuple[str, tuple[Any, ...]]],
+    refuse: Callable[[str], None] = _raise,
+) -> Optional[PowerDesign]:
     """M46.9 — parse the declared design and refuse an under-powered spec.
 
     A design that names a ``primary_contrast`` must name a swept axis and two
@@ -519,7 +601,7 @@ def _validate_design(value: Any, trials_per_condition: int, axes: Sequence[tuple
                 )
     required = design.required_trials_per_condition
     if trials_per_condition < required:
-        raise ValueError(
+        refuse(
             f"experiment spec: design needs {required} trials per condition to detect "
             f"d={design.target_effect_d} at alpha={design.alpha}, power={design.power}; "
             f"spec asks for {trials_per_condition} — raise trials_per_condition or relax the design"
@@ -581,7 +663,9 @@ def _validate_cost_ceiling(value: Any) -> Optional[float]:
     return float(value)
 
 
-def _validate_price_override(value: Any) -> Optional[Union[tuple[float, float], dict[str, tuple[float, float]]]]:
+def _validate_price_override(
+    value: Any, refuse: Callable[[str], None] = _raise
+) -> Optional[Union[tuple[float, float], dict[str, tuple[float, float]]]]:
     """``price_usd_per_mtok`` is absent, a 2-sequence of non-negative numbers
     (the price of every UNPRICED model in play), or a mapping ``{model_id:
     2-sequence}`` (T091 Q2). A mapping entry for a model in the published
@@ -591,7 +675,7 @@ def _validate_price_override(value: Any) -> Optional[Union[tuple[float, float], 
     if isinstance(value, Mapping):
         priced = sorted(str(m) for m in value if m in MODEL_PRICES_USD_PER_MTOK)
         if priced:
-            raise ValueError(
+            refuse(
                 f"experiment spec: price_usd_per_mtok names published model(s) {priced} — a "
                 "published price is never overridden; price only models absent from the table"
             )
@@ -688,8 +772,7 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
         shown = source_relpath(module)
         if shown not in helpers:
             helpers.append(shown)
-    object.__setattr__(spec, "source", {"spec_path": source_relpath(resolved), "helper_modules": helpers})
-    return spec
+    return with_source(spec, {"spec_path": source_relpath(resolved), "helper_modules": helpers})
 
 
 def source_relpath(path: Union[str, Path]) -> str:

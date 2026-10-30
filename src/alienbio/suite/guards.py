@@ -1010,6 +1010,13 @@ PREFLIGHT_CHECKS: tuple[str, ...] = (
 )
 
 
+def resolved_out_dir(spec: ExperimentSpec, out_dir: Optional[str] = None) -> Path:
+    """The run directory a run of ``spec`` writes: ``out_dir``, else the
+    spec's own, else ``runs/<name>`` (the one resolution the run, the
+    pre-flight and ``--dry`` share)."""
+    return Path(out_dir or spec.out_dir or f"runs/{spec.name}")
+
+
 def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bool = False) -> Preflight:
     """Every refusal a run can make before spend, in one place (T051 box 5 /
     T057 proposal 3). :func:`run_experiment` raises the first; ``bio suite
@@ -1041,7 +1048,12 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     present without ``resume``). ``out_dir`` is resolved exactly as the run
     resolves it and nothing here creates it.
     """
-    resolved_out = Path(out_dir or spec.out_dir or f"runs/{spec.name}")
+    if spec.validation != "run":
+        raise ValueError(
+            f"{spec.name}: a spec built with validation={spec.validation!r} is for reading a finished run "
+            "(aggregate, report); a run or resume needs validation='run'"
+        )
+    resolved_out = resolved_out_dir(spec, out_dir)
     records_path = resolved_out / "records.jsonl"
     manifest_path = resolved_out / "manifest.json"
     out_exists = records_path.exists()

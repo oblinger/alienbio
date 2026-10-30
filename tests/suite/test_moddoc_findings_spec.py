@@ -10,6 +10,8 @@ Offline, scripted agents only: no model calls, no spend.
 
 from __future__ import annotations
 
+import dataclasses
+
 import json
 
 import pytest
@@ -83,7 +85,7 @@ def _idle_spec(**kw):
 def test_python_form_idle_baseline_adds_the_idle_arm_once():
     spec = _idle_spec()
     assert dict(spec.axes)["agent"] == ("measure-commit", "idle")
-    again = ExperimentSpec(**{f: getattr(spec, f) for f in spec.__dataclass_fields__})
+    again = ExperimentSpec(**{f.name: getattr(spec, f.name) for f in dataclasses.fields(spec) if f.init})
     assert again == spec
     assert [name for name, _ in again.axes].count("agent") == 1
 
@@ -194,4 +196,4 @@ def test_python_form_normalises_like_the_dict_form_and_round_trips():
     assert isinstance(spec.design, PowerDesign)
     assert spec.matched_dials == ()
     assert spec_from_dict(spec_to_dict(spec)) == spec
-    assert ExperimentSpec(**{f: getattr(spec, f) for f in spec.__dataclass_fields__}) == spec
+    assert ExperimentSpec(**{f.name: getattr(spec, f.name) for f in dataclasses.fields(spec) if f.init}) == spec

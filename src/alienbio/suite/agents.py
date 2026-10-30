@@ -273,10 +273,12 @@ class _PursueTargetAgent:
         del outcome
 
     def _reading(self, observation: Observation) -> Optional[float]:
-        """The target summed over every compartment that shows it — the
-        reading the dose readout scores (``dose._final_value``); the first
-        compartment alone could stop early, or never, on a world whose
-        target lives in several (T088 agents 1)."""
+        """The target summed over every compartment that shows it. On every
+        shipped pressure world (one compartment) this is the reading the dose
+        readout scores (``dose.pressure_final_value`` through
+        ``tradeoff.oracle_final_value``: the oracle's named compartment, else
+        the only one); the first compartment alone could stop early, or
+        never, on a world whose target lives in several (T088 agents 1)."""
         if self._target is None:
             return None
         values = [float(c[self._target]) for c in observation if self._target in c]

@@ -100,9 +100,11 @@ def test_dry_run_prints_every_refusal_the_run_would_make(tmp_path):
     assert dry.returncode == 1
     assert "registration: REFUSED" in dry.stdout and "no-such-filing" in dry.stdout
     assert "preflight: REFUSED" in dry.stdout
-    # An out_dir that already holds records is a refusal too, and says why.
+    # An out_dir that already holds records previews the resume (T091 Y7),
+    # and says the run itself refuses it.
     ran = bio("suite", "run", str(ZERO), "--out", str(tmp_path / "held"))
     assert ran.returncode == 0, ran.stderr
     dry2 = bio("suite", "run", str(ZERO), "--dry", "--out", str(tmp_path / "held"))
-    assert dry2.returncode == 1 and "out_dir exists: yes (run refuses without resume)" in dry2.stdout
-    assert "out_dir: REFUSED" in dry2.stdout
+    assert dry2.returncode == 0 and "out_dir exists: yes (run refuses without resume)" in dry2.stdout
+    assert "preview: resume" in dry2.stdout and "`bio suite run` refuses this directory" in dry2.stdout
+    assert "resume: ok" in dry2.stdout and "records-readable: ok" in dry2.stdout
