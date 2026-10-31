@@ -3,12 +3,12 @@ description: "`cover`: the FT02 set-covering solver — `cover` partitions items
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO suite](ABIO%20suite.md) → [ABIO Cover](ha://p/ABIO%20Cover) 
 # ABIO Cover
-A small combinatorial solver that groups task feature requirements into as few admissible containers as an aggressiveness knob allows.
+A small combinatorial solver that groups feature sets into as few admissible containers as an aggressiveness knob allows.
 
 ![ABIO Cover](ABIO%20Cover.svg) 
 *The monotone merge chain* is the topic behind the merge loop (the threshold only stops one fixed sequence; ‡ features match by key).
 
-`suite/cover.py` is domain-free: `admissible`, `cost` and the predicates inside features are opaque callables it only calls. Its run-path caller is `pipeline.build_suite`, which covers the sampled archetypes' `feature_reqs` and stamps each task's container index on `TaskInstance.setup["container"]` without using it to share worlds. The Expr `cover(features, aggressiveness, admissible)` head builds `FeatureSet`s from a name-to-predicate mapping ([ABIO ExprExperiment](ABIO%20ExprExperiment.md)). `FeatureSet` and `Predicate` are [ABIO Types](ABIO%20Types.md)'s; the tie-break seed is [ABIO Dist](ABIO%20Dist.md)'s. `Cover`, `Feature` and `cover` are re-exported from `alienbio.suite`. The design is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
+`suite/cover.py` is domain-free: `admissible` and `cost` are opaque callables it only calls, and the predicates inside features it never calls — it matches features by key and passes the pairs to `admissible`. It has no run-path caller: `pipeline.build_suite` used to cover the archetypes' `feature_reqs` and stamp each task's container index on `TaskInstance.setup["container"]`, but no archetype declared a feature and nothing read the stamp, so both went (T091 AF6, `288bf7a`). Its one caller is the Expr `cover(features, aggressiveness, admissible)` head (the `pathway_puzzles` example's coverage plan), which builds `FeatureSet`s from a name-to-predicate mapping ([ABIO ExprExperiment](ABIO%20ExprExperiment.md)). `FeatureSet` and `Predicate` are [ABIO Types](ABIO%20Types.md)'s; the tie-break seed is [ABIO Dist](ABIO%20Dist.md)'s. `Cover`, `Feature` and `cover` are re-exported from `alienbio.suite`. The design is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
 
 
 
@@ -65,3 +65,4 @@ A feature is a `(key, predicate)` tuple, but `cover` canonicalizes each key to t
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and `pipeline.build_suite`; the monotone counts and the predicate-identity split confirmed on the HEAD export, no spend. Not determined: whether the Expr head's `_callable` returns one object per named predicate (T088 § suite/cover).
 - 2026-10-28 — refreshed against `9db219f`: features match by key (the first predicate stands for it), so separately built lambdas for one key now share a container.
+- 2026-10-30 — refreshed for `288bf7a` (T091 AF6): `build_suite` runs no cover and stamps no container; the `!cover` head is the only caller. `FeatureSet` stays as a set of labelled features whose predicates `cover` hands to `admissible` and never calls on a world (`pathway_puzzles`' `is_short` now counts only the chain's molecules, `8f778bd`). Figure's caller and stamp boxes rewritten.

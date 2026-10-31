@@ -62,9 +62,9 @@
   <line id="e-tests-isr" x1="680" y1="345" x2="590" y2="345" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <g id="n-ex">
     <rect id="n-ex-box" x="680" y="420" width="500" height="80" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
-    <text id="n-ex-k1" x="930" y="446" font-size="13" text-anchor="middle">hub h has degree 3: answer {h} is rejected,</text>
-    <text id="n-ex-k2" x="930" y="466" font-size="13" text-anchor="middle">answer {h, d} passes though the ranking's</text>
-    <text id="n-ex-k3" x="930" y="486" font-size="13" text-anchor="middle">first pick is half of it</text>
+    <text id="n-ex-k1" x="930" y="446" font-size="13" text-anchor="middle">hub h has degree 3: answers {h} and</text>
+    <text id="n-ex-k2" x="930" y="466" font-size="13" text-anchor="middle">{h, d} both rejected, the ranking's</text>
+    <text id="n-ex-k3" x="930" y="486" font-size="13" text-anchor="middle">first pick being half of {h, d}</text>
   </g>
 
   <g id="legend">

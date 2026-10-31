@@ -8,7 +8,7 @@ Two predicates meant to reject worlds whose answer is readable without reasoning
 ![ABIO Validity](ABIO%20Validity.svg) 
 *What each gate measures* is the topic behind the two branches (‡: `non_obvious_causal` tests less than its name; see the Semantics).
 
-`suite/validity.py` is opaque machinery: `non_obvious_causal` fits the `verify_with=(perturbation, predicate)` seam of `pipeline.build_suite` and the Expr `verify` head ([ABIO Verify](ABIO%20Verify.md)), `is_shortcut_resistant` reads a chemistry's `neighbors` ([ABIO ChemistryImpl](../ABIO%20bio/ABIO%20ChemistryImpl.md)). Neither is called by a drafter or the default pipeline; the Pathway puzzles example's `non_obvious` function wraps `non_obvious_causal(min_deviation=1e-3)` (`catalog/examples/pathway_puzzles/helpers.py`), and `is_shortcut_resistant` has no caller outside `tests/suite/test_validity.py`. Both are re-exported from `alienbio.suite`. The design is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
+`suite/validity.py` is opaque machinery: `non_obvious_causal` fits the `verify_with=(perturbation, predicate)` seam of `pipeline.build_suite` and the Expr `verify` head ([ABIO Verify](ABIO%20Verify.md)), `is_shortcut_resistant` reads a chemistry's `neighbors` ([ABIO ChemistryImpl](../ABIO%20bio/ABIO%20ChemistryImpl.md)). Neither is called by a drafter or the default pipeline; the Pathway puzzles example's `non_obvious` function wraps `non_obvious_causal(min_deviation=MIN_KNOCKOUT_DEVIATION)`, 5.0 (`catalog/examples/pathway_puzzles/helpers.py`), and `is_shortcut_resistant` has no caller outside `tests/suite/test_validity.py`. Both are re-exported from `alienbio.suite`. The design is [ABIO Suite Construction](../../ABIO%20Architecture/ABIO%20Suite%20Construction.md).
 
 
 
@@ -36,7 +36,7 @@ Two gates and one constant; the heuristic battery is the private `_HEURISTICS = 
 # Validity Semantics
 
 ## What each gate measures
-`non_obvious_causal` reads only how far the perturbed run lies from the baseline; it never examines the baseline for whether the structure is already visible there, which is half of what its docstring promises. The threshold is absolute over all samples and species, so on worlds at concentrations near 100 almost any perturbation passes.
+`non_obvious_causal` checks only the size of the knockout's change: how far the perturbed run lies from the baseline. It never examines the baseline for whether the structure is already visible there, and since `8f778bd` its docstring says so (T091 AF10). The threshold is absolute over all samples and species, so the caller sets the floor where its world family can fail it: the default `1e-3` rejects only a perturbation that changes nothing, while a throttled step of a mass-action chain moves the trajectory by orders more (the `pathway_puzzles` hosts by at least 10.6 over 30 seeds). That example sets `MIN_KNOCKOUT_DEVIATION = 5.0`, which over seeds 0–59 rejects no host at lengths 3–4, 7 at length 5 and 18 at length 6 — those whose throttled step sits too late and too slow to show inside the 3 s horizon.
 
 `is_shortcut_resistant` rejects partial recovery: on a five-molecule world whose hub `h` has degree 3, both `{h}` and `{h, d}` are rejected, the degree ranking's first pick being half of the second (it passed under the old exact-match rule). A `top_k` above the answer's size makes the gate stricter still, since a wider pick recovers more.
 
@@ -46,3 +46,4 @@ Two gates and one constant; the heuristic battery is the private `_HEURISTICS = 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the partial-overlap pass confirmed on a hand-built hub world from the HEAD export, no spend. Consumer census: the Pathway puzzles helper and the tests; no drafter.
 - 2026-10-28 — refreshed against `9db219f`: `is_shortcut_resistant` rejects a top-k recovering `SHORTCUT_RECALL` (half) of the answer, not only an exact match.
+- 2026-10-30 — refreshed for `8f778bd` (T091 AF10): `non_obvious_causal` checks only the size of the change and says so; the caller sets the floor (`pathway_puzzles`: `MIN_KNOCKOUT_DEVIATION = 5.0`). Figure's hub note corrected to the 9db219f rule (both answers rejected).

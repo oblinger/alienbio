@@ -104,8 +104,17 @@ passing proving test and every broader-suite row ran and passed;
 otherwise it names the gap (`FAILURES …` or `NOT PROVEN …`) and the
 command exits 1.
 
+The header counts a non-strict XPASS as `xpassed`, apart from passed:
+JUnit writes one as a bare pass, so `bio report` runs pytest with
+`-p alienbio._report_plugin` (`src/alienbio/_report_plugin.py`), which
+marks it. A `--junit` file written without that plugin counts a
+non-strict XPASS as passed. A strict XPASS is a failure either way.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs, on every push to `main` and every pull
 request: the full suite with an 85 % coverage floor, `bio test-matrix --check`, `pyright src/`, and
-`mkdocs build`.
+`mkdocs build --strict`. Under `--strict` the build fails on any dead
+href on the built site, links to excluded pages included: the
+`doc/_hooks/dead_links.py` hook warns on each, because mkdocs 1.6.1 logs
+an excluded-page link at INFO whatever its validation settings say.

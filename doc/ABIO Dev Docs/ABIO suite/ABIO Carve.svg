@@ -32,8 +32,8 @@
     <rect id="n-adj-box" x="320" y="320" width="250" height="100" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-adj-name" x="445" y="346" font-size="18" font-weight="600" text-anchor="middle">_edge_holds(u, v, rel)</text>
     <text id="n-adj-k1" x="445" y="368" font-size="13" text-anchor="middle">catalytic rel: a modifier;</text>
-    <text id="n-adj-k2" x="445" y="386" font-size="13" text-anchor="middle">else a side, or one reaction</text>
-    <text id="n-adj-k3" x="445" y="404" font-size="13" text-anchor="middle">u → v (directed) ‡</text>
+    <text id="n-adj-k2" x="445" y="386" font-size="13" text-anchor="middle">else reactant in / product out,</text>
+    <text id="n-adj-k3" x="445" y="404" font-size="13" text-anchor="middle">or one reaction u → v; all directed ‡</text>
   </g>
   <line id="e-carve-adj" x1="445" y1="220" x2="445" y2="320" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="l-carve-adj" x="455" y="275" font-size="13" fill="#1971c2" font-style="italic">edge_ok</text>
@@ -83,8 +83,8 @@
 
   <g id="n-cost">
     <rect id="n-cost-box" x="20" y="520" width="560" height="60" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
-    <text id="n-cost-k1" x="300" y="546" font-size="13" text-anchor="middle">4 unconstrained roles over 30 molecules: ~657 000 bindings,</text>
-    <text id="n-cost-k2" x="300" y="566" font-size="13" text-anchor="middle">1.9 s; each extra role multiplies by the host size</text>
+    <text id="n-cost-k1" x="300" y="546" font-size="13" text-anchor="middle">no-synthesis pass first, then synthesis pruned below the best reuse;</text>
+    <text id="n-cost-k2" x="300" y="566" font-size="13" text-anchor="middle">over MAX_EMBEDDINGS = 10 000 at the best reuse: CarveFail with the sizes</text>
   </g>
 
   <g id="legend">

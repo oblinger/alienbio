@@ -40,12 +40,12 @@ Two public functions and one exception; the private helpers are the per-kind for
 | Kind | Score | Config |
 | --- | --- | --- |
 | `node_set` | Jaccard; 1.0 for two empty sets | `partial` (default true); false is exact equality |
-| `ordered_path` | 1.0 if equal, else 0.0 | `partial` (default false); true is the common-prefix length over the longer length; `given_prefix: g` (default 0) withholds the first `g` nodes: `max(0, lcp − g) / (max(len) − g)` |
+| `ordered_path` | 1.0 if equal, else 0.0 | `partial` (default false); true is the common-prefix length over the longer length; `given_prefix: g` (default 0) withholds the first `g` nodes: `max(0, lcp − g) / (max(len) − g)`; `given_suffix: s` (default 0, T091 AF11) first cuts the last `s` nodes off the key, and off the answer when it ends with them, so a stated end earns nothing and omitting it costs nothing |
 | `node_id` | `answer == key` | — |
 | `scalar` | 1.0 if `abs(a − k) ≤ tol`, else 0.0 | `tol` (default 0) |
 | `json` | `answer == key` (Python equality) | — |
 
-Shapes are checked before scoring (T088 grade 1–2): `node_set` wants a list, tuple, set or frozenset of hashables (a bare string is refused, not split into characters), `ordered_path` a list or tuple, `scalar` a finite `numbers.Real` (numpy scalars included, T091 A7) with `bool` and `numpy.bool_` excluded, NaN and ±inf raising too; anything else raises `MalformedAnswer`, which `runner.run` scores 0.0 with the message on `TrialRecord.grade_error` — a wrong answer kept in the denominator, not an error record. `node_id` and `json` are unchecked: on the `diagnose` task (`node_id`) the list `["m0"]` scores 0 against the key `"m0"`, and Python equality makes `json` read `True == 1`. `partial` must be a real `bool` (a YAML `"false"` string raises `ValueError`); `given_prefix` a non-negative int. LLMAgent passes the model's `{"value", "kind"}` through unchecked, so wrong shapes come from a model as readily as from a test.
+Shapes are checked before scoring (T088 grade 1–2): `node_set` wants a list, tuple, set or frozenset of hashables (a bare string is refused, not split into characters), `ordered_path` a list or tuple, `scalar` a finite `numbers.Real` (numpy scalars included, T091 A7) with `bool` and `numpy.bool_` excluded, NaN and ±inf raising too; anything else raises `MalformedAnswer`, which `runner.run` scores 0.0 with the message on `TrialRecord.grade_error` — a wrong answer kept in the denominator, not an error record. `node_id` and `json` are unchecked: on the `diagnose` task (`node_id`) the list `["m0"]` scores 0 against the key `"m0"`, and Python equality makes `json` read `True == 1`. `partial` must be a real `bool` (a YAML `"false"` string raises `ValueError`); `given_prefix` and `given_suffix` non-negative ints (a bool refuses). LLMAgent passes the model's `{"value", "kind"}` through unchecked, so wrong shapes come from a model as readily as from a test.
 
 
 
@@ -59,3 +59,4 @@ Shapes are checked before scoring (T088 grade 1–2): `node_set` wants a list, t
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be` and the grading block of `runner.run` (~1149–1163); the `discover` integer-answer raise and the `diagnose` list-answer zero confirmed by `runner.run` with a `ScriptedAgent` on the HEAD export, the string-split, `True == 1` and `"false"` cases by direct calls, no spend.
 - 2026-10-28 — refreshed against `552c1a7`: wrong-shaped answers raise `MalformedAnswer` (scored 0, `grade_error`), `partial` must be a bool, `ordered_path` gained `given_prefix`.
 - 2026-10-29 — refreshed for `cbcedfd` (T091 A7): a `scalar` answer is any finite `numbers.Real` but a bool, so a numpy scalar grades and a NaN or infinite one is `MalformedAnswer`.
+- 2026-10-30 — refreshed for `288bf7a` (T091 AF11): `ordered_path` takes `given_suffix` beside `given_prefix`; `identify_pathway`'s grader sets both to 1. Figure still true.

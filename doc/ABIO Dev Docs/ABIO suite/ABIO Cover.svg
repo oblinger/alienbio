@@ -15,7 +15,7 @@
   <g id="n-callers">
     <rect id="n-callers-box" x="20" y="40" width="220" height="90" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-callers-name" x="130" y="66" font-size="17" font-weight="600" text-anchor="middle">callers</text>
-    <text id="n-callers-k1" x="130" y="88" font-size="13" text-anchor="middle">pipeline.build_suite</text>
+    <text id="n-callers-k1" x="130" y="88" font-size="13" text-anchor="middle">pathway_puzzles plan</text>
     <text id="n-callers-k2" x="130" y="106" font-size="13" text-anchor="middle">Expr cover(...) head</text>
   </g>
   <line id="e-callers-items" x1="130" y1="130" x2="130" y2="200" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
@@ -66,12 +66,12 @@
   <path id="e-move-cover" d="M 1065 280 L 1065 420 L 870 420" fill="none" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <g id="n-setup">
     <rect id="n-setup-box" x="280" y="380" width="270" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-setup-name" x="415" y="406" font-size="16" font-weight="600" text-anchor="middle">setup["container"]</text>
-    <text id="n-setup-kind" x="415" y="428" font-size="13" text-anchor="middle">(build_suite) stamped per task;</text>
-    <text id="n-setup-kind2" x="415" y="448" font-size="13" text-anchor="middle">worlds are not shared by it</text>
+    <text id="n-setup-name" x="415" y="406" font-size="16" font-weight="600" text-anchor="middle">no setup stamp</text>
+    <text id="n-setup-kind" x="415" y="428" font-size="13" text-anchor="middle">build_suite runs no cover</text>
+    <text id="n-setup-kind2" x="415" y="448" font-size="13" text-anchor="middle">since 288bf7a (T091 AF6)</text>
   </g>
   <line id="e-cover-setup" x1="630" y1="420" x2="550" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
-  <text id="l-cover-setup" x="590" y="410" font-size="13" fill="#1971c2" font-style="italic" text-anchor="middle">assignment</text>
+  <text id="l-cover-setup" x="590" y="410" font-size="13" fill="#1971c2" font-style="italic" text-anchor="middle">none</text>
 
   <g id="n-mono">
     <rect id="n-mono-box" x="630" y="500" width="240" height="64" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>

@@ -60,10 +60,10 @@ The M27 chain from an abstract pattern to a suite.
 | [RoleSlot](#^roleslot) | A named, typed role with constraints |
 | [Motif](#^motif) | Roles and tagged edges |
 | [CarveResult](#^carveresult) | Roles bound to host nodes |
-| [FeatureSet](#^featureset) | Named predicates a world must meet |
+| [FeatureSet](#^featureset) | One `cover` item: named features |
 | [ObjectiveRecipe](#^objectiverecipe) | Question, key and grader from a carve |
 | [Drafter](#^drafter) | Seed to world, carve and objective |
-| [TaskArchetype](#^taskarchetype) | Motif, verb, features, recipe |
+| [TaskArchetype](#^taskarchetype) | Motif, verb, recipe |
 | [SuiteSpec](#^suitespec) | The archetype mix |
 | [Suite](#^suite) | Worlds and task instances |
 
@@ -71,13 +71,13 @@ The M27 chain from an abstract pattern to a suite.
     `Predicate = Callable[[Any], bool]`, only ever called. ^roleslot
 
 **Motif**`(roles: tuple[RoleSlot, ...], edges: tuple[tuple[str, str, str], ...], params: Tags = {})`
-    Edges are `(role, role, tag)`. ^motif
+    Edges are `(role, role, tag)`. Construction refuses a self-loop `(a, a, tag)`: carve never checks one and splice would mint `a → a` (T091 AF9). ^motif
 
 **CarveResult**`(motif: Motif, binding: Mapping[str, NodeId], added: tuple = (), removed: tuple = ())`
     The ground truth a recipe reads; generator drafters build it directly instead of carving. ^carveresult
 
 **FeatureSet**`(features: frozenset[tuple[str, Predicate]] = frozenset())`
-    Read by `cover.py`. ^featureset
+    One `cover` item: each feature a `(key, predicate)` pair; `cover` matches features by key and hands the pairs to its `admissible` callable. Nothing calls a predicate on a world (T091 AF6). ^featureset
 
 **ObjectiveRecipe**` (Protocol)`
     `build_question(skeleton, world) -> Question`, `build_key(skeleton, world) -> Answer`, `grader_spec() -> GraderSpec`. Not `runtime_checkable`. ^objectiverecipe
@@ -85,11 +85,11 @@ The M27 chain from an abstract pattern to a suite.
 **Drafter**` = Callable[[Seed], tuple[WorldImpl, CarveResult, Optional[Objective]]]`
     The M27 generator seam; an outcome archetype returns its own objective, an answer archetype `None`. Distinct from the experiment registry's drafters ([ABIO Drafters](ABIO%20Drafters.md)). ^drafter
 
-**TaskArchetype**`(id, motif, verb, feature_reqs: FeatureSet, recipe: ObjectiveRecipe, drafter: Optional[Drafter] = None, extra_answer_tokens: tuple[str, ...] = ())`
-    With a `drafter`, `build_suite` uses it instead of carving; `extra_answer_tokens` (`up`/`down`/`same`) join the vocabulary. ^taskarchetype
+**TaskArchetype**`(id, motif, verb, recipe: ObjectiveRecipe, drafter: Optional[Drafter] = None, extra_answer_tokens: tuple[str, ...] = ())`
+    With a `drafter`, `build_suite` uses it instead of carving; `extra_answer_tokens` (`up`/`down`/`same`) join the vocabulary. No `feature_reqs` since `288bf7a`: no archetype declared one and `build_suite` no longer covers. ^taskarchetype
 
 **SuiteSpec**`(archetype_mix: Dist[TaskArchetype])`
-    The docstring still says "per-archetype schemas + seed"; the class has only the mix. ^suitespec
+    The mix `build_suite` samples each task's archetype from; the seed is `build_suite`'s argument. ^suitespec
 
 **Suite**`(worlds: tuple[WorldImpl, ...], tasks: tuple[TaskInstance, ...])`
     What `pipeline.build_suite` returns. ^suite
@@ -140,3 +140,4 @@ Every class is `@dataclass(frozen=True)`, and frozen is shallow (stated in the m
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; hashability and the mutable `config` confirmed on the HEAD export, the consumer census by `git grep -w` per name over `src/` (`Renderable`, `Difficulty` and `ScriptedOp` have no reader). Left out: what each recipe builds (the archetype and pipeline docs).
 - 2026-10-28 — refreshed against `0377846`: the module docstring now calls frozen shallow and says why it is not deep; no behaviour change.
+- 2026-10-30 — refreshed for `288bf7a` (T091 AF6, AF9): `TaskArchetype.feature_reqs` removed, `FeatureSet` is a `cover` item whose predicates no world sees, `Motif` refuses a self-loop, `SuiteSpec`'s docstring now matches its one field. Figure's `TaskArchetype` box drops `FeatureSet`.

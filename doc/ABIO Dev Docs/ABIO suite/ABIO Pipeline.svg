@@ -19,8 +19,8 @@
   <line id="e-spec-sample" x1="220" y1="62" x2="280" y2="62" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <g id="n-cover">
     <rect id="n-cover-box" x="540" y="30" width="200" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-cover-name" x="640" y="56" font-size="16" font-weight="600" text-anchor="middle">cover</text>
-    <text id="n-cover-kind" x="640" y="78" font-size="13" text-anchor="middle">container index only</text>
+    <text id="n-cover-name" x="640" y="56" font-size="16" font-weight="600" text-anchor="middle">cover: removed</text>
+    <text id="n-cover-kind" x="640" y="78" font-size="13" text-anchor="middle">T091 AF6; !cover remains</text>
   </g>
   <line id="e-sample-cover" x1="480" y1="62" x2="540" y2="62" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
 
@@ -84,11 +84,11 @@
     <rect id="n-suite-box" x="760" y="460" width="260" height="90" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-suite-name" x="890" y="486" font-size="17" font-weight="600" text-anchor="middle">Suite</text>
     <text id="n-suite-k1" x="890" y="508" font-size="13" text-anchor="middle">worlds; TaskInstance with</text>
-    <text id="n-suite-k2" x="890" y="526" font-size="13" text-anchor="middle">setup {"container": i}</text>
+    <text id="n-suite-k2" x="890" y="526" font-size="13" text-anchor="middle">setup {} (no cover stamp)</text>
   </g>
   <line id="e-guard-suite" x1="890" y1="400" x2="890" y2="460" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <path id="e-cover-suite" d="M 740 62 L 1100 62 L 1100 505 L 1020 505" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
-  <text id="l-cover-suite" x="1110" y="280" font-size="13" fill="#1971c2" font-style="italic">assignment</text>
+  <text id="l-cover-suite" x="1110" y="280" font-size="13" fill="#1971c2" font-style="italic">nothing</text>
 
   <g id="legend">
     <rect id="legend-box" x="15" y="615" width="1170" height="52" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1"/>

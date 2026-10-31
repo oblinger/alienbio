@@ -28,7 +28,7 @@
   <g id="n-arch">
     <rect id="n-arch-box" x="290" y="110" width="250" height="96" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-arch-name" x="415" y="136" font-size="17" font-weight="600" text-anchor="middle">TaskArchetype</text>
-    <text id="n-arch-k1" x="415" y="158" font-size="13" text-anchor="middle">id, motif, verb, FeatureSet,</text>
+    <text id="n-arch-k1" x="415" y="158" font-size="13" text-anchor="middle">id, motif, verb,</text>
     <text id="n-arch-k2" x="415" y="176" font-size="13" text-anchor="middle">recipe, drafter?,</text>
     <text id="n-arch-k3" x="415" y="194" font-size="13" text-anchor="middle">extra_answer_tokens</text>
   </g>
