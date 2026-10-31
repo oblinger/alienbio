@@ -66,17 +66,26 @@ def _successors(world: "WorldImpl") -> dict[str, set[str]]:
     return succ
 
 
-def check_pathway_key(path: list[str], world: "WorldImpl") -> None:
-    """Refuse a pathway key the world does not carry (T091 AF1, AF5).
+#: The most molecules :func:`check_pathway_key`'s shortest-route search visits
+#: before it refuses (T091 AM6), as :data:`~alienbio.suite.carve.MAX_EMBEDDINGS`
+#: bounds carve: the search is a breadth-first walk, linear in what it visits.
+MAX_ROUTE_NODES = 100_000
 
-    Every node must be a node of the world — a node a carve synthesized
+
+def check_pathway_key(path: list[str], world: "WorldImpl") -> None:
+    """Refuse a pathway key the world does not carry (T091 AF1, AF5, AM3, AM4, AM8).
+
+    Every node must be a MOLECULE of the world — a node a carve synthesized
     (``r2#new``) is not, nor is a hand ``binding`` naming an id the world
-    lacks; each step must run the chemistry's way (molecule to molecule
-    through a reaction, molecule to a reaction consuming it, reaction to its
-    product), so the end is reached and is no inert distractor; and the route
-    must be the ONLY one between the endpoints the question states with the
-    same length and the same molecule/reaction shape — a second true route
-    would score 0.
+    lacks, nor a reaction id (the question asks for a pathway of molecules);
+    no node may repeat; each step must run the chemistry's way (one reaction
+    taking the first as reactant and giving the second as product), so the
+    end is reached and is no inert distractor; and the key must be the ONE
+    SHORTEST route between the endpoints the question states. The question
+    states no length, so a shorter true route, or a second one as short,
+    would mark a true answer wrong. A longer alternative route is allowed:
+    the grader reads the shortest. The search is breadth-first and refuses
+    past :data:`MAX_ROUTE_NODES` molecules.
     """
     chem = world.chemistry
     molecules = {m.name for m in chem.molecules.values()}
@@ -88,39 +97,85 @@ def check_pathway_key(path: list[str], world: "WorldImpl") -> None:
             "(a carve that synthesized a node — carve with allow_add: False — or a "
             "binding naming an id the world lacks)"
         )
-    succ = _successors(world)
+    not_molecules = [node for node in path if node not in molecules]
+    if not_molecules:
+        raise ValueError(
+            f"identify: key {path} names {not_molecules}, reactions of the world, not "
+            "molecules — a pathway is a route of molecules (tag the pattern's roles "
+            "`molecule`, or gate them with a molecule constraint)"
+        )
+    repeated = sorted({node for node in path if path.count(node) > 1})
+    if repeated:
+        raise ValueError(f"identify: key {path} visits {repeated} twice; a pathway is a simple route")
+    succ = {
+        node: {nxt for nxt in nexts if nxt in molecules}
+        for node, nexts in _successors(world).items()
+        if node in molecules
+    }
     for a, b in zip(path, path[1:]):
         if b not in succ.get(a, ()):
             raise ValueError(
                 f"identify: key {path} steps {a} -> {b}, which the world's reactions do "
                 "not run that way; the key is not a route of the world"
             )
-    shape = [node in molecules for node in path]
-    end = path[-1]
-    other: list[str] = []
+    start, end = path[0], path[-1]
+    # Breadth-first from the start: each molecule's distance, how many shortest
+    # routes reach it (capped at 2 — one is all uniqueness needs), and one
+    # predecessor per route so a rival can be named.
+    dist = {start: 0}
+    count = {start: 1}
+    preds: dict[str, list[str]] = {start: []}
+    frontier = [start]
+    while frontier and end not in dist:
+        nxt_frontier: list[str] = []
+        for node in frontier:
+            for nxt in sorted(succ.get(node, ())):
+                if nxt not in dist:
+                    if len(dist) >= MAX_ROUTE_NODES:
+                        raise ValueError(
+                            f"identify: more than {MAX_ROUTE_NODES} molecules reachable from {start} "
+                            "before the end; refusing rather than search them for a shorter route"
+                        )
+                    dist[nxt] = dist[node] + 1
+                    count[nxt] = 0
+                    preds[nxt] = []
+                    nxt_frontier.append(nxt)
+                if dist[nxt] == dist[node] + 1:
+                    count[nxt] = min(2, count[nxt] + count[node])
+                    preds[nxt].append(node)
+        frontier = nxt_frontier
 
-    def walk(route: list[str]) -> bool:
-        i = len(route)
-        if i == len(path):
-            if route[-1] == end and route != path:
-                other.extend(route)
-                return True
-            return False
-        for nxt in sorted(succ.get(route[-1], ())):
-            if nxt in route or (nxt in molecules) != shape[i] or (nxt == end) != (i == len(path) - 1):
-                continue
-            route.append(nxt)
-            if walk(route):
-                return True
-            route.pop()
-        return False
-
-    if walk([path[0]]):
+    shortest = dist[end]  # the key itself is a route, so the end is reached
+    if shortest < len(path) - 1:
         raise ValueError(
-            f"identify: the key is not unique — {path} and {other} both run "
-            f"{path[0]} -> {end} in {len(path)} nodes; the question would mark a "
+            f"identify: the key {path} is not the shortest route — {_other_route(preds, start, end, path)} runs "
+            f"{start} -> {end} in {shortest + 1} nodes; the question states no length, "
+            "so it would mark a true route wrong"
+        )
+    if count[end] > 1:
+        raise ValueError(
+            f"identify: the key is not unique — {path} and {_other_route(preds, start, end, path)} "
+            f"both run {start} -> {end} in {len(path)} nodes; the question would mark a "
             "true route wrong"
         )
+
+
+def _other_route(preds: dict[str, list[str]], start: str, end: str, key: list[str]) -> list[str]:
+    """A shortest route ``start -> end`` through the BFS predecessor lists
+    that differs from ``key`` (one exists when the end counts two)."""
+
+    def walk(route: list[str]) -> list[str] | None:
+        if route[0] == start:
+            return route if route != key else None
+        for pred in sorted(preds[route[0]]):
+            found = walk([pred, *route])
+            if found is not None:
+                return found
+        return None
+
+    found = walk([end])
+    assert found is not None
+    return found
 
 
 @dataclass(frozen=True)
@@ -133,8 +188,9 @@ class IdentifyPathwayRecipe:
     construction. Question kind and answer kind are both ``ordered_path``: the
     question renders the chain's *endpoints*, the answer the *full ordered chain*.
     The chain is at least :data:`MIN_PATHWAY_LENGTH` roles long, and the bound
-    chain must be the world's one route of that length between its endpoints
-    (:func:`check_pathway_key`) — both refused otherwise.
+    chain must be molecules only, visited once each, and the world's one
+    shortest route between its endpoints (:func:`check_pathway_key`) — all
+    refused otherwise.
     """
 
     role_names: tuple[str, ...]

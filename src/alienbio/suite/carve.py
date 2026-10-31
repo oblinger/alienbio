@@ -8,7 +8,8 @@ molecules (species nodes) and reactions (reaction nodes), reached only through
 constraints are opaque :data:`~alienbio.suite.types.Predicate` callables that are
 only *called* on the bound node object (a ``MoleculeImpl`` or ``ReactionImpl``); a
 role's ``type_tag`` and an edge's ``relation`` tag are opaque strings that are only
-*copied onto* synthesized nodes, never interpreted.
+*copied onto* synthesized nodes, never interpreted — except the two tags
+``molecule`` / ``reaction``, which gate a role to that node kind (T091 AM4).
 
 F007 note: the engine was retargeted off the neutral ``ReactionNetwork`` shadow onto
 the biology ``Chemistry`` (unified protocol model — one data model everywhere). It
@@ -73,6 +74,15 @@ _MODIFIER_RELATIONS = frozenset(
 #: pick is ``seed % len(top)`` over every reuse-maximal embedding, so carve must
 #: hold them all, and a long motif in a large host has combinatorially many.
 MAX_EMBEDDINGS = 10_000
+
+
+#: The two ``type_tag`` values carve reads as a constraint (T091 AM4): a role
+#: tagged ``molecule`` binds only to a host molecule, ``reaction`` only to a
+#: host reaction. Every other tag is opaque — copied, never interpreted.
+_TYPE_TAG_KINDS = {
+    "molecule": lambda host: host.molecules,
+    "reaction": lambda host: host.reactions,
+}
 
 
 @dataclass(frozen=True)
@@ -150,13 +160,18 @@ def carve(
     equivalently fewest synthesized) is chosen deterministically; ``seed`` only
     breaks ties among equal-quality embeddings.
 
-    With ``allow_add`` the search runs twice at most (T091 AF4): first with no
-    synthesis — when every role binds to a host node those embeddings ARE the
-    reuse-maximal set, so the pick is the one a single full search makes —
-    and only when that finds nothing, again with synthesis, pruning every
-    branch whose attainable reuse is below the best found. More than
-    :data:`MAX_EMBEDDINGS` embeddings at the best reuse refuses, naming the
-    motif and host sizes.
+    The search runs first with no synthesis (T091 AF4) — when every role
+    binds to a host node those embeddings ARE the reuse-maximal set, so the
+    pick is the one a single full search makes. Only when that finds nothing,
+    and with ``allow_add``, it runs again allowing ``k = 1, 2, …`` synthesized
+    roles, stopping at the first ``k`` with an embedding and pruning every
+    branch that would need more (T091 AM1). More than :data:`MAX_EMBEDDINGS`
+    embeddings at the best reuse — the frontier, never a lower-reuse one the
+    search discards — refuses, naming the motif and host sizes.
+
+    A role whose ``type_tag`` is ``"molecule"`` or ``"reaction"`` binds only
+    to a node of that kind (T091 AM4: ``!pattern {roles: {a: molecule}}``
+    could bind ``a`` to a reaction); any other tag stays opaque.
 
     Returns a :class:`~alienbio.suite.types.CarveResult` (with ``added`` listing the
     synthesized node ids, sorted) or a :class:`CarveFail` when no embedding exists
@@ -166,10 +181,12 @@ def carve(
 
     cands: dict[str, list[NodeId]] = {}
     for role in motif.roles:
+        kinds = _TYPE_TAG_KINDS.get(role.type_tag)
         cands[role.name] = sorted(
             nid
             for nid, obj in node_objs.items()
-            if all(pred(obj) for pred in role.constraints)
+            if (kinds is None or nid in kinds(host))
+            and all(pred(obj) for pred in role.constraints)
         )
 
     role_names = [role.name for role in motif.roles]
@@ -261,7 +278,16 @@ def carve(
 
     try:
         backtrack(0, {}, set(), 0, False)
-        if allow_add and not solutions:
+        # The synthesis pass deepens the number of synthesized roles one at a
+        # time (T091 AM1): at ``k`` the bound starts at ``n - k``, so a leaf is
+        # reached only at that reuse — the frontier — and the cap counts it
+        # alone, never a lower-reuse transient a later branch would discard.
+        # Every ``k`` below the first that finds one found none, so the set it
+        # finds is exactly the reuse-maximal set a single search would keep.
+        for k in range(1, len(role_names) + 1) if allow_add else ():
+            if solutions:
+                break
+            best[0] = len(role_names) - k
             backtrack(0, {}, set(), 0, True)
     except _TooMany:
         return CarveFail(
@@ -325,7 +351,10 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
       (catalyst/regulator, not consumed), with the relation as its role tag;
     - any other **molecule<->reaction** edge adds the molecule to that reaction (as a
       product when the edge runs reaction->molecule, else as a reactant), moving it
-      off the other side when the host had it backwards;
+      off the other side when the host had it backwards — unless another motif edge
+      asks for that side (a feedback motif keeps the molecule on both); a move that
+      would empty a side refuses (``ValueError``) rather than turn a conversion
+      into a boundary reaction;
     - a **molecule<->molecule** edge inserts a neutral reactant->product reaction;
     - a **reaction<->reaction** edge has no bio meaning and is skipped.
     """
@@ -350,6 +379,17 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
                 description=tag,
                 dat=_mock_dat(f"mol/{nid}"),
             )
+
+    # The sides the motif asks of each (reaction, molecule) pair (T091 AM2): a
+    # feedback motif (``x -product-> m`` and ``m -substrate-> x``) asks for
+    # both, and realizing one edge must not undo the other.
+    demanded: dict[tuple[NodeId, NodeId], set[str]] = {}
+    for a, b, relation in motif.edges:
+        u, v = binding[a], binding[b]
+        if relation.lower() in _MODIFIER_RELATIONS or (u in reactions) == (v in reactions):
+            continue
+        pair = (u, v) if u in reactions else (v, u)
+        demanded.setdefault(pair, set()).add("products" if u in reactions else "reactants")
 
     for a, b, relation in motif.edges:
         u = binding[a]
@@ -379,14 +419,26 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
             new_modifiers = dict(rxn.modifiers)
             if relation.lower() in _MODIFIER_RELATIONS:
                 new_modifiers[mol] = relation
-            elif u_is_rxn:
-                # A molecule the reaction consumes is re-bound as its product
-                # (T091 AF2: the edge says rxn -> mol, the host had mol -> rxn).
-                new_reactants.pop(mol, None)
-                new_products[mol] = 1.0
             else:
-                new_products.pop(mol, None)
-                new_reactants[mol] = 1.0
+                # A molecule on the wrong side is re-bound (T091 AF2: the edge
+                # says rxn -> mol, the host had mol -> rxn, or the reverse) —
+                # unless another motif edge asks for that side too (T091 AM2),
+                # and never so that a side empties (T091 AM7: ``A -> B`` would
+                # become the sink ``A + B -> ∅``, which the conservation canary
+                # exempts as a boundary reaction).
+                add_side, other_side = (
+                    (new_products, new_reactants) if u_is_rxn else (new_reactants, new_products)
+                )
+                other_name = "reactants" if u_is_rxn else "products"
+                if mol in other_side and other_name not in demanded.get((rxn_id, mol_id), set()):
+                    if len(other_side) == 1:
+                        raise ValueError(
+                            f"splice: edge ({a!r}, {b!r}, {relation!r}) would move {mol_id} off "
+                            f"reaction {rxn_id}'s {other_name}, leaving that side empty — the "
+                            "skeleton runs against the host's chemistry"
+                        )
+                    other_side.pop(mol)
+                add_side[mol] = 1.0
             reactions[rxn_id] = rebuild_reaction(
                 rxn,
                 reactants=new_reactants,
@@ -403,6 +455,16 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
                 products={molecules[v]: 1.0},
                 dat=_mock_dat(f"rxn/{rxn_id}"),
             )
+
+    realized = _rebuild(molecules, reactions, atoms)
+    unrealized = [
+        (a, b, relation)
+        for a, b, relation in motif.edges
+        if not (binding[a] in reactions and binding[b] in reactions)
+        and not _edge_holds(realized, binding[a], binding[b], relation)
+    ]
+    if unrealized:
+        raise AssertionError(f"splice: motif edges {unrealized} do not hold after splice")
 
     for nid in skeleton.removed:
         molecules.pop(nid, None)

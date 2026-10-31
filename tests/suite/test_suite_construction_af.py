@@ -46,18 +46,31 @@ def test_a_substrate_role_binds_only_to_a_reactant():
         assert not isinstance(result, CarveFail) and result.binding == {"rx": "x1", "out": "B"}
 
 
-def test_splice_rebinds_a_backwards_incidence():
-    """AF2: a hand skeleton whose ``mol -> rxn`` edge names the reaction's
-    product moves the molecule to the reactant side, not onto both."""
+def test_splice_refuses_a_backwards_incidence_that_would_empty_a_side():
+    """AF2 + AM7: a hand skeleton whose ``mol -> rxn`` edge names the
+    reaction's only product once rewrote ``A -> B`` into the sink
+    ``A + B -> ∅``, which the conservation canary exempts as a boundary
+    reaction. It refuses now; carve never produces such a skeleton."""
     from alienbio.suite.types import CarveResult
 
     a, b = mk.M("A"), mk.M("B")
     chem = mk.C("host", [a, b], [mk.R("x1", {a: 1.0}, {b: 1.0})])
     motif = Motif(roles=(RoleSlot("sub", "m", MOL), RoleSlot("rx", "r", RXN)), edges=(("sub", "rx", "substrate"),))
+    with pytest.raises(ValueError, match="leaving that side empty"):
+        splice(chem, CarveResult(motif=motif, binding={"sub": "B", "rx": "x1"}))
+
+
+def test_splice_rebinds_a_backwards_incidence_when_the_side_keeps_a_molecule():
+    """AF2: the move itself stands when the side it leaves is not emptied."""
+    from alienbio.suite.types import CarveResult
+
+    a, b, c = mk.M("A"), mk.M("B"), mk.M("C")
+    chem = mk.C("host", [a, b, c], [mk.R("x1", {a: 1.0}, {b: 1.0, c: 1.0})])
+    motif = Motif(roles=(RoleSlot("sub", "m", MOL), RoleSlot("rx", "r", RXN)), edges=(("sub", "rx", "substrate"),))
     out = splice(chem, CarveResult(motif=motif, binding={"sub": "B", "rx": "x1"}))
     rxn = out.reactions["x1"]
     assert {m.name for m in rxn.reactants} == {"A", "B"}
-    assert {m.name for m in rxn.products} == set()
+    assert {m.name for m in rxn.products} == {"C"}
 
 
 def test_a_long_chain_among_many_distractors_carves_fast_and_identically():
