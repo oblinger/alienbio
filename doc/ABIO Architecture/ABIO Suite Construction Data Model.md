@@ -2,11 +2,10 @@
 description: "Shared data model for the Suite Construction neutral primitives — the domain-neutral contracts (types + adapters over existing ABIO classes) that carve, cover, verify, grade, render, and sample close over. This is the boundary that keeps the primitives implementation-clean."
 ---
 :>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO Suite Construction Data Model](ha://p/ABIO%20Suite%20Construction%20Data%20Model) 
- [[ABIO Architecture Docs]] · [[ABIO Suite Construction]] 
-
 # Suite Construction Data Model
-**Subsystem**: [[ABIO Suite Runtime]] > Benchmark generation
 The shared contract every [[ABIO Suite Construction]] primitive closes over. Deliberately **domain-neutral**: the primitives reason about graph structure and opaque tags, never about biology. The biology-semantic layer (archetype catalog, vocabularies, predicates, directives) reads and writes the tag content but is authored separately.
+
+**Subsystem**: [[ABIO Suite Runtime]] > Benchmark generation · **Related**: [[ABIO Architecture Docs]] · [[ABIO Suite Construction]] 
 
 ## The three load-bearing decisions
 1. **World = a bipartite reaction network (Petri-net / SBML style).** Two node kinds — `Species` (state nodes) and `Reaction` (transformations) — with typed weighted edges: reactant/product (with stoichiometry) and modifier (activator/inhibitor, affects a rate without being consumed). Makes stoichiometry + modifiers first-class and is exactly what an ODE integrator consumes.
@@ -97,7 +96,8 @@ ParamSchema
 # a VECTOR, not a scalar
 Difficulty = dict[dimension, value]
 TaskArchetype: id; motif: Motif; verb: Tag;
-               feature_reqs: FeatureSet; recipe: ObjectiveRecipe
+               recipe: ObjectiveRecipe; drafter: Drafter|None;
+               extra_answer_tokens: tuple[str]
 # opaque bundle joining an archetype's world-demand to its
 # grading (Protocol, suite/types.py)
 ObjectiveRecipe:
@@ -111,7 +111,7 @@ ObjectiveRecipe:
   grader_spec() -> GraderSpec
 TaskInstance:  archetype:id; world:id; skeleton:Skeleton;
                objective:Objective; question:Question;
-               setup:WorldSetup
+               setup:WorldSetup   # build_suite leaves {}
 SuiteSpec: archetype_mix: Dist[TaskArchetype];
            per_archetype: {params: ParamSchema,
                            difficulty: Dist[Difficulty]}; seed
@@ -119,6 +119,8 @@ SuiteSpec: archetype_mix: Dist[TaskArchetype];
 # (reuse-biased; create only as needed)
 Suite:     worlds: list[World]; tasks: list[TaskInstance]
 ```
+
+`TaskArchetype` carried `feature_reqs: FeatureSet` and `build_suite` covered the archetypes over them, stamping each task's container index on `setup["container"]`, until `288bf7a` (T091 AF6, 2026-10-30): no archetype declared a feature, no predicate ever ran on a world and nothing read the stamp, so the field, the cover step and the stamp went together. `build_suite` drafts one world per task and leaves `setup` empty; `FeatureSet` and `cover` remain as a primitive behind the `!cover` head.
 
 ## Adapters over existing ABIO classes (no parallel model)
 
@@ -140,7 +142,7 @@ The primitives (Fable-buildable) close over the types above and treat all `Tags`
 
 | Engine (neutral) | Semantic content it consumes |
 |---|---|
-| set-covering solver | what a feature *means* |
+| set-covering solver (`!cover` only; `build_suite` runs none) | what a feature *means* |
 | carve/splice | what a role/constraint *means* |
 | verification harness | what the predicate *means* |
 | graders | what "correct" / "disease-free" *means* |

@@ -35,7 +35,7 @@ An **`ObjectiveRecipe`** turns a concrete carved `Skeleton` (a binding of the ar
 - `recipe.build_distractors(skeleton, world, seed) -> tuple[Answer, ...]` — plausible near-misses (for MC framings / incorrect-answer generation).
 - `recipe.grader_spec() -> GraderSpec` — which FT06 grader + partial-credit config (`node_set`→`partial`, `ordered_path`→`partial`, `scalar`→`tol`).
 
-The `Objective` is then `AnswerObjective(grader=recipe.grader_spec(), key=recipe.build_key(...))` (or `OutcomeObjective` for act-and-score tasks). This keeps every archetype's *demand on the world* (its `feature_reqs` + `motif`) tied to its *means of being graded* (its recipe) in one unit — exactly the join the data-model doc draws. Recipes that cannot be fully scripted fall back to an `LLMOp` (FT07 / the "Op harness ← directive text" cell) parameterized by the skeleton; the default for the discovery family is fully-scripted.
+The `Objective` is then `AnswerObjective(grader=recipe.grader_spec(), key=recipe.build_key(...))` (or `OutcomeObjective` for act-and-score tasks). This keeps every archetype's *demand on the world* (its `motif`; also `feature_reqs` until 2026-10-30) tied to its *means of being graded* (its recipe) in one unit — exactly the join the data-model doc draws. Recipes that cannot be fully scripted fall back to an `LLMOp` (FT07 / the "Op harness ← directive text" cell) parameterized by the skeleton; the default for the discovery family is fully-scripted.
 
 > **This signature is a proposal, not settled** — it is the one part of the design that pins a new API surface (§ Open question tracks the scope; the shape itself wants an eyes-on before code). The *name* and *role* (`ObjectiveRecipe`, produces the `Objective`) are fixed by the architecture; only the method breakdown is mine to defend.
 
@@ -46,7 +46,7 @@ The first archetype, concretely, as the template for the rest:
 **`identify_pathway`** — recover a hidden linear pathway from experiments.
 - **`motif`** — a `Motif` of `RoleSlot`s `r0…r_{k}` (k = `pathway_length`) with `edges` `(r_i, r_{i+1}, "reacts_to")`; each `RoleSlot.constraints` are opaque `Predicate`s (e.g. "is a small molecule", "not already in a named pathway"). Distractor roles are added but left un-edged into the chain.
 - **`verb`** — `"identify"` (drives FT08 template selection).
-- **`feature_reqs`** — a `FeatureSet` requiring the host world to support the motif: `≥ layers_traversed` biological layers, a reaction chain of length `≥ pathway_length`, `≥ distractor_count` off-path species. These become the covering constraints in M27.4.
+- **`feature_reqs`** — a `FeatureSet` requiring the host world to support the motif: `≥ layers_traversed` biological layers, a reaction chain of length `≥ pathway_length`, `≥ distractor_count` off-path species. These become the covering constraints in M27.4. *Removed 2026-10-30 (`288bf7a`, T091 AF6): no archetype ever declared a feature, so `TaskArchetype` has no `feature_reqs`.*
 - **`recipe`** — question kind `ordered_path`; key = the ordered node-set the carve bound the chain to; distractors = permutations / off-path swaps; grader `ordered_path` with `partial` on.
 
 Further discovery-family archetypes (same shape, listed as stubs — fleshed when built): `diagnose_perturbation` (M29.2 substrate; question kind `node_id`, key = perturbed node), `classify_molecule` (`explain`-style, structured `json` answer). Diagnosis→intervention→prediction are the harder rungs (Q2 "build toward all, discovery first").
@@ -79,6 +79,8 @@ One `SuiteSpec → Suite` run, composing the shipped engines in order (all signa
 6. **Verify** — `verify(world, perturbation, predicate=world_validity, …)`; reject-sample worlds that fail A/C or whose skeletons interfere (the catch-all against silent ground-truth corruption).
 7. **Render + grade (round-trip check)** — `render(question, vocab)` and `render(key, vocab)`; assert `parse(render(x)) == x`; `grade_answer(key, key, spec) == 1.0` sanity.
 8. **Package** — assemble `Suite(worlds, tasks)`.
+
+**As built, 2026-10-30 (`288bf7a`, T091 AF6):** steps 2 and 3 are gone. `build_suite` drafts one world per task (`draft_world` over the archetype's motif) and runs no cover: the cover over `feature_reqs` had stamped each task's container index on `setup["container"]`, but no archetype declared a feature, no predicate ever ran on a world and nothing read the stamp, so `TaskArchetype.feature_reqs`, the cover step and the stamp were removed together. `TaskInstance.setup` is `{}`; `cover` remains a primitive behind the `!cover` head.
 
 Deliverable of M27.4: a `suite/pipeline.py` (or `suite/build.py`) `build_suite(spec: SuiteSpec, seed) -> Suite` plus an integration test that runs one small spec green end-to-end.
 

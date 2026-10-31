@@ -179,7 +179,7 @@ task: !diagnose {n_nodes: 6, hazard: true, hazard_threshold: 3.0,
 
 The two skeleton shapes the drafters produce today — a block-tree `Skeleton` from the `*_gen` families and a `CarveResult` from the `arch_*` families, reconciled by discarding one and substituting `Motif(roles=(), edges=())` — both remain valid values of `task.skeleton`; the `task` constructor takes either, and the empty-motif shim goes away.
 
-**TaskArchetype → nothing.** Its fields (`id`, `motif`, `verb`, `feature_reqs`, `recipe`, `drafter`, `extra_answer_tokens`) are exactly the *closure* a drafter head already is: the head's name is the `id`, its body holds the pattern and recipe it uses, `extra_answer_tokens` becomes a keyword parameter of the `vocabulary` head. The M27 archetype functions (`identify_pathway(pathway_length, constraints=…)`, `diagnose_perturbation(n_nodes=…)`, `predict_response(reaction_id, target_id, factor, …)`, `design_intervention(target_value)`) and the three `generative.py` wrappers that `replace(base, drafter=…)` collapse into the ten heads above.
+**TaskArchetype → nothing.** Its fields (`id`, `motif`, `verb`, `recipe`, `drafter`, `extra_answer_tokens`; `feature_reqs` too until 2026-10-30, `288bf7a`) are exactly the *closure* a drafter head already is: the head's name is the `id`, its body holds the pattern and recipe it uses, `extra_answer_tokens` becomes a keyword parameter of the `vocabulary` head. The M27 archetype functions (`identify_pathway(pathway_length, constraints=…)`, `diagnose_perturbation(n_nodes=…)`, `predict_response(reaction_id, target_id, factor, …)`, `design_intervention(target_value)`) and the three `generative.py` wrappers that `replace(base, drafter=…)` collapse into the ten heads above.
 
 ## Layer 5 — suites and experiments
 
@@ -187,9 +187,11 @@ The two skeleton shapes the drafters produce today — a block-tree `Skeleton` f
 
 | Head | Replaces | Parameters |
 |---|---|---|
-| `suite` | `SuiteSpec` + `build_suite` | `tasks` (a list of task forms, or a `Dist` over them via `!q choice([...])`), `n_tasks=1`, `seed`, `cover=…`, `distractor_count=0`, `sim` → a `Suite` (worlds + task instances) |
+| `suite` | `SuiteSpec` + `build_suite` | `tasks` (a list of task forms, or a `Dist` over them via `!q choice([...])`), `n_tasks=1`, `seed`, `cover=…` (never shipped; see below), `distractor_count=0`, `sim` → a `Suite` (worlds + task instances) |
 | `cover` | `cover.cover` | `features`, `aggressiveness=0.5`, `seed` |
 | `vocabulary` | `vocab.build_vocabulary` | `world`, `seed`, `extra_tokens=[]` |
+
+*2026-10-30 (`288bf7a`, T091 AF6):* the shipped `suite` head takes `tasks`, `n_tasks`, `distractor_count`, `sim` and `max_redraws`, and `build_suite` runs no cover at all: it drafts one world per task and leaves `TaskInstance.setup` as `{}`. The cover over `TaskArchetype.feature_reqs` it once ran stamped `setup["container"]`, but no archetype declared a feature and nothing read the stamp, so the field, the step and the stamp were removed. `cover` is reached only through its own head.
 
 **ExperimentSpec → experiment.** An experiment file is the one place a spec author writes today, and it already has the shape of a call — every key of `ExperimentSpec` is a keyword parameter of the `experiment` head, validated by the same `_validate_*` functions. What changes is how the *world* is named. Today `drafter: diagnose` + `fixed_dials:` + `axes:` are merged into one flat mapping at run time. In Expr the task is a **quoted call** whose free names are the axes, and the runner evaluates it once per condition with the condition's values bound:
 
