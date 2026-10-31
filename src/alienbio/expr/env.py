@@ -317,11 +317,16 @@ class Env:
         from .include import hydrate, include_bindings
         from .yaml_tags import load_text
 
-        src = Path(source)
+        # T091 AL1: one resolution of the file decides the text read and the
+        # include base. The base is the RESOLVED file's directory — a symlink
+        # to a catalog spec from an outside folder used to load trusted with
+        # that folder's `helpers.py` as its `_includes_`.
+        resolved = Path(source).resolve()
+        is_file = resolved.is_file()
         if text is None:
-            text = src.read_text()
-        base_dir = Path(base).resolve() if base is not None else (src.parent.resolve() if src.is_file() else Path.cwd())
-        seen = frozenset({src.resolve()}) if src.is_file() else frozenset()
+            text = resolved.read_text()
+        base_dir = Path(base).resolve() if base is not None else (resolved.parent if is_file else Path.cwd())
+        seen = frozenset({resolved}) if is_file else frozenset()
         data = load_text(text)
         if not isinstance(data, Mapping):
             raise ExprError("a spec file must be a mapping at the top level", str(source))

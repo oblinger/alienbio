@@ -25,13 +25,22 @@ spec reaches Python through ``!py`` explicitly, never by attribute walking.
 A name beginning with ``_`` is refused on every receiver (private state is
 not an interface). A mapping's *keys* are data, not attributes, and are read
 before any of this applies.
+
+**Calling a bound value** (:func:`check_callable`, T091 AL8): an untrusted
+spec calls registered heads only — a Python function that leaks into data (a
+constraint predicate, an agent factory) is not callable there. Under trust a
+bound callable is never one of :data:`DENIED_ENTRY_POINTS` — the framework
+functions that load specs or execute code (T091 AL3: ``!py
+alienbio.expr.include.run_python_file`` ran any ``.py`` on disk); what a
+``!py`` walk or an included helper hands back is judged where it is read
+(:func:`check_reference`, ``expr.include``).
 """
 
 from __future__ import annotations
 
 import types
 from functools import lru_cache
-from typing import Any
+from typing import Any, Optional
 
 from ..spec_lang.safe_eval import UnsafeExpressionError, _check_attr_name
 
@@ -111,6 +120,63 @@ def domain_types() -> tuple[type, ...]:
     return tuple(out)
 
 
+#: Framework entry points that load a spec or execute code, refused by name
+#: wherever a spec could reach them — a ``!py`` walk, an included helper's
+#: namespace, a callable bound in data — under trust too (T091 AL3). An
+#: entry is ``module:qualname`` (a class covers its methods: ``Env`` covers
+#: ``Env.load`` / ``Env.standard``) or ``module:*`` (the module and every
+#: submodule and name in it).
+DENIED_ENTRY_POINTS: tuple[str, ...] = (
+    "alienbio.expr.include:*",  # run_python_file, load_include, include_bindings, hydrate, resolve_py
+    "alienbio.expr.interp:*",  # evaluate and the special-form evaluators
+    "alienbio.expr.yaml_tags:load_text",
+    "alienbio.expr.env:Env",  # Env.load, Env.standard, Env.hydrate
+    "alienbio.suite.spec:load_spec",
+    "alienbio.suite.expr_experiment:load_experiment",
+    "alienbio.suite.experiment:run_experiment",
+    "alienbio.report:run_pytest",
+    "alienbio.commands:*",
+    "alienbio.cli:*",
+)
+
+
+def denied_entry_point(obj: Any) -> Optional[str]:
+    """The :data:`DENIED_ENTRY_POINTS` entry ``obj`` (a module, class,
+    function or method) falls under, else ``None``."""
+    if isinstance(obj, types.ModuleType):
+        module: Any = obj.__name__
+        qualname: Any = ""
+    else:
+        module = getattr(obj, "__module__", None)
+        qualname = getattr(obj, "__qualname__", "")
+    if not isinstance(module, str):
+        return None
+    for entry in DENIED_ENTRY_POINTS:
+        mod, _, qual = entry.partition(":")
+        if qual == "*":
+            if module == mod or module.startswith(mod + "."):
+                return entry
+        elif module == mod and isinstance(qualname, str) and (qualname == qual or qualname.startswith(qual + ".")):
+            return entry
+    return None
+
+
+def check_reference(value: Any, what: str) -> None:
+    """A Python object a trusted spec obtains by reference (a ``!py`` walk's
+    result, a name read off an included helper): a callable (the caller
+    checks its owner), plain data or a domain value — never a module, a
+    ``Path``, a logger, a ``Registry``, an ``Env`` (T091 AL3) — and never a
+    denied entry point."""
+    entry = denied_entry_point(value)
+    if entry is not None:
+        raise UnsafeExpressionError(f"{what}: {_type_name(value)} is a framework entry point that loads or executes code ({entry})")
+    if isinstance(value, types.ModuleType):
+        raise UnsafeExpressionError(f"{what}: {_type_name(value)} is a module, not a value")
+    if callable(value) or is_plain(value) or is_domain(value):
+        return
+    raise UnsafeExpressionError(f"{what}: {_type_name(value)} is not plain data or a domain value")
+
+
 def _type_name(value: Any) -> str:
     if isinstance(value, types.ModuleType):
         return f"module {value.__name__!r}"
@@ -174,20 +240,30 @@ def method(value: Any, name: str) -> Any:
 
 
 def check_callable(func: Any, *, trusted: bool) -> None:
-    """A bound value called as a head (``!f``, ``f(...)``, ``h.f(...)`` through a
-    mapping). Untrusted: a plain Python function only — never a class, a
-    builtin, a bound method or a callable object. Trusted: whatever the
-    trusted author bound with ``!py`` / an included module."""
-    if trusted or isinstance(func, types.FunctionType):
-        return
-    raise UnsafeExpressionError(f"calling {_type_name(func)} is not allowed in an untrusted spec")
+    """A bound value that is not a registered head, called as one (``f(...)``,
+    ``h.f(...)`` through a mapping). Untrusted: never (T091 AL8 — untrusted
+    YAML cannot define a function, so every function it can reach leaked out
+    of framework data, and the rule must not admit whatever a future head
+    leaks). Trusted: whatever the trusted author bound (``!py`` and an
+    included helper are judged where they are read), except a denied entry
+    point (T091 AL3)."""
+    if not trusted:
+        raise UnsafeExpressionError(
+            f"calling {_type_name(func)} is not allowed in an untrusted spec (only registered heads and templates are callable)"
+        )
+    entry = denied_entry_point(func)
+    if entry is not None:
+        raise UnsafeExpressionError(f"{_type_name(func)} is a framework entry point that loads or executes code ({entry})")
 
 
 __all__ = [
+    "DENIED_ENTRY_POINTS",
     "DOMAIN_CLASS_NAMES",
     "PLAIN_TYPES",
     "check_callable",
     "check_name",
+    "check_reference",
+    "denied_entry_point",
     "domain_types",
     "is_domain",
     "is_plain",

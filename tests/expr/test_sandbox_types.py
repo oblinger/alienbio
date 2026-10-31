@@ -131,12 +131,15 @@ def test_a_domain_value_offers_data_attributes_not_methods():
         _x("w.chemistry.dat.save", w=world)  # never reaches the Dat
 
 
-def test_untrusted_calls_only_plain_functions():
+def test_untrusted_calls_only_registered_heads():
+    """T091 AL8: untrusted, no bound Python callable is callable — not even a
+    plain function (every one an untrusted spec can reach leaked out of
+    framework data); trusted, a bound function still is."""
     def f(x):
         return x + 1
 
-    assert _x("f(1)", f=f) == 2
-    for value in ("a".upper, len, Env, Env.standard, types.SimpleNamespace):
+    assert _x("f(1)", trusted=True, f=f) == 2
+    for value in (f, "a".upper, len, Env, Env.standard, types.SimpleNamespace):
         with pytest.raises(ExprError, match="not allowed in an untrusted spec"):
             _x("g(1)", g=value)
         with pytest.raises(ExprError, match="not allowed in an untrusted spec"):

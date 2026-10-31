@@ -89,8 +89,46 @@ def run_python_file(target: Path) -> dict[str, Any]:
     executed = _EXECUTED.get()
     if executed is not None:
         executed.append(Path(target).resolve())
-    namespace = runpy.run_path(str(target), run_name=f"{INCLUDE_MODULE_PREFIX}{target.stem}")
+    namespace = runpy.run_path(str(target), run_name=helper_module_name(target))
     return {k: v for k, v in namespace.items() if not k.startswith("__")}
+
+
+def helper_module_name(target: Path) -> str:
+    """The module name a ``.py`` include executes as: what its own
+    definitions carry as ``__module__``."""
+    return f"{INCLUDE_MODULE_PREFIX}{Path(target).stem}"
+
+
+class HelperNamespace(Mapping[str, Any]):
+    """An included ``.py`` file's namespace as a spec sees it (``h: !include
+    helper.py``, ``!py helper.name``). Reading a name applies the ``!py``
+    rule (T091 AL2): a function or class must be DEFINED in the helper
+    (``__module__`` is the helper's), anything else must be plain data or a
+    domain value — so the helper's own imports (``h.os``, ``h.run`` →
+    ``subprocess.run``) refuse, as ``!py helper.os`` does. Iterating the keys
+    is free; a value is judged when it is read."""
+
+    def __init__(self, module: str, namespace: Mapping[str, Any]) -> None:
+        self._module = module
+        self._ns = dict(namespace)
+
+    @property
+    def module(self) -> str:
+        return self._module
+
+    def __getitem__(self, key: str) -> Any:
+        value = self._ns[key]
+        _check_helper_object(self._module, f"included helper name {key!r}", value, key)
+        return value
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._ns)
+
+    def __len__(self) -> int:
+        return len(self._ns)
+
+    def __repr__(self) -> str:
+        return f"<included helper {self._module} {sorted(self._ns)}>"
 
 
 def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] = frozenset()) -> tuple[str, Any]:
@@ -130,7 +168,7 @@ def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] 
     if suffix in PY_SUFFIXES:
         if not trusted:
             raise UnsafeSpecError(f"!include {path!r}: executing Python requires a trusted load")
-        return "py", run_python_file(target)
+        return "py", HelperNamespace(helper_module_name(target), run_python_file(target))
     raise ExprError(f"!include {path!r}: unknown file kind {suffix!r} (yaml / yml / md / txt / py)", str(base))
 
 
@@ -145,28 +183,72 @@ PY_IMPORT_ROOTS: tuple[str, ...] = ("alienbio",)
 INCLUDE_MODULE_PREFIX = "alienbio_include_"
 
 
-def _allowed_module_name(name: Any) -> bool:
+def allowed_module_name(name: Any) -> bool:
+    """``name`` is under :data:`PY_IMPORT_ROOTS` or is an included helper's module."""
     if not isinstance(name, str):
         return False
     return any(name == root or name.startswith(root + ".") for root in PY_IMPORT_ROOTS) or name.startswith(INCLUDE_MODULE_PREFIX)
 
 
-def _check_py_object(path: str, obj: Any, step: str) -> None:
+def _deny(what: str, obj: Any, step: str) -> None:
+    from .access import denied_entry_point
+
+    entry = denied_entry_point(obj)
+    if entry is not None:
+        raise UnsafeSpecError(f"{what}: {step!r} is a framework entry point that loads or executes code ({entry})")
+
+
+def _check_final(what: str, obj: Any, step: str) -> None:
+    """The object a walk lands on passes :func:`.access.check_reference`."""
+    from ..spec_lang.safe_eval import UnsafeExpressionError
+    from .access import check_reference
+
+    try:
+        check_reference(obj, f"{what}: {step!r}")
+    except UnsafeExpressionError as exc:
+        raise UnsafeSpecError(str(exc)) from None
+
+
+def _check_py_object(path: str, obj: Any, step: str, *, final: bool = False) -> None:
     """A ``!py`` walk never leaves the allowed roots: a module it passes
     through, and a function or class it lands on, must belong to
     :data:`PY_IMPORT_ROOTS` or an included helper — so ``alienbio.x.os.system``
-    or a helper's ``from subprocess import run`` refuses like ``os.system``."""
+    or a helper's ``from subprocess import run`` refuses like ``os.system``.
+    No step may be a denied entry point (:data:`.access.DENIED_ENTRY_POINTS`),
+    a non-module step that is not callable must be plain data or a domain
+    value, and the result must not be a module (T091 AL3)."""
+    what = f"!py {path!r}"
+    _deny(what, obj, step)
     if isinstance(obj, types.ModuleType):
         owner: Any = obj.__name__
-    elif isinstance(obj, (type, types.FunctionType, types.BuiltinFunctionType, types.MethodType)) or callable(obj):
+    elif callable(obj):
         owner = getattr(obj, "__module__", None)
     else:
-        return  # plain data (a constant)
-    if not _allowed_module_name(owner):
+        _check_final(what, obj, step)  # plain data or a domain value
+        return
+    if not allowed_module_name(owner):
         raise UnsafeSpecError(
             f"!py {path!r}: {step!r} belongs to {owner!r}, outside the allowed import roots "
             f"{list(PY_IMPORT_ROOTS)} and the spec's included helpers"
         )
+    if final:
+        _check_final(what, obj, step)
+
+
+def _check_helper_object(module: str, what: str, obj: Any, step: str) -> None:
+    """A name read off an included helper (and every step past it): a
+    callable must be defined in that helper, anything else must pass
+    :func:`.access.check_reference` (T091 AL2)."""
+    _deny(what, obj, step)
+    if isinstance(obj, types.ModuleType) or callable(obj):
+        owner: Any = obj.__name__ if isinstance(obj, types.ModuleType) else getattr(obj, "__module__", None)
+        if owner != module:
+            raise UnsafeSpecError(
+                f"{what}: {step!r} belongs to {owner!r}, not to the included helper {module!r} — a helper "
+                f"exposes only what it defines (outside the allowed import roots {list(PY_IMPORT_ROOTS)} for a spec)"
+            )
+        return
+    _check_final(what, obj, step)
 
 
 def resolve_py(path: str, *, trusted: bool, modules: Optional[Mapping[str, Mapping[str, Any]]] = None) -> Any:
@@ -183,12 +265,14 @@ def resolve_py(path: str, *, trusted: bool, modules: Optional[Mapping[str, Mappi
         raise UnsafeSpecError(f"!py {path!r}: a private or dunder name is not a Python reference")
     if modules and parts[0] in modules:
         obj: Any = modules[parts[0]]
-        for attr in parts[1:]:
+        helper = obj.module if isinstance(obj, HelperNamespace) else f"{INCLUDE_MODULE_PREFIX}{parts[0]}"
+        raw = obj._ns if isinstance(obj, HelperNamespace) else obj
+        for i, attr in enumerate(parts[1:]):
             try:
-                obj = obj[attr] if isinstance(obj, Mapping) else getattr(obj, attr)
-            except (KeyError, AttributeError):
+                obj = raw[attr] if i == 0 else getattr(obj, attr)
+            except (KeyError, AttributeError, TypeError):
                 raise ExprError(f"!py {path!r}: no {attr!r} in the included module {parts[0]!r}") from None
-            _check_py_object(path, obj, attr)
+            _check_helper_object(helper, f"!py {path!r}", obj, attr)
         return obj
     if parts[0] not in PY_IMPORT_ROOTS:
         raise UnsafeSpecError(
@@ -200,12 +284,14 @@ def resolve_py(path: str, *, trusted: bool, modules: Optional[Mapping[str, Mappi
             obj = importlib.import_module(".".join(parts[:i]))
         except ImportError:
             continue
-        for attr in parts[i:]:
+        _check_py_object(path, obj, parts[i - 1])
+        for j in range(i, len(parts)):
+            attr = parts[j]
             try:
                 obj = getattr(obj, attr)
             except AttributeError:
                 raise ExprError(f"!py {path!r}: no attribute {attr!r} on {'.'.join(parts[:i])}") from None
-            _check_py_object(path, obj, attr)
+            _check_py_object(path, obj, attr, final=j == len(parts) - 1)
         return obj
     raise ExprError(f"!py {path!r}: no importable module prefix")
 
@@ -270,9 +356,12 @@ def include_bindings(
 
 
 __all__ = [
+    "HelperNamespace",
     "INCLUDE_MODULE_PREFIX",
     "PY_IMPORT_ROOTS",
     "UnsafeSpecError",
+    "allowed_module_name",
+    "helper_module_name",
     "hydrate",
     "include_bindings",
     "load_include",

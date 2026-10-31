@@ -793,11 +793,16 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
     from .expr_experiment import load_experiment
 
     # The framework's own catalog is trusted (its files may include Python
-    # helpers); anything else loads untrusted.
+    # helpers); anything else loads untrusted. T091 AL1: ONE resolution
+    # decides trust, the text read and the include base — the loader is
+    # handed the resolved path and its text, so a symlink into catalog/ from
+    # an outside folder loads catalog's own helpers (or, resolving outside,
+    # loads untrusted), and nothing is re-resolved between check and read.
     resolved = Path(path).resolve()
     trusted = (REPO_ROOT / "catalog").resolve() in resolved.parents
+    text = resolved.read_text()
     with recording_python_files() as executed:
-        spec = load_experiment(path, trusted=trusted)
+        spec = load_experiment(resolved, text=text, trusted=trusted)
     helpers: list[str] = []
     for module in executed:
         shown = source_relpath(module)
