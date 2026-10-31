@@ -54,7 +54,7 @@ The result is one frozen `TrialRecord`: task id, condition key, final timeline, 
 
 ## Sweeps
 
-`suite.mass_trial.MassTrialRunner.run(axes, drafter, agent_factory, trials_per_condition, base_seed, on_error="record", extra_dials={}, on_trial=None, skip=None, matched_dials=(), stop=None, concurrency=1) -> ReliabilityMap` — each keyword is described in [ABIO MassTrialRunner](../ABIO%20Dev%20Docs/ABIO%20suite/ABIO%20MassTrialRunner.md).
+`suite.mass_trial.MassTrialRunner.run(axes, drafter, agent_factory, trials_per_condition, base_seed, on_error="record", extra_dials={}, on_trial=None, skip=None, matched_dials=(), stop=None, concurrency=1) -> ReliabilityMap` — each keyword is described in [ABIO MassTrialRunner](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Dev%20Docs/ABIO%20suite/ABIO%20MassTrialRunner.md).
 
 Every `(condition, trial)` derives its own child seed, so a cell is a pure function of its own key and never of the grid's shape. Each trial is isolated: with `on_error="record"` an exception from the drafter, the agent factory or the run becomes an error record (`terminal_reason="error"`; `TrialRecord.is_error` excludes it from the statistics and `Provenance.failed_trials` counts it) rather than the end of a paid sweep. The map keeps **every** record on `ReliabilityMap.records` — the per-trial data the M33 scorers read — alongside per-cell stats with confidence intervals, 2×2 interaction contrasts and effect sizes. Records land in run order (grid position, then trial index) at any `concurrency`; when `on_trial` raises (persistence, spend accounting), every unit still in flight lands first and the first failure then propagates, so a paid trial is never dropped unrecorded. A reload (`experiment.aggregate`) sorts the stored lines back to run order, since a resume appends its re-run lines after the ones it kept.
 
@@ -211,7 +211,7 @@ per AUP's T046 ask.
 
 ## What is not here yet
 
-Live-model arms on the AUP-registered substrates wait on the paper (the no-peeking rule); every instrument-side M45 item is built, including the control surface (M45.1) and the realism instrument (M45.9, `suite.realism`: `render_transcript` — the session in surface names — plus a pairwise realism judge over the `LLMFn` seam and per-condition win rates with Wilson intervals; the live-judge arm and the genuine reference pool are AUP's). The suite's `simulate` still runs the reference simulator; the JAX core matches it on every admitted rate law (M47.10) but is not yet the suite's default backend. See [[ABIO Roadmap]] § M45.
+Live-model arms on the AUP-registered substrates wait on the paper (the no-peeking rule); every instrument-side M45 item is built, including the control surface (M45.1) and the realism instrument (M45.9, `suite.realism`: `render_transcript` — the session in surface names — plus a pairwise realism judge over the `LLMFn` seam and per-condition win rates with Wilson intervals; the live-judge arm and the genuine reference pool are AUP's). The suite's `simulate` still runs the reference simulator; the JAX core matches it on every admitted rate law (M47.10) but is not yet the suite's default backend. See [ABIO Roadmap](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Design/ABIO%20Roadmap.md) § M45.
 
 ## See Also
 

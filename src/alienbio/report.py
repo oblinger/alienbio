@@ -65,24 +65,31 @@ Outcome = str  # "passed" | "failed" | "error" | "skipped" (an xfail reads as sk
 
 def run_pytest(junit_path: Path, extra_args: Sequence[str] = ()) -> int:
     """Run the whole suite once, writing JUnit XML; returns pytest's exit code."""
-    cmd = [sys.executable, "-m", "pytest", "tests", "-q", "-p", "no:cacheprovider", f"--junitxml={junit_path}", *extra_args]
+    cmd = [sys.executable, "-m", "pytest", "tests", "-q", "-p", "no:cacheprovider", "-p", "alienbio._report_plugin",
+           f"--junitxml={junit_path}", *extra_args]
     return subprocess.run(cmd, cwd=REPO).returncode
 
 
 def _case_outcome(case: ET.Element) -> str:
     """One JUnit ``testcase`` as pytest's summary line counts it: an xfail is
     written as ``<skipped type="pytest.xfail">`` and is counted apart from a
-    skip (the header read ``46 skipped`` for 3 skips and 43 xfails)."""
+    skip (the header read ``46 skipped`` for 3 skips and 43 xfails). A
+    non-strict XPASS is a bare case in JUnit; :func:`run_pytest` loads
+    ``alienbio._report_plugin``, which marks it with an ``xpassed`` property,
+    counted apart from passed (T091 AE5). A ``--junit`` file written without
+    that plugin counts a non-strict XPASS as passed."""
     if case.find("failure") is not None or case.find("error") is not None:
         return "failed"
     skipped = case.find("skipped")
     if skipped is not None:
         return "xfailed" if skipped.get("type") == "pytest.xfail" else "skipped"
+    if any(p.get("name") == "xpassed" for p in case.iter("property")):
+        return "xpassed"
     return "passed"
 
 
 def _empty_counts() -> dict[str, int]:
-    return {"passed": 0, "failed": 0, "skipped": 0, "xfailed": 0}
+    return {"passed": 0, "failed": 0, "skipped": 0, "xfailed": 0, "xpassed": 0}
 
 
 def count_cases(junit_path: Path) -> dict[str, int]:
@@ -157,6 +164,7 @@ class SuiteRow:
     failed: int
     skipped: int
     xfailed: int = 0
+    xpassed: int = 0
 
 
 @dataclass(frozen=True)
@@ -290,7 +298,7 @@ def suite_rows(outcomes: Mapping[tuple[str, str], Outcome], case_counts: Optiona
     for rel in SUITES:
         path = REPO / rel
         counts = by_module.get(path.stem, _empty_counts())
-        rows.append(SuiteRow(rel, _module_phrase(path), counts["passed"], counts["failed"], counts["skipped"], counts.get("xfailed", 0)))
+        rows.append(SuiteRow(rel, _module_phrase(path), counts["passed"], counts["failed"], counts["skipped"], counts.get("xfailed", 0), counts.get("xpassed", 0)))
     return rows
 
 
@@ -483,8 +491,9 @@ def render_markdown(rep: Report) -> str:
         if not rep.examples_run:
             gaps.append("examples not run")
         verdict = f"NOT PROVEN ({'; '.join(gaps)})"
+    xpassed = f", {t['xpassed']} xpassed" if t.get("xpassed") else ""
     L = [f"# ABIO test report — {verdict}", "",
-         f"*{rep.generated_at} · {t['passed']} passed, {t['failed']} failed, {t['skipped']} skipped, {t.get('xfailed', 0)} xfailed · `just test` is the gate; this page is what the gate tested.*", ""]
+         f"*{rep.generated_at} · {t['passed']} passed, {t['failed']} failed, {t['skipped']} skipped, {t.get('xfailed', 0)} xfailed{xpassed} · `just test` is the gate; this page is what the gate tested.*", ""]
     L += ["## 1. Capability matrix — the 35 dimensions and the sentence each proving test carries", "",
           "| | Id | Dimension | What the test proves |", "|---|---|---|---|"]
     for r in rep.capabilities:
@@ -495,7 +504,7 @@ def render_markdown(rep: Report) -> str:
           "| | Suite | Tests | What it exercises |", "|---|---|---|---|"]
     for s in rep.suites:
         mark = "❌" if s.failed else ("✅" if s.passed else "·")
-        L.append(f"| {mark} | `{s.module}` | {s.passed} passed{f', {s.failed} failed' if s.failed else ''}{f', {s.skipped} skipped' if s.skipped else ''}{f', {s.xfailed} xfailed' if s.xfailed else ''} | {s.phrase} |")
+        L.append(f"| {mark} | `{s.module}` | {s.passed} passed{f', {s.failed} failed' if s.failed else ''}{f', {s.skipped} skipped' if s.skipped else ''}{f', {s.xfailed} xfailed' if s.xfailed else ''}{f', {s.xpassed} xpassed' if s.xpassed else ''} | {s.phrase} |")
     L += ["", "## 3. Examples — `catalog/examples/`, each run fresh for this report", "",
           "*Scores here are scripted controls' (idle / measure / survey agents commit nothing), so 0.00 is the expected zero, not a defect; a live-model arm is what would score.*", ""]
     if rep.examples:

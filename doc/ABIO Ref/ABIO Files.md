@@ -9,7 +9,7 @@ The alienbio repository as it stands, file by file.
 - **`config.py`** — API key and provider configuration (reads the
   environment; no `.env` on disk).
 - **`capabilities.py`** — the capability matrix (M48.1): the 35 dimensions
-  of [[ABIO Capability Dimensions]] mapped to the tests that prove them.
+  of [ABIO Capability Dimensions](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Design/ABIO%20Capability%20Dimensions.md) mapped to the tests that prove them.
 - **`report.py`** — `bio report`: what the tests test and whether they
   passed, on one page.
 

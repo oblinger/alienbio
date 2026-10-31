@@ -19,9 +19,21 @@ exclude_docs: |
   ABIO Experiments.md
   ABIO Docs.md
 
-# Build-time page rewrites (doc/_hooks/strip_spine.py: the vault spine line).
+# A link to a missing page, an unrecognized link or a site-absolute link is a
+# warning, so `mkdocs build --strict` (CI) fails on it. mkdocs 1.6 logs a link
+# to an `exclude_docs` page at INFO whatever this says, so
+# doc/_hooks/dead_links.py warns on every dead href on the built site.
+validation:
+  links:
+    not_found: warn
+    unrecognized_links: warn
+    absolute_links: warn
+
+# Build-time page rewrites (doc/_hooks/strip_spine.py: the vault spine line,
+# ha:// links, head links to excluded pages) and the built site's href check.
 hooks:
   - doc/_hooks/strip_spine.py
+  - doc/_hooks/dead_links.py
 
 theme:
   name: material

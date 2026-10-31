@@ -190,7 +190,7 @@ def test_suite_rows_count_cases_and_xfails_are_not_skips(tmp_path):
 </testsuite></testsuites>
 """)
     totals = count_cases(junit)
-    assert totals == {"passed": 4, "failed": 0, "skipped": 1, "xfailed": 1}
+    assert totals == {"passed": 4, "failed": 0, "skipped": 1, "xfailed": 1, "xpassed": 0}
     rep = build(parse_junit(junit), pytest_exit=0, run_examples=False, totals=totals, case_counts=count_module_cases(junit))
     row = next(s for s in rep.suites if s.module.endswith("test_golden_experiments.py"))
     assert (row.passed, row.skipped, row.xfailed) == (4, 1, 1)
@@ -212,3 +212,35 @@ def test_no_examples_is_never_titled_all_passed(tmp_path):
     rep = build(proven, pytest_exit=0, run_examples=False)
     assert rep.ok is False
     assert render_markdown(rep).startswith("# ABIO test report — NOT PROVEN (examples not run)")
+
+
+def test_non_strict_xpass_counted_apart_from_passed(tmp_path):
+    """T091 AE5 — JUnit writes a non-strict XPASS as a bare case, so the
+    header read ``3 passed`` where pytest said ``1 passed, 2 xpassed``. The
+    plugin ``run_pytest`` loads marks it; a strict XPASS stays a failure."""
+    import subprocess
+    import sys
+
+    from alienbio.report import count_cases
+
+    (tmp_path / "test_x.py").write_text(
+        "import pytest\n"
+        "@pytest.mark.xfail(strict=True, reason='strict')\n"
+        "@pytest.mark.parametrize('i', [1, 2])\n"
+        "def test_strict_xpass(i): pass\n"
+        "@pytest.mark.xfail(strict=False, reason='lax')\n"
+        "@pytest.mark.parametrize('i', [1, 2])\n"
+        "def test_lax_xpass(i): pass\n"
+        "@pytest.mark.xfail(reason='really fails')\n"
+        "def test_real_xfail(): assert False\n"
+        "def test_ok(): pass\n"
+        "def test_skip(): pytest.skip('s')\n"
+    )
+    junit = tmp_path / "j.xml"
+    out = subprocess.run(
+        [sys.executable, "-m", "pytest", str(tmp_path / "test_x.py"), "-q", "-p", "no:cacheprovider",
+         "-p", "alienbio._report_plugin", f"--junitxml={junit}"],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    assert "2 failed, 1 passed, 1 skipped, 1 xfailed, 2 xpassed" in out.stdout
+    assert count_cases(junit) == {"passed": 1, "failed": 2, "skipped": 1, "xfailed": 1, "xpassed": 2}

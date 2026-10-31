@@ -31,7 +31,7 @@ A YAML file is one `!experiment` call whose `task:`, `brief:` and `episode:` are
 | 16 | `resume` | `_resume_spec_drift` | on a resume, an unreadable or spec-less `manifest.json`, or a spec that drifted from it |
 | 17 | `out_dir` | inline | an existing `records.jsonl` unless `resume=True` |
 
-The retry pass is not a check: on a resume, `run_experiment` re-runs error lines after a clean preflight, preserving the originals in `records.retried.jsonl`. The per-check detail is [ABIO Guards](../ABIO%20Dev%20Docs/ABIO%20suite/ABIO%20Guards.md).
+The retry pass is not a check: on a resume, `run_experiment` re-runs error lines after a clean preflight, preserving the originals in `records.retried.jsonl`. The per-check detail is [ABIO Guards](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Dev%20Docs/ABIO%20suite/ABIO%20Guards.md).
 
 `bio suite run --dry` runs the same `preflight()` the run does, with the run's own `resume=False`, and prints all seventeen verdicts (`resume` as `skipped (not a resume)`), exiting 1 when the run would refuse; the estimate is advisory metadata on the manifest, and the only spend gate at run time is `cost_ceiling_usd`, consulted after every landed unit.
 

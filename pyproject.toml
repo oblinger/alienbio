@@ -56,8 +56,14 @@ select = ["E", "F", "I", "N", "W"]
 [tool.pyright]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
-extraPaths = ["src"]
-exclude = ["src/dvc_dat"]   # vendored third-party library, not ours to type
+# Pyright types what runs: no extra path, and the explicit empty list stops
+# pyright adding `src` on its own, so imports resolve in the interpreter's
+# sys.path order — `dvc_dat` is the pinned site-packages copy the tests
+# import, never the gitignored src/dvc_dat dev symlink (which wins only under
+# PYTHONPATH=src; T091 AE4); `alienbio` comes through the editable install's
+# .pth entry.
+extraPaths = []
+exclude = ["src/dvc_dat"]   # the dev symlink to a local dvc-dat checkout, not ours to type
 reportUnsupportedDunderAll = "error"   # a name in __all__ that does not exist is a broken export
 
 # The one dev list: a bare `uv sync` installs it, so `just test`, `just check`,

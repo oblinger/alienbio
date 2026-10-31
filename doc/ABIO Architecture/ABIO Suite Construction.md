@@ -6,7 +6,7 @@ description: "Suite Construction subsystem — how a suite spec becomes a batter
 
 # ABIO Suite Construction
 **Subsystem**: ~~ABIO execution~~ > Benchmark generation
-Turns a *suite spec* into a **suite** — a battery of auto-graded tasks laid over a small set of verified worlds. This is the built realization of the [[ABIO Inference Bench]]; it sits on top of the world-generation layer defined by the [[ABIO PRD Docs|Scenario Generator PRD]] and does not reinvent it.
+Turns a *suite spec* into a **suite** — a battery of auto-graded tasks laid over a small set of verified worlds. This is the built realization of the [ABIO Inference Bench](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Idea/ABIO%20Inference%20Bench.md); it sits on top of the world-generation layer defined by the [[ABIO PRD Docs|Scenario Generator PRD]] and does not reinvent it.
 
 ## Overview
 The deliverable is a **suite**: many gradable tasks (identify-this-pathway, cure-this-disease, explain-this-molecule, …) instantiated over a handful of freshly-generated alien-biology worlds, each task carrying a machine-checkable objective whose ground truth we hold by construction. The central difficulty is a **catch-22**: you don't want to build a world without knowing what you need from it, but you can't carve a concrete task skeleton without knowing what world you're in. Suite Construction breaks that circle by working at two levels of commitment — it first instantiates *task archetypes* (partially-specified, parameterized task kinds) far enough to know what a world must provide, then runs a **set-covering** step that packs those archetypes into as few world envelopes as possible and assigns each task to a world. Only then does it draft base worlds, carve concrete skeletons into them, flesh them out, and **verify by simulation** — the catch-all that lets us wire skeleton chemicals into shared pathways without silently corrupting any task's ground truth.
@@ -82,7 +82,7 @@ Because worlds are the expensive artifact, the pipeline is designed to **rerun o
 ## Integration with existing subsystems
 Suite Construction is a *coordinator*; the heavy machinery already exists and must not be duplicated.
 - **[[ABIO PRD Docs|Scenario Generator PRD]]** — provides world generation. The **world envelope corresponds to the `scenario_generator_spec`**, and base-world drafting (step 3) + world fleshing (step 5) map onto that PRD's staged pipeline (template resolution → … → background fill). **Integration decision:** a skeleton is best modeled as a *required, verified template* planted before background fill — unifying the PRD's "templates" with the bench's "skeleton primitives" rather than adding a parallel mechanism. (See Open questions.)
-- **[[ABIO Inference Bench]]** / **[[ABIO Inference Bench Detail]]** — supplies the conceptual frame this subsystem builds: skeleton-first construction, simulated verify-then-keep, the spectral-probe + injection instrumentation model that makes every answer identifiable-in-principle, and the difficulty dials (opacity, causal steps, distractors). Suite Construction generalizes the Detail doc's single-world pipeline to a *suite over multiple worlds* and reconciles its skeleton-first and answer-first framings through the archetype/set-covering front end.
+- **[ABIO Inference Bench](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Idea/ABIO%20Inference%20Bench.md)** / **[ABIO Inference Bench Detail](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Idea/ABIO%20Inference%20Bench%20Detail.md)** — supplies the conceptual frame this subsystem builds: skeleton-first construction, simulated verify-then-keep, the spectral-probe + injection instrumentation model that makes every answer identifiable-in-principle, and the difficulty dials (opacity, causal steps, distractors). Suite Construction generalizes the Detail doc's single-world pipeline to a *suite over multiple worlds* and reconciles its skeleton-first and answer-first framings through the archetype/set-covering front end.
 - **[[ABIO biology]]** — the substrate: [[ABIO Molecule]], [[ABIO Reaction]], [[ABIO Chemistry]], [[ABIO Compartment]]. Skeletons are carved from and into these; the [[ABIO WorldSimulator]] is what step 7 runs.
 
 ## Open questions
@@ -94,7 +94,7 @@ Genuine forks to resolve as this subsystem is built (route to `ABIO queries.md`)
 - **Discard rate** — the empirical yield of verify-then-keep; must be instrumented early, as it gates generation cost and how aggressively skeletons may share chemistry.
 
 ## See Also
-- [[ABIO Inference Bench]] — the benchmark idea this subsystem realizes.
-- [[ABIO Inference Bench Detail]] — skeleton-first generation architecture + question-type catalog.
+- [ABIO Inference Bench](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Idea/ABIO%20Inference%20Bench.md) — the benchmark idea this subsystem realizes.
+- [ABIO Inference Bench Detail](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Idea/ABIO%20Inference%20Bench%20Detail.md) — skeleton-first generation architecture + question-type catalog.
 - [[ABIO PRD Docs|Scenario Generator PRD]] — the world-generation layer beneath this subsystem.
 - [[ABIO Architecture Docs]] — architecture index.

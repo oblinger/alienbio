@@ -31,4 +31,4 @@ jobs:
       - name: src/ type-checks
         run: uv run pyright src/
       - name: The docs build
-        run: uv run mkdocs build
+        run: uv run mkdocs build --strict

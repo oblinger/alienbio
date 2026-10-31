@@ -25,10 +25,10 @@ Comprehensive specification of the Alien Biology system's design and operation.
 
 ## Benchmark generation
 
-- **[[ABIO Suite Construction]]** — How a suite spec becomes a battery of auto-graded tasks over a small set of verified worlds (realizes the [[ABIO Inference Bench]], sits atop the [[ABIO PRD Docs|Scenario Generator PRD]]).
+- **[[ABIO Suite Construction]]** — How a suite spec becomes a battery of auto-graded tasks over a small set of verified worlds (realizes the [ABIO Inference Bench](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Idea/ABIO%20Inference%20Bench.md), sits atop the [[ABIO PRD Docs|Scenario Generator PRD]]).
 - **[[ABIO Suite Runtime]]** — The Phase-2 layer that runs an agent against those tasks: the turn loop, the agent Protocols (scripted and live-model), the per-trial record, and the mass-trial sweep.
 
 ## Project Tracking
 
-- **[[ABIO Roadmap]]** — Milestones and release plan
+- **[ABIO Roadmap](https://github.com/oblinger/alienbio/blob/main/doc/ABIO%20Design/ABIO%20Roadmap.md)** — Milestones and release plan
 - **ABIO Todo** — Tasks, open questions, and documentation todos
