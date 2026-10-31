@@ -716,12 +716,65 @@ def load_experiment(path: Union[str, Path], *, text: Optional[str] = None, trust
     direct = [str(k) for k, v in data.items() if isinstance(v, Call) and v.head == "experiment"]
     if len(direct) > 1:
         raise ExprError(f"expected exactly one !experiment among the top-level bindings, found {len(direct)}: {direct}", source)
+    # T091 AL9: a literal !experiment anywhere but a top-level value (inside
+    # a list, a nested mapping, another call's arguments) was built and
+    # silently dropped by the count below.
+    for key, value in data.items():
+        nested = _nested_experiment(value, str(key), top=True)
+        if nested is not None:
+            raise ExprError(f"an experiment must be a top-level document key; found an !experiment at {nested!r}", source)
     scope = env.load(source, text=text)
     values = scope.force_all()
     specs = [v for v in values.values() if isinstance(v, ExperimentSpec)]
+    buried = sum(_count_specs(v) for v in values.values()) - len(specs)
+    if buried:
+        raise ExprError(f"an experiment must be a top-level document key; {buried} experiment(s) were built inside another value", source)
     if len(specs) != 1:
         raise ExprError(f"expected exactly one !experiment among the top-level bindings, found {len(specs)}", source)
     return specs[0]
+
+
+def _nested_experiment(form: Any, path: str, *, top: bool = False) -> Optional[str]:
+    """The document path of a literal ``!experiment`` call that is not a
+    top-level value, else ``None``. A ``template`` body is not walked: what a
+    template builds is counted after evaluation (:func:`_count_specs`)."""
+    if isinstance(form, Call):
+        if form.head == "experiment" and not top:
+            return path
+        if form.head == "template":
+            return None
+        for i, arg in enumerate(form.args):
+            found = _nested_experiment(arg, f"{path}.{i}")
+            if found is not None:
+                return found
+        for k, arg in form.kwargs.items():
+            found = _nested_experiment(arg, f"{path}.{k}")
+            if found is not None:
+                return found
+        return None
+    if isinstance(form, Mapping):
+        for k, v in form.items():
+            found = _nested_experiment(v, f"{path}.{k}")
+            if found is not None:
+                return found
+    elif isinstance(form, (list, tuple)):
+        for i, v in enumerate(form):
+            found = _nested_experiment(v, f"{path}.{i}")
+            if found is not None:
+                return found
+    return None
+
+
+def _count_specs(value: Any) -> int:
+    """Every :class:`ExperimentSpec` in an evaluated value, nested in plain
+    lists / tuples / mappings included."""
+    if isinstance(value, ExperimentSpec):
+        return 1
+    if isinstance(value, dict):  # plain data only — an included helper's namespace is not walked
+        return sum(_count_specs(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return sum(_count_specs(v) for v in value)
+    return 0
 
 
 def _yaml_literal(value: Any) -> str:

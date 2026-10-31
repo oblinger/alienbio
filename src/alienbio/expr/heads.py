@@ -18,10 +18,16 @@ call                                   charge
 ``sum`` of lists                       total length of the rows
 ``a + b`` (sequences)                  ``len(a) + len(b)``
 ``seq * n`` (str/bytes/list/tuple)     ``len(seq) * n``
-``a ** b`` / ``pow``                   refused past 10 000 exponent or 2^24 bits
+``a ** b`` / ``pow``                   refused past 10 000 exponent or 2^20 bits
+``a * b`` (ints)                       refused past 2^20 result bits
+``pow(a, b, m)``                       refused past bits(b) * bits(m) > 2^24
+                                       or bits(m) > 2^20
+``str(x)``                             the rendered size of ``x``
 ``fmt % args``                         ``len(fmt)`` + every width digit run +
-                                       ``*`` widths + arg text (x10 for %r/%a)
-f-string / ``op:fmt``                  part lengths; spec width digit runs
+                                       ``*`` widths + arg rendered size
+                                       (x10 for %r/%a)
+f-string / ``op:fmt``                  part rendered sizes; spec width digit
+                                       runs
 ``op:flatten``                          total row length
 text ``ljust/rjust/center/zfill``      ``max(len, width)``
 text ``expandtabs(t)``                 ``len * max(8, t)``
@@ -80,7 +86,6 @@ for _name, _f in {
     "len": len,
     "int": int,
     "float": float,
-    "str": str,
     "bool": bool,
     "dict": dict,
     "all": all,
@@ -158,6 +163,91 @@ def _min(*a: Any, ctx: Any, **kw: Any) -> Any:
     return min(*(_sized(x, ctx, "min") for x in a), **kw)
 
 
+# ---- rendered size: what ``str`` / an f-string / ``%`` will build -----------
+
+
+def render_bound(value: Any, limit: int) -> int:
+    """An upper estimate of ``len(str(value))``, computed WITHOUT building the
+    text (T091 AL5: ``[[[0] * 1000] * 1000] * 100`` was charged 2 100 elements
+    and rendered to 300 M characters). Every occurrence of a shared list is
+    counted — that is what rendering repeats — and the walk stops as soon as
+    the running total passes ``limit``, so it costs at most ``limit`` steps.
+    A container on the current path is a cycle (Python prints ``[...]``).
+    Per element: separators and brackets, a string's length + quotes, a
+    bytes' escaped length, an int's digits, 32 for any other scalar; a
+    dataclass is walked through its fields; any other object is measured by
+    rendering it (its size was bounded where it was built)."""
+    import dataclasses
+
+    total = 0
+    active: set[int] = set()
+    stack: list[tuple[Any, bool]] = [(value, False)]
+    while stack:
+        x, leaving = stack.pop()
+        if leaving:
+            active.discard(id(x))
+            continue
+        t = type(x)
+        if t in (list, tuple, set, frozenset, dict) or _is_dataclass_value(x):
+            if id(x) in active:
+                total += 5
+                continue
+            active.add(id(x))
+            stack.append((x, True))
+            if t is dict:
+                items: Iterable[Any] = [v for kv in x.items() for v in kv]
+            elif t in (list, tuple, set, frozenset):
+                items = x
+            else:
+                items = [getattr(x, f.name, None) for f in dataclasses.fields(x)]
+                total += len(t.__name__) + 2
+            for item in items:
+                total += 4  # separator, key colon / field name share
+                if total > limit:
+                    return total
+                stack.append((item, False))
+            total += 2
+        elif t is str:
+            total += len(x) + 2
+        elif t in (bytes, bytearray):
+            total += 4 * len(x) + 3
+        elif t is int:
+            total += x.bit_length() // 3 + 2
+        elif t in (float, complex, bool, type(None)):
+            total += 32
+        else:
+            total += len(str(x))
+        if total > limit:
+            return total
+    return total
+
+
+def _is_dataclass_value(x: Any) -> bool:
+    import dataclasses
+
+    return dataclasses.is_dataclass(x) and not isinstance(x, type)
+
+
+def charge_render(value: Any, ctx: Any, what: str) -> None:
+    """Charge what rendering ``value`` will build, before it is built (a
+    ``str`` is its own length)."""
+    if isinstance(value, (str, bytes, bytearray)):
+        n = len(value)
+    else:
+        n = render_bound(value, ctx.limits.entities - ctx.limits.meter.allocated + 1)
+    ctx.limits.charge(n, ctx.path, what)
+
+
+@fn(kind="math", name="str", summary="str")
+def _str(value: Any = "", *args: Any, ctx: Any) -> str:
+    """``str(x)`` charged by its rendered size; ``str(b, encoding)`` decodes."""
+    if args:
+        ctx.limits.charge(4 * _sized_len(value), ctx.path, "str")
+        return str(value, *args)
+    charge_render(value, ctx, "str")
+    return str(value)
+
+
 # ---- op:* heads (what the inline parser emits for operators) --------------
 
 
@@ -196,8 +286,12 @@ def _width_bound(spec: Any) -> int:
     return sum(int(d) for d in _DIGITS.findall(spec)) if isinstance(spec, str) else 0
 
 
-def _text_len(x: Any) -> int:
-    return len(x) if isinstance(x, (str, bytes, bytearray)) else len(str(x))
+def _text_len(x: Any, ctx: Any = None) -> int:
+    """The text ``x`` interpolates as, by :func:`render_bound` (never built)."""
+    if isinstance(x, (str, bytes, bytearray)):
+        return len(x)
+    limit = ctx.limits.entities - ctx.limits.meter.allocated + 1 if ctx is not None else 10**7
+    return render_bound(x, limit)
 
 
 @fn(kind="op", name="op:mod", summary="operator mod")
@@ -213,7 +307,7 @@ def _mod(a: Any, b: Any, *, ctx: Any) -> Any:
         # %r / %a write a repr: up to 10 characters per character of the
         # text ('\U0010ffff' under ascii) — charged at that bound (T091 C4).
         growth = 10 if _REPR_CONVERSION.search(fmt) else 1
-        ctx.limits.charge(len(fmt) + _width_bound(fmt) + star + growth * sum(_text_len(x) for x in items), ctx.path, "mod")
+        ctx.limits.charge(len(fmt) + _width_bound(fmt) + star + growth * sum(_text_len(x, ctx) for x in items), ctx.path, "mod")
     return a % b
 
 
@@ -224,14 +318,32 @@ MAX_INT_EXPONENT = 10_000
 #: The largest integer result (in bits) ``op:pow`` may build (T051 box 4: the
 #: exponent cap alone did not bound the work — ``(10 ** 10000) ** 10000`` is
 #: within it and is ~15 minutes of one core for a 332 M-bit integer).
-MAX_POW_RESULT_BITS = 1 << 24
+#: T091 AL6: lowered from 2^24 — ``(10**1000)**4000`` (13 M bits) passed it
+#: and took 15 s, and squaring THAT took 38 s. One 2^20-bit product is about
+#: half a second; ``limits.seconds`` bounds a chain of them.
+MAX_POW_RESULT_BITS = 1 << 20
+
+#: ``pow(a, b, m)`` does ~bits(b) multiplications modulo ``m``:
+#: bits(b) * bits(m) is capped here (T091 AL6 — a 13 M-bit exponent with a
+#: 10 K-bit modulus ran past a minute).
+MAX_MODPOW_WORK = 1 << 24
+
+
+def _is_int(x: Any) -> bool:
+    return isinstance(x, int) and not isinstance(x, bool)
 
 
 @fn(kind="op", name="op:mul", summary="operator mul")
 def _mul(a: Any, b: Any, *, ctx: Any) -> Any:
     for seq, n in ((a, b), (b, a)):
-        if isinstance(seq, (str, bytes, list, tuple)) and isinstance(n, int) and not isinstance(n, bool):
+        if isinstance(seq, (str, bytes, list, tuple)) and _is_int(n):
             ctx.limits.charge(len(seq) * max(n, 0), ctx.path, "mul")
+    if _is_int(a) and _is_int(b):
+        # T091 AL6: a big-int product is superlinear in its size — bounded by
+        # result bits like `**`.
+        bits = a.bit_length() + b.bit_length()
+        if bits > MAX_POW_RESULT_BITS:
+            raise ExprError(f"mul: result of ~{bits} bits exceeds {MAX_POW_RESULT_BITS}", ctx.path)
     return a * b
 
 
@@ -254,7 +366,14 @@ def _pow(a: Any, b: Any, *, ctx: Any) -> Any:
 @fn(kind="math", name="pow", summary="pow")
 def _pow_named(a: Any, b: Any, mod: Any = None, *, ctx: Any) -> Any:
     if mod is not None:
-        return pow(a, b, mod)  # bounded by mod's size; Python refuses a negative int exponent without one
+        if _is_int(b) and _is_int(mod):
+            mod_bits = mod.bit_length()
+            if mod_bits > MAX_POW_RESULT_BITS:
+                raise ExprError(f"pow: modulus of {mod_bits} bits exceeds {MAX_POW_RESULT_BITS}", ctx.path)
+            work = abs(b).bit_length() * mod_bits
+            if work > MAX_MODPOW_WORK:
+                raise ExprError(f"pow: exponent bits x modulus bits = {work} exceeds {MAX_MODPOW_WORK}", ctx.path)
+        return pow(a, b, mod)
     return _pow(a, b, ctx=ctx)
 
 
@@ -341,7 +460,7 @@ def _method_bound(obj: Any, name: str, args: tuple[Any, ...], kwargs: Mapping[st
             return n * max([8] + ints)
         if name == "join":
             items = args[0] if args and hasattr(args[0], "__len__") else ()
-            return sum(_text_len(x) for x in items) + n * len(items)
+            return sum(_text_len(x) if isinstance(x, (str, bytes, bytearray)) else 0 for x in items) + n * len(items)
         if name == "replace":
             return n + (n + 1) * max([0] + texts)
         if name == "translate":
@@ -424,9 +543,10 @@ def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
 
 
 def _fstr(*parts: Any, ctx: Any) -> str:
-    texts = [p if isinstance(p, str) else str(p) for p in parts]
-    ctx.limits.charge(sum(len(t) for t in texts), ctx.path, "fstr")  # before the join (T088 heads 4)
-    return "".join(texts)
+    # Charged before any part is rendered or joined (T088 heads 4; T091 AL5:
+    # a non-text part is sized by `render_bound`, not by building it).
+    ctx.limits.charge(sum(_text_len(p, ctx) for p in parts), ctx.path, "fstr")
+    return "".join(p if isinstance(p, str) else str(p) for p in parts)
 
 
 def _fmt(value: Any, spec: str = "", conv: str = "", *, ctx: Any) -> str:
@@ -435,6 +555,12 @@ def _fmt(value: Any, spec: str = "", conv: str = "", *, ctx: Any) -> str:
     # `op:fstr` when the parts join).
     if spec:
         ctx.limits.charge(_width_bound(spec), ctx.path, "fmt")
+    if not isinstance(value, (str, int, float, complex, bool, type(None))):
+        # T091 AL5: a container renders here, before `op:fstr` sees text —
+        # charged by its rendered size first (x10 under !r / !a).
+        charge_render(value, ctx, "fmt")
+        if conv in ("r", "a"):
+            ctx.limits.charge(9 * _text_len(value, ctx), ctx.path, "fmt")
     if conv == "r":
         value = repr(value)
     elif conv == "s":

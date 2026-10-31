@@ -22,6 +22,7 @@ The special forms are the whole control surface: ``let``, ``each``, ``if``,
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
 
@@ -175,7 +176,23 @@ def _strings_in(value: Any) -> list[str]:
 
 
 def evaluate(form: Any, env: Env) -> Any:
-    """Evaluate ``form`` in ``env``."""
+    """Evaluate ``form`` in ``env``. The outermost call of a session starts
+    the ``limits.seconds`` clock (T091 AL6); nested calls share it."""
+    clock = env.ctx.limits.meter.clock
+    if getattr(clock, "active", 0):
+        clock.active += 1
+        try:
+            return _evaluate(form, env)
+        finally:
+            clock.active -= 1
+    clock.active, clock.deadline = 1, time.monotonic() + env.ctx.limits.seconds
+    try:
+        return _evaluate(form, env)
+    finally:
+        clock.active, clock.deadline = 0, None
+
+
+def _evaluate(form: Any, env: Env) -> Any:
     if env.depth > env.ctx.limits.depth:
         raise env.error(f"evaluation deeper than limits.depth={env.ctx.limits.depth}")
     if isinstance(form, Name):
@@ -214,13 +231,14 @@ def _call(form: Call, env: Env) -> Any:
 
 
 def _dispatch(form: Call, env: Env) -> Any:
+    env.ctx.limits.tick(env.path)
     head = env.head(form.head)
     if head.is_special:
-        return head.fn(form.args, form.kwargs, env)
+        return _guard_raw(form, env, head.fn, form.args, form.kwargs, env)
     if isinstance(head, TemplateHead):
         return head.expand(form.args, form.kwargs, env.with_ns(env.path))
     if head.is_expander:
-        produced = head.fn(form.args, form.kwargs, env.with_ns(env.path))
+        produced = _guard_raw(form, env, head.fn, form.args, form.kwargs, env.with_ns(env.path))
         return evaluate(produced, Env(env.bindings, env.registry, env.ctx, env.ns, env.depth + 1))
     # a function: evaluate the arguments, then call
     args = [evaluate(a, env.child(str(i))) for i, a in enumerate(form.args)]
@@ -229,14 +247,23 @@ def _dispatch(form: Call, env: Env) -> Any:
         kwargs["ctx"] = env.ctx
     if "env" in head.injects:
         kwargs["env"] = env
+    return _guard_raw(form, env, head.fn, *args, **kwargs)
+
+
+def _guard_raw(form: Call, env: Env, fn: Any, /, *args: Any, **kwargs: Any) -> Any:
+    """Call a head's body; a raw Python exception escaping it becomes an
+    :class:`ExprError` naming the head and the original message (T088
+    expr/interp 3 for ``TypeError`` / ``ValueError`` / ``ArithmeticError``;
+    T091 AL7 for the rest — ``LookupError`` from ``'a'.encode('bogus')``, a
+    ``KeyError`` out of a drafter, ``RecursionError``). A
+    :class:`GuardViolation` passes through: guard heads speak it."""
     try:
-        return head.fn(*args, **kwargs)
-    except ExprError:
+        return fn(*args, **kwargs)
+    except (ExprError, GuardViolation):
         raise
-    except (TypeError, ValueError, ArithmeticError) as exc:
-        # A callable's own failure carries the node path: ``exp(1000)``'s
-        # OverflowError and ``log(0)``'s ValueError reached callers that
-        # catch ExprError as untyped crashes (T088 expr/interp 3).
+    except RecursionError:
+        raise env.error(f"{form.head}: evaluation too deep (Python recursion limit)") from None
+    except Exception as exc:
         kind = "" if isinstance(exc, TypeError) else f"{type(exc).__name__}: "
         raise env.error(f"{form.head}: {kind}{exc}") from exc
 
@@ -319,6 +346,7 @@ def _guarded_call(form: Call, env: Env) -> Any:
     attempts = env.ctx.limits.attempts if on_fail == "retry" else 1
     failure: Optional[_Failure] = None
     for n in range(attempts):
+        env.ctx.limits.tick(env.path)
         # A retry re-draws on a child SEED at the same path: a child path
         # renamed a template instance ``retry1`` (its pools ``retry1.P``,
         # and a second retried template under one parent refused as a
@@ -425,6 +453,7 @@ def _each(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
     result_list: list[Any] = []
     result_map: dict[Any, Any] = {}
     for i, item in enumerate(items):
+        env.ctx.limits.tick(env.path)
         scope = env.bind(**{var: item})
         if where is not _MISSING and not evaluate(where, scope.child(f"{i}.where")):
             continue

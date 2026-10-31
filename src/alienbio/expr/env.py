@@ -10,6 +10,8 @@ re-rolls another's draws.
 
 from __future__ import annotations
 
+import threading
+import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
@@ -38,10 +40,18 @@ class Meter:
     (``[[0] * 10**5 for _ in range(10**5)]``) is refused when the running
     total crosses ``limits.entities``, not after the memory is gone."""
 
-    __slots__ = ("allocated",)
+    __slots__ = ("allocated", "clock")
 
     def __init__(self) -> None:
         self.allocated = 0
+        #: The wall-clock deadline of the evaluation in progress (T091 AL6),
+        #: per thread (concurrent trials share a closure env's meter):
+        #: ``clock.deadline`` is set when an outermost
+        #: :func:`~alienbio.expr.interp.evaluate` begins and ``clock.active``
+        #: counts the nesting, so every top-level evaluation — a binding
+        #: forced at load, a quoted task drawn per trial — gets its own
+        #: ``limits.seconds``.
+        self.clock = threading.local()
 
 
 @dataclass(frozen=True)
@@ -51,7 +61,19 @@ class Limits:
     entities: int = 1_000_000  # elements one `each`/`range`/`list` may produce, and in total per session
     depth: int = 100  # evaluation nesting (T051 box 4: one template level is ~5.5 Python frames, so 200 sat above the interpreter's own limit and could never fire)
     attempts: int = 8  # guard retries (M47.5)
+    #: Wall-clock seconds one top-level evaluation may run (T091 AL6): checked
+    #: at every head call, ``each`` iteration and guard retry; past it the
+    #: evaluation raises :class:`ExprError`. One Python operation is not
+    #: interrupted — the size caps (``MAX_POW_RESULT_BITS`` on ``*`` / ``**`` /
+    #: ``pow``) keep each one short; this bounds a chain of them.
+    seconds: float = 10.0
     meter: Meter = field(default_factory=Meter, compare=False, repr=False)
+
+    def tick(self, path: str) -> None:
+        """Raise when the evaluation in progress has run past ``seconds``."""
+        deadline = getattr(self.meter.clock, "deadline", None)
+        if deadline is not None and time.monotonic() > deadline:
+            raise ExprError(f"evaluation exceeded limits.seconds={self.seconds:g}", path)
 
     def charge(self, n: int, path: str, what: str) -> None:
         """Count ``n`` elements against the session total; raise past the cap."""
@@ -297,6 +319,19 @@ class Env:
                     # forcing it evaluates nothing.
                     elif not _is_form(value.form) and not isinstance(value.form, (dict, list)) and callable(value.form):
                         return _callable_head(first, self._force(first, value), self.ctx)
+                    # T091 AL10: a binding no registered head shares a name
+                    # with (`c: !x ...` then `!x c(1)`) is forced here, so a
+                    # callable binding works as a head whatever the document
+                    # order. A registered head's name is not forced: a key
+                    # that merely shares it (`world: !world {...}`) is the
+                    # node being evaluated.
+                    elif name not in self.registry:
+                        forced = self._force(first, value)
+                        if isinstance(forced, Head):
+                            return forced
+                        if callable(forced):
+                            return _callable_head(first, forced, self.ctx)
+                        raise self.error(f"{first!r} is bound to a {type(forced).__name__}, not a head or a callable")
             elif isinstance(value, Head):
                 return value
             elif callable(value):
