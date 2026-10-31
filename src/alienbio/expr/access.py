@@ -29,15 +29,36 @@ before any of this applies.
 **Calling a bound value** (:func:`check_callable`, T091 AL8): an untrusted
 spec calls registered heads only — a Python function that leaks into data (a
 constraint predicate, an agent factory) is not callable there. Under trust a
-bound callable is never one of :data:`DENIED_ENTRY_POINTS` — the framework
-functions that load specs or execute code (T091 AL3: ``!py
-alienbio.expr.include.run_python_file`` ran any ``.py`` on disk); what a
-``!py`` walk or an included helper hands back is judged where it is read
-(:func:`check_reference`, ``expr.include``).
+bound callable is never in a denied module (below); what a ``!py`` walk or an
+included helper hands back is judged where it is read
+(:func:`check_reference`, ``expr.include``), and what a helper function
+RETURNS is judged as it returns (:func:`check_returned`, T091 AP1).
+
+**Framework code a trusted spec may reach** (T091 AP2). The rule is by
+module, not by function, and has two halves:
+
+- **Denied modules** (:data:`DENIED_ENTRY_POINTS`): every name in a module
+  that loads a spec, runs an experiment or pytest, writes files, reads keys
+  or calls the network — the loaders and the evaluator, the experiment
+  runner and store, the report, the models snapshot, config, the CLI. A
+  denied name refuses at every door: a ``!py`` step, a name read off an
+  included helper, a bound callable, a helper's return value — and a
+  ``functools.partial`` or bound method is judged by the function it wraps.
+- **Allowed code** (:data:`PY_ALLOWED_MODULES` + the registered heads): a
+  ``!py`` reference into ``alienbio`` that lands on a function or class must
+  be a registered head's function or live in an allowed module (the
+  distributions, the makers). Plain data and domain values elsewhere in
+  ``alienbio`` stay readable; everything else a spec needs is a head.
+
+What a spec's own included helpers define is the helper author's code, and
+is trusted as such: a helper can import ``subprocess`` itself. The rule
+keeps a YAML-only trusted spec — no helper — from reaching side effects, and
+keeps a helper's imports from leaking through it by reference.
 """
 
 from __future__ import annotations
 
+import functools
 import types
 from functools import lru_cache
 from typing import Any, Optional
@@ -120,45 +141,100 @@ def domain_types() -> tuple[type, ...]:
     return tuple(out)
 
 
-#: Framework entry points that load a spec or execute code, refused by name
-#: wherever a spec could reach them — a ``!py`` walk, an included helper's
-#: namespace, a callable bound in data — under trust too (T091 AL3). An
-#: entry is ``module:qualname`` (a class covers its methods: ``Env`` covers
-#: ``Env.load`` / ``Env.standard``) or ``module:*`` (the module and every
-#: submodule and name in it).
+#: Modules whose every name is refused wherever a trusted spec could reach
+#: it — a ``!py`` walk, an included helper's namespace, a callable bound in
+#: data, a helper's return value (T091 AL3, reorganized by module in AP2:
+#: ``!py alienbio.report.example_rows`` ran every catalog example, and
+#: ``resolve_source_path`` + ``write_models_snapshot`` wrote any file). An
+#: entry is ``module:*`` (the module and everything in or under it).
 DENIED_ENTRY_POINTS: tuple[str, ...] = (
-    "alienbio.expr.include:*",  # run_python_file, load_include, include_bindings, hydrate, resolve_py
-    "alienbio.expr.interp:*",  # evaluate and the special-form evaluators
-    "alienbio.expr.yaml_tags:load_text",
-    "alienbio.expr.env:Env",  # Env.load, Env.standard, Env.hydrate
-    "alienbio.suite.spec:load_spec",
-    "alienbio.suite.expr_experiment:load_experiment",
-    "alienbio.suite.experiment:run_experiment",
-    "alienbio.report:run_pytest",
+    # loading and evaluating specs, executing helper code
+    "alienbio.expr.include:*",
+    "alienbio.expr.interp:*",
+    "alienbio.expr.yaml_tags:*",
+    "alienbio.expr.env:*",
+    "alienbio.suite.spec:*",  # load_spec, resolve_source_path, the spec codec
+    "alienbio.suite.expr_experiment:*",  # load_experiment
+    # running experiments and writing their results
+    "alienbio.suite.experiment:*",
+    "alienbio.suite.store:*",
+    "alienbio.suite.mass_trial:*",
+    "alienbio.suite.runner:*",
+    # the live model, its key and its snapshot (network, files)
+    "alienbio.suite.llm_agent:*",  # fetch_models_snapshot, write_models_snapshot
+    # the report (pytest, every catalog example), config, the CLI
+    "alienbio.report:*",
+    "alienbio._report_plugin:*",
+    "alienbio.capabilities:*",
+    "alienbio.config:*",
     "alienbio.commands:*",
     "alienbio.cli:*",
 )
 
+#: The ``alienbio`` modules whose functions and classes a ``!py`` reference
+#: may land on, beside the registered heads' own functions (T091 AP2).
+PY_ALLOWED_MODULES: tuple[str, ...] = (
+    "alienbio.suite.dist",
+    "alienbio.bio.makers",
+)
+
+
+def _unwrap(obj: Any) -> Any:
+    """The function a ``functools.partial`` or bound method wraps (T091 AP1:
+    a partial has no ``__qualname__``, so ``partial(load_spec, …)`` passed)."""
+    for _ in range(100):
+        if isinstance(obj, functools.partial):
+            obj = obj.func
+        elif isinstance(obj, types.MethodType):
+            obj = obj.__func__
+        else:
+            break
+    return obj
+
+
+def _owner(obj: Any) -> Optional[str]:
+    """The module ``obj`` (a module, class or callable) belongs to; ``None``
+    for a data value (an instance's class module does not make data code)."""
+    obj = _unwrap(obj)
+    if isinstance(obj, types.ModuleType):
+        return obj.__name__
+    if isinstance(obj, type) or callable(obj):
+        module = getattr(obj, "__module__", None)
+        if isinstance(module, str):
+            return module
+        self_ = getattr(obj, "__self__", None)  # a builtin method: its receiver's module
+        if isinstance(self_, types.ModuleType):
+            return self_.__name__
+    return None
+
+
+def _in_module(module: str, prefix: str) -> bool:
+    return module == prefix or module.startswith(prefix + ".")
+
 
 def denied_entry_point(obj: Any) -> Optional[str]:
     """The :data:`DENIED_ENTRY_POINTS` entry ``obj`` (a module, class,
-    function or method) falls under, else ``None``."""
-    if isinstance(obj, types.ModuleType):
-        module: Any = obj.__name__
-        qualname: Any = ""
-    else:
-        module = getattr(obj, "__module__", None)
-        qualname = getattr(obj, "__qualname__", "")
-    if not isinstance(module, str):
+    function, method or partial — unwrapped) falls under, else ``None``."""
+    module = _owner(obj)
+    if module is None:
         return None
     for entry in DENIED_ENTRY_POINTS:
-        mod, _, qual = entry.partition(":")
-        if qual == "*":
-            if module == mod or module.startswith(mod + "."):
-                return entry
-        elif module == mod and isinstance(qualname, str) and (qualname == qual or qualname.startswith(qual + ".")):
+        if _in_module(module, entry.partition(":")[0]):
             return entry
     return None
+
+
+def allowed_framework_code(obj: Any) -> bool:
+    """``obj`` (a function or class under ``alienbio``) is code a spec may
+    reach by reference: a registered head's function or a name in
+    :data:`PY_ALLOWED_MODULES` (T091 AP2)."""
+    from .registry import registry
+
+    target = _unwrap(obj)
+    if registry.has_fn(target):
+        return True
+    module = _owner(target)
+    return module is not None and any(_in_module(module, m) for m in PY_ALLOWED_MODULES)
 
 
 def check_reference(value: Any, what: str) -> None:
@@ -175,6 +251,44 @@ def check_reference(value: Any, what: str) -> None:
     if callable(value) or is_plain(value) or is_domain(value):
         return
     raise UnsafeExpressionError(f"{what}: {_type_name(value)} is not plain data or a domain value")
+
+
+def check_returned(value: Any, what: str) -> None:
+    """What a trusted bound callable (an included helper's function, a
+    ``!py`` function) returned (T091 AP1): judged like a reference, and a
+    callable or class in it must be the spec's own helper code or allowed
+    framework code (:func:`allowed_framework_code`) — never a module, a
+    function from outside those roots (``subprocess.run``), or a partial or
+    bound method wrapping a denied one. Plain containers are walked."""
+    from .include import INCLUDE_MODULE_PREFIX
+
+    seen: set[int] = set()
+    stack = [value]
+    while stack:
+        x = stack.pop()
+        if id(x) in seen:
+            continue
+        seen.add(id(x))
+        if type(x) in (list, tuple, set, frozenset):
+            stack.extend(x)
+            continue
+        if type(x) is dict:
+            stack.extend(x.keys())
+            stack.extend(x.values())
+            continue
+        if not isinstance(x, type) and not callable(x) and type(x).__module__.startswith(INCLUDE_MODULE_PREFIX):
+            continue  # an instance of the helper's own class: inert data (access.py stops its methods)
+        check_reference(x, what)
+        if isinstance(x, type) or callable(x):
+            module = _owner(x)
+            if module is not None and module.startswith(INCLUDE_MODULE_PREFIX):
+                continue
+            if module is not None and _in_module(module, "alienbio") and allowed_framework_code(x):
+                continue
+            raise UnsafeExpressionError(
+                f"{what}: returned {_type_name(x)} from {module!r}, outside the spec's helpers and the "
+                f"allowed framework code (registered heads, {list(PY_ALLOWED_MODULES)})"
+            )
 
 
 def _type_name(value: Any) -> str:
@@ -260,9 +374,12 @@ __all__ = [
     "DENIED_ENTRY_POINTS",
     "DOMAIN_CLASS_NAMES",
     "PLAIN_TYPES",
+    "PY_ALLOWED_MODULES",
+    "allowed_framework_code",
     "check_callable",
     "check_name",
     "check_reference",
+    "check_returned",
     "denied_entry_point",
     "domain_types",
     "is_domain",

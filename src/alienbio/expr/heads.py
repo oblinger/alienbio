@@ -724,7 +724,19 @@ def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
         # `xs.index(x)` / `xs.count(x)` compare x with every element (T091 AP3)
         env.ctx.limits.charge(element_bound(obj, _remaining(env.ctx)), env.path, f"method {name}")
         env.ctx.limits.tick(env.path)
-    return _check_int_result(target(*args, **kwargs), env.ctx, f"method {name}")
+    result = target(*args, **kwargs)
+    if isinstance(obj, Mapping) and name in obj:
+        _check_returned(result, f"{name}(...)", env)
+    return _check_int_result(result, env.ctx, f"method {name}")
+
+
+def _check_returned(value: Any, what: str, env: Env) -> None:
+    """What a function held in a mapping (an included helper's) returned
+    passes :func:`.access.check_returned` (T091 AP1)."""
+    try:
+        access.check_returned(value, what)
+    except UnsafeExpressionError as exc:
+        raise env.error(str(exc)) from None
 
 
 def _fstr(*parts: Any, ctx: Any) -> str:

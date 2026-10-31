@@ -261,7 +261,9 @@ def _check_py_object(path: str, obj: Any, step: str, *, final: bool = False) -> 
     or a helper's ``from subprocess import run`` refuses like ``os.system``.
     No step may be a denied entry point (:data:`.access.DENIED_ENTRY_POINTS`),
     a non-module step that is not callable must be plain data or a domain
-    value, and the result must not be a module (T091 AL3)."""
+    value, and the result must not be a module (T091 AL3). A function or
+    class it lands on under ``alienbio`` must be allowed framework code
+    (:func:`.access.allowed_framework_code`, T091 AP2)."""
     what = f"!py {path!r}"
     _deny(what, obj, step)
     if isinstance(obj, types.ModuleType):
@@ -278,6 +280,15 @@ def _check_py_object(path: str, obj: Any, step: str, *, final: bool = False) -> 
         )
     if final:
         _check_final(what, obj, step)
+        if not isinstance(obj, types.ModuleType) and not str(owner).startswith(INCLUDE_MODULE_PREFIX):
+            from .access import PY_ALLOWED_MODULES, allowed_framework_code
+
+            # T091 AP2: framework code is allow-listed, not deny-listed.
+            if not allowed_framework_code(obj):
+                raise UnsafeSpecError(
+                    f"!py {path!r}: {step!r} is framework code a spec may not reference — only registered "
+                    f"heads and {list(PY_ALLOWED_MODULES)} (call a head by name instead)"
+                )
 
 
 def _check_helper_object(module: str, what: str, obj: Any, step: str) -> None:

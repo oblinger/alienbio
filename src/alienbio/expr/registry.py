@@ -125,6 +125,10 @@ class Registry:
         except KeyError:
             return False
 
+    def has_fn(self, func: Any) -> bool:
+        """Whether ``func`` is a registered head's function (any kind)."""
+        return any(h.fn is func for h in self._heads.values())
+
     def names(self) -> list[str]:
         return sorted(n for n in self._heads if n in self)
 

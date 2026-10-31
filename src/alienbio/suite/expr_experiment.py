@@ -41,6 +41,7 @@ Importing this module registers the heads; ``Env.standard`` imports it.
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
@@ -698,9 +699,18 @@ def _load_experiment(source: str, text: str, env: Env) -> ExperimentSpec:
     if isinstance(data, Call):
         from ..expr.interp import evaluate
 
+        # T091 AP10: the whole-document form gets the nested-experiment
+        # check too — an inner `!experiment` as a drafter kwarg or an axis
+        # level was built and refused later as a drafter fault.
+        nested = _nested_experiment(data, "experiment", top=True)
+        if nested is not None:
+            raise ExprError(f"an experiment must be the document or a top-level document key; found an !experiment at {nested!r}", source)
         spec = evaluate(data, env.child("experiment"))
         if not isinstance(spec, ExperimentSpec):
             raise ExprError(f"the document must be an !experiment (got {type(spec).__name__})", source)
+        buried = _count_specs_inside(spec)
+        if buried:
+            raise ExprError(f"an experiment must be the document or a top-level document key; {buried} experiment(s) were built inside this one", source)
         return spec
     if not isinstance(data, Mapping):
         raise ExprError("an experiment file is an !experiment call or a mapping holding one", source)
@@ -731,7 +741,7 @@ def _load_experiment(source: str, text: str, env: Env) -> ExperimentSpec:
     scope = env.load(source, data=data)
     values = scope.force_all()
     specs = [v for v in values.values() if isinstance(v, ExperimentSpec)]
-    buried = sum(_count_specs(v) for v in values.values()) - len(specs)
+    buried = sum(_count_specs(v) for v in values.values()) - len(specs) + sum(_count_specs_inside(v) for v in specs)
     if buried:
         raise ExprError(f"an experiment must be a top-level document key; {buried} experiment(s) were built inside another value", source)
     if len(specs) != 1:
@@ -780,6 +790,12 @@ def _count_specs(value: Any) -> int:
     if isinstance(value, (list, tuple)):
         return sum(_count_specs(v) for v in value)
     return 0
+
+
+def _count_specs_inside(spec: ExperimentSpec) -> int:
+    """The :class:`ExperimentSpec` values held in ``spec``'s own fields (a
+    drafter kwarg, an axis level, a fixed dial)."""
+    return sum(_count_specs(getattr(spec, f.name, None)) for f in dataclasses.fields(spec))
 
 
 def _yaml_literal(value: Any) -> str:

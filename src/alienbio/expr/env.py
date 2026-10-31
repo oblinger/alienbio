@@ -157,7 +157,17 @@ def _callable_head(name: str, func: Any, ctx: "Ctx") -> Head:
     except UnsafeExpressionError as exc:
         raise ExprError(f"{name!r}: {exc}", ctx.path) from None
 
-    return Head(name=name, kind="fn", fn=func, meta={"summary": f"bound callable {name}"}, injects=_injects(func))
+    def call(*args: Any, **kwargs: Any) -> Any:
+        # T091 AP1: what the callable returns is judged as it returns — a
+        # helper's `return subprocess` or `partial(load_spec, ...)` refuses.
+        result = func(*args, **kwargs)
+        try:
+            access.check_returned(result, f"{name}(...)")
+        except UnsafeExpressionError as exc:
+            raise ExprError(str(exc), ctx.path) from None
+        return result
+
+    return Head(name=name, kind="fn", fn=call, meta={"summary": f"bound callable {name}"}, injects=_injects(func))
 
 
 class Lazy:

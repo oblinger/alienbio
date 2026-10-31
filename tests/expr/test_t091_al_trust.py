@@ -109,7 +109,8 @@ def test_al2_an_included_helpers_imports_refuse_and_its_definitions_resolve(tmp_
     ("alienbio.suite.expr_experiment.load_experiment", "entry point"),
     ("alienbio.suite.experiment.run_experiment", "entry point"),
     ("alienbio.report.run_pytest", "entry point"),
-    ("alienbio.capabilities.REPO_ROOT", "not plain data"),
+    ("alienbio.capabilities.REPO_ROOT", "entry point"),  # T091 AP2: capabilities is a denied module
+    ("alienbio.expr.heads.render_bound", "framework code"),  # T091 AP2: not a head, not an allowed module
     ("alienbio.expr.registry.registry", "not plain data"),
     ("alienbio.suite.dist", "is a module"),
 ])

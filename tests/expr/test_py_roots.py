@@ -35,9 +35,16 @@ def test_an_alienbio_reference_resolves():
     assert resolve_py("alienbio.expr.heads.constant", trusted=True) is constant
 
 
-@pytest.mark.parametrize("path", ["alienbio.config.os.system", "alienbio.suite.store.os"])
+@pytest.mark.parametrize("path", ["alienbio.expr.heads.re.compile", "alienbio.expr.heads.math.sqrt"])
 def test_the_walk_cannot_leave_the_roots_through_an_imported_module(path):
-    with pytest.raises(UnsafeSpecError, match="belongs to 'os'|belongs to 'posix'"):
+    with pytest.raises(UnsafeSpecError, match="belongs to 're'|belongs to 'math'"):
+        resolve_py(path, trusted=True)
+
+
+@pytest.mark.parametrize("path", ["alienbio.config.os.system", "alienbio.suite.store.os"])
+def test_a_denied_module_refuses_before_its_imports_are_walked(path):
+    # T091 AP2: config and the store are denied modules — every name in them.
+    with pytest.raises(UnsafeSpecError, match="entry point"):
         resolve_py(path, trusted=True)
 
 
