@@ -71,6 +71,7 @@ A name → `Head` table. A view is the same table filtered to some kinds.
 | [names](#^names) | Every visible name, sorted |
 | [view](#^view) | A live, kind-filtered view |
 | [describe](#^describe) | Name, kind, signature, summary per head |
+| [has_fn](#^has-fn) | Whether a callable is some head's function |
 
 **register**`(head: Head, *, replace: bool = False) -> Head`
     Refuses on a view. Refuses when the name is taken by a different callable that is not the same definition (§ [Collisions and replace](#collisions-and-replace)), naming the existing head's kind and `module.qualname`; refuses a same-definition re-registration whose `kind`, `guarded` or `guarded_params` differ, naming the fields; with `replace=True` the new head wins either way. ^register
@@ -89,6 +90,9 @@ A name → `Head` table. A view is the same table filtered to some kinds.
 
 **describe**`() -> list[dict]`
     One `{name, kind, signature, summary}` per visible head; read only by the capability test that proves every head is called. ^describe
+
+**has_fn**`(func) -> bool`
+    Whether `func` is the `fn` of any head in the table, any kind, by identity. `access.allowed_framework_code` reads it: a `!py` reference or a helper's return value may land on a registered head's function ([ABIO Access](ABIO%20Access.md), `df0bc6c`, T091 AP2). ^has-fn
 
 
 
@@ -177,3 +181,4 @@ Nothing is registered until a module that decorates into the table is imported: 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: two `.py` files under one stem whose `@fn` differs only in `summary=` register both when the decorator is one line and refuse the second when it spans four. Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: the same-definition check compares AST dumps with decorators dropped, and a same-definition re-registration changing `kind`/`guarded`/`guarded_params` refuses (`c90ce0d`).
+- 2026-10-30 — refreshed for `df0bc6c` (T091 AP2): `Registry.has_fn` (new) — a callable is a head's function, read by the `!py` allow-list. Figure still true. (`c0094c7` does not touch this module.)

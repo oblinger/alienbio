@@ -13,18 +13,26 @@ The page for the `!x` spelling of Expr: which Python expressions are accepted, t
 
 
 ## parse Interface
-Two functions.
+Three functions and the integer-literal cap.
 
 | parse | |
 | --- | --- |
 | [parse](#^parse) | Inline text to a form |
 | [dump](#^dump) | A form to inline text |
+| [MAX_INT_LITERAL_BITS](#^max-int-literal-bits) | The largest integer a spec may write |
+| [check_int_literal](#^check-int-literal) | Refuse an over-cap literal |
 
 **parse**`(text: str, *, path: str = "") -> Any`
     Runs `validate_expression(text)`, then converts the expression body (§ [Text to forms](#text-to-forms)). Raises `ExprError` at `path` on a syntax error, on a construct outside the allowlist, on nesting deep enough to exhaust the parser, and on a construct the converter refuses (lambda, `**` unpacking, a non-literal dict key, a call whose target is neither a name nor an attribute, an async or destructuring comprehension). ^parse
 
 **dump**`(form: Any) -> str`
     Writes a form as inline text: a name as its path, a `Quoted` as `quote(...)`, an operator call in its infix or prefix spelling with full parentheses, `if` as a conditional expression, an `op:fstr` as an f-string, any other call as `head(args, key=value)`, data as Python literals. § [What dump can write back](#what-dump-can-write-back). ^dump
+
+**MAX_INT_LITERAL_BITS**` = 1 << 20`
+    The largest integer literal, in bits, a spec may write — inline here and in YAML through [ABIO YamlTags](ABIO%20YamlTags.md)'s int constructor (`c0094c7`, T091 AP4: a 2 MB hex literal was an 8 M-bit int, free, and one `%` on it ran 40 s). `heads.MAX_POW_RESULT_BITS` is this value, so no integer a spec holds is bigger than one it could compute ([ABIO Heads](ABIO%20Heads.md)). ^max-int-literal-bits
+
+**check_int_literal**`(value: int, path: str = "") -> int`
+    `value` if it fits `MAX_INT_LITERAL_BITS`, else `ExprError` at `path`; `parse` runs it on every integer constant. ^check-int-literal
 
 
 
@@ -86,3 +94,4 @@ A slice dumps with a trailing colon (`a[1:2:]`), which parses back to the same f
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `dump(parse(t))` re-parses equal for slices, f-strings, methods, `-1`, conditionals and chained comparisons, and fails for a list comprehension and a set literal; a counting head in the middle of `0 < f() < 2` ran twice; the nested dict comprehension above returned a list of two dicts. Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: a chained comparison binds a non-trivial shared operand once (`let __cmp0`), a multi-`for` dict comprehension refuses, `dump` writes comprehensions and set literals back as text that re-parses (`c90ce0d`); the figure's ‡ note narrowed.
 - 2026-10-29 — refreshed for `dc92971` (T091 C12): a chained comparison binds a non-simple left operand first as `__cmpl<depth>`, so operands evaluate left to right. Figure still true.
+- 2026-10-30 — refreshed for `c0094c7` (T091 AP4): `MAX_INT_LITERAL_BITS = 2^20` and `check_int_literal` (new) cap every integer literal, inline and YAML. Figure still true.

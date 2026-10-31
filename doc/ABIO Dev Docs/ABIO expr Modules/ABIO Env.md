@@ -86,8 +86,8 @@ Bindings, heads and context, immutable in spirit: every `child`, `bind`, `scope`
 **head**`(name: str) -> Head`
     § [Head lookup](#head-lookup). Raises `unknown head` when neither the scope nor the registry has it. ^head
 
-**load**`(source: str | Path, *, text: str | None = None, base=None) -> Env`
-    § [Loading a file](#loading-a-file). Returns the env whose new scope holds one `Lazy` per top-level key. Raises `ExprError` when the document is not a mapping, and `UnsafeSpecError` from an untrusted include it may not make. ^load
+**load**`(source: str | Path, *, text=None, base=None, data=None) -> Env`
+    § [Loading a file](#loading-a-file). `data` is the document already parsed (`load_experiment` parses once, `c0094c7`, T091 AP7); else `text`; else the file, refused over `MAX_SPEC_BYTES` before it is read. Returns the env whose new scope holds one `Lazy` per top-level key. Raises `ExprError` when the document is not a mapping, and `UnsafeSpecError` from an untrusted include it may not make. ^load
 
 **hydrate**`(data, *, base=None) -> Any`
     Resolves `Include` and `PyRef` nodes inside already-loaded forms under this env's trust, relative to `base` or the working directory. Unlike `load`, it passes no cycle set and no executed modules. ^hydrate
@@ -96,7 +96,7 @@ Bindings, heads and context, immutable in spirit: every `child`, `bind`, `scope`
     § [Pool names](#pool-names). ^pool
 
 **force_all**`() -> dict[str, Any]`
-    Evaluates every binding local to this scope (not its parents) and returns them by key; the call a loaded document's consumer makes to get values. ^force-all
+    Evaluates every binding local to this scope (not its parents) and returns them by key; the call a loaded document's consumer makes to get values. One `limits.seconds` clock covers them all, or the enclosing load's when one is running (`c0094c7`, T091 AP5). ^force-all
 
 
 
@@ -144,10 +144,11 @@ A frozen dataclass of caps. Exceeding one raises `ExprError`; nothing is ever tr
 | [entities](#^entities) | Elements one producer may make, and in total |
 | [depth](#^limits-depth) | Evaluation nesting |
 | [attempts](#^attempts) | Guard retries and prune rounds |
-| [seconds](#^seconds) | Wall clock per top-level evaluation |
+| [seconds](#^seconds) | Wall clock per document load |
 | [meter](#^meter) | The running total |
 | [charge](#^charge) | Count elements, refuse past the cap |
 | [tick](#^tick) | Refuse past the clock's deadline |
+| [running](#^running) | One clock over a block |
 
 **entities**`: int = 1_000_000`
     The cap on one `each`, `range`, `list` or other sized producer, and on the running total in `meter`. ^entities
@@ -159,7 +160,7 @@ A frozen dataclass of caps. Exceeding one raises `ExprError`; nothing is ever tr
     `on_fail: retry` attempts and `on_fail: prune` rounds. ^attempts
 
 **seconds**`: float = 10.0`
-    Wall-clock seconds one top-level `evaluate` may run (`db4e905`, T091 AL6). The outermost `evaluate` sets the deadline on `meter.clock`; nested calls share it. Checked by `tick` at every head call (`_dispatch`), every `each` iteration and every guard retry. One Python operation is not interrupted — the size caps (`MAX_POW_RESULT_BITS`, [ABIO Heads](ABIO%20Heads.md)) keep each one short; this bounds a chain of them. ^seconds
+    Wall-clock seconds one document load may run — parse, includes and every binding together (`c0094c7`, T091 AP5: the clock was per binding, so a file of N bindings each just under the limit ran N times it). `Env.load`, `Env.force_all` and `load_experiment` hold one clock through `running`; an `evaluate` outside a load (a quoted task drawn per trial) gets its own (`db4e905`, T091 AL6). Checked by `tick` at every head call and after it returns, every `each` iteration, guard retry and include. One Python operation is not interrupted — the size caps (`MAX_POW_RESULT_BITS` and the comparison charge, [ABIO Heads](ABIO%20Heads.md); `MAX_INT_LITERAL_BITS`, [ABIO Parse](ABIO%20Parse.md); `MAX_SPEC_BYTES`, [ABIO YamlTags](ABIO%20YamlTags.md)) keep each one short; this bounds a chain of them. ^seconds
 
 **meter**`: Meter`
     The cumulative count; created per `Limits` object (and replaced by `Env.standard` on a passed one), excluded from equality and repr. ^meter
@@ -169,6 +170,9 @@ A frozen dataclass of caps. Exceeding one raises `ExprError`; nothing is ever tr
 
 **tick**`(path: str) -> None`
     Raises `ExprError` (`evaluation exceeded limits.seconds=…`) when the evaluation in progress on this thread is past its deadline; a no-op outside an evaluation. ^tick
+
+**running**`(path: str = "") -> ContextManager[None]`
+    One `seconds` clock over the block (`c0094c7`, T091 AP5): the outermost `running` or `evaluate` sets `meter.clock.deadline`, every nested one shares it, and a block that finishes past the deadline raises at `path` — its last operation was not interrupted. ^running
 
 
 
@@ -241,7 +245,7 @@ Two reserved binding names a template instance carries, and the module's one hel
 
 
 ## Head lookup
-`head(name)` with an undotted name checks the scope chain first. A binding there wins over the registry when it is a head already (an evaluated `!template`), a `Lazy` whose pending form is a `template` call (forced on the spot), a `Lazy` holding a resolved `!py` object or `.py` function, any other callable value, or — when no registered head has the name — a pending binding of any form, forced on the spot (`db4e905`, T091 AL10: `c: !x ...` then `!x c(1)` works whatever the document order; a forced value that is neither a head nor callable raises `bound to a <type>, not a head or a callable`). A callable becomes a function head with `ctx` / `env` injection read off its signature, after `access.check_callable` — an untrusted env refuses every one (only registered heads and templates are callable there), a trusted one refuses a denied entry point ([ABIO Access](ABIO%20Access.md)). A pending binding whose name a registered head has — a document key that merely shares it, such as `world: !world {...}` — is not forced and does not shadow, so evaluating that key does not report a false cycle. Otherwise the full name goes to the registry.
+`head(name)` with an undotted name checks the scope chain first. A binding there wins over the registry when it is a head already (an evaluated `!template`), a `Lazy` whose pending form is a `template` call (forced on the spot), a `Lazy` holding a resolved `!py` object or `.py` function, any other callable value, or — when no registered head has the name — a pending binding of any form, forced on the spot (`db4e905`, T091 AL10: `c: !x ...` then `!x c(1)` works whatever the document order; a forced value that is neither a head nor callable raises `bound to a <type>, not a head or a callable`). A callable becomes a function head with `ctx` / `env` injection read off its signature, after `access.check_callable` — an untrusted env refuses every one (only registered heads and templates are callable there), a trusted one refuses a name in a denied module ([ABIO Access](ABIO%20Access.md)). The head wraps the callable so what it returns passes `access.check_returned` as it returns (`df0bc6c`, T091 AP1: a helper's `return subprocess` or `partial(load_spec, …)` refuses). A pending binding whose name a registered head has — a document key that merely shares it, such as `world: !world {...}` — is not forced and does not shadow, so evaluating that key does not report a false cycle. Otherwise the full name goes to the registry.
 
 A dotted name whose first segment is bound resolves its whole path through the scope (`lookup`): a head at the end of it is returned, a callable becomes a function head, and anything else — an unresolvable path included — falls to the registry. So `!t.anything {}` is `unknown head` unless the registry has `t.anything`, where it once called template `t`.
 
@@ -253,7 +257,7 @@ Inside a template instance, `pool(name)` returns the caller's spelling for a str
 
 
 ## Loading a file
-`load` reads the text (or takes `text=`), parses it with the Expr YAML loader, and refuses a non-mapping document. Then, in order: the `_includes_` list resolves (`.py` entries execute for their registrations, `.yaml` entries contribute top-level keys); every `Include` and `PyRef` in the tree is replaced; included keys are added where the file does not define them; each top-level key becomes a `Lazy` in a fresh child scope. The source path is resolved once (`d943ce4`, T091 AL1): the text is read from the resolved file, relative includes resolve against `base`, else the resolved file's directory, else — for text with no file behind it — the process's working directory, and the resolved file seeds the include cycle set. So a symlink to a catalog spec includes catalog's helpers, not the helpers beside the link.
+`load` takes the parsed document (`data=`) or reads the text (or takes `text=`) and parses it once with the Expr YAML loader (`load_text(text, source=)`, [ABIO YamlTags](ABIO%20YamlTags.md)), and refuses a non-mapping document. The whole load runs under one `limits.seconds` clock (`Limits.running`) and one include budget (`include_session`, [ABIO Include](ABIO%20Include.md): at most `MAX_INCLUDE_LOADS` file loads per document) (`c0094c7`, T091 AP5, AP6). Then, in order: the `_includes_` list resolves (`.py` entries execute for their registrations, `.yaml` entries contribute top-level keys); every `Include` and `PyRef` in the tree is replaced; included keys are added where the file does not define them; each top-level key becomes a `Lazy` in a fresh child scope. The source path is resolved once (`d943ce4`, T091 AL1): the text is read from the resolved file, relative includes resolve against `base`, else the resolved file's directory, else — for text with no file behind it — the process's working directory, and the resolved file seeds the include cycle set. So a symlink to a catalog spec includes catalog's helpers, not the helpers beside the link.
 
 
 
@@ -274,3 +278,4 @@ Every sized producer (`each`, `range`, `list`, `sorted`, `zip`, `sum`, `add`, `m
 - 2026-10-29 — refreshed for `dc92971` (T091 C11): a forced binding evaluates one level below the deeper of its definition and its lookup, so name chains count toward `limits.depth`. Figure still true.
 - 2026-10-30 — refreshed for `5c08bc8` (T091 AG1): `lookup`'s attribute step and a bound callable used as a head go through [ABIO Access](ABIO%20Access.md) — receiver type judged after a mapping key or index, `_` names refused everywhere, `check_callable` on a bound callable. Figure still true.
 - 2026-10-30 — refreshed for `d943ce4` (T091 AL1) and `db4e905` (AL6, AL10): `load` reads and bases includes on the resolved file; `Limits.seconds` (10 s wall clock per top-level evaluation, per thread on `Meter.clock`) and `tick`; `head` forces any pending binding no registered head shares a name with; `check_callable` now refuses every bound callable untrusted. Figure still true.
+- 2026-10-30 — refreshed for `c0094c7` (T091 AP5, AP7) and `df0bc6c` (AP1): `Limits.seconds` is one clock per document load; `Limits.running` (new) holds it in `load`, `force_all` and `load_experiment`; `tick` also runs after each head call; `load(data=)` takes the already-parsed tree and opens one include session; a bound callable's result is judged by `access.check_returned`. Figure still true.

@@ -57,8 +57,9 @@
     <text id="n-tr-name" x="1110" y="338" font-size="18" font-weight="600" text-anchor="middle">trusted</text>
     <text id="n-tr-kind" x="1110" y="362" font-size="14" text-anchor="middle">what was bound</text>
   </g>
-  <text id="l-tr" x="1110" y="410" font-size="13" fill="#495057" text-anchor="middle">but no denied</text>
-  <text id="l-tr2" x="1110" y="428" font-size="13" fill="#495057" text-anchor="middle">entry point</text>
+  <text id="l-tr" x="1110" y="410" font-size="13" fill="#495057" text-anchor="middle">no denied module;</text>
+  <text id="l-tr2" x="1110" y="428" font-size="13" fill="#495057" text-anchor="middle">returns: own helpers</text>
+  <text id="l-tr3" x="1110" y="446" font-size="13" fill="#495057" text-anchor="middle">or allow-listed code</text>
   <line id="e-cc-untr" x1="990" y1="234" x2="950" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-cc-tr" x1="1090" y1="234" x2="1110" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <text id="l-cc" x="950" y="410" font-size="13" fill="#495057" text-anchor="middle">only registered heads</text>

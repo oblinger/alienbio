@@ -13,8 +13,8 @@
   <g id="n-math">
     <rect id="n-math-box" x="300" y="60" width="280" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-math-name" x="440" y="86" font-size="18" font-weight="600" text-anchor="middle">plain math</text>
-    <text id="n-math-kind" x="440" y="108" font-size="14" text-anchor="middle">(math) abs · round · sqrt · exp · log</text>
-    <text id="n-math-kind2" x="440" y="128" font-size="14" text-anchor="middle">len · int · float · bool · dict · …</text>
+    <text id="n-math-kind" x="440" y="108" font-size="14" text-anchor="middle">(math) abs · sqrt · exp · log</text>
+    <text id="n-math-kind2" x="440" y="128" font-size="14" text-anchor="middle">len · float · bool · dict · …</text>
   </g>
   <g id="n-dist">
     <rect id="n-dist-box" x="600" y="60" width="280" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
@@ -25,7 +25,7 @@
   <g id="n-ops">
     <rect id="n-ops-box" x="300" y="190" width="280" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-ops-name" x="440" y="216" font-size="18" font-weight="600" text-anchor="middle">other operators</text>
-    <text id="n-ops-kind" x="440" y="238" font-size="14" text-anchor="middle">(op) sub · div · neg · eq … isnot</text>
+    <text id="n-ops-kind" x="440" y="238" font-size="14" text-anchor="middle">(op) sub · div · neg · not · is</text>
     <text id="n-ops-kind2" x="440" y="258" font-size="14" text-anchor="middle">item · attr (checked) · slice</text>
   </g>
   <g id="n-sized">
@@ -37,14 +37,14 @@
   <g id="n-unm">
     <rect id="n-unm-box" x="300" y="320" width="280" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-unm-name" x="440" y="346" font-size="18" font-weight="600" text-anchor="middle">unmetered ‡</text>
-    <text id="n-unm-kind" x="440" y="368" font-size="14" text-anchor="middle">op:set · int · dict</text>
+    <text id="n-unm-kind" x="440" y="368" font-size="14" text-anchor="middle">op:set · dict</text>
     <text id="n-unm-kind2" x="440" y="388" font-size="14" text-anchor="middle">no larger than a charged input</text>
   </g>
   <g id="n-opm">
     <rect id="n-opm-box" x="600" y="320" width="280" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-opm-name" x="740" y="346" font-size="18" font-weight="600" text-anchor="middle">metered operators</text>
     <text id="n-opm-kind" x="740" y="368" font-size="14" text-anchor="middle">(op) add · mul · flatten · fstr · mod</text>
-    <text id="n-opm-kind2" x="740" y="388" font-size="14" text-anchor="middle">fmt · method; int mul, pow bit-capped</text>
+    <text id="n-opm-kind2" x="740" y="388" font-size="14" text-anchor="middle">fmt · method · == &lt; in (containers)</text>
   </g>
   <g id="n-guards">
     <rect id="n-guards-box" x="600" y="460" width="280" height="70" rx="10" fill="#e6fcf5" stroke="#1e1e1e" stroke-width="2"/>
@@ -53,9 +53,9 @@
   </g>
   <g id="n-consts">
     <rect id="n-consts-box" x="300" y="460" width="280" height="80" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-consts-name" x="440" y="486" font-size="18" font-weight="600" text-anchor="middle">pow caps</text>
+    <text id="n-consts-name" x="440" y="486" font-size="18" font-weight="600" text-anchor="middle">int caps</text>
     <text id="n-consts-kind" x="440" y="508" font-size="14" text-anchor="middle">(const) MAX_INT_EXPONENT 10 000</text>
-    <text id="n-consts-kind2" x="440" y="528" font-size="14" text-anchor="middle">MAX_POW_RESULT_BITS 2^20</text>
+    <text id="n-consts-kind2" x="440" y="528" font-size="14" text-anchor="middle">MAX_POW_RESULT_BITS 2^20, all ints</text>
   </g>
   <line id="e-consts-opm" x1="580" y1="480" x2="650" y2="400" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
   <text id="l-consts-opm" x="598" y="440" font-size="14" fill="#1971c2" font-style="italic" text-anchor="end">bound</text>

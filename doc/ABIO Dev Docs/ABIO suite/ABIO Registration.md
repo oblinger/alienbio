@@ -13,22 +13,26 @@ The parser and resolver for the commit-tracked registry of filed pre-registratio
 
 
 ## registration Interface
-One constant and two functions.
+One constant and two functions, plus the `suite.yaml_keys` check the registry shares with the Expr loader.
 
 | registration | |
 | --- | --- |
 | [REGISTRY_RELPATH](#^registry-relpath) | Where the registry lives in the repo |
 | [load_registry](#^load-registry) | Parse and validate the whole file |
 | [resolve_registration](#^resolve-registration) | The entry one id claims |
+| [refuse_duplicate_nodes](#^refuse-duplicate-nodes) | (`yaml_keys`) duplicate keys in a composed tree |
 
 **REGISTRY_RELPATH**` = Path("catalog") / "registrations.yaml"`
     Relative to the repository root, which the caller resolves (`guards` uses `spec.REPO_ROOT`; tests monkeypatch it in `suite/guards.py`). ^registry-relpath
 
 **load_registry**`(path: Path) -> dict[str, Registration]`
-    `suite.yaml_keys.refuse_duplicate_keys` over `yaml.SafeLoader` refuses a repeated mapping key (T088; since `e5ea4d0` the one node-walk check every suite YAML read shares — the registry, every experiment file through `load_experiment` before it parses, and since `661005d` every `!include`'d file through `expr.include.load_include`; a `<<:` merge key is not a duplicate and loads, T091 B12); an empty or comments-only file is an empty registry. Raises `ValueError` on a repeated id or field (`registration registry <path>: duplicate key 'a' at line N`), when the top level is not a mapping, an id is not a non-empty string, or any entry breaks the contract (§ [The entry contract](#the-entry-contract)). A missing file raises `FileNotFoundError`; callers reach it through `resolve_registration`, which checks first. ^load-registry
+    `suite.yaml_keys.refuse_duplicate_keys` over `yaml.SafeLoader` refuses a repeated mapping key (T088; since `e5ea4d0` the one node-walk check every suite YAML read shares; since `c0094c7`, T091 AP7, experiment files and `!include`'d files run the same walk as `refuse_duplicate_nodes` inside the Expr loader's single parse; a `<<:` merge key is not a duplicate and loads, T091 B12); an empty or comments-only file is an empty registry. Raises `ValueError` on a repeated id or field (`registration registry <path>: duplicate key 'a' at line N`), when the top level is not a mapping, an id is not a non-empty string, or any entry breaks the contract (§ [The entry contract](#the-entry-contract)). A missing file raises `FileNotFoundError`; callers reach it through `resolve_registration`, which checks first. ^load-registry
 
 **resolve_registration**`(reg_id: str, path: Path) -> Registration`
     Raises `ValueError` when `path` does not exist ("file the entry first"), when the file fails to load, or when `reg_id` is not an id in it (the message lists the ids it has). Otherwise the entry. Parses the whole file on every call, so one malformed entry refuses every claim. ^resolve-registration
+
+**refuse_duplicate_nodes**`(node: yaml.Node) -> None` (`suite.yaml_keys`)
+    Raises `ValueError` naming the key and its lines when any mapping in an already-composed node tree repeats a key — the walk `refuse_duplicate_keys(text, loader)` runs after composing, exposed so `expr.yaml_tags.load_text` checks the tree it composed once and constructs from it (`c0094c7`, T091 AP7). A standard-tag scalar key over 4 096 characters is compared by its text, not constructed (T091 AP4: a huge int key would bypass the int-literal cap). ^refuse-duplicate-nodes
 
 
 
@@ -89,3 +93,4 @@ The design's audit trail is that the file only changes by commit. The record lin
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the duplicate-id last-wins, the quoted impossible date and the unattributed unquoted-date error confirmed by `load_registry` on scratch files from the HEAD export, no spend. Consumer census: `suite/guards.py` only in `src/`. Left out: how the guard combines the license with the no-peeking rule ([ABIO Guards](ABIO%20Guards.md)).
 - 2026-10-28 — refreshed against `9db219f`: `load_registry` refuses a repeated id or field; an unquoted impossible date now raises a `ValueError` naming the file.
 - 2026-10-29 — refreshed for `e5ea4d0` and `661005d` (T091 B5, B12, D-round includes): the duplicate-key refusal is `suite.yaml_keys.refuse_duplicate_keys`, shared with experiment files and `!include`'d YAML; merge keys load.
+- 2026-10-30 — refreshed for `c0094c7` (T091 AP4, AP7): `suite.yaml_keys.refuse_duplicate_nodes` (new block) is the check on a composed tree, run inside `expr.yaml_tags.load_text`'s single parse for experiment files and includes; the registry keeps `refuse_duplicate_keys`. Figure still true. (`df0bc6c` does not touch this module.)
