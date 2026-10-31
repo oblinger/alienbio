@@ -442,7 +442,7 @@ _CASCADE_KEY = (
 )
 _PATHWAY_KEY = (
     "no intended solver: survey-commit 0.000 (out of turns); the host's ids are opaque and "
-    "dealt per seed since T096 (52 distinct keys over 60 seeds, the blind modal key right on "
+    "dealt per seed since T096 (49 distinct keys over 60 seeds, the blind modal key right on "
     "none), so constant-key 0.000 ties it"
 )
 _PATHWAY_RANDOM = (

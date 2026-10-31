@@ -186,11 +186,12 @@ def carve(host: Any, pattern: Motif, allow_add: bool = True, *, env: Env) -> Car
 
 @fn(summary="identify-the-pathway objective over a carved chain: {question, objective}")
 def identify(world: WorldImpl, roles: Sequence[str], skeleton: Optional[CarveResult] = None, binding: Optional[Mapping[str, str]] = None, verb: str = "identify", *, env: Env) -> dict[str, Any]:
-    """The key is checked against ``world`` (T091 AF1/AF3/AF5): at least three
-    roles, every node a molecule of the world joined in order by its
-    reactions (a node a ``!carve`` synthesized refuses — carve with
-    ``allow_add: False``), and the one route of its length between the
-    endpoints."""
+    """The key is checked against ``world`` (T091 AF1/AF3/AF5, AM3/AM8): at
+    least three roles, every node a molecule of the world visited once and
+    joined in order by its reactions (a node a ``!carve`` synthesized
+    refuses — carve with ``allow_add: False``), and the one shortest route
+    between the endpoints (a shorter route, or a second as short, refuses
+    by name; a longer alternative loads)."""
     skeleton = _skeleton_or_empty(skeleton, "identify", env, binding)
     try:
         return _objective_of(IdentifyPathwayRecipe(role_names=tuple(str(r) for r in roles), verb=str(verb)), skeleton, world)
