@@ -83,7 +83,7 @@
 
   <g id="n-cost">
     <rect id="n-cost-box" x="20" y="520" width="560" height="60" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
-    <text id="n-cost-k1" x="300" y="546" font-size="13" text-anchor="middle">no-synthesis pass first, then synthesis pruned below the best reuse;</text>
+    <text id="n-cost-k1" x="300" y="546" font-size="13" text-anchor="middle">no-synthesis pass first, then k = 1, 2, … synthesized roles, first k wins;</text>
     <text id="n-cost-k2" x="300" y="566" font-size="13" text-anchor="middle">over MAX_EMBEDDINGS = 10 000 at the best reuse: CarveFail with the sizes</text>
   </g>
 

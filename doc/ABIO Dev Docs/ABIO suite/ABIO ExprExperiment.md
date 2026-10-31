@@ -30,13 +30,13 @@ Layer 3. Hand-built tasks: a pattern carved into a host, an objective over it, a
 | [task](#^task) | A `TaskInstance` |
 
 **pattern**`(roles: Mapping[str, str], edges=(), constraints=None, params=None) -> Motif` (constructor)
-    Refuses empty roles, a constraint or edge naming an unknown role, and an edge that is not `[from, to, relation]`. A constraint is a head name or a callable. ^pattern
+    Refuses empty roles, a constraint or edge naming an unknown role, and an edge that is not `[from, to, relation]`. A constraint is a head name or a callable. A role's tag `molecule` or `reaction` restricts what `!carve` binds it to (T091 AM4, `2a29e7b`); any other tag is a label. ^pattern
 
 **carve**`(host, pattern: Motif, allow_add=True) -> CarveResult`
     Carves into the host's chemistry (a world or a chemistry) under the node's seed; a `CarveFail` becomes an `ExprError` with its reason. ^carve
 
 **identify**`(world, roles, skeleton=None, binding=None, verb="identify")`
-    `IdentifyPathwayRecipe` over the roles. With no skeleton, `binding` names the roles directly (`{target: glucose}`); giving both refuses. ^identify
+    `IdentifyPathwayRecipe` over the roles. With no skeleton, `binding` names the roles directly (`{target: glucose}`); giving both refuses. The key must be molecules only, no repeats, and the world's one shortest route between its endpoints ([ABIO IdentifyPathwayRecipe](ABIO%20IdentifyPathwayRecipe.md) § `check_pathway_key`); a refusal is an `ExprError` with its message. ^identify
 
 **diagnose_q**`(world, skeleton=None, binding=None, target_role=…, verb="diagnose")`
     `DiagnosePerturbationRecipe`. ^diagnose-q
@@ -167,3 +167,4 @@ The experiment head and the front end.
 - 2026-10-28 — refreshed against 0eb23e5 (`64988be`, `13298f0`): `name`/`key_readout`/`out_dir` are quoted on the way back, infinite dials write `1e999`, NaN refuses, a negative literal dial loads; the figure's dagger follows.
 - 2026-10-30 — refreshed for `5c08bc8` (T091 AG1): `load_experiment` refuses two literal `!experiment` calls on the unevaluated tree before `Env.load` runs any helper; a quoted form's environment is read through `closure_env`. Figure still true.
 - 2026-10-30 — refreshed for `d943ce4` (T091 AL1) and `db4e905` (AL9): `load_spec` hands `load_experiment` the resolved path and its text; a literal `!experiment` nested anywhere but a top-level value, or a spec built inside another value, refuses. Figure still true.
+- 2026-10-30 — refreshed for `2a29e7b` (T091 AM3, AM4): `pattern`'s `molecule`/`reaction` tags restrict carve's binding; `identify`'s key is molecules only, simple, the one shortest route.

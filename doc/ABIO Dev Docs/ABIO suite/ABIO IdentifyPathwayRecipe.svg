@@ -76,7 +76,7 @@
   <g id="n-echo">
     <rect id="n-echo-box" x="20" y="500" width="880" height="56" rx="10" fill="#ffffff" stroke="#868e96" stroke-width="1"/>
     <text id="n-echo-k1" x="460" y="524" font-size="13" text-anchor="middle">echo the question: answer [r0, r2] against key [r0, r1, r2] scores 0 (the stated ends earn none);</text>
-    <text id="n-echo-k2" x="460" y="542" font-size="13" text-anchor="middle">check_pathway_key refuses a key absent from the world, run backwards, or not the one route of its length</text>
+    <text id="n-echo-k2" x="460" y="542" font-size="13" text-anchor="middle">check_pathway_key refuses a key absent from the world, run backwards, or not the one shortest route</text>
   </g>
 
   <g id="legend">

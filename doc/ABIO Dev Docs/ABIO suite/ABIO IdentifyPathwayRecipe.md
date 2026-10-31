@@ -41,12 +41,13 @@ A frozen dataclass implementing the `ObjectiveRecipe` protocol. Construction ref
 
 
 ## archetypes Interface
-Two constants, one predicate, the key check and the factory.
+Three constants, one predicate, the key check and the factory.
 
 | archetypes | |
 | --- | --- |
 | [REACTS_TO](#^reacts-to) | The chain's edge tag |
 | [MIN_PATHWAY_LENGTH](#^min-pathway-length) | The shortest chain, 3 |
+| [MAX_ROUTE_NODES](#^max-route-nodes) | The route search's cap, 100 000 |
 | [_is_molecule](#^is-molecule) | Role gate excluding reactions |
 | [check_pathway_key](#^check-pathway-key) | Refuse a key the world does not carry |
 | [identify_pathway](#^identify-pathway) | Build the archetype |
@@ -57,11 +58,14 @@ Two constants, one predicate, the key check and the factory.
 **MIN_PATHWAY_LENGTH**` = 3`
     Checked by the recipe, by `identify_pathway` (and so by the drafter's `pathway_length` dial) and by `pathway_puzzles`' `opaque_host` (T091 AF3). ^min-pathway-length
 
+**MAX_ROUTE_NODES**` = 100_000`
+    The most molecules `check_pathway_key`'s breadth-first search visits before the end is reached; past it the key refuses ("more than 100000 molecules reachable from A before the end") rather than search on (T091 AM6). ^max-route-nodes
+
 **_is_molecule**`(node: object) -> bool`
     `not hasattr(node, "reactants")`, so no role binds a reaction node. ^is-molecule
 
 **check_pathway_key**`(path: list[str], world: WorldImpl) -> None`
-    Raises `ValueError` unless every node is a node of the world (a carve-synthesized `r2#new` is not — carve with `allow_add: False` — nor a hand binding naming an absent id), each step runs the chemistry's way (molecule to molecule through a reaction, molecule to a reaction consuming it, reaction to its product, so an inert end is caught), and no second route between the stated endpoints has the same length and molecule/reaction shape — that one refuses naming both routes, since the question would mark a true route wrong (T091 AF1, AF5). ^check-pathway-key
+    Raises `ValueError` unless every node is a node of the world (a carve-synthesized `r2#new` is not — carve with `allow_add: False` — nor a hand binding naming an absent id), every node is a molecule (a reaction id refuses, named: "a pathway is a route of molecules"), no node repeats, each step runs the chemistry's way (one reaction taking the first as reactant and giving the second as product, so an inert end is caught), and the key is the world's one shortest route between its endpoints, found by breadth-first search over molecules capped at `MAX_ROUTE_NODES`. A shorter route refuses naming it ("not the shortest route — [A, B, C] runs A -> C in 3 nodes"); a second route as short refuses naming both ("the key is not unique"); a longer alternative loads, since the grader reads the shortest (T091 AF1, AF5, AM3, AM4, AM8). ^check-pathway-key
 
 **identify_pathway**`(pathway_length: int, *, constraints: tuple[Predicate, ...] = (), archetype_id: str = "identify_pathway") -> TaskArchetype`
     Roles `r0 … r{n−1}`, each gated by `_is_molecule` plus `constraints`; edges `(r_i, r_{i+1}, "reacts_to")`; no drafter, so `build_suite` carves. `ValueError` for `pathway_length < MIN_PATHWAY_LENGTH`. ^identify-pathway
@@ -72,7 +76,7 @@ Two constants, one predicate, the key check and the factory.
 # IdentifyPathwayRecipe Semantics
 
 ## The key by construction
-The key is whatever chain `carve` bound, so it is right only if the world carries it, the right way round, and no other chain of the same length joins the endpoints. That used to be measured (one route in 12 of 12 seeds at `pathway_length = 3`); since `288bf7a` `check_pathway_key` enforces it on every build, through the drafter and the `!identify` head alike. The question supplies both endpoints, so the grader withholds credit for both (`given_prefix: 1`, T088; `given_suffix: 1`, T091 AF11 — appending the end used to double `[r0, r1]`'s credit at three nodes): echoing the question, `[r0, r2]` against the key `[r0, r1, r2]`, scores 0, a bare `[r0]` 0, and `[r0, r1]` 1.0, the one interior node being right. The `pathway_puzzles` example records it (seed 11): first two of four nodes 1/2 (1/3 before), the full chain 1.0, echo and empty 0. That example's agent sees opaque, seed-shuffled names through the example's own `helpers.opaque_host` (T096), not through [ABIO NameMap](ABIO%20NameMap.md): the chain and the distractors are dealt a seed-drawn permutation of `m1` … `mN` and the reactions one of `x1` …, so the route shows only in the reactions and the key varies with the seed. The shared `identify_pathway` drafter is unchanged — it still names the chain `r0` … and its reactions `r0_r1` … (the goldens hold).
+The key is whatever chain `carve` bound, so it is right only if the world carries it, the right way round, as molecules visited once each, and it is the one shortest route between the endpoints — the question states no length, so a shorter true route, or a second as short, would mark a true answer wrong. That used to be measured (one route in 12 of 12 seeds at `pathway_length = 3`); since `288bf7a` `check_pathway_key` enforces it on every build, through the drafter and the `!identify` head alike, and since `2a29e7b` against every shorter route too (it compared only routes of the key's own length and molecule/reaction shape before, and accepted a reaction id or a repeated node in the key). The question supplies both endpoints, so the grader withholds credit for both (`given_prefix: 1`, T088; `given_suffix: 1`, T091 AF11 — appending the end used to double `[r0, r1]`'s credit at three nodes): echoing the question, `[r0, r2]` against the key `[r0, r1, r2]`, scores 0, a bare `[r0]` 0, and `[r0, r1]` 1.0, the one interior node being right. The `pathway_puzzles` example records it (seed 11, key `['m7', 'm1', 'm2', 'm6']` since its host became the validity gate's own draw, `343b22a`): first two of four nodes 1/2 (1/3 before), the full chain 1.0, echo and empty 0. That example's agent sees opaque, seed-shuffled names through the example's own `helpers.opaque_host` (T096), not through [ABIO NameMap](ABIO%20NameMap.md): the chain and the distractors are dealt a seed-drawn permutation of `m1` … `mN` and the reactions one of `x1` …, so the route shows only in the reactions and the key varies with the seed. The shared `identify_pathway` drafter is unchanged — it still names the chain `r0` … and its reactions `r0_r1` … (the goldens hold).
 
 
 
@@ -82,3 +86,4 @@ The key is whatever chain `carve` bound, so it is right only if the world carrie
 - 2026-10-28 — refreshed against `552c1a7`: `grader_spec` adds `given_prefix: 1`, so echoing the endpoints scores 0 (was 0.33).
 - 2026-10-30 — refreshed for `288bf7a` and `8f778bd` (T091 AF1, AF3, AF5, AF11): `MIN_PATHWAY_LENGTH = 3` and `check_pathway_key` (new blocks), the key checked against its world in `build_question` / `build_key`, `given_suffix: 1` so the stated end earns nothing; the `FeatureSet` is gone. Figure's archetype, key, grader and note boxes rewritten.
 - 2026-10-29 — refreshed for `aa53388` (T096): the `pathway_puzzles` example's opaque names come from its `helpers.opaque_host`, not NameMap; the shared drafter is unchanged.
+- 2026-10-30 — refreshed for `2a29e7b` (T091 AM3, AM4, AM6, AM8) and `343b22a` (AM5): the key is molecules only, no repeats, the one shortest route by BFS capped at `MAX_ROUTE_NODES` (new block), with the two refusal messages; `pathway_puzzles` seed 11's key is now `['m7', 'm1', 'm2', 'm6']`, scores unchanged. Figure's key-check note rewritten.

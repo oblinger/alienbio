@@ -198,7 +198,7 @@ A numeric slot accepts `None` (the class default applies), a number (`Constant`)
 
 
 ## verify's redraws
-Each attempt evaluates the world form on a child seed at the same path (`ctx.seed.child("attempt<n>")`), so attempt `n` draws from its own seed and a world that fails the predicate is never reused, while the path, and so any template instance name, is unchanged (‡): a template bound to `one:` and called inside `verify` namespaces its pools `one.P` on every attempt, and two `verify` nodes under one parent no longer collide (since `64988be`; the path step `attempt<n>` named them `attempt0.P` before). The seeds are the same as before.
+Each attempt evaluates the world form on a child seed at the same path (`ctx.seed.child("attempt<n>")`), so attempt `n` draws from its own seed and a world that fails the predicate is never reused, while the path, and so any template instance name, is unchanged (‡): a template bound to `one:` and called inside `verify` namespaces its pools `one.P` on every attempt, and two `verify` nodes under one parent no longer collide (since `64988be`; the path step `attempt<n>` named them `attempt0.P` before). The seeds are the same as before. The `pathway_puzzles` example draws its host this way (`max_redraws: 16`, `valid: non_obvious`, `343b22a`): over seeds 0–59 no seed needs more than two redraws.
 
 
 
@@ -212,3 +212,4 @@ Each attempt evaluates the world form on a child seed at the same path (`ctx.see
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `afd519c` (read with `git show`; `expr_heads.py` unchanged since `c67f052`). Run against an export of that tree: a template bound to `one:` and called as `verify`'s world materialized `root/attempt0.P` where the same template bound to `plain:` gave `root/plain.P`; two instances of a template whose body is a `population` block gave identical molecule sets, the block exposing no ports. Not run: the container merge in `block` (read from 293–301). Findings filed on T088.
 - 2026-10-28 — refreshed against 0eb23e5 (`64988be`, `719261e`): `verify` redraws on a child seed at the same path (instance names kept); `block` refuses one pool in two containers; the world heads' unread `guarded_params` removed; `k_sink_b` is a Dist key; the figure's dagger follows.
 - 2026-10-29 — refreshed for `cbcedfd` (T091 A5, A6): `reaction`'s `stoich` keys are namespaced like its ports, and `RateLawBlock.realize` builds its sides through `blocks._sides` (duplicate ports sum, a stray key refuses).
+- 2026-10-30 — refreshed for `343b22a` (T091 AM5): `pathway_puzzles` draws its host through `verify` (`max_redraws: 16`); `!pattern` and `!identify` are `expr_experiment`'s heads, refreshed for `2a29e7b` in [ABIO ExprExperiment](ABIO%20ExprExperiment.md).
