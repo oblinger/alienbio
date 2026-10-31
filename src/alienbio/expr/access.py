@@ -32,7 +32,10 @@ constraint predicate, an agent factory) is not callable there. Under trust a
 bound callable is never in a denied module (below); what a ``!py`` walk or an
 included helper hands back is judged where it is read
 (:func:`check_reference`, ``expr.include``), and what a helper function
-RETURNS is judged as it returns (:func:`check_returned`, T091 AP1).
+RETURNS is judged as it returns (:func:`check_returned`, T091 AP1). Every
+call of a bound value is judged again at the call
+(:func:`callable_code_allowed`, T091 AR3): helper code, allowed framework
+code or a domain class, a callable instance by what its ``__call__`` runs.
 
 **Framework code a trusted spec may reach** (T091 AP2). The rule is by
 module, not by function, and has two halves:
@@ -47,7 +50,7 @@ module, not by function, and has two halves:
 - **Allowed code** (:data:`PY_ALLOWED_MODULES` + the registered heads): a
   ``!py`` reference into ``alienbio`` that lands on a function or class must
   be a registered head's function or live in an allowed module (the
-  distributions, the makers). Plain data and domain values elsewhere in
+  distributions). Plain data and domain values elsewhere in
   ``alienbio`` stay readable; everything else a spec needs is a head.
 
 What a spec's own included helpers define is the helper author's code, and
@@ -59,7 +62,10 @@ keeps a helper's imports from leaking through it by reference.
 from __future__ import annotations
 
 import functools
+import inspect
 import types
+from collections.abc import Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from functools import lru_cache
 from typing import Any, Optional
 
@@ -173,10 +179,11 @@ DENIED_ENTRY_POINTS: tuple[str, ...] = (
 
 #: The ``alienbio`` modules whose functions and classes a ``!py`` reference
 #: may land on, beside the registered heads' own functions (T091 AP2).
-PY_ALLOWED_MODULES: tuple[str, ...] = (
-    "alienbio.suite.dist",
-    "alienbio.bio.makers",
-)
+#: ``alienbio.bio.makers`` was listed and is not (T091 AR8): every public
+#: name in it is an import judged by its owner module or the ``mk``
+#: ``Pegboard`` instance, which :func:`check_reference` refuses as not plain
+#: data — so ``mk.M`` / ``mk.anchor`` were never reachable through it.
+PY_ALLOWED_MODULES: tuple[str, ...] = ("alienbio.suite.dist",)
 
 
 def _unwrap(obj: Any) -> Any:
@@ -237,6 +244,44 @@ def allowed_framework_code(obj: Any) -> bool:
     return module is not None and any(_in_module(module, m) for m in PY_ALLOWED_MODULES)
 
 
+def _call_target(obj: Any) -> Any:
+    """The code calling ``obj`` runs: the function a partial or bound method
+    wraps, else — for a callable instance — its class's ``__call__``, a
+    ``staticmethod`` / ``classmethod`` unwrapped (T091 AR4: ``__call__ =
+    staticmethod(os.getcwd)`` on a helper's class ran ``os.getcwd``)."""
+    target = _unwrap(obj)
+    if target is None or isinstance(target, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType)):
+        return target
+    call = inspect.getattr_static(type(target), "__call__", None)
+    if isinstance(call, (staticmethod, classmethod)):
+        call = call.__func__
+    return _unwrap(call)
+
+
+def callable_code_allowed(obj: Any) -> bool:
+    """``obj`` is code a trusted spec may call (T091 AR3/AR4): the spec's own
+    included helper code, allowed framework code
+    (:func:`allowed_framework_code`), or a domain class (a constructor such
+    as ``MoleculeImpl``, an ``Entity`` — the classes
+    ``spec_lang.biotype_registry`` holds are all domain classes). A callable
+    instance is judged by the code its ``__call__`` runs, never by the
+    module of its class. Anything else — a framework function that is not a
+    head, ``os.getcwd``, a slot wrapper — is not callable from a spec,
+    whoever bound it (a Python caller exposes a function by registering a
+    head)."""
+    from .include import INCLUDE_MODULE_PREFIX
+
+    target = _call_target(obj)
+    if isinstance(target, type) and issubclass(target, domain_types()):
+        return True
+    module = _owner(target) if target is not None else None
+    if module is None:
+        return False
+    if module.startswith(INCLUDE_MODULE_PREFIX):
+        return True
+    return _in_module(module, "alienbio") and allowed_framework_code(target)
+
+
 def check_reference(value: Any, what: str) -> None:
     """A Python object a trusted spec obtains by reference (a ``!py`` walk's
     result, a name read off an included helper): a callable (the caller
@@ -256,10 +301,13 @@ def check_reference(value: Any, what: str) -> None:
 def check_returned(value: Any, what: str) -> None:
     """What a trusted bound callable (an included helper's function, a
     ``!py`` function) returned (T091 AP1): judged like a reference, and a
-    callable or class in it must be the spec's own helper code or allowed
-    framework code (:func:`allowed_framework_code`) — never a module, a
-    function from outside those roots (``subprocess.run``), or a partial or
-    bound method wrapping a denied one. Plain containers are walked."""
+    callable or class in it must be code a spec may call
+    (:func:`callable_code_allowed`) — never a module, a function from
+    outside those roots (``subprocess.run``), or a partial or bound method
+    wrapping a denied one. Plain containers are walked; so is an instance of
+    the helper's own class that is a mapping, sequence or set (T091 AR4: a
+    helper's ``Box(dict)`` holding ``os.getcwd`` was skipped as inert, and
+    ``b.cwd()`` called it), and a callable one is judged by its ``__call__``."""
     from .include import INCLUDE_MODULE_PREFIX
 
     seen: set[int] = set()
@@ -276,18 +324,24 @@ def check_returned(value: Any, what: str) -> None:
             stack.extend(x.keys())
             stack.extend(x.values())
             continue
-        if not isinstance(x, type) and not callable(x) and type(x).__module__.startswith(INCLUDE_MODULE_PREFIX):
-            continue  # an instance of the helper's own class: inert data (access.py stops its methods)
+        if not isinstance(x, type) and type(x).__module__.startswith(INCLUDE_MODULE_PREFIX):
+            # an instance of the helper's own class: its data is walked, and
+            # what calling it runs is judged (access.py stops its methods)
+            if isinstance(x, Mapping):
+                stack.extend(dict.keys(x) if isinstance(x, dict) else x.keys())
+                stack.extend(dict.values(x) if isinstance(x, dict) else x.values())
+            elif isinstance(x, (Sequence, AbstractSet)) and not isinstance(x, (str, bytes, bytearray)):
+                stack.extend(x)
+            if callable(x) and not callable_code_allowed(x):
+                raise UnsafeExpressionError(
+                    f"{what}: returned a callable {_type_name(x)} whose __call__ runs code outside the spec's helpers"
+                )
+            continue
         check_reference(x, what)
-        if isinstance(x, type) or callable(x):
-            module = _owner(x)
-            if module is not None and module.startswith(INCLUDE_MODULE_PREFIX):
-                continue
-            if module is not None and _in_module(module, "alienbio") and allowed_framework_code(x):
-                continue
+        if (isinstance(x, type) or callable(x)) and not callable_code_allowed(x):
             raise UnsafeExpressionError(
-                f"{what}: returned {_type_name(x)} from {module!r}, outside the spec's helpers and the "
-                f"allowed framework code (registered heads, {list(PY_ALLOWED_MODULES)})"
+                f"{what}: returned {_type_name(x)} from {_owner(_call_target(x))!r}, outside the spec's helpers and the "
+                f"allowed framework code (registered heads, domain classes, {list(PY_ALLOWED_MODULES)})"
             )
 
 
@@ -358,9 +412,10 @@ def check_callable(func: Any, *, trusted: bool) -> None:
     ``h.f(...)`` through a mapping). Untrusted: never (T091 AL8 — untrusted
     YAML cannot define a function, so every function it can reach leaked out
     of framework data, and the rule must not admit whatever a future head
-    leaks). Trusted: whatever the trusted author bound (``!py`` and an
-    included helper are judged where they are read), except a denied entry
-    point (T091 AL3)."""
+    leaks). Trusted: never a denied entry point (T091 AL3), and only code
+    :func:`callable_code_allowed` admits — judged at the call, so a function
+    reached through a plain container a ``!py`` walk landed on refuses here
+    (T091 AR3)."""
     if not trusted:
         raise UnsafeExpressionError(
             f"calling {_type_name(func)} is not allowed in an untrusted spec (only registered heads and templates are callable)"
@@ -368,6 +423,12 @@ def check_callable(func: Any, *, trusted: bool) -> None:
     entry = denied_entry_point(func)
     if entry is not None:
         raise UnsafeExpressionError(f"{_type_name(func)} is a framework entry point that loads or executes code ({entry})")
+    if not callable_code_allowed(func):
+        raise UnsafeExpressionError(
+            f"calling {_type_name(func)} ({_owner(_call_target(func))!r}): only the spec's included helpers, registered "
+            f"heads, domain classes and {list(PY_ALLOWED_MODULES)} are callable — a function reached through data is "
+            "judged when it is called (T091 AR3)"
+        )
 
 
 __all__ = [
@@ -376,6 +437,7 @@ __all__ = [
     "PLAIN_TYPES",
     "PY_ALLOWED_MODULES",
     "allowed_framework_code",
+    "callable_code_allowed",
     "check_callable",
     "check_name",
     "check_reference",

@@ -134,17 +134,23 @@ def test_a_domain_value_offers_data_attributes_not_methods():
 def test_untrusted_calls_only_registered_heads():
     """T091 AL8: untrusted, no bound Python callable is callable — not even a
     plain function (every one an untrusted spec can reach leaked out of
-    framework data); trusted, a bound function still is."""
+    framework data)."""
     def f(x):
         return x + 1
 
-    assert _x("f(1)", trusted=True, f=f) == 2
+    # T091 AR3: under trust, only helper code, registered heads, domain
+    # classes and the allowed modules are callable — whoever bound the value.
+    from alienbio.suite.dist import Constant
+
+    assert _x("g(4)", trusted=True, g=Constant) == Constant(4)
+    for value in (f, math.sqrt):
+        with pytest.raises(ExprError, match="AR3"):
+            _x("g(4)", trusted=True, g=value)
     for value in (f, "a".upper, len, Env, Env.standard, types.SimpleNamespace):
         with pytest.raises(ExprError, match="not allowed in an untrusted spec"):
             _x("g(1)", g=value)
         with pytest.raises(ExprError, match="not allowed in an untrusted spec"):
             _x("m.g(1)", m={"g": value})
-    assert _x("g(4)", trusted=True, g=math.sqrt) == 2.0  # a trusted author's binding
 
 
 def test_the_allowlist_resolves_and_covers_plain_data():

@@ -62,6 +62,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Sequence, Set
 from typing import Any, Iterable, Mapping
 
 from ..spec_lang import builtins as _b
@@ -244,15 +245,15 @@ def render_bound(value: Any, limit: int) -> int:
             active.discard(id(x))
             continue
         t = type(x)
-        if t in (list, tuple, set, frozenset, dict) or _is_dataclass_value(x):
+        if _is_deep(x):
             if id(x) in active:
                 total += 5
                 continue
             active.add(id(x))
             stack.append((x, True))
-            if t is dict:
+            if isinstance(x, Mapping):
                 items: Iterable[Any] = [v for kv in x.items() for v in kv]
-            elif t in (list, tuple, set, frozenset):
+            elif isinstance(x, (Sequence, Set)):
                 items = x
             else:
                 items = [getattr(x, f.name, None) for f in dataclasses.fields(x)]
@@ -290,18 +291,29 @@ def repr_bound(text: str) -> int:
     return 10 * len(text) + 2
 
 
+#: Sequences whose elements a deep walk never visits: text, and a ``range``
+#: (lazy, its elements are ints).
+_FLAT_SEQUENCES = (str, bytes, bytearray, memoryview, range)
+
+
 def _is_deep(x: Any) -> bool:
-    """A value whose comparison or hash walks its elements."""
-    return type(x) in (list, tuple, dict, set, frozenset) or _is_dataclass_value(x)
+    """A value whose comparison or hash walks its elements: any mapping or
+    sequence or set, SUBCLASSES included (T091 AR1: an exact-type test read
+    a ``Call``'s ``FrozenKwargs`` as a leaf, so an alias bomb under any
+    ``!head {…}`` counted 1 node), and a dataclass value."""
+    if isinstance(x, (Mapping, Set)):
+        return True
+    if isinstance(x, Sequence):
+        return not isinstance(x, _FLAT_SEQUENCES)
+    return _is_dataclass_value(x)
 
 
 def _deep_items(x: Any) -> Any:
     import dataclasses
 
-    t = type(x)
-    if t is dict:
+    if isinstance(x, Mapping):
         return [v for kv in x.items() for v in kv]
-    if t in (list, tuple, set, frozenset):
+    if isinstance(x, (Sequence, Set)):
         return x
     return [getattr(x, f.name, None) for f in dataclasses.fields(x)]
 

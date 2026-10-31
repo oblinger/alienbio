@@ -749,32 +749,42 @@ def _load_experiment(source: str, text: str, env: Env) -> ExperimentSpec:
     return specs[0]
 
 
-def _nested_experiment(form: Any, path: str, *, top: bool = False) -> Optional[str]:
+def _nested_experiment(form: Any, path: str, *, top: bool = False, seen: Optional[set[int]] = None) -> Optional[str]:
     """The document path of a literal ``!experiment`` call that is not a
     top-level value, else ``None``. A ``template`` body is not walked: what a
-    template builds is counted after evaluation (:func:`_count_specs`)."""
+    template builds is counted after evaluation (:func:`_count_specs`). Each
+    distinct container is walked once (T091 AR1: a YAML alias names one
+    node many times, and the walk visited every occurrence — 10^9 for a
+    611-byte file); ``load_text`` has already bounded the document."""
+    if seen is None:
+        seen = set()
+    if isinstance(form, (Call, Mapping, list, tuple)):
+        if id(form) in seen:
+            return None
+        if not top:
+            seen.add(id(form))
     if isinstance(form, Call):
         if form.head == "experiment" and not top:
             return path
         if form.head == "template":
             return None
         for i, arg in enumerate(form.args):
-            found = _nested_experiment(arg, f"{path}.{i}")
+            found = _nested_experiment(arg, f"{path}.{i}", seen=seen)
             if found is not None:
                 return found
         for k, arg in form.kwargs.items():
-            found = _nested_experiment(arg, f"{path}.{k}")
+            found = _nested_experiment(arg, f"{path}.{k}", seen=seen)
             if found is not None:
                 return found
         return None
     if isinstance(form, Mapping):
         for k, v in form.items():
-            found = _nested_experiment(v, f"{path}.{k}")
+            found = _nested_experiment(v, f"{path}.{k}", seen=seen)
             if found is not None:
                 return found
     elif isinstance(form, (list, tuple)):
         for i, v in enumerate(form):
-            found = _nested_experiment(v, f"{path}.{i}")
+            found = _nested_experiment(v, f"{path}.{i}", seen=seen)
             if found is not None:
                 return found
     return None

@@ -128,8 +128,18 @@ def test_al9_a_nested_experiment_refuses(tmp_path, nested):
 
 
 def test_al10_a_callable_binding_works_as_a_head_before_it_is_forced():
+    from alienbio.suite.dist import Constant
+
+    text = "r: !x c(1)\nc: !x d[0]\nd: [!py alienbio.suite.dist.Constant]\n"
+    assert _doc(text, trusted=True).lookup("r") == Constant(1)
+
+
+def test_al10_a_framework_function_leaked_through_data_refuses_at_the_call():
+    """T091 AR3: a constraint predicate is framework code that is not a head;
+    reached through a domain value's data it is judged when called."""
     text = "r: !x c(1)\nc: !x diagnose().task.skeleton.motif.roles[0].constraints[0]\n"
-    assert _doc(text, trusted=True).lookup("r") is True
+    with pytest.raises(ExprError, match="AR3"):
+        _doc(text, trusted=True).lookup("r")
 
 
 def test_al10_a_non_callable_binding_used_as_a_head_says_so():

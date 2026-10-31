@@ -95,8 +95,8 @@ def test_ap4_an_inline_hex_literal_past_the_cap_refuses():
 def test_ap4_a_yaml_int_literal_past_the_cap_refuses():
     with pytest.raises(ExprError, match="MAX_INT_LITERAL_BITS"):
         yaml_tags.load_text("a: 0x" + "f" * (MAX_INT_LITERAL_BITS // 4 + 1) + "\n")
-    with pytest.raises(ExprError, match="MAX_INT_LITERAL_BITS"):
-        yaml_tags.load_text("a: " + "1:" * 200_000 + "1\n")  # base 60
+    with pytest.raises(ExprError, match="base-60"):
+        yaml_tags.load_text("a: " + "1:" * 200_000 + "1\n")  # base 60 (T091 AR5: refused outright)
 
 
 def test_ap4_a_literal_at_the_cap_loads():
@@ -133,24 +133,23 @@ def test_ap4_an_int_result_past_the_cap_refuses():
 # ---- AP5: one clock per document load ---------------------------------------
 
 
-def _slow(seconds: float):
-    def slow() -> int:
-        time.sleep(seconds)
-        return 1
+def _slow_doc(tmp_path):
+    # T091 AR3: a trusted spec calls helper code, registered heads and domain
+    # classes only, so the slow callable is an included helper's function.
+    (tmp_path / "slowhelp.py").write_text("import time\n\ndef slow():\n    time.sleep(0.15)\n    return 1\n")
+    spec = tmp_path / "s.yaml"
+    spec.write_text("h: !include slowhelp.py\n" + "".join(f"k{i}: !x h.slow()\n" for i in range(5)))
+    return Env.standard(seed=1, trusted=True, limits=Limits(seconds=0.4)).load(str(spec))
 
-    return slow
 
-
-def test_ap5_force_all_runs_every_binding_under_one_clock():
-    env = Env.standard(seed=1, trusted=True, limits=Limits(seconds=0.4), bindings={"slow": _slow(0.15)})
-    doc = env.load("<t>", text="".join(f"k{i}: !x slow()\n" for i in range(5)))
+def test_ap5_force_all_runs_every_binding_under_one_clock(tmp_path):
+    doc = _slow_doc(tmp_path)
     with pytest.raises(ExprError, match="limits.seconds"):
         doc.force_all()
 
 
-def test_ap5_each_binding_alone_is_under_the_clock():
-    env = Env.standard(seed=1, trusted=True, limits=Limits(seconds=0.4), bindings={"slow": _slow(0.15)})
-    doc = env.load("<t>", text="".join(f"k{i}: !x slow()\n" for i in range(5)))
+def test_ap5_each_binding_alone_is_under_the_clock(tmp_path):
+    doc = _slow_doc(tmp_path)
     assert [doc.lookup(f"k{i}") for i in range(5)] == [1] * 5
 
 

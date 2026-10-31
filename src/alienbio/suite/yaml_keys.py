@@ -20,18 +20,30 @@ import yaml
 
 _MERGE_TAG = "tag:yaml.org,2002:merge"
 _STANDARD_TAG_PREFIX = "tag:yaml.org,2002:"
+_INT_TAG = "tag:yaml.org,2002:int"
 
 
 def _key_identity(node: yaml.Node) -> Any:
     """What makes two key nodes the same key: a standard scalar's
     constructed value (``1`` and ``0x1`` are one int key), any other scalar's
-    ``(tag, text)``; a non-scalar key is compared by nothing (``None``)."""
+    ``(tag, text)``; a non-scalar key is compared by nothing (``None``).
+    The full value is compared whatever its length (T091 AR6: a 4 096-character
+    cutoff compared longer keys by text, so ``0x<4100 f>`` and ``0x<4099
+    f>_f`` collapsed silently). An int whose text the Expr loader refuses
+    (base 60, over a third of ``MAX_INT_LITERAL_BITS`` in characters) is
+    never converted here — that load refuses it anyway — and keeps its text."""
     if not isinstance(node, yaml.ScalarNode):
         return None
-    if node.tag.startswith(_STANDARD_TAG_PREFIX) and len(node.value) <= 4096:
-        # A longer standard scalar is compared by its text: constructing a
-        # huge int key here would bypass the Expr loader's int cap (T091 AP4).
-        return ("std", yaml.SafeLoader("").construct_object(node))
+    if node.tag.startswith(_STANDARD_TAG_PREFIX):
+        if node.tag == _INT_TAG:
+            from ..expr.yaml_tags import int_text_refusal
+
+            if int_text_refusal(node.value) is not None:
+                return (node.tag, node.value)
+        try:
+            return ("std", yaml.SafeLoader("").construct_object(node))
+        except ValueError:  # a decimal past Python's int-string limit
+            return (node.tag, node.value)
     return (node.tag, node.value)
 
 

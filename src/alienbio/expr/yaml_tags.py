@@ -14,6 +14,8 @@ load error that names its replacement.
 from __future__ import annotations
 
 import io
+import os
+import stat
 from pathlib import Path
 from typing import Any, Union
 
@@ -49,14 +51,28 @@ class ExprLoader(yaml.SafeLoader):
     SafeLoader (and every other loader in the process) is untouched."""
 
 
-def _int_constructor(loader: yaml.Loader, node: yaml.Node) -> Any:
-    """A YAML int, capped at :data:`MAX_INT_LITERAL_BITS` (T091 AP4). The
-    text is bounded first (a third of the bit cap in characters — a decimal
-    past 4 300 digits is refused by Python anyway, and base-60 converts
-    quadratically), so the conversion itself is never the cost."""
-    text = str(getattr(node, "value", ""))
+def int_text_refusal(text: str) -> "str | None":
+    """Why a YAML int's text may not be converted, else ``None`` (T091 AP4,
+    AR5). A base-60 form (``1:59:59``, YAML 1.1 sexagesimal) is refused
+    outright: PyYAML converts it digit group by digit group, quadratically
+    (a 349k-character literal under the length cap took 8 s). Any other
+    form is bounded at a third of the bit cap in characters — hex, octal
+    and binary convert linearly, and a decimal past 4 300 digits is refused
+    by Python itself — so the conversion is never the cost."""
+    if ":" in text:
+        return "a base-60 (sexagesimal) integer literal is not accepted; write it in decimal"
     if len(text) > MAX_INT_LITERAL_BITS // 3:
-        raise ExprError(f"integer literal of {len(text)} characters exceeds MAX_INT_LITERAL_BITS={MAX_INT_LITERAL_BITS}", _mark(node))
+        return f"integer literal of {len(text)} characters exceeds MAX_INT_LITERAL_BITS={MAX_INT_LITERAL_BITS}"
+    return None
+
+
+def _int_constructor(loader: yaml.Loader, node: yaml.Node) -> Any:
+    """A YAML int, capped at :data:`MAX_INT_LITERAL_BITS` (T091 AP4); the
+    text is judged first (:func:`int_text_refusal`)."""
+    text = str(getattr(node, "value", ""))
+    refusal = int_text_refusal(text)
+    if refusal is not None:
+        raise ExprError(refusal, _mark(node))
     value = loader.construct_yaml_int(node)  # type: ignore[attr-defined]
     if value.bit_length() > MAX_INT_LITERAL_BITS:
         check_int_literal(value, _mark(node))
@@ -153,17 +169,35 @@ ExprLoader.add_constructor("!py", _py_constructor)
 ExprLoader.add_multi_constructor("!", _call_constructor)
 
 
+def _regular_file_size(path: Union[str, Path]) -> int:
+    """The size of the regular file ``path`` resolves to; a FIFO, a device
+    or a symlink to one is refused (T091 AR7: ``st_size`` is 0 for both, so
+    a FIFO blocked the read and ``/dev/zero`` read forever)."""
+    resolved = Path(os.path.realpath(path))
+    st = resolved.stat()
+    if not stat.S_ISREG(st.st_mode):
+        raise ExprError("not a regular file (a spec is read from a plain file, never a FIFO or a device)", str(path))
+    return st.st_size
+
+
 def check_spec_size(path: Union[str, Path]) -> None:
-    """Refuse a file over :data:`MAX_SPEC_BYTES` before it is read (T091 AP7)."""
-    size = Path(path).stat().st_size
+    """Refuse a non-regular file, or one over :data:`MAX_SPEC_BYTES`, before
+    it is read (T091 AP7, AR7)."""
+    size = _regular_file_size(path)
     if size > MAX_SPEC_BYTES:
         raise ExprError(f"file of {size} bytes exceeds MAX_SPEC_BYTES={MAX_SPEC_BYTES}", str(path))
 
 
 def read_spec_text(path: Union[str, Path]) -> str:
-    """A spec file's text, size-checked first (:func:`check_spec_size`)."""
+    """A spec file's text: size-checked first (:func:`check_spec_size`),
+    then read with a hard limit of :data:`MAX_SPEC_BYTES` + 1 bytes, so a
+    file that grows between the check and the read still refuses (T091 AR7)."""
     check_spec_size(path)
-    return Path(path).read_text()
+    with open(os.path.realpath(path), "rb") as fh:
+        raw = fh.read(MAX_SPEC_BYTES + 1)
+    if len(raw) > MAX_SPEC_BYTES:
+        raise ExprError(f"file grew past MAX_SPEC_BYTES={MAX_SPEC_BYTES} while being read", str(path))
+    return raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _refuse_recursion(data: Any, source: str) -> None:
@@ -197,6 +231,57 @@ def _refuse_recursion(data: Any, source: str) -> None:
         stack.extend((item, False) for item in items)
 
 
+_MERGE_TAG = "tag:yaml.org,2002:merge"
+
+
+def merge_expansion(node: yaml.Node, limit: int) -> int:
+    """The key/value pairs PyYAML's merge-key flattening (``<<:``) builds
+    over every distinct mapping node of the composed tree, capped just past
+    ``limit`` (T091 AR2). ``flatten_mapping`` concatenates each merged
+    mapping's pairs without de-duplicating, so ``L{i}: {<<: [*L{i-1},
+    *L{i-1}]}`` doubles per level — an 834-byte file built 2^26 pairs inside
+    the constructor, before any node cap. Computed on the nodes, memoized by
+    identity, so it costs the distinct structure; a merge cycle adds nothing
+    (PyYAML refuses it)."""
+    memo: dict[int, int] = {}
+    total = 0
+    seen: set[int] = set()
+    stack: list[tuple[yaml.Node, bool]] = [(node, False)]
+
+    def merged(m: yaml.Node) -> list[yaml.Node]:
+        out: list[yaml.Node] = []
+        for k, v in m.value:
+            if k.tag != _MERGE_TAG:
+                continue
+            if isinstance(v, yaml.MappingNode):
+                out.append(v)
+            elif isinstance(v, yaml.SequenceNode):
+                out.extend(sub for sub in v.value if isinstance(sub, yaml.MappingNode))
+        return out
+
+    while stack:
+        x, leaving = stack.pop()
+        if leaving:
+            n = sum(1 for k, _ in x.value if k.tag != _MERGE_TAG)
+            n += sum(memo.get(id(sub), 0) for sub in merged(x))
+            memo[id(x)] = min(n, limit + 1)
+            total += memo[id(x)]
+            if total > limit:
+                return total
+            continue
+        if id(x) in seen:
+            continue
+        seen.add(id(x))
+        if isinstance(x, yaml.MappingNode):
+            stack.append((x, True))
+            for k, v in x.value:
+                stack.append((k, False))
+                stack.append((v, False))
+        elif isinstance(x, yaml.SequenceNode):
+            stack.extend((item, False) for item in x.value)
+    return total
+
+
 def load_text(text: str, *, source: str = "") -> Any:
     """YAML text -> forms (data with Name / Call / Quoted where tagged).
 
@@ -218,6 +303,10 @@ def load_text(text: str, *, source: str = "") -> Any:
         if node is None:
             return None
         refuse_duplicate_nodes(node)
+        if merge_expansion(node, MAX_DOCUMENT_NODES) > MAX_DOCUMENT_NODES:
+            raise ExprError(
+                f"the document's merge keys (<<:) expand to more than MAX_DOCUMENT_NODES={MAX_DOCUMENT_NODES} key/value pairs"
+            )
         data = loader.construct_document(node)
     except ExprError as exc:
         if source:
