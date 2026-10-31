@@ -447,7 +447,8 @@ _PATHWAY_KEY = (
 )
 _PATHWAY_RANDOM = (
     "no intended solver: survey-commit 0.000; a random middle node scores 0.000 at seeds 1 "
-    "and 2 (prefix credit 1/3 when it lands) and ties it"
+    "and 2 (1.000 when it lands: at length 3 the one interior node is the whole credit) "
+    "and ties it"
 )
 
 

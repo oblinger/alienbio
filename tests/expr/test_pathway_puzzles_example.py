@@ -84,8 +84,8 @@ def test_the_coverage_plan_respects_the_admissibility_rule(values):
 
 
 def test_reject_sampling_returns_a_causally_non_obvious_host(values):
-    checked = values["checked"]
-    assert isinstance(checked, WorldImpl) and len(checked.chemistry.reactions) >= 3
+    host = values["host"]
+    assert isinstance(host, WorldImpl) and len(host.chemistry.reactions) >= 3
 
 
 def _scope(seed: int, length: int = 4):
@@ -96,53 +96,68 @@ def _scope(seed: int, length: int = 4):
     return scope
 
 
-def test_the_validity_gate_checks_the_host_the_puzzle_delivers():
-    """T096 follow-up P6: `checked` drafted its own `opaque_host(...)` at its
-    own node seed, so the gate never saw the puzzle's host. It reads `host`
-    now, and the drafter delivers what the gate passed."""
+def _passes_gate(world: WorldImpl) -> bool:
+    """helpers.knockout_first + helpers.non_obvious, restated (loading
+    helpers.py a second time would re-register its heads)."""
+    from alienbio.suite.perturbations import perturb_rate
+    from alienbio.suite.validity import non_obvious_causal
+    from alienbio.suite.verify import SimConfig, simulate
+
+    cfg = SimConfig(dt=0.05, steps=60)
+    knocked = perturb_rate(world, min(world.chemistry.reactions), 0.1)
+    return bool(non_obvious_causal(min_deviation=5.0)(simulate(world, cfg), simulate(knocked, cfg)))
+
+
+def test_the_drafter_delivers_the_host_the_puzzle_is_carved_from():
+    """T096 follow-up P6 + T091 AM5: the gate once drafted a second host, then
+    read `host` and REFUSED it — a preflight-clean grid at length 5/6 lost
+    ~12 % / ~30 % of its trials as error records. `host` is the gate's own
+    draw now: the drafter delivers it, the key is read off it."""
     from alienbio.expr import X, evaluate
     from alienbio.suite.dist import Seed
     from alienbio.suite.experiment import DRAFTERS
 
     load_spec(SPEC)  # registers the example's heads, the `puzzles` drafter among them
     for seed in range(8):
-        v = _scope(seed).force_all()
-        assert v["checked"] is v["host"], seed
         world, task = DRAFTERS["puzzles"](Seed(seed), {"pathway_length": 4})
         scope = _scope(seed)
         assert world.chemistry.reactions.keys() == evaluate(X.name("host"), scope).chemistry.reactions.keys()
         assert task.objective.key.value == evaluate(X.name("puzzle"), scope)["objective"].key.value
 
 
-def test_a_host_the_gate_rejects_is_never_delivered():
-    """An inert host (nothing to move, so a knockout changes nothing) refuses
-    at the gate: `checked` raises instead of handing it on."""
-    from dataclasses import replace
+def test_a_rejected_draw_is_redrawn_never_a_trial_error():
+    """T091 AM5: over seeds 0-59 the first draw fails the gate 6 times at
+    length 5 and 11 at length 6 (seed 1 at length 6 among them); each is
+    redrawn at a child seed, and the host delivered passes the gate."""
+    from alienbio.suite.dist import Seed
+    from alienbio.suite.experiment import DRAFTERS
 
+    load_spec(SPEC)
+    for length in (5, 6):
+        for seed in range(12):
+            world, _task = DRAFTERS["puzzles"](Seed(seed), {"pathway_length": length})
+            assert _passes_gate(world), (length, seed)
+
+
+def test_a_host_that_can_never_pass_refuses_at_the_gate(monkeypatch):
+    """A draw whose knockout never shows (here every trajectory, perturbed
+    or not, is one fixed host's baseline) can never pass: the gate refuses
+    after its 16 redraws instead of handing a host on."""
+    import alienbio.suite.expr_heads as heads
     from alienbio.expr import ExprError, X, evaluate
 
-    scope = _scope(3)
-    host = evaluate(X.name("host"), scope)
-    inert = WorldImpl(host.chemistry, tuple(
-        replace(c, concentrations={m: 0.0 for m in c.concentrations}) for c in host.compartments
-    ))
-    scope.bindings["host"] = inert
-    with pytest.raises(ExprError, match="no world passed the validity predicate"):
-        evaluate(X.name("checked"), scope)
+    fixed = evaluate(X.name("host"), _scope(3))
+    real = heads.simulate
+    calls: list[int] = []
 
+    def baseline_only(world, cfg, seed=None):
+        calls.append(1)
+        return real(fixed, cfg)
 
-def test_the_gate_refuses_a_host_of_this_family_whose_knockout_barely_shows():
-    """T091 AF10: at the old 1e-3 floor no host of this family could fail
-    (minimum deviation 10.6 over 30 seeds). At MIN_KNOCKOUT_DEVIATION a
-    length-6 host whose throttled step is too late and slow to show inside
-    the 3 s horizon is refused (seed 1); a length-4 host passes (seed 3)."""
-    from alienbio.expr import ExprError, X, evaluate
-
-    rejected = _scope(1, length=6)
-    with pytest.raises(ExprError, match="no world passed the validity predicate"):
-        evaluate(X.name("checked"), rejected)
-    passed = _scope(3, length=4)
-    assert evaluate(X.name("checked"), passed) is evaluate(X.name("host"), passed)
+    monkeypatch.setattr(heads, "simulate", baseline_only)
+    with pytest.raises(ExprError, match="no world passed the validity predicate in 17 attempts"):
+        evaluate(X.name("host"), _scope(3))
+    assert len(calls) == 34
 
 
 def test_the_experiment_runs_over_the_chain_length(tmp_path):

@@ -2,9 +2,9 @@
 # pipeline end to end on a neutral world: a host drafted with distractors,
 # a chain pattern carved into it, an identify objective graded with partial
 # credit, an opaque vocabulary with the question rendered and parsed back,
-# a coverage plan over puzzle features, and a validity gate (`!verify`) that
-# delivers only a host where the pathway is causally non-obvious. Loads trusted
-# (helpers.py). See README.md.
+# a coverage plan over puzzle features, the host itself drawn through a
+# validity gate (`!verify`) so it is one where the pathway is causally
+# non-obvious. Loads trusted (helpers.py). See README.md.
 _includes_: [helpers.py]
 
 pathway_length: 4
@@ -14,8 +14,20 @@ distractors: 3
 #    inert filler nodes — the puzzle's noise — every id opaque and drawn from
 #    the seed (helpers.opaque_host; T096: the identify_pathway drafter's host
 #    named its nodes r0 … and its reactions r0_r1 …, so the ids spelled the
-#    route and every seed had one key)
-host: !x opaque_host(pathway_length, distractors)
+#    route and every seed had one key). The host IS the validity gate's draw
+#    (T091 AM5): `!verify` redraws it at child seeds until knocking out a
+#    chain step moves its 3 s trajectory by more than
+#    helpers.MIN_KNOCKOUT_DEVIATION (5.0, L2; validity.non_obvious_causal),
+#    and delivers THAT host — one host, so the gate checks what the puzzle
+#    is carved from, and a failing draw is a redraw, never a trial error.
+#    Over seeds 0-59 the first draw fails 0 / 0 / 6 / 11 times at lengths
+#    3 / 4 / 5 / 6, and no seed needs more than two of its 16 redraws.
+host: !verify
+  world: !x opaque_host(pathway_length, distractors)
+  perturb: knockout_first
+  valid: non_obvious
+  max_redraws: 16
+  sim: !sim {dt: 0.05, steps: 60}
 
 # 2. the pattern the puzzle is about, carved into the host by name (M27 carve):
 #    the chain is bound to the host's own molecules, never minted fresh
@@ -54,21 +66,6 @@ plan: !cover
     - {long: is_long, branched: is_branched}
   admissible: at_most_two
   aggressiveness: 0.5
-
-# 6. the validity gate: the puzzle's own `host` must move its 3 s trajectory
-#    by more than helpers.MIN_KNOCKOUT_DEVIATION (5.0, L2) when a chain step
-#    is knocked out (validity.non_obvious_causal) — at seeds 0-59 it refuses
-#    no host at length 3 or 4, 7 at length 5, 18 at length 6. It reads
-#    the `host` node, not a second draw — a fresh `opaque_host(...)` here
-#    checked a host drawn at its own seed and never gated the one delivered —
-#    and the drafter delivers `checked`, so a host that fails is refused, never
-#    delivered. A referenced host redraws identically, hence no redraws.
-checked: !verify
-  world: !x host
-  perturb: knockout_first
-  valid: non_obvious
-  max_redraws: 0
-  sim: !sim {dt: 0.05, steps: 60}
 
 experiment: !experiment
   name: pathway-puzzles-zero

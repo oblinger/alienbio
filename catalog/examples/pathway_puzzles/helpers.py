@@ -143,9 +143,10 @@ def knockout_first(world: WorldImpl) -> WorldImpl:
 #: The gate's floor (T091 AF10): the knocked-out step must move the 3 s
 #: trajectory by more than this (L2 over every sample, concentration units).
 #: At 1e-3 no world of this family could fail (minimum 10.6 over 30 seeds);
-#: at 5.0, over seeds 0-59, it refuses 0 hosts at length 3 or 4, 7 at
-#: length 5 and 18 at length 6 — the ones whose throttled step sits too late
-#: and too slow for a knockout to show inside the horizon.
+#: at 5.0 it rejects the draws whose throttled step sits too late and too
+#: slow for a knockout to show inside the horizon — over seeds 0-59 the
+#: host's first draw, 0 at length 3 or 4, 6 at length 5 and 11 at length 6,
+#: each redrawn (T091 AM5; puzzles.yaml § 1).
 MIN_KNOCKOUT_DEVIATION = 5.0
 
 
@@ -159,6 +160,6 @@ def puzzles(*, pathway_length: int = 4, distractors: int = 3, env: Any) -> Draft
     scope = Env.standard(seed=env.ctx.seed, trusted=True).load(HERE / "puzzles.yaml")
     scope.bindings["pathway_length"] = int(pathway_length)
     scope.bindings["distractors"] = int(distractors)
-    # `checked` IS `host` once the validity gate passes it; it raises otherwise,
-    # so a host the gate rejects never reaches a trial
-    return Draft(evaluate(X.name("checked"), scope), evaluate(X.name("task"), scope))
+    # `host` is the validity gate's own draw (T091 AM5): a draw the gate
+    # rejects is redrawn, so the host the task is carved from is the one gated
+    return Draft(evaluate(X.name("host"), scope), evaluate(X.name("task"), scope))
