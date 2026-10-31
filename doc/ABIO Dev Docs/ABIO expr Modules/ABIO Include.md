@@ -13,7 +13,7 @@ The page for what happens to `!include` and `!py` between reading a spec and eva
 
 
 ## include Interface
-Seven functions, three suffix sets and one exception.
+Seven functions, three suffix sets, two names for the `!py` allowlist and one exception.
 
 | include | |
 | --- | --- |
@@ -21,6 +21,8 @@ Seven functions, three suffix sets and one exception.
 | [YAML_SUFFIXES](#^yaml-suffixes) | `.yaml`, `.yml` |
 | [TEXT_SUFFIXES](#^text-suffixes) | `.md`, `.txt` |
 | [PY_SUFFIXES](#^py-suffixes) | `.py` |
+| [PY_IMPORT_ROOTS](#^py-import-roots) | The packages `!py` may import from |
+| [INCLUDE_MODULE_PREFIX](#^include-module-prefix) | The module name an included `.py` runs as |
 | [resolve_path](#^resolve-path) | The file an include names, under trust |
 | [load_include](#^load-include) | One include to `(kind, value)` |
 | [run_python_file](#^run-python-file) | Execute a trusted `.py`, return its names |
@@ -41,6 +43,12 @@ Seven functions, three suffix sets and one exception.
 **PY_SUFFIXES**` = {".py"}`
     Executed, trusted loads only. ^py-suffixes
 
+**PY_IMPORT_ROOTS**` = ("alienbio",)`
+    The only top-level packages `resolve_py` imports from, trusted or not (design D1, restored at `5e7cd03`, T091 AG2). ^py-import-roots
+
+**INCLUDE_MODULE_PREFIX**` = "alienbio_include_"`
+    `run_python_file` executes a helper as `alienbio_include_<stem>`, so its own functions carry that `__module__` and pass the `!py` walk's owner check. ^include-module-prefix
+
 **resolve_path**`(path: str, base: Path, *, trusted: bool) -> Path`
     Trusted: `base / path` (or the absolute path), resolved, anywhere. Untrusted: refuses an absolute path, resolves `base / path` with symlinks followed, and refuses a result that is neither `base` nor under it. § [Trust](#trust). ^resolve-path
 
@@ -54,7 +62,7 @@ Seven functions, three suffix sets and one exception.
     Yields a list that collects, in order, every `.py` file `run_python_file` executes inside the block (a `ContextVar`, so nested or concurrent loads keep their own). `suite/spec.py`'s experiment loader wraps the load in it to write the manifest's `helper_modules`. Since `661005d`. ^recording-python-files
 
 **resolve_py**`(path: str, *, trusted: bool, modules=None) -> Any`
-    Refuses untrusted. Requires at least `module.attr`, all identifiers. Looks the first segment up among the `modules` executed by `_includes_` (by file stem) and steps through keys or attributes; otherwise imports the longest importable prefix and steps through attributes. Raises `ExprError` when nothing resolves. ^resolve-py
+    Refuses untrusted. Requires at least `module.attr`, all identifiers, and refuses any segment starting with `_` (private or dunder). Looks the first segment up among the `modules` executed by `_includes_` (by file stem) and steps through keys or attributes; otherwise refuses a first segment outside `PY_IMPORT_ROOTS` before importing anything, then imports the longest importable prefix and steps through attributes. Every step that lands on a module, class or callable must belong to `PY_IMPORT_ROOTS` or an included helper (`INCLUDE_MODULE_PREFIX`), so `alienbio.config.os.system` and a helper's `from subprocess import run` refuse like `os.system`; plain data passes. Raises `UnsafeSpecError` on a refusal, `ExprError` when nothing resolves. ^resolve-py
 
 **hydrate**`(data, *, base: Path, trusted: bool, seen=frozenset(), modules=None) -> Any`
     Returns a copy of the tree with every `Include` replaced by its loaded value and every `PyRef` by its object, descending dicts, lists, call arguments and quoted forms; anything else is returned as is. ^hydrate
@@ -73,9 +81,9 @@ Seven functions, three suffix sets and one exception.
 | --- | --- | --- |
 | `.yaml` / `.yml` / `.md` / `.txt` | relative path, resolved inside `base` | any path |
 | `.py` include | `UnsafeSpecError` | executed |
-| `!py module.attr` | `UnsafeSpecError` | imported or looked up |
+| `!py module.attr` | `UnsafeSpecError` | under `alienbio.*` or an included helper only |
 
-`base` is the directory of the file that holds the include: the top-level file's directory for its own includes, an included file's directory for its nested ones. Resolution follows symlinks before the containment test, so a link inside the spec's directory that points out of it is refused. For text loaded with no file behind it, `Env.load` passes the working directory as `base`. Trust is the caller's flag on `Env.standard`; this module only obeys it.
+`base` is the directory of the file that holds the include: the top-level file's directory for its own includes, an included file's directory for its nested ones. Resolution follows symlinks before the containment test, so a link inside the spec's directory that points out of it is refused. For text loaded with no file behind it, `Env.load` passes the working directory as `base`. Trust is the caller's flag on `Env.standard`; this module only obeys it. Trust does not widen `!py`: the import roots and the owner check on every step hold for a trusted load too, and a refused module is never imported.
 
 
 
@@ -94,3 +102,4 @@ Seven functions, three suffix sets and one exception.
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`). Run against an export of that tree: `a.yaml` listing `b.yaml` in `_includes_`, where `b.yaml` lists `c.yaml`, binds `main`, `from_b` and a key `_includes_: [c.yaml]`, and `from_c` is never loaded; `x: !include b.yaml` gives `x` the same stray key. Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: an included `.yaml`'s own `_includes_` loads, `UnsafeSpecError` is an `ExprError`, two `.py` entries sharing a stem refuse, `run_python_file`'s re-execution documented as deliberate (`c90ce0d`); figure's ‡ notes updated.
 - 2026-10-29 — refreshed for `661005d` (T091 G3, D): an included `.yaml` is checked for duplicate keys before it loads; `recording_python_files` (new) collects the helper `.py` files a load ran, for the manifest's `helper_modules`. Figure still true.
+- 2026-10-30 — refreshed for `5e7cd03` (T091 AG2): `resolve_py` imports only under `PY_IMPORT_ROOTS = ("alienbio",)` or an included helper, trusted or not; every module or callable step is owner-checked, `_` segments refuse. New `PY_IMPORT_ROOTS` / `INCLUDE_MODULE_PREFIX` blocks; figure's `resolve_py` box now says so.

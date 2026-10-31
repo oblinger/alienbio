@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1360" viewBox="0 0 1200 680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <polygon id="arrowhead-shape" points="0,0 10,5 0,10" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1200" height="680" fill="#ffffff"/>
+
+  <g id="n-lookup">
+    <rect id="n-lookup-box" x="20" y="30" width="250" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-lookup-name" x="145" y="56" font-size="18" font-weight="600" text-anchor="middle">Env.lookup</text>
+    <text id="n-lookup-kind" x="145" y="78" font-size="14" text-anchor="middle">(Env) a dotted-name step</text>
+  </g>
+  <g id="n-attr">
+    <rect id="n-attr-box" x="310" y="30" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-attr-name" x="420" y="56" font-size="18" font-weight="600" text-anchor="middle">op:attr</text>
+    <text id="n-attr-kind" x="420" y="78" font-size="14" text-anchor="middle">(Heads) a.b</text>
+  </g>
+  <g id="n-method">
+    <rect id="n-method-box" x="570" y="30" width="220" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-method-name" x="680" y="56" font-size="18" font-weight="600" text-anchor="middle">op:method</text>
+    <text id="n-method-kind" x="680" y="78" font-size="14" text-anchor="middle">(Heads) x.f(...)</text>
+  </g>
+  <g id="n-head">
+    <rect id="n-head-box" x="900" y="30" width="280" height="64" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-head-name" x="1040" y="56" font-size="18" font-weight="600" text-anchor="middle">Env.head</text>
+    <text id="n-head-kind" x="1040" y="78" font-size="14" text-anchor="middle">(Env) a bound callable as head</text>
+  </g>
+
+  <g id="n-key">
+    <rect id="n-key-box" x="260" y="170" width="320" height="64" rx="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-key-name" x="420" y="196" font-size="18" font-weight="600" text-anchor="middle">mapping key?</text>
+    <text id="n-key-kind" x="420" y="218" font-size="14" text-anchor="middle">(caller) a key is data, read first</text>
+  </g>
+  <line id="e-lookup-key" x1="145" y1="94" x2="330" y2="170" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-attr-key" x1="420" y1="94" x2="420" y2="170" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-method-key" x1="680" y1="94" x2="520" y2="170" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-attr-key" x="500" y="138" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">name checked first</text>
+
+  <g id="n-cc">
+    <rect id="n-cc-box" x="900" y="170" width="280" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-cc-name" x="1040" y="196" font-size="18" font-weight="600" text-anchor="middle">check_callable</text>
+    <text id="n-cc-kind" x="1040" y="218" font-size="14" text-anchor="middle">(fn) under the env's trust</text>
+  </g>
+  <line id="e-head-cc" x1="1040" y1="94" x2="1040" y2="170" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-method-cc" x1="740" y1="94" x2="900" y2="190" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-method-cc" x="790" y="166" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">callable</text>
+  <text id="l-method-cc2" x="790" y="184" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">under a key</text>
+
+  <g id="n-untr">
+    <rect id="n-untr-box" x="880" y="310" width="140" height="70" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-untr-name" x="950" y="338" font-size="18" font-weight="600" text-anchor="middle">untrusted</text>
+    <text id="n-untr-kind" x="950" y="362" font-size="14" text-anchor="middle">plain function</text>
+  </g>
+  <g id="n-tr">
+    <rect id="n-tr-box" x="1040" y="310" width="140" height="70" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-tr-name" x="1110" y="338" font-size="18" font-weight="600" text-anchor="middle">trusted</text>
+    <text id="n-tr-kind" x="1110" y="362" font-size="14" text-anchor="middle">what was bound</text>
+  </g>
+  <line id="e-cc-untr" x1="990" y1="234" x2="950" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-cc-tr" x1="1090" y1="234" x2="1110" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-cc" x="950" y="410" font-size="13" fill="#495057" text-anchor="middle">never a class, builtin,</text>
+  <text id="l-cc2" x="950" y="428" font-size="13" fill="#495057" text-anchor="middle">bound method</text>
+
+  <g id="n-name">
+    <rect id="n-name-box" x="260" y="300" width="320" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-name-name" x="420" y="326" font-size="18" font-weight="600" text-anchor="middle">check_name</text>
+    <text id="n-name-kind" x="420" y="348" font-size="14" text-anchor="middle">(fn) refuses dunders, format, mro, _x</text>
+  </g>
+  <line id="e-key-name" x1="420" y1="234" x2="420" y2="300" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-key-name" x="470" y="272" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">not a key</text>
+
+  <g id="n-type">
+    <rect id="n-type-box" x="260" y="420" width="320" height="64" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-type-name" x="420" y="446" font-size="18" font-weight="600" text-anchor="middle">receiver type?</text>
+    <text id="n-type-kind" x="420" y="468" font-size="14" text-anchor="middle">(read_attr · method) before getattr</text>
+  </g>
+  <line id="e-name-type" x1="420" y1="364" x2="420" y2="420" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <g id="n-plain">
+    <rect id="n-plain-box" x="20" y="550" width="270" height="86" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-plain-name" x="155" y="578" font-size="18" font-weight="600" text-anchor="middle">plain data</text>
+    <text id="n-plain-kind" x="155" y="600" font-size="14" text-anchor="middle">(PLAIN_TYPES) exact type</text>
+    <text id="n-plain-kind2" x="155" y="620" font-size="14" text-anchor="middle">attributes and methods</text>
+  </g>
+  <g id="n-dom">
+    <rect id="n-dom-box" x="320" y="550" width="270" height="86" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-dom-name" x="455" y="578" font-size="18" font-weight="600" text-anchor="middle">domain record</text>
+    <text id="n-dom-kind" x="455" y="600" font-size="14" text-anchor="middle">(DOMAIN_CLASS_NAMES)</text>
+    <text id="n-dom-kind2" x="455" y="620" font-size="14" text-anchor="middle">data attributes only</text>
+  </g>
+  <g id="n-ref">
+    <rect id="n-ref-box" x="620" y="550" width="280" height="86" rx="10" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="2"/>
+    <text id="n-ref-name" x="760" y="578" font-size="18" font-weight="600" text-anchor="middle">refused, named</text>
+    <text id="n-ref-kind" x="760" y="600" font-size="14" text-anchor="middle">Env · QuotedForm · Seed</text>
+    <text id="n-ref-kind2" x="760" y="620" font-size="14" text-anchor="middle">module · class · function</text>
+  </g>
+  <line id="e-type-plain" x1="330" y1="484" x2="190" y2="550" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-type-dom" x1="440" y1="484" x2="450" y2="550" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line id="e-type-ref" x1="540" y1="484" x2="720" y2="550" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text id="l-type-ref" x="680" y="506" font-size="14" fill="#1971c2" font-style="italic" text-anchor="middle">anything else</text>
+
+  <text id="foot" x="600" y="664" font-size="14" fill="#495057" text-anchor="middle">the same verdicts under trust: a trusted spec reaches Python only through !py and .py includes</text>
+</svg>

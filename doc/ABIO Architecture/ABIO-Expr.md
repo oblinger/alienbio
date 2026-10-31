@@ -1,7 +1,7 @@
 ---
 description: "the language — YAML tags to forms, a loader that resolves includes under trust gates before anything evaluates, a registry that is the only door into Python, and the AST-allowlist sandbox. Source: src/alienbio/expr/ (2.1k) and spec_lang/ (0.5k)."
 ---
-:>> [[ABIO]] → [[ABIO Architecture]] → [ABIO-Expr](ha://p/ABIO-Expr) 
+:>> [ABIO](../ABIO.md) → [ABIO Architecture](ABIO%20Architecture.md) → [ABIO-Expr](ha://p/ABIO-Expr) 
 # ABIO-Expr
 The subsystem map of the Expr language: how YAML becomes forms and evaluates, the modules behind it, and where its sandbox could leak.
 
@@ -17,7 +17,8 @@ YAML text enters `yaml_tags.load_text`, a `SafeLoader` subclass whose constructo
 | `yaml_tags.py` | 174 | `ExprLoader(SafeLoader)`, the tag constructors, `RESERVED_TAGS`, `load_text`, `dump_structural`. |
 | `parse.py` + `spec_lang/safe_eval.py` | 258 + 219 | Inline `!x` text ↔ forms; `validate_expression` runs first, an AST allowlist that refuses dunders, `getattr`/`eval`/`exec`/`open`/`__import__`, frame attributes, unpacking and non-name call targets; `parse` refuses lambda after. |
 | `env.py` | ~330 | `Env` (`standard`, `child`, `scope`, `lookup`, `head`, `load`, `hydrate`, `pool`), `Ctx` (with the per-load instance-name claims), `Limits` (entities 1 000 000 via a cumulative `Meter`, depth 100, attempts 8), `Lazy`, `ExprError`. |
-| `include.py` | 171 | The trust gates: untrusted specs refuse `.py` includes and `!py` outright and confine every other include to a relative, `..`-free path inside the including file's own directory; `catalog/` is trusted. |
+| `include.py` | 171 | The trust gates: untrusted specs refuse `.py` includes and `!py` outright and confine every other include to a relative, `..`-free path inside the including file's own directory; `catalog/` is trusted. `!py` imports only under `alienbio.*` or an included helper, trusted or not. |
+| `access.py` | 196 | The receiver-type allowlist every attribute read and method call passes, under trust too: plain data (attributes and methods), the domain records (data attributes only), everything else opaque; `check_callable` admits only plain functions as heads in an untrusted spec ([ABIO Access](../ABIO%20Dev%20Docs/ABIO%20expr%20Modules/ABIO%20Access.md)). |
 | `interp.py` | 480 | `evaluate`, dispatch by head kind, `TemplateHead.expand`, the guard machinery, the specials `let each if quote run seed template op:and op:or`. |
 | `registry.py` | 212 | `Head(kind, injects, guarded)`, `Registry.register/get/view`, the `fn`/`expander`/`guard`/`special` decorators, `GuardViolation`. |
 | `heads.py` + `spec_lang/builtins.py` | ~250 + 73 | Distributions, math, `op:*`; metered builtins (`range`, `list`, `zip`, `sum`, `flatten`, `fstr`; `add`/`mul` charge their output; `pow` refuses exponents over 10 000 and results over 2²⁴ bits). |

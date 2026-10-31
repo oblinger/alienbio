@@ -29,7 +29,7 @@
     <rect id="n-rpy-box" x="960" y="40" width="220" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-rpy-name" x="1070" y="66" font-size="18" font-weight="600" text-anchor="middle">resolve_py</text>
     <text id="n-rpy-kind" x="1070" y="88" font-size="14" text-anchor="middle">(fn) modules by stem,</text>
-    <text id="n-rpy-kind2" x="1070" y="108" font-size="14" text-anchor="middle">then importlib</text>
+    <text id="n-rpy-kind2" x="1070" y="108" font-size="14" text-anchor="middle">then alienbio.* only</text>
   </g>
   <line id="e-mod-rpy" x1="900" y1="75" x2="960" y2="75" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#arrowhead)"/>
 

@@ -13,11 +13,12 @@ The page for the one function that gives Expr forms meaning: how `evaluate` walk
 
 
 ## interp Interface
-The module-level surface: one function and two tuples. The special forms are registered heads, not exports (§ [The special forms](#the-special-forms)).
+The module-level surface: two functions and two tuples. The special forms are registered heads, not exports (§ [The special forms](#the-special-forms)).
 
 | interp | |
 | --- | --- |
 | [evaluate](#^evaluate) | Evaluate one form in one environment |
+| [closure_env](#^closure-env) | The environment a `QuotedForm` closes over |
 | [GUARD_KEYS](#^guard-keys) | The keywords every call accepts |
 | [ON_FAIL](#^on-fail) | The three failure policies |
 
@@ -30,15 +31,18 @@ The module-level surface: one function and two tuples. The special forms are reg
 **ON_FAIL**` = ("retry", "prune", "reject")`
     The accepted `on_fail` values; anything else refuses, and `!ref retry` is read as the name `retry`. ^on-fail
 
+**closure_env**`(quoted: QuotedForm) -> Env`
+    Returns the private `_env` of a quoted form: the Python reader for code that must evaluate in the definition environment (`suite/rate_law.py` compiling a quoted law, `suite/expr_experiment.py`). A spec expression cannot reach it ([ABIO Access](ABIO%20Access.md)). ^closure-env
+
 
 
 ## QuotedForm Interface
-A frozen dataclass: a form held as a value together with the environment it was written in. It satisfies `suite.dist.Dist` (`sample(seed)`), which is how a `!q` argument reaches a drafter unsampled.
+A frozen dataclass: a form held as a value together with the environment it was written in, which is private — a public `.env` handed an untrusted spec the `Env`, and through `Env.standard` a trusted one (T091 AG1). It satisfies `suite.dist.Dist` (`sample(seed)`), which is how a `!q` argument reaches a drafter unsampled.
 
 | QuotedForm | |
 | --- | --- |
 | [form](#^form) | The quoted form |
-| [env](#^env) | The environment it closes over |
+| [_env](#^env) | The environment it closes over, private |
 | [sample](#^sample) | Evaluate under a given seed |
 | [run](#^run) | Evaluate with extra bindings |
 | [__eq__](#^eq) | Equal when the forms are equal |
@@ -46,11 +50,11 @@ A frozen dataclass: a form held as a value together with the environment it was 
 **form**`: Any`
     The unevaluated form. ^form
 
-**env**`: Env`
-    The definition environment: its bindings, registry, context and path. ^env
+**_env**`: Env`
+    The definition environment: its bindings, registry, context and path. Python reads it with `closure_env`; an expression reading any attribute of a `QuotedForm` refuses, since it is not a plain or domain value. ^env
 
 **sample**`(seed: Seed) -> Any`
-    `evaluate(form, env.with_seed(seed))`: the same bindings and path, a different seed. ^sample
+    `evaluate(form, _env.with_seed(seed))`: the same bindings and path, a different seed. ^sample
 
 **run**`(bindings: Mapping | None = None, *, seed: Seed | None = None) -> Any`
     Evaluates the form in a child scope holding `bindings`, under `seed` when one is given; the `run` special form passes the caller's current seed. ^run
@@ -166,3 +170,4 @@ A retried call keeps its path, so its instance on every attempt is named by its 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`, a concurrent worker editing `src/`). Run against an export of that tree: the retried template instance comes out `retry1.P` where the unretried one is `plain.P`; `t(1, a=2)` with `a` positional returns 1; `exp(1000)` raises a bare `OverflowError`. Not determined: whether any caller dedups on `QuotedForm` equality (it ignores the closure). Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: a retry re-draws on a child seed at the same path (the instance keeps its key), a keyword rebinding a bound positional refuses, `ValueError`/`ArithmeticError` from a callable become `ExprError` (`e2efa89`).
+- 2026-10-30 — refreshed for `5c08bc8` (T091 AG1): `QuotedForm`'s environment is the private `_env`, read from Python by the new `closure_env` (rate_law and expr_experiment use it). Figure still true.
