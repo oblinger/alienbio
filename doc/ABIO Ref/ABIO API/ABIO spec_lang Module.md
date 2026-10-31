@@ -1,4 +1,4 @@
-:>> [[ABIO]] → [[ABIO Ref]] → [[ABIO API]] → [ABIO spec_lang Module](ha://p/ABIO%20spec_lang%20Module) 
+:>> [ABIO](../../ABIO.md) → [ABIO Ref](../ABIO%20Ref.md) → [ABIO API](ABIO%20API.md) → [ABIO spec_lang Module](ha://p/ABIO%20spec_lang%20Module) 
 # Spec Language Module
 What remains of the M1 spec language after M47.7 — the distribution builtins, the inline-expression allowlist (`safe_eval`), lexical `Scope` and the `@biotype` registry — the pieces [[ABIO Expr Spec|Expr]] stands on.
 
