@@ -23,7 +23,7 @@ The module-level surface: two functions and two tuples. The special forms are re
 | [ON_FAIL](#^on-fail) | The three failure policies |
 
 **evaluate**`(form: Any, env: Env) -> Any`
-    Refuses first when `env.depth` exceeds `limits.depth`. Then: a `Name` is `env.lookup(path)`; a `Quoted` becomes a `QuotedForm` closed over `env`; a `Call` dispatches (§ [Dispatch by kind](#dispatch-by-kind)); a `Lazy` is forced; an `Include` or `PyRef` raises (they are resolved at load, never here); a mapping carrying `_type:` is the call `_type(**rest)`; any other mapping or list is rebuilt from its evaluated elements, each under `env.child(key)`; anything else is returned as is. Raises `ExprError` carrying the failing node's path. ^evaluate
+    The outermost call on a thread starts the `limits.seconds` clock and nested calls share it (`db4e905`, T091 AL6; [ABIO Env](ABIO%20Env.md) § Limits); every dispatch, `each` iteration and guard retry ticks it. Refuses first when `env.depth` exceeds `limits.depth`. Then: a `Name` is `env.lookup(path)`; a `Quoted` becomes a `QuotedForm` closed over `env`; a `Call` dispatches (§ [Dispatch by kind](#dispatch-by-kind)); a `Lazy` is forced; an `Include` or `PyRef` raises (they are resolved at load, never here); a mapping carrying `_type:` is the call `_type(**rest)`; any other mapping or list is rebuilt from its evaluated elements, each under `env.child(key)`; anything else is returned as is. Raises `ExprError` carrying the failing node's path. ^evaluate
 
 **GUARD_KEYS**` = ("guards", "on_fail")`
     Stripped from a call's keywords before dispatch; either one present routes the call through the guard machinery. ^guard-keys
@@ -114,7 +114,7 @@ A `Head` of kind `template`, made by the `template` special form: the parameter 
 | `expander` | the argument forms and `env` | its returned form is evaluated one level deeper, under the call's seed |
 | every function kind (`fn`, `dist`, `math`, `op`, `guard`, `constructor`, `drafter`, `agent`, `experiment`, …) | evaluated arguments; `ctx` / `env` injected when the callable declares them | its return is the value |
 
-A function's positional arguments evaluate under `env.child("0")`, `env.child("1")`, …, its keywords under `env.child(name)`. A `TypeError`, `ValueError` or `ArithmeticError` from the callable becomes an `ExprError` naming the head and the node path, the exception class prefixed for the latter two (`exp: OverflowError: math range error`); anything else propagates as Python raised it.
+A function's positional arguments evaluate under `env.child("0")`, `env.child("1")`, …, its keywords under `env.child(name)`. Every head body — a function, a special form, an expander — runs under `_guard_raw`: an `ExprError` or `GuardViolation` passes through, a `RecursionError` becomes `<head>: evaluation too deep (Python recursion limit)`, and any other exception becomes an `ExprError` naming the head and the node path, the exception class prefixed except for a `TypeError` (`exp: OverflowError: math range error`). Before `db4e905` (T091 AL7) only `TypeError` / `ValueError` / `ArithmeticError` from a function head were wrapped, and a `LookupError` or a drafter's `KeyError` escaped raw.
 
 
 
@@ -171,3 +171,4 @@ A retried call keeps its path, so its instance on every attempt is named by its 
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `c67f052` (read with `git show`, a concurrent worker editing `src/`). Run against an export of that tree: the retried template instance comes out `retry1.P` where the unretried one is `plain.P`; `t(1, a=2)` with `a` positional returns 1; `exp(1000)` raises a bare `OverflowError`. Not determined: whether any caller dedups on `QuotedForm` equality (it ignores the closure). Findings filed on T088.
 - 2026-10-28 — refreshed against `0eb23e5`: a retry re-draws on a child seed at the same path (the instance keeps its key), a keyword rebinding a bound positional refuses, `ValueError`/`ArithmeticError` from a callable become `ExprError` (`e2efa89`).
 - 2026-10-30 — refreshed for `5c08bc8` (T091 AG1): `QuotedForm`'s environment is the private `_env`, read from Python by the new `closure_env` (rate_law and expr_experiment use it). Figure still true.
+- 2026-10-30 — refreshed for `db4e905` (T091 AL6, AL7): `evaluate` starts the `limits.seconds` clock; every head body runs under `_guard_raw`, which wraps any exception. Figure still true.

@@ -144,8 +144,10 @@ A frozen dataclass of caps. Exceeding one raises `ExprError`; nothing is ever tr
 | [entities](#^entities) | Elements one producer may make, and in total |
 | [depth](#^limits-depth) | Evaluation nesting |
 | [attempts](#^attempts) | Guard retries and prune rounds |
+| [seconds](#^seconds) | Wall clock per top-level evaluation |
 | [meter](#^meter) | The running total |
 | [charge](#^charge) | Count elements, refuse past the cap |
+| [tick](#^tick) | Refuse past the clock's deadline |
 
 **entities**`: int = 1_000_000`
     The cap on one `each`, `range`, `list` or other sized producer, and on the running total in `meter`. ^entities
@@ -156,11 +158,17 @@ A frozen dataclass of caps. Exceeding one raises `ExprError`; nothing is ever tr
 **attempts**`: int = 8`
     `on_fail: retry` attempts and `on_fail: prune` rounds. ^attempts
 
+**seconds**`: float = 10.0`
+    Wall-clock seconds one top-level `evaluate` may run (`db4e905`, T091 AL6). The outermost `evaluate` sets the deadline on `meter.clock`; nested calls share it. Checked by `tick` at every head call (`_dispatch`), every `each` iteration and every guard retry. One Python operation is not interrupted — the size caps (`MAX_POW_RESULT_BITS`, [ABIO Heads](ABIO%20Heads.md)) keep each one short; this bounds a chain of them. ^seconds
+
 **meter**`: Meter`
     The cumulative count; created per `Limits` object (and replaced by `Env.standard` on a passed one), excluded from equality and repr. ^meter
 
 **charge**`(n: int, path: str, what: str) -> None`
     Refuses when `n` alone exceeds `entities`, otherwise adds `n` to the meter and refuses when the running total does. ^charge
+
+**tick**`(path: str) -> None`
+    Raises `ExprError` (`evaluation exceeded limits.seconds=…`) when the evaluation in progress on this thread is past its deadline; a no-op outside an evaluation. ^tick
 
 
 
@@ -220,7 +228,7 @@ Two reserved binding names a template instance carries, and the module's one hel
     Bound in a template body's scope to the instance name (`krel`, `c1.krel`). ^instance-key
 
 **Meter** (class)
-    One slot, `allocated`, incremented by `Limits.charge`. ^meter-class
+    Two slots: `allocated`, incremented by `Limits.charge`, and `clock`, a `threading.local` holding `deadline` and the nesting count `active` of the evaluation in progress — per thread, because concurrent trials share a closure env's meter. ^meter-class
 
 
 
@@ -233,7 +241,7 @@ Two reserved binding names a template instance carries, and the module's one hel
 
 
 ## Head lookup
-`head(name)` with an undotted name checks the scope chain first. A binding there wins over the registry when it is a head already (an evaluated `!template`), a `Lazy` whose pending form is a `template` call (forced on the spot), a `Lazy` holding a resolved `!py` object or `.py` function, or any other callable value; a callable becomes a function head with `ctx` / `env` injection read off its signature, after `access.check_callable` — in an untrusted env only a plain Python function qualifies, never a class, a builtin, a bound method or a callable object. Any other binding — a document key that merely shares a head's name, such as `world: !world {...}` — is not forced and does not shadow, so evaluating that key does not report a false cycle. Otherwise the full name goes to the registry.
+`head(name)` with an undotted name checks the scope chain first. A binding there wins over the registry when it is a head already (an evaluated `!template`), a `Lazy` whose pending form is a `template` call (forced on the spot), a `Lazy` holding a resolved `!py` object or `.py` function, any other callable value, or — when no registered head has the name — a pending binding of any form, forced on the spot (`db4e905`, T091 AL10: `c: !x ...` then `!x c(1)` works whatever the document order; a forced value that is neither a head nor callable raises `bound to a <type>, not a head or a callable`). A callable becomes a function head with `ctx` / `env` injection read off its signature, after `access.check_callable` — an untrusted env refuses every one (only registered heads and templates are callable there), a trusted one refuses a denied entry point ([ABIO Access](ABIO%20Access.md)). A pending binding whose name a registered head has — a document key that merely shares it, such as `world: !world {...}` — is not forced and does not shadow, so evaluating that key does not report a false cycle. Otherwise the full name goes to the registry.
 
 A dotted name whose first segment is bound resolves its whole path through the scope (`lookup`): a head at the end of it is returned, a callable becomes a function head, and anything else — an unresolvable path included — falls to the registry. So `!t.anything {}` is `unknown head` unless the registry has `t.anything`, where it once called template `t`.
 
@@ -245,7 +253,7 @@ Inside a template instance, `pool(name)` returns the caller's spelling for a str
 
 
 ## Loading a file
-`load` reads the text (or takes `text=`), parses it with the Expr YAML loader, and refuses a non-mapping document. Then, in order: the `_includes_` list resolves (`.py` entries execute for their registrations, `.yaml` entries contribute top-level keys); every `Include` and `PyRef` in the tree is replaced; included keys are added where the file does not define them; each top-level key becomes a `Lazy` in a fresh child scope. Relative includes resolve against `base`, else the file's own directory, else — for text with no file behind it — the process's working directory. The file itself seeds the include cycle set.
+`load` reads the text (or takes `text=`), parses it with the Expr YAML loader, and refuses a non-mapping document. Then, in order: the `_includes_` list resolves (`.py` entries execute for their registrations, `.yaml` entries contribute top-level keys); every `Include` and `PyRef` in the tree is replaced; included keys are added where the file does not define them; each top-level key becomes a `Lazy` in a fresh child scope. The source path is resolved once (`d943ce4`, T091 AL1): the text is read from the resolved file, relative includes resolve against `base`, else the resolved file's directory, else — for text with no file behind it — the process's working directory, and the resolved file seeds the include cycle set. So a symlink to a catalog spec includes catalog's helpers, not the helpers beside the link.
 
 
 
@@ -255,7 +263,7 @@ Inside a template instance, `pool(name)` returns the caller's spelling for a str
 
 
 ## The meter
-Every sized producer (`each`, `range`, `list`, `sorted`, `zip`, `sum`, `add`, `mul`, `flatten`, `fstr`, and the text builders `op:mod`, `op:fmt` and `op:method`, charged a bound before they build) calls `limits.charge`, which refuses both a single producer over `entities` and a running total over it, so a spec that is cheap per step and ruinous in total is stopped before the memory is gone. The total lives on the `Limits` object, and `Env.standard` gives every environment its own: a fresh `Limits()`, or the passed one copied with a new `Meter`, so one `Limits` handed to several environments no longer sums their allocations.
+Every sized producer (`each`, `range`, `list`, `sorted`, `zip`, `sum`, `add`, `mul`, `flatten`, `fstr`, and the text builders `str`, `op:mod`, `op:fmt` and `op:method`, charged a bound — a value's rendered size by `render_bound` — before they build) calls `limits.charge`, which refuses both a single producer over `entities` and a running total over it, so a spec that is cheap per step and ruinous in total is stopped before the memory is gone. The total lives on the `Limits` object, and `Env.standard` gives every environment its own: a fresh `Limits()`, or the passed one copied with a new `Meter`, so one `Limits` handed to several environments no longer sums their allocations.
 
 
 
@@ -265,3 +273,4 @@ Every sized producer (`each`, `range`, `list`, `sorted`, `zip`, `sum`, `add`, `m
 - 2026-10-28 — refreshed against `0eb23e5`: `Env.standard` gives a passed `Limits` its own meter, a failed lazy binding returns to pending and re-raises its own error, a dotted head resolves its whole path, the meter list gains the text builders (`e2efa89`, `c90ce0d`).
 - 2026-10-29 — refreshed for `dc92971` (T091 C11): a forced binding evaluates one level below the deeper of its definition and its lookup, so name chains count toward `limits.depth`. Figure still true.
 - 2026-10-30 — refreshed for `5c08bc8` (T091 AG1): `lookup`'s attribute step and a bound callable used as a head go through [ABIO Access](ABIO%20Access.md) — receiver type judged after a mapping key or index, `_` names refused everywhere, `check_callable` on a bound callable. Figure still true.
+- 2026-10-30 — refreshed for `d943ce4` (T091 AL1) and `db4e905` (AL6, AL10): `load` reads and bases includes on the resolved file; `Limits.seconds` (10 s wall clock per top-level evaluation, per thread on `Meter.clock`) and `tick`; `head` forces any pending binding no registered head shares a name with; `check_callable` now refuses every bound callable untrusted. Figure still true.

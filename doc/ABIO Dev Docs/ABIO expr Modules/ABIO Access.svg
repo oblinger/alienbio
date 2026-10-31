@@ -50,17 +50,19 @@
   <g id="n-untr">
     <rect id="n-untr-box" x="880" y="310" width="140" height="70" rx="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-untr-name" x="950" y="338" font-size="18" font-weight="600" text-anchor="middle">untrusted</text>
-    <text id="n-untr-kind" x="950" y="362" font-size="14" text-anchor="middle">plain function</text>
+    <text id="n-untr-kind" x="950" y="362" font-size="14" text-anchor="middle">nothing</text>
   </g>
   <g id="n-tr">
     <rect id="n-tr-box" x="1040" y="310" width="140" height="70" rx="10" fill="#d3f9d8" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-tr-name" x="1110" y="338" font-size="18" font-weight="600" text-anchor="middle">trusted</text>
     <text id="n-tr-kind" x="1110" y="362" font-size="14" text-anchor="middle">what was bound</text>
   </g>
+  <text id="l-tr" x="1110" y="410" font-size="13" fill="#495057" text-anchor="middle">but no denied</text>
+  <text id="l-tr2" x="1110" y="428" font-size="13" fill="#495057" text-anchor="middle">entry point</text>
   <line id="e-cc-untr" x1="990" y1="234" x2="950" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
   <line id="e-cc-tr" x1="1090" y1="234" x2="1110" y2="310" stroke="#1e1e1e" stroke-width="3" marker-end="url(#arrowhead)"/>
-  <text id="l-cc" x="950" y="410" font-size="13" fill="#495057" text-anchor="middle">never a class, builtin,</text>
-  <text id="l-cc2" x="950" y="428" font-size="13" fill="#495057" text-anchor="middle">bound method</text>
+  <text id="l-cc" x="950" y="410" font-size="13" fill="#495057" text-anchor="middle">only registered heads</text>
+  <text id="l-cc2" x="950" y="428" font-size="13" fill="#495057" text-anchor="middle">and templates call</text>
 
   <g id="n-name">
     <rect id="n-name-box" x="260" y="300" width="320" height="64" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>

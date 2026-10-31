@@ -1,5 +1,5 @@
 ---
-description: "`heads`: the Expr builtin heads registered at import — the seven distribution draws and `constant`, the plain math and conversion builtins, the metered sized builtins (`range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min`), the `op:*` heads the inline parser emits (with the metered `add`, `mul`, `pow`, `mod`, `flatten`, `method`, `fstr`, `fmt`), and the two generic guards `nonempty` and `max_size`. Source: `src/alienbio/expr/heads.py`, draws from `src/alienbio/spec_lang/builtins.py`."
+description: "`heads`: the Expr builtin heads registered at import — the seven distribution draws and `constant`, the plain math and conversion builtins, the metered sized builtins (`range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min`, `str`), the `op:*` heads the inline parser emits (with the metered `add`, `mul`, `pow`, `mod`, `flatten`, `method`, `fstr`, `fmt`), and the two generic guards `nonempty` and `max_size`. Source: `src/alienbio/expr/heads.py`, draws from `src/alienbio/spec_lang/builtins.py`."
 ---
 :>> [ABIO](../../ABIO.md) → [ABIO Dev Docs](../ABIO%20Dev%20Docs.md) → [ABIO expr Modules](ABIO%20expr%20Modules.md) → [ABIO Heads](ha://p/ABIO%20Heads) 
 # ABIO Heads
@@ -57,7 +57,8 @@ Kind `math`. Thin registrations of Python builtins; arguments arrive evaluated.
 
 | Math heads | |
 | --- | --- |
-| [abs, round, sqrt, exp, log, len, int, float, str, bool, dict, all, any](#^plain-math) | The Python builtins of those names |
+| [abs, round, sqrt, exp, log, len, int, float, bool, dict, all, any](#^plain-math) | The Python builtins of those names |
+| [str](#^str) | `str(x)`, charged by rendered size |
 | [pow](#^pow) | `op:pow`'s capped function by name |
 | [range](#^range) | A list, charged by length |
 | [list](#^list) | A list, charged by length |
@@ -68,11 +69,14 @@ Kind `math`. Thin registrations of Python builtins; arguments arrive evaluated.
 | [max](#^max) | Maximum, sized inputs charged |
 | [min](#^min) | Minimum, sized inputs charged |
 
-**abs, round, sqrt, exp, log, len, int, float, str, bool, dict, all, any**
-    The builtins (and `math.sqrt`, `math.exp`, `math.log`) registered under their names. A `TypeError` they raise becomes an `ExprError`; any other exception (`exp(1000)`'s `OverflowError`, `log(0)`'s `ValueError`) propagates as raised. ^plain-math
+**abs, round, sqrt, exp, log, len, int, float, bool, dict, all, any**
+    The builtins (and `math.sqrt`, `math.exp`, `math.log`) registered under their names. An exception they raise becomes an `ExprError` at the node (§ [Raw exceptions](#raw-exceptions)): `exp(1000)` reads `exp: OverflowError: math range error`. ^plain-math
+
+**str**`(value="", *args, ctx) -> str`
+    `str(x)`, charged by `render_bound(x)` before it renders (`db4e905`, T091 AL5: `[[[0] * 1000] * 1000] * 100` was charged 2 100 elements and rendered 300 M characters); `str(b, encoding)` decodes, charged `4 × len(b)`. ^str
 
 **pow**`(base, exp, mod=None, *, ctx)`
-    Without `mod`, `op:pow` itself, so `pow(3, 2000000)` refuses exactly as `3 ** 2000000` does; with `mod`, Python's three-argument `pow`, whose result is bounded by `mod`. ^pow
+    Without `mod`, `op:pow` itself, so `pow(3, 2000000)` refuses exactly as `3 ** 2000000` does. With integer `exp` and `mod`, refuses a modulus over `MAX_POW_RESULT_BITS` bits and `bits(exp) × bits(mod)` over `MAX_MODPOW_WORK` (2^24; a 13 M-bit exponent with a 10 K-bit modulus ran past a minute), then Python's three-argument `pow`. ^pow
 
 **range**`(*a, ctx) -> list`
     `list(range(*a))`, charged by its length before the list is built. ^range
@@ -125,7 +129,7 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     Charges the summed length of string, list and tuple operands before adding. ^op-add
 
 **op:mul**`(a, b, *, ctx)`
-    When one side is a sequence and the other an `int`, charges `len(seq) * n` before multiplying. ^op-mul
+    When one side is a sequence and the other an `int`, charges `len(seq) * n` before multiplying; two `int`s refuse when `a.bit_length() + b.bit_length()` exceeds `MAX_POW_RESULT_BITS` (`db4e905`, T091 AL6 — a big-int product is superlinear in its size). ^op-mul
 
 **op:pow**`(a, b, *, ctx)`
     Refuses an integer exponent above `MAX_INT_EXPONENT` in magnitude (unless the base is 0, 1, -1 or a bool), and an integer result estimated over `MAX_POW_RESULT_BITS` (`a.bit_length() * b`); converts a float `OverflowError` to `ExprError`. ^op-pow
@@ -134,7 +138,7 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     Plain lambdas; none can build more than its operands. ^op-arith
 
 **op:mod**`(a, b, *, ctx)`
-    On a `str` or `bytes` left operand (printf formatting), first charges the format's length, every digit run in it read as a width or precision, a `*` width's integer argument, and the text of every interpolated argument — ten times over when the format holds a `%r` or `%a` conversion, in any spelling Python accepts — the mapping form `%(key)r`, flags, width and precision, and the ignored length modifiers `h`/`l`/`L` (`%(k)la`, `%ha`, `%lr`), matched by `_REPR_CONVERSION` = `%(?:\([^)]*\))?[^a-zA-Z%]*[hlL]?[ra]` — since a repr writes up to ten characters per character — so `'%050000000d' % 1` refuses; a number is plain `%`. ^op-mod
+    On a `str` or `bytes` left operand (printf formatting), first charges the format's length, every digit run in it read as a width or precision, a `*` width's integer argument, and the rendered size of every interpolated argument (`render_bound`, never built) — ten times over when the format holds a `%r` or `%a` conversion, in any spelling Python accepts — the mapping form `%(key)r`, flags, width and precision, and the ignored length modifiers `h`/`l`/`L` (`%(k)la`, `%ha`, `%lr`), matched by `_REPR_CONVERSION` = `%(?:\([^)]*\))?[^a-zA-Z%]*[hlL]?[ra]` — since a repr writes up to ten characters per character — so `'%050000000d' % 1` refuses; a number is plain `%`. ^op-mod
 
 **op:neg, op:pos, op:not**`(a)`
     `-a`, `+a`, `not a`. ^op-unary
@@ -161,10 +165,10 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     Refuses an in-place method (`append`, `extend`, `insert`, `remove`, `pop`, `clear`, `sort`, `reverse`, `update`, `setdefault`, `popitem`, `add`, `discard`, the `*_update` set methods) on a list, dict, set or bytearray, since a binding is shared by every node naming it; then checks the name, and resolves the target: a callable held under that key in a mapping must pass `check_callable` (untrusted: a plain Python function only), anything else is a method of a plain-data receiver — a domain record's methods and every other type's refuse. It refuses a non-callable, and charges a bound before calling: on text, the padding target for `ljust`/`rjust`/`center`/`zfill`, `len × tabsize` for `expandtabs`, the joined length for `join`, the worst case for `replace`, `n ×` the longest string value in the table for `translate` (a table that is neither a mapping nor a list refuses), `3n` for the case methods (`upper`, `lower`, `casefold`, `title`, `swapcase`, `capitalize`: `'ﬃ'.upper()` is three characters), `10n` for `encode` (`100n` with `namereplace`), `4n` for `decode`, `n × (2 + separator)` for `hex`, else the receiver plus its text arguments; on an int, `n` for `to_bytes(n)` (so `(1).to_bytes(10**9, 'big')` refuses) and nothing for its other methods, nor for a float's or complex's; on a container, its length plus every sized argument (`fromkeys`, `union`, …). ^op-method
 
 **op:fstr**`(*parts, ctx) -> str`
-    Charges the summed length of `str(p)` for each part, then joins. ^op-fstr
+    Charges the summed rendered size of the parts (`render_bound` for a non-text part, so nothing is rendered first), then renders and joins. ^op-fstr
 
 **op:fmt**`(value, spec="", conv="", *, ctx) -> str`
-    Charges every digit run in `spec` as a width, then applies the `!r`/`!s`/`!a` conversion and `format(value, spec)`; `op:fstr` charges the joined text. ^op-fmt
+    Charges every digit run in `spec` as a width, and a value that is not text or a scalar its rendered size (ten times under `!r` / `!a`), then applies the `!r`/`!s`/`!a` conversion and `format(value, spec)`; `op:fstr` charges the joined text. ^op-fmt
 
 
 
@@ -190,14 +194,26 @@ The module's exports beyond its registrations.
 | heads | |
 | --- | --- |
 | [MAX_INT_EXPONENT](#^max-int-exponent) | `op:pow`'s exponent cap |
-| [MAX_POW_RESULT_BITS](#^max-pow-result-bits) | `op:pow`'s result-size cap |
+| [MAX_POW_RESULT_BITS](#^max-pow-result-bits) | Result-size cap of `**`, `pow` and `int * int` |
+| [MAX_MODPOW_WORK](#^max-modpow-work) | Three-argument `pow`'s work cap |
+| [render_bound](#^render-bound) | Upper estimate of `len(str(value))` |
+| [charge_render](#^charge-render) | Charge a value's rendered size |
 | [flatten_iter](#^flatten-iter) | Unmetered one-level flatten |
 
 **MAX_INT_EXPONENT**` = 10_000`
     The largest integer exponent `op:pow` takes (M48.5: `10 ** 10 ** 10`). ^max-int-exponent
 
-**MAX_POW_RESULT_BITS**` = 1 << 24`
-    The largest estimated result `op:pow` builds (T051 box 4: `(10 ** 10000) ** 10000` was within the exponent cap and ~15 minutes of one core). ^max-pow-result-bits
+**MAX_POW_RESULT_BITS**` = 1 << 20`
+    The largest estimated integer result `op:pow`, `op:mul` on two ints, and a three-argument `pow`'s modulus may reach (T051 box 4: `(10 ** 10000) ** 10000` was within the exponent cap and ~15 minutes of one core). Lowered from 2^24 at `db4e905` (T091 AL6): `(10**1000)**4000`, 13 M bits, took 15 s; one 2^20-bit product is about half a second, and `limits.seconds` bounds a chain of them ([ABIO Env](ABIO%20Env.md)). ^max-pow-result-bits
+
+**MAX_MODPOW_WORK**` = 1 << 24`
+    The cap on `bits(exp) × bits(mod)` for `pow(a, b, m)`, which does about `bits(b)` multiplications modulo `m`. ^max-modpow-work
+
+**render_bound**`(value, limit: int) -> int`
+    An upper estimate of `len(str(value))`, computed without building the text. Every occurrence of a shared list counts (rendering repeats it); a container already on the walk's path is a cycle, counted as `[...]`; the walk stops once the total passes `limit`, so it costs at most `limit` steps. Per element: separators and brackets, a string's length plus quotes, `4 × len` for bytes, an int's decimal digits, 32 for any other scalar; a dataclass walks its fields; any other object is rendered (its size was bounded where it was built). ^render-bound
+
+**charge_render**`(value, ctx, what: str) -> None`
+    Charges `len(value)` for text, else `render_bound(value, remaining budget + 1)`, before the caller renders. ^charge-render
 
 **flatten_iter**`(xs) -> list`
     A plain Python helper, not a head. ^flatten-iter
@@ -217,12 +233,18 @@ A distribution head declares `ctx` and so receives the node's context; `ctx.rng`
 
 | Behaviour | Heads |
 | --- | --- |
-| Charged before building | `range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min` (sized inputs), `op:add`, `op:mul`, `op:flatten`, `op:fstr`, `op:fmt` widths, `op:mod` on text, `op:method` |
-| Bounded otherwise | `op:pow` and `pow` by name (exponent and result bits) |
-| Not charged (‡) | `op:set`, `str`, `int`, `dict` |
+| Charged before building | `range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min` (sized inputs), `str`, `op:add`, `op:mul` on a sequence, `op:flatten`, `op:fstr`, `op:fmt`, `op:mod` on text, `op:method` |
+| Bounded otherwise | `op:pow` and `pow` by name (exponent and result bits; with a modulus, modulus bits and exponent × modulus bits), `op:mul` on two ints (result bits) |
+| Not charged (‡) | `op:set`, `int`, `dict` |
+| Not bounded | integer `op:mod` and `op:floordiv` (a 1 M-bit `%` is about 2.5 s; `limits.seconds` stops a chain) |
 | Refused by name | `str.format` / `format_map` (a format field walks attributes outside the allowlist — use an f-string), the in-place methods; `bytes` / `bytearray` are not heads |
 
-M48.5 and T051 box 4 closed the first rows' original members; T088 (`c90ce0d`) added `pow` by name, `op:mod`, `op:method` and the `op:fmt` width, and moved `op:flatten`/`op:fstr` ahead of the build; T091 AH (`5d578ec`) added `int.to_bytes` and a container method's sized arguments. The `heads.py` module docstring carries the full charge table. The third row builds no more than an input that was already charged.
+M48.5 and T051 box 4 closed the first rows' original members; T088 (`c90ce0d`) added `pow` by name, `op:mod`, `op:method` and the `op:fmt` width, and moved `op:flatten`/`op:fstr` ahead of the build; T091 AH (`5d578ec`) added `int.to_bytes` and a container method's sized arguments. T091 AL (`db4e905`) moved `str` from the third row to the first, sized every rendered value by `render_bound` rather than by rendering it, and capped `int * int` and the three-argument `pow`. The `heads.py` module docstring carries the full charge table. The third row builds no more than an input that was already charged.
+
+
+
+## Raw exceptions
+The interpreter calls every head body — function, special form or expander — through `interp._guard_raw` ([ABIO Interp](ABIO%20Interp.md)): an `ExprError` or `GuardViolation` passes through, a `RecursionError` becomes `<head>: evaluation too deep (Python recursion limit)`, and any other exception becomes an `ExprError` at the node reading `<head>: <Kind>: <message>` (the kind omitted for a `TypeError`). Since `db4e905` (T091 AL7) that covers every `Exception`, not only `TypeError` / `ValueError` / `ArithmeticError` — `'a'.encode('bogus')`'s `LookupError` and a drafter's `KeyError` were reaching callers untyped.
 
 
 
@@ -233,3 +255,4 @@ M48.5 and T051 box 4 closed the first rows' original members; T088 (`c90ce0d`) a
 - 2026-10-29 — refreshed for `dc92971` (T091 C4) and `db300c9` (F6): `op:method` bounds `translate` by the table's longest value, the case methods at 3n, `encode` at 10n (100n with `namereplace`), `decode` at 4n and `hex`, so a 27-million-character `translate` refuses; `op:mod` charges 10× for `%r`/`%a`, the `%(key)` forms included. Figure still true.
 - 2026-10-30 — refreshed for `5c08bc8` (T091 AG1) and `5d578ec` (AH): `op:attr` and `op:method` judge the receiver's type through [ABIO Access](ABIO%20Access.md) — methods only on plain data, a mapping-held callable through `check_callable`; `int.to_bytes(n)` charges `n` and a container method its sized arguments before it runs; `str.format`/`format_map` refused by name. Figure still true.
 - 2026-10-29 — refreshed for `fab20be` (T091 K F6): `op:mod`'s repr charge also catches the `h`/`l`/`L` length modifiers (`%la`, `%hr`).
+- 2026-10-30 — refreshed for `db4e905` (T091 AL5–AL7): `str` is a metered head; `op:fmt`, `op:fstr` and `op:mod` charge `render_bound` before rendering; `int * int` and `**` capped at `MAX_POW_RESULT_BITS = 2^20` (was 2^24), three-argument `pow` by `MAX_MODPOW_WORK`; every head body passes `interp._guard_raw`. New blocks `render_bound`, `charge_render`, `MAX_MODPOW_WORK`; figure's `str`, metered-operator and cap labels updated.
