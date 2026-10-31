@@ -12,7 +12,7 @@ from alienbio.bio.world import Compartment, WorldImpl
 from alienbio.expr import Env, X, evaluate, fn
 from alienbio.infra.mk import mk
 from alienbio.suite.experiment import Draft
-from alienbio.suite.archetypes import _is_molecule
+from alienbio.suite.archetypes import MIN_PATHWAY_LENGTH, _is_molecule
 from alienbio.suite.grade import grade_answer
 from alienbio.suite.perturbations import perturb_rate
 from alienbio.suite.render import parse, render
@@ -80,8 +80,11 @@ def opaque_host(pathway_length: int, distractors: int, *, env: Any) -> WorldImpl
     the reactions one of ``x1`` … — the order is in the stoichiometry alone,
     and the key varies with the seed."""
     n, d = int(pathway_length), int(distractors)
-    if n < 2 or d < 0:
-        raise ValueError(f"opaque_host: pathway_length must be >= 2 and distractors >= 0, got {n}, {d}")
+    if n < MIN_PATHWAY_LENGTH or d < 0:
+        raise ValueError(
+            f"opaque_host: pathway_length must be >= {MIN_PATHWAY_LENGTH} and distractors >= 0, got {n}, {d} "
+            "(the question states both endpoints, so a two-node chain's question states the whole key)"
+        )
     rng = env.ctx.rng
     width = len(str(n + d))
     names = [f"m{i:0{width}d}" for i in rng.permutation(n + d) + 1]
@@ -104,7 +107,9 @@ def opaque_host(pathway_length: int, distractors: int, *, env: Any) -> WorldImpl
 
 @fn(summary="a puzzle whose chain has at most three nodes")
 def is_short(world: WorldImpl) -> bool:
-    return len(world.chemistry.molecules) <= 6
+    # the chain is the molecules some reaction touches; distractors are inert
+    chain = {m.name for rxn in world.chemistry.reactions.values() for m in (*rxn.reactants, *rxn.products)}
+    return len(chain) <= 3
 
 
 @fn(summary="a puzzle whose chain has more than three nodes")
@@ -135,9 +140,18 @@ def knockout_first(world: WorldImpl) -> WorldImpl:
     return perturb_rate(world, min(world.chemistry.reactions), 0.1)
 
 
-@fn(summary="validity.non_obvious_causal: the perturbed trajectory must visibly differ")
+#: The gate's floor (T091 AF10): the knocked-out step must move the 3 s
+#: trajectory by more than this (L2 over every sample, concentration units).
+#: At 1e-3 no world of this family could fail (minimum 10.6 over 30 seeds);
+#: at 5.0, over seeds 0-59, it refuses 0 hosts at length 3 or 4, 7 at
+#: length 5 and 18 at length 6 — the ones whose throttled step sits too late
+#: and too slow for a knockout to show inside the horizon.
+MIN_KNOCKOUT_DEVIATION = 5.0
+
+
+@fn(summary="validity.non_obvious_causal: knocking out a chain step must move the trajectory visibly")
 def non_obvious(baseline: Any, perturbed: Any) -> bool:
-    return non_obvious_causal(min_deviation=1e-3)(baseline, perturbed)
+    return non_obvious_causal(min_deviation=MIN_KNOCKOUT_DEVIATION)(baseline, perturbed)
 
 
 @fn(kind="drafter", summary="the pathway puzzles as a drafter: (world, task) with the dials bound")

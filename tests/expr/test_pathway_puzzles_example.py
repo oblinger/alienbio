@@ -37,10 +37,11 @@ def test_the_identify_key_is_the_carved_chain_and_grades_with_partial_credit(val
     assert isinstance(obj, AnswerObjective) and obj.key.kind == "ordered_path"
     assert obj.key.value == [values["carved"].binding[f"r{i}"] for i in range(4)]
     assert values["full_credit"] == 1.0
-    # T088 identify_pathway 1: the question's start node earns no credit, so
-    # the right first two of four score (2 - 1) / (4 - 1), and echoing the
-    # question's endpoints scores 0 (it scored 1/4).
-    assert values["prefix_credit"] == pytest.approx(1 / 3)
+    # T088 identify_pathway 1 + T091 AF11: neither endpoint the question
+    # states earns credit, so the right first two of four score the interior
+    # (2 - 1) / (4 - 2) = 1/2 (it scored 1/3 while the stated end still
+    # counted), and echoing the question's endpoints scores 0.
+    assert values["prefix_credit"] == pytest.approx(1 / 2)
     assert values["echo_credit"] == 0.0
     assert values["no_credit"] == 0.0
     assert values["task"].objective is obj
@@ -128,6 +129,20 @@ def test_a_host_the_gate_rejects_is_never_delivered():
     scope.bindings["host"] = inert
     with pytest.raises(ExprError, match="no world passed the validity predicate"):
         evaluate(X.name("checked"), scope)
+
+
+def test_the_gate_refuses_a_host_of_this_family_whose_knockout_barely_shows():
+    """T091 AF10: at the old 1e-3 floor no host of this family could fail
+    (minimum deviation 10.6 over 30 seeds). At MIN_KNOCKOUT_DEVIATION a
+    length-6 host whose throttled step is too late and slow to show inside
+    the 3 s horizon is refused (seed 1); a length-4 host passes (seed 3)."""
+    from alienbio.expr import ExprError, X, evaluate
+
+    rejected = _scope(1, length=6)
+    with pytest.raises(ExprError, match="no world passed the validity predicate"):
+        evaluate(X.name("checked"), rejected)
+    passed = _scope(3, length=4)
+    assert evaluate(X.name("checked"), passed) is evaluate(X.name("host"), passed)
 
 
 def test_the_experiment_runs_over_the_chain_length(tmp_path):

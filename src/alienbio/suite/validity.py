@@ -4,11 +4,13 @@ Two opaque predicates the suite reject-samples worlds against, encoding the Q5
 world-validity gates. Both are framework machinery — opaque tests over
 trajectories / graphs, with no experiment content:
 
-- :func:`non_obvious_causal` — **(A)** the target causal structure must be
-  *invisible in the baseline trajectory alone and only revealed under
-  perturbation*. Returned as a ``Callable[[Timeline, Timeline], bool]`` matching
-  the :func:`~alienbio.suite.verify.verify` reject-sampling seam: it accepts a
-  world only when the perturbation produces a non-trivial trajectory change.
+- :func:`non_obvious_causal` — **(A)** the perturbation must reveal the
+  structure: returned as a ``Callable[[Timeline, Timeline], bool]`` matching
+  the :func:`~alienbio.suite.verify.verify` reject-sampling seam, it accepts a
+  world only when the perturbed trajectory differs from the baseline by more
+  than a floor. It does NOT check that the structure is invisible in the
+  baseline alone (T091 AF10) — the floor is the whole test, so a caller sets
+  it where its world family can fail it.
 - :func:`is_shortcut_resistant` — **(C)** the top-ranked nodes under a small
   battery of cheap *structural* heuristics (degree centrality, two-hop reach)
   must not recover half or more of the ground-truth answer, so a heuristic
@@ -45,10 +47,11 @@ def non_obvious_causal(
     Returns ``pred(baseline, perturbed) -> bool`` for the
     :func:`~alienbio.suite.verify.verify` seam. The world is *valid* (``True``)
     only when the perturbed trajectory deviates from the baseline by more than
-    ``min_deviation`` in total L2 — i.e. the target relationship is **not**
-    readable from the baseline alone and **is** exposed by the intervention.
-    Worlds whose perturbation changes nothing (deviation ~ 0) are rejected: the
-    causal structure is either absent or not perturbation-revealed.
+    ``min_deviation`` in total L2 — the intervention visibly exposes the
+    structure. Whether the baseline alone already shows it is not checked.
+    The default ``1e-3`` rejects only a perturbation that changes nothing; a
+    throttled step of a mass-action chain moves the trajectory by orders of
+    magnitude more, so a gate meant to reject anything sets its own floor.
     """
 
     def _predicate(baseline: Timeline, perturbed: Timeline) -> bool:

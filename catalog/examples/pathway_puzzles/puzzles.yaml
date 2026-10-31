@@ -28,9 +28,9 @@ chain: !pattern
 carved: !carve {host: !x host, pattern: !x chain, allow_add: False}
 
 # 3. the objective: recover the ordered chain between the endpoints; the
-#    grader gives longest-correct-prefix partial credit, the start node the
-#    question states earning none (T088): two of four nodes is 1/3, the
-#    question's endpoints echoed back 0
+#    grader gives longest-correct-prefix partial credit over the interior,
+#    neither endpoint the question states earning any (T088 the start, T091
+#    AF11 the end): two of four nodes is 1/2, the endpoints echoed back 0
 puzzle: !identify {world: !x host, skeleton: !x carved, roles: !x chain_names(pathway_length)}
 task: !task {objective: !x puzzle, archetype: pathway-puzzle}
 full_credit: !x grade(puzzle.objective.key.value, puzzle.objective)
@@ -55,8 +55,10 @@ plan: !cover
   admissible: at_most_two
   aggressiveness: 0.5
 
-# 6. the validity gate: the puzzle's own `host` must show a visible change
-#    when a chain step is knocked out (validity.non_obvious_causal). It reads
+# 6. the validity gate: the puzzle's own `host` must move its 3 s trajectory
+#    by more than helpers.MIN_KNOCKOUT_DEVIATION (5.0, L2) when a chain step
+#    is knocked out (validity.non_obvious_causal) — at seeds 0-59 it refuses
+#    no host at length 3 or 4, 7 at length 5, 18 at length 6. It reads
 #    the `host` node, not a second draw — a fresh `opaque_host(...)` here
 #    checked a host drawn at its own seed and never gated the one delivered —
 #    and the drafter delivers `checked`, so a host that fails is refused, never
