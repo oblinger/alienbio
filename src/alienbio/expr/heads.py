@@ -4,6 +4,44 @@ heads the inline parser emits. Importing this module registers them.
 Distribution heads **draw** when evaluated (``!x lognormal(1, 0.3)`` is a
 number); quote one to pass it unsampled (``!q lognormal(1, 0.3)`` is a
 ``Dist``). One builtin set serves the inline sandbox and the rate view.
+
+**Allocation charges.** Everything that can build a value proportional to an
+argument is charged against ``Limits.charge`` (the per-session cumulative
+meter, default cap 1M) BEFORE it is built, at the size it would produce:
+
+=====================================  =========================================
+call                                   charge
+=====================================  =========================================
+``range`` / ``list`` / ``sorted`` /    the iterable's length
+``reversed`` / ``zip`` / ``max`` /
+``min`` / ``sum``
+``sum`` of lists                       total length of the rows
+``a + b`` (sequences)                  ``len(a) + len(b)``
+``seq * n`` (str/bytes/list/tuple)     ``len(seq) * n``
+``a ** b`` / ``pow``                   refused past 10 000 exponent or 2^24 bits
+``fmt % args``                         ``len(fmt)`` + every width digit run +
+                                       ``*`` widths + arg text (x10 for %r/%a)
+f-string / ``op:fmt``                  part lengths; spec width digit runs
+``op:flatten``                          total row length
+text ``ljust/rjust/center/zfill``      ``max(len, width)``
+text ``expandtabs(t)``                 ``len * max(8, t)``
+text ``join(xs)``                      ``sum(len(x)) + len(sep) * len(xs)``
+text ``replace(a, b)``                 ``len + (len+1) * max(len(a), len(b))``
+text ``translate(table)``              ``len * longest table value``
+text case mappings                     ``3 * len``
+``str.encode``                         ``10 * len`` (``100 *`` with namereplace)
+``bytes.decode``                       ``4 * len``
+``bytes.hex(sep)``                     ``len * (2 + len(sep))``
+``bytes.fromhex(s)`` / other text      ``len + len(text args)``
+``int.to_bytes(n)``                    ``n``
+other int / float / complex methods    0 (bounded scalar results)
+container methods                      ``len(receiver) + len(sized args)``
+=====================================  =========================================
+
+Denied by name rather than charged: ``str.format`` / ``format_map`` (the
+:mod:`spec_lang.safe_eval` name filter — a format field walks attributes
+outside :mod:`.access`; use an f-string), the mutating methods, and the
+``bytes`` / ``bytearray`` constructors (not heads).
 """
 
 from __future__ import annotations
@@ -322,7 +360,18 @@ def _method_bound(obj: Any, name: str, args: tuple[Any, ...], kwargs: Mapping[st
         if name == "hex":
             return n * (2 + sum(texts))  # each byte's two digits and a separator
         return n + sum(texts)
-    return len(obj) if hasattr(obj, "__len__") else 0
+    if isinstance(obj, int) and not isinstance(obj, bool):
+        if name == "to_bytes":
+            # T091 AH: `(1).to_bytes(10**9, 'big')` built a gigabyte, charged 0.
+            length = args[0] if args else kwargs.get("length", 1)
+            return max(length, 0) if isinstance(length, int) else 0
+        return 0  # every other int method returns a bounded scalar or the int itself
+    if isinstance(obj, (float, complex, bool, type(None))):
+        return 0
+    # A container method returns at most the receiver plus its sized
+    # arguments (`{1}.union(xs, ys)`, `{}.fromkeys(xs)`).
+    sized = sum(len(v) for v in values if isinstance(v, (str, bytes, list, tuple, dict, set, frozenset)))
+    return (len(obj) if hasattr(obj, "__len__") else 0) + sized
 
 
 #: str methods whose result can be longer than the receiver by a case mapping.
