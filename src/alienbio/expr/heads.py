@@ -13,9 +13,10 @@ import re
 from typing import Any, Iterable, Mapping
 
 from ..spec_lang import builtins as _b
-from ..spec_lang.safe_eval import UnsafeExpressionError, _check_attr_name
+from ..spec_lang.safe_eval import UnsafeExpressionError
+from . import access
 from .env import Env, ExprError
-from .registry import fn, guard
+from .registry import Head, fn, guard
 
 # ---- distributions ----------------------------------------------------------
 
@@ -257,15 +258,18 @@ def _item(obj: Any, index: Any, *, env: Env) -> Any:
 
 
 def _attr(obj: Any, name: str, *, env: Env) -> Any:
+    """``obj.name``: a mapping key, else an attribute on a receiver type
+    :mod:`.access` allows (T091 AG1 — the name filter alone let a spec walk
+    ``quote(1).env.standard``)."""
     try:
-        _check_attr_name(name)
+        access.check_name(name)
+        if isinstance(obj, Mapping) and name in obj:
+            return obj[name]
+        return access.read_attr(obj, name)
     except UnsafeExpressionError as exc:
         raise env.error(str(exc)) from None
-    if isinstance(obj, Mapping) and name in obj:
-        return obj[name]
-    if not hasattr(obj, name):
-        raise env.error(f"no attribute {name!r} on {type(obj).__name__}")
-    return getattr(obj, name)
+    except AttributeError:
+        raise env.error(f"no attribute {name!r} on {type(obj).__name__}") from None
 
 
 #: Methods that change their receiver in place (T088 heads 3: ``b: !x
@@ -347,7 +351,19 @@ def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
             f"{name!r} would change the {type(obj).__name__} in place, and Expr values are "
             "immutable (a binding is shared by every node naming it) — build a new value instead"
         )
-    target = _attr(obj, name, env=env)
+    try:
+        access.check_name(name)
+        if isinstance(obj, Mapping) and name in obj:
+            # a function held in a mapping (an included module's namespace)
+            target = obj[name]
+            if callable(target) and not isinstance(target, Head):
+                access.check_callable(target, trusted=env.ctx.trusted)
+        else:
+            target = access.method(obj, name)
+    except UnsafeExpressionError as exc:
+        raise env.error(str(exc)) from None
+    except AttributeError:
+        raise env.error(f"no attribute {name!r} on {type(obj).__name__}") from None
     if not callable(target):
         raise env.error(f"{name!r} on {type(obj).__name__} is not callable")
     try:

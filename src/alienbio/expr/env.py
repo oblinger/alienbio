@@ -94,10 +94,18 @@ PASSED_KEY = "__passed__"
 INSTANCE_KEY = "__instance__"
 
 
-def _callable_head(name: str, func: Any) -> Head:
+def _callable_head(name: str, func: Any, ctx: "Ctx") -> Head:
     """A bound Python callable (``!py``, a ``let``-bound function) as a
-    function head, so ``!x name(...)`` can call it (M47.5)."""
+    function head, so ``!x name(...)`` can call it (M47.5). Untrusted, only a
+    plain Python function qualifies (T091 AG1, :func:`.access.check_callable`)."""
+    from ..spec_lang.safe_eval import UnsafeExpressionError
+    from . import access
     from .registry import _injects
+
+    try:
+        access.check_callable(func, trusted=ctx.trusted)
+    except UnsafeExpressionError as exc:
+        raise ExprError(f"{name!r}: {exc}", ctx.path) from None
 
     return Head(name=name, kind="fn", fn=func, meta={"summary": f"bound callable {name}"}, injects=_injects(func))
 
@@ -229,7 +237,10 @@ class Env:
         return value.value
 
     def _step(self, value: Any, step: str, path: str) -> Any:
-        from ..spec_lang.safe_eval import UnsafeExpressionError, _check_attr_name
+        """One segment of a dotted name: a mapping key, a sequence index, else
+        an attribute — on a receiver type :mod:`.access` allows (T091 AG1)."""
+        from ..spec_lang.safe_eval import UnsafeExpressionError
+        from . import access
 
         if isinstance(value, Mapping) and step in value:
             return value[step]
@@ -239,12 +250,11 @@ class Env:
             except IndexError:
                 raise self.error(f"index {step} out of range in {path!r}") from None
         try:
-            _check_attr_name(step)
+            return access.read_attr(value, step)
         except UnsafeExpressionError as exc:
-            raise self.error(str(exc)) from None
-        if hasattr(value, step):
-            return getattr(value, step)
-        raise self.error(f"{path!r}: no key or attribute {step!r} on {type(value).__name__}")
+            raise self.error(f"{path!r}: {exc}") from None
+        except AttributeError:
+            raise self.error(f"{path!r}: no key or attribute {step!r} on {type(value).__name__}") from None
 
     def head(self, name: str) -> Head:
         """A head by name: a locally bound head (a YAML template) shadows the registry.
@@ -262,7 +272,7 @@ class Env:
             if isinstance(target, Head):
                 return target
             if target is not None and callable(target):
-                return _callable_head(name, target)
+                return _callable_head(name, target, self.ctx)
         elif first in self.bindings:
             value = self.bindings[first]
             # A binding shadows a registered head only when it IS a head — a
@@ -274,7 +284,7 @@ class Env:
                 if value.state == "done" and isinstance(value.value, Head):
                     return value.value
                 if value.state == "done" and callable(value.value):
-                    return _callable_head(first, value.value)
+                    return _callable_head(first, value.value, self.ctx)
                 if value.state == "pending":
                     from .form import Call as _Call, is_form as _is_form
 
@@ -286,11 +296,11 @@ class Env:
                     # data that happens to be callable — never a form, so
                     # forcing it evaluates nothing.
                     elif not _is_form(value.form) and not isinstance(value.form, (dict, list)) and callable(value.form):
-                        return _callable_head(first, self._force(first, value))
+                        return _callable_head(first, self._force(first, value), self.ctx)
             elif isinstance(value, Head):
                 return value
             elif callable(value):
-                return _callable_head(first, value)
+                return _callable_head(first, value, self.ctx)
         try:
             return self.registry.get(name)
         except KeyError:

@@ -50,7 +50,7 @@ import yaml
 from ..bio.world import WorldImpl
 from ..expr.env import Env, ExprError
 from ..expr.form import Call, Name, contains_form
-from ..expr.interp import QuotedForm
+from ..expr.interp import QuotedForm, closure_env
 from ..expr.registry import fn, registry as _registry
 from ..expr.yaml_tags import ExprLoader, load_text
 from .agent import Agent
@@ -521,7 +521,7 @@ def _split_call(
                 swept.add(key)
                 continue
             try:
-                bound = quoted.env.lookup(value.path)
+                bound = closure_env(quoted).lookup(value.path)
             except ExprError:
                 raise env.error(f"experiment.{slot}: {value.path!r} is neither a swept axis nor a name in scope") from None
             value = bound
@@ -698,6 +698,14 @@ def load_experiment(path: Union[str, Path], *, text: Optional[str] = None, trust
     # ``ExprError(message, source)`` prints ``<source>: <message>``; the
     # messages above carry no path of their own (it printed twice, T088
     # suite_cmd 4).
+    # T091 AG — the structural refusal runs on the unevaluated tree, before
+    # ``env.load`` executes any ``_includes_`` helper or any binding is
+    # evaluated: two literal ``!experiment`` calls can never be "exactly
+    # one". (Whether a document with none builds one through ``!x`` or a
+    # template is only known by evaluating it; that count stays below.)
+    direct = [str(k) for k, v in data.items() if isinstance(v, Call) and v.head == "experiment"]
+    if len(direct) > 1:
+        raise ExprError(f"expected exactly one !experiment among the top-level bindings, found {len(direct)}: {direct}", source)
     scope = env.load(source, text=text)
     values = scope.force_all()
     specs = [v for v in values.values() if isinstance(v, ExperimentSpec)]

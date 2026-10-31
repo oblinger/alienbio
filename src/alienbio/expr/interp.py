@@ -30,7 +30,7 @@ from .env import INSTANCE_KEY, PASSED_KEY, Env, ExprError, Lazy
 from .form import Call, Include, Name, PyRef, Quoted, is_form
 from .registry import GuardViolation, Head, special
 
-__all__ = ["evaluate", "QuotedForm", "TemplateHead", "ExprError"]
+__all__ = ["evaluate", "QuotedForm", "TemplateHead", "ExprError", "closure_env"]
 
 
 # ---------------------------------------------------------------------------
@@ -45,13 +45,16 @@ class QuotedForm:
     under that seed) and exposes ``run`` for evaluation with extra bindings."""
 
     form: Any
-    env: Env
+    #: Private (T091 AG1): a public ``.env`` handed an untrusted spec the
+    #: ``Env`` — and through ``Env.standard`` a trusted one. Python reads it
+    #: with :func:`closure_env`; an expression cannot (``expr.access``).
+    _env: Env
 
     def sample(self, seed: Seed) -> Any:
-        return evaluate(self.form, self.env.with_seed(seed))
+        return evaluate(self.form, self._env.with_seed(seed))
 
     def run(self, bindings: Optional[Mapping[str, Any]] = None, *, seed: Optional[Seed] = None) -> Any:
-        env = self.env if seed is None else self.env.with_seed(seed)
+        env = self._env if seed is None else self._env.with_seed(seed)
         if bindings:
             env = env.bind(**dict(bindings))
         return evaluate(self.form, env)
@@ -64,6 +67,11 @@ class QuotedForm:
 
     def __repr__(self) -> str:
         return f"QuotedForm({self.form!r})"
+
+
+def closure_env(quoted: QuotedForm) -> Env:
+    """The environment a quoted form closes over (the Python API's reader)."""
+    return quoted._env
 
 
 class TemplateHead(Head):

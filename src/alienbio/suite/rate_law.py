@@ -75,7 +75,7 @@ from ..bio import rate_expr as rx
 from ..bio.reaction import Modulation
 from ..expr.env import Env, ExprError, Lazy
 from ..expr.form import Call, Name, Quoted
-from ..expr.interp import QuotedForm, evaluate
+from ..expr.interp import QuotedForm, closure_env, evaluate
 from ..expr.registry import fn
 from .dist import Constant, Dist, Seed, support_of
 
@@ -322,7 +322,7 @@ def _quoted_constant(hit: Any, env: Env) -> bool:
             return False
         if not isinstance(value, QuotedForm):
             return False
-        return _point(_interval(value.form, value.env)) is not None
+        return _point(_interval(value.form, closure_env(value))) is not None
     if isinstance(hit, Quoted):
         return _point(_interval(hit.form, env)) is not None
     return False
@@ -718,7 +718,7 @@ def _value_interval(value: Any) -> Optional[Interval]:
     if isinstance(value, (int, float)):
         return (float(value), float(value))
     if isinstance(value, QuotedForm):
-        return _interval(value.form, value.env)
+        return _interval(value.form, closure_env(value))
     if isinstance(value, Dist):
         support = support_of(value)
         return support if support is not None else _LINE
@@ -918,7 +918,7 @@ def compile_rate(
             raise _negative_constant(env, float(value))
         return RateLaw(k=Constant(float(value)))
     if isinstance(value, QuotedForm):
-        return _compile_form(value.form, value.env, reactants=reactants, products=products)
+        return _compile_form(value.form, closure_env(value), reactants=reactants, products=products)
     if isinstance(value, Dist):
         support = support_of(value)
         if support is not None and support[0] < 0.0:
