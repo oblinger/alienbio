@@ -17,7 +17,10 @@ Per-kind scoring formulas (``grade_answer``, score always in ``[0.0, 1.0]``):
   ``config {"given_prefix": g}`` (T088 identify_pathway 1) withholds credit for
   the first ``g`` nodes when the question already states them:
   ``max(0, lcp - g) / (max(len(A), len(K)) - g)``, so echoing the given start
-  scores 0.
+  scores 0. ``config {"given_suffix": s}`` (T091 AF11) does the same for the
+  last ``s`` nodes: they are cut off the key, and off the answer when it ends
+  with them, before the prefix ratio — so the stated end earns nothing and
+  omitting it costs nothing.
 - ``node_id`` — exact equality (1.0/0.0).
 - ``scalar`` — tolerance step: 1.0 if ``|a - k| <= config["tol"]`` (default
   0.0, boundary inclusive), else 0.0. A step function is the simplest
@@ -98,6 +101,13 @@ def _given_prefix(config: Any) -> int:
     return value
 
 
+def _given_suffix(config: Any) -> int:
+    value = config.get("given_suffix", 0)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"grader config 'given_suffix' must be a non-negative int, got {value!r}")
+    return value
+
+
 def _grade_node_set(a: Any, k: Any, partial: bool) -> float:
     """Jaccard ``|A∩K| / |A∪K|`` (partial) or exact set equality."""
     a_set, k_set = _as_set(a), set(k)
@@ -109,14 +119,20 @@ def _grade_node_set(a: Any, k: Any, partial: bool) -> float:
     return len(a_set & k_set) / len(union)
 
 
-def _grade_ordered_path(a: Any, k: Any, partial: bool, given: int = 0) -> float:
+def _grade_ordered_path(a: Any, k: Any, partial: bool, given: int = 0, given_end: int = 0) -> float:
     """1.0 iff equal; longest-common-prefix ratio when ``partial``, the first
-    ``given`` nodes (stated by the question) earning nothing."""
+    ``given`` and last ``given_end`` nodes (stated by the question) earning
+    nothing."""
     a_seq, k_seq = _as_path(a), list(k)
     if a_seq == k_seq:
         return 1.0
     if not partial:
         return 0.0
+    if given_end:
+        tail = k_seq[-given_end:]
+        if a_seq[-given_end:] == tail:
+            a_seq = a_seq[:-given_end]
+        k_seq = k_seq[:-given_end]
     lcp = 0
     for x, y in zip(a_seq, k_seq):
         if x != y:
@@ -150,7 +166,8 @@ def grade_answer(answer: Answer, key: Answer, spec: GraderSpec) -> float:
         )
     if spec.kind == "ordered_path":
         return _grade_ordered_path(
-            answer.value, key.value, partial=_partial(config, False), given=_given_prefix(config)
+            answer.value, key.value, partial=_partial(config, False),
+            given=_given_prefix(config), given_end=_given_suffix(config),
         )
     if spec.kind == "node_id":
         return 1.0 if answer.value == key.value else 0.0

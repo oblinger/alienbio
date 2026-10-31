@@ -108,6 +108,12 @@ class Motif:
     edges: tuple[tuple[str, str, str], ...]
     params: Tags = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        # T091 AF9: carve never checks an (a, a) edge and splice mints a -> a.
+        loops = [edge for edge in self.edges if edge[0] == edge[1]]
+        if loops:
+            raise ValueError(f"Motif: edge {loops[0]!r} joins a role to itself; a self-loop has no embedding")
+
 
 @dataclass(frozen=True)
 class CarveResult:
@@ -145,7 +151,10 @@ class ScriptedOp(Generic[T]):
 
 @dataclass(frozen=True)
 class FeatureSet:
-    """A set of named predicates a world must satisfy."""
+    """One :func:`~alienbio.suite.cover.cover` item: named features, each a
+    ``(key, predicate)`` pair. ``cover`` matches features by key and hands the
+    pairs to its ``admissible`` callable; nothing calls a predicate on a world
+    (T091 AF6)."""
 
     features: frozenset[tuple[str, Predicate]] = frozenset()
 
@@ -225,7 +234,7 @@ class ObjectiveRecipe(Protocol):
     ``TaskArchetype.recipe: ObjectiveRecipe``) but never defined in code until
     now; ``recipe`` had drifted to ``Any``. A recipe is an **opaque** callable
     bundle the engines only invoke, never inspect: it holds the join between an
-    archetype's *demand on the world* (its ``motif`` + ``feature_reqs``) and its
+    archetype's *demand on the world* (its ``motif``) and its
     *means of being graded*.
 
     Because we build the structure skeleton-first, the ground-truth key is read
@@ -255,7 +264,7 @@ Difficulty = dict[str, float]
 
 @dataclass(frozen=True)
 class TaskArchetype:
-    """A reusable task template: motif + verb + feature requirements + recipe.
+    """A reusable task template: motif + verb + recipe.
 
     ``drafter`` (optional) supplies a generator-constructed ``(world, skeleton,
     objective?)`` — when present, ``build_suite`` uses it instead of the
@@ -269,7 +278,6 @@ class TaskArchetype:
     id: str
     motif: Motif
     verb: str
-    feature_reqs: FeatureSet
     recipe: ObjectiveRecipe
     drafter: Optional[Drafter] = None
     extra_answer_tokens: tuple[str, ...] = ()
@@ -289,7 +297,8 @@ class TaskInstance:
 
 @dataclass(frozen=True)
 class SuiteSpec:
-    """A generative spec: archetype mix + per-archetype schemas + seed."""
+    """A generative spec: the archetype mix ``build_suite`` samples each task's
+    archetype from (the seed is ``build_suite``'s argument)."""
 
     archetype_mix: "Dist[TaskArchetype]"
 

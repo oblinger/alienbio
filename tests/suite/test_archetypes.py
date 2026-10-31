@@ -23,6 +23,17 @@ def _skeleton(role_to_node: dict[str, str], motif: Motif) -> CarveResult:
     return CarveResult(motif=motif, binding=role_to_node)
 
 
+def _chain_world(*names: str):
+    """A linear host ``names[0] -> names[1] -> …`` the key is checked against."""
+    from alienbio import mk
+    from alienbio.bio.world import Compartment, WorldImpl
+
+    mols = {n: mk.M(n) for n in names}
+    rxns = [mk.R(f"x{i}", {mols[a]: 1.0}, {mols[b]: 1.0}) for i, (a, b) in enumerate(zip(names, names[1:]))]
+    chem = mk.C("host", list(mols.values()), rxns)
+    return WorldImpl(chem, (Compartment("cell", None, "cell", 1.0, concentrations={names[0]: 1.0}),))
+
+
 def test_identify_pathway_builds_a_chain_motif():
     arch = identify_pathway(pathway_length=3)
     assert arch.id == "identify_pathway"
@@ -31,14 +42,18 @@ def test_identify_pathway_builds_a_chain_motif():
     assert arch.motif.edges == (("r0", "r1", "reacts_to"), ("r1", "r2", "reacts_to"))
 
 
-def test_pathway_length_below_two_rejected():
-    with pytest.raises(ValueError, match="pathway_length must be >= 2"):
-        identify_pathway(pathway_length=1)
+def test_pathway_length_below_three_rejected():
+    # T091 AF3: at two nodes the question's endpoints ARE the key.
+    for n in (1, 2):
+        with pytest.raises(ValueError, match="pathway_length must be >= 3.*whole key"):
+            identify_pathway(pathway_length=n)
+    with pytest.raises(ValueError, match="at least 3 roles"):
+        IdentifyPathwayRecipe(role_names=("a", "b"))
 
 
 def test_constraints_are_applied_to_every_role():
     sentinel = lambda obj: True  # noqa: E731 - opaque predicate
-    arch = identify_pathway(pathway_length=2, constraints=(sentinel,))
+    arch = identify_pathway(pathway_length=3, constraints=(sentinel,))
     for role in arch.motif.roles:
         # The molecule gate is prepended; the user's constraint follows it.
         assert role.constraints == (_is_molecule, sentinel)
@@ -63,7 +78,7 @@ def test_is_molecule_excludes_reaction_nodes():
 def test_build_key_reads_ordered_path_off_the_skeleton():
     arch = identify_pathway(pathway_length=3)
     sk = _skeleton({"r0": "A", "r1": "B", "r2": "C"}, arch.motif)
-    key = arch.recipe.build_key(sk, world=None)  # type: ignore[arg-type]
+    key = arch.recipe.build_key(sk, _chain_world("A", "B", "C"))
     assert key.kind == "ordered_path"
     assert key.value == ["A", "B", "C"]  # order follows role indices, by construction
 
@@ -71,7 +86,7 @@ def test_build_key_reads_ordered_path_off_the_skeleton():
 def test_build_question_is_the_endpoints():
     arch = identify_pathway(pathway_length=4)
     sk = _skeleton({"r0": "A", "r1": "B", "r2": "C", "r3": "D"}, arch.motif)
-    q = arch.recipe.build_question(sk, world=None)  # type: ignore[arg-type]
+    q = arch.recipe.build_question(sk, _chain_world("A", "B", "C", "D"))
     assert q.kind == "ordered_path"
     assert q.structured == ["A", "D"]  # start + end only
 
@@ -79,16 +94,16 @@ def test_build_question_is_the_endpoints():
 def test_key_self_grades_to_one():
     arch = identify_pathway(pathway_length=3)
     sk = _skeleton({"r0": "A", "r1": "B", "r2": "C"}, arch.motif)
-    key = arch.recipe.build_key(sk, world=None)  # type: ignore[arg-type]
+    key = arch.recipe.build_key(sk, _chain_world("A", "B", "C"))
     assert grade_answer(key, key, arch.recipe.grader_spec()) == 1.0
 
 
 def test_grader_spec_is_partial_ordered_path():
-    arch = identify_pathway(pathway_length=2)
+    arch = identify_pathway(pathway_length=3)
     spec = arch.recipe.grader_spec()
     assert spec.kind == "ordered_path"
-    # T088 identify_pathway 1: the question's start node earns no credit.
-    assert spec.config == {"partial": True, "given_prefix": 1}
+    # T088 identify_pathway 1 / T091 AF11: neither stated endpoint earns credit.
+    assert spec.config == {"partial": True, "given_prefix": 1, "given_suffix": 1}
 
 
 def test_recipe_holds_role_order():

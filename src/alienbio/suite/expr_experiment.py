@@ -168,6 +168,8 @@ def pattern(
         for role in (a, b):
             if role not in roles:
                 raise env.error(f"pattern: edge {edge!r} names unknown role {role!r}")
+        if a == b:
+            raise env.error(f"pattern: edge {edge!r} joins role {a!r} to itself; a self-loop has no embedding")
         edge_tuples.append((a, b, rel))
     return Motif(roles=slots, edges=tuple(edge_tuples), params=dict(params or {}))
 
@@ -184,8 +186,16 @@ def carve(host: Any, pattern: Motif, allow_add: bool = True, *, env: Env) -> Car
 
 @fn(summary="identify-the-pathway objective over a carved chain: {question, objective}")
 def identify(world: WorldImpl, roles: Sequence[str], skeleton: Optional[CarveResult] = None, binding: Optional[Mapping[str, str]] = None, verb: str = "identify", *, env: Env) -> dict[str, Any]:
+    """The key is checked against ``world`` (T091 AF1/AF3/AF5): at least three
+    roles, every node a molecule of the world joined in order by its
+    reactions (a node a ``!carve`` synthesized refuses — carve with
+    ``allow_add: False``), and the one route of its length between the
+    endpoints."""
     skeleton = _skeleton_or_empty(skeleton, "identify", env, binding)
-    return _objective_of(IdentifyPathwayRecipe(role_names=tuple(str(r) for r in roles), verb=str(verb)), skeleton, world)
+    try:
+        return _objective_of(IdentifyPathwayRecipe(role_names=tuple(str(r) for r in roles), verb=str(verb)), skeleton, world)
+    except ValueError as exc:
+        raise env.error(str(exc)) from exc
 
 
 @fn(summary="diagnose-the-perturbation objective: {question, objective}")

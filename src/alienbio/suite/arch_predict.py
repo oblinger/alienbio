@@ -41,7 +41,6 @@ from .dist import Seed
 from .perturbations import perturb_rate
 from .types import (
     Answer,
-    FeatureSet,
     GraderSpec,
     CarveResult,
     Motif,
@@ -293,8 +292,7 @@ def predict_response(
 
     The motif has two gated roles — ``perturbed`` (a reaction) and ``target`` (a
     molecule) — and no edges; the ground truth is *computed by simulation*, not a
-    subgraph to carve. The archetype makes no world-validity demand (empty
-    :class:`FeatureSet`); its recipe grades the predicted response token exactly.
+    subgraph to carve. Its recipe grades the predicted response token exactly.
 
     This is framework machinery — a template parameterized by the perturbation
     dial (``factor``) and the network's structural facts, not a hand-authored
@@ -319,6 +317,5 @@ def predict_response(
         id=archetype_id,
         motif=motif,
         verb="predict",
-        feature_reqs=FeatureSet(),
         recipe=recipe,
     )

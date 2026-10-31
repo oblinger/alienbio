@@ -147,11 +147,21 @@ def test_build_suite_is_deterministic():
     assert [t.question for t in s1.tasks] == [t.question for t in s2.tasks]
 
 
-def test_cover_assignment_recorded_on_each_task():
+def test_no_cover_stamp_on_the_tasks():
+    # T091 AF6: no archetype declared a feature and nothing read the cover's
+    # container index, so build_suite runs no cover and stamps nothing.
     suite = build_suite(_spec(), Seed(3), n_tasks=2)
     for t in suite.tasks:
-        assert "container" in t.setup
-        assert isinstance(t.setup["container"], int)
+        assert t.setup == {}
+
+
+@pytest.mark.parametrize("kwargs", [{"max_redraws": -1}, {"distractor_count": -4}])
+def test_negative_counts_refuse_naming_the_argument(kwargs):
+    # T091 AF8: max_redraws=-1 refused with a message about a validity
+    # predicate nobody gave; distractor_count=-4 drafted zero distractors.
+    (name,) = kwargs
+    with pytest.raises(ValueError, match=f"build_suite: {name} must be an int >= 0"):
+        build_suite(_spec(), Seed(0), **kwargs)
 
 
 def test_n_tasks_below_one_rejected():

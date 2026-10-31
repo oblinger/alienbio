@@ -4,14 +4,16 @@ Composes the eight shipped M26 engines (FT01–FT08) into one materialization
 pipeline, supplying them the M27 semantic content (archetypes, vocabularies,
 world-validity predicates). The stages follow ``ABIO Semantic Layer`` § M27.4:
 
-    sample archetypes → cover → draft world → carve + splice → build objective
+    sample archetypes → draft world → carve + splice → build objective
     → (optional) verify reject-sampling → render round-trip check → package.
 
-**Materialization scope.** ``cover`` is computed and its assignment recorded on
-each task (which tasks *could* share a world); this build drafts **one world per
-task** for unambiguous carving. Physically merging a container's tasks into one
-richer shared world (slot-namespaced) is the M28.1 size-dial path and is
-deferred — it is an optimization, not a correctness requirement.
+**Materialization scope.** This build drafts **one world per task** for
+unambiguous carving. It runs no ``cover``: a cover over the archetypes'
+feature requirements was computed and its container index stamped on
+``TaskInstance.setup["container"]``, but no archetype declared a feature,
+no predicate was ever called on a world and nothing read the stamp — so the
+requirements, the cover and the stamp went together (T091 AF6). ``cover``
+stays a primitive (the ``!cover`` head).
 """
 
 from __future__ import annotations
@@ -24,7 +26,6 @@ from ..bio.chemistry import ChemistryImpl
 from ..bio.world import Compartment, WorldImpl
 from ..infra.mk import mk
 from .carve import CarveFail, carve, splice
-from .cover import cover
 from .dist import Seed
 from .grade import grade_answer, grade_outcome
 from .render import parse, render
@@ -71,7 +72,14 @@ def draft_world(
 
     This is framework machinery: it is parameterized only by the motif's own
     structure and a size dial, never by a hand-authored scenario.
+
+    Reserved ids: distractors are ``d0``, ``d1`` …, a reaction is
+    ``{a}_{b}`` for its edge's two roles — a motif whose role names collide
+    with those shapes is refused loudly by the chemistry (two entities sharing
+    a local name), never silently merged.
     """
+    if distractor_count < 0:
+        raise ValueError(f"draft_world: distractor_count must be >= 0, got {distractor_count!r}")
     role_names = [role.name for role in motif.roles]
     molecules = [mk.M(name) for name in role_names]
     by_name = {name: molecules[i] for i, name in enumerate(role_names)}
@@ -122,9 +130,8 @@ def build_suite(
 ) -> Suite:
     """Materialize ``spec`` into a :class:`Suite` (``n_tasks`` task instances).
 
-    Samples ``n_tasks`` archetypes from ``spec.archetype_mix``, computes a
-    ``cover`` over their feature requirements, and materializes each task by ONE
-    of two ground-truth paths:
+    Samples ``n_tasks`` archetypes from ``spec.archetype_mix`` and materializes
+    each task by ONE of two ground-truth paths:
 
     - **Carved** (``archetype.drafter is None``, e.g. ``identify_pathway``): draft
       a host world, carve + splice the archetype's motif in, and read an
@@ -145,18 +152,19 @@ def build_suite(
     scorer produces a finite score in ``(0, 1]`` on the drafted world — the guard
     against silent ground-truth corruption.
 
-    Deterministic in ``(spec, seed, n_tasks, distractor_count)``.
+    Deterministic in ``(spec, seed, n_tasks, distractor_count)``. A negative
+    ``distractor_count`` or ``max_redraws`` refuses, naming it.
     """
     if n_tasks < 1:
         raise ValueError(f"n_tasks must be >= 1, got {n_tasks}")
+    for name, value in (("distractor_count", distractor_count), ("max_redraws", max_redraws)):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"build_suite: {name} must be an int >= 0, got {value!r}")
 
     # ── 1. Sample the archetype bag ─────────────────────────────────────────
     archetypes: list[TaskArchetype] = [
         spec.archetype_mix.sample(seed.child(f"arch/{i}")) for i in range(n_tasks)
     ]
-
-    # ── 2. Cover over feature requirements (records task→container grouping) ─
-    cov = cover([a.feature_reqs for a in archetypes], seed=seed.child("cover"))
 
     worlds: list[WorldImpl] = []
     tasks: list[TaskInstance] = []
@@ -215,7 +223,7 @@ def build_suite(
                 skeleton=skeleton,
                 objective=objective,
                 question=question,
-                setup={"container": cov.assignment[i]},
+                setup={},
             )
         )
 

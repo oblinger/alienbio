@@ -33,9 +33,15 @@ Two operations:
 Bipartite-adjacency note: a host reaction connecting molecule ``a`` (reactant) to
 molecule ``b`` (product) does not make ``a`` a direct ``neighbors`` of ``b`` — the graph
 is bipartite (molecule<->reaction only). ``carve`` and ``splice`` therefore share a single
-:func:`_adjacent` predicate: two nodes are adjacent if they are direct bipartite
-``neighbors`` OR a single reaction links them as reactant->product (either direction).
-The edge ``splice`` inserts to realize a motif edge makes exactly this predicate true.
+:func:`_edge_holds` predicate, and every case of it is DIRECTED the way ``splice``
+builds the edge: a molecule->molecule edge holds when one reaction takes the first
+as reactant and gives the second as product; ``mol -> rxn`` holds when the molecule
+is a reactant, ``rxn -> mol`` when it is a product; a catalytic relation holds on a
+modifier. The edge ``splice`` inserts to realize a motif edge makes exactly this
+predicate true, so carve never binds a role against the chemistry's direction.
+
+Search size: :func:`carve` collects every embedding at the best reuse before it
+picks one, and refuses once more than :data:`MAX_EMBEDDINGS` are in hand.
 """
 
 from __future__ import annotations
@@ -63,6 +69,12 @@ _MODIFIER_RELATIONS = frozenset(
 )
 
 
+#: The most embeddings :func:`carve` collects before it refuses (T091 AF4): the
+#: pick is ``seed % len(top)`` over every reuse-maximal embedding, so carve must
+#: hold them all, and a long motif in a large host has combinatorially many.
+MAX_EMBEDDINGS = 10_000
+
+
 @dataclass(frozen=True)
 class CarveFail:
     """A carve that could not produce a valid embedding, with a reason."""
@@ -83,14 +95,13 @@ def _node_objs(host: ChemistryImpl) -> Dict[NodeId, object]:
 def _adjacent(host: ChemistryImpl, u: NodeId, v: NodeId) -> bool:
     """Whether the motif edge ``u -> v`` is realized in the bipartite host graph.
 
-    True iff ``v`` is a direct bipartite ``neighbors`` of ``u`` (one is a molecule,
-    the other a reaction referencing it — incidence has no direction) OR a
-    single reaction links them as reactant ``u`` -> product ``v``. The
-    reaction case is DIRECTED (M36.7 fix): ``splice`` realizes a motif edge
-    ``a -> b`` as the reaction ``a -> b``, and a carve that accepted ``b -> a``
-    bound ``identify_pathway``'s chain onto a host backwards for some seeds —
-    minting a key path whose every edge ran against the chemistry (the
-    reversed chain, which the recipe itself lists as a *distractor*).
+    True iff ``v`` is a direct bipartite ``neighbors`` of ``u`` OR a single
+    reaction links them as reactant ``u`` -> product ``v``. The reaction case
+    is DIRECTED (M36.7 fix): ``splice`` realizes a motif edge ``a -> b`` as
+    the reaction ``a -> b``, and a carve that accepted ``b -> a`` bound
+    ``identify_pathway``'s chain onto a host backwards for some seeds. The
+    bipartite molecule<->reaction case never reaches here: :func:`_edge_holds`
+    reads it directed itself (T091 AF2 closed the same bug on that edge).
     """
     if v in host.neighbors(u):
         return True
@@ -107,13 +118,19 @@ def _edge_holds(host: ChemistryImpl, u: NodeId, v: NodeId, relation: str) -> boo
     holds only when the molecule is a MODIFIER of the reaction; any other
     molecule<->reaction edge holds only on reactant/product incidence (a
     catalyst does not satisfy a substrate edge, nor a substrate a catalyst
-    edge). Molecule<->molecule edges read :func:`_adjacent`."""
+    edge). The incidence is DIRECTED as splice builds it (T091 AF2): ``mol ->
+    rxn`` holds only on a reactant, ``rxn -> mol`` only on a product — a
+    substrate role bound to a reaction's product was the M36.7 backwards
+    binding on the bipartite edge. Molecule<->molecule edges read
+    :func:`_adjacent`."""
     if u in host.reactions and v in host.molecules or u in host.molecules and v in host.reactions:
         rxn_id, mol_id = (u, v) if u in host.reactions else (v, u)
         rxn = host.reactions[rxn_id]
         if relation.lower() in _MODIFIER_RELATIONS:
             return mol_id in {m.name for m in rxn.modifiers}
-        return mol_id in {m.name for m in rxn.reactants} | {m.name for m in rxn.products}
+        if u == mol_id:
+            return mol_id in {m.name for m in rxn.reactants}
+        return mol_id in {m.name for m in rxn.products}
     return _adjacent(host, u, v)
 
 
@@ -132,6 +149,14 @@ def carve(
     :func:`splice`. The reuse-maximal binding (most roles bound to existing nodes,
     equivalently fewest synthesized) is chosen deterministically; ``seed`` only
     breaks ties among equal-quality embeddings.
+
+    With ``allow_add`` the search runs twice at most (T091 AF4): first with no
+    synthesis — when every role binds to a host node those embeddings ARE the
+    reuse-maximal set, so the pick is the one a single full search makes —
+    and only when that finds nothing, again with synthesis, pruning every
+    branch whose attainable reuse is below the best found. More than
+    :data:`MAX_EMBEDDINGS` embeddings at the best reuse refuses, naming the
+    motif and host sizes.
 
     Returns a :class:`~alienbio.suite.types.CarveResult` (with ``added`` listing the
     synthesized node ids, sorted) or a :class:`CarveFail` when no embedding exists
@@ -152,6 +177,20 @@ def carve(
 
     # Each collected solution: (reuse_count, canonical_key, binding, synth_roles).
     solutions: list[tuple[int, tuple[tuple[str, NodeId], ...], dict[str, NodeId], tuple[str, ...]]] = []
+    best = [-1]  # the best reuse found so far (a cell the closure mutates)
+
+    class _TooMany(Exception):
+        pass
+
+    # ``_edge_holds`` rebuilds the host's graph view per call; the search asks
+    # the same few (src, dst, relation) questions many times over.
+    holds: dict[tuple[NodeId, NodeId, str], bool] = {}
+
+    def edge_holds(src: NodeId, dst: NodeId, relation: str) -> bool:
+        key = (src, dst, relation)
+        if key not in holds:
+            holds[key] = _edge_holds(host, src, dst, relation)
+        return holds[key]
 
     def edge_ok(
         name: str,
@@ -174,7 +213,7 @@ def carve(
                 # Adjacency to a synthesized node is realized later by splice.
                 continue
             src, dst = (node_id, other_id) if forward else (other_id, node_id)
-            if not _edge_holds(host, src, dst, relation):
+            if not edge_holds(src, dst, relation):
                 return False
         return True
 
@@ -182,15 +221,26 @@ def carve(
         i: int,
         assigned: dict[str, tuple[NodeId, bool]],
         used: set[NodeId],
+        reuse: int,
+        synth_ok: bool,
     ) -> None:
+        # Branch and bound: a branch that cannot reach the best reuse found
+        # holds no reuse-maximal embedding (equal-reuse branches are kept,
+        # so the top set — and the seed's pick in it — is unchanged).
+        if reuse + (len(role_names) - i) < best[0]:
+            return
         if i == len(role_names):
-            reuse = sum(1 for _, synth in assigned.values() if not synth)
+            if reuse > best[0]:
+                best[0] = reuse
+                solutions[:] = [sol for sol in solutions if sol[0] >= reuse]
             binding = {name: nid for name, (nid, _) in assigned.items()}
             key = tuple(sorted(binding.items()))
             synth_roles = tuple(
                 sorted(name for name, (_, synth) in assigned.items() if synth)
             )
             solutions.append((reuse, key, binding, synth_roles))
+            if len(solutions) > MAX_EMBEDDINGS:
+                raise _TooMany
             return
         name = role_names[i]
         for nid in cands[name]:
@@ -199,17 +249,29 @@ def carve(
             if edge_ok(name, nid, False, assigned):
                 assigned[name] = (nid, False)
                 used.add(nid)
-                backtrack(i + 1, assigned, used)
+                backtrack(i + 1, assigned, used, reuse + 1, synth_ok)
                 del assigned[name]
                 used.discard(nid)
-        if allow_add:
+        if synth_ok:
             synth_id = f"{name}#new"
             if edge_ok(name, synth_id, True, assigned):
                 assigned[name] = (synth_id, True)
-                backtrack(i + 1, assigned, used)
+                backtrack(i + 1, assigned, used, reuse, synth_ok)
                 del assigned[name]
 
-    backtrack(0, {}, set())
+    try:
+        backtrack(0, {}, set(), 0, False)
+        if allow_add and not solutions:
+            backtrack(0, {}, set(), 0, True)
+    except _TooMany:
+        return CarveFail(
+            reason=(
+                f"more than {MAX_EMBEDDINGS} embeddings of a {len(role_names)}-role motif "
+                f"in a host of {len(node_objs)} nodes ({len(host.molecules)} molecules, "
+                f"{len(host.reactions)} reactions); refusing rather than enumerating them — "
+                "narrow the role constraints or shrink the host"
+            )
+        )
 
     if not solutions:
         unbindable = [role.name for role in motif.roles if not cands[role.name]]
@@ -262,7 +324,8 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
       (:data:`_MODIFIER_RELATIONS`) attaches the molecule as a **modifier**
       (catalyst/regulator, not consumed), with the relation as its role tag;
     - any other **molecule<->reaction** edge adds the molecule to that reaction (as a
-      product when the edge runs reaction->molecule, else as a reactant);
+      product when the edge runs reaction->molecule, else as a reactant), moving it
+      off the other side when the host had it backwards;
     - a **molecule<->molecule** edge inserts a neutral reactant->product reaction;
     - a **reaction<->reaction** edge has no bio meaning and is skipped.
     """
@@ -317,8 +380,12 @@ def splice(host: ChemistryImpl, skeleton: CarveResult) -> ChemistryImpl:
             if relation.lower() in _MODIFIER_RELATIONS:
                 new_modifiers[mol] = relation
             elif u_is_rxn:
+                # A molecule the reaction consumes is re-bound as its product
+                # (T091 AF2: the edge says rxn -> mol, the host had mol -> rxn).
+                new_reactants.pop(mol, None)
                 new_products[mol] = 1.0
             else:
+                new_products.pop(mol, None)
                 new_reactants[mol] = 1.0
             reactions[rxn_id] = rebuild_reaction(
                 rxn,

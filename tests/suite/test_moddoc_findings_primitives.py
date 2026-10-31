@@ -118,7 +118,9 @@ def test_identify_pathway1_echoing_the_question_scores_zero():
     key = Answer(["r0", "r1", "r2"], "ordered_path")
     assert grade_answer(Answer(["r0", "r2"], "ordered_path"), key, spec) == 0.0
     assert grade_answer(Answer(["r0"], "ordered_path"), key, spec) == 0.0
-    assert grade_answer(Answer(["r0", "r1"], "ordered_path"), key, spec) == pytest.approx(0.5)
+    # T091 AF11: the stated end earns nothing either, so [r0, r1] scores by
+    # r1 alone (the whole interior) and appending r2 adds nothing
+    assert grade_answer(Answer(["r0", "r1"], "ordered_path"), key, spec) == 1.0
     assert grade_answer(key, key, spec) == 1.0
 
 

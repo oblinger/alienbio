@@ -28,7 +28,6 @@ from ..infra.mk import mk
 from .dist import Seed
 from .types import (
     Answer,
-    FeatureSet,
     GraderSpec,
     CarveResult,
     Motif,
@@ -270,9 +269,8 @@ def diagnose_perturbation(
 
     The motif has a single molecule-gated role (``target`` / ``perturbed_node``)
     and no edges — the ground truth is a *generation choice* made by
-    :func:`draft_diagnosis_world`, not a subgraph to carve. The archetype makes no
-    world-validity demand (empty :class:`FeatureSet`); its recipe grades the named
-    perturbed node exactly.
+    :func:`draft_diagnosis_world`, not a subgraph to carve. Its recipe grades the
+    named perturbed node exactly.
 
     This is framework machinery — a template parameterized by the network-size
     dial ``n_nodes``, not a hand-authored scenario.
@@ -290,6 +288,5 @@ def diagnose_perturbation(
         id=archetype_id,
         motif=motif,
         verb="diagnose",
-        feature_reqs=FeatureSet(),
         recipe=recipe,
     )

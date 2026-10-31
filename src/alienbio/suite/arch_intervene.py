@@ -52,7 +52,6 @@ from .dist import Seed
 from .types import (
     Answer,
     CarveResult,
-    FeatureSet,
     GraderSpec,
     Motif,
     OutcomeObjective,
@@ -378,7 +377,6 @@ def design_intervention(
         id=archetype_id,
         motif=_intervention_motif(),
         verb="intervene",
-        feature_reqs=FeatureSet(),
         recipe=DesignInterventionRecipe(target_value=float(target_value)),
     )
 
