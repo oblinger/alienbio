@@ -790,6 +790,7 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
             spec validations — a typo must never silently become a no-op.
     """
     from ..expr.include import recording_python_files
+    from ..expr.yaml_tags import read_spec_text
     from .expr_experiment import load_experiment
 
     # The framework's own catalog is trusted (its files may include Python
@@ -800,7 +801,7 @@ def load_spec(path: Union[str, Path]) -> ExperimentSpec:
     # loads untrusted), and nothing is re-resolved between check and read.
     resolved = Path(path).resolve()
     trusted = (REPO_ROOT / "catalog").resolve() in resolved.parents
-    text = resolved.read_text()
+    text = read_spec_text(resolved)  # T091 AP7: refused over MAX_SPEC_BYTES before reading
     with recording_python_files() as executed:
         spec = load_experiment(resolved, text=text, trusted=trusted)
     helpers: list[str] = []

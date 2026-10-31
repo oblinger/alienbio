@@ -14,14 +14,29 @@ load error that names its replacement.
 from __future__ import annotations
 
 import io
-from typing import Any
+from pathlib import Path
+from typing import Any, Union
 
 import yaml
 
 from .env import ExprError
 from .form import Call, Include, Name, PyRef, Quoted
+from .parse import MAX_INT_LITERAL_BITS, check_int_literal
 from .parse import dump as dump_inline
 from .parse import parse
+
+#: The largest spec (or included YAML / text / ``.py``) file a load reads,
+#: in bytes (T091 AP7: PyYAML's pure-Python parser runs ~18 s/MB, so a 3 MB
+#: list literal was a minute and 700 MB before any meter saw it). Refused
+#: before parsing.
+MAX_SPEC_BYTES = 1 << 20
+
+#: The most nodes a parsed document may expand to, every occurrence of an
+#: aliased node counted (T091 AP3: ten ``*a9`` aliases per level is a
+#: 1.2 KB file whose include resolution, nested-experiment check and
+#: evaluation each walk 10^10 nodes). Without aliases a ``MAX_SPEC_BYTES``
+#: file stays far below it.
+MAX_DOCUMENT_NODES = 1_000_000
 
 RESERVED_TAGS: frozenset[str] = frozenset({"x", "q", "ref", "include", "py"})
 
@@ -32,6 +47,23 @@ LEGACY_TAGS: dict[str, str] = {"ev": "!x", "_": "!q", "quote": "!q"}
 class ExprLoader(yaml.SafeLoader):
     """``yaml.SafeLoader`` plus the Expr tags. A subclass, so the global
     SafeLoader (and every other loader in the process) is untouched."""
+
+
+def _int_constructor(loader: yaml.Loader, node: yaml.Node) -> Any:
+    """A YAML int, capped at :data:`MAX_INT_LITERAL_BITS` (T091 AP4). The
+    text is bounded first (a third of the bit cap in characters — a decimal
+    past 4 300 digits is refused by Python anyway, and base-60 converts
+    quadratically), so the conversion itself is never the cost."""
+    text = str(getattr(node, "value", ""))
+    if len(text) > MAX_INT_LITERAL_BITS // 3:
+        raise ExprError(f"integer literal of {len(text)} characters exceeds MAX_INT_LITERAL_BITS={MAX_INT_LITERAL_BITS}", _mark(node))
+    value = loader.construct_yaml_int(node)  # type: ignore[attr-defined]
+    if value.bit_length() > MAX_INT_LITERAL_BITS:
+        check_int_literal(value, _mark(node))
+    return value
+
+
+ExprLoader.add_constructor("tag:yaml.org,2002:int", _int_constructor)
 
 
 def _x_constructor(loader: yaml.Loader, node: yaml.Node) -> Any:
@@ -110,7 +142,7 @@ def _call_constructor(loader: yaml.Loader, tag_suffix: str, node: yaml.Node) -> 
 
 def _mark(node: yaml.Node) -> str:
     m = node.start_mark
-    return f"line {m.line + 1}"
+    return f"line {m.line + 1}" if m is not None else ""
 
 
 ExprLoader.add_constructor("!x", _x_constructor)
@@ -121,17 +153,94 @@ ExprLoader.add_constructor("!py", _py_constructor)
 ExprLoader.add_multi_constructor("!", _call_constructor)
 
 
-def load_text(text: str) -> Any:
-    """YAML text -> forms (data with Name / Call / Quoted where tagged)."""
+def check_spec_size(path: Union[str, Path]) -> None:
+    """Refuse a file over :data:`MAX_SPEC_BYTES` before it is read (T091 AP7)."""
+    size = Path(path).stat().st_size
+    if size > MAX_SPEC_BYTES:
+        raise ExprError(f"file of {size} bytes exceeds MAX_SPEC_BYTES={MAX_SPEC_BYTES}", str(path))
+
+
+def read_spec_text(path: Union[str, Path]) -> str:
+    """A spec file's text, size-checked first (:func:`check_spec_size`)."""
+    check_spec_size(path)
+    return Path(path).read_text()
+
+
+def _refuse_recursion(data: Any, source: str) -> None:
+    """A recursive alias (``a: &a [1, *a]``) builds a cyclic value no Expr
+    walk terminates on; refused (each distinct node is visited once)."""
+    import dataclasses
+
+    done: set[int] = set()
+    active: set[int] = set()
+    stack: list[tuple[Any, bool]] = [(data, False)]
+    while stack:
+        x, leaving = stack.pop()
+        if leaving:
+            active.discard(id(x))
+            done.add(id(x))
+            continue
+        if id(x) in active:
+            raise ExprError("a recursive YAML alias (a node that contains itself) is not a value", source)
+        if id(x) in done:
+            continue
+        if isinstance(x, dict):
+            items: Any = [v for kv in x.items() for v in kv]
+        elif isinstance(x, (list, tuple, set, frozenset)):
+            items = x
+        elif dataclasses.is_dataclass(x) and not isinstance(x, type):
+            items = [getattr(x, f.name, None) for f in dataclasses.fields(x)]
+        else:
+            continue
+        active.add(id(x))
+        stack.append((x, True))
+        stack.extend((item, False) for item in items)
+
+
+def load_text(text: str, *, source: str = "") -> Any:
+    """YAML text -> forms (data with Name / Call / Quoted where tagged).
+
+    ONE parse (T091 AP7 — an experiment file was parsed three times): the
+    document is composed once, the duplicate-key check
+    (:func:`alienbio.suite.yaml_keys.refuse_duplicate_nodes`) walks that node
+    tree, and the forms are constructed from it. Text over
+    :data:`MAX_SPEC_BYTES` refuses before parsing. Every failure — a syntax
+    error, a duplicate key, nesting past Python's stack, an oversized int —
+    is an :class:`ExprError` naming ``source`` (T091 AP9), never a raw
+    ``yaml.YAMLError`` or ``RecursionError``."""
+    from ..suite.yaml_keys import refuse_duplicate_nodes
+
+    if len(text) > MAX_SPEC_BYTES or len(text.encode("utf-8")) > MAX_SPEC_BYTES:
+        raise ExprError(f"spec text over MAX_SPEC_BYTES={MAX_SPEC_BYTES} bytes", source)
+    loader = ExprLoader(text)
     try:
-        return yaml.load(text, Loader=ExprLoader)  # noqa: S506 - ExprLoader is a SafeLoader
+        node = loader.get_single_node()
+        if node is None:
+            return None
+        refuse_duplicate_nodes(node)
+        data = loader.construct_document(node)
+    except ExprError as exc:
+        if source:
+            raise ExprError(exc.message, f"{source}, {exc.path}" if exc.path else source) from None
+        raise
     except yaml.YAMLError as exc:
-        raise ExprError(f"YAML error: {exc}") from None
+        raise ExprError(f"YAML error: {exc}", source) from None
     except RecursionError:
         # PyYAML composes and constructs recursively, so a deeply nested
         # document overflows Python's stack before any Expr limit can see it
         # (T091 C11). Read as the depth cap it is.
-        raise ExprError("YAML nesting deeper than limits.depth allows (Python recursion limit)") from None
+        raise ExprError("YAML nesting deeper than limits.depth allows (Python recursion limit)", source) from None
+    except ValueError as exc:  # the duplicate-key check
+        raise ExprError(str(exc), source) from None
+    finally:
+        loader.dispose()
+    from .heads import element_bound
+
+    _refuse_recursion(data, source)
+    nodes = element_bound(data, MAX_DOCUMENT_NODES)
+    if nodes > MAX_DOCUMENT_NODES:
+        raise ExprError(f"the document expands to more than MAX_DOCUMENT_NODES={MAX_DOCUMENT_NODES} nodes (YAML aliases repeat what they name)", source)
+    return data
 
 
 # ---------------------------------------------------------------------------

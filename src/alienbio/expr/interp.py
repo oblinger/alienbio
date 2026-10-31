@@ -176,8 +176,9 @@ def _strings_in(value: Any) -> list[str]:
 
 
 def evaluate(form: Any, env: Env) -> Any:
-    """Evaluate ``form`` in ``env``. The outermost call of a session starts
-    the ``limits.seconds`` clock (T091 AL6); nested calls share it."""
+    """Evaluate ``form`` in ``env``. The outermost call starts the
+    ``limits.seconds`` clock (T091 AL6) unless a document load is already
+    running one (``Limits.running``, T091 AP5); nested calls share it."""
     clock = env.ctx.limits.meter.clock
     if getattr(clock, "active", 0):
         clock.active += 1
@@ -187,7 +188,11 @@ def evaluate(form: Any, env: Env) -> Any:
             clock.active -= 1
     clock.active, clock.deadline = 1, time.monotonic() + env.ctx.limits.seconds
     try:
-        return _evaluate(form, env)
+        value = _evaluate(form, env)
+        # T091 AP4: the last operation is not interrupted, so a value that
+        # arrives past the deadline is refused here, not accepted.
+        env.ctx.limits.tick(env.path)
+        return value
     finally:
         clock.active, clock.deadline = 0, None
 
@@ -247,7 +252,9 @@ def _dispatch(form: Call, env: Env) -> Any:
         kwargs["ctx"] = env.ctx
     if "env" in head.injects:
         kwargs["env"] = env
-    return _guard_raw(form, env, head.fn, *args, **kwargs)
+    value = _guard_raw(form, env, head.fn, *args, **kwargs)
+    env.ctx.limits.tick(env.path)  # T091 AP4: one long head call is caught as it returns
+    return value
 
 
 def _guard_raw(form: Call, env: Env, fn: Any, /, *args: Any, **kwargs: Any) -> Any:

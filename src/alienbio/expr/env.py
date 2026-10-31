@@ -10,11 +10,12 @@ re-rolls another's draws.
 
 from __future__ import annotations
 
+import contextlib
 import threading
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Iterator, Mapping, Optional, Union
 
 import numpy as np
 
@@ -46,11 +47,13 @@ class Meter:
         self.allocated = 0
         #: The wall-clock deadline of the evaluation in progress (T091 AL6),
         #: per thread (concurrent trials share a closure env's meter):
-        #: ``clock.deadline`` is set when an outermost
-        #: :func:`~alienbio.expr.interp.evaluate` begins and ``clock.active``
-        #: counts the nesting, so every top-level evaluation — a binding
-        #: forced at load, a quoted task drawn per trial — gets its own
-        #: ``limits.seconds``.
+        #: ``clock.deadline`` is set when an outermost clock begins — a
+        #: document load (:meth:`Limits.running`, T091 AP5: ``Env.load``,
+        #: ``Env.force_all``, ``load_experiment``) or an outermost
+        #: :func:`~alienbio.expr.interp.evaluate` outside one — and
+        #: ``clock.active`` counts the nesting. One document load is one
+        #: ``limits.seconds``; a quoted task drawn per trial, evaluated
+        #: after the load, gets its own.
         self.clock = threading.local()
 
 
@@ -61,11 +64,15 @@ class Limits:
     entities: int = 1_000_000  # elements one `each`/`range`/`list` may produce, and in total per session
     depth: int = 100  # evaluation nesting (T051 box 4: one template level is ~5.5 Python frames, so 200 sat above the interpreter's own limit and could never fire)
     attempts: int = 8  # guard retries (M47.5)
-    #: Wall-clock seconds one top-level evaluation may run (T091 AL6): checked
-    #: at every head call, ``each`` iteration and guard retry; past it the
-    #: evaluation raises :class:`ExprError`. One Python operation is not
-    #: interrupted — the size caps (``MAX_POW_RESULT_BITS`` on ``*`` / ``**`` /
-    #: ``pow``) keep each one short; this bounds a chain of them.
+    #: Wall-clock seconds one document load may run, parse, includes and
+    #: every binding together (T091 AP5 — per binding, a file of N bindings
+    #: each just under the limit ran N times it); an evaluation outside a
+    #: load (a quoted task drawn per trial) gets its own. Checked at every
+    #: head call and after it returns, every ``each`` iteration, guard retry
+    #: and include; past it the load raises :class:`ExprError`. One Python
+    #: operation is not interrupted — the size caps (``MAX_POW_RESULT_BITS``,
+    #: ``MAX_INT_LITERAL_BITS``, ``MAX_SPEC_BYTES``, the comparison charge)
+    #: keep each one short; this bounds a chain of them.
     seconds: float = 10.0
     meter: Meter = field(default_factory=Meter, compare=False, repr=False)
 
@@ -74,6 +81,27 @@ class Limits:
         deadline = getattr(self.meter.clock, "deadline", None)
         if deadline is not None and time.monotonic() > deadline:
             raise ExprError(f"evaluation exceeded limits.seconds={self.seconds:g}", path)
+
+    @contextlib.contextmanager
+    def running(self, path: str = "") -> Iterator[None]:
+        """One ``seconds`` clock over the block (T091 AP5): the outermost
+        ``running`` / :func:`~alienbio.expr.interp.evaluate` starts it, every
+        nested one shares it, and a block that finishes past the deadline
+        raises (its last operation was not interrupted)."""
+        clock = self.meter.clock
+        if getattr(clock, "active", 0):
+            clock.active += 1
+            try:
+                yield
+            finally:
+                clock.active -= 1
+            return
+        clock.active, clock.deadline = 1, time.monotonic() + self.seconds
+        try:
+            yield
+            self.tick(path)
+        finally:
+            clock.active, clock.deadline = 0, None
 
     def charge(self, n: int, path: str, what: str) -> None:
         """Count ``n`` elements against the session total; raise past the cap."""
@@ -343,14 +371,24 @@ class Env:
 
     # ---- files ------------------------------------------------------------
 
-    def load(self, source: Union[str, Path], *, text: Optional[str] = None, base: Optional[Union[str, Path]] = None) -> "Env":
+    def load(
+        self,
+        source: Union[str, Path],
+        *,
+        text: Optional[str] = None,
+        base: Optional[Union[str, Path]] = None,
+        data: Any = None,
+    ) -> "Env":
         """Load a YAML document into a child scope: every top-level key becomes
         a (lazy) binding. Includes and ``!py`` references are resolved first
         (:mod:`alienbio.expr.include`) relative to ``base`` — the file's own
-        directory by default — under this env's trust. Returns the env whose
-        scope holds the bindings."""
-        from .include import hydrate, include_bindings
-        from .yaml_tags import load_text
+        directory by default — under this env's trust. ``data`` is the
+        document already parsed (``load_experiment`` parses once, T091 AP7);
+        else ``text``, else the file, capped at ``MAX_SPEC_BYTES``. The load
+        runs under one ``limits.seconds`` clock and one include budget
+        (T091 AP5/AP6). Returns the env whose scope holds the bindings."""
+        from .include import hydrate, include_bindings, include_session
+        from .yaml_tags import load_text, read_spec_text
 
         # T091 AL1: one resolution of the file decides the text read and the
         # include base. The base is the RESOLVED file's directory — a symlink
@@ -358,20 +396,23 @@ class Env:
         # that folder's `helpers.py` as its `_includes_`.
         resolved = Path(source).resolve()
         is_file = resolved.is_file()
-        if text is None:
-            text = resolved.read_text()
         base_dir = Path(base).resolve() if base is not None else (resolved.parent if is_file else Path.cwd())
         seen = frozenset({resolved}) if is_file else frozenset()
-        data = load_text(text)
-        if not isinstance(data, Mapping):
-            raise ExprError("a spec file must be a mapping at the top level", str(source))
-        data = dict(data)
-        entries = data.pop("_includes_", None)
-        included: dict[str, Any] = {}
-        modules: dict[str, Mapping[str, Any]] = {}
-        if entries is not None:
-            included, modules = include_bindings(entries, base_dir, trusted=self.ctx.trusted, seen=seen)
-        data = hydrate(data, base=base_dir, trusted=self.ctx.trusted, seen=seen, modules=modules)
+        limits = self.ctx.limits
+        with limits.running(str(source)), include_session(limits):
+            if data is None:
+                if text is None:
+                    text = read_spec_text(resolved)
+                data = load_text(text, source=str(source))
+            if not isinstance(data, Mapping):
+                raise ExprError("a spec file must be a mapping at the top level", str(source))
+            data = dict(data)
+            entries = data.pop("_includes_", None)
+            included: dict[str, Any] = {}
+            modules: dict[str, Mapping[str, Any]] = {}
+            if entries is not None:
+                included, modules = include_bindings(entries, base_dir, trusted=self.ctx.trusted, seen=seen)
+            data = hydrate(data, base=base_dir, trusted=self.ctx.trusted, seen=seen, modules=modules)
         for key, form in included.items():
             data.setdefault(str(key), form)
         env = self.scope({}, parent=self.bindings)
@@ -401,8 +442,11 @@ class Env:
         return f"{instance}.{text}" if instance else text
 
     def force_all(self) -> dict[str, Any]:
-        """Evaluate every lazy binding in this scope (not parents); returns them."""
+        """Evaluate every lazy binding in this scope (not parents); returns
+        them. One ``limits.seconds`` clock covers them all (T091 AP5), or the
+        enclosing load's when one is running."""
         out: dict[str, Any] = {}
-        for key in list(self.bindings.local_keys()):
-            out[key] = self._force(key, self.bindings[key])
+        with self.ctx.limits.running(self.ctx.path):
+            for key in list(self.bindings.local_keys()):
+                out[key] = self._force(key, self.bindings[key])
         return out

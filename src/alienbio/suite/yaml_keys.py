@@ -28,7 +28,9 @@ def _key_identity(node: yaml.Node) -> Any:
     ``(tag, text)``; a non-scalar key is compared by nothing (``None``)."""
     if not isinstance(node, yaml.ScalarNode):
         return None
-    if node.tag.startswith(_STANDARD_TAG_PREFIX):
+    if node.tag.startswith(_STANDARD_TAG_PREFIX) and len(node.value) <= 4096:
+        # A longer standard scalar is compared by its text: constructing a
+        # huge int key here would bypass the Expr loader's int cap (T091 AP4).
         return ("std", yaml.SafeLoader("").construct_object(node))
     return (node.tag, node.value)
 
@@ -57,10 +59,18 @@ def _walk(node: yaml.Node, seen: set[int]) -> None:
             _walk(item, seen)
 
 
+def refuse_duplicate_nodes(node: yaml.Node) -> None:
+    """Raise ``ValueError`` naming the key and its lines when any mapping in
+    the composed ``node`` tree repeats a key — the check on a tree a loader
+    already composed, so the document is parsed once (T091 AP7)."""
+    _walk(node, set())
+
+
 def refuse_duplicate_keys(text: str, loader: type) -> None:
     """Raise ``ValueError`` naming the key and its lines when any mapping in
     ``text`` (composed by ``loader``) repeats a key. A YAML syntax error
-    propagates as the parser's ``yaml.YAMLError``."""
+    propagates as the parser's ``yaml.YAMLError``. (The Expr loader runs the
+    same walk on its own single parse: ``expr.yaml_tags.load_text``.)"""
     node = yaml.compose(text, Loader=loader)  # noqa: S506 — compose builds nodes, runs no constructor
     if node is not None:
-        _walk(node, set())
+        refuse_duplicate_nodes(node)

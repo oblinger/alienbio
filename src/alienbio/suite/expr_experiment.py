@@ -52,7 +52,7 @@ from ..expr.env import Env, ExprError
 from ..expr.form import Call, Name, contains_form
 from ..expr.interp import QuotedForm, closure_env
 from ..expr.registry import fn, registry as _registry
-from ..expr.yaml_tags import ExprLoader, load_text
+from ..expr.yaml_tags import load_text, read_spec_text
 from .agent import Agent
 from .arch_diagnose import DiagnosePerturbationRecipe, TARGET_ROLE as DIAGNOSE_TARGET_ROLE
 from .arch_intervene import DesignInterventionRecipe, TARGET_ROLE as INTERVENE_TARGET_ROLE
@@ -84,7 +84,6 @@ from .types import (
     TaskInstance,
 )
 from .verify import SimConfig
-from .yaml_keys import refuse_duplicate_keys
 from .vocab import build_vocabulary
 
 # ---------------------------------------------------------------------------
@@ -679,18 +678,23 @@ def load_experiment(path: Union[str, Path], *, text: Optional[str] = None, trust
     """
     source = str(path)
     if text is None:
-        text = Path(path).read_text()
+        text = read_spec_text(path)
     env = Env.standard(seed=0, trusted=trusted)
-    # T091 B5: PyYAML keeps the last of two equal keys, so a second ``arm:``
-    # axis block or ``trials_per_condition:`` silently replaced the first.
-    # The registry's one check (``suite.yaml_keys``), run on the same text.
-    try:
-        refuse_duplicate_keys(text, ExprLoader)
-    except ValueError as exc:
-        raise ExprError(str(exc), source) from None
-    except yaml.YAMLError as exc:
-        raise ExprError(f"YAML error: {exc}", source) from None
-    data = load_text(text)
+    # T091 AP5: one `limits.seconds` clock from here to the spec — the parse,
+    # every include and every binding (it was one per binding, so a file of
+    # N slow bindings ran N times the limit).
+    with env.ctx.limits.running(source):
+        return _load_experiment(source, text, env)
+
+
+def _load_experiment(source: str, text: str, env: Env) -> ExperimentSpec:
+    # T091 AP7: ONE parse — the size cap, the duplicate-key check (T091 B5:
+    # PyYAML keeps the last of two equal keys, so a second ``arm:`` axis
+    # block or ``trials_per_condition:`` silently replaced the first) and
+    # the forms all come from it, and ``env.load`` takes the forms rather
+    # than parsing the text again. Every failure is an ExprError naming the
+    # file (T091 AP9).
+    data = load_text(text, source=source)
     if isinstance(data, Call):
         from ..expr.interp import evaluate
 
@@ -724,7 +728,7 @@ def load_experiment(path: Union[str, Path], *, text: Optional[str] = None, trust
         nested = _nested_experiment(value, str(key), top=True)
         if nested is not None:
             raise ExprError(f"an experiment must be a top-level document key; found an !experiment at {nested!r}", source)
-    scope = env.load(source, text=text)
+    scope = env.load(source, data=data)
     values = scope.force_all()
     specs = [v for v in values.values() if isinstance(v, ExperimentSpec)]
     buried = sum(_count_specs(v) for v in values.values()) - len(specs)

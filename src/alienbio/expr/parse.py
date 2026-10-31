@@ -20,6 +20,22 @@ from ..spec_lang.safe_eval import UnsafeExpressionError, validate_expression
 from .env import ExprError
 from .form import Call, Name, Quoted
 
+#: The largest integer literal, in bits, a spec may write — inline here,
+#: in YAML in :mod:`.yaml_tags` (T091 AP4: a 2 MB hex literal was an
+#: 8 M-bit int, free, and one ``%`` on it ran 40 s). Equal to
+#: ``heads.MAX_POW_RESULT_BITS``: no integer a spec holds is bigger than one
+#: it could compute.
+MAX_INT_LITERAL_BITS = 1 << 20
+
+
+def check_int_literal(value: int, path: str = "") -> int:
+    """``value`` if it fits :data:`MAX_INT_LITERAL_BITS`, else an :class:`ExprError`."""
+    bits = value.bit_length()
+    if bits > MAX_INT_LITERAL_BITS:
+        raise ExprError(f"integer literal of {bits} bits exceeds MAX_INT_LITERAL_BITS={MAX_INT_LITERAL_BITS}", path)
+    return value
+
+
 _BINOPS: dict[type, str] = {
     ast.Add: "add",
     ast.Sub: "sub",
@@ -72,6 +88,8 @@ def _name_path(node: ast.AST) -> str | None:
 
 def _convert(node: ast.AST, path: str) -> Any:  # noqa: C901 - one switch, on purpose
     if isinstance(node, ast.Constant):
+        if isinstance(node.value, int) and not isinstance(node.value, bool):
+            return check_int_literal(node.value, path)
         return node.value
     if isinstance(node, ast.Name):
         return Name(node.id)

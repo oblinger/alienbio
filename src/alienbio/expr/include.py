@@ -131,8 +131,60 @@ class HelperNamespace(Mapping[str, Any]):
         return f"<included helper {self._module} {sorted(self._ns)}>"
 
 
+#: File loads one document's includes may make, counting a file named
+#: twice twice (T091 AP6: ten ``!include next.yaml`` per file, chained six
+#: deep, parsed 10^5 files before any meter or clock). ``_includes_`` and
+#: ``!include`` both count; past it the load refuses by name.
+MAX_INCLUDE_LOADS = 256
+
+
+class IncludeBudget:
+    """The include count of one document load, and its clock."""
+
+    __slots__ = ("loads", "limits")
+
+    def __init__(self, limits: Any = None) -> None:
+        self.loads = 0
+        self.limits = limits
+
+
+_SESSION: contextvars.ContextVar[Optional[IncludeBudget]] = contextvars.ContextVar("alienbio_include_budget", default=None)
+
+
+@contextlib.contextmanager
+def include_session(limits: Any = None) -> Iterator[IncludeBudget]:
+    """One include budget (:data:`MAX_INCLUDE_LOADS`) over the block, shared
+    by every nested load — ``Env.load`` opens one per document with its
+    ``Limits`` (whose clock each include ticks); a bare
+    :func:`load_include` / :func:`hydrate` call opens its own."""
+    current = _SESSION.get()
+    if current is not None:
+        yield current
+        return
+    budget = IncludeBudget(limits)
+    token = _SESSION.set(budget)
+    try:
+        yield budget
+    finally:
+        _SESSION.reset(token)
+
+
 def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] = frozenset()) -> tuple[str, Any]:
-    """Resolve one include: ``("yaml" | "text" | "py", value)``."""
+    """Resolve one include: ``("yaml" | "text" | "py", value)``. Counted
+    against the document's :data:`MAX_INCLUDE_LOADS` and its clock; a file
+    over ``MAX_SPEC_BYTES`` refuses before it is read."""
+    with include_session() as budget:
+        budget.loads += 1
+        if budget.loads > MAX_INCLUDE_LOADS:
+            raise ExprError(f"!include {path!r}: more than MAX_INCLUDE_LOADS={MAX_INCLUDE_LOADS} file loads in one document", str(base))
+        if budget.limits is not None:
+            budget.limits.tick(str(base))
+        return _load_include(path, base, trusted=trusted, seen=seen)
+
+
+def _load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path]) -> tuple[str, Any]:
+    from .yaml_tags import check_spec_size, load_text, read_spec_text
+
     target = resolve_path(path, base, trusted=trusted)
     if target in seen:
         raise ExprError(f"!include cycle through {path!r}", str(base))
@@ -140,18 +192,10 @@ def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] 
         raise ExprError(f"!include: no such file {path!r} (relative to {base})", str(base))
     suffix = target.suffix.lower()
     if suffix in YAML_SUFFIXES:
-        from ..suite.yaml_keys import refuse_duplicate_keys
-        from .yaml_tags import ExprLoader, load_text
-
-        text = target.read_text()
         # T091 G3 — the duplicate-key check every experiment file gets (B5),
-        # one file down: PyYAML keeps the last of two equal keys, so an
-        # included fragment's second ``tpc:`` silently replaced its first.
-        try:
-            refuse_duplicate_keys(text, ExprLoader)
-        except ValueError as exc:
-            raise ExprError(str(exc), str(target)) from None
-        data = load_text(text)
+        # one file down, inside the single parse (T091 AP7); a syntax error
+        # or a too-deep nest names the included file (T091 AP9).
+        data = load_text(read_spec_text(target), source=str(target))
         inner_seen = seen | {target}
         if isinstance(data, Mapping) and "_includes_" in data:
             # T088 include 1: only ``Env.load`` popped ``_includes_``, so an
@@ -164,10 +208,11 @@ def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] 
             return "yaml", {**included, **own}
         return "yaml", hydrate(data, base=target.parent, trusted=trusted, seen=inner_seen)
     if suffix in TEXT_SUFFIXES:
-        return "text", target.read_text()
+        return "text", read_spec_text(target)
     if suffix in PY_SUFFIXES:
         if not trusted:
             raise UnsafeSpecError(f"!include {path!r}: executing Python requires a trusted load")
+        check_spec_size(target)  # before runpy compiles it
         return "py", HelperNamespace(helper_module_name(target), run_python_file(target))
     raise ExprError(f"!include {path!r}: unknown file kind {suffix!r} (yaml / yml / md / txt / py)", str(base))
 
@@ -358,12 +403,15 @@ def include_bindings(
 __all__ = [
     "HelperNamespace",
     "INCLUDE_MODULE_PREFIX",
+    "IncludeBudget",
+    "MAX_INCLUDE_LOADS",
     "PY_IMPORT_ROOTS",
     "UnsafeSpecError",
     "allowed_module_name",
     "helper_module_name",
     "hydrate",
     "include_bindings",
+    "include_session",
     "load_include",
     "recording_python_files",
     "resolve_path",

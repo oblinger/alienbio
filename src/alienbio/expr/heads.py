@@ -20,6 +20,14 @@ call                                   charge
 ``seq * n`` (str/bytes/list/tuple)     ``len(seq) * n``
 ``a ** b`` / ``pow``                   refused past 10 000 exponent or 2^20 bits
 ``a * b`` (ints)                       refused past 2^20 result bits
+``a % b`` / ``a // b`` (ints)          refused past 2^20 operand bits
+``round(n, -k)`` (int)                 refused past 2^20 result bits
+``int(...)`` / an int method result    refused past 2^20 bits
+``==`` ``!=`` ``<`` ... (containers)   elements visited (smaller operand,
+                                       every shared occurrence)
+``x in xs`` (container x)              elements of ``xs``
+``sorted`` / ``max`` / ``min``         + elements x log2(n) when an item is
+(container items)                      a container
 ``pow(a, b, m)``                       refused past bits(b) * bits(m) > 2^24
                                        or bits(m) > 2^20
 ``str(x)``                             the rendered size of ``x``
@@ -60,6 +68,7 @@ from ..spec_lang import builtins as _b
 from ..spec_lang.safe_eval import UnsafeExpressionError
 from . import access
 from .env import Env, ExprError
+from .parse import MAX_INT_LITERAL_BITS
 from .registry import Head, fn, guard
 
 # ---- distributions ----------------------------------------------------------
@@ -79,12 +88,10 @@ def constant(value: Any) -> Any:
 # only registration (a second registration of a name refuses since T054 #6).
 for _name, _f in {
     "abs": abs,
-    "round": round,
     "sqrt": math.sqrt,
     "exp": math.exp,
     "log": math.log,
     "len": len,
-    "int": int,
     "float": float,
     "bool": bool,
     "dict": dict,
@@ -121,9 +128,19 @@ def _list(x: Any = (), *, ctx: Any) -> list[Any]:
     return list(_sized(x, ctx, "list"))
 
 
+def _charge_ordering(x: Any, ctx: Any, what: str) -> None:
+    """Ordering items that are themselves containers compares them deeply
+    (T091 AP3): charged their elements times ``log2(n)`` comparisons."""
+    if isinstance(x, (list, tuple)) and any(_is_deep(item) for item in x):
+        rounds = max(1, len(x).bit_length())
+        ctx.limits.charge(rounds * element_bound(x, _remaining(ctx)), ctx.path, what)
+        ctx.limits.tick(ctx.path)
+
+
 @fn(kind="math", name="sorted", summary="sorted")
 def _sorted(x: Any, *, ctx: Any, key: Any = None, reverse: bool = False) -> list[Any]:
-    return sorted(_sized(x, ctx, "sorted"), key=key, reverse=reverse)
+    _charge_ordering(_sized(x, ctx, "sorted"), ctx, "sorted")
+    return sorted(x, key=key, reverse=reverse)
 
 
 @fn(kind="math", name="reversed", summary="reversed")
@@ -155,12 +172,51 @@ def _sum(x: Any, start: Any = 0, *, ctx: Any) -> Any:
 
 @fn(kind="math", name="max", summary="max")
 def _max(*a: Any, ctx: Any, **kw: Any) -> Any:
-    return max(*(_sized(x, ctx, "max") for x in a), **kw)
+    for x in a:
+        _charge_ordering(_sized(x, ctx, "max"), ctx, "max")
+    _charge_ordering(list(a), ctx, "max")
+    return max(*a, **kw)
 
 
 @fn(kind="math", name="min", summary="min")
 def _min(*a: Any, ctx: Any, **kw: Any) -> Any:
-    return min(*(_sized(x, ctx, "min") for x in a), **kw)
+    for x in a:
+        _charge_ordering(_sized(x, ctx, "min"), ctx, "min")
+    _charge_ordering(list(a), ctx, "min")
+    return min(*a, **kw)
+
+
+# ---- integers: no int a spec holds is past ``MAX_POW_RESULT_BITS`` ----------
+
+
+def _check_int_result(value: Any, ctx: Any, what: str) -> Any:
+    """Refuse an int result past :data:`MAX_POW_RESULT_BITS` (T091 AP4:
+    ``int('f' * 10**6, 16)``, ``(0).from_bytes(b, 'big')``)."""
+    if _is_int(value) and value.bit_length() > MAX_POW_RESULT_BITS:
+        raise ExprError(f"{what}: result of {value.bit_length()} bits exceeds {MAX_POW_RESULT_BITS}", ctx.path)
+    return value
+
+
+@fn(kind="math", name="int", summary="int")
+def _int(*a: Any, ctx: Any, **kw: Any) -> int:
+    if a and isinstance(a[0], (str, bytes, bytearray)) and len(a[0]) > MAX_POW_RESULT_BITS:
+        raise ExprError(f"int: text of {len(a[0])} characters exceeds {MAX_POW_RESULT_BITS} bits", ctx.path)
+    return _check_int_result(int(*a, **kw), ctx, "int")
+
+
+#: The most negative ``ndigits`` ``round`` accepts on an int: past it the
+#: rounding unit 10**k alone exceeds :data:`MAX_POW_RESULT_BITS` (T091 AP4:
+#: ``round(7, -16000000)`` ran 21 s).
+MIN_ROUND_NDIGITS = -int(MAX_INT_LITERAL_BITS / math.log2(10))
+
+
+@fn(kind="math", name="round", summary="round")
+def _round(x: Any, ndigits: Any = None, *, ctx: Any) -> Any:
+    if ndigits is None:
+        return round(x)
+    if _is_int(ndigits) and ndigits < MIN_ROUND_NDIGITS:
+        raise ExprError(f"round: ndigits {ndigits} is below {MIN_ROUND_NDIGITS} (10**{-ndigits} exceeds {MAX_POW_RESULT_BITS} bits)", ctx.path)
+    return round(x, ndigits)
 
 
 # ---- rendered size: what ``str`` / an f-string / ``%`` will build -----------
@@ -208,7 +264,10 @@ def render_bound(value: Any, limit: int) -> int:
                 stack.append((item, False))
             total += 2
         elif t is str:
-            total += len(x) + 2
+            # A string inside a container renders as its repr (T091 AP8: up
+            # to 10 characters per character, '\U000e0000'); a bare string
+            # never reaches here (callers charge it by its length).
+            total += repr_bound(x)
         elif t in (bytes, bytearray):
             total += 4 * len(x) + 3
         elif t is int:
@@ -220,6 +279,94 @@ def render_bound(value: Any, limit: int) -> int:
         if total > limit:
             return total
     return total
+
+
+def repr_bound(text: str) -> int:
+    """An upper bound on ``len(repr(text))`` without building it: a printable
+    string is its length + quotes + one escape per backslash or quote; any
+    other is charged 10 characters per character (``'\\U000e0000'``)."""
+    if text.isprintable():
+        return len(text) + 2 + text.count("\\") + text.count("'")
+    return 10 * len(text) + 2
+
+
+def _is_deep(x: Any) -> bool:
+    """A value whose comparison or hash walks its elements."""
+    return type(x) in (list, tuple, dict, set, frozenset) or _is_dataclass_value(x)
+
+
+def _deep_items(x: Any) -> Any:
+    import dataclasses
+
+    t = type(x)
+    if t is dict:
+        return [v for kv in x.items() for v in kv]
+    if t in (list, tuple, set, frozenset):
+        return x
+    return [getattr(x, f.name, None) for f in dataclasses.fields(x)]
+
+
+def element_bound(value: Any, limit: int) -> int:
+    """The elements a deep comparison of ``value`` can visit, capped just
+    past ``limit`` (T091 AP3: ``a9 == b9`` over two shared-structure chains
+    ``[a8] * 10`` is 10^9 comparisons in one C call the clock cannot
+    interrupt, while building them was charged 90). Every occurrence of a
+    shared container counts — that is what the comparison repeats — but each
+    distinct container is walked once (its size is memoized by identity), so
+    the bound costs the distinct structure, not the occurrences. A container
+    on the current path is a cycle and adds nothing. Also the expanded size
+    of a parsed YAML document (aliases)."""
+    if not _is_deep(value):
+        return 1
+    memo: dict[int, int] = {}
+    active: set[int] = set()
+    stack: list[tuple[Any, bool]] = [(value, False)]
+    while stack:
+        x, leaving = stack.pop()
+        key = id(x)
+        if leaving:
+            active.discard(key)
+            n = 0
+            for item in _deep_items(x):
+                n += 1 + (memo.get(id(item), 0) if _is_deep(item) else 0)
+                if n > limit:
+                    break
+            memo[key] = min(n, limit + 1)
+            continue
+        if key in memo or key in active:
+            continue
+        active.add(key)
+        stack.append((x, True))
+        stack.extend((item, False) for item in _deep_items(x) if _is_deep(item) and id(item) not in memo)
+    return min(1 + memo[id(value)], limit + 1)
+
+
+def _remaining(ctx: Any) -> int:
+    return ctx.limits.entities - ctx.limits.meter.allocated + 1
+
+
+def _charge_compare(a: Any, b: Any, ctx: Any, what: str) -> None:
+    """Charge a comparison of two containers by the elements it can visit:
+    the smaller operand's :func:`element_bound` (T091 AP3)."""
+    if _is_deep(a) and _is_deep(b):
+        limit = _remaining(ctx)
+        ctx.limits.charge(min(element_bound(a, limit), element_bound(b, limit)), ctx.path, what)
+        ctx.limits.tick(ctx.path)
+
+
+def _charge_contains(x: Any, xs: Any, ctx: Any, what: str) -> None:
+    """``x in xs`` with a container ``x`` compares it with every element:
+    charged the elements of ``xs`` (a hashed container: those of ``x``)."""
+    if not _is_deep(x):
+        return
+    if isinstance(xs, (list, tuple)):
+        n = element_bound(xs, _remaining(ctx))
+    elif isinstance(xs, (dict, set, frozenset)):
+        n = element_bound(x, _remaining(ctx))
+    else:
+        return
+    ctx.limits.charge(n, ctx.path, what)
+    ctx.limits.tick(ctx.path)
 
 
 def _is_dataclass_value(x: Any) -> bool:
@@ -268,7 +415,19 @@ def _add(a: Any, b: Any, *, ctx: Any) -> Any:
 
 _op("sub", lambda a, b: a - b)
 _op("div", lambda a, b: a / b)
-_op("floordiv", lambda a, b: a // b)
+def _check_int_operands(a: Any, b: Any, ctx: Any, what: str) -> None:
+    """Big-int division is superlinear and one uninterruptible operation
+    (T091 AP4: an 8 M-bit ``%`` ran 40 s): refused past
+    :data:`MAX_POW_RESULT_BITS` operand bits."""
+    for x in (a, b):
+        if _is_int(x) and x.bit_length() > MAX_POW_RESULT_BITS:
+            raise ExprError(f"{what}: operand of {x.bit_length()} bits exceeds {MAX_POW_RESULT_BITS}", ctx.path)
+
+
+@fn(kind="op", name="op:floordiv", summary="operator floordiv")
+def _floordiv(a: Any, b: Any, *, ctx: Any) -> Any:
+    _check_int_operands(a, b, ctx, "floordiv")
+    return a // b
 
 
 _DIGITS = re.compile(r"\d+")
@@ -308,6 +467,8 @@ def _mod(a: Any, b: Any, *, ctx: Any) -> Any:
         # text ('\U0010ffff' under ascii) — charged at that bound (T091 C4).
         growth = 10 if _REPR_CONVERSION.search(fmt) else 1
         ctx.limits.charge(len(fmt) + _width_bound(fmt) + star + growth * sum(_text_len(x, ctx) for x in items), ctx.path, "mod")
+    else:
+        _check_int_operands(a, b, ctx, "mod")
     return a % b
 
 
@@ -321,7 +482,7 @@ MAX_INT_EXPONENT = 10_000
 #: T091 AL6: lowered from 2^24 — ``(10**1000)**4000`` (13 M bits) passed it
 #: and took 15 s, and squaring THAT took 38 s. One 2^20-bit product is about
 #: half a second; ``limits.seconds`` bounds a chain of them.
-MAX_POW_RESULT_BITS = 1 << 20
+MAX_POW_RESULT_BITS = MAX_INT_LITERAL_BITS  # 1 << 20; one cap for every int a spec holds (T091 AP4)
 
 #: ``pow(a, b, m)`` does ~bits(b) multiplications modulo ``m``:
 #: bits(b) * bits(m) is capped here (T091 AL6 — a 13 M-bit exponent with a
@@ -380,14 +541,34 @@ def _pow_named(a: Any, b: Any, mod: Any = None, *, ctx: Any) -> Any:
 _op("neg", lambda a: -a)
 _op("pos", lambda a: +a)
 _op("not", lambda a: not a)
-_op("eq", lambda a, b: a == b)
-_op("ne", lambda a, b: a != b)
-_op("lt", lambda a, b: a < b)
-_op("le", lambda a, b: a <= b)
-_op("gt", lambda a, b: a > b)
-_op("ge", lambda a, b: a >= b)
-_op("in", lambda a, b: a in b)
-_op("notin", lambda a, b: a not in b)
+def _comparison(name: str, f: Any) -> None:
+    def compare(a: Any, b: Any, *, ctx: Any) -> Any:
+        _charge_compare(a, b, ctx, name)
+        return f(a, b)
+
+    compare.__name__ = compare.__qualname__ = f"_op_{name}"
+    fn(compare, name=f"op:{name}", kind="op", summary=f"operator {name}")
+
+
+def _membership(name: str, f: Any) -> None:
+    def contains(a: Any, b: Any, *, ctx: Any) -> Any:
+        _charge_contains(a, b, ctx, name)
+        return f(a, b)
+
+    contains.__name__ = contains.__qualname__ = f"_op_{name}"
+    fn(contains, name=f"op:{name}", kind="op", summary=f"operator {name}")
+
+
+# T091 AP3: every comparison of two containers is charged the elements it
+# can visit before it runs.
+_comparison("eq", lambda a, b: a == b)
+_comparison("ne", lambda a, b: a != b)
+_comparison("lt", lambda a, b: a < b)
+_comparison("le", lambda a, b: a <= b)
+_comparison("gt", lambda a, b: a > b)
+_comparison("ge", lambda a, b: a >= b)
+_membership("in", lambda a, b: a in b)
+_membership("notin", lambda a, b: a not in b)
 _op("is", lambda a, b: a is b)
 _op("isnot", lambda a, b: a is not b)
 _op("set", lambda xs: set(xs))
@@ -539,7 +720,11 @@ def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
     except ValueError as exc:
         raise env.error(str(exc)) from None
     env.ctx.limits.charge(bound, env.path, f"method {name}")
-    return target(*args, **kwargs)
+    if isinstance(obj, (list, tuple)) and any(_is_deep(v) for v in list(args) + list(kwargs.values())):
+        # `xs.index(x)` / `xs.count(x)` compare x with every element (T091 AP3)
+        env.ctx.limits.charge(element_bound(obj, _remaining(env.ctx)), env.path, f"method {name}")
+        env.ctx.limits.tick(env.path)
+    return _check_int_result(target(*args, **kwargs), env.ctx, f"method {name}")
 
 
 def _fstr(*parts: Any, ctx: Any) -> str:
@@ -561,6 +746,10 @@ def _fmt(value: Any, spec: str = "", conv: str = "", *, ctx: Any) -> str:
         charge_render(value, ctx, "fmt")
         if conv in ("r", "a"):
             ctx.limits.charge(9 * _text_len(value, ctx), ctx.path, "fmt")
+    if conv in ("r", "a") and isinstance(value, (str, bytes)):
+        # T091 AP8: the repr of a string is built here, before `op:fstr`
+        # charges the joined text — charged its bound first.
+        ctx.limits.charge(repr_bound(value) if isinstance(value, str) else 4 * len(value) + 3, ctx.path, "fmt")
     if conv == "r":
         value = repr(value)
     elif conv == "s":
