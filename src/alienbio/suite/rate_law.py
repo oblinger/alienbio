@@ -43,14 +43,17 @@ it can take *on any seed*: a number is a point, a distribution its support
 ``poisson`` / ``exponential`` ``[0, ∞)``, :func:`~alienbio.suite.dist.support_of`
 for a ``Dist`` object; a name bound to a draw with ``!x`` — drawn at load,
 outside the law — by its binding's form, so ``k: !x normal(0.3, 0.3)`` gets
-the inline draw's verdict, T092). The fold reads numbers, ``+ - * /`` and
-unary minus, ``**`` / ``pow``, ``exp`` / ``log`` / ``sqrt`` / ``abs``, ``min`` /
+the inline draw's verdict, T092). The fold reads numbers, ``+ - * / // %`` and
+unary ``+`` / ``-``, ``**`` / ``pow``, ``exp`` / ``log`` / ``sqrt`` / ``abs``, ``min`` /
 ``max``, ``round`` / ``float`` / ``int`` (the bounds mapped), ``sum([...])``
 (the bounds added), one name times itself (a square) and ``a if c else b``
-(the union of the branches, the condition otherwise ignored — but a branch
+(the union of the branches; a condition that reads no pool — a comparison,
+a bool, a string test — is ignored, but a branch
 that IS the compared name is bounded by the comparison, so the clip idiom
 ``base if base > 0 else 0.01`` loads); any other head over a draw folds to
 the whole line, and its refusal names this list (:data:`FOLDED_FORMS`). A
+``!x`` binding whose form the fold cannot read at all (a string inside the
+arithmetic) refuses by name rather than being judged by its drawn number. A
 factor whose interval straddles zero, or a product
 whose signs (unary minus included) come out negative, refuses at LOAD,
 naming the node and the support — so the verdict never depends on the seed
@@ -375,6 +378,18 @@ def _interval_div(a: Interval, b: Interval) -> Interval:
     return _interval_mul(a, (1.0 / hi, 1.0 / lo))
 
 
+def _interval_mod(a: Interval, b: Interval) -> Interval:
+    """``a % b`` (Python's: the result takes the divisor's sign, ``|r| < |b|``),
+    conservatively: ``a`` itself when it already lies in ``[0, b)`` for a
+    positive divisor, else the span between 0 and the divisor's far bound."""
+    lo, hi = b
+    if lo > 0.0:
+        return a if 0.0 <= a[0] and a[1] < lo else (0.0, hi)
+    if hi < 0.0:
+        return a if hi < a[0] and a[1] <= 0.0 else (lo, 0.0)
+    return (min(lo, 0.0), max(hi, 0.0))
+
+
 def _point(iv: Optional[Interval]) -> Optional[float]:
     return iv[0] if iv is not None and iv[0] == iv[1] else None
 
@@ -464,8 +479,13 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
         drawn = _drawn_binding(form, env)
         if drawn is not None:
             folded = _interval(*drawn)
-            if folded is not None:
-                return folded
+            if folded is None:
+                # never judge the drawn number: that is one seed's verdict (T091 AE1)
+                raise env.error(
+                    f"rate law: the sign fold cannot read {form.path} (bound to {drawn[0]!r}) — a drawn binding "
+                    f"in a rate law must fold to an interval; it covers {FOLDED_FORMS} (refused at load, on every seed)"
+                )
+            return folded
         return _value_interval(value)
     if isinstance(form, Quoted):
         return _interval(form.form, env)
@@ -493,6 +513,13 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
     ivs: list[Interval] = [a for a in args if a is not None]
     if form.head == "op:neg" and len(ivs) == 1:
         return (-ivs[0][1], -ivs[0][0])
+    if form.head == "op:pos" and len(ivs) == 1:
+        return ivs[0]
+    if form.head == "op:mod" and len(ivs) == 2:
+        return _interval_mod(*ivs)
+    if form.head == "op:floordiv" and len(ivs) == 2:
+        d = _interval_div(*ivs)
+        return (math.floor(d[0]) if math.isfinite(d[0]) else d[0], math.floor(d[1]) if math.isfinite(d[1]) else d[1])
     if form.head in ("op:add", "op:sub", "op:mul", "op:div") and len(ivs) == 2:
         a, b = ivs
         if form.head == "op:add":
@@ -540,11 +567,11 @@ def _interval(form: Any, env: Env) -> Optional[Interval]:
 #: What the sign fold reads exactly; any other head over a non-point argument
 #: folds to the whole line, and its refusal names this list.
 FOLDED_FORMS = (
-    "numbers, + - * / ** and unary -, pow, exp, log, sqrt, abs, min, max, round, float, int, "
+    "numbers, + - * / // % ** and unary + -, pow, exp, log, sqrt, abs, min, max, round, float, int, "
     "sum([...]), `a if c else b`, and the draws " + ", ".join(SUPPORTED_DIST_HEADS)
 )
 _FOLDED_HEADS = frozenset(
-    {"op:neg", "op:add", "op:sub", "op:mul", "op:div", "op:pow", "pow", "exp", "log", "sqrt", "abs",
+    {"op:neg", "op:pos", "op:mod", "op:floordiv", "op:add", "op:sub", "op:mul", "op:div", "op:pow", "pow", "exp", "log", "sqrt", "abs",
      "min", "max", "round", "float", "int", "sum", "if"}
 )
 
@@ -582,7 +609,7 @@ def _if_interval(form: Call, env: Env) -> Optional[Interval]:
     by the comparison (:func:`_branch_bound`). ``None`` when either branch, or
     the condition, reads a pool."""
     cond, kw = form.kwargs.get("cond"), form.kwargs
-    if cond is not None and _interval(cond, env) is None:
+    if cond is not None and _reads_pool(cond, env):
         return None
     if "then" not in kw or "else" not in kw:
         return _LINE
@@ -600,6 +627,31 @@ def _if_interval(form: Call, env: Env) -> Optional[Interval]:
     if not hull:
         return _LINE
     return (min(h[0] for h in hull), max(h[1] for h in hull))
+
+
+def _reads_pool(form: Any, env: Env) -> bool:
+    """Whether ``form`` reads a pool: a name not bound in scope, or a
+    modulation. A bool, a string, a bound name and any constant call do not —
+    an ``if`` condition built of them is ignored like any other (T091 AE1);
+    reading ``None`` from :func:`_interval` here sent ``x if flag else c``
+    back to one seed's drawn value."""
+    if isinstance(form, Name):
+        try:
+            env.lookup(form.path)
+        except ExprError:
+            return True
+        return False
+    if isinstance(form, Quoted):
+        return _reads_pool(form.form, env)
+    if isinstance(form, (list, tuple)):
+        return any(_reads_pool(x, env) for x in form)
+    if isinstance(form, Mapping):
+        return any(_reads_pool(x, env) for x in form.values())
+    if not isinstance(form, Call):
+        return False
+    if form.head in MODULATION_HEADS:
+        return True
+    return any(_reads_pool(a, env) for a in form.args) or any(_reads_pool(v, env) for v in form.kwargs.values())
 
 
 def _rounded(head: str, ivs: Sequence[Interval]) -> Interval:
@@ -658,7 +710,9 @@ def _fold_note(form: Any, env: Env) -> str:
 
 
 _CMP_SHOW = {"op:gt": "a comparison", "op:ge": "a comparison", "op:lt": "a comparison", "op:le": "a comparison",
-             "op:eq": "a comparison", "op:ne": "a comparison", "op:item": "an index", "op:attr": "an attribute"}
+             "op:eq": "a comparison", "op:ne": "a comparison", "op:item": "an index", "op:attr": "an attribute",
+             "op:pos": "+x", "op:neg": "-x", "op:mod": "a % b", "op:floordiv": "a // b", "op:not": "not x",
+             "op:and": "a and b", "op:or": "a or b", "op:method": "a method call", "op:slice": "a slice"}
 
 
 def _drawn_binding(name: Name, env: Env) -> Optional[tuple[Any, Env]]:
@@ -830,7 +884,7 @@ def check_constant_sign(form: Any, env: Env) -> None:
             continue
         if iv == (0.0, 0.0):
             return  # a zero factor: the law is 0 whatever the other signs
-        if iv[0] < 0.0 < iv[1]:
+        if iv[0] < 0.0 <= iv[1] and iv[0] != iv[1]:  # [-1, 0] is 0 on some seeds, not negative on all
             raise env.error(
                 f"rate law: negative rate constant possible — the factor {_describe(factor, env)} has support {_show(iv)}; "
                 "a rate constant's support must be non-negative (refused at load, on every seed)"
