@@ -114,7 +114,7 @@ g: !template {positional: [x], body: {v: !x x}}   # a function
 h: !each {over: [1, 2], as: i, body: !x i * 10}   # a special form
 i: !include shared/defaults.yaml    # load-time file merge
 # load-time Python reference (trusted)
-j: !py math.sqrt
+j: !py alienbio.expr.heads.constant
 K: 0.5
 ```
 
@@ -545,7 +545,7 @@ _includes_: [helpers.py, shared/defaults.yaml]
 defaults: !include shared/defaults.yaml
 notes: !include brief.md
 h: !include helpers.py
-scorer: !py math.sqrt
+scorer: !py helpers.twice
 score: !x scorer(16)
 k2: !x twice(k)
 ```

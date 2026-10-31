@@ -63,9 +63,9 @@ def test_includes_list_executes_py_and_merges_yaml_with_the_file_winning(tmp_pat
 
 def test_py_include_yields_its_namespace_and_pyref_yields_the_object(tmp_path):
     root = _tree(tmp_path)
-    (root / "spec.yaml").write_text("h: !include helpers.py\nsq: !py math.sqrt\nroot2: !x sq(4)\nk: !x h.SITE_K\n")
+    (root / "spec.yaml").write_text("h: !include helpers.py\nsq: !py alienbio.expr.heads.constant\nroot2: !x sq(4)\nk: !x h.SITE_K\n")
     values = Env.standard(seed=1, trusted=True).load(root / "spec.yaml").force_all()
-    assert values["k"] == 0.25 and values["root2"] == 2.0 and callable(values["sq"])
+    assert values["k"] == 0.25 and values["root2"] == 4 and callable(values["sq"])
 
 
 def test_untrusted_loads_refuse_python_and_escaping_paths(tmp_path):

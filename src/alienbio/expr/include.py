@@ -21,6 +21,7 @@ import contextlib
 import contextvars
 import importlib
 import runpy
+import types
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Optional
 
@@ -88,7 +89,7 @@ def run_python_file(target: Path) -> dict[str, Any]:
     executed = _EXECUTED.get()
     if executed is not None:
         executed.append(Path(target).resolve())
-    namespace = runpy.run_path(str(target), run_name=f"alienbio_include_{target.stem}")
+    namespace = runpy.run_path(str(target), run_name=f"{INCLUDE_MODULE_PREFIX}{target.stem}")
     return {k: v for k, v in namespace.items() if not k.startswith("__")}
 
 
@@ -133,15 +134,53 @@ def load_include(path: str, base: Path, *, trusted: bool, seen: frozenset[Path] 
     raise ExprError(f"!include {path!r}: unknown file kind {suffix!r} (yaml / yml / md / txt / py)", str(base))
 
 
+#: The import roots ``!py`` may name (Audit Findings 2026-07-10 § D1,
+#: restored T091 AG2): the framework's own package. A ``.py`` file the spec's
+#: ``_includes_`` executed is the other source (its stem, see ``modules``) —
+#: the Expr successor of D1's registered source roots.
+PY_IMPORT_ROOTS: tuple[str, ...] = ("alienbio",)
+
+#: The module a ``.py`` include executes as (``run_python_file``): what a
+#: helper's own functions carry as ``__module__``.
+INCLUDE_MODULE_PREFIX = "alienbio_include_"
+
+
+def _allowed_module_name(name: Any) -> bool:
+    if not isinstance(name, str):
+        return False
+    return any(name == root or name.startswith(root + ".") for root in PY_IMPORT_ROOTS) or name.startswith(INCLUDE_MODULE_PREFIX)
+
+
+def _check_py_object(path: str, obj: Any, step: str) -> None:
+    """A ``!py`` walk never leaves the allowed roots: a module it passes
+    through, and a function or class it lands on, must belong to
+    :data:`PY_IMPORT_ROOTS` or an included helper — so ``alienbio.x.os.system``
+    or a helper's ``from subprocess import run`` refuses like ``os.system``."""
+    if isinstance(obj, types.ModuleType):
+        owner: Any = obj.__name__
+    elif isinstance(obj, (type, types.FunctionType, types.BuiltinFunctionType, types.MethodType)) or callable(obj):
+        owner = getattr(obj, "__module__", None)
+    else:
+        return  # plain data (a constant)
+    if not _allowed_module_name(owner):
+        raise UnsafeSpecError(
+            f"!py {path!r}: {step!r} belongs to {owner!r}, outside the allowed import roots "
+            f"{list(PY_IMPORT_ROOTS)} and the spec's included helpers"
+        )
+
+
 def resolve_py(path: str, *, trusted: bool, modules: Optional[Mapping[str, Mapping[str, Any]]] = None) -> Any:
     """``module.attr`` -> the object: a module executed by ``_includes_`` /
     ``!include x.py`` (by its file stem) first, else the longest importable
-    module prefix, then attributes."""
+    module prefix under :data:`PY_IMPORT_ROOTS`, then attributes. Trusted
+    loads only; the root allowlist holds under trust too (D1)."""
     if not trusted:
         raise UnsafeSpecError(f"!py {path!r}: a Python reference requires a trusted load")
     parts = path.split(".")
     if len(parts) < 2 or not all(p.isidentifier() for p in parts):
         raise ExprError(f"!py {path!r}: expected module.attr")
+    if any(p.startswith("_") for p in parts):
+        raise UnsafeSpecError(f"!py {path!r}: a private or dunder name is not a Python reference")
     if modules and parts[0] in modules:
         obj: Any = modules[parts[0]]
         for attr in parts[1:]:
@@ -149,10 +188,16 @@ def resolve_py(path: str, *, trusted: bool, modules: Optional[Mapping[str, Mappi
                 obj = obj[attr] if isinstance(obj, Mapping) else getattr(obj, attr)
             except (KeyError, AttributeError):
                 raise ExprError(f"!py {path!r}: no {attr!r} in the included module {parts[0]!r}") from None
+            _check_py_object(path, obj, attr)
         return obj
+    if parts[0] not in PY_IMPORT_ROOTS:
+        raise UnsafeSpecError(
+            f"!py {path!r}: module {parts[0]!r} is outside the allowed import roots {list(PY_IMPORT_ROOTS)} "
+            "(and is not a .py file this spec includes)"
+        )
     for i in range(len(parts) - 1, 0, -1):
         try:
-            obj: Any = importlib.import_module(".".join(parts[:i]))
+            obj = importlib.import_module(".".join(parts[:i]))
         except ImportError:
             continue
         for attr in parts[i:]:
@@ -160,6 +205,7 @@ def resolve_py(path: str, *, trusted: bool, modules: Optional[Mapping[str, Mappi
                 obj = getattr(obj, attr)
             except AttributeError:
                 raise ExprError(f"!py {path!r}: no attribute {attr!r} on {'.'.join(parts[:i])}") from None
+            _check_py_object(path, obj, attr)
         return obj
     raise ExprError(f"!py {path!r}: no importable module prefix")
 
@@ -224,6 +270,8 @@ def include_bindings(
 
 
 __all__ = [
+    "INCLUDE_MODULE_PREFIX",
+    "PY_IMPORT_ROOTS",
     "UnsafeSpecError",
     "hydrate",
     "include_bindings",
