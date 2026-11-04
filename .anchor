@@ -3,9 +3,10 @@ traits:
 - code
 page: doc/ABIO.md
 backlog: doc/ABIO Track/ABIO Backlog.md
-inbox: doc/ABIO Track/ABIO Inbox.md
+inbox: doc/ABIO Track/ABIO Inbox/ABIO Inbox.md
 stones:
   pebbles:
     prefix: P
+  inbox:
 agent: ABIO
 namespace: true
