@@ -105,7 +105,7 @@ A frozen config: a Poisson process of rate `lam` over `[0, horizon]`. Only `_dra
 | [horizon](#^horizon) | End of the window |
 
 **lam**`: float`
-    Inter-arrival times are `exponential(1 / lam)`. Construction refuses a `lam` that is not positive and finite, and a negative or non-finite `horizon`, with `SkeletonError`. ^lam
+    Inter-arrival times are `exponential(1 / lam)`. Construction refuses a `lam` that is not positive and finite, and a negative or non-finite `horizon`, with `SkeletonError`, and an expected count `lam × horizon` past `MAX_POISSON_EVENTS`, naming `lam`, `horizon`, the product and the cap (`1c098be`, T091 AW). ^lam
 
 **horizon**`: float`
     Arrivals are summed until one passes `horizon`; that one is dropped. ^horizon
@@ -230,11 +230,11 @@ A leaf with no ports: a 1-D chain of `k` compartments `f"{ns}/cell0"` … `cell{
 | [diffusion](#^diffusion) | The shared rate-constant hole |
 | [volume](#^volume) | Volume of every cell |
 | [initial](#^initial) | Cell index to starting concentration |
-| [make](#^spatiallatticeblock-make) | Build a chain, refusing `k < 2` |
+| [make](#^spatiallatticeblock-make) | Build a chain, refusing `k < 2` or past the cap |
 | [realize](#^spatiallatticeblock-realize) | Emit cells, fluxes and `initial` |
 
 **k**`: int = 3`
-    Construction refuses a non-int `k` or `k < 2` with `SkeletonError`, so `make` and a direct build agree. ^k
+    Construction refuses a non-int `k`, `k < 2` or `k` past `MAX_LATTICE_CELLS` with `SkeletonError`, so `make` and a direct build agree (the cap since `1c098be`, T091 AW). ^k
 
 **molecule**`: str = "x"`
     Minted as `f"{ns}/{molecule}"`; it is not a port, so no other block can bind it. ^molecule
@@ -317,14 +317,22 @@ A leaf with no ports: a population compartment `f"{ns}/pop"` whose `multiplicity
 
 
 ## blocks Interface
-The one module-level public function. The private helpers `_container_of`, `_draw_poisson_times` and `_modulator_fragment` are described under the semantics below.
+The one module-level public function and two caps. The private helpers `_container_of`, `_draw_poisson_times` and `_modulator_fragment` are described under the semantics below.
 
 | blocks | |
 | --- | --- |
 | [sweep_conflict_frontier](#^sweep-conflict-frontier) | Achieved points over a list of `(kA, kB)` |
+| [MAX_POISSON_EVENTS](#^max-poisson-events) | Cap on a schedule's `lam × horizon` |
+| [MAX_LATTICE_CELLS](#^max-lattice-cells) | Cap on a lattice's `k` |
 
 **sweep_conflict_frontier**`(build: Callable[[Dist[float], Dist[float]], Skeleton], seed: Seed, points: Sequence[tuple[float, float]], sim_cfg: SimConfig = SimConfig()) -> tuple[tuple[float, float], ...]`
     For each `(kA, kB)` calls `build(Constant(kA), Constant(kB)).oracle(seed, sim_cfg)` and returns the achieved points in order, every point under the same seed. `conflict_gen`'s forced-gate is its only production caller ([ABIO ConflictGen](ABIO%20ConflictGen.md)). ^sweep-conflict-frontier
+
+**MAX_POISSON_EVENTS**` = 1000`
+    The expected insult count `lam × horizon` a `PoissonSchedule` may draw (in use: 10, the tests' 0.5 × 20; the catalog's stochastic example 8). The draw is one uninterruptible loop at realize: `lam = horizon = 1e9` held a load past 24 s of CPU (`1c098be`, T091 AW). ^max-poisson-events
+
+**MAX_LATTICE_CELLS**` = 4096`
+    The cells a `SpatialLatticeBlock` may hold (in use: 4, the organism example and the tests). It bounds the build, one uninterruptible call (`k = 2 000 000` held a load past 25 s of CPU; 0.02 s at 2 048 cells, 0.38 s at 32 768), not the lattice a study may want — a 64 × 64 grid fits; what a simulation over it costs is held by `MAX_EXPR_SIM_WORK` ([ABIO Verify](ABIO%20Verify.md)). Set at 256 in `1c098be` and raised to 4 096 in `1da9105` (T091 AW). ^max-lattice-cells
 
 
 
@@ -380,3 +388,4 @@ That rule makes parallel transport blocks compose (two blocks on the default `ce
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `7c1db83`. The transport-chain refusal, the lattice index behaviour, the two-ports-one-pool collapse, `lam = 0` and the authored-block write were each reproduced by a local realize or materialize, no spend. One interface section per class, with the four modifier blocks and the three source/sink/pressure configs documented only for what they add over their shared body. Left out: `ModulatedSourceBlock` and `RateLawBlock` (their own modules), the test coverage, and the conflict generator's use of the crux (on [ABIO ConflictGen](ABIO%20ConflictGen.md)).
 - 2026-10-28 — refreshed against 0eb23e5 (`6631831`): two ports on one pool sum, an unknown `stoich` key, `lam ≤ 0`, an unknown `kind` and an out-of-range lattice `k`/index all refuse, and a transport chain builds (`Fragment.merge` lets a parentless declaration yield).
+- 2026-11-06 — refreshed for `1c098be` and `1da9105` (T091 AW): new `MAX_POISSON_EVENTS` (1 000, checked in `PoissonSchedule`'s construction) and `MAX_LATTICE_CELLS` (4 096 — 256 in `1c098be`, raised in `1da9105` because it bounds the build, not the lattice; checked in `SpatialLatticeBlock`'s construction); the `lam` and `k` blocks name them. The figure draws no caps: still true.

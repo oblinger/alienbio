@@ -57,13 +57,13 @@ Layer 1, all kind `fn`, all with `env` injected. Each returns a block; a pool ar
     `CooperativeBindingBlock.make`: a Hill modifier. ^cooperative
 
 **insult**`(pool="stressed", rate=None, poisson=None, container=None, name=None)`
-    `PressureBlock.make`; `poisson: {lam, horizon}` attaches a `PoissonSchedule` (metadata the insult runner reads), refusing a mapping without both keys. ^insult
+    `PressureBlock.make`; `poisson: {lam, horizon}` attaches a `PoissonSchedule` (metadata the insult runner reads), refusing a mapping without both keys and an expected count `lam × horizon` past `MAX_POISSON_EVENTS` (1 000; `1c098be`, T091 AW, [ABIO Blocks](ABIO%20Blocks.md)). ^insult
 
 **transport**`(pool="pool", container=None, dest_container="cell2", rate=None, rate_law="gradient", src_volume=1.0, dest_volume=1.0, name=None)`
     `TransportBlock.make`: one `Transport` flux and both compartments. `rate_law` is passed through unchecked here; the `!Transport` constructor checks it. ^transport
 
 **lattice**`(k=3, molecule="x", diffusion=None, volume=1.0, initial=None, name=None)`
-    `SpatialLatticeBlock.make`: `k` compartments with neighbour fluxes; `initial` maps a cell index to a concentration. ^lattice
+    `SpatialLatticeBlock.make`: `k` compartments with neighbour fluxes; `initial` maps a cell index to a concentration. `k` past `MAX_LATTICE_CELLS` (4 096) refuses (`1c098be`, `1da9105`, T091 AW, [ABIO Blocks](ABIO%20Blocks.md)); what simulating the lattice costs is held by `MAX_EXPR_SIM_WORK` under `verify` and `predict_q`. ^lattice
 
 **population**`(name=None, growth_rate=None, death_rate=None, **kwargs)`
     `PopulationBlock.make` with the two rates as Dist slots and every other keyword passed through. The block owns its resource as a molecule name (`resource_name`), not a port, so it exposes no pool for `block` to wire. ^population
@@ -115,10 +115,10 @@ Layer 2.
     `skeleton.materialize(seed or ctx.seed)`. With `initial`, each name is spelled through `Env.pool`, looked up among the root's resolved ports (falling back to the name itself), refused if it is not a molecule of the world, and set as a concentration in `container` (default the first compartment, refused if absent); the `WorldImpl` is rebuilt with flows and population laws kept. ^world
 
 **sim**`(dt=0.1, steps=200, sample_every=10) -> SimConfig`
-    Integration parameters for `verify`. ^sim
+    Integration parameters for `verify`, `predict_q` and a drafter's `sim_cfg`. `steps` past `MAX_DRAFT_SIM_STEPS` (20 000, [ABIO Drafters](ABIO%20Drafters.md)) refuses — a simulation runs outside the evaluation clock, so a longer horizon takes a larger `dt` (`1c098be`, T091 AV3: a 4 000 000-step `!sim` under `predict_q` ran 29 s of CPU). ^sim
 
 **verify** (expander)`(world=, perturb=, valid=, max_redraws=8, sim=)`
-    Keywords only. Evaluates `perturb` and `valid` to callables (a head name resolves to its function), then for each attempt evaluates the `world` form under `env.with_seed(ctx.seed.child("attempt<n>"))`, a child seed at the same path, simulates it and `perturb(world)` under seeds `base` and `pert`, and returns the first world for which `valid(baseline, perturbed)` holds; refuses after `max_redraws + 1` attempts. § [verify's redraws](#verifys-redraws). ^verify
+    Keywords only. Evaluates `perturb` and `valid` to callables (a head name resolves to its function), then for each attempt evaluates the `world` form under `env.with_seed(ctx.seed.child("attempt<n>"))`, a child seed at the same path, simulates it and `perturb(world)` under seeds `base` and `pert`, and returns the first world for which `valid(baseline, perturbed)` holds; refuses after `max_redraws + 1` attempts. Before each of the two simulations, `check_sim_work` refuses a world and `sim` whose work passes `MAX_EXPR_SIM_WORK` ([ABIO Verify](ABIO%20Verify.md); `1c098be`, T091 AW). § [verify's redraws](#verifys-redraws). ^verify
 
 **pressure_world**`(**kwargs) -> {world, skeleton, objective}`
     `draft_pressure_world(ctx.seed, ...)`, with the rate keywords in `_DIST_KEYS` turned into Dists. ^pressure-world
@@ -137,6 +137,8 @@ Layer 2.
 
 **intervention_world**`(**kwargs) -> {world, skeleton, target: {molecule, value}}`
     `draft_intervention_world`. ^intervention-world
+
+The six generator worlds pass their keywords straight to the generator, so each first applies the drafter heads' caps through `_check_world_kwargs`: `check_size_dials` on any `SIZE_DIAL_CAPS` keyword and `check_generator_sim_cfg` on a `sim_cfg` (`1c098be`, T091 AW: `prediction_world(n_nodes=2000000)` held a load 34 s of CPU, `pressure_world(complexity=5000)` 19 s; [ABIO Drafters](ABIO%20Drafters.md) § Draft-cost caps).
 
 
 
@@ -213,3 +215,4 @@ Each attempt evaluates the world form on a child seed at the same path (`ctx.see
 - 2026-10-28 — refreshed against 0eb23e5 (`64988be`, `719261e`): `verify` redraws on a child seed at the same path (instance names kept); `block` refuses one pool in two containers; the world heads' unread `guarded_params` removed; `k_sink_b` is a Dist key; the figure's dagger follows.
 - 2026-10-29 — refreshed for `cbcedfd` (T091 A5, A6): `reaction`'s `stoich` keys are namespaced like its ports, and `RateLawBlock.realize` builds its sides through `blocks._sides` (duplicate ports sum, a stray key refuses).
 - 2026-10-30 — refreshed for `343b22a` (T091 AM5): `pathway_puzzles` draws its host through `verify` (`max_redraws: 16`); `!pattern` and `!identify` are `expr_experiment`'s heads, refreshed for `2a29e7b` in [ABIO ExprExperiment](ABIO%20ExprExperiment.md).
+- 2026-11-06 — refreshed for `1c098be` and `1da9105` (T091 AV2, AV3, AW): `sim` caps `steps` at `MAX_DRAFT_SIM_STEPS`; `verify` checks `MAX_EXPR_SIM_WORK` before each simulation; the six generator worlds apply the size-dial caps and the `sim_cfg` check; `lattice` and `insult` name the new block caps (`MAX_LATTICE_CELLS` 4 096, `MAX_POISSON_EVENTS` 1 000). The figure draws no caps: still true.

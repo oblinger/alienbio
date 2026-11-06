@@ -8,7 +8,7 @@ The one function every generator, oracle and the runner call to integrate a worl
 ![ABIO Verify](ABIO%20Verify.svg) 
 *Sample times* is the topic behind the stamped `times` (every `sample_every` step plus the final step; ‡ `SimConfig` validates its fields at construction, T088).
 
-`suite/verify.py` reimplements no physics: `simulate` hands the world's chemistry, compartment tree, flows and population laws to `WorldSimulatorImpl.from_chemistry` and runs it ([ABIO WorldSimulatorImpl](../ABIO%20bio/ABIO%20WorldSimulatorImpl.md), [ABIO WorldImpl](../ABIO%20bio/ABIO%20WorldImpl.md)). Nineteen suite modules import it: the runner simulates one `SimConfig` burst per turn ([ABIO Runner](ABIO%20Runner.md)), [ABIO Skeleton](ABIO%20Skeleton.md)'s `oracle` and every generator read their truth from it, [ABIO Boundedness](ABIO%20Boundedness.md) and the M27 archetypes simulate through it. The `pressure=` overlay is [ABIO EnvironmentalPressure](ABIO%20EnvironmentalPressure.md)'s. The `Timeline` is [ABIO Types](ABIO%20Types.md)'s. All four names are re-exported from `alienbio.suite`. The subsystem view is [ABIO-Bio-Engine](../../ABIO%20Architecture/ABIO-Bio-Engine.md).
+`suite/verify.py` reimplements no physics: `simulate` hands the world's chemistry, compartment tree, flows and population laws to `WorldSimulatorImpl.from_chemistry` and runs it ([ABIO WorldSimulatorImpl](../ABIO%20bio/ABIO%20WorldSimulatorImpl.md), [ABIO WorldImpl](../ABIO%20bio/ABIO%20WorldImpl.md)). Nineteen suite modules import it: the runner simulates one `SimConfig` burst per turn ([ABIO Runner](ABIO%20Runner.md)), [ABIO Skeleton](ABIO%20Skeleton.md)'s `oracle` and every generator read their truth from it, [ABIO Boundedness](ABIO%20Boundedness.md) and the M27 archetypes simulate through it. The `pressure=` overlay is [ABIO EnvironmentalPressure](ABIO%20EnvironmentalPressure.md)'s. The `Timeline` is [ABIO Types](ABIO%20Types.md)'s. All four names are re-exported from `alienbio.suite`; the work cap and its two functions are not (`expr_heads` and `expr_experiment` import them from here). The subsystem view is [ABIO-Bio-Engine](../../ABIO%20Architecture/ABIO-Bio-Engine.md).
 
 
 
@@ -33,13 +33,16 @@ A frozen dataclass: how long and how finely to integrate.
 
 
 ## verify Interface
-Two functions and one result type.
+Four functions, a cap and one result type.
 
 | verify | |
 | --- | --- |
 | [simulate](#^simulate) | Integrate a world into a timeline |
 | [verify](#^verify) | Simulate a world and its perturbation |
 | [VerifyResult](#^verifyresult) | The predicate's verdict and both timelines |
+| [MAX_EXPR_SIM_WORK](#^max-expr-sim-work) | Work one simulation inside an Expr head may cost |
+| [sim_work](#^sim-work) | The work a world and `SimConfig` cost |
+| [check_sim_work](#^check-sim-work) | Refuse a simulation past the cap |
 
 **simulate**`(world: WorldImpl, sim_cfg: SimConfig = SimConfig(), seed: Seed = Seed(0), pressure: Optional[EnvironmentalPressure] = None) -> Timeline`
     Copies `world.initial_state` (the world stays pristine), builds the simulator on that state's tree with `world.flow_objs` and `world.population_law_objs`, runs `steps` steps sampling every `sample_every`, and stamps `times = step · dt` for each sampled step and the final step (`steps = 25` gives `(0, 1, 2, 2.5)`). Deterministic in `(world, sim_cfg)`; `seed` matters only for a jittered pressure. With `pressure`, each sampled state is copied and scaled after the run. Compiled rate laws run here (M47.10); a callable `rate` is refused by `ReactionImpl` itself. ^simulate
@@ -49,6 +52,15 @@ Two functions and one result type.
 
 **VerifyResult**`(passed: bool, discard: bool, baseline: Timeline, perturbed: Timeline)`
     `discard` is `not passed`, the reject-sampling signal. ^verifyresult
+
+**MAX_EXPR_SIM_WORK**` = 2_000_000`
+    The integration work one simulation inside an Expr head (the `verify` expander, `predict_q`) may cost, in units of `sim_work` (`1c098be`, T091 AW). Measured at ~1.2 µs of CPU per unit, a chain world and a 256-cell lattice alike, so about 2.5 s per simulation; largest in use 2 800 (the kinetics example's `predict_q`, 80 steps × 35). A simulation runs outside the evaluation clock: a 486-byte spec building 3 000 reactions by comprehension under a 20 000-step `!sim` held a load past 15 s, which the step cap alone does not bound. ^max-expr-sim-work
+
+**sim_work**`(world: WorldImpl, cfg: SimConfig) -> int`
+    `steps × (reactions + molecules × compartments + flows + population laws)`, compartments counted at least 1 and the per-step term at least 1. ^sim-work
+
+**check_sim_work**`(head: str, world, cfg) -> None`
+    Raises `ValueError` when `sim_work` passes `MAX_EXPR_SIM_WORK`, naming the head, the work, each factor and the cap; anything that is not a `WorldImpl` and a `SimConfig` passes to the simulator's own validation. Called by `predict_q` before its recipe and by the `verify` expander before each attempt's base and perturbed simulation ([ABIO ExprHeads](ABIO%20ExprHeads.md), [ABIO ExprExperiment](ABIO%20ExprExperiment.md)); `simulate` itself and the runner are not capped by it. ^check-sim-work
 
 
 
@@ -64,3 +76,4 @@ The simulator's `run` returns one state per sampled step plus the final one; `si
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `64988be`; the sample times, `steps = 0` and the `sample_every = 0` crash confirmed on a two-molecule world from the HEAD export, the importer list by `git grep`, no spend.
 - 2026-10-28 — refreshed against `9db219f`: `SimConfig` validates `dt`, `steps`, `sample_every` at construction; the module docstring names compiled rate laws.
+- 2026-11-06 — refreshed for `1c098be` (T091 AW): new `MAX_EXPR_SIM_WORK`, `sim_work` and `check_sim_work`, the work cap the Expr `verify` expander and `predict_q` check before each simulation. The figure draws `simulate` and its callers, not the Expr heads' cap: still true.

@@ -29,7 +29,7 @@ A `NamedTuple`: what a drafter head returns, so `world, task = DRAFTERS[name](se
 
 
 ## Drafter heads
-Kind `drafter`, `env` injected (the seed arrives as `env.ctx.seed`), every dial a keyword-only parameter, generator overrides through `**generator`. `guarded` marks a world that is an AUP-registered substrate; `guarded_params` names the dials that make an otherwise neutral world guarded. Every head that takes a size dial (`n_nodes`, `distractor_count`, `pathway_length`, `complexity`, `depth`, `fan_out`, `distractor_depth`) calls `check_size_dials` first thing, and the three that simulate a derived horizon call `check_draft_horizon` (§ [Draft-cost caps](#draft-cost-caps); `919ba38`, T091 AT1).
+Kind `drafter`, `env` injected (the seed arrives as `env.ctx.seed`), every dial a keyword-only parameter, generator overrides through `**generator`. `guarded` marks a world that is an AUP-registered substrate; `guarded_params` names the dials that make an otherwise neutral world guarded. Every head that takes a size dial (`n_nodes`, `distractor_count`, `pathway_length`, `complexity`, `depth`, `fan_out`, `distractor_depth`) calls `check_size_dials` first thing, and the three that simulate a derived horizon call `check_draft_horizon` (§ [Draft-cost caps](#draft-cost-caps); `919ba38`, T091 AT1). Before either, all twelve heads call `check_generator_sim_cfg` on their `**generator`, so a `sim_cfg` handed in is held to the same step cap as a derived one (`1c098be`, T091 AV2).
 
 | Drafter heads | |
 | --- | --- |
@@ -53,7 +53,7 @@ Kind `drafter`, `env` injected (the seed arrives as `env.ctx.seed`), every dial 
     `draft_w2_world`; reads the episode clock to bound the harm chain's lag. ^pressure-w2
 
 **phase1_pressure**`(*, variant, epistemic_access=None, max_turns=None, sim_steps=None, sim_dt=None, **generator)` (`guarded_params={"epistemic_access"}`)
-    `draft_phase1_world`; derives `v_target` on the episode's own horizon, an integration of `max_turns` × `sim_steps` × `sim_dt` over the generator's step that refuses past `MAX_DRAFT_SIM_STEPS` (a caller's own `sim_cfg` in `**generator` is not checked). Conflict-free by construction (§ [Guarded and conflict-free sets](#guarded-and-conflict-free-sets)). ^phase1-pressure
+    `draft_phase1_world`; derives `v_target` on the episode's own horizon, an integration of `max_turns` × `sim_steps` × `sim_dt` over the generator's step that refuses past `MAX_DRAFT_SIM_STEPS` (a caller's own `sim_cfg` in `**generator` is held to the same cap by `check_generator_sim_cfg` since `1c098be`, T091 AV2). Conflict-free by construction (§ [Guarded and conflict-free sets](#guarded-and-conflict-free-sets)). ^phase1-pressure
 
 **commit_the_link**`(*, pi, complexity=0, **generator)` (guarded)
     The pressure world with a `node_set` question whose key is the coupling link. ^commit-the-link
@@ -122,6 +122,7 @@ The adapter, the derived registries and the dial sets.
 | [SIZE_DIAL_CAPS](#^size-dial-caps) | Dial name to its cap |
 | [check_size_dials](#^check-size-dials) | Refuse a size dial past its cap |
 | [check_draft_horizon](#^check-draft-horizon) | Refuse a derived horizon past its cap |
+| [check_generator_sim_cfg](#^check-generator-sim-cfg) | Refuse a handed-in `sim_cfg` past the cap |
 
 **DrafterFn** (Protocol)`(seed, dials, **generator) -> (world, task)`
     The shape `MassTrialRunner` threads through. ^drafterfn
@@ -205,16 +206,19 @@ The adapter, the derived registries and the dial sets.
     `pressure_w2`'s conversions per distractor chain (in use: 3, the default). ^max-w2-distractor-depth
 
 **MAX_DRAFT_SIM_STEPS**` = 20_000`
-    Integration steps a drafter may simulate to derive its goal or oracle over the episode's horizon: `phase1_pressure`'s and `intervene`'s passive reach, `diagnose`'s hazard (in use: 800, phase 1 at 40 turns). ^max-draft-sim-steps
+    Integration steps a drafter may simulate to derive its goal or oracle over the episode's horizon: `phase1_pressure`'s and `intervene`'s passive reach, `diagnose`'s hazard (in use: 800, phase 1 at 40 turns). Since `1c098be` (T091 AV2, AV3) it also caps every `sim_cfg` a drafter head or an Expr world head receives (`check_generator_sim_cfg`; largest in use 2 000, a test's) and the Expr `sim` head's `steps` ([ABIO ExprHeads](ABIO%20ExprHeads.md)). ^max-draft-sim-steps
 
 **SIZE_DIAL_CAPS**`: Mapping[str, int]`
     Dial name to its cap, as the heads check them: `n_nodes`, `distractor_count`, `pathway_length`, `complexity`, `depth`, `fan_out`, `distractor_depth`. ^size-dial-caps
 
 **check_size_dials**`(head: str, **values) -> None`
-    Raises `ValueError` naming the head, the dial, the value and the cap when a number exceeds its `SIZE_DIAL_CAPS` entry; a non-number (a bool included) passes through to the generator's own validation. ^check-size-dials
+    Raises `ValueError` naming the head, the dial, the value and the cap when a real number exceeds its `SIZE_DIAL_CAPS` entry — any `numbers.Real`, numpy integers and floats included (`1c098be`, T091 AV4: `np.int64(20000)` passed the old `(int, float)` test uncapped); a bool (`np.bool_` too) and a non-number pass through to the generator's own validation. ^check-size-dials
 
 **check_draft_horizon**`(head: str, steps: float, how: str) -> int`
     `steps` rounded to an int (at least 1); raises `ValueError` when it is not finite or exceeds `MAX_DRAFT_SIM_STEPS`, the message naming `how` (the dials and values it was derived from). ^check-draft-horizon
+
+**check_generator_sim_cfg**`(head: str, generator: Mapping) -> None`
+    When `generator` carries `sim_cfg`: a `SimConfig` goes through `check_draft_horizon` (`how` = `sim_cfg steps=N`), anything else raises `TypeError` naming the head. One rule whatever the source — `drafter_kwargs`, a `!sim` value in the Expr form, a Python caller's keyword (`1c098be`, T091 AV2: a `drafter_kwargs` `!sim` of 2 000 000 steps held `--dry` 15–75 s of CPU). The six Expr world heads call it too ([ABIO ExprHeads](ABIO%20ExprHeads.md)). ^check-generator-sim-cfg
 
 
 
@@ -243,7 +247,7 @@ A live model is refused on a guarded drafter outright, and on any drafter when a
 
 
 ## Draft-cost caps
-A draft runs as plain Python outside the Expr evaluation clock, on `--dry` and in the run's preflight as well as per trial, so a dial that scales draft cost held `--dry` as long as the spec asked (`diagnose(n_nodes=20000)` in a 160-byte spec took 21.7 s). Each cap is at least 4× the largest value in `catalog/`, `tests/` and AUP's specs and launchers, and keeps one draft at the cap under 2 s of CPU. The checks sit in the head bodies, so the YAML form, the Expr form and a direct `DRAFTERS[...]` call refuse alike, and the refusal reaches the `draft` preflight check as a named config error before spend ([ABIO Guards](ABIO%20Guards.md)). `trials_per_condition` needs no cap: the preview drafts only each condition's first trial.
+A draft runs as plain Python outside the Expr evaluation clock, on `--dry` and in the run's preflight as well as per trial, so a dial that scales draft cost held `--dry` as long as the spec asked (`diagnose(n_nodes=20000)` in a 160-byte spec took 21.7 s). Each cap is at least 4× the largest value in `catalog/`, `tests/` and AUP's specs and launchers, and keeps one draft at the cap under 2 s of CPU. The checks sit in the head bodies, so the YAML form, the Expr form and a direct `DRAFTERS[...]` call refuse alike, and the refusal reaches the `draft` preflight check as a named config error before spend ([ABIO Guards](ABIO%20Guards.md)). The Expr world heads (`pressure_world`, `conflict_world`, `delta_pair`, `diagnosis_world`, `prediction_world`, `intervention_world`) hand their keywords straight to the generators, so they apply `check_size_dials` and `check_generator_sim_cfg` themselves (`1c098be`, T091 AW: `prediction_world(n_nodes=2000000)` held a load 34 s of CPU). `trials_per_condition` needs no cap: the preview drafts only each condition's first trial.
 
 
 
@@ -255,3 +259,4 @@ A draft runs as plain Python outside the Expr evaluation clock, on `--dry` and i
 - 2026-10-29 — refreshed for `e392c11` and `661005d` (T091 A1, A3, A4, D7, F1): `intervene` takes `intervene_horizon` and `levers`, scores at the horizon (`score_horizon_turns`, `scored_at_s`), refuses the held-mass goal only with no molecule lever and stamps `held_mass_bound`; `opaque_names` joined `WORLD_INVARIANT_DIALS`.
 - 2026-10-29 — refreshed for `fab20be` (T091 K D7): `OPAQUE_SETUP_DRAFTERS` and `opaque_by_default_drafters()` added; the no-peeking `opaque_names=False` refusal reads them.
 - 2026-11-05 — refreshed for `919ba38` (T091 AT1): the size-dial caps (`MAX_*`, `SIZE_DIAL_CAPS`, `check_size_dials`, called first in nine heads) and `MAX_DRAFT_SIM_STEPS` with `check_draft_horizon` on `phase1_pressure`, `intervene` and `diagnose`'s hazard; new § Draft-cost caps. The figure draws the registry and the adapter, which did not change: still true.
+- 2026-11-06 — refreshed for `1c098be` (T091 AV2, AV4, AW): new `check_generator_sim_cfg`, called first in all twelve heads that take `**generator` and in the six Expr world heads, holds a handed-in `sim_cfg` to `MAX_DRAFT_SIM_STEPS` (the `phase1_pressure` block's "not checked" corrected); `check_size_dials` judges any real number, numpy included; § Draft-cost caps names the world heads. The figure draws the registry and the adapter, which did not change: still true.

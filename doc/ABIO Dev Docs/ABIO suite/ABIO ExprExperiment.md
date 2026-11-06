@@ -42,7 +42,7 @@ Layer 3. Hand-built tasks: a pattern carved into a host, an objective over it, a
     `DiagnosePerturbationRecipe`. ^diagnose-q
 
 **predict_q**`(world, reaction_id, target_id, skeleton=None, factor=…, sim=None, verb="predict")`
-    `PredictResponseRecipe`: up, down or same by re-simulation under the node's seed. ^predict-q
+    `PredictResponseRecipe`: up, down or same by re-simulation under the node's seed. Refuses first when `check_sim_work` finds the world under `sim` (default `SimConfig()`) past `MAX_EXPR_SIM_WORK` ([ABIO Verify](ABIO%20Verify.md); `1c098be`, T091 AW: 3 000 reactions under a 20 000-step `!sim` held a load past 15 s). ^predict-q
 
 **intervene_q**`(world, target_value, skeleton=None, binding=None, role=…, verb="intervene")`
     `DesignInterventionRecipe`, outcome-scored. ^intervene-q
@@ -72,15 +72,23 @@ Layer 5.
 | [suite](#^suite) | Build a `Suite` from an archetype or a Dist of them |
 | [cover](#^cover) | Partition feature sets into containers |
 | [vocabulary](#^vocabulary) | An opaque vocabulary over a world's ids |
+| [MAX_COVER_ITEMS](#^max-cover-items) | Items one `cover` call may partition |
+| [MAX_COVER_FEATURES](#^max-cover-features) | Features summed over a `cover` call's items |
 
 **suite**`(tasks, n_tasks=1, distractor_count=0, sim=None, max_redraws=8) -> Suite`
     `build_suite` under the node's seed; `tasks` is a `TaskArchetype` or a Dist over them (a quoted `choice(...)`). ^suite
 
 **cover**`(features, aggressiveness=0.5, admissible=None) -> Cover`
-    Each feature is a `FeatureSet` or a mapping of name to predicate (a head name or callable). ^cover
+    Each feature is a `FeatureSet` or a mapping of name to predicate (a head name or callable). Refuses, before any item is built, more than `MAX_COVER_ITEMS` items or more than `MAX_COVER_FEATURES` features summed over them (`1c098be`, T091 AW). ^cover
 
 **vocabulary**`(world, extra_tokens=()) -> Vocabulary`
     `build_vocabulary` under the node's seed. ^vocabulary
+
+**MAX_COVER_ITEMS**` = 32`
+    Items one `cover` call may partition (in use: 8, `tests/suite/test_cover`'s `ITEMS_8`; nothing in the catalog). The solver's merge phase grows about as items³ × features in one uninterruptible call: 300 single-feature items held a load past 18 s of CPU (`1c098be`, T091 AW). ^max-cover-items
+
+**MAX_COVER_FEATURES**` = 1024`
+    Features summed over a `cover` call's items — a `FeatureSet`'s `features`, a mapping's entries (in use: under 30); 32 items of 2 000 features each took 5 s (`1c098be`, T091 AW). ^max-cover-features
 
 
 
@@ -171,3 +179,4 @@ The experiment head and the front end.
 - 2026-10-30 — refreshed for `c0094c7` (T091 AP5, AP7, AP9) and `df0bc6c` (AP10): `load_experiment` runs under one clock, parses once (`load_text(source=)`, `Env.load(data=)`), size-caps the file; the whole-document form refuses a nested `!experiment` by its placement and a spec built inside another spec's fields, in both forms. Figure still true.
 - 2026-11-05 — refreshed for `88a1cf6` (T091 AR1): the nested-`!experiment` placement walk visits each distinct container once (a visited set), so an alias bomb under the document form refuses at the node cap instead of spinning. Figure still true.
 - 2026-11-05 — refreshed for `baf9fb9` (T091 AT5): `load_experiment`'s pre-pass renders each top-level key once, and an unrenderable key (an int past 4 300 digits) is an `ExprError` naming the file. Figure still true.
+- 2026-11-06 — refreshed for `1c098be` (T091 AW): `cover` refuses past `MAX_COVER_ITEMS` (32) items or `MAX_COVER_FEATURES` (1 024) summed features (new blocks); `predict_q` checks `MAX_EXPR_SIM_WORK` before it simulates. The figure names the heads, not their caps: still true.
