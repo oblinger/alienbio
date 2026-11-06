@@ -31,6 +31,8 @@ from typing import Any, Callable, Optional, Sequence
 
 import numpy as np
 
+from ..bio.flow import TransportFlux
+from ..bio.population import CountFlow, PerCapitaDeath, PerCapitaGrowth
 from ..bio.world import WorldImpl
 from ..bio.world_simulator import WorldSimulatorImpl
 from ..bio.world_state import WorldStateImpl
@@ -60,22 +62,61 @@ class SimConfig:
                 raise ValueError(f"SimConfig.{name} must be a positive int, got {value!r}")
 
 
+#: Per-term weights of :func:`step_work`, in work units of about 0.05 µs of
+#: CPU each (T091 BA: the AY count charged every term one unit, and the terms
+#: cost from 0.06 µs — a pool copied — to 137 µs — a death law whose carry
+#: walks every molecule). Each weight is the measured CPU of one term
+#: divided by the unit; over 20 shapes the fitted cost is 0.025-0.071 µs per
+#: unit:
+#:
+#: - ``W_MOLECULE`` — one pool in one compartment: the state copy and the
+#:   subnormal flush (0.06 µs).
+#: - ``W_COMPARTMENT`` — the reaction pass's setup in one compartment (the
+#:   active-reaction list and the rationing dicts, 1.2 µs); charged only when
+#:   the chemistry has reactions, as ``WorldSimulatorImpl.step`` skips the
+#:   pass otherwise.
+#: - ``W_REACTION_TERM`` — each of a reaction's ``1 + reactants + products``
+#:   in each compartment: the extent, the rationing and the writes walk the
+#:   reactants and products (0.6-0.85 µs).
+#: - ``W_MODULATOR`` — one modifier read by ``_modulation_factor`` in one
+#:   compartment (0.15 µs active, 0.4 µs inert).
+#: - ``W_RATE_LAW_NODE`` — one node of a compiled rate-law tree, evaluated by
+#:   ``eval_rate`` in one compartment (0.12 µs for algebra, 0.22 µs for a
+#:   modulation node).
+#: - ``W_FLOW`` + ``W_FLOW_SPECIES`` per species — one transport flux: its
+#:   demand, its ration and its per-species writes (2.4 µs for a flux that
+#:   moves amount, 0.85 µs for one idle at a zero gradient; weighted between).
+#: - ``W_POPULATION_LAW`` — one population law's contribution and ration
+#:   (2.2 µs).
+#: - ``W_POPULATION_CARRY`` — per law per molecule, once any law moves
+#:   content (a death that releases, a growth that draws, a count flow):
+#:   ``apply_population_laws`` then walks every molecule for every carry
+#:   (0.26-0.47 µs per molecule).
+W_MOLECULE = 1
+W_COMPARTMENT = 24
+W_REACTION_TERM = 13
+W_MODULATOR = 6
+W_RATE_LAW_NODE = 3
+W_FLOW = 14
+W_FLOW_SPECIES = 20
+W_POPULATION_LAW = 44
+W_POPULATION_CARRY = 7
+
 #: Integration work a spec-built world may cost inside an Expr head
 #: (``verify``, ``predict_q``), summed over every simulation the head runs
 #: (both heads run two: the base world and its perturbation). One step's
-#: work is :func:`step_work`: each reaction costs ``1 + reactants + products
-#: + modulators (+ its compiled rate law's node count)`` in every compartment
-#: ``WorldSimulatorImpl.from_chemistry`` applies it in (all of them), plus
-#: ``molecules x compartments`` for the state copy, plus one per flow and
-#: population law. The cap is calibrated so one simulation at the cap costs
-#: about 2-3 s of CPU on the slowest measured shape (T091 AY: a
-#: one-compartment chain, many compartments x few reactions, many reactions
-#: x many compartments, high fan-in), and stays at least 4x above the
-#: largest work in use (``catalog/``, ``tests/`` and AUP surveyed). A
+#: work is :func:`step_work`, the weighted sum of what a simulator step
+#: loops over (see the ``W_*`` weights). The cap is set so a head at the cap
+#: costs about 3 s of CPU on the slowest measured shape per unit (T091 BA:
+#: 2.8 s for 2 000 active flows), and stays at least 4x above the largest
+#: work in use (``catalog/``, ``tests/`` and the scripted examples surveyed:
+#: 133 280, the kinetics ``predict_q``; AUP uses neither head). A
 #: simulation runs outside the evaluation clock: before T091 AY the count
 #: left out compartments and fan-in, so a 575-byte spec (1 000 reactions x
-#: 1 000 compartments, 20 steps) held a load 72 s of CPU at 3 % of the cap.
-MAX_EXPR_SIM_WORK = 4_000_000
+#: 1 000 compartments, 20 steps) held a load 72 s of CPU at 3 % of the cap,
+#: and before T091 BA a death law counted one unit while walking every
+#: molecule, so a 689-byte spec held a load 27 s at 5 % of it.
+MAX_EXPR_SIM_WORK = 40_000_000
 
 
 def _rate_law_nodes(node: Any) -> int:
@@ -91,22 +132,48 @@ def _rate_law_nodes(node: Any) -> int:
     return count
 
 
-def step_work(world: WorldImpl) -> int:
-    """The work one simulator step does on ``world`` (see
-    :data:`MAX_EXPR_SIM_WORK`)."""
+def _moves_content(law: Any) -> bool:
+    """True when ``law`` makes ``apply_population_laws`` account amounts:
+    a death that releases, a growth that draws its resource, a count flow."""
+    if isinstance(law, PerCapitaDeath):
+        return law.release_compartment is not None and law.release_resource is not None and law.release_stoich > 0.0
+    if isinstance(law, PerCapitaGrowth):
+        return law.stoich > 0.0
+    return isinstance(law, CountFlow)
+
+
+def work_terms(world: WorldImpl) -> list[tuple[str, int, int]]:
+    """The terms of :func:`step_work` as ``(what, count, weight)``: one
+    step's work is ``Σ count x weight``."""
     chem = world.chemistry
     compartments = max(1, len(world.compartments))
-    per_compartment = 0
+    molecules = len(chem.molecules)
+    reaction_terms = modulators = law_nodes = 0
     for reaction in chem.reactions.values():
-        per_compartment += 1 + len(reaction.reactants) + len(reaction.products) + len(reaction.modifiers)
+        reaction_terms += 1 + len(reaction.reactants) + len(reaction.products)
+        modulators += len(reaction.modifiers)
         if reaction.rate_law is not None:
-            per_compartment += _rate_law_nodes(reaction.rate_law)
-    return (
-        per_compartment * compartments
-        + len(chem.molecules) * compartments
-        + len(world.flows)
-        + len(world.population_laws)
-    )
+            law_nodes += _rate_law_nodes(reaction.rate_law)
+    flows = list(world.flow_objs)
+    laws = list(world.population_law_objs)
+    carries = len(laws) * molecules if any(_moves_content(law) for law in laws) else 0
+    return [
+        ("molecules x compartments", molecules * compartments, W_MOLECULE),
+        ("compartments with a reaction pass", compartments if chem.reactions else 0, W_COMPARTMENT),
+        ("reaction terms (one, each reactant, each product) x compartments", reaction_terms * compartments, W_REACTION_TERM),
+        ("modulators x compartments", modulators * compartments, W_MODULATOR),
+        ("rate-law nodes x compartments", law_nodes * compartments, W_RATE_LAW_NODE),
+        ("flows", len(flows), W_FLOW),
+        ("flow species", sum(len(f.stoichiometry) for f in flows if isinstance(f, TransportFlux)), W_FLOW_SPECIES),
+        ("population laws", len(laws), W_POPULATION_LAW),
+        ("population carries (laws x molecules)", carries, W_POPULATION_CARRY),
+    ]
+
+
+def step_work(world: WorldImpl) -> int:
+    """The work one simulator step does on ``world``: the weighted sum of
+    :func:`work_terms` (see :data:`MAX_EXPR_SIM_WORK`)."""
+    return sum(count * weight for _, count, weight in work_terms(world))
 
 
 def sim_work(world: WorldImpl, cfg: SimConfig) -> int:
@@ -116,25 +183,27 @@ def sim_work(world: WorldImpl, cfg: SimConfig) -> int:
 
 def check_sim_work(head: str, worlds: Sequence[Any], cfg: Any) -> None:
     """Refuse simulations of ``worlds`` under ``cfg`` whose summed work is past
-    :data:`MAX_EXPR_SIM_WORK`, naming the head, the work, its factors and the
-    cap. Anything that is not a world, or a ``cfg`` that is not a
-    ``SimConfig``, is skipped: the simulator's own validation owns that
-    verdict."""
+    :data:`MAX_EXPR_SIM_WORK`, naming the head, the work per simulation, the
+    weighted terms of the world that carries the most, and the cap: the
+    listed factors multiply and sum to the reported total. Anything that is
+    not a world, or a ``cfg`` that is not a ``SimConfig``, is skipped: the
+    simulator's own validation owns that verdict."""
     if not isinstance(cfg, SimConfig):
         return
     real = [w for w in worlds if isinstance(w, WorldImpl)]
     if not real:
         return
-    work = sum(sim_work(w, cfg) for w in real)
+    per_world = [sim_work(w, cfg) for w in real]
+    work = sum(per_world)
     if work > MAX_EXPR_SIM_WORK:
-        w = real[0]
-        chem = w.chemistry
+        largest = max(range(len(real)), key=lambda i: per_world[i])
+        terms = [t for t in work_terms(real[largest]) if t[1]]
+        sims = " + ".join(f"{cfg.steps} x {max(1, step_work(w))}" for w in real)
+        detail = " + ".join(f"{count} {what} x {weight}" for what, count, weight in terms) or "1 (an empty world)"
         raise ValueError(
-            f"{head}: {len(real)} simulation(s) would cost {work} units (steps={cfg.steps} x {step_work(w)} per step: "
-            f"{len(chem.reactions)} reactions, each 1 + reactants + products + modulators (+ rate-law nodes), "
-            f"in each of {len(w.compartments)} compartments, + {len(chem.molecules)} molecules x "
-            f"{len(w.compartments)} compartments + {len(w.flows)} flows + {len(w.population_laws)} population laws), "
-            f"past the cap MAX_EXPR_SIM_WORK={MAX_EXPR_SIM_WORK} — "
+            f"{head}: {len(real)} simulation(s) would cost {work} units ({sims} steps x work per step), "
+            f"past the cap MAX_EXPR_SIM_WORK={MAX_EXPR_SIM_WORK}; simulation {largest + 1}'s world does "
+            f"{max(1, step_work(real[largest]))} per step = {detail} — "
             "a simulation runs outside the evaluation clock; use fewer steps (a larger dt) or a smaller world"
         )
 

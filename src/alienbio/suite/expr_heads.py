@@ -401,6 +401,11 @@ def verify(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
     cfg = evaluate(kwargs["sim"], env.child("sim")) if "sim" in kwargs else SimConfig()
     world_form = kwargs["world"]
     for attempt in range(max_redraws + 1):
+        # The document's evaluation clock bounds the loop (T091 BA): when the
+        # world form is a bound name no head call runs between attempts, and
+        # ``perturb`` / ``valid`` are called directly, so nothing else ticks
+        # it — 13 attempts at the work cap held a load 35 s of CPU.
+        env.ctx.limits.tick(env.path)
         # Each redraw draws on a child SEED at the same path, so a template
         # world keeps its instance name (`one.P`, not `attempt0.P`) and two
         # verify nodes under one parent no longer claim one instance (T088
@@ -412,6 +417,7 @@ def verify(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
         # as built.
         check_sim_work("verify", (w, w), cfg)
         baseline = simulate(w, cfg, attempt_env.ctx.seed.child("base"))
+        env.ctx.limits.tick(env.path)
         w_pert = perturb(w)
         check_sim_work("verify", (w, w_pert), cfg)
         perturbed = simulate(w_pert, cfg, attempt_env.ctx.seed.child("pert"))

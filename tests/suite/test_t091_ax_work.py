@@ -3,7 +3,7 @@
 AX1: ``verify.sim_work`` counts what a simulator step does (each reaction's
 fan-in, fan-out, modulators and rate-law nodes in every compartment, the
 state copy, flows, population laws), and ``predict_q`` / ``verify`` charge
-both simulations they run. AX3: a 0-d numpy size dial is capped. AX6: a
+both simulations they run (the per-term weights are T091 BA's). AX3: a 0-d numpy size dial is capped. AX6: a
 mapping ``sim_cfg`` is a config refusal at preflight.
 """
 
@@ -72,7 +72,7 @@ def test_ax1_the_verifiers_repros_refuse_in_under_a_second(text):
 
 
 def test_ax1_step_work_counts_fan_in_modulators_rate_law_nodes_and_compartments():
-    """``step_work`` is Σ reactions (1 + reactants + products + modulators + rate-law nodes) × compartments + molecules × compartments + flows + population laws."""
+    """``step_work`` charges each reaction's fan-in, fan-out, modulators and rate-law nodes in every compartment, at the T091 BA weights."""
     text = """
 mols: {a: {}, b: {}, c: {}, d: {}}
 rxns:
@@ -82,8 +82,11 @@ chem: !Chemistry {molecules: !x mols, reactions: !x rxns}
 w: !World {chemistry: !x chem, compartments: [!Compartment {id: p, volume: 1.0}, !Compartment {id: q, parent: p, volume: 1.0}, !Compartment {id: s, parent: p, volume: 1.0}]}
 """
     w = _load(text)["w"]
-    # r0: 1 + 2 + 1 + 1 = 5; r1: 1 + 1 + 2 + 3 law nodes = 7; molecules 4; three compartments
-    assert V.step_work(w) == (5 + 7) * 3 + 4 * 3
+    # r0: 1 + 2 + 1 terms, 1 modulator; r1: 1 + 1 + 2 terms, 3 law nodes; molecules 4; three compartments
+    assert V.step_work(w) == (
+        (4 + 4) * 3 * V.W_REACTION_TERM + 1 * 3 * V.W_MODULATOR + 3 * 3 * V.W_RATE_LAW_NODE
+        + 4 * 3 * V.W_MOLECULE + 3 * V.W_COMPARTMENT
+    )
     assert V.sim_work(w, V.SimConfig(steps=10)) == 10 * V.step_work(w)
 
 
