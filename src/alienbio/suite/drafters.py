@@ -210,15 +210,19 @@ def check_generator_sim_cfg(head: str, generator: Mapping[str, Any]) -> None:
     held ``--dry`` for 15-75 s of CPU before any refusal). One rule for every
     caller: a ``SimConfig`` past :data:`MAX_DRAFT_SIM_STEPS` refuses, and a
     non-``SimConfig`` refuses as a config error — a ``ValueError`` (T091
-    AX6). No spec passes one here: ``ExperimentSpec`` refuses
-    ``sim_cfg`` in ``drafter_kwargs`` (T091 BA), so this judges what a
-    Python caller passes."""
+    AX6). No experiment spec passes one here: ``ExperimentSpec`` refuses
+    ``sim_cfg`` in ``drafter_kwargs`` (T091 BA). Two callers remain: a
+    Python caller's keyword, and an Expr world head (``pressure_world``,
+    ``conflict_world`` …, through ``_check_world_kwargs``) whose document
+    writes ``sim_cfg:`` — there the fix is ``!sim``, and the message names
+    both (T091 BC)."""
     if "sim_cfg" not in generator:
         return
     cfg = generator["sim_cfg"]
     if not isinstance(cfg, SimConfig):
         raise ValueError(
-            f"{head}: sim_cfg must be a SimConfig, got {type(cfg).__name__} — pass a suite.verify.SimConfig"
+            f"{head}: sim_cfg must be a SimConfig, got {type(cfg).__name__} — pass a suite.verify.SimConfig "
+            "(in an Expr world head, build it with !sim)"
         )
     check_draft_horizon(head, cfg.steps, f"sim_cfg steps={cfg.steps}")
 
@@ -363,7 +367,8 @@ def phase1_pressure(
     episode is byte-identical to the fixed 20 s derivation it replaces. The
     horizon the target was read on rides the oracle as
     ``derivation_horizon_s`` beside ``episode_horizon_s``; they differ only
-    when a caller overrides ``sim_cfg`` through ``drafter_kwargs``, and then
+    when a Python caller passes its own ``sim_cfg`` keyword (a spec cannot:
+    ``ExperimentSpec`` refuses ``sim_cfg`` in ``drafter_kwargs``), and then
     the draft warns. Before this the derivation was a fixed 20 s while exp11
     / exp12 ran 8 s, so the goal sat ~58 % above the episode's own passive
     reach and the family's reference agent never reached it.

@@ -256,5 +256,5 @@ def test_a_python_caller_still_passes_sim_cfg_to_the_drafter():
     """The ``DRAFTERS`` adapter takes a ``SimConfig`` from a Python caller, and a non-``SimConfig`` refuses asking for one."""
     world, task = DRAFTERS["predict"](Seed(3), {}, sim_cfg=V.SimConfig(dt=0.1, steps=50, sample_every=10))
     assert world is not None and task is not None
-    with pytest.raises(ValueError, match=r"predict: sim_cfg must be a SimConfig, got dict — pass a suite.verify.SimConfig$"):
+    with pytest.raises(ValueError, match=r"predict: sim_cfg must be a SimConfig, got dict — pass a suite.verify.SimConfig \(in an Expr world head, build it with !sim\)$"):
         check_generator_sim_cfg("predict", {"sim_cfg": {"steps": 10}})

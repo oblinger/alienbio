@@ -185,6 +185,11 @@ class ExperimentSpec:
                 raise ValueError(message)
             notes.append(message)
 
+        # T091 BC — ``drafter_kwargs`` is splatted into the drafter as
+        # keywords; anything but a mapping was read by ``dict()`` (a YAML
+        # ``["ab"]`` became ``{'a': 'b'}``) or failed with dict()'s own error.
+        # It can never have run, so it refuses in both validation modes.
+        _check_drafter_kwargs(self.drafter_kwargs)
         # T088 leftovers — the run's shape and the agent-side fields, refused
         # here rather than inside a trial: ``trials_per_condition: 0`` used to
         # plan an empty grid, a bool or float slipped into every seed label.
@@ -500,6 +505,15 @@ def spec_to_dict(spec: ExperimentSpec) -> dict[str, Any]:
     }
 
 
+def _check_drafter_kwargs(value: Any) -> None:
+    """Refuse a ``drafter_kwargs`` that is not a mapping of keyword to value
+    (``None`` reads as none), naming its type (T091 BC)."""
+    if value is not None and not isinstance(value, Mapping):
+        raise ValueError(
+            f"experiment spec: drafter_kwargs must be a mapping of keyword to value, got {type(value).__name__}"
+        )
+
+
 def spec_from_dict(d: Mapping[str, Any], *, validation: Literal["run", "recorded"] = "run") -> ExperimentSpec:
     """A dict (as produced by :func:`spec_to_dict`, or a validated YAML load)
     -> :class:`ExperimentSpec`. Optional keys default exactly as the class does.
@@ -515,6 +529,7 @@ def spec_from_dict(d: Mapping[str, Any], *, validation: Literal["run", "recorded
     for name, levels in axes.items():
         if isinstance(levels, (str, bytes)) or not isinstance(levels, Sequence):
             raise ValueError(f"experiment spec: axis {name!r} must be a list of levels, got {levels!r}")
+    _check_drafter_kwargs(d.get("drafter_kwargs"))
     return ExperimentSpec(
         validation=validation,
         name=d["name"],

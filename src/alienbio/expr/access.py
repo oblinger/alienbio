@@ -48,7 +48,10 @@ module, not by function, and has two halves:
   runner and store, the report, the models snapshot, config, the CLI. A
   denied name refuses at every door: a ``!py`` step, a name read off an
   included helper, a bound callable, a helper's return value — and a
-  ``functools.partial`` or bound method is judged by the function it wraps.
+  ``functools.partial``, a bound method or a ``functools.lru_cache`` /
+  ``functools.cache`` wrapper is judged by the function it wraps (T091 BC;
+  no other ``__wrapped__`` is followed: a ``functools.wraps`` decorator's
+  wrapper is the code that runs).
 - **Allowed code** (:data:`PY_ALLOWED_MODULES` + the registered heads): a
   ``!py`` reference into ``alienbio`` that lands on a function or class must
   be a registered head's function or live in an allowed module (the
@@ -202,14 +205,38 @@ DENIED_ENTRY_POINTS: tuple[str, ...] = (
 PY_ALLOWED_MODULES: tuple[str, ...] = ("alienbio.suite.dist",)
 
 
+#: The type of a ``functools.lru_cache`` / ``functools.cache`` wrapper (the C
+#: ``functools._lru_cache_wrapper``), read off a real wrapper rather than
+#: named by its private path.
+_LRU_CACHE_WRAPPER: type = type(functools.lru_cache(maxsize=None)(lambda: None))
+
+
+def _uncache(obj: Any) -> Any:
+    """The function an ``lru_cache`` / ``cache`` wrapper caches (its
+    ``__wrapped__``), else ``obj`` (T091 BC). Calling the wrapper runs that
+    function, so it is judged by it: a helper's cached function is helper
+    code, ``lru_cache(os.getcwd)`` is still ``posix`` code. Only this C
+    wrapper type is followed — a ``functools.wraps`` decorator's wrapper is
+    the code that runs, and is judged itself."""
+    for _ in range(100):
+        if not isinstance(obj, _LRU_CACHE_WRAPPER):
+            break
+        obj = obj.__wrapped__
+    return obj
+
+
 def _unwrap(obj: Any) -> Any:
-    """The function a ``functools.partial`` or bound method wraps (T091 AP1:
-    a partial has no ``__qualname__``, so ``partial(load_spec, …)`` passed)."""
+    """The function a ``functools.partial``, a bound method or an
+    ``lru_cache`` wrapper wraps (T091 AP1: a partial has no
+    ``__qualname__``, so ``partial(load_spec, …)`` passed; T091 BC: a cached
+    helper function was refused as a descriptor)."""
     for _ in range(100):
         if isinstance(obj, functools.partial):
             obj = obj.func
         elif isinstance(obj, types.MethodType):
             obj = obj.__func__
+        elif isinstance(obj, _LRU_CACHE_WRAPPER):
+            obj = _uncache(obj)
         else:
             break
     return obj
@@ -339,9 +366,10 @@ def _link_refusal(value: Any, level: int) -> Optional[_NoCode]:
 
 
 def _call_target(obj: Any) -> Any:
-    """The code calling ``obj`` runs: the function a partial or bound method
-    wraps, else — for a callable instance — its class's ``__call__``, a
-    ``staticmethod`` / ``classmethod`` unwrapped (T091 AR4: ``__call__ =
+    """The code calling ``obj`` runs: the function a partial, bound method
+    or ``lru_cache`` wrapper wraps, else — for a callable instance — its
+    class's ``__call__``, a ``staticmethod`` / ``classmethod`` and an
+    ``lru_cache`` wrapper unwrapped (T091 AR4: ``__call__ =
     staticmethod(os.getcwd)`` on a helper's class ran ``os.getcwd``),
     followed again while it is itself a callable instance (T091 AT3:
     ``Outer.__call__ = Inner()`` reached ``os.getcwd`` one level down).
@@ -362,6 +390,7 @@ def _call_target(obj: Any) -> Any:
             return _NoCode("is missing (the object is not callable)", level)
         if isinstance(call, (staticmethod, classmethod)):
             call = call.__func__
+        call = _uncache(call)  # a cached ``__call__`` runs the function it caches
         no_code = _link_refusal(call, level)
         if no_code is not None:
             return no_code
@@ -410,6 +439,7 @@ def _metaclass_refusal(cls: type, depth: int) -> Optional[str]:
         return None
     if isinstance(meta_call, (staticmethod, classmethod)):
         meta_call = meta_call.__func__
+    meta_call = _uncache(meta_call)
     subject = f"its metaclass {meta.__qualname__}.__call__"
     no_code = _link_refusal(meta_call, -1)
     if no_code is not None:
