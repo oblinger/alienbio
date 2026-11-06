@@ -14,7 +14,7 @@
     <rect id="n-math-box" x="300" y="60" width="280" height="80" rx="10" fill="#f3f0ff" stroke="#1e1e1e" stroke-width="2"/>
     <text id="n-math-name" x="440" y="86" font-size="18" font-weight="600" text-anchor="middle">plain math</text>
     <text id="n-math-kind" x="440" y="108" font-size="14" text-anchor="middle">(math) abs · sqrt · exp · log</text>
-    <text id="n-math-kind2" x="440" y="128" font-size="14" text-anchor="middle">len · float · bool · dict · …</text>
+    <text id="n-math-kind2" x="440" y="128" font-size="14" text-anchor="middle">len · float · bool · …</text>
   </g>
   <g id="n-dist">
     <rect id="n-dist-box" x="600" y="60" width="280" height="80" rx="10" fill="#d0ebff" stroke="#1e1e1e" stroke-width="2"/>
@@ -36,9 +36,9 @@
   </g>
   <g id="n-unm">
     <rect id="n-unm-box" x="300" y="320" width="280" height="80" rx="10" fill="#fff4e6" stroke="#1e1e1e" stroke-width="2"/>
-    <text id="n-unm-name" x="440" y="346" font-size="18" font-weight="600" text-anchor="middle">unmetered ‡</text>
-    <text id="n-unm-kind" x="440" y="368" font-size="14" text-anchor="middle">op:set · dict</text>
-    <text id="n-unm-kind2" x="440" y="388" font-size="14" text-anchor="middle">no larger than a charged input</text>
+    <text id="n-unm-name" x="440" y="346" font-size="18" font-weight="600" text-anchor="middle">hashed keys</text>
+    <text id="n-unm-kind" x="440" y="368" font-size="14" text-anchor="middle">op:set · dict · m[k]</text>
+    <text id="n-unm-kind2" x="440" y="388" font-size="14" text-anchor="middle">a deep key charged before the hash</text>
   </g>
   <g id="n-opm">
     <rect id="n-opm-box" x="600" y="320" width="280" height="80" rx="10" fill="#bac8ff" stroke="#1e1e1e" stroke-width="2"/>
@@ -102,6 +102,6 @@
     <text id="legend-solid-text" x="95" y="646" font-size="14">emits, charges, calls</text>
     <line id="legend-dotted" x1="260" y1="641" x2="310" y2="641" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="3 4"/>
     <text id="legend-dotted-text" x="320" y="646" font-size="14">reads</text>
-    <text id="legend-dagger" x="400" y="646" font-size="14">‡ charges nothing: builds no more than an input already charged</text>
+    <text id="legend-dagger" x="400" y="646" font-size="14">op:is · op:isnot charge nothing (identity only)</text>
   </g>
 </svg>
