@@ -153,13 +153,27 @@ def _spec(axes, drafter="pressure", fixed=None):
 def test_a_grid_past_max_conditions_refuses_at_construction():
     """More than MAX_CONDITIONS conditions refuses before any level is compared or drafted."""
     assert MAX_CONDITIONS >= 4 * 27  # AUP's largest grid: phase 2's cube
-    _spec({"pi": [i / 128 for i in range(MAX_CONDITIONS)]})
+    t = time.process_time()
+    _spec({"pi": [i / MAX_CONDITIONS for i in range(MAX_CONDITIONS)]})
+    assert time.process_time() - t < 2.0  # the repeated-level check is linear
     t = time.process_time()
     with pytest.raises(ValueError, match="MAX_CONDITIONS"):
         _spec({"pi": [i / 1000 for i in range(100_000)]})
     with pytest.raises(ValueError, match="MAX_CONDITIONS"):
-        _spec({"pi": [0.0, 0.5], "complexity": list(range(65))})
+        _spec({"pi": [0.0, 0.5], "complexity": list(range(MAX_CONDITIONS // 2 + 1))})
+    with pytest.raises(ValueError, match="MAX_CONDITIONS"):
+        _spec({f"a{i}": list(range(100)) for i in range(5)})
     assert time.process_time() - t < 0.5
+
+
+def test_a_repeated_level_still_refuses_on_a_long_axis():
+    """The hashed repeated-level check keeps the bucket-equality rule: 1, 1.0 and a NaN pair still collide."""
+    with pytest.raises(ValueError, match="repeats level"):
+        _spec({"pi": [i / 512 for i in range(512)] + [0.5]})
+    with pytest.raises(ValueError, match="repeats level"):
+        _spec({"complexity": [1, 2, 1.0]})
+    with pytest.raises(ValueError, match="repeats level"):
+        _spec({"pi": [float("nan"), 0.5, float("nan")]})
 
 
 def test_the_verifier_repro_refuses_in_preflight(tmp_path):

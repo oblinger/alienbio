@@ -325,11 +325,14 @@ def _validate_agent_fields(spec: "ExperimentSpec") -> None:
 
 
 #: T091 AT1 — the most conditions (the product of the axes' level counts)
-#: one spec may plan: over 4x AUP's largest grid (27, phase 2's cube). Every
-#: condition is drafted on ``--dry`` and by the run's preflight, as plain
-#: Python outside the evaluation clock; a 231-byte spec with a 1000-level
-#: axis held ``--dry`` past 60 s.
-MAX_CONDITIONS = 128
+#: one spec may plan. It bounds the ENUMERATION (five 100-level axes are
+#: 10^10 cells in 60 bytes), not the preview: ``--dry`` and the run's
+#: preflight draft one world per condition as plain Python outside the
+#: evaluation clock, so a grid's preview costs one draft per condition by
+#: design (a 1000-level axis is about a minute). Far above every grid in
+#: use (AUP's largest is 27, phase 2's cube) — a factorial is the
+#: framework's core shape, so the cap is a sanity bound, not a budget.
+MAX_CONDITIONS = 4096
 
 
 #: "No earlier level" for :func:`_validate_axes` (a level may itself be ``None``).
@@ -376,10 +379,19 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...], refuse: Callab
         # ran the whole grid and then ``aggregate_cells`` refused the merge,
         # and two dict levels differing only in key order ran as two cells
         # and were pooled into one with ``n`` doubled.
-        frozen_seen: list[tuple[Any, Any]] = []
+        # Looked up by hash (equal frozen values hash equal: ``1`` / ``1.0`` /
+        # ``True`` are one key), so a long axis is checked in linear time; a
+        # frozen value that cannot be hashed falls back to comparison.
+        frozen_seen: dict[Any, Any] = {}
+        unhashable: list[tuple[Any, Any]] = []
         for level in levels:
             frozen = frozen_value(level, nan_equal=True)
-            twin = next((prior for prior, f in frozen_seen if f == frozen), _NO_LEVEL)
+            try:
+                twin = frozen_seen.get(frozen, _NO_LEVEL)
+                hashable = True
+            except TypeError:
+                twin = next((prior for prior, f in unhashable if f == frozen), _NO_LEVEL)
+                hashable = False
             if twin is not _NO_LEVEL:
                 same = repr(twin) == repr(level)
                 refuse(
@@ -389,7 +401,10 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...], refuse: Callab
                     "cell twice under one resume key"
                 )
                 continue
-            frozen_seen.append((level, frozen))
+            if hashable:
+                frozen_seen[frozen] = level
+            else:
+                unhashable.append((level, frozen))
 
 
 def _with_idle_arm(
