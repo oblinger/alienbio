@@ -66,8 +66,9 @@ class SimConfig:
 #: CPU each (T091 BA: the AY count charged every term one unit, and the terms
 #: cost from 0.06 µs — a pool copied — to 137 µs — a death law whose carry
 #: walks every molecule). Each weight is the measured CPU of one term
-#: divided by the unit; over 33 shapes (T091 BA's twenty and BC's thirteen)
-#: the fitted cost is 0.025-0.08 µs per unit:
+#: divided by the unit; over 41 measured rows of 33 shapes (T091 BA's twenty
+#: and BC's thirteen, with variants) the fitted cost is 0.024-0.070 µs per
+#: unit:
 #:
 #: - ``W_MOLECULE`` — one pool in one compartment: the state copy and the
 #:   subnormal flush (0.05 µs).
@@ -124,9 +125,9 @@ W_POPULATION_KEY = 30
 #: work is :func:`step_work`, the weighted sum of what a simulator step
 #: loops over (see the ``W_*`` weights). The cap is set so a head at the cap
 #: costs about 3 s of CPU on the slowest measured shape per unit (T091 BA:
-#: 2.8 s for 2 000 active flows), and stays at least 4x above the largest
-#: work in use (``catalog/``, ``tests/`` and the scripted examples surveyed:
-#: 133 280, the kinetics ``predict_q``; AUP uses neither head). A
+#: 2.8 s for 2 000 active flows), and stays far above the largest work in
+#: use (``catalog/``, ``tests/`` and the scripted examples surveyed: 133 600,
+#: the kinetics ``predict_q``, 299x under; AUP uses neither head). A
 #: simulation runs outside the evaluation clock: before T091 AY the count
 #: left out compartments and fan-in, so a 575-byte spec (1 000 reactions x
 #: 1 000 compartments, 20 steps) held a load 72 s of CPU at 3 % of the cap,
