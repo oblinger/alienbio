@@ -309,8 +309,11 @@ MAX_POISSON_EVENTS = 1000
 
 #: Cells a :class:`SpatialLatticeBlock` may hold (in use: 4, the organism
 #: example and the tests). Building the chain is one uninterruptible call:
-#: ``k = 2 000 000`` held a load past 25 s of CPU (T091 AW).
-MAX_LATTICE_CELLS = 256
+#: ``k = 2 000 000`` held a load past 25 s of CPU (T091 AW). The cap bounds
+#: the BUILD (0.02 s at 2 048 cells, 0.38 s at 32 768, measured), not the
+#: lattice a study may want — a 64 x 64 grid fits; what a simulation over
+#: it costs is bounded separately (``verify.MAX_EXPR_SIM_WORK``).
+MAX_LATTICE_CELLS = 4096
 
 
 @dataclass(frozen=True)
