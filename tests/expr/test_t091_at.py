@@ -106,15 +106,6 @@ def outer():
     return Outer()
 
 
-class Meta(type):
-    def __call__(cls, *a):
-        return os.getcwd()
-
-
-class ViaMeta(metaclass=Meta):
-    pass
-
-
 class StaticMeta(type):
     __call__ = staticmethod(os.getcwd)
 
@@ -149,12 +140,11 @@ def _load(tmp_path, body: str):
     "body",
     [
         "o: !x h.outer()\nv: !x o()\n",
-        "o: !x h.ViaMeta()\n",
         "o: !x h.ViaStaticMeta()\n",
     ],
 )
 def test_at3_a_call_chain_or_metaclass_reaching_outside_code_refuses(tmp_path, body):
-    """A ``__call__`` two levels down, or a metaclass ``__call__``, no longer runs outside code from a helper."""
+    """A ``__call__`` two levels down, or a foreign function as a metaclass ``__call__``, no longer runs outside code from a helper."""
     with pytest.raises(ExprError, match="outside the spec's helpers|only the spec's included helpers"):
         _load(tmp_path, body)
 

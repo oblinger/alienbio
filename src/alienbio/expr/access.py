@@ -35,7 +35,9 @@ included helper hands back is judged where it is read
 RETURNS is judged as it returns (:func:`check_returned`, T091 AP1). Every
 call of a bound value is judged again at the call
 (:func:`callable_code_allowed`, T091 AR3): helper code, allowed framework
-code or a domain class, a callable instance by what its ``__call__`` runs.
+code or a domain class, a callable instance by what its ``__call__`` runs,
+a helper class also by what its metaclass ``__call__`` runs (the same code
+test, plus the stdlib enum metaclass, T091 AV1).
 
 **Framework code a trusted spec may reach** (T091 AP2). The rule is by
 module, not by function, and has two halves:
@@ -61,6 +63,7 @@ keeps a helper's imports from leaking through it by reference.
 
 from __future__ import annotations
 
+import enum
 import functools
 import inspect
 import types
@@ -244,12 +247,18 @@ def allowed_framework_code(obj: Any) -> bool:
     return module is not None and any(_in_module(module, m) for m in PY_ALLOWED_MODULES)
 
 
-#: How many ``__call__`` levels :func:`_call_target` follows before it gives
-#: up and the callable is refused (T091 AT3).
+#: How many ``__call__`` levels :func:`_call_target` follows: a chain of
+#: exactly this many levels down to a function is callable, one more is
+#: refused, and the refusal names this bound (T091 AT3, AV6).
 MAX_CALL_DEPTH = 8
 
 #: What calling a class runs when its metaclass adds nothing.
 _TYPE_CALL = inspect.getattr_static(type, "__call__")
+
+#: The stdlib enum metaclass's ``__call__`` (``E(1)`` looks a member up by
+#: value): allowed on a helper's own ``Enum`` / ``IntEnum`` / ``Flag`` class,
+#: whose members it returns and nothing else (T091 AV1).
+ENUM_METACLASS_CALL = inspect.getattr_static(enum.EnumType, "__call__")
 
 
 def _call_target(obj: Any) -> Any:
@@ -260,9 +269,10 @@ def _call_target(obj: Any) -> Any:
     followed again while it is itself a callable instance (T091 AT3:
     ``Outer.__call__ = Inner()`` reached ``os.getcwd`` one level down).
     ``None`` when the chain does not reach a function, a builtin or a class
-    within :data:`MAX_CALL_DEPTH` levels — such a callable is refused."""
+    within :data:`MAX_CALL_DEPTH` ``__call__`` levels — such a callable is
+    refused."""
     target = _unwrap(obj)
-    for _ in range(MAX_CALL_DEPTH):
+    for _ in range(MAX_CALL_DEPTH + 1):  # the last pass only tests the eighth level's target
         if target is None or isinstance(target, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType)):
             return target
         call = inspect.getattr_static(type(target), "__call__", None)
@@ -272,48 +282,77 @@ def _call_target(obj: Any) -> Any:
     return None
 
 
-def _metaclass_call_allowed(cls: type) -> bool:
+def _code_refusal(target: Any) -> Optional[str]:
+    """Why ``target`` (what :func:`_call_target` resolved; not a class) is
+    not code a spec may call, else ``None``: the spec's own included helper
+    code and allowed framework code pass."""
+    from .include import INCLUDE_MODULE_PREFIX
+
+    if target is None:
+        return f"its __call__ chain does not reach a function within MAX_CALL_DEPTH={MAX_CALL_DEPTH} levels"
+    module = _owner(target)
+    if module is not None and (
+        module.startswith(INCLUDE_MODULE_PREFIX) or (_in_module(module, "alienbio") and allowed_framework_code(target))
+    ):
+        return None
+    return (
+        f"it runs code from {module!r}: only the spec's included helpers, registered heads, domain classes and "
+        f"{list(PY_ALLOWED_MODULES)} are callable"
+    )
+
+
+def _metaclass_refusal(cls: type, depth: int) -> Optional[str]:
     """Calling ``cls`` runs its metaclass's ``__call__`` first (T091 AT3: a
-    helper class whose metaclass ``__call__`` returned ``os.getcwd()`` was
-    allowed by the class's module, and the metaclass was never judged). A
+    metaclass ``__call__`` returning ``os.getcwd`` was never judged). A
     metaclass that adds no ``__call__`` runs ``type.__call__`` (``__new__`` /
-    ``__init__``, judged with the class); one that does is allowed only when
-    that ``__call__`` is allowed framework code — a class call that runs an
-    arbitrary function is not a constructor, whoever wrote it."""
-    meta_call = inspect.getattr_static(type(cls), "__call__", None)
-    if meta_call is _TYPE_CALL:
-        return True
+    ``__init__``, judged with the class). One that does is judged by the
+    same code test as any callable — the spec's helper code and allowed
+    framework code pass, a foreign function (``__call__ =
+    staticmethod(os.getcwd)``) refuses — plus :data:`ENUM_METACLASS_CALL`,
+    allowed here because the caller has already found ``cls`` to be helper
+    code (T091 AV1)."""
+    meta = type(cls)
+    meta_call = inspect.getattr_static(meta, "__call__", None)
+    if meta_call is _TYPE_CALL or meta_call is ENUM_METACLASS_CALL:
+        return None
     if isinstance(meta_call, (staticmethod, classmethod)):
         meta_call = meta_call.__func__
     target = _call_target(meta_call)
+    reason = callable_code_refusal(target, _depth=depth + 1) if isinstance(target, type) else _code_refusal(target)
+    if reason is None:
+        return None
     module = _owner(target) if target is not None else None
-    return module is not None and _in_module(module, "alienbio") and allowed_framework_code(target)
+    return f"its metaclass {meta.__qualname__}.__call__ runs code from {module!r}, outside the spec's helpers and the allowed framework code"
+
+
+def callable_code_refusal(obj: Any, *, _depth: int = 0) -> Optional[str]:
+    """Why ``obj`` is not code a trusted spec may call, else ``None`` (T091
+    AR3/AR4/AV1). Callable: the spec's own included helper code, allowed
+    framework code (:func:`allowed_framework_code`), or a domain class (a
+    constructor such as ``MoleculeImpl``, an ``Entity`` — the classes
+    ``spec_lang.biotype_registry`` holds are all domain classes, judged
+    first, whatever their metaclass). A helper class is judged by its module
+    and by what its metaclass ``__call__`` runs (:func:`_metaclass_refusal`).
+    A callable instance is judged by the code its ``__call__`` runs, never
+    by the module of its class. Anything else — a framework function that is
+    not a head, ``os.getcwd``, a slot wrapper — is not callable from a spec,
+    whoever bound it (a Python caller exposes a function by registering a
+    head)."""
+    if _depth > MAX_CALL_DEPTH:
+        return f"its metaclass __call__ chain is deeper than MAX_CALL_DEPTH={MAX_CALL_DEPTH} levels"
+    target = _call_target(obj)
+    if isinstance(target, type):
+        if issubclass(target, domain_types()):
+            return None
+        reason = _code_refusal(target)
+        return reason if reason is not None else _metaclass_refusal(target, _depth)
+    return _code_refusal(target)
 
 
 def callable_code_allowed(obj: Any) -> bool:
-    """``obj`` is code a trusted spec may call (T091 AR3/AR4): the spec's own
-    included helper code, allowed framework code
-    (:func:`allowed_framework_code`), or a domain class (a constructor such
-    as ``MoleculeImpl``, an ``Entity`` — the classes
-    ``spec_lang.biotype_registry`` holds are all domain classes). A callable
-    instance is judged by the code its ``__call__`` runs, never by the
-    module of its class. Anything else — a framework function that is not a
-    head, ``os.getcwd``, a slot wrapper — is not callable from a spec,
-    whoever bound it (a Python caller exposes a function by registering a
-    head)."""
-    from .include import INCLUDE_MODULE_PREFIX
-
-    target = _call_target(obj)
-    if isinstance(target, type) and issubclass(target, domain_types()):
-        return True
-    if isinstance(target, type) and not _metaclass_call_allowed(target):
-        return False
-    module = _owner(target) if target is not None else None
-    if module is None:
-        return False
-    if module.startswith(INCLUDE_MODULE_PREFIX):
-        return True
-    return _in_module(module, "alienbio") and allowed_framework_code(target)
+    """``obj`` is code a trusted spec may call (:func:`callable_code_refusal`
+    gives the reason when it is not)."""
+    return callable_code_refusal(obj) is None
 
 
 def check_reference(value: Any, what: str) -> None:
@@ -366,16 +405,18 @@ def check_returned(value: Any, what: str) -> None:
                 stack.extend(dict.values(x) if isinstance(x, dict) else x.values())
             elif isinstance(x, (Sequence, AbstractSet)) and not isinstance(x, (str, bytes, bytearray)):
                 stack.extend(x)
-            if callable(x) and not callable_code_allowed(x):
+            reason = callable_code_refusal(x) if callable(x) else None
+            if reason is not None:
                 raise UnsafeExpressionError(
-                    f"{what}: returned a callable {_type_name(x)} whose __call__ runs code outside the spec's helpers"
+                    f"{what}: returned a callable {_type_name(x)} whose __call__ runs code outside the spec's helpers ({reason})"
                 )
             continue
         check_reference(x, what)
-        if (isinstance(x, type) or callable(x)) and not callable_code_allowed(x):
+        reason = callable_code_refusal(x) if (isinstance(x, type) or callable(x)) else None
+        if reason is not None:
             raise UnsafeExpressionError(
                 f"{what}: returned {_type_name(x)} from {_owner(_call_target(x))!r}, outside the spec's helpers and the "
-                f"allowed framework code (registered heads, domain classes, {list(PY_ALLOWED_MODULES)})"
+                f"allowed framework code (registered heads, domain classes, {list(PY_ALLOWED_MODULES)}): {reason}"
             )
 
 
@@ -457,11 +498,10 @@ def check_callable(func: Any, *, trusted: bool) -> None:
     entry = denied_entry_point(func)
     if entry is not None:
         raise UnsafeExpressionError(f"{_type_name(func)} is a framework entry point that loads or executes code ({entry})")
-    if not callable_code_allowed(func):
+    reason = callable_code_refusal(func)
+    if reason is not None:
         raise UnsafeExpressionError(
-            f"calling {_type_name(func)} ({_owner(_call_target(func))!r}): only the spec's included helpers, registered "
-            f"heads, domain classes and {list(PY_ALLOWED_MODULES)} are callable — a function reached through data is "
-            "judged when it is called (T091 AR3)"
+            f"calling {_type_name(func)}: {reason} — a function reached through data is judged when it is called (T091 AR3)"
         )
 
 
@@ -472,6 +512,7 @@ __all__ = [
     "PY_ALLOWED_MODULES",
     "allowed_framework_code",
     "callable_code_allowed",
+    "callable_code_refusal",
     "check_callable",
     "check_name",
     "check_reference",
