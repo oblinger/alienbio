@@ -216,7 +216,12 @@ class ReactionImpl(Entity, head="Reaction"):
         self._rate: RateValue = _numeric_rate(name, rate)
         from .rate_expr import from_json
 
-        self._rate_law: Optional[Any] = from_json(rate_law) if rate_law is not None else None
+        try:
+            self._rate_law: Optional[Any] = from_json(rate_law) if rate_law is not None else None
+        except ValueError as exc:
+            # Name the reaction: a malformed or oversized law (T091 BA,
+            # MAX_RATE_LAW_NODES) is otherwise reported without it.
+            raise ValueError(f"reaction {name!r}: {exc}") from exc
 
     @classmethod
     def hydrate(  # type: ignore[override]

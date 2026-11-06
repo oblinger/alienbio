@@ -1,11 +1,13 @@
-"""T091 round BA — verifier AZ's findings on simulation work and the verify
-loop.
+"""T091 round BA — verifier AZ's findings on simulation work, the verify
+loop, a spec's ``sim_cfg`` and rate-law size.
 
 AZ1/AZ3: ``verify.step_work`` is a weighted sum (population laws charged per
 molecule once any law moves content, flows by their real cost), so a head at
 the cap costs about 3 s of CPU on the slowest shape. AZ2: ``!verify`` ticks
 the evaluation clock between attempts. AZ7: the work refusal names the
-factors of the world that carries the most, and they add up.
+factors of the world that carries the most, and they add up. Older surface
+(b): a spec cannot set ``sim_cfg``. Older surface (a): a rate law past
+``MAX_RATE_LAW_NODES`` refuses as it is compiled.
 """
 
 from __future__ import annotations
@@ -18,8 +20,13 @@ from pathlib import Path
 
 import pytest
 
+from alienbio.bio.rate_expr import MAX_RATE_LAW_NODES, from_json
 from alienbio.expr import Env, ExprError
 from alienbio.expr.env import Limits
+from alienbio.suite.dist import Seed
+from alienbio.suite.drafters import DRAFTERS, check_generator_sim_cfg
+from alienbio.suite.expr_experiment import load_experiment
+from alienbio.suite.spec import ExperimentSpec, spec_from_dict
 
 V = importlib.import_module("alienbio.suite.verify")
 
@@ -88,6 +95,10 @@ chem: !Chemistry {{molecules: !x mols, reactions: !x rxns}}
 comps: !x "[Compartment(id='c0', volume=1.0, concentrations={{'m0': 5.0}})] + [Compartment(id=f'c{{i}}', parent='c0', volume=1.0, concentrations={{'m0': 5.0}}) for i in range(1, {C})]"
 w0: !World {{chemistry: !x chem, compartments: !x comps}}
 """
+
+_DAG = "l0: [species, s]\n" + "".join(f"l{i}: !x \"['add', l{i - 1}, l{i - 1}]\"\n" for i in range(1, 27)) + (
+    "chem: !Chemistry {molecules: {s: {}, p: {}}, reactions: {r: {reactants: [s], products: [p], rate_law: !x l26}}}\n"
+)
 
 
 def _load(text: str, **kw):
@@ -196,3 +207,54 @@ def test_az2_pathway_puzzles_drafts_as_before_on_seeds_0_to_49():
         ]
         digest.update(repr(parts).encode())
     assert digest.hexdigest() == "570faae50bf5bf2e488aeaaabac33eb3a3abcdc89601b03e5944efbbc61ec64e"
+
+
+def test_a_shared_reference_rate_law_refuses_in_under_a_second():
+    """AZ's 828-byte shared-reference rate law (2**27 nodes, 49 s of CPU before) refuses naming the reaction and MAX_RATE_LAW_NODES."""
+    t = time.process_time()
+    with pytest.raises(ExprError, match=rf"reaction 'r': rate law has more than MAX_RATE_LAW_NODES={MAX_RATE_LAW_NODES}"):
+        _load(_DAG)
+    assert time.process_time() - t < 1.0
+
+
+def test_a_shared_tuple_rate_law_refuses_as_it_is_checked():
+    """A tuple tree of shared subtrees is counted as it is checked and refuses past MAX_RATE_LAW_NODES."""
+    node: tuple = ("species", "s")
+    for _ in range(30):
+        node = ("add", node, node)
+    t = time.process_time()
+    with pytest.raises(ValueError, match="MAX_RATE_LAW_NODES"):
+        from_json(node)
+    assert time.process_time() - t < 1.0
+
+
+def _spec(**kw) -> ExperimentSpec:
+    return ExperimentSpec(name="s", axes=(), drafter="predict", agent="idle", trials_per_condition=1, base_seed=3, **kw)
+
+
+def test_a_spec_cannot_set_sim_cfg_in_either_form():
+    """``sim_cfg`` in ``drafter_kwargs`` refuses at construction for the Python form, the YAML dict form and the Expr form, pointing at episode(...)."""
+    with pytest.raises(ValueError, match=r"drafter_kwargs sets sim_cfg.*episode\(sim_steps=\.\.\., sim_dt=\.\.\.\)"):
+        _spec(drafter_kwargs={"sim_cfg": V.SimConfig(steps=10)})
+    with pytest.raises(ValueError, match="drafter_kwargs sets sim_cfg"):
+        spec_from_dict(
+            {"name": "s", "axes": {}, "drafter": "predict", "agent": "idle", "trials_per_condition": 1,
+             "base_seed": 3, "drafter_kwargs": {"sim_cfg": {"dt": 0.1, "steps": 10, "sample_every": 5}}}
+        )
+    with pytest.raises(ExprError, match="manifest cannot record"):
+        load_experiment(
+            "<e>",
+            text=(
+                "!experiment\nname: a\ntask: !q predict()\n"
+                "drafter_kwargs:\n  sim_cfg: !sim {dt: 0.1, steps: 10, sample_every: 5}\n"
+                "agent: idle\ntrials_per_condition: 1\nbase_seed: 3\n"
+            ),
+        )
+
+
+def test_a_python_caller_still_passes_sim_cfg_to_the_drafter():
+    """The ``DRAFTERS`` adapter takes a ``SimConfig`` from a Python caller, and a non-``SimConfig`` refuses asking for one."""
+    world, task = DRAFTERS["predict"](Seed(3), {}, sim_cfg=V.SimConfig(dt=0.1, steps=50, sample_every=10))
+    assert world is not None and task is not None
+    with pytest.raises(ValueError, match=r"predict: sim_cfg must be a SimConfig, got dict — pass a suite.verify.SimConfig$"):
+        check_generator_sim_cfg("predict", {"sim_cfg": {"steps": 10}})

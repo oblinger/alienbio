@@ -200,6 +200,16 @@ class ExperimentSpec:
                 f"experiment spec: dial(s) {both} are both fixed and swept — the axis would silently "
                 "override the fixed value; keep one"
             )
+        # T091 BA — ``sim_cfg`` is a Python-API keyword of the generators (a
+        # ``SimConfig`` the caller builds); in a spec it passed ``--dry`` and
+        # then crashed the run writing the manifest, which cannot record it.
+        # The episode's clock is a spec's to set, through ``episode(...)``.
+        if "sim_cfg" in dict(self.drafter_kwargs or {}):
+            refuse(
+                f"experiment spec: drafter_kwargs sets sim_cfg, a Python-API keyword of {self.drafter!r} "
+                "(a suite.verify.SimConfig) that the run manifest cannot record — a spec sets the episode's "
+                "clock with episode(sim_steps=..., sim_dt=...) (fixed_dials sim_steps / sim_dt in the YAML form)"
+            )
         if isinstance(self.base_seed, bool) or not isinstance(self.base_seed, int):
             raise ValueError(f"experiment spec: base_seed must be an int, got {self.base_seed!r}")
         if self.token_ceiling is not None:
@@ -281,6 +291,7 @@ RECORDED_NOTE_RULES: tuple[str, ...] = (
     "unpinned-model",  # M45.11 / T016 (the models.list snapshot moves)
     "under-powered-design",  # M46.9
     "unregistered-agent-or-drafter",  # T091 AC6 (scalar agent, agent axis level, drafter)
+    "sim-cfg-in-spec",  # T091 BA (a manifest never recorded one: the run crashed writing it)
 )
 
 

@@ -209,16 +209,16 @@ def check_generator_sim_cfg(head: str, generator: Mapping[str, Any]) -> None:
     head derives (T091 AV2: a ``drafter_kwargs`` ``!sim`` of 2 000 000 steps
     held ``--dry`` for 15-75 s of CPU before any refusal). One rule for every
     caller: a ``SimConfig`` past :data:`MAX_DRAFT_SIM_STEPS` refuses, and a
-    non-``SimConfig`` (a plain mapping in ``drafter_kwargs``) refuses as a
-    config error — a ``ValueError``, which the preflight ``draft`` check
-    reads as a config refusal, not a drafter fault (T091 AX6)."""
+    non-``SimConfig`` refuses as a config error — a ``ValueError`` (T091
+    AX6). No spec passes one here: ``ExperimentSpec`` refuses
+    ``sim_cfg`` in ``drafter_kwargs`` (T091 BA), so this judges what a
+    Python caller passes."""
     if "sim_cfg" not in generator:
         return
     cfg = generator["sim_cfg"]
     if not isinstance(cfg, SimConfig):
         raise ValueError(
-            f"{head}: sim_cfg must be a SimConfig, got {type(cfg).__name__} — build it with "
-            "`!sim {dt, steps, sample_every}`"
+            f"{head}: sim_cfg must be a SimConfig, got {type(cfg).__name__} — pass a suite.verify.SimConfig"
         )
     check_draft_horizon(head, cfg.steps, f"sim_cfg steps={cfg.steps}")
 

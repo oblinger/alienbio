@@ -425,8 +425,39 @@ def to_json(node: RateNode) -> list:
     raise ValueError(f"unknown rate node {tag!r}")
 
 
-def _check_tree(node: Any) -> None:
-    """Refuse a tuple tree with an unknown tag or the wrong arity, naming it."""
+#: Nodes one rate law may compile to (T091 BA). A spec can build a law's
+#: JSON tree out of shared references (``l1 = ['add', l0, l0]``, each level
+#: doubling the last), so 828 bytes of YAML stood for 2**27 nodes and one
+#: ``!Chemistry`` call compiled them for 49 s of CPU. The count is taken as
+#: the tree is built (a shared subtree counts every time it is reached) and a
+#: law past the cap refuses before any more is built. The largest law in use
+#: (``catalog/`` and ``tests/`` surveyed; AUP writes none) has 12 nodes.
+MAX_RATE_LAW_NODES = 10_000
+
+
+class _NodeBudget:
+    """Counts the nodes one compile builds; raises past :data:`MAX_RATE_LAW_NODES`."""
+
+    __slots__ = ("count",)
+
+    def __init__(self) -> None:
+        self.count = 0
+
+    def take(self) -> None:
+        self.count += 1
+        if self.count > MAX_RATE_LAW_NODES:
+            raise ValueError(
+                f"rate law has more than MAX_RATE_LAW_NODES={MAX_RATE_LAW_NODES} nodes "
+                "(a subtree reached through a shared reference counts each time it is reached)"
+            )
+
+
+def _check_tree(node: Any, budget: "_NodeBudget | None" = None) -> None:
+    """Refuse a tuple tree with an unknown tag or the wrong arity, naming it,
+    or one past :data:`MAX_RATE_LAW_NODES`."""
+    if budget is None:
+        budget = _NodeBudget()
+    budget.take()
     if not isinstance(node, tuple) or not node:
         raise ValueError(f"not a rate expression: {node!r}")
     tag = node[0]
@@ -440,12 +471,12 @@ def _check_tree(node: Any) -> None:
     elif tag in _UNARY:
         if len(node) != 2:
             raise ValueError(f"rate node {tag!r} takes one operand: {node!r}")
-        _check_tree(node[1])
+        _check_tree(node[1], budget)
     elif tag in _BINARY:
         if len(node) != 3:
             raise ValueError(f"rate node {tag!r} takes two operands: {node!r}")
-        _check_tree(node[1])
-        _check_tree(node[2])
+        _check_tree(node[1], budget)
+        _check_tree(node[2], budget)
     else:
         raise ValueError(f"unknown rate node {tag!r}")
 
@@ -460,10 +491,16 @@ def check_rate_law(node: Any) -> None:
 def from_json(data: Any) -> RateNode:
     """The inverse of :func:`to_json`; a tuple tree passes through once its
     tags and arities are checked (a malformed one used to pass unseen and
-    fail only when evaluated — module-doc finding, 2026-10)."""
+    fail only when evaluated — module-doc finding, 2026-10). A tree past
+    :data:`MAX_RATE_LAW_NODES` refuses as it is built (T091 BA)."""
+    return _from_json(data, _NodeBudget())
+
+
+def _from_json(data: Any, budget: _NodeBudget) -> RateNode:
     if isinstance(data, tuple):
-        _check_tree(data)
+        _check_tree(data, budget)
         return data
+    budget.take()
     if not isinstance(data, list) or not data:
         raise ValueError(f"not a rate expression: {data!r}")
     tag = data[0]
@@ -474,13 +511,14 @@ def from_json(data: Any) -> RateNode:
         _check_tree(node)
         return node
     if tag in _UNARY:
-        return (tag, from_json(data[1]))
+        return (tag, _from_json(data[1], budget))
     if tag in _BINARY:
-        return (tag, from_json(data[1]), from_json(data[2]))
+        return (tag, _from_json(data[1], budget), _from_json(data[2], budget))
     raise ValueError(f"unknown rate node {tag!r}")
 
 
 __all__ = [
+    "MAX_RATE_LAW_NODES",
     "MODULATION_KINDS",
     "PARITY_TOL",
     "RATE_CAP",

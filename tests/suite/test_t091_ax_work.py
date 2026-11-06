@@ -3,8 +3,9 @@
 AX1: ``verify.sim_work`` counts what a simulator step does (each reaction's
 fan-in, fan-out, modulators and rate-law nodes in every compartment, the
 state copy, flows, population laws), and ``predict_q`` / ``verify`` charge
-both simulations they run (the per-term weights are T091 BA's). AX3: a 0-d numpy size dial is capped. AX6: a
-mapping ``sim_cfg`` is a config refusal at preflight.
+both simulations they run (the per-term weights are T091 BA's). AX3: a
+0-d numpy size dial is capped. AX6, as BA amended it: a ``sim_cfg`` in a
+spec's ``drafter_kwargs`` refuses when the spec is built.
 """
 
 from __future__ import annotations
@@ -19,7 +20,6 @@ from alienbio.expr import Env, ExprError, fn
 from alienbio.suite.dist import Seed
 from alienbio.suite.drafters import DRAFTERS, MAX_N_NODES
 from alienbio.suite.expr_experiment import load_experiment
-from alienbio.suite.guards import draft_violation
 
 V = importlib.import_module("alienbio.suite.verify")
 
@@ -138,16 +138,14 @@ def test_ax3_a_zero_d_numpy_size_dial_is_capped():
     assert time.process_time() - t < 1.0
 
 
-def test_ax6_a_mapping_sim_cfg_is_a_config_refusal_at_preflight():
-    """A plain mapping ``sim_cfg`` in ``drafter_kwargs`` refuses at preflight as a config error naming the head and ``!sim``."""
-    spec = load_experiment(
-        "<m>",
-        text=(
-            "!experiment\nname: m\ntask: !q predict()\n"
-            "drafter_kwargs:\n  sim_cfg: {dt: 0.1, steps: 10, sample_every: 5}\n"
-            "agent: idle\ntrials_per_condition: 1\nbase_seed: 3\n"
-        ),
-    )
-    reason = draft_violation(spec)
-    assert reason is not None and "drafts no world" in reason and "predict: sim_cfg must be a SimConfig" in reason
-    assert "!sim" in reason and "drafter fault" not in reason
+def test_ax6_a_mapping_sim_cfg_in_a_spec_refuses_at_construction():
+    """A plain mapping ``sim_cfg`` in ``drafter_kwargs`` refuses when the spec is built (T091 BA: a spec cannot set ``sim_cfg``)."""
+    with pytest.raises(ExprError, match="drafter_kwargs sets sim_cfg"):
+        load_experiment(
+            "<m>",
+            text=(
+                "!experiment\nname: m\ntask: !q predict()\n"
+                "drafter_kwargs:\n  sim_cfg: {dt: 0.1, steps: 10, sample_every: 5}\n"
+                "agent: idle\ntrials_per_condition: 1\nbase_seed: 3\n"
+            ),
+        )
