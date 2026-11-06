@@ -27,7 +27,7 @@ from __future__ import annotations
 import math
 import numbers
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Sequence
 
 import numpy as np
 
@@ -60,43 +60,81 @@ class SimConfig:
                 raise ValueError(f"SimConfig.{name} must be a positive int, got {value!r}")
 
 
-#: Integration work a spec-built world may cost one simulation inside an
-#: Expr head (``verify``, ``predict_q``): ``steps x (reactions + molecules x
-#: compartments + flows + population laws)``. Measured at ~1.2 us of CPU per
-#: unit (a chain world and a 256-cell lattice alike), so the cap is ~2.5 s
-#: per simulation; largest in use 2 800 (the kinetics example's
-#: ``predict_q``: 80 steps x 35; the catalog and ``tests/expr`` surveyed). A simulation runs outside the evaluation clock: a 486-byte
-#: spec building 3 000 reactions by comprehension under a 20 000-step
-#: ``!sim`` held a load past 15 s of CPU (T091 AW).
-MAX_EXPR_SIM_WORK = 2_000_000
+#: Integration work a spec-built world may cost inside an Expr head
+#: (``verify``, ``predict_q``), summed over every simulation the head runs
+#: (both heads run two: the base world and its perturbation). One step's
+#: work is :func:`step_work`: each reaction costs ``1 + reactants + products
+#: + modulators (+ its compiled rate law's node count)`` in every compartment
+#: ``WorldSimulatorImpl.from_chemistry`` applies it in (all of them), plus
+#: ``molecules x compartments`` for the state copy, plus one per flow and
+#: population law. The cap is calibrated so one simulation at the cap costs
+#: about 2-3 s of CPU on the slowest measured shape (T091 AY: a
+#: one-compartment chain, many compartments x few reactions, many reactions
+#: x many compartments, high fan-in), and stays at least 4x above the
+#: largest work in use (``catalog/``, ``tests/`` and AUP surveyed). A
+#: simulation runs outside the evaluation clock: before T091 AY the count
+#: left out compartments and fan-in, so a 575-byte spec (1 000 reactions x
+#: 1 000 compartments, 20 steps) held a load 72 s of CPU at 3 % of the cap.
+MAX_EXPR_SIM_WORK = 4_000_000
 
 
-def sim_work(world: WorldImpl, cfg: SimConfig) -> int:
-    """The integration work :data:`MAX_EXPR_SIM_WORK` bounds."""
+def _rate_law_nodes(node: Any) -> int:
+    """Node count of a compiled rate-law tree (iterative: a spec may build
+    a deep one)."""
+    count = 0
+    stack = [node]
+    while stack:
+        item = stack.pop()
+        count += 1
+        if isinstance(item, tuple) and item and item[0] not in ("const", "species", "mod"):
+            stack.extend(child for child in item[1:] if isinstance(child, tuple))
+    return count
+
+
+def step_work(world: WorldImpl) -> int:
+    """The work one simulator step does on ``world`` (see
+    :data:`MAX_EXPR_SIM_WORK`)."""
     chem = world.chemistry
-    per_step = (
-        len(chem.reactions)
-        + len(chem.molecules) * max(1, len(world.compartments))
+    compartments = max(1, len(world.compartments))
+    per_compartment = 0
+    for reaction in chem.reactions.values():
+        per_compartment += 1 + len(reaction.reactants) + len(reaction.products) + len(reaction.modifiers)
+        if reaction.rate_law is not None:
+            per_compartment += _rate_law_nodes(reaction.rate_law)
+    return (
+        per_compartment * compartments
+        + len(chem.molecules) * compartments
         + len(world.flows)
         + len(world.population_laws)
     )
-    return int(cfg.steps) * max(1, per_step)
 
 
-def check_sim_work(head: str, world: Any, cfg: Any) -> None:
-    """Refuse a simulation of ``world`` under ``cfg`` past
-    :data:`MAX_EXPR_SIM_WORK`, naming the head, the work, its factors and
-    the cap. Anything that is not a world and a ``SimConfig`` passes: the
-    simulator's own validation owns that verdict."""
-    if not (isinstance(world, WorldImpl) and isinstance(cfg, SimConfig)):
+def sim_work(world: WorldImpl, cfg: SimConfig) -> int:
+    """The integration work of one simulation of ``world`` under ``cfg``."""
+    return int(cfg.steps) * max(1, step_work(world))
+
+
+def check_sim_work(head: str, worlds: Sequence[Any], cfg: Any) -> None:
+    """Refuse simulations of ``worlds`` under ``cfg`` whose summed work is past
+    :data:`MAX_EXPR_SIM_WORK`, naming the head, the work, its factors and the
+    cap. Anything that is not a world, or a ``cfg`` that is not a
+    ``SimConfig``, is skipped: the simulator's own validation owns that
+    verdict."""
+    if not isinstance(cfg, SimConfig):
         return
-    work = sim_work(world, cfg)
+    real = [w for w in worlds if isinstance(w, WorldImpl)]
+    if not real:
+        return
+    work = sum(sim_work(w, cfg) for w in real)
     if work > MAX_EXPR_SIM_WORK:
-        chem = world.chemistry
+        w = real[0]
+        chem = w.chemistry
         raise ValueError(
-            f"{head}: the simulation would cost {work} units (steps={cfg.steps} x ({len(chem.reactions)} reactions + "
-            f"{len(chem.molecules)} molecules x {len(world.compartments)} compartments + {len(world.flows)} flows + "
-            f"{len(world.population_laws)} population laws)), past the cap MAX_EXPR_SIM_WORK={MAX_EXPR_SIM_WORK} — "
+            f"{head}: {len(real)} simulation(s) would cost {work} units (steps={cfg.steps} x {step_work(w)} per step: "
+            f"{len(chem.reactions)} reactions, each 1 + reactants + products + modulators (+ rate-law nodes), "
+            f"in each of {len(w.compartments)} compartments, + {len(chem.molecules)} molecules x "
+            f"{len(w.compartments)} compartments + {len(w.flows)} flows + {len(w.population_laws)} population laws), "
+            f"past the cap MAX_EXPR_SIM_WORK={MAX_EXPR_SIM_WORK} — "
             "a simulation runs outside the evaluation clock; use fewer steps (a larger dt) or a smaller world"
         )
 

@@ -219,7 +219,8 @@ def predict_q(
     env: Env,
 ) -> dict[str, Any]:
     skeleton = _skeleton_or_empty(skeleton, "predict_q", env)
-    check_sim_work("predict_q", world, sim or SimConfig())
+    # The key simulates the world and its rate-perturbed copy (same size).
+    check_sim_work("predict_q", (world, world), sim or SimConfig())
     recipe = PredictResponseRecipe(
         reaction_id=str(reaction_id), target_id=str(target_id), factor=float(factor), verb=str(verb),
         sim_cfg=sim or SimConfig(), seed=env.ctx.seed,

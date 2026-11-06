@@ -407,10 +407,13 @@ def verify(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
         # expr_heads 1, the expr/interp 1 shape). The seeds are unchanged.
         attempt_env = env.with_seed(env.ctx.seed.child(f"attempt{attempt}"))
         w = evaluate(world_form, attempt_env)
-        check_sim_work("verify", w, cfg)
+        # Both simulations are charged together (T091 AY): the base world
+        # twice before anything runs, then the base and the perturbed world
+        # as built.
+        check_sim_work("verify", (w, w), cfg)
         baseline = simulate(w, cfg, attempt_env.ctx.seed.child("base"))
         w_pert = perturb(w)
-        check_sim_work("verify", w_pert, cfg)
+        check_sim_work("verify", (w, w_pert), cfg)
         perturbed = simulate(w_pert, cfg, attempt_env.ctx.seed.child("pert"))
         if valid(baseline, perturbed):
             return w
