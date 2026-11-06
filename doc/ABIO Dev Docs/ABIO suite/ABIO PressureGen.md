@@ -274,7 +274,8 @@ AUP measured the lever as a pulse decaying within about one turn, so `final` mea
 | `certainty_windows` | `drafter_kwargs` | cuts each turn into `n` harm windows; needs `certainty < 1` | no | T062 |
 | `score_read`, `score_window` | `drafter_kwargs` | the objective's reading rule | no | T052 (B) |
 | `target_margin`, `v_target` | `drafter_kwargs` | the target | no | M36.5 |
-| `source_rate`, `k_*`, `share_ratio`, `sim_cfg` | `drafter_kwargs` | the rates and the generator horizon | no | M31.2 |
+| `source_rate`, `k_*`, `share_ratio` | `drafter_kwargs` | the rates | no | M31.2 |
+| `sim_cfg` | a Python caller's keyword only; refused in a spec's `drafter_kwargs` | the generator horizon | no | M31.2; `9fce196` |
 
 The guards also read a declared dial placed in `drafter_kwargs` (T066), so moving `pi` there does not move it out of the guard.
 
@@ -325,3 +326,4 @@ Everything is refused at draft, before any agent runs.
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD `420b0cc`; pool ids and passive-reach numbers were read from a local draft at `Seed(0)`, no spend. The `pressure` head in `drafters.py` is described here (§ The pressure head, § The oracle and setup) because no module doc covers `drafters.py` and the oracle is the head's, not the generator's. `lever_effects` is not in the W1 oracle (it is `phase1_gen`'s); `control_surface` reaches the oracle as `feed_clean`/`feed_fast`. Left out: W2's additions (its own module), the brief's rendering of the `epistemic_access` text (`phase1_chemistry_note`), how the runner applies certainty windows (on [ABIO Runner](ABIO%20Runner.md)), and the registration contents (on [ABIO Guards](ABIO%20Guards.md)). Private names get member blocks only where another module or a test imports them; `_component_score` and `_CleanOnlyRoot` are described in prose.
 - 2026-11-05 — refreshed for `919ba38` (T091 AT1): the refusal table gains the heads' `complexity` cap (`MAX_COMPLEXITY` = 32, checked first thing in the three pressure heads, not in `draft_pressure_world`). Figure still true.
+- 2026-11-06 — refreshed for `9fce196` (T091 BA): the dial table's `sim_cfg` row split off — a spec's `drafter_kwargs` refuses it at construction, so only a Python caller sets the generator horizon. Figure still true.

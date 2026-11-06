@@ -13,7 +13,7 @@ The compiled form of a rate law: a small tree of tuples, built once from the rat
 
 
 ## rate_expr Interface
-Pure functions over `RateNode` trees and three constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MODULATION_KINDS`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and sixteen functions (the two constants since 2026-10, `inhibitor_ratio` since `bf91515`, `check_rate_law`, `snap_residue` and `snap_residue_jax` since `3269751`); the constants and the snap are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers, `asks_all` and `asks_all_jax` are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` and `asks_all` by name, `jax_core.py` imports `asks_all_jax`.
+Pure functions over `RateNode` trees and five constants, with no state. Only the standard library at import: `lower_jax` imports `jax.numpy` inside the call, so the module loads without JAX. `__all__` lists `MAX_RATE_LAW_NODES`, `MODULATION_KINDS`, `PARITY_TOL`, `RATE_CAP`, `ROUNDING_FLOOR`, `RateNode` and seventeen functions (`RATE_CAP` and `ROUNDING_FLOOR` since 2026-10, `inhibitor_ratio` since `bf91515`, `check_rate_law`, `snap_residue` and `snap_residue_jax` since `3269751`, `PARITY_TOL` and `parity_agrees` since `198f307`, `MAX_RATE_LAW_NODES` since `9fce196`); the constants and the snap are imported by name by `world_simulator.py`, `jax_core.py`, `population.py` and `flow.py`, and are the one copy of each. The `ieee_*` helpers, `asks_all` and `asks_all_jax` are module-level but not exported; `world_simulator.py` imports `inhibitor_ratio` and `asks_all` by name, `jax_core.py` imports `asks_all_jax`.
 
 | rate_expr | |
 | --- | --- |
@@ -40,6 +40,7 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 | [[#^rounding-floor\|ROUNDING_FLOOR]] | Below this magnitude a value is zero |
 | [[#^rate-cap\|RATE_CAP]] | The largest desired extent per step |
 | [PARITY_TOL](#^parity-tol) | The parity contract's tolerance |
+| [MAX_RATE_LAW_NODES](#^max-rate-law-nodes) | Nodes one rate law may compile to |
 | [parity_agrees](#^parity-agrees) | Two simulator readings agree |
 
 **RateNode**`= tuple`
@@ -85,10 +86,10 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
     The tree as nested lists, the form `ReactionImpl.attributes()` writes under `rate_law`. A `mod` node's parameter dict is copied. An unrecognised tag raises `ValueError` naming it (until 2026-10 it was treated as binary). ^to-json
 
 **from_json**`(data: Any) -> RateNode`
-    The inverse of `to_json`; `ReactionImpl.__init__` passes every `rate_law` through it, so a reaction accepts either form. A `tuple` passes through after a recursive check of every tag and arity (`ValueError` naming the bad node; unchecked until 2026-10). `ValueError` when `data` is not a non-empty list or carries an unknown tag, and when a `mod` node is a `hill` that `_check_modulation_params` refuses. `mod` parameters are copied but not coerced to `float`. ^from-json
+    The inverse of `to_json`; `ReactionImpl.__init__` passes every `rate_law` through it, so a reaction accepts either form. A `tuple` passes through after a recursive check of every tag and arity (`ValueError` naming the bad node; unchecked until 2026-10). `ValueError` when `data` is not a non-empty list or carries an unknown tag, and when a `mod` node is a `hill` that `_check_modulation_params` refuses. `mod` parameters are copied but not coerced to `float`. Each node is counted as it is built (list form) or checked (tuple form), and past `MAX_RATE_LAW_NODES` it raises before building more (`9fce196`, T091 BA). ^from-json
 
 **check_rate_law**`(node: Any) -> None`
-    The tuple-tree check `from_json` runs — every tag and arity, and every `mod` node's hill `K`/`n` — as a public call. `ReactionSpec.__init__` runs it on every `rate_law`, so both simulators refuse one law with one `ValueError` at construction rather than diverging at the first step. Since `3269751`. ^check-rate-law
+    The tuple-tree check `from_json` runs — every tag and arity, and every `mod` node's hill `K`/`n` — as a public call. `ReactionSpec.__init__` runs it on every `rate_law`, so both simulators refuse one law with one `ValueError` at construction rather than diverging at the first step. It counts nodes against `MAX_RATE_LAW_NODES` too. Since `3269751`. ^check-rate-law
 
 **snap_residue**`(value: float, pre: float) -> float`
     `value` with a negative rounding residue snapped to exactly 0: a post-pass value in `(−ROUNDING_FLOOR · max(1, pre), 0)` is 0, else `value` unchanged, where `pre` is the value the pass started from. Relative because a pool rationed to exhaustion leaves a residue on the order of its own ulp (the absolute `−1e-12` snap left a rationed 1e5 pool at −1.1e-11 on both backends, T091 C3). Called by the reference reactant write, the flow pass and the population pass. Since `3269751`. ^snap-residue
@@ -110,6 +111,9 @@ Pure functions over `RateNode` trees and three constants, with no state. Only th
 
 **PARITY_TOL**`: float = 1e-9`
     The tolerance of the parity contract between the reference and JAX simulators ([One tree, two evaluators](#one-tree-two-evaluators)). ^parity-tol
+
+**MAX_RATE_LAW_NODES**`: int = 10_000`
+    The nodes one rate law may compile to (`9fce196`, T091 BA). `from_json` and `_check_tree` count each node as they build or check it, a subtree reached through a shared reference once each time it is reached, and refuse past the cap before building any more: `ValueError` `rate law has more than MAX_RATE_LAW_NODES=10000 nodes (a subtree reached through a shared reference counts each time it is reached)`, which `ReactionImpl` prefixes with `reaction '<name>': `. A spec can build a law's JSON tree from shared references (`l1 = ['add', l0, l0]`, each level doubling the last), so 828 bytes of YAML stood for 2^27 nodes and one `!Chemistry` call compiled for 49 s of CPU; it now refuses in 0.01 s. The largest law in use (`catalog/` and `tests/`; AUP writes none) has 12 nodes. ^max-rate-law-nodes
 
 **parity_agrees**`(a: float, b: float) -> bool`
     True when `|a − b| ≤ PARITY_TOL · max(1, |a|, |b|)` — relative above 1, absolute below — or both are NaN, or both the same infinity. Float64 carries about 1e-16 relative per operation, so a reading off by more than 1e-9 of its own magnitude is a divergence in the arithmetic, not accumulated rounding. Every assertion in `tests/capabilities/test_simulator_conformance.py` goes through it. ^parity-agrees
@@ -211,3 +215,4 @@ The parity tests are `tests/expr/test_rate_grammar.py::test_jax_matches_referenc
 - 2026-10-29 — refreshed for `3269751` (T091 C1–C3) and `db300c9` (F5): `check_rate_law`, `snap_residue`, `snap_residue_jax` exported and documented, the snap is relative to the pre-pass value, a hill with no finite real `K**n` refuses at compile (`modulation`, `from_json`, `check_rate_law`, and `Modulation.__post_init__`), `ieee_pow` reads a negative base under a fractional exponent as NaN in the overflow branch too, and the 0–1e6 supported range is stated. Figure still true.
 - 2026-10-29 — refreshed for `198f307`: `PARITY_TOL` and `parity_agrees`, the one parity statement both simulators' tests assert.
 - 2026-10-29 — refreshed for `efc4556` (T091 M1): `asks_all` and `asks_all_jax`, the exhausted-pool test both steppers share, replacing `ratio < 1`; the conformance file's new pinned case and the canary's `rel=1e-12, abs=1e-9`. Figure still true.
+- 2026-11-06 — refreshed for `9fce196` (T091 BA): new `MAX_RATE_LAW_NODES` (10 000, exported) — `from_json`, `_check_tree` and so `check_rate_law` count nodes as they build or check a tree, a shared subtree each time it is reached; new block and index row, `from_json`/`check_rate_law` amended; the module intro's constant and function counts corrected (they predated `PARITY_TOL`/`parity_agrees` too). The figure draws the tree's two evaluators, not the cap: still true.
