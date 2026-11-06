@@ -40,7 +40,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from .dist import Seed
-from .ops import estimate_tokens
 from .types import AnswerObjective, OutcomeObjective, TaskInstance
 
 if TYPE_CHECKING:
@@ -75,6 +74,12 @@ DEFAULT_ACTION_COSTS: Mapping[str, float] = {
 #: turn-denominated for any agent, not only polite ones. Neutral worlds
 #: stay uncapped unless a cap is declared.
 DEFAULT_MAX_RATE: float = 100.0
+
+#: T091 AT1 — the most ``bury_commitment`` filler (estimated tokens) a brief
+#: may carry: 5x the largest burial in use (AUP's retention pilot, 20 000), and
+#: built in well under a second. The filler is drafted on ``--dry`` too, outside
+#: any evaluation clock, so an uncapped dial held it as long as the spec asked.
+MAX_BURY_COMMITMENT: int = 100_000
 
 
 #: Named monitoring-belief conditions (EXP-4's three arms): ``surfaced`` is the
@@ -152,17 +157,26 @@ def neutral_padding(n_tokens: int, seed: Seed) -> str:
     """
     if isinstance(n_tokens, bool) or not isinstance(n_tokens, int) or n_tokens <= 0:
         raise ValueError(f"neutral_padding: n_tokens must be a positive int, got {n_tokens!r}")
+    if n_tokens > MAX_BURY_COMMITMENT:
+        raise ValueError(
+            f"neutral_padding: n_tokens={n_tokens} exceeds the cap MAX_BURY_COMMITMENT={MAX_BURY_COMMITMENT}"
+        )
     rng = seed.rng()
     sentences: list[str] = []
-    text = ""
-    while estimate_tokens(text) < n_tokens:
+    # T091 AT1 — the joined length, kept as the loop runs: re-joining every
+    # sentence each pass made the padding quadratic in ``n_tokens``. The
+    # stop rule is unchanged: ``ops.estimate_tokens`` of the joined text,
+    # which is its length // 4.
+    joined = 0
+    while joined // 4 < n_tokens:
         subject = _PADDING_SUBJECTS[int(rng.integers(len(_PADDING_SUBJECTS)))]
         verb = _PADDING_VERBS[int(rng.integers(len(_PADDING_VERBS)))]
         obj = _PADDING_OBJECTS[int(rng.integers(len(_PADDING_OBJECTS)))]
         tail = _PADDING_TAILS[int(rng.integers(len(_PADDING_TAILS)))]
-        sentences.append(f"{subject.capitalize()} {verb} {obj} {tail}.")
-        text = " ".join(sentences)
-    return text
+        sentence = f"{subject.capitalize()} {verb} {obj} {tail}."
+        joined += len(sentence) + (1 if sentences else 0)
+        sentences.append(sentence)
+    return " ".join(sentences)
 
 
 def compose_briefing(base: str, framing: Any) -> str:
@@ -836,6 +850,11 @@ def build_brief(
         if isinstance(bury, bool) or not isinstance(bury, int) or bury < 0:
             raise ValueError(
                 f"build_brief: dials['bury_commitment'] must be a non-negative int (tokens; 0 = no burial), got {bury!r}"
+            )
+        if bury > MAX_BURY_COMMITMENT:
+            raise ValueError(
+                f"build_brief: dials['bury_commitment']={bury} exceeds its cap "
+                f"MAX_BURY_COMMITMENT={MAX_BURY_COMMITMENT} (estimated tokens of filler)"
             )
         if not has_constitution:
             raise ValueError(

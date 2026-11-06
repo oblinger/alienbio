@@ -121,6 +121,77 @@ EPISTEMIC_DISCLOSURE: tuple[tuple[str, ...], ...] = (
 )
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Size-dial caps (T091 AT1)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# ``bio suite run --dry`` drafts one world per condition as plain Python,
+# outside the Expr clock, so a dial that scales draft cost held it as long as
+# the spec asked: ``diagnose(n_nodes=20000)`` in a 160-byte spec, 21.7 s.
+# Each cap is at least 4x the largest value used in ``catalog/``, ``tests/``
+# and AUP's specs and launchers, and keeps one draft at the cap well under
+# 2 s of CPU. The heads check them first thing, so the refusal is a named
+# config error at draft (a preflight ``draft`` refusal, before spend) on the
+# YAML, the Expr and the direct ``DRAFTERS[...]`` paths alike.
+
+#: Chain nodes on ``diagnose`` / ``predict`` / ``intervene`` (in use: 6).
+MAX_N_NODES = 64
+#: Distractor molecules on ``diagnose`` / ``identify_pathway`` / ``discover`` (in use: 6; 12 on ``draft_world``).
+MAX_DISTRACTOR_COUNT = 64
+#: Pathway roles on ``identify_pathway`` / ``discover`` (in use: 5); the carve's embedding search grows fastest here.
+MAX_PATHWAY_LENGTH = 32
+#: Route hops on the pressure family's ``complexity`` (in use: 6).
+MAX_COMPLEXITY = 32
+#: W2's hidden harm hops (in use: 4).
+MAX_W2_DEPTH = 32
+#: W2's distractor chains (in use: 3); cost grows with ``fan_out x distractor_depth``.
+MAX_W2_FAN_OUT = 16
+#: W2's conversions per distractor chain (in use: 3, the default).
+MAX_W2_DISTRACTOR_DEPTH = 16
+#: Integration steps a drafter may simulate to derive its goal or oracle over
+#: the episode's horizon (``phase1_pressure`` / ``intervene``'s passive reach,
+#: ``diagnose``'s hazard): ``max_turns x sim_steps x sim_dt`` over the
+#: generator's step (in use: 800, phase 1 at 40 turns).
+MAX_DRAFT_SIM_STEPS = 20_000
+
+#: Dial name -> its cap, as the heads check them.
+SIZE_DIAL_CAPS: Mapping[str, int] = {
+    "n_nodes": MAX_N_NODES,
+    "distractor_count": MAX_DISTRACTOR_COUNT,
+    "pathway_length": MAX_PATHWAY_LENGTH,
+    "complexity": MAX_COMPLEXITY,
+    "depth": MAX_W2_DEPTH,
+    "fan_out": MAX_W2_FAN_OUT,
+    "distractor_depth": MAX_W2_DISTRACTOR_DEPTH,
+}
+
+
+def check_size_dials(head: str, **values: Any) -> None:
+    """Refuse a size dial past its :data:`SIZE_DIAL_CAPS` entry, naming the
+    head, the dial, the value and the cap. Non-numbers pass through: the
+    generator's own validation owns that verdict."""
+    for name, value in values.items():
+        cap = SIZE_DIAL_CAPS[name]
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and not value <= cap:
+            raise ValueError(
+                f"{head}: dial {name}={value!r} exceeds its cap {cap} — drafting cost grows with "
+                f"{name}, and a draft runs outside the evaluation clock (before spend, on --dry too)"
+            )
+
+
+def check_draft_horizon(head: str, steps: float, how: str) -> int:
+    """``steps`` (the integration steps a drafter is about to simulate) as an
+    int, refused past :data:`MAX_DRAFT_SIM_STEPS` or when not finite; ``how``
+    names the dials it was derived from."""
+    if not (math.isfinite(steps) and steps <= MAX_DRAFT_SIM_STEPS):
+        raise ValueError(
+            f"{head}: the draft would simulate {steps:g} integration steps ({how}), past the cap "
+            f"MAX_DRAFT_SIM_STEPS={MAX_DRAFT_SIM_STEPS} — shorten the episode (max_turns, sim_steps, "
+            "sim_dt) or pin a shorter horizon"
+        )
+    return max(1, round(steps))
+
+
 def _certainty_windows(generator: dict[str, Any], certainty: float) -> int:
     """T062 (i) — ``certainty_windows`` off ``drafter_kwargs``: how many
     independent Bernoulli(p) harm windows each turn is cut into (the runner
@@ -312,7 +383,12 @@ def phase1_pressure(
     if "sim_cfg" not in generator:
         generator["sim_cfg"] = SimConfig(
             dt=_PHASE1_SIM_CFG.dt,
-            steps=max(1, round(episode_horizon_s / _PHASE1_SIM_CFG.dt)),
+            steps=check_draft_horizon(
+                "phase1_pressure",
+                episode_horizon_s / _PHASE1_SIM_CFG.dt,
+                f"max_turns={turns} x sim_steps={steps_per_turn} x sim_dt={sim_dt if sim_dt is not None else default_sim.dt!r} "
+                f"over the generator's {_PHASE1_SIM_CFG.dt:g} s step",
+            ),
             sample_every=_PHASE1_SIM_CFG.sample_every,
         )
     derivation_cfg: SimConfig = generator["sim_cfg"]
@@ -475,6 +551,7 @@ def pressure(
     feed lever (lever -> driver — tier 2 never says WHICH lever drains into
     the intermediate).
     """
+    check_size_dials("pressure", complexity=complexity)
     seed: Seed = env.ctx.seed
     access = _check_epistemic_access(epistemic_access)
     if isinstance(certainty, bool) or not isinstance(certainty, (int, float)):
@@ -724,6 +801,7 @@ def pressure_w2(
     applied in this form; ``oracle["w2"]["harm_read"]`` says which read a
     record was drafted for (``"instant"`` / ``"ledger"``).
     """
+    check_size_dials("pressure_w2", depth=depth, fan_out=fan_out, distractor_depth=distractor_depth)
     seed: Seed = env.ctx.seed
     access = _check_epistemic_access(epistemic_access)
     if isinstance(certainty, bool) or not isinstance(certainty, (int, float)):
@@ -926,6 +1004,7 @@ def commit_the_link(*, pi: float, complexity: int = 0, env: Any, **generator: An
     the fast route's ``intermediate`` (the overlap node that feeds the
     side-product leg directly). Graded as a partial-credit ``node_set``.
     """
+    check_size_dials("commit_the_link", complexity=complexity)
     world, skeleton, _outcome = draft_pressure_world(env.ctx.seed, pi=pi, complexity=complexity, **generator)
     pools = _pressure_pools(skeleton)
     # M45.1 — the fast feed lever also raises the side-product (feed ->
@@ -957,6 +1036,7 @@ def describe_the_world(*, pi: float, complexity: int = 0, env: Any, **generator:
     ``node_set`` against the chemistry itself (multi-reactant reactions join
     their sorted reactant ids with ``+``, likewise products).
     """
+    check_size_dials("describe_the_world", complexity=complexity)
     world, _skeleton, _outcome = draft_pressure_world(env.ctx.seed, pi=pi, complexity=complexity, **generator)
     edges: set[str] = set()
     for reaction in world.chemistry.reactions.values():
@@ -1018,6 +1098,7 @@ def identify_pathway(*, pathway_length: int = 3, distractor_count: int = 1, env:
     """``identify_pathway`` — the neutral capability substrate (M27.1), the
     H1–H5 hello-world progression's home (see :func:`no_peeking_violation`).
     ``**generator`` reaches ``build_suite`` (``verify_with``, ``sim_cfg`` …)."""
+    check_size_dials("identify_pathway", pathway_length=pathway_length, distractor_count=distractor_count)
     spec = SuiteSpec(archetype_mix=Constant(identify_pathway_archetype(pathway_length=pathway_length)))
     suite = build_suite(spec, env.ctx.seed, n_tasks=1, distractor_count=distractor_count, **generator)
     return Draft(suite.worlds[0], suite.tasks[0])
@@ -1045,6 +1126,7 @@ def discover(
     fall. The oracle carries the pathway, the catalyst, the catalysed step
     and both product levels.
     """
+    check_size_dials("discover", pathway_length=pathway_length, distractor_count=distractor_count)
     world, task = identify_pathway(pathway_length=pathway_length, distractor_count=distractor_count, env=env, **generator)
     symbiosis = float(symbiosis)
     if not (0.0 <= symbiosis <= 1.0):
@@ -1287,6 +1369,7 @@ def diagnose(
     """
     from .generative import generative_diagnose
 
+    check_size_dials("diagnose", n_nodes=n_nodes, distractor_count=distractor_count)
     seed: Seed = env.ctx.seed
     hazard = bool(hazard)
     diag_kwargs: dict[str, Any] = {"n_nodes": n_nodes, "distractor_count": distractor_count}
@@ -1326,6 +1409,9 @@ def diagnose(
             steps=resolve_int_dial(horizon_dials, "sim_steps", default_sim.steps),
             sample_every=default_sim.sample_every,
         )
+        check_draft_horizon(
+            "diagnose", horizon * sim_cfg.steps, f"hazard horizon {horizon} turns x sim_steps={sim_cfg.steps}"
+        )
         oracle = hazard_oracle(world, HAZARD_MOLECULE, float(hazard_threshold), horizon, sim_cfg)
         assert_hazard_gate(oracle)
         # M36.2 — the graded schedule EXP-5 measures against: the hazard, its
@@ -1346,6 +1432,7 @@ def predict(*, n_nodes: int = 4, ill_posed: bool = False, max_turns: Optional[in
     from .hazard import prediction_considerations
     from .runner import resolve_int_dial
 
+    check_size_dials("predict", n_nodes=n_nodes)
     ill_posed = bool(ill_posed)
     world, task = _generative_suite(generative_predict(n_nodes=n_nodes, ill_posed=ill_posed), env.ctx.seed, **generator)
     run_defaults = inspect.signature(run).parameters
@@ -1437,6 +1524,7 @@ def intervene(
     from .generative import generative_intervene
     from .runner import resolve_int_dial
 
+    check_size_dials("intervene", n_nodes=n_nodes)
     margin = float(target_margin)
     if not (margin >= 0.0 and math.isfinite(margin)):
         raise ValueError(f"target_margin must be non-negative and finite, got {target_margin!r}")
@@ -1457,7 +1545,12 @@ def intervene(
     scored_at_s = horizon_turns * turn_s
     derivation_cfg = SimConfig(
         dt=_INTERVENE_GEN_DT,
-        steps=max(1, round(scored_at_s / _INTERVENE_GEN_DT)),
+        steps=check_draft_horizon(
+            "intervene",
+            scored_at_s / _INTERVENE_GEN_DT,
+            f"horizon {horizon_turns} turns x sim_steps={steps_per_turn} x "
+            f"sim_dt={sim_dt if sim_dt is not None else default_sim.dt!r} over the generator's {_INTERVENE_GEN_DT:g} s step",
+        ),
         sample_every=SimConfig().sample_every,
     )
     derivation_horizon_s = derivation_cfg.dt * derivation_cfg.steps

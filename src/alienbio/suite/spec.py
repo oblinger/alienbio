@@ -324,6 +324,14 @@ def _validate_agent_fields(spec: "ExperimentSpec") -> None:
             _validate_positive_int(name, value)
 
 
+#: T091 AT1 — the most conditions (the product of the axes' level counts)
+#: one spec may plan: over 4x AUP's largest grid (27, phase 2's cube). Every
+#: condition is drafted on ``--dry`` and by the run's preflight, as plain
+#: Python outside the evaluation clock; a 231-byte spec with a 1000-level
+#: axis held ``--dry`` past 60 s.
+MAX_CONDITIONS = 128
+
+
 #: "No earlier level" for :func:`_validate_axes` (a level may itself be ``None``).
 _NO_LEVEL = object()
 
@@ -342,7 +350,17 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...], refuse: Callab
     the report then raised after the whole grid was paid for.
 
     ``refuse`` takes the run-only rules (an empty axis, a repeated level);
-    a repeated axis name always raises."""
+    a repeated axis name always raises. A grid past :data:`MAX_CONDITIONS`
+    always raises too, before any level is compared."""
+    conditions = 1
+    for name, levels in axes:
+        conditions *= max(len(levels), 1)
+        if conditions > MAX_CONDITIONS:
+            sizes = {n: len(lv) for n, lv in axes}
+            raise ValueError(
+                f"experiment spec: the axes {sizes} plan more than {MAX_CONDITIONS} conditions "
+                f"(the cap MAX_CONDITIONS) — every condition is drafted before spend; split the grid"
+            )
     names: set[str] = set()
     for name, levels in axes:
         if name in names:
