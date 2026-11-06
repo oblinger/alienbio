@@ -3,7 +3,8 @@
 AX1: ``verify.sim_work`` counts what a simulator step does (each reaction's
 fan-in, fan-out, modulators and rate-law nodes in every compartment, the
 state copy, flows, population laws), and ``predict_q`` / ``verify`` charge
-both simulations they run.
+both simulations they run. AX3: a 0-d numpy size dial is capped. AX6: a
+mapping ``sim_cfg`` is a config refusal at preflight.
 """
 
 from __future__ import annotations
@@ -11,9 +12,14 @@ from __future__ import annotations
 import importlib
 import time
 
+import numpy as np
 import pytest
 
 from alienbio.expr import Env, ExprError, fn
+from alienbio.suite.dist import Seed
+from alienbio.suite.drafters import DRAFTERS, MAX_N_NODES
+from alienbio.suite.expr_experiment import load_experiment
+from alienbio.suite.guards import draft_violation
 
 V = importlib.import_module("alienbio.suite.verify")
 
@@ -119,3 +125,26 @@ def test_ax1_verify_charges_both_simulations_before_the_first_runs():
     with pytest.raises(ExprError, match="verify: 2 simulation"):
         _load(text)
     assert time.process_time() - t < 1.0 and not _PERTURBED
+
+
+def test_ax3_a_zero_d_numpy_size_dial_is_capped():
+    """A 0-d numpy array size dial is judged by its item; past the cap it refuses before the generator runs."""
+    t = time.process_time()
+    with pytest.raises(ValueError, match=f"exceeds its cap {MAX_N_NODES}"):
+        DRAFTERS["predict"](Seed(3), {"n_nodes": np.array(20000)})
+    assert time.process_time() - t < 1.0
+
+
+def test_ax6_a_mapping_sim_cfg_is_a_config_refusal_at_preflight():
+    """A plain mapping ``sim_cfg`` in ``drafter_kwargs`` refuses at preflight as a config error naming the head and ``!sim``."""
+    spec = load_experiment(
+        "<m>",
+        text=(
+            "!experiment\nname: m\ntask: !q predict()\n"
+            "drafter_kwargs:\n  sim_cfg: {dt: 0.1, steps: 10, sample_every: 5}\n"
+            "agent: idle\ntrials_per_condition: 1\nbase_seed: 3\n"
+        ),
+    )
+    reason = draft_violation(spec)
+    assert reason is not None and "drafts no world" in reason and "predict: sim_cfg must be a SimConfig" in reason
+    assert "!sim" in reason and "drafter fault" not in reason

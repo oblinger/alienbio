@@ -173,10 +173,15 @@ def check_size_dials(head: str, **values: Any) -> None:
     """Refuse a size dial past its :data:`SIZE_DIAL_CAPS` entry, naming the
     head, the dial, the value and the cap. Any real number is judged —
     numpy integers and floats too (T091 AV4: ``np.int64(20000)`` passed an
-    ``(int, float)`` test uncapped); a bool and a non-number pass through:
+    ``(int, float)`` test uncapped), and a 0-d numpy array by its item (T091
+    AX3); a bool and a non-number pass through:
     the generator's own validation owns that verdict."""
     for name, value in values.items():
         cap = SIZE_DIAL_CAPS[name]
+        if isinstance(value, np.ndarray) and value.ndim == 0:
+            # A 0-d array is a scalar the generators accept through
+            # ``__index__``, but not a ``numbers.Real`` (T091 AX3).
+            value = value.item()
         if isinstance(value, numbers.Real) and not isinstance(value, (bool, np.bool_)) and not value <= cap:
             raise ValueError(
                 f"{head}: dial {name}={value!r} exceeds its cap {cap} — drafting cost grows with "
@@ -204,12 +209,17 @@ def check_generator_sim_cfg(head: str, generator: Mapping[str, Any]) -> None:
     head derives (T091 AV2: a ``drafter_kwargs`` ``!sim`` of 2 000 000 steps
     held ``--dry`` for 15-75 s of CPU before any refusal). One rule for every
     caller: a ``SimConfig`` past :data:`MAX_DRAFT_SIM_STEPS` refuses, and a
-    non-``SimConfig`` refuses by type."""
+    non-``SimConfig`` (a plain mapping in ``drafter_kwargs``) refuses as a
+    config error — a ``ValueError``, which the preflight ``draft`` check
+    reads as a config refusal, not a drafter fault (T091 AX6)."""
     if "sim_cfg" not in generator:
         return
     cfg = generator["sim_cfg"]
     if not isinstance(cfg, SimConfig):
-        raise TypeError(f"{head}: sim_cfg must be a SimConfig (`!sim {{dt, steps, sample_every}}`), got {type(cfg).__name__}")
+        raise ValueError(
+            f"{head}: sim_cfg must be a SimConfig, got {type(cfg).__name__} — build it with "
+            "`!sim {dt, steps, sample_every}`"
+        )
     check_draft_horizon(head, cfg.steps, f"sim_cfg steps={cfg.steps}")
 
 

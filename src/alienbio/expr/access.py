@@ -59,6 +59,15 @@ What a spec's own included helpers define is the helper author's code, and
 is trusted as such: a helper can import ``subprocess`` itself. The rule
 keeps a YAML-only trusted spec — no helper — from reaching side effects, and
 keeps a helper's imports from leaking through it by reference.
+
+**Where the boundary sits** (T091 AX2). The guard stops a YAML author
+reaching foreign code the helper author wrote no code for: a name in the
+helper's namespace, a value a helper returns, a value called and its
+``__call__`` chain. A helper author who wires a foreign function into their
+own class's other protocol hooks — subscript (``__getitem__``),
+``__class_getitem__``, an operator dunder, an Enum's ``_missing_``, a
+constructor inherited from a foreign base — has written that code, the same
+as a ``def`` that calls it, and it runs as helper code.
 """
 
 from __future__ import annotations
@@ -255,10 +264,17 @@ MAX_CALL_DEPTH = 8
 #: What calling a class runs when its metaclass adds nothing.
 _TYPE_CALL = inspect.getattr_static(type, "__call__")
 
-#: The stdlib enum metaclass's ``__call__`` (``E(1)`` looks a member up by
-#: value): allowed on a helper's own ``Enum`` / ``IntEnum`` / ``Flag`` class,
-#: whose members it returns and nothing else (T091 AV1).
+#: The stdlib enum metaclass's ``__call__``: allowed on a helper's own
+#: ``Enum`` / ``IntEnum`` / ``Flag`` class (T091 AV1). ``E(1)`` looks a member
+#: up by value. The functional API (``Base('X', 'a b')``) instead builds a new
+#: enum class, which is refused on return unless its module is allowed code,
+#: and whose members :func:`check_returned` refuses (T091 AX4).
 ENUM_METACLASS_CALL = inspect.getattr_static(enum.EnumType, "__call__")
+
+#: What :func:`_call_target` returns when a ``__call__`` on the chain is a
+#: property or another non-callable descriptor — neither a function nor a
+#: callable instance, so there is no code to judge (T091 AX5).
+DESCRIPTOR_CALL = object()
 
 
 def _call_target(obj: Any) -> Any:
@@ -269,8 +285,9 @@ def _call_target(obj: Any) -> Any:
     followed again while it is itself a callable instance (T091 AT3:
     ``Outer.__call__ = Inner()`` reached ``os.getcwd`` one level down).
     ``None`` when the chain does not reach a function, a builtin or a class
-    within :data:`MAX_CALL_DEPTH` ``__call__`` levels — such a callable is
-    refused."""
+    within :data:`MAX_CALL_DEPTH` ``__call__`` levels, and
+    :data:`DESCRIPTOR_CALL` when a ``__call__`` on it is a property or other
+    non-callable descriptor — either is refused."""
     target = _unwrap(obj)
     for _ in range(MAX_CALL_DEPTH + 1):  # the last pass only tests the eighth level's target
         if target is None or isinstance(target, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType)):
@@ -278,6 +295,8 @@ def _call_target(obj: Any) -> Any:
         call = inspect.getattr_static(type(target), "__call__", None)
         if isinstance(call, (staticmethod, classmethod)):
             call = call.__func__
+        if isinstance(call, property) or (call is not None and not callable(call)):
+            return DESCRIPTOR_CALL
         target = _unwrap(call)
     return None
 
@@ -290,6 +309,8 @@ def _code_refusal(target: Any) -> Optional[str]:
 
     if target is None:
         return f"its __call__ chain does not reach a function within MAX_CALL_DEPTH={MAX_CALL_DEPTH} levels"
+    if target is DESCRIPTOR_CALL:
+        return "its __call__ is a property or other descriptor, not a function or a callable instance"
     module = _owner(target)
     if module is not None and (
         module.startswith(INCLUDE_MODULE_PREFIX) or (_in_module(module, "alienbio") and allowed_framework_code(target))
@@ -321,6 +342,8 @@ def _metaclass_refusal(cls: type, depth: int) -> Optional[str]:
     reason = callable_code_refusal(target, _depth=depth + 1) if isinstance(target, type) else _code_refusal(target)
     if reason is None:
         return None
+    if target is DESCRIPTOR_CALL:
+        return f"its metaclass {meta.__qualname__}.__call__ is a property or other descriptor, not a function or a callable instance"
     module = _owner(target) if target is not None else None
     return f"its metaclass {meta.__qualname__}.__call__ runs code from {module!r}, outside the spec's helpers and the allowed framework code"
 

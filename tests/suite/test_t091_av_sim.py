@@ -62,8 +62,8 @@ def test_a_python_callers_sim_cfg_is_held_to_the_draft_horizon(drafter, dials):
 
 
 def test_a_sim_cfg_that_is_not_a_simconfig_refuses_by_type():
-    """A mapping in place of a ``SimConfig`` refuses by type, naming the head."""
-    with pytest.raises(TypeError, match="pressure: sim_cfg must be a SimConfig"):
+    """A mapping in place of a ``SimConfig`` refuses as a config error, naming the head (T091 AX6)."""
+    with pytest.raises(ValueError, match="pressure: sim_cfg must be a SimConfig"):
         DRAFTERS["pressure"](SEED, {"pi": 0.5}, sim_cfg={"steps": 10})
 
 
