@@ -66,11 +66,19 @@ class SimConfig:
 #: CPU each (T091 BA: the AY count charged every term one unit, and the terms
 #: cost from 0.06 µs — a pool copied — to 137 µs — a death law whose carry
 #: walks every molecule). Each weight is the measured CPU of one term
-#: divided by the unit; over 20 shapes the fitted cost is 0.025-0.071 µs per
-#: unit:
+#: divided by the unit; over 33 shapes (T091 BA's twenty and BC's thirteen)
+#: the fitted cost is 0.025-0.08 µs per unit:
 #:
 #: - ``W_MOLECULE`` — one pool in one compartment: the state copy and the
-#:   subnormal flush (0.06 µs).
+#:   subnormal flush (0.05 µs).
+#: - ``W_COMPARTMENT_STEP`` — one compartment, every step, whatever the
+#:   chemistry holds: the simulator's per-compartment loop and the
+#:   multiplicity, volume and id lists ``WorldStateImpl.copy`` copies (0.07
+#:   µs; T091 BC: a world of 20 000 empty compartments counted 1 unit a step
+#:   and cost 1.4 ms). A sample (``sample_every``) copies the state once more;
+#:   that copy is never dearer than the step's own, so it is not charged
+#:   apart (one molecule x 20 000 compartments sampled every step reads 0.05
+#:   µs per unit).
 #: - ``W_COMPARTMENT`` — the reaction pass's setup in one compartment (the
 #:   active-reaction list and the rationing dicts, 1.2 µs); charged only when
 #:   the chemistry has reactions, as ``WorldSimulatorImpl.step`` skips the
@@ -92,7 +100,14 @@ class SimConfig:
 #:   content (a death that releases, a growth that draws, a count flow):
 #:   ``apply_population_laws`` then walks every molecule for every carry
 #:   (0.26-0.47 µs per molecule).
+#: - ``W_POPULATION_KEY`` — one molecule of a compartment that count flows
+#:   carry movers INTO from elsewhere: ``apply_population_laws`` accounts
+#:   every molecule of every such destination — reads it, snaps it and
+#:   writes it back (1.3 µs a key; T091 BC: 40 flows from one origin into 40
+#:   destinations x 5 000 molecules cost 0.2 µs per unit without it). Charged
+#:   once per distinct destination, however many flows reach it.
 W_MOLECULE = 1
+W_COMPARTMENT_STEP = 2
 W_COMPARTMENT = 24
 W_REACTION_TERM = 13
 W_MODULATOR = 6
@@ -101,6 +116,7 @@ W_FLOW = 14
 W_FLOW_SPECIES = 20
 W_POPULATION_LAW = 44
 W_POPULATION_CARRY = 7
+W_POPULATION_KEY = 30
 
 #: Integration work a spec-built world may cost inside an Expr head
 #: (``verify``, ``predict_q``), summed over every simulation the head runs
@@ -157,7 +173,9 @@ def work_terms(world: WorldImpl) -> list[tuple[str, int, int]]:
     flows = list(world.flow_objs)
     laws = list(world.population_law_objs)
     carries = len(laws) * molecules if any(_moves_content(law) for law in laws) else 0
+    destinations = {law.dest for law in laws if isinstance(law, CountFlow) and law.dest != law.origin}
     return [
+        ("compartments", compartments, W_COMPARTMENT_STEP),
         ("molecules x compartments", molecules * compartments, W_MOLECULE),
         ("compartments with a reaction pass", compartments if chem.reactions else 0, W_COMPARTMENT),
         ("reaction terms (one, each reactant, each product) x compartments", reaction_terms * compartments, W_REACTION_TERM),
@@ -167,6 +185,7 @@ def work_terms(world: WorldImpl) -> list[tuple[str, int, int]]:
         ("flow species", sum(len(f.stoichiometry) for f in flows if isinstance(f, TransportFlux)), W_FLOW_SPECIES),
         ("population laws", len(laws), W_POPULATION_LAW),
         ("population carries (laws x molecules)", carries, W_POPULATION_CARRY),
+        ("count-flow destination keys (destinations x molecules)", len(destinations) * molecules, W_POPULATION_KEY),
     ]
 
 

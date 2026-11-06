@@ -85,7 +85,7 @@ w: !World {chemistry: !x chem, compartments: [!Compartment {id: p, volume: 1.0},
     # r0: 1 + 2 + 1 terms, 1 modulator; r1: 1 + 1 + 2 terms, 3 law nodes; molecules 4; three compartments
     assert V.step_work(w) == (
         (4 + 4) * 3 * V.W_REACTION_TERM + 1 * 3 * V.W_MODULATOR + 3 * 3 * V.W_RATE_LAW_NODE
-        + 4 * 3 * V.W_MOLECULE + 3 * V.W_COMPARTMENT
+        + 4 * 3 * V.W_MOLECULE + 3 * V.W_COMPARTMENT + 3 * V.W_COMPARTMENT_STEP
     )
     assert V.sim_work(w, V.SimConfig(steps=10)) == 10 * V.step_work(w)
 
