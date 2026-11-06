@@ -42,7 +42,7 @@ Layer 3. Hand-built tasks: a pattern carved into a host, an objective over it, a
     `DiagnosePerturbationRecipe`. ^diagnose-q
 
 **predict_q**`(world, reaction_id, target_id, skeleton=None, factor=…, sim=None, verb="predict")`
-    `PredictResponseRecipe`: up, down or same by re-simulation under the node's seed. Refuses first when `check_sim_work` finds the world under `sim` (default `SimConfig()`) past `MAX_EXPR_SIM_WORK` ([ABIO Verify](ABIO%20Verify.md); `1c098be`, T091 AW: 3 000 reactions under a 20 000-step `!sim` held a load past 15 s). ^predict-q
+    `PredictResponseRecipe`: up, down or same by re-simulation under the node's seed. Refuses first when `check_sim_work` finds the summed work of its two simulations — the world and its rate-perturbed copy, the same size, under `sim` (default `SimConfig()`) — past `MAX_EXPR_SIM_WORK` ([ABIO Verify](ABIO%20Verify.md); `1c098be`, T091 AW; `d907f16`, T091 AY: before it the count left out compartments and fan-in, and a 575-byte spec held a load 72 s). ^predict-q
 
 **intervene_q**`(world, target_value, skeleton=None, binding=None, role=…, verb="intervene")`
     `DesignInterventionRecipe`, outcome-scored. ^intervene-q
@@ -180,3 +180,4 @@ The experiment head and the front end.
 - 2026-11-05 — refreshed for `88a1cf6` (T091 AR1): the nested-`!experiment` placement walk visits each distinct container once (a visited set), so an alias bomb under the document form refuses at the node cap instead of spinning. Figure still true.
 - 2026-11-05 — refreshed for `baf9fb9` (T091 AT5): `load_experiment`'s pre-pass renders each top-level key once, and an unrenderable key (an int past 4 300 digits) is an `ExprError` naming the file. Figure still true.
 - 2026-11-06 — refreshed for `1c098be` (T091 AW): `cover` refuses past `MAX_COVER_ITEMS` (32) items or `MAX_COVER_FEATURES` (1 024) summed features (new blocks); `predict_q` checks `MAX_EXPR_SIM_WORK` before it simulates. The figure names the heads, not their caps: still true.
+- 2026-11-06 — refreshed for `d907f16` (T091 AY, after verifier AX1): `predict_q` charges both of its simulations, `(world, world)`, against `MAX_EXPR_SIM_WORK` (now 4 000 000). The figure names the heads, not their caps: still true.
