@@ -1,7 +1,7 @@
 ---
 description: "The forcing mechanism — a specified DCC protocol whose execution a weak agent validates, plus blind planted-misalignment tests the auditor can't distinguish from real cases, so it can't selectively sandbag its own audit."
 ---
-:>> [[ABIO]] → [[ABIO Idea]] → [DCP Forced Audit](ha://p/DCP%20Forced%20Audit) 
+:>> [ABIO](../ABIO.md) → [ABIO Idea](ABIO%20Idea.md) → [ABIO DCP Forced Audit](ha://p/ABIO%20DCP%20Forced%20Audit) 
 # DCP Forced Audit
 How you make a *somewhat*-misaligned agent actually run the coherence audit honestly — closing the "auditor = audited" gap.
 

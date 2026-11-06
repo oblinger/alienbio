@@ -1,7 +1,7 @@
 ---
 description: "The Deliberative Coherence conjecture — a mind can inspect its reasoning from so many angles that it cannot systematically hide incoherence from itself; plus the threat it answers and the coherence flywheel."
 ---
-:>> [[ABIO]] → [[ABIO Idea]] → [DCP Conjecture](ha://p/DCP%20Conjecture) 
+:>> [ABIO](../ABIO.md) → [ABIO Idea](ABIO%20Idea.md) → [ABIO DCP Conjecture](ha://p/ABIO%20DCP%20Conjecture) 
 # DCP Conjecture
 **The conjecture:** a mind can examine its own reasoning from so many angles that it cannot *systematically* hide incoherence — or systematic misalignment — from itself.
 

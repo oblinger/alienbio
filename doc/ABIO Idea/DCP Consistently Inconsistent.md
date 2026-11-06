@@ -1,7 +1,7 @@
 ---
 description: "The response to 'coherence ≠ alignment' — it is exceedingly hard to be *consistently inconsistent*: a misalignment can't survive repeated, context-lifted self-analysis. Stronger than external CoT monitoring."
 ---
-:>> [[ABIO]] → [[ABIO Idea]] → [DCP Consistently Inconsistent](ha://p/DCP%20Consistently%20Inconsistent) 
+:>> [ABIO](../ABIO.md) → [ABIO Idea](ABIO%20Idea.md) → [ABIO DCP Consistently Inconsistent](ha://p/ABIO%20DCP%20Consistently%20Inconsistent) 
 # DCP Consistently Inconsistent
 **The conjecture:** it is exceedingly difficult to be *consistently inconsistent* — to hold a systematic inconsistency (a misalignment) and yet, no matter how you re-analyze your own reasoning, always explain it away so consistently that you're never alerted to it.
 

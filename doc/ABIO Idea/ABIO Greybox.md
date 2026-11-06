@@ -1,7 +1,7 @@
 ---
 description: "The grey-box programmed model organism — a *built* (not trained) schemer with a hidden reasoning layer and a visible, unfaithful-by-assumption CoT; the hidden↔shown delta is where misalignment hides, and it's a knob."
 ---
-:>> [[ABIO]] → [[ABIO Idea]] → [ABIO Greybox](ha://p/ABIO%20Greybox) 
+:>> [ABIO](../ABIO.md) → [ABIO Idea](ABIO%20Idea.md) → [ABIO Greybox](ha://p/ABIO%20Greybox) 
 # ABIO Greybox
 The reusable model-organism primitive behind [[ABIO AI-Control]]: a *built*, not trained, schemer whose misalignment is a controllable knob rather than a training accident.
 

@@ -1,7 +1,7 @@
 ---
 description: "the control-testbed idea — gray-box organism, protocol setup, knobs, evasion channels"
 ---
-:>> [[ABIO]] → [[ABIO Idea]] → [ABIO AI-Control](ha://p/ABIO%20AI-Control) 
+:>> [ABIO](../ABIO.md) → [ABIO Idea](ABIO%20Idea.md) → [ABIO AI-Control](ha://p/ABIO%20AI-Control) 
 # ABIO AI-Control
 *The idea: use Alien Biology as a non-programming arena to study AI Control and **Control Protocols**.*
 
