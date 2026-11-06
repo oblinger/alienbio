@@ -301,6 +301,18 @@ def sweep_conflict_frontier(
     return tuple(build(Constant(kA), Constant(kB)).oracle(seed, sim_cfg) for kA, kB in points)
 
 
+#: The expected insult count ``lam x horizon`` a :class:`PoissonSchedule` may
+#: draw (in use: 10, the tests' 0.5 x 20; the catalog's stochastic example
+#: 8). The draw is one uninterruptible loop at ``realize``: ``lam = horizon =
+#: 1e9`` held a load past 24 s of CPU (T091 AW).
+MAX_POISSON_EVENTS = 1000
+
+#: Cells a :class:`SpatialLatticeBlock` may hold (in use: 4, the organism
+#: example and the tests). Building the chain is one uninterruptible call:
+#: ``k = 2 000 000`` held a load past 25 s of CPU (T091 AW).
+MAX_LATTICE_CELLS = 256
+
+
 @dataclass(frozen=True)
 class PoissonSchedule:
     """Q3 opt-in arm: a Poisson process (rate ``lam``) over ``[0, horizon]``.
@@ -319,6 +331,11 @@ class PoissonSchedule:
             raise SkeletonError(f"PoissonSchedule lam must be a positive finite rate, got {self.lam!r}")
         if not (isinstance(self.horizon, (int, float)) and math.isfinite(self.horizon) and self.horizon >= 0):
             raise SkeletonError(f"PoissonSchedule horizon must be a finite number >= 0, got {self.horizon!r}")
+        if self.lam * self.horizon > MAX_POISSON_EVENTS:
+            raise SkeletonError(
+                f"PoissonSchedule lam x horizon = {self.lam * self.horizon:g} expected insults exceeds the cap "
+                f"MAX_POISSON_EVENTS={MAX_POISSON_EVENTS} (lam={self.lam!r}, horizon={self.horizon!r})"
+            )
 
 
 def _draw_poisson_times(seed: Seed, schedule: PoissonSchedule) -> tuple[float, ...]:
@@ -764,6 +781,8 @@ class SpatialLatticeBlock(SkeletonBlock):
         # at realize (T088 blocks 3).
         if not isinstance(self.k, int) or isinstance(self.k, bool) or self.k < 2:
             raise SkeletonError(f"SpatialLatticeBlock requires k >= 2, got {self.k!r}")
+        if self.k > MAX_LATTICE_CELLS:
+            raise SkeletonError(f"SpatialLatticeBlock k={self.k} exceeds the cap MAX_LATTICE_CELLS={MAX_LATTICE_CELLS}")
         bad = sorted(
             (i for i in self.initial if not isinstance(i, int) or isinstance(i, bool) or not 0 <= i < self.k), key=repr
         )

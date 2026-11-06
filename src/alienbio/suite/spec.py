@@ -380,18 +380,26 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...], refuse: Callab
         # and two dict levels differing only in key order ran as two cells
         # and were pooled into one with ``n`` doubled.
         # Looked up by hash (equal frozen values hash equal: ``1`` / ``1.0`` /
-        # ``True`` are one key), so a long axis is checked in linear time; a
-        # frozen value that cannot be hashed falls back to comparison.
-        frozen_seen: dict[Any, Any] = {}
-        unhashable: list[tuple[Any, Any]] = []
-        for level in levels:
+        # ``True`` are one key), so a long axis of hashable levels is checked
+        # in linear time. A frozen value that cannot be hashed is compared
+        # against every prior level, hashed or not, and a hashed one against
+        # the unhashable priors too (T091 AV5: ``{1}`` / ``frozenset({1})``
+        # are one level) — the earliest equal prior is the twin, as the list
+        # scan it replaces read it.
+        frozen_seen: dict[Any, tuple[int, Any]] = {}
+        unhashable: list[tuple[int, Any, Any]] = []
+        for index, level in enumerate(levels):
             frozen = frozen_value(level, nan_equal=True)
+            twins: list[tuple[int, Any]] = [(i, prior) for i, prior, f in unhashable if f == frozen]
             try:
-                twin = frozen_seen.get(frozen, _NO_LEVEL)
+                hit = frozen_seen.get(frozen)
                 hashable = True
             except TypeError:
-                twin = next((prior for prior, f in unhashable if f == frozen), _NO_LEVEL)
+                hit = min(((i, prior) for f, (i, prior) in frozen_seen.items() if f == frozen), default=None, key=lambda t: t[0])
                 hashable = False
+            if hit is not None:
+                twins.append(hit)
+            twin = min(twins, key=lambda t: t[0])[1] if twins else _NO_LEVEL
             if twin is not _NO_LEVEL:
                 same = repr(twin) == repr(level)
                 refuse(
@@ -402,9 +410,9 @@ def _validate_axes(axes: tuple[tuple[str, tuple[Any, ...]], ...], refuse: Callab
                 )
                 continue
             if hashable:
-                frozen_seen[frozen] = level
+                frozen_seen[frozen] = (index, level)
             else:
-                unhashable.append((level, frozen))
+                unhashable.append((index, level, frozen))
 
 
 def _with_idle_arm(

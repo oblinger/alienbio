@@ -27,7 +27,7 @@ from __future__ import annotations
 import math
 import numbers
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 
@@ -58,6 +58,47 @@ class SimConfig:
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, numbers.Integral) or value < 1:
                 raise ValueError(f"SimConfig.{name} must be a positive int, got {value!r}")
+
+
+#: Integration work a spec-built world may cost one simulation inside an
+#: Expr head (``verify``, ``predict_q``): ``steps x (reactions + molecules x
+#: compartments + flows + population laws)``. Measured at ~1.2 us of CPU per
+#: unit (a chain world and a 256-cell lattice alike), so the cap is ~2.5 s
+#: per simulation; largest in use 2 800 (the kinetics example's
+#: ``predict_q``: 80 steps x 35; the catalog and ``tests/expr`` surveyed). A simulation runs outside the evaluation clock: a 486-byte
+#: spec building 3 000 reactions by comprehension under a 20 000-step
+#: ``!sim`` held a load past 15 s of CPU (T091 AW).
+MAX_EXPR_SIM_WORK = 2_000_000
+
+
+def sim_work(world: WorldImpl, cfg: SimConfig) -> int:
+    """The integration work :data:`MAX_EXPR_SIM_WORK` bounds."""
+    chem = world.chemistry
+    per_step = (
+        len(chem.reactions)
+        + len(chem.molecules) * max(1, len(world.compartments))
+        + len(world.flows)
+        + len(world.population_laws)
+    )
+    return int(cfg.steps) * max(1, per_step)
+
+
+def check_sim_work(head: str, world: Any, cfg: Any) -> None:
+    """Refuse a simulation of ``world`` under ``cfg`` past
+    :data:`MAX_EXPR_SIM_WORK`, naming the head, the work, its factors and
+    the cap. Anything that is not a world and a ``SimConfig`` passes: the
+    simulator's own validation owns that verdict."""
+    if not (isinstance(world, WorldImpl) and isinstance(cfg, SimConfig)):
+        return
+    work = sim_work(world, cfg)
+    if work > MAX_EXPR_SIM_WORK:
+        chem = world.chemistry
+        raise ValueError(
+            f"{head}: the simulation would cost {work} units (steps={cfg.steps} x ({len(chem.reactions)} reactions + "
+            f"{len(chem.molecules)} molecules x {len(world.compartments)} compartments + {len(world.flows)} flows + "
+            f"{len(world.population_laws)} population laws)), past the cap MAX_EXPR_SIM_WORK={MAX_EXPR_SIM_WORK} — "
+            "a simulation runs outside the evaluation clock; use fewer steps (a larger dt) or a smaller world"
+        )
 
 
 @dataclass(frozen=True)

@@ -75,6 +75,17 @@ _MODIFIER_RELATIONS = frozenset(
 #: hold them all, and a long motif in a large host has combinatorially many.
 MAX_EMBEDDINGS = 10_000
 
+#: The most candidate bindings :func:`carve`'s backtracking tries, over every
+#: pass, before it refuses (T091 AW). The embedding cap bounds what the search
+#: keeps, not what it explores: a motif whose one edge joins its first and
+#: last role is checked only at the last, so a 6-role pattern over a
+#: 60-molecule host with no reactions explored ~60^5 dead branches, past 28 s
+#: of CPU in one uninterruptible call. ~0.45 us per try. Largest in use:
+#: 56 832 for an embedding found (``discover`` at its 32-role cap); the two
+#: refusal tests that reach :data:`MAX_EMBEDDINGS` (T091 AF4, AM1) try 1.7 M
+#: and 1.5 M first, so the cap sits 4x above those.
+MAX_CARVE_VISITS = 8_000_000
+
 
 #: The two ``type_tag`` values carve reads as a constraint (T091 AM4): a role
 #: tagged ``molecule`` binds only to a host molecule, ``reaction`` only to a
@@ -199,6 +210,11 @@ def carve(
     class _TooMany(Exception):
         pass
 
+    class _TooLong(Exception):
+        pass
+
+    visits = [0]  # candidate bindings tried, across every pass
+
     # ``_edge_holds`` rebuilds the host's graph view per call; the search asks
     # the same few (src, dst, relation) questions many times over.
     holds: dict[tuple[NodeId, NodeId, str], bool] = {}
@@ -261,6 +277,9 @@ def carve(
             return
         name = role_names[i]
         for nid in cands[name]:
+            visits[0] += 1
+            if visits[0] > MAX_CARVE_VISITS:
+                raise _TooLong
             if nid in used:
                 continue
             if edge_ok(name, nid, False, assigned):
@@ -289,6 +308,15 @@ def carve(
                 break
             best[0] = len(role_names) - k
             backtrack(0, {}, set(), 0, True)
+    except _TooLong:
+        return CarveFail(
+            reason=(
+                f"the embedding search of a {len(role_names)}-role motif in a host of {len(node_objs)} nodes "
+                f"({len(host.molecules)} molecules, {len(host.reactions)} reactions) passed the cap "
+                f"MAX_CARVE_VISITS={MAX_CARVE_VISITS} candidate bindings tried; refusing rather than searching on — "
+                "order the roles so each edge binds early, narrow the role constraints or shrink the host"
+            )
+        )
     except _TooMany:
         return CarveFail(
             reason=(

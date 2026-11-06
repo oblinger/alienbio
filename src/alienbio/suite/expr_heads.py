@@ -55,7 +55,7 @@ from ..bio.reaction import ReactionImpl
 from ..infra.mk import mk
 from .skeleton import Fragment, Provenance
 from .skeleton import PoolBinding, Port, PortDir, Role, Skeleton, SkeletonBlock
-from .verify import SimConfig, simulate
+from .verify import SimConfig, check_sim_work, simulate
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -361,7 +361,21 @@ def world(skeleton: Skeleton, initial: Optional[Mapping[str, float]] = None, con
 
 @fn(summary="integration parameters")
 def sim(dt: float = 0.1, steps: int = 200, sample_every: int = 10) -> SimConfig:
-    return SimConfig(dt=float(dt), steps=int(steps), sample_every=int(sample_every))
+    """A :class:`SimConfig`. ``steps`` is capped at
+    :data:`~alienbio.suite.drafters.MAX_DRAFT_SIM_STEPS` (20 000; largest in
+    use 2 000, a drafter's ``sim_cfg`` in the tests; the catalog's ``!sim``
+    use 80): a simulation is one uninterruptible operation, so a 4 000 000
+    step ``!sim`` under ``predict_q`` ran 29 s of CPU before the evaluation
+    clock could refuse it (T091 AV3)."""
+    from .drafters import MAX_DRAFT_SIM_STEPS
+
+    n = int(steps)
+    if n > MAX_DRAFT_SIM_STEPS:
+        raise ValueError(
+            f"sim: steps={n} exceeds the cap MAX_DRAFT_SIM_STEPS={MAX_DRAFT_SIM_STEPS} — a simulation runs "
+            "outside the evaluation clock; use a larger dt for a longer horizon"
+        )
+    return SimConfig(dt=float(dt), steps=n, sample_every=int(sample_every))
 
 
 def _callable(value: Any, what: str, env: Env) -> Callable[..., Any]:
@@ -393,8 +407,11 @@ def verify(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
         # expr_heads 1, the expr/interp 1 shape). The seeds are unchanged.
         attempt_env = env.with_seed(env.ctx.seed.child(f"attempt{attempt}"))
         w = evaluate(world_form, attempt_env)
+        check_sim_work("verify", w, cfg)
         baseline = simulate(w, cfg, attempt_env.ctx.seed.child("base"))
-        perturbed = simulate(perturb(w), cfg, attempt_env.ctx.seed.child("pert"))
+        w_pert = perturb(w)
+        check_sim_work("verify", w_pert, cfg)
+        perturbed = simulate(w_pert, cfg, attempt_env.ctx.seed.child("pert"))
         if valid(baseline, perturbed):
             return w
     raise env.error(f"verify: no world passed the validity predicate in {max_redraws + 1} attempts")
@@ -413,42 +430,62 @@ def _dist_kwargs(kwargs: Mapping[str, Any], env: Env) -> dict[str, Any]:
     return out
 
 
+def _check_world_kwargs(head: str, kwargs: Mapping[str, Any]) -> None:
+    """The world heads hand their keywords straight to the generator, so the
+    drafter heads' caps apply here too (T091 AW): a size dial past its
+    :data:`~alienbio.suite.drafters.SIZE_DIAL_CAPS` entry
+    (``prediction_world(n_nodes=2000000)`` held a load 34 s of CPU,
+    ``pressure_world(complexity=5000)`` 19 s, one uninterruptible call each)
+    and a ``sim_cfg`` past ``MAX_DRAFT_SIM_STEPS`` refuse before the
+    generator runs."""
+    from .drafters import SIZE_DIAL_CAPS, check_generator_sim_cfg, check_size_dials
+
+    check_size_dials(head, **{k: v for k, v in kwargs.items() if k in SIZE_DIAL_CAPS})
+    check_generator_sim_cfg(head, kwargs)
+
+
 # The world heads carry no guard metadata (T088 expr_heads 2: their
 # `guarded_params` were read by nothing — `guarded_dials()` reads drafter
 # heads only). An agent reaches a world only through a drafter, and the
 # drafters' guards are the ones the no-peeking pre-flight enforces.
 @fn(summary="EXP-2 pressure world: {world, skeleton, objective}")
 def pressure_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
+    _check_world_kwargs("pressure_world", kwargs)
     w, sk, obj = draft_pressure_world(env.ctx.seed, **_dist_kwargs(kwargs, env))
     return {"world": w, "skeleton": sk, "objective": obj}
 
 
 @fn(summary="conflict-ladder world: {world, skeleton, objective}")
 def conflict_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
+    _check_world_kwargs("conflict_world", kwargs)
     w, sk, obj = draft_conflict_world(env.ctx.seed, **_dist_kwargs(kwargs, env))
     return {"world": w, "skeleton": sk, "objective": obj}
 
 
 @fn(summary="delta matched pair: [{world, skeleton, objective} match, ... mismatch]")
 def delta_pair(*, env: Env, **kwargs: Any) -> list[dict[str, Any]]:
+    _check_world_kwargs("delta_pair", kwargs)
     pair = draft_delta_pair(env.ctx.seed, **_dist_kwargs(kwargs, env))
     return [{"world": w, "skeleton": sk, "objective": obj} for (w, sk, obj) in pair]
 
 
 @fn(summary="diagnosis world: {world, skeleton}")
 def diagnosis_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
+    _check_world_kwargs("diagnosis_world", kwargs)
     w, carve = draft_diagnosis_world(env.ctx.seed, **kwargs)
     return {"world": w, "skeleton": carve}
 
 
 @fn(summary="prediction world: {world, skeleton, reaction_id}")
 def prediction_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
+    _check_world_kwargs("prediction_world", kwargs)
     w, carve, rid = draft_prediction_world(env.ctx.seed, **kwargs)
     return {"world": w, "skeleton": carve, "reaction_id": rid}
 
 
 @fn(summary="intervention world: {world, skeleton, target: {molecule, value}}")
 def intervention_world(*, env: Env, **kwargs: Any) -> dict[str, Any]:
+    _check_world_kwargs("intervention_world", kwargs)
     w, carve, (mol, value) = draft_intervention_world(env.ctx.seed, **kwargs)
     return {"world": w, "skeleton": carve, "target": {"molecule": mol, "value": value}}
 

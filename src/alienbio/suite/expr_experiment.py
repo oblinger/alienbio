@@ -84,7 +84,7 @@ from .types import (
     TaskArchetype,
     TaskInstance,
 )
-from .verify import SimConfig
+from .verify import SimConfig, check_sim_work
 from .vocab import build_vocabulary
 
 # ---------------------------------------------------------------------------
@@ -219,6 +219,7 @@ def predict_q(
     env: Env,
 ) -> dict[str, Any]:
     skeleton = _skeleton_or_empty(skeleton, "predict_q", env)
+    check_sim_work("predict_q", world, sim or SimConfig())
     recipe = PredictResponseRecipe(
         reaction_id=str(reaction_id), target_id=str(target_id), factor=float(factor), verb=str(verb),
         sim_cfg=sim or SimConfig(), seed=env.ctx.seed,
@@ -309,8 +310,24 @@ def suite(
     return build_suite(spec, env.ctx.seed, n_tasks=int(n_tasks), distractor_count=int(distractor_count), max_redraws=int(max_redraws), sim_cfg=sim or SimConfig())
 
 
+#: Items one ``cover`` call may partition (in use: 8, ``tests/suite/test_cover``'s
+#: ``ITEMS_8``). The solver's merge phase grows about as ``items^3 x
+#: features``, in one uninterruptible call: 300 single-feature items held a
+#: load past 18 s of CPU (T091 AW).
+MAX_COVER_ITEMS = 32
+#: Features summed over a ``cover`` call's items (in use: under 30): 32
+#: items of 2 000 features each took 5 s.
+MAX_COVER_FEATURES = 1024
+
+
 @fn(summary="partition feature sets into admissible containers (cover)")
 def cover(features: Sequence[Any], aggressiveness: float = 0.5, admissible: Any = None, *, env: Env) -> Cover:
+    n_items = len(features)
+    if n_items > MAX_COVER_ITEMS:
+        raise env.error(f"cover: {n_items} items exceeds the cap MAX_COVER_ITEMS={MAX_COVER_ITEMS}")
+    n_features = sum(len(item.features) if isinstance(item, FeatureSet) else len(item) if isinstance(item, Mapping) else 0 for item in features)
+    if n_features > MAX_COVER_FEATURES:
+        raise env.error(f"cover: {n_features} features over the items exceeds the cap MAX_COVER_FEATURES={MAX_COVER_FEATURES}")
     items: list[FeatureSet] = []
     for i, item in enumerate(features):
         if isinstance(item, FeatureSet):

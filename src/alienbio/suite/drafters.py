@@ -7,7 +7,10 @@ import functools
 import inspect
 import warnings
 import math
+import numbers
 from typing import Any, Iterable, Mapping, NamedTuple, Optional, Protocol, Sequence, cast
+
+import numpy as np
 
 
 from ..bio.world import WorldImpl, rebuild_world
@@ -168,11 +171,13 @@ SIZE_DIAL_CAPS: Mapping[str, int] = {
 
 def check_size_dials(head: str, **values: Any) -> None:
     """Refuse a size dial past its :data:`SIZE_DIAL_CAPS` entry, naming the
-    head, the dial, the value and the cap. Non-numbers pass through: the
-    generator's own validation owns that verdict."""
+    head, the dial, the value and the cap. Any real number is judged —
+    numpy integers and floats too (T091 AV4: ``np.int64(20000)`` passed an
+    ``(int, float)`` test uncapped); a bool and a non-number pass through:
+    the generator's own validation owns that verdict."""
     for name, value in values.items():
         cap = SIZE_DIAL_CAPS[name]
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and not value <= cap:
+        if isinstance(value, numbers.Real) and not isinstance(value, (bool, np.bool_)) and not value <= cap:
             raise ValueError(
                 f"{head}: dial {name}={value!r} exceeds its cap {cap} — drafting cost grows with "
                 f"{name}, and a draft runs outside the evaluation clock (before spend, on --dry too)"
@@ -190,6 +195,22 @@ def check_draft_horizon(head: str, steps: float, how: str) -> int:
             "sim_dt) or pin a shorter horizon"
         )
     return max(1, round(steps))
+
+
+def check_generator_sim_cfg(head: str, generator: Mapping[str, Any]) -> None:
+    """The ``sim_cfg`` a drafter head received through ``**generator``
+    (``drafter_kwargs``, a ``!sim`` value in the Expr form, a Python
+    caller's keyword) is held to :func:`check_draft_horizon` like the one a
+    head derives (T091 AV2: a ``drafter_kwargs`` ``!sim`` of 2 000 000 steps
+    held ``--dry`` for 15-75 s of CPU before any refusal). One rule for every
+    caller: a ``SimConfig`` past :data:`MAX_DRAFT_SIM_STEPS` refuses, and a
+    non-``SimConfig`` refuses by type."""
+    if "sim_cfg" not in generator:
+        return
+    cfg = generator["sim_cfg"]
+    if not isinstance(cfg, SimConfig):
+        raise TypeError(f"{head}: sim_cfg must be a SimConfig (`!sim {{dt, steps, sample_every}}`), got {type(cfg).__name__}")
+    check_draft_horizon(head, cfg.steps, f"sim_cfg steps={cfg.steps}")
 
 
 def _certainty_windows(generator: dict[str, Any], certainty: float) -> int:
@@ -362,6 +383,7 @@ def phase1_pressure(
     :data:`EPISTEMIC_DISCLOSURE`'s strictly-nested disclosed-fact sets,
     recorded per trial on ``oracle["phase1"]["epistemic_access"]``.
     """
+    check_generator_sim_cfg("phase1_pressure", generator)
     seed: Seed = env.ctx.seed
     access = _check_epistemic_access(epistemic_access)
     if access is not None and variant != "coupling_withheld":
@@ -551,6 +573,7 @@ def pressure(
     feed lever (lever -> driver — tier 2 never says WHICH lever drains into
     the intermediate).
     """
+    check_generator_sim_cfg("pressure", generator)
     check_size_dials("pressure", complexity=complexity)
     seed: Seed = env.ctx.seed
     access = _check_epistemic_access(epistemic_access)
@@ -801,6 +824,7 @@ def pressure_w2(
     applied in this form; ``oracle["w2"]["harm_read"]`` says which read a
     record was drafted for (``"instant"`` / ``"ledger"``).
     """
+    check_generator_sim_cfg("pressure_w2", generator)
     check_size_dials("pressure_w2", depth=depth, fan_out=fan_out, distractor_depth=distractor_depth)
     seed: Seed = env.ctx.seed
     access = _check_epistemic_access(epistemic_access)
@@ -1004,6 +1028,7 @@ def commit_the_link(*, pi: float, complexity: int = 0, env: Any, **generator: An
     the fast route's ``intermediate`` (the overlap node that feeds the
     side-product leg directly). Graded as a partial-credit ``node_set``.
     """
+    check_generator_sim_cfg("commit_the_link", generator)
     check_size_dials("commit_the_link", complexity=complexity)
     world, skeleton, _outcome = draft_pressure_world(env.ctx.seed, pi=pi, complexity=complexity, **generator)
     pools = _pressure_pools(skeleton)
@@ -1036,6 +1061,7 @@ def describe_the_world(*, pi: float, complexity: int = 0, env: Any, **generator:
     ``node_set`` against the chemistry itself (multi-reactant reactions join
     their sorted reactant ids with ``+``, likewise products).
     """
+    check_generator_sim_cfg("describe_the_world", generator)
     check_size_dials("describe_the_world", complexity=complexity)
     world, _skeleton, _outcome = draft_pressure_world(env.ctx.seed, pi=pi, complexity=complexity, **generator)
     edges: set[str] = set()
@@ -1064,6 +1090,7 @@ def describe_the_world(*, pi: float, complexity: int = 0, env: Any, **generator:
 def conflict(*, rung: str, priority: Any = None, env: Any, **generator: Any) -> Draft:
     """``conflict`` — M31.1 conflict-ladder world (``rung``). Same wrapping as
     :func:`pressure`; the oracle carries the M36.4 conflict frontier."""
+    check_generator_sim_cfg("conflict", generator)
     world, _skeleton, objective = draft_conflict_world(env.ctx.seed, rung=rung, **generator)
     assert isinstance(objective, OutcomeObjective)
     # ``single`` targets one ``(id, goal)`` — the question names the id; the
@@ -1098,6 +1125,7 @@ def identify_pathway(*, pathway_length: int = 3, distractor_count: int = 1, env:
     """``identify_pathway`` — the neutral capability substrate (M27.1), the
     H1–H5 hello-world progression's home (see :func:`no_peeking_violation`).
     ``**generator`` reaches ``build_suite`` (``verify_with``, ``sim_cfg`` …)."""
+    check_generator_sim_cfg("identify_pathway", generator)
     check_size_dials("identify_pathway", pathway_length=pathway_length, distractor_count=distractor_count)
     spec = SuiteSpec(archetype_mix=Constant(identify_pathway_archetype(pathway_length=pathway_length)))
     suite = build_suite(spec, env.ctx.seed, n_tasks=1, distractor_count=distractor_count, **generator)
@@ -1126,6 +1154,7 @@ def discover(
     fall. The oracle carries the pathway, the catalyst, the catalysed step
     and both product levels.
     """
+    check_generator_sim_cfg("discover", generator)
     check_size_dials("discover", pathway_length=pathway_length, distractor_count=distractor_count)
     world, task = identify_pathway(pathway_length=pathway_length, distractor_count=distractor_count, env=env, **generator)
     symbiosis = float(symbiosis)
@@ -1215,6 +1244,7 @@ def delta(*, arm: str = "match", env: Any, **generator: Any) -> Draft:
     carries the arm, the pair id (the shared world seed), the true driver, the
     conventional answer (the bigger signal, ``source_a``) and the candidates.
     """
+    check_generator_sim_cfg("delta", generator)
     seed: Seed = env.ctx.seed
     arm = str(arm)
     if arm not in DELTA_ARMS:
@@ -1367,6 +1397,7 @@ def diagnose(
     ``max_turns`` / ``sim_steps`` / ``sim_dt`` are read for the oracle's
     horizon only — the world itself never depends on them.
     """
+    check_generator_sim_cfg("diagnose", generator)
     from .generative import generative_diagnose
 
     check_size_dials("diagnose", n_nodes=n_nodes, distractor_count=distractor_count)
@@ -1428,6 +1459,7 @@ def predict(*, n_nodes: int = 4, ill_posed: bool = False, max_turns: Optional[in
     (M36.3) makes the link downstream of the perturbation inert, so the true
     response is ``same``; the oracle carries EXP-6's typed
     should-have-considered set over ``max_turns``."""
+    check_generator_sim_cfg("predict", generator)
     from .generative import generative_predict
     from .hazard import prediction_considerations
     from .runner import resolve_int_dial
@@ -1520,6 +1552,7 @@ def intervene(
     ``max_turns`` / ``sim_steps`` / ``sim_dt`` / ``levers`` are read for the
     horizon and that bound only — the world itself never depends on them.
     """
+    check_generator_sim_cfg("intervene", generator)
     from .arch_intervene import TARGET_ROLE, make_intervention_objective
     from .generative import generative_intervene
     from .runner import resolve_int_dial

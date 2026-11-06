@@ -58,8 +58,10 @@ container methods                      ``len(receiver) + len(sized args)``
 =====================================  =========================================
 
 Not charged: hashing a flat key (a string or bytes, linear in a length
-already charged where it was built; an int, at most 2^20 bits) and a hash a
-container caches (a ``dict``'s own keys copied by ``dict(d)``).
+already charged where it was built; an int, at most 2^20 bits). ``dict(d)``
+is charged like any ``dict(...)``: :func:`_dict` charges a mapping
+argument's deep keys (and each pair's first item) through
+:func:`charge_hash` before the dict is built.
 
 Denied by name rather than charged: ``str.format`` / ``format_map`` (the
 :mod:`spec_lang.safe_eval` name filter — a format field walks attributes
