@@ -40,10 +40,10 @@ def _chain(name: str, depth: int) -> str:
 @pytest.mark.parametrize("op", ["==", "!=", "<", ">="])
 def test_ap3_comparing_two_shared_structure_chains_refuses_at_once(op):
     doc = _doc(_chain("a", 10) + _chain("b", 10) + f"eq: !x 'a10 {op} b10'\n")
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="limits.entities"):
         doc.force_all()
-    assert time.monotonic() - t < 5
+    assert time.process_time() - t < 5
 
 
 def test_ap3_membership_of_a_container_is_charged_the_list_it_scans():
@@ -68,10 +68,10 @@ def test_ap3_small_comparisons_still_work():
 def test_ap3_a_yaml_alias_bomb_refuses_at_load():
     lines = ["a0: &a0 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"]
     lines += [f"a{i}: &a{i} [{', '.join([f'*a{i - 1}'] * 10)}]" for i in range(1, 11)]
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="MAX_DOCUMENT_NODES"):
         yaml_tags.load_text("\n".join(lines) + "\n", source="bomb.yaml")
-    assert time.monotonic() - t < 5
+    assert time.process_time() - t < 5
 
 
 def test_ap3_a_recursive_alias_refuses_at_load():
@@ -114,10 +114,10 @@ def test_ap4_int_division_refuses_an_operand_past_the_cap(op):
 
 
 def test_ap4_round_to_a_huge_negative_ndigits_refuses():
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="ndigits"):
         _x("round(7, -16000000)")
-    assert time.monotonic() - t < 1
+    assert time.process_time() - t < 1
     assert _x("round(1234, -2)") == 1200
     assert _x("round(2.567, 1)") == 2.6
 
@@ -184,10 +184,10 @@ def _fan(tmp_path, depth: int, width: int = 10):
 
 def test_ap6_an_exponential_include_tree_refuses_early(tmp_path):
     top = _fan(tmp_path, 6)
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="MAX_INCLUDE_LOADS"):
         Env.standard(seed=0).load(top)
-    assert time.monotonic() - t < 5
+    assert time.process_time() - t < 5
 
 
 def test_ap6_repeated_includes_list_entries_count(tmp_path):

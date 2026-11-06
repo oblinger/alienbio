@@ -45,10 +45,10 @@ def test_ar1_an_alias_bomb_inside_an_experiment_call_refuses_fast(tmp_path):
     path = tmp_path / "bomb.yaml"
     path.write_text(_bomb(9, call=True))
     assert len(path.read_bytes()) < 700
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="MAX_DOCUMENT_NODES"):
         load_experiment(path, trusted=False)
-    assert time.monotonic() - t < 5
+    assert time.process_time() - t < 5
 
 
 def test_ar1_a_bomb_under_a_tagged_mapping_refuses_at_load():
@@ -67,10 +67,10 @@ def _merge(n: int) -> str:
 
 
 def test_ar2_a_doubling_merge_chain_refuses_before_construction():
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="merge keys"):
         yaml_tags.load_text(_merge(26))
-    assert time.monotonic() - t < 5
+    assert time.process_time() - t < 5
 
 
 def test_ar2_ordinary_merge_keys_still_load():
@@ -152,10 +152,10 @@ def test_ar4_a_helper_instance_of_its_own_code_passes(tmp_path):
 
 
 def test_ar5_a_sexagesimal_int_refuses_before_conversion():
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="base-60"):
         yaml_tags.load_text("a: 1" + ":59" * 116_000 + "\n")
-    assert time.monotonic() - t < 2
+    assert time.process_time() - t < 2
 
 
 # ---- AR6: long int keys are compared by value ----

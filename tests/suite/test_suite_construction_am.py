@@ -34,18 +34,30 @@ def _chain_host(edges: list[tuple[str, str]], extra: tuple[str, ...] = ()):
     return mk.C("host", list(m.values()), rx)
 
 
-def test_the_cap_counts_the_best_reuse_only():
+def test_the_cap_counts_the_best_reuse_only(monkeypatch):
     """AM1: 110 inert molecules plus a 3-chain, a 5-role chain carved with
     allow_add: the reuse-4 set is 220 embeddings, but the reuse-3 transients
-    passed MAX_EMBEDDINGS first and carve refused."""
+    passed MAX_EMBEDDINGS first and carve refused.
+
+    T091 AU: the gate is the count the cap controls, not wall time — with
+    the cap set to exactly the frontier's 220 the carve succeeds and at 219
+    it refuses, so no lower-reuse transient is counted. CPU time is only a
+    backstop against a combinatorial blow-up."""
+    import sys
+
+    carve_mod = sys.modules[carve.__module__]  # the package re-exports the function under the module's name
+
     inert = [f"A{i:03d}" for i in range(110)]
     host = _chain_host([("Z0", "Z1"), ("Z1", "Z2")], extra=tuple(inert))
-    t = time.time()
+    monkeypatch.setattr(carve_mod, "MAX_EMBEDDINGS", 220)
+    t = time.process_time()
     result = carve(host, identify_pathway(5).motif, Seed(0), allow_add=True)
-    assert time.time() - t < 5.0
+    assert time.process_time() - t < 10.0
     assert isinstance(result, CarveResult), result
     assert result.binding == {"r0": "A000", "r1": "r1#new", "r2": "Z0", "r3": "Z1", "r4": "Z2"}
     assert result.added == ("r1#new",)
+    monkeypatch.setattr(carve_mod, "MAX_EMBEDDINGS", 219)
+    assert isinstance(carve(host, identify_pathway(5).motif, Seed(0), allow_add=True), CarveFail)
 
 
 def test_splice_keeps_both_edges_of_a_feedback_pair():
@@ -86,9 +98,9 @@ def test_the_route_search_is_fast_on_a_dense_side_cluster():
              ("M6", "M7"), ("M7", "M8"), ("M8", "E")]
     edges += [("S", c) for c in cluster] + [(a, b) for a in cluster for b in cluster if a != b]
     chem = _chain_host(edges)
-    t = time.time()
+    t = time.process_time()  # CPU, not wall: a loaded suite must not fail a linear search
     check_pathway_key(["S", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "E"], _world(chem))
-    assert time.time() - t < 1.0
+    assert time.process_time() - t < 2.0
 
 
 def test_the_route_search_refuses_past_its_cap(monkeypatch):

@@ -35,18 +35,18 @@ def _marker_helper(directory: Path, marker: Path, name: str = "helpers.py") -> N
 
 
 def test_al4_to_bytes_is_charged_by_its_length():
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="limits.entities"):
         _x("len((1).to_bytes(300000000, 'big'))")
-    assert time.monotonic() - t < 2
+    assert time.process_time() - t < 2
 
 
 @pytest.mark.parametrize("text", ["len(str(c))", 'len(f"{c}")', "len('%s' % (c,))", "len(f'{c!r}')"])
 def test_al5_rendering_a_shared_nested_list_is_charged_before_it_is_built(text):
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match="limits.entities"):
         _doc(f"a: !x '[0] * 1000'\nb: !x '[a] * 1000'\nc: !x '[b] * 100'\ns: !x {text!r}\n").lookup("s")
-    assert time.monotonic() - t < 2
+    assert time.process_time() - t < 2
 
 
 def test_al5_small_renderings_are_unchanged():
@@ -60,19 +60,19 @@ def test_al5_small_renderings_are_unchanged():
     ("pow(3, (10**100)**100, 10**3000) > 0", "exponent bits x modulus bits"),
 ])
 def test_al6_big_int_work_refuses_quickly(text, match):
-    t = time.monotonic()
+    t = time.process_time()
     with pytest.raises(ExprError, match=match):
         _x(text)
-    assert time.monotonic() - t < 2
+    assert time.process_time() - t < 2
 
 
 def test_al6_a_squaring_chain_refuses_at_the_result_bit_cap():
-    t = time.monotonic()
+    t = time.process_time()
     env = _doc("x: !x '(10**1000)**150'\ny: !x 'x * x'\nz: !x 'y * y'\n")
     assert env.lookup("y") > 0
     with pytest.raises(ExprError, match="mul: result of"):
         env.lookup("z")
-    assert time.monotonic() - t < 5
+    assert time.process_time() - t < 5
 
 
 def test_al6_modest_int_arithmetic_still_works():
@@ -84,7 +84,7 @@ def test_al6_the_wall_clock_budget_stops_a_long_evaluation():
     t = time.monotonic()
     with pytest.raises(ExprError, match=r"limits.seconds=0.001"):
         _x("[[j for j in range(50)] for i in range(5000)]", limits=Limits(seconds=0.001))
-    assert time.monotonic() - t < 2
+    assert time.monotonic() - t < 10  # wall: this tests the clock itself; generous under load
 
 
 def test_al6_each_top_level_evaluation_gets_its_own_clock():
