@@ -32,7 +32,7 @@ One constant and two functions, plus the `suite.yaml_keys` check the registry sh
     Raises `ValueError` when `path` does not exist ("file the entry first"), when the file fails to load, or when `reg_id` is not an id in it (the message lists the ids it has). Otherwise the entry. Parses the whole file on every call, so one malformed entry refuses every claim. ^resolve-registration
 
 **refuse_duplicate_nodes**`(node: yaml.Node) -> None` (`suite.yaml_keys`)
-    Raises `ValueError` naming the key and its lines when any mapping in an already-composed node tree repeats a key — the walk `refuse_duplicate_keys(text, loader)` runs after composing, exposed so `expr.yaml_tags.load_text` checks the tree it composed once and constructs from it (`c0094c7`, T091 AP7). A standard-tag scalar key over 4 096 characters is compared by its text, not constructed (T091 AP4: a huge int key would bypass the int-literal cap). ^refuse-duplicate-nodes
+    Raises `ValueError` naming the key and its lines when any mapping in an already-composed node tree repeats a key — the walk `refuse_duplicate_keys(text, loader)` runs after composing, exposed so `expr.yaml_tags.load_text` checks the tree it composed once and constructs from it (`c0094c7`, T091 AP7). A standard-tag scalar key is compared by its full constructed value at any length (`88a1cf6`, T091 AR6: the 4 096-character text cutoff let two spellings of one long int key collapse); an int the loader itself would refuse (`expr.yaml_tags.int_text_refusal`, T091 AP4/AR5) keeps its text, so a huge key never bypasses the int-literal cap. ^refuse-duplicate-nodes
 
 
 
@@ -94,3 +94,4 @@ The design's audit trail is that the file only changes by commit. The record lin
 - 2026-10-28 — refreshed against `9db219f`: `load_registry` refuses a repeated id or field; an unquoted impossible date now raises a `ValueError` naming the file.
 - 2026-10-29 — refreshed for `e5ea4d0` and `661005d` (T091 B5, B12, D-round includes): the duplicate-key refusal is `suite.yaml_keys.refuse_duplicate_keys`, shared with experiment files and `!include`'d YAML; merge keys load.
 - 2026-10-30 — refreshed for `c0094c7` (T091 AP4, AP7): `suite.yaml_keys.refuse_duplicate_nodes` (new block) is the check on a composed tree, run inside `expr.yaml_tags.load_text`'s single parse for experiment files and includes; the registry keeps `refuse_duplicate_keys`. Figure still true. (`df0bc6c` does not touch this module.)
+- 2026-11-05 — refreshed for `88a1cf6` (T091 AR6): `refuse_duplicate_nodes` compares a scalar key by its full constructed value at any length; an int the loader would refuse keeps its text. Figure still true.

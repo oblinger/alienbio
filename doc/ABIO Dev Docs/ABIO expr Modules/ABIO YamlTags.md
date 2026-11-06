@@ -57,8 +57,10 @@ The reader, the writer and their tables.
 | [LEGACY_TAGS](#^legacy-tags) | Retired spellings and their replacements |
 | [MAX_SPEC_BYTES](#^max-spec-bytes) | Largest file a load reads |
 | [MAX_DOCUMENT_NODES](#^max-document-nodes) | Largest document after aliases |
-| [check_spec_size](#^check-spec-size) | Refuse an oversized file unread |
-| [read_spec_text](#^read-spec-text) | A file's text, size-checked first |
+| [check_spec_size](#^check-spec-size) | Refuse a non-regular or oversized file unread |
+| [read_spec_text](#^read-spec-text) | A file's text, size-checked first and byte-limited |
+| [int_text_refusal](#^int-text-refusal) | Why an int literal's text may not be converted |
+| [merge_expansion](#^merge-expansion) | The pairs a document's merge keys build |
 | [load_text](#^load-text) | YAML text to forms, one parse |
 | [ExprDumper](#^exprdumper) | `SafeDumper` with representers for the forms |
 | [dump_structural](#^dump-structural) | Forms to YAML text |
@@ -76,13 +78,19 @@ The reader, the writer and their tables.
     The most nodes a parsed document may expand to, every occurrence of an aliased node counted (`heads.element_bound`) (`c0094c7`, T091 AP3: ten `*a9` aliases per level is a 1.2 KB file whose include resolution, nested-experiment check and evaluation each walk 10^10 nodes). Without aliases a `MAX_SPEC_BYTES` file stays far below it. ^max-document-nodes
 
 **check_spec_size**`(path) -> None`
-    Raises `ExprError` naming the file when its size is over `MAX_SPEC_BYTES`, without reading it. ^check-spec-size
+    Raises `ExprError` naming the file when it is not a regular file — the resolved path's mode is checked, so a FIFO, a device or a symlink to one refuses (`88a1cf6`, T091 AR7: `st_size` is 0 for both, so a FIFO blocked the read and a symlink to `/dev/zero` read forever) — or when its size is over `MAX_SPEC_BYTES`, without reading it. ^check-spec-size
 
 **read_spec_text**`(path) -> str`
-    `check_spec_size`, then the file's text; what every spec and include read goes through. ^read-spec-text
+    `check_spec_size`, then the file's text read with a hard limit of `MAX_SPEC_BYTES + 1` bytes, so a file that grows between the check and the read still refuses (`88a1cf6`, T091 AR7); what every spec and include read goes through. ^read-spec-text
+
+**int_text_refusal**`(text) -> str | None`
+    Why a YAML int's text may not be converted, else `None` (`c0094c7` AP4, `88a1cf6` AR5). A base-60 form (`1:59:59`, YAML 1.1 sexagesimal) is refused outright — PyYAML converts it digit group by digit group, quadratically, and a 349k-character literal under the length cap took 8 s. Any other form is bounded at `MAX_INT_LITERAL_BITS // 3` characters: hex, octal and binary convert linearly and a decimal past 4 300 digits is refused by Python itself, so the conversion is never the cost. The int constructor judges the text first. ^int-text-refusal
+
+**merge_expansion**`(node, limit) -> int`
+    The key/value pairs PyYAML's merge-key flattening (`<<:`) would build over every distinct mapping node of a composed tree, capped just past `limit` (`88a1cf6`, T091 AR2): `flatten_mapping` concatenates each merged mapping's pairs without de-duplicating, so `L{i}: {<<: [*L{i-1}, *L{i-1}]}` doubles per level and an 834-byte file built 2^26 pairs inside the constructor, before any node cap. Computed on the nodes, memoized by identity, so it costs the distinct structure; a merge cycle adds nothing (PyYAML refuses it). `load_text` refuses a document whose expansion passes `MAX_DOCUMENT_NODES` before constructing it; no catalog file uses merge keys. ^merge-expansion
 
 **load_text**`(text: str, *, source: str = "") -> Any`
-    YAML text to forms in ONE parse (`c0094c7`, T091 AP7 — an experiment file was parsed three times): text over `MAX_SPEC_BYTES` refuses; the document is composed once, `suite.yaml_keys.refuse_duplicate_nodes` walks that node tree ([ABIO Registration](../ABIO%20suite/ABIO%20Registration.md)), and the forms are constructed from the same nodes. Untagged YAML is data, tagged nodes are forms. Then a recursive alias (`a: &a [1, *a]`, a value no walk terminates on) refuses, and a document over `MAX_DOCUMENT_NODES` refuses. Every failure is an `ExprError` naming `source` (T091 AP9) — a `yaml.YAMLError` (`YAML error: …`), a duplicate key, a `RecursionError` (PyYAML composes recursively; `YAML nesting deeper than limits.depth allows …`, since `dc92971`, T091 C11), an oversized int; a constructor's `ExprError` carries `line N` after the source. Includes are not resolved. ^load-text
+    YAML text to forms in ONE parse (`c0094c7`, T091 AP7 — an experiment file was parsed three times): text over `MAX_SPEC_BYTES` refuses; the document is composed once, `suite.yaml_keys.refuse_duplicate_nodes` walks that node tree ([ABIO Registration](../ABIO%20suite/ABIO%20Registration.md)), `merge_expansion` bounds what its merge keys would build (`88a1cf6`, T091 AR2), and the forms are constructed from the same nodes. Untagged YAML is data, tagged nodes are forms. Then a recursive alias (`a: &a [1, *a]`, a value no walk terminates on) refuses, and a document over `MAX_DOCUMENT_NODES` refuses. Every failure is an `ExprError` naming `source` (T091 AP9) — a `yaml.YAMLError` (`YAML error: …`), a duplicate key, a `RecursionError` (PyYAML composes recursively; `YAML nesting deeper than limits.depth allows …`, since `dc92971`, T091 C11), an oversized int; a constructor's `ExprError` carries `line N` after the source. Includes are not resolved. ^load-text
 
 **ExprDumper** (class)
     A `yaml.SafeDumper` with representers for `Call` (`!head` with a flow mapping, a flow sequence, or one scalar), `Name` (`!ref path`) and `Quoted` (`!q "<inline text>"`, always double-quoted so commas and braces survive a flow context). ^exprdumper
@@ -132,3 +140,4 @@ A lone non-empty string positional is written as a double-quoted tagged scalar (
 - 2026-10-28 — refreshed against `0eb23e5`: a lone non-string or empty-string positional dumps as a one-element flow sequence and round-trips, a keyword named `args` refuses to dump, and quoted comprehensions survive (`c90ce0d`); round-trip table and figure ‡ note rewritten.
 - 2026-10-29 — refreshed for `dc92971` (T091 C11): `load_text` turns a `RecursionError` into an `ExprError`. Figure still true.
 - 2026-10-30 — refreshed for `c0094c7` (T091 AP3, AP4, AP7, AP9): `load_text(text, source=)` parses once, runs `refuse_duplicate_nodes` on the composed tree, refuses recursive aliases and documents over `MAX_DOCUMENT_NODES`, and names the file in every error; the int constructor caps literals at `MAX_INT_LITERAL_BITS`. New blocks `int`, `MAX_SPEC_BYTES`, `MAX_DOCUMENT_NODES`, `check_spec_size`, `read_spec_text`. Figure still true. (`df0bc6c` puts the whole module in `DENIED_ENTRY_POINTS`.)
+- 2026-11-05 — refreshed for `88a1cf6` (T091 AR2, AR5, AR7): `merge_expansion` and `int_text_refusal` (new blocks) — merge keys counted on the node tree before construction and refused past `MAX_DOCUMENT_NODES`, base-60 ints refused outright; `check_spec_size` refuses a non-regular file by the resolved path's mode and `read_spec_text` reads `MAX_SPEC_BYTES + 1` bytes at most. Figure still true.
