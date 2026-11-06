@@ -728,14 +728,22 @@ def _load_experiment(source: str, text: str, env: Env) -> ExperimentSpec:
     # evaluated: two literal ``!experiment`` calls can never be "exactly
     # one". (Whether a document with none builds one through ``!x`` or a
     # template is only known by evaluating it; that count stays below.)
-    direct = [str(k) for k, v in data.items() if isinstance(v, Call) and v.head == "experiment"]
+    # T091 AT5: a key is a path label; an int key past Python's 4 300-digit
+    # str() limit raised a bare ValueError out of ``load_spec``.
+    labels: dict[Any, str] = {}
+    for k in data:
+        try:
+            labels[k] = str(k)
+        except ValueError as exc:
+            raise ExprError(f"a top-level key ({type(k).__name__}) cannot be rendered as a path: {exc}", source) from None
+    direct = [labels[k] for k, v in data.items() if isinstance(v, Call) and v.head == "experiment"]
     if len(direct) > 1:
         raise ExprError(f"expected exactly one !experiment among the top-level bindings, found {len(direct)}: {direct}", source)
     # T091 AL9: a literal !experiment anywhere but a top-level value (inside
     # a list, a nested mapping, another call's arguments) was built and
     # silently dropped by the count below.
     for key, value in data.items():
-        nested = _nested_experiment(value, str(key), top=True)
+        nested = _nested_experiment(value, labels[key], top=True)
         if nested is not None:
             raise ExprError(f"an experiment must be a top-level document key; found an !experiment at {nested!r}", source)
     scope = env.load(source, data=data)

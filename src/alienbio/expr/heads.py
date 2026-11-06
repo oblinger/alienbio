@@ -25,7 +25,12 @@ call                                   charge
 ``int(...)`` / an int method result    refused past 2^20 bits
 ``==`` ``!=`` ``<`` ... (containers)   elements visited (smaller operand,
                                        every shared occurrence)
-``x in xs`` (container x)              elements of ``xs``
+``x in xs`` (container x)              elements of ``xs`` (a mapping or set:
+                                       elements of ``x``, it is hashed)
+hashing a deep key: ``{...}`` /        each deep key's elements, every
+``op:set``, ``dict(...)``, ``m[k]``,   occurrence (a tuple hash is not
+``each(key=)``, a mapping or set       cached); the clock ticks first
+method's arguments and their items
 ``sorted`` / ``max`` / ``min``         + elements x log2(n) when an item is
 (container items)                      a container
 ``pow(a, b, m)``                       refused past bits(b) * bits(m) > 2^24
@@ -52,6 +57,10 @@ other int / float / complex methods    0 (bounded scalar results)
 container methods                      ``len(receiver) + len(sized args)``
 =====================================  =========================================
 
+Not charged: hashing a flat key (a string or bytes, linear in a length
+already charged where it was built; an int, at most 2^20 bits) and a hash a
+container caches (a ``dict``'s own keys copied by ``dict(d)``).
+
 Denied by name rather than charged: ``str.format`` / ``format_map`` (the
 :mod:`spec_lang.safe_eval` name filter — a format field walks attributes
 outside :mod:`.access`; use an f-string), the mutating methods, and the
@@ -62,6 +71,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections import UserString
 from collections.abc import Sequence, Set
 from typing import Any, Iterable, Mapping
 
@@ -95,7 +105,6 @@ for _name, _f in {
     "len": len,
     "float": float,
     "bool": bool,
-    "dict": dict,
     "all": all,
     "any": any,
 }.items():
@@ -293,7 +302,8 @@ def repr_bound(text: str) -> int:
 
 #: Sequences whose elements a deep walk never visits: text, and a ``range``
 #: (lazy, its elements are ints).
-_FLAT_SEQUENCES = (str, bytes, bytearray, memoryview, range)
+#: ``UserString`` is text too (T091 AT4: its items are fresh ``UserString``s).
+_FLAT_SEQUENCES = (str, bytes, bytearray, memoryview, range, UserString)
 
 
 def _is_deep(x: Any) -> bool:
@@ -333,6 +343,10 @@ def element_bound(value: Any, limit: int) -> int:
     memo: dict[int, int] = {}
     active: set[int] = set()
     stack: list[tuple[Any, bool]] = [(value, False)]
+    # T091 AT4: a sequence whose items are fresh instances of itself (a
+    # ``UserString``) never repeats an identity, so the memo never stops the
+    # walk; counting entries makes the bound total.
+    entered = 0
     while stack:
         x, leaving = stack.pop()
         key = id(x)
@@ -347,6 +361,9 @@ def element_bound(value: Any, limit: int) -> int:
             continue
         if key in memo or key in active:
             continue
+        entered += 1
+        if entered > limit:
+            return limit + 1
         active.add(key)
         stack.append((x, True))
         stack.extend((item, False) for item in _deep_items(x) if _is_deep(item) and id(item) not in memo)
@@ -371,14 +388,28 @@ def _charge_contains(x: Any, xs: Any, ctx: Any, what: str) -> None:
     charged the elements of ``xs`` (a hashed container: those of ``x``)."""
     if not _is_deep(x):
         return
-    if isinstance(xs, (list, tuple)):
-        n = element_bound(xs, _remaining(ctx))
-    elif isinstance(xs, (dict, set, frozenset)):
+    if isinstance(xs, (Mapping, Set)):
+        # T091 AT2: any hashed container (a ``Mapping`` subclass such as
+        # ``FrozenKwargs`` too, not only ``dict``) hashes ``x`` first.
         n = element_bound(x, _remaining(ctx))
+    elif _is_deep(xs):
+        n = element_bound(xs, _remaining(ctx))
     else:
         return
     ctx.limits.charge(n, ctx.path, what)
     ctx.limits.tick(ctx.path)
+
+
+def charge_hash(keys: Iterable[Any], limits: Any, path: str, what: str) -> None:
+    """Charge hashing ``keys`` (T091 AT2): a tuple's hash is not cached, so
+    hashing a deep one walks every occurrence of every element — a chain of
+    ``(p, p)`` pairs is 2^depth in one C call the clock cannot interrupt.
+    Each deep key is charged its :func:`element_bound` and the clock ticks,
+    before the container that hashes it is built or looked up."""
+    deep = [k for k in keys if _is_deep(k)]
+    if deep:
+        limits.charge(element_bound(deep, limits.entities - limits.meter.allocated + 1), path, what)
+        limits.tick(path)
 
 
 def _is_dataclass_value(x: Any) -> bool:
@@ -583,7 +614,26 @@ _membership("in", lambda a, b: a in b)
 _membership("notin", lambda a, b: a not in b)
 _op("is", lambda a, b: a is b)
 _op("isnot", lambda a, b: a is not b)
-_op("set", lambda xs: set(xs))
+@fn(kind="op", name="op:set", summary="operator set")
+def _set(xs: Any, *, ctx: Any) -> set:
+    if isinstance(xs, (list, tuple, Set, Mapping)):
+        charge_hash(xs, ctx.limits, ctx.path, "set")
+    return set(xs)
+
+
+@fn(kind="math", name="dict", summary="dict")
+def _dict(*a: Any, ctx: Any, **kw: Any) -> dict:
+    """``dict(...)`` with its keys' hashes charged first (T091 AT2): the keys
+    of a mapping, or the first item of each pair."""
+    if a:
+        x = a[0]
+        if isinstance(x, Mapping):
+            charge_hash(x.keys(), ctx.limits, ctx.path, "dict")
+        elif isinstance(x, (list, tuple)):
+            charge_hash((p[0] for p in x if isinstance(p, (list, tuple)) and p), ctx.limits, ctx.path, "dict")
+    return dict(*a, **kw)
+
+
 @fn(kind="op", name="op:flatten", summary="operator flatten")
 def _flatten(xss: Any, *, ctx: Any) -> list:
     rows = list(xss)
@@ -601,6 +651,8 @@ _op("slice", lambda lo=None, hi=None, step=None: slice(lo, hi, step))
 
 
 def _item(obj: Any, index: Any, *, env: Env) -> Any:
+    # T091 AT2: a mapping looks a deep key up by its hash.
+    charge_hash((index,), env.ctx.limits, env.path, "item")
     try:
         return obj[index]
     except (KeyError, IndexError, TypeError) as exc:
@@ -736,6 +788,14 @@ def _method(obj: Any, name: str, *args: Any, env: Env, **kwargs: Any) -> Any:
         # `xs.index(x)` / `xs.count(x)` compare x with every element (T091 AP3)
         env.ctx.limits.charge(element_bound(obj, _remaining(env.ctx)), env.path, f"method {name}")
         env.ctx.limits.tick(env.path)
+    if isinstance(obj, (Mapping, Set)):
+        # T091 AT2: a mapping or set method hashes its arguments (``d.get(k)``)
+        # and the items of a container argument (``{}.fromkeys(xs)``,
+        # ``s.union(xs)``) — every deep one charged before the call.
+        # A tuple argument is charged whole, which covers both readings.
+        for v in list(args) + list(kwargs.values()):
+            items = v if isinstance(v, (list, Set, Mapping)) else (v,)
+            charge_hash(items, env.ctx.limits, env.path, f"method {name}")
     result = target(*args, **kwargs)
     if isinstance(obj, Mapping) and name in obj:
         _check_returned(result, f"{name}(...)", env)

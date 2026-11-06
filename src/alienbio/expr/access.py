@@ -244,18 +244,50 @@ def allowed_framework_code(obj: Any) -> bool:
     return module is not None and any(_in_module(module, m) for m in PY_ALLOWED_MODULES)
 
 
+#: How many ``__call__`` levels :func:`_call_target` follows before it gives
+#: up and the callable is refused (T091 AT3).
+MAX_CALL_DEPTH = 8
+
+#: What calling a class runs when its metaclass adds nothing.
+_TYPE_CALL = inspect.getattr_static(type, "__call__")
+
+
 def _call_target(obj: Any) -> Any:
     """The code calling ``obj`` runs: the function a partial or bound method
     wraps, else — for a callable instance — its class's ``__call__``, a
     ``staticmethod`` / ``classmethod`` unwrapped (T091 AR4: ``__call__ =
-    staticmethod(os.getcwd)`` on a helper's class ran ``os.getcwd``)."""
+    staticmethod(os.getcwd)`` on a helper's class ran ``os.getcwd``),
+    followed again while it is itself a callable instance (T091 AT3:
+    ``Outer.__call__ = Inner()`` reached ``os.getcwd`` one level down).
+    ``None`` when the chain does not reach a function, a builtin or a class
+    within :data:`MAX_CALL_DEPTH` levels — such a callable is refused."""
     target = _unwrap(obj)
-    if target is None or isinstance(target, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType)):
-        return target
-    call = inspect.getattr_static(type(target), "__call__", None)
-    if isinstance(call, (staticmethod, classmethod)):
-        call = call.__func__
-    return _unwrap(call)
+    for _ in range(MAX_CALL_DEPTH):
+        if target is None or isinstance(target, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType)):
+            return target
+        call = inspect.getattr_static(type(target), "__call__", None)
+        if isinstance(call, (staticmethod, classmethod)):
+            call = call.__func__
+        target = _unwrap(call)
+    return None
+
+
+def _metaclass_call_allowed(cls: type) -> bool:
+    """Calling ``cls`` runs its metaclass's ``__call__`` first (T091 AT3: a
+    helper class whose metaclass ``__call__`` returned ``os.getcwd()`` was
+    allowed by the class's module, and the metaclass was never judged). A
+    metaclass that adds no ``__call__`` runs ``type.__call__`` (``__new__`` /
+    ``__init__``, judged with the class); one that does is allowed only when
+    that ``__call__`` is allowed framework code — a class call that runs an
+    arbitrary function is not a constructor, whoever wrote it."""
+    meta_call = inspect.getattr_static(type(cls), "__call__", None)
+    if meta_call is _TYPE_CALL:
+        return True
+    if isinstance(meta_call, (staticmethod, classmethod)):
+        meta_call = meta_call.__func__
+    target = _call_target(meta_call)
+    module = _owner(target) if target is not None else None
+    return module is not None and _in_module(module, "alienbio") and allowed_framework_code(target)
 
 
 def callable_code_allowed(obj: Any) -> bool:
@@ -274,6 +306,8 @@ def callable_code_allowed(obj: Any) -> bool:
     target = _call_target(obj)
     if isinstance(target, type) and issubclass(target, domain_types()):
         return True
+    if isinstance(target, type) and not _metaclass_call_allowed(target):
+        return False
     module = _owner(target) if target is not None else None
     if module is None:
         return False

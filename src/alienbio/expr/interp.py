@@ -466,6 +466,12 @@ def _each(args: Sequence[Any], kwargs: Mapping[str, Any], env: Env) -> Any:
             continue
         if key_form is not _MISSING:
             key = evaluate(key_form, scope.child(f"{i}.key"))
+            from .heads import charge_hash, charge_render
+
+            # T091 AT2: the key is hashed (and rendered into the path) below.
+            charge_hash((key,), env.ctx.limits, env.path, "each")
+            if not isinstance(key, str):
+                charge_render(key, env.ctx, "each")
             if key in result_map:
                 raise env.error(f"each: duplicate key {key!r}")
             result_map[key] = evaluate(body, scope.child(str(key)))
