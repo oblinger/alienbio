@@ -67,7 +67,11 @@ helper's namespace, a value a helper returns, a value called and its
 own class's other protocol hooks — subscript (``__getitem__``),
 ``__class_getitem__``, an operator dunder, an Enum's ``_missing_``, a
 constructor inherited from a foreign base — has written that code, the same
-as a ``def`` that calls it, and it runs as helper code.
+as a ``def`` that calls it, and it runs as helper code. A ``__call__``
+that is a descriptor (its type defines ``__get__``: a property, a
+``partialmethod``, a helper class with a ``__get__``) is refused whether or
+not it is itself callable, since Python calls what ``__get__`` returns and
+the guard cannot know that before it runs (T091 AZ6).
 """
 
 from __future__ import annotations
@@ -271,10 +275,67 @@ _TYPE_CALL = inspect.getattr_static(type, "__call__")
 #: and whose members :func:`check_returned` refuses (T091 AX4).
 ENUM_METACLASS_CALL = inspect.getattr_static(enum.EnumType, "__call__")
 
-#: What :func:`_call_target` returns when a ``__call__`` on the chain is a
-#: property or another non-callable descriptor — neither a function nor a
-#: callable instance, so there is no code to judge (T091 AX5).
-DESCRIPTOR_CALL = object()
+#: C-level callables whose code the guard cannot judge by module: a slot
+#: wrapper (``object.__repr__``), a method-wrapper (``object().__repr__``),
+#: a method descriptor (``str.join``) and a classmethod descriptor. Calling
+#: one runs C code chosen by the object it wraps (T091 AZ5).
+_C_WRAPPERS: tuple[type, ...] = (
+    types.WrapperDescriptorType,
+    types.MethodWrapperType,
+    types.MethodDescriptorType,
+    types.ClassMethodDescriptorType,
+)
+
+_MISSING = object()
+
+
+class _NoCode:
+    """What :func:`_call_target` returns when a link of the ``__call__``
+    chain is no code it can judge: ``what`` says what that link is, and
+    ``level`` which link (``-1`` the object itself, ``0`` its ``__call__``,
+    ``1`` that one's ``__call__`` …). Refused, with :meth:`phrase` as the
+    reason (T091 AZ4-AZ6)."""
+
+    __slots__ = ("what", "level")
+
+    def __init__(self, what: str, level: int) -> None:
+        self.what = what
+        self.level = level
+
+    def phrase(self, subject: str) -> str:
+        """The reason, naming the link from ``subject`` (``"it"`` or, for a
+        metaclass, ``"its metaclass M.__call__"``)."""
+        if self.level < 0:
+            return f"{subject} {self.what}"
+        first = "its __call__" if subject == "it" else f"{subject}.__call__"
+        return f"{first}{'.__call__' * self.level} {self.what}"
+
+
+#: The reason text for a descriptor ``__call__`` (T091 AX5, AZ6).
+_DESCRIPTOR_WHAT = (
+    "is a property or other descriptor (its type defines __get__, so a call runs whatever __get__ returns, "
+    "which the guard cannot know before it runs), not a function or a callable instance"
+)
+
+
+def _link_refusal(value: Any, level: int) -> Optional[_NoCode]:
+    """Why ``value`` — an object called, or a ``__call__`` attribute read
+    statically off a class (a ``staticmethod`` / ``classmethod`` already
+    unwrapped) — is no code to judge or follow, else ``None``. A C wrapper
+    names itself; a value whose type defines ``__get__`` and is not a
+    function, builtin or class is a descriptor, callable or not, since what
+    Python calls is what its ``__get__`` returns (T091 AZ6: a callable
+    descriptor's ``__get__`` returned ``os.getcwd``, and the guard judged its
+    ``__call__``, which never ran); anything else not callable (``None``,
+    ``5``) is named as not callable."""
+    if isinstance(value, _C_WRAPPERS):
+        qualname = getattr(value, "__qualname__", None) or getattr(value, "__name__", "?")
+        return _NoCode(f"is a C {type(value).__name__} ({qualname}), which runs no code the guard can judge", level)
+    if not isinstance(value, (type, types.FunctionType, types.BuiltinFunctionType)) and hasattr(type(value), "__get__"):
+        return _NoCode(_DESCRIPTOR_WHAT, level)
+    if not callable(value):
+        return _NoCode(f"is {'None' if value is None else _type_name(value)}, which is not callable", level)
+    return None
 
 
 def _call_target(obj: Any) -> Any:
@@ -285,39 +346,48 @@ def _call_target(obj: Any) -> Any:
     followed again while it is itself a callable instance (T091 AT3:
     ``Outer.__call__ = Inner()`` reached ``os.getcwd`` one level down).
     ``None`` when the chain does not reach a function, a builtin or a class
-    within :data:`MAX_CALL_DEPTH` ``__call__`` levels, and
-    :data:`DESCRIPTOR_CALL` when a ``__call__`` on it is a property or other
-    non-callable descriptor — either is refused."""
+    within :data:`MAX_CALL_DEPTH` ``__call__`` levels, and a :class:`_NoCode`
+    when a link is a C wrapper, a descriptor or not callable — either is
+    refused."""
     target = _unwrap(obj)
-    for _ in range(MAX_CALL_DEPTH + 1):  # the last pass only tests the eighth level's target
-        if target is None or isinstance(target, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType)):
+    if not isinstance(target, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType)):
+        no_code = _link_refusal(target, -1)
+        if no_code is not None:
+            return no_code
+    for level in range(MAX_CALL_DEPTH + 1):  # the last pass only tests the eighth level's target
+        if isinstance(target, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType)):
             return target
-        call = inspect.getattr_static(type(target), "__call__", None)
+        call = inspect.getattr_static(type(target), "__call__", _MISSING)
+        if call is _MISSING:
+            return _NoCode("is missing (the object is not callable)", level)
         if isinstance(call, (staticmethod, classmethod)):
             call = call.__func__
-        if isinstance(call, property) or (call is not None and not callable(call)):
-            return DESCRIPTOR_CALL
+        no_code = _link_refusal(call, level)
+        if no_code is not None:
+            return no_code
         target = _unwrap(call)
     return None
 
 
-def _code_refusal(target: Any) -> Optional[str]:
+def _code_refusal(target: Any, subject: str = "it") -> Optional[str]:
     """Why ``target`` (what :func:`_call_target` resolved; not a class) is
     not code a spec may call, else ``None``: the spec's own included helper
     code and allowed framework code pass."""
     from .include import INCLUDE_MODULE_PREFIX
 
     if target is None:
-        return f"its __call__ chain does not reach a function within MAX_CALL_DEPTH={MAX_CALL_DEPTH} levels"
-    if target is DESCRIPTOR_CALL:
-        return "its __call__ is a property or other descriptor, not a function or a callable instance"
+        chain = "its __call__ chain" if subject == "it" else f"the __call__ chain of {subject}"
+        return f"{chain} does not reach a function within MAX_CALL_DEPTH={MAX_CALL_DEPTH} levels"
+    if isinstance(target, _NoCode):
+        return target.phrase(subject)
     module = _owner(target)
     if module is not None and (
         module.startswith(INCLUDE_MODULE_PREFIX) or (_in_module(module, "alienbio") and allowed_framework_code(target))
     ):
         return None
+    runner = "it runs" if subject == "it" else f"{subject} runs"
     return (
-        f"it runs code from {module!r}: only the spec's included helpers, registered heads, domain classes and "
+        f"{runner} code from {module!r}: only the spec's included helpers, registered heads, domain classes and "
         f"{list(PY_ALLOWED_MODULES)} are callable"
     )
 
@@ -331,21 +401,27 @@ def _metaclass_refusal(cls: type, depth: int) -> Optional[str]:
     framework code pass, a foreign function (``__call__ =
     staticmethod(os.getcwd)``) refuses — plus :data:`ENUM_METACLASS_CALL`,
     allowed here because the caller has already found ``cls`` to be helper
-    code (T091 AV1)."""
+    code (T091 AV1). The ``__call__`` attribute itself is judged first (T091
+    AZ4): a property, a descriptor or a non-callable set directly on the
+    metaclass gets that reason, not the module of what it would return."""
     meta = type(cls)
     meta_call = inspect.getattr_static(meta, "__call__", None)
     if meta_call is _TYPE_CALL or meta_call is ENUM_METACLASS_CALL:
         return None
     if isinstance(meta_call, (staticmethod, classmethod)):
         meta_call = meta_call.__func__
+    subject = f"its metaclass {meta.__qualname__}.__call__"
+    no_code = _link_refusal(meta_call, -1)
+    if no_code is not None:
+        return no_code.phrase(subject)
     target = _call_target(meta_call)
-    reason = callable_code_refusal(target, _depth=depth + 1) if isinstance(target, type) else _code_refusal(target)
-    if reason is None:
-        return None
-    if target is DESCRIPTOR_CALL:
-        return f"its metaclass {meta.__qualname__}.__call__ is a property or other descriptor, not a function or a callable instance"
-    module = _owner(target) if target is not None else None
-    return f"its metaclass {meta.__qualname__}.__call__ runs code from {module!r}, outside the spec's helpers and the allowed framework code"
+    if isinstance(target, type):
+        reason = callable_code_refusal(target, _depth=depth + 1)
+        return None if reason is None else f"{subject} calls class {target.__qualname__!r}: {reason}"
+    reason = _code_refusal(target, subject)
+    if reason is None or target is None or isinstance(target, _NoCode):
+        return reason
+    return f"{subject} runs code from {_owner(target)!r}, outside the spec's helpers and the allowed framework code"
 
 
 def callable_code_refusal(obj: Any, *, _depth: int = 0) -> Optional[str]:
