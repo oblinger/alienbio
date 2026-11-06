@@ -310,6 +310,7 @@ Everything is refused at draft, before any agent runs.
 | --- | --- | --- |
 | `pi` outside `[0, 1]` | `draft_pressure_world`, `clean_rate_factor` | `ValueError` |
 | `complexity` not a non-negative `int`, or a `bool` | draft, both builders, `make` | `ValueError` |
+| `complexity` > `MAX_COMPLEXITY` (32) | the `pressure`, `commit_the_link` and `describe_the_world` heads, via `check_size_dials` ([ABIO Drafters](ABIO%20Drafters.md)); the generator itself takes any size | `ValueError` |
 | `share_ratio <= 0` | draft, `clean_rate_factor` | `ValueError` |
 | `score_read` not in `SCORE_READS`<br>`score_window` negative or not a number<br>`held` without a positive window<br>a window under `final` or `max` | draft | `ValueError` |
 | `world_variance` not in `[0, 1)`, or a `bool` | `world_variance_factors` | `ValueError` |
@@ -323,3 +324,4 @@ Everything is refused at draft, before any agent runs.
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD `420b0cc`; pool ids and passive-reach numbers were read from a local draft at `Seed(0)`, no spend. The `pressure` head in `drafters.py` is described here (§ The pressure head, § The oracle and setup) because no module doc covers `drafters.py` and the oracle is the head's, not the generator's. `lever_effects` is not in the W1 oracle (it is `phase1_gen`'s); `control_surface` reaches the oracle as `feed_clean`/`feed_fast`. Left out: W2's additions (its own module), the brief's rendering of the `epistemic_access` text (`phase1_chemistry_note`), how the runner applies certainty windows (on [ABIO Runner](ABIO%20Runner.md)), and the registration contents (on [ABIO Guards](ABIO%20Guards.md)). Private names get member blocks only where another module or a test imports them; `_component_score` and `_CleanOnlyRoot` are described in prose.
+- 2026-11-05 — refreshed for `919ba38` (T091 AT1): the refusal table gains the heads' `complexity` cap (`MAX_COMPLEXITY` = 32, checked first thing in the three pressure heads, not in `draft_pressure_world`). Figure still true.

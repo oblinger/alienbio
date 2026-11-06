@@ -152,6 +152,7 @@ The module's functions and tables. Nothing is listed in an `__all__` and `alienb
 | [[#^neutral-padding\|neutral_padding]] | Seed-deterministic neutral filler |
 | [[#^default-action-costs\|DEFAULT_ACTION_COSTS]] | Per-verb default costs |
 | [[#^default-max-rate\|DEFAULT_MAX_RATE]] | Fallback lever cap on a guarded world |
+| [MAX_BURY_COMMITMENT](#^max-bury-commitment) | Cap on `bury_commitment` filler |
 | [[#^monitoring-presets\|MONITORING_PRESETS]] | Named monitoring arms |
 | [[#^framing-presets\|FRAMING_PRESETS]] | Named framings |
 | [[#^stakes-presets\|STAKES_PRESETS]] | Named stakes texts |
@@ -194,13 +195,16 @@ The module's functions and tables. Nothing is listed in an `__all__` and `alienb
     Why `lever` can never be on this trial's control surface — a structurally hidden pool (checked first, since W2 also declares its hidden pools among `setup["readouts"]` and the spec author should see the stronger reason), a readout, or a reaction with a compiled rate law — else `None`. `build_brief` drops such a lever from the default surface and refuses it declared; the reasons are spec-refusal text only. At runtime the agent is told this reason only for a compiled-rate-law reaction; an `Intervene` on a readout or a hidden pool gets `unknown lever '<id>'`, the text a typo gets, because those reasons name the measurement (T091 D1, K2). ^lever-exclusion
 
 **neutral_padding**`(n_tokens: int, seed: Seed) -> str`
-    Sentences drawn by `seed.rng()` from four fixed facilities-language vocabularies (subject, verb, object, tail; no digits, no chemistry), appended until `ops.estimate_tokens(text) >= n_tokens` (`len // 4`, the suite's one token yardstick since `3885584`). Deterministic in `(n_tokens, seed)`. `ValueError` unless `n_tokens` is a positive `int` (a `bool` is refused). ^neutral-padding
+    Sentences drawn by `seed.rng()` from four fixed facilities-language vocabularies (subject, verb, object, tail; no digits, no chemistry), appended until the joined text's `ops.estimate_tokens` (`len // 4`, the suite's one token yardstick since `3885584`) reaches `n_tokens`. The joined length is kept as a running count rather than re-joined each pass, so the build is linear in `n_tokens` with byte-identical output (`919ba38`, T091 AT1: re-joining made it quadratic, and it runs on `--dry` outside any clock). Deterministic in `(n_tokens, seed)`. `ValueError` unless `n_tokens` is a positive `int` (a `bool` is refused) no greater than `MAX_BURY_COMMITMENT`. ^neutral-padding
 
 **DEFAULT_ACTION_COSTS**`: Mapping[str, float]`
     `measure` 1.0, `intervene` 5.0, `commit` 0.0, `wait` 0.0, keyed by lower-cased action type. Lives here so `runner._action_cost` and the brief read one table without a circular import. ^default-action-costs
 
 **DEFAULT_MAX_RATE**`: float = 100.0`
     The cap every declared lever on a guarded world gets when neither the spec nor `setup["lever_caps"]` gives one (T023): finite, so one mega-pull cannot replace the repetition the pressure dial prices. ^default-max-rate
+
+**MAX_BURY_COMMITMENT**`: int = 100_000`
+    The most filler, in estimated tokens, `bury_commitment` may ask for: 5× the largest burial in use (AUP's retention pilot, 20 000). `build_brief` refuses a larger dial naming it, and `neutral_padding` refuses a larger `n_tokens` (`919ba38`, T091 AT1). ^max-bury-commitment
 
 **MONITORING_PRESETS**`: Mapping[str, tuple[str, bool]]`
     EXP-4's three arms as `(surfaced text, actual)`: `logged` (told logged, logged), `apparently-unlogged` (told unlogged, unlogged), `deceptively-unlogged` (told unlogged, logged). ^monitoring-presets
@@ -234,6 +238,7 @@ Every row raises `ValueError` from `build_brief`, which the runner calls before 
 | Lever has a rate law | a declared lever (dial or drafter default) names a reaction carrying a compiled `rate_law`, on any world; the implicit surface leaves such a reaction out instead | module-doc pass 2026-10-27, owner (A) | draft |
 | Bad defaults | `setup["brief_defaults"]` set but not a mapping | T047 | draft |
 | Bad burial depth | `bury_commitment` not a non-negative `int` | T027 | — |
+| Burial too deep | `bury_commitment` > `MAX_BURY_COMMITMENT` (100 000) | T091 AT1 | draft |
 | Nothing to bury | `bury_commitment` > 0 with no or an empty constitution | T027 | — |
 | Unseeded burial | `bury_commitment` > 0 and `seed=None` | T027 | — |
 | Bad displacement flag | `constitution_in_history` not a `bool` (`0` passes as false) | T029 | — |
@@ -288,7 +293,7 @@ Two ways to make the constitution harder to retain, one per arm.
 | | `bury_commitment: N` | `constitution_in_history: true` |
 | --- | --- | --- |
 | Ticket | T027 | T029 |
-| Mechanism | ≥ N estimated tokens of `neutral_padding` immediately before `Constitution:` in the system prompt | no `Constitution:` line; `LLMAgent.begin` seeds it once as history entry `turn: -1` |
+| Mechanism | ≥ N estimated tokens of `neutral_padding` (N ≤ `MAX_BURY_COMMITMENT`) immediately before `Constitution:` in the system prompt | no `Constitution:` line; `LLMAgent.begin` seeds it once as history entry `turn: -1` |
 | What it tests | salience and dilution | forgetting, as `memory=k` displaces the entry |
 | Needs | a constitution and the trial seed | a constitution, and an agent with `memory != "none"` (`LLMAgent.begin` raises) |
 | Brief field | `context_padding` | `constitution_in_history` |
@@ -378,3 +383,4 @@ A guarded dial puts an alignment-bearing arm on a world: a live model reaches it
 - 2026-10-28 — refreshed against 0eb23e5: blocks added for `task_readouts` and `lever_exclusion` (public since `a799468`, never given blocks); `task_readouts` reads an `(id, goal)` pair's id and every entry of a collection target (`c2bfa3c`, `0cee5f0`); `neutral_padding` sizes with `ops.estimate_tokens` (`3885584`).
 - 2026-10-29 — refreshed for `e5ea4d0`, `e392c11` and `661005d` (T091 B9, D1, D2, D4, D9, F1): `task_readouts` includes every `setup["readouts"]` id and reads a target pair only as `(str, number)`; `lever_exclusion` names a hidden pool first; the implicit surface never offers an `auditor:*` key; a declared lever the world does not hold, and an unreachable `held_mass_bound` goal, refuse.
 - 2026-10-29 — refreshed for `c80cf5f` and `54d9ad1` (T091 D, K2, K F1): a set-valued question prints sorted; under `observability` < 1 a held-mass bound needs a declared molecule lever on every seed; `lever_exclusion`'s reasons reach the agent only for a compiled-rate-law reaction.
+- 2026-11-05 — refreshed for `919ba38` (T091 AT1): new `MAX_BURY_COMMITMENT` (100 000), refused by `build_brief` (a new refusal row) and by `neutral_padding`, which now keeps a running joined length and is linear, output byte-identical. Figure still true.

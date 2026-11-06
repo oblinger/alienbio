@@ -68,7 +68,7 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
     The output folder when the caller passes none; `run_experiment(out_dir=…)` and `--out` win. ^out-dir
 
 **axes**`: tuple[tuple[str, tuple[Any, ...]], ...]`
-    The swept dials as `(name, levels)` pairs in declared order; one condition cell per level combination, each level on the record's `condition_key`. `spec_from_dict` reads a mapping and keeps its insertion order ([Where a dial lives](#where-a-dial-lives)). `_validate_axes` refuses at construction an axis declared twice, an axis with no levels, and a repeated level, judged by `trial.frozen_value` (what a summary buckets as one cell), not `repr`: `1`/`1.0`/`True`, or two dict levels differing only in key order, are one level, and with `nan_equal=True` so `[nan, nan]` is a repeated level and refuses; numpy levels are read in their Python form first (`trial.plain_value`) (T091 B1/B5/B10, G1/G2, K G1). ^axes
+    The swept dials as `(name, levels)` pairs in declared order; one condition cell per level combination, each level on the record's `condition_key`. `spec_from_dict` reads a mapping and keeps its insertion order ([Where a dial lives](#where-a-dial-lives)). `_validate_axes` refuses at construction an axis declared twice, an axis with no levels, and a repeated level, judged by `trial.frozen_value` (what a summary buckets as one cell), not `repr`: `1`/`1.0`/`True`, or two dict levels differing only in key order, are one level, and with `nan_equal=True` so `[nan, nan]` is a repeated level and refuses; numpy levels are read in their Python form first (`trial.plain_value`) (T091 B1/B5/B10, G1/G2, K G1). Repeated levels are found by hashing the frozen value, falling back to comparison only for one that cannot be hashed, so a long axis is checked in linear time (`fb6569d`). Before any of that, in both validation modes, a grid planning more than [MAX_CONDITIONS](#^max-conditions) cells (the product of the level counts, the idle arm included) raises (`919ba38`, T091 AT1). ^axes
 
 **fixed_dials**`: Mapping[str, Any] = {}`
     Dials applied to every cell, merged under the cell's own as `{**fixed_dials, **condition}`; never on a condition key. A dial both fixed and swept refuses at construction, since the axis would silently override the fixed value (T091 D10). A factory dial here is refused at the `dials` check (since `c63ad42`). ^fixed-dials
@@ -208,6 +208,7 @@ The module-level functions. A spec's fields are validated in one place, `Experim
 | [load_spec](#^load-spec) | Load an experiment file |
 | [agent_kinds_in_play](#^agent-kinds-in-play) | Every agent kind a run can build |
 | [estimate_cost](#^estimate-cost) | Price the grid without running it |
+| [MAX_CONDITIONS](#^max-conditions) | The most cells one spec may plan |
 
 **spec_to_dict**`(spec: ExperimentSpec) -> dict[str, Any]`
     Every field under its own name, `axes` as a `{name: [levels]}` mapping, tuples as lists, `design` through `PowerDesign.to_dict()`. What the manifest stores as `spec` and hashes as `spec_sha256`. Emits `expected_turns` as a number always, so reloading keeps the value rather than re-deriving it; with `__post_init__` deriving it for both forms, `spec_from_dict(spec_to_dict(s)) == s` for a spec built either way. ^spec-to-dict
@@ -229,6 +230,9 @@ The module-level functions. A spec's fields are validated in one place, `Experim
 
 **estimate_cost**`(spec: ExperimentSpec) -> CostEstimate`
     Prices the grid from its shape alone, probe and summarizer calls included: no world drafted, no trial run. With no live trial it returns $0 and never looks up a price; otherwise it prices every model level and raises `ValueError` from `price_for` when one has no published price and no override, or itself when a pair override sits beside a published model ([Expected turns and the estimate](#expected-turns-and-the-estimate)). ^estimate-cost
+
+**MAX_CONDITIONS**` = 4096`
+    The most conditions (the product of the axes' level counts) one spec may plan, refused at construction in both validation modes before any level is compared. It bounds the enumeration (five 100-level axes are 10^10 cells in 60 bytes), not the preview: `--dry` and the run's preflight draft one world per condition by design, so a large grid's preview takes about a draft per cell. Far above every grid in use (AUP's largest is 27), because a factorial is the framework's core shape (`919ba38` at 128, raised to 4096 in `fb6569d`; T091 AT1). ^max-conditions
 
 
 
@@ -269,7 +273,7 @@ The factory-dial refusal exists because the guards and the estimate read the spe
 
 
 ## The condition grid
-`run_experiment` hands `list(spec.axes)` to `MassTrialRunner.run`, whose `condition_grid` takes the product of the levels in declared order and sorts each cell's key by dial name. `fixed_dials` ride as `extra_dials` and never reach a key. Each cell runs `trials_per_condition` trials, trial `i` seeded from `base_seed.child(f"{label}/{i}")`, where the label drops `WORLD_INVARIANT_DIALS` plus `matched_dials`: cells that differ only in those (agent, model, memory, the brief-side dials, the output budget, the in-world monitor …) draw byte-identical worlds, so an arm contrast is paired by construction. `idle_baseline` uses exactly this: `agent` is world-invariant, so each idle cell runs on its live twin's worlds.
+`run_experiment` hands `list(spec.axes)` to `MassTrialRunner.run`, whose `condition_grid` takes the product of the levels in declared order and sorts each cell's key by dial name. `fixed_dials` ride as `extra_dials` and never reach a key. Each cell runs `trials_per_condition` trials, trial `i` seeded from `base_seed.child(f"{label}/{i}")`, where the label drops `WORLD_INVARIANT_DIALS` plus `matched_dials`: cells that differ only in those (agent, model, memory, the brief-side dials, the output budget, the in-world monitor …) draw byte-identical worlds, so an arm contrast is paired by construction. `idle_baseline` uses exactly this: `agent` is world-invariant, so each idle cell runs on its live twin's worlds. A grid past `MAX_CONDITIONS` cells never reaches the runner: the constructor refuses it.
 
 
 
@@ -321,12 +325,12 @@ The constructor refuses what a field can be wrong about alone or beside another 
 | unknown `agent` axis level<br>bad `trials_per_condition`<br>non-int `base_seed` | a live model on a guarded drafter or dial, unlicensed |
 | `temperature`/`top_p` out of `[0, 1]`; `top_p` with `provider-fixed` | live arm with no `temperature` |
 | malformed `max_tokens`/`output_schedule`, or both | unknown dial names<br>a factory dial in `fixed_dials`<br>an episode dial in `drafter_kwargs` |
-| `matched_dials` naming an unswept axis<br>a repeated or empty axis, a repeated level<br>a dial both fixed and swept | guarded drafter with no list-valued `levers` |
+| `matched_dials` naming an unswept axis<br>a repeated or empty axis, a repeated level<br>more than `MAX_CONDITIONS` cells<br>a dial both fixed and swept | guarded drafter with no list-valued `levers` |
 | under-powered or mis-aimed `design`<br>bad `memory`<br>non-positive `token_ceiling` or forgetting field | unknown `agent`<br>cross-field forgetting config<br>inert `compact_at` |
 | `key_readout` not a `PLOTTERS` name | unknown `drafter` (the first check; every later one is skipped)<br>a world or brief that refuses to draft |
 | non-positive `cost_ceiling_usd`, `concurrency`, `expected_*` counts; bad `price_usd_per_mtok`, or a mapping naming a published model; empty `registration` | unpriced model level; a pair `price_usd_per_mtok` beside a published live model<br>drifted spec, another `world_scheme` or a re-drafted world that differs, on resume<br>records already in `out_dir` |
 
-Under `validation="recorded"` the [RECORDED_NOTE_RULES](#^recorded-note-rules) in the left column (fixed-and-swept, empty axis, repeated level, published price in a mapping, unpinned model, under-powered design), and an agent or drafter no longer registered, become `recorded_warnings`, and `preflight` refuses the spec outright.
+The `MAX_CONDITIONS` bound is not a run-only rule: it raises in both modes. Under `validation="recorded"` the [RECORDED_NOTE_RULES](#^recorded-note-rules) in the left column (fixed-and-swept, empty axis, repeated level, published price in a mapping, unpinned model, under-powered design), and an agent or drafter no longer registered, become `recorded_warnings`, and `preflight` refuses the spec outright.
 
 Not validated in `spec.py`: the scalar `agent` (the `agent` check owns it) and the cross-field forgetting rules, which stay with the `agent` check because a swept axis may supply the partner field (`a4f3b63` moved each field's own shape into the constructor).
 
@@ -346,3 +350,4 @@ Not validated in `spec.py`: the scalar `agent` (the `agent` check owns it) and t
 - 2026-10-29 — refreshed for `3a363a1` (T091 AC2, AC6): `source` is a kw-only init field again, trimmed to `helper_modules`, so a `replace` copy keeps its helpers and drops `spec_path`; resume of a spec-path-less manifest runs and keeps its helpers; recorded mode notes an unregistered agent or drafter (`RECORDED_NOTE_RULES` gains `unregistered-agent-or-drafter`). Figure still true.
 - 2026-10-30 — refreshed for `5c08bc8` (T091 AG1): `load_spec` names the two-literal-`!experiment` refusal, which runs before `Env.load` executes any helper. Figure still true.
 - 2026-10-30 — refreshed for `d943ce4` (T091 AL1) and `db4e905` (AL9): `load_spec` decides trust, reads the text and bases includes on one resolved path; a nested `!experiment` refuses.
+- 2026-11-05 — refreshed for `919ba38` and `fb6569d` (T091 AT1): new `MAX_CONDITIONS` (4096, a sanity bound on enumeration; it was 128 in `919ba38`), raised by `_validate_axes` in both modes before any level is compared; the repeated-level check is hashed, so linear. Figure still true.

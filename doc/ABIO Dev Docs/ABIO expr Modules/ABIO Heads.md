@@ -57,7 +57,8 @@ Kind `math`. Thin registrations of Python builtins; arguments arrive evaluated.
 
 | Math heads | |
 | --- | --- |
-| [abs, sqrt, exp, log, len, float, bool, dict, all, any](#^plain-math) | The Python builtins of those names |
+| [abs, sqrt, exp, log, len, float, bool, all, any](#^plain-math) | The Python builtins of those names |
+| [dict](#^dict) | `dict(...)`, its keys' hashes charged |
 | [int](#^int) | `int(...)`, text and result bit-capped |
 | [round](#^round) | `round`, a negative `ndigits` floored |
 | [str](#^str) | `str(x)`, charged by rendered size |
@@ -71,8 +72,11 @@ Kind `math`. Thin registrations of Python builtins; arguments arrive evaluated.
 | [max](#^max) | Maximum, sized inputs charged |
 | [min](#^min) | Minimum, sized inputs charged |
 
-**abs, sqrt, exp, log, len, float, bool, dict, all, any**
+**abs, sqrt, exp, log, len, float, bool, all, any**
     The builtins (and `math.sqrt`, `math.exp`, `math.log`) registered under their names. An exception they raise becomes an `ExprError` at the node (§ [Raw exceptions](#raw-exceptions)): `exp(1000)` reads `exp: OverflowError: math range error`. ^plain-math
+
+**dict**`(*a, ctx, **kw) -> dict`
+    `dict(*a, **kw)`, after `charge_hash` of the keys it will hash: a mapping argument's keys, or the first item of each pair in a list or tuple of pairs (`baf9fb9`, T091 AT2: it was a plain registration, so `dict([[p, 1]])` over a deep tuple chain hashed uncharged). ^dict
 
 **int**`(*a, ctx, **kw) -> int`
     Refuses text longer than `MAX_POW_RESULT_BITS` characters before converting, then a result over `MAX_POW_RESULT_BITS` bits (`c0094c7`, T091 AP4: `int('f' * 10**6, 16)` was free). ^int
@@ -157,13 +161,13 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     `-a`, `+a`, `not a`. ^op-unary
 
 **op:eq, op:ne, op:lt, op:le, op:gt, op:ge, op:in, op:notin**`(a, b, *, ctx)`
-    The comparison operators; a chain is joined by `op:and` at parse time. Two containers compared are charged the smaller operand's `element_bound` before the comparison runs; `x in xs` with a container `x` is charged the elements of a list or tuple `xs` (of `x` for a hashed `xs`) (`c0094c7`, T091 AP3: `a9 == b9` over two shared-structure chains `[a8] * 10` was 10^9 comparisons in one C call, while building them was charged 90). ^op-cmp
+    The comparison operators; a chain is joined by `op:and` at parse time. Two containers compared are charged the smaller operand's `element_bound` before the comparison runs; `x in xs` with a container `x` is charged the elements of `x` when `xs` is any `Mapping` or `Set` (it hashes `x`; `FrozenKwargs` included since `baf9fb9`, T091 AT2), else the elements of any deep `xs` (`c0094c7`, T091 AP3: `a9 == b9` over two shared-structure chains `[a8] * 10` was 10^9 comparisons in one C call, while building them was charged 90). ^op-cmp
 
 **op:is, op:isnot**`(a, b)`
     Identity; not charged. ^op-is
 
-**op:set**`(xs) -> set`
-    `set(xs)`, not charged. ^op-set
+**op:set**`(xs, *, ctx) -> set`
+    `set(xs)` — the head a `{…}` literal and a set comprehension parse to — after `charge_hash` of the elements of a list, tuple, set or mapping `xs` (`baf9fb9`, T091 AT2). ^op-set
 
 **op:flatten**`(xss, *, ctx) -> list`
     Charges the summed length of the sized rows, then flattens one level; an unsized row is charged by its count once materialized. ^op-flatten
@@ -172,13 +176,13 @@ Kind `op`. What the inline parser emits; a structural spec may call them by name
     Used inside `op:item`. ^op-slice
 
 **op:item**`(obj, index, *, env)`
-    `obj[index]`; a `KeyError`, `IndexError` or `TypeError` becomes an `ExprError` naming the subscript. ^op-item
+    `obj[index]`, after `charge_hash` of `index` (a mapping looks a deep key up by its hash; `baf9fb9`, T091 AT2); a `KeyError`, `IndexError` or `TypeError` becomes an `ExprError` naming the subscript. ^op-item
 
 **op:attr**`(obj, name: str, *, env)`
     Refuses a name the sandbox denies (dunders, `format`, `format_map`, `mro`, `subclasses`, frame and code prefixes, and any name starting with `_`); a mapping holding the key returns the value; otherwise the receiver's type decides ([ABIO Access](ABIO%20Access.md)): plain data returns the attribute but refuses a method read as a value (call it), a domain record returns a data attribute and refuses a method, and every other type — `Env`, `QuotedForm`, a seed, a module, a class, a function — refuses, under trust too. ^op-attr
 
 **op:method**`(obj, name: str, *args, env, **kwargs)`
-    Refuses an in-place method (`append`, `extend`, `insert`, `remove`, `pop`, `clear`, `sort`, `reverse`, `update`, `setdefault`, `popitem`, `add`, `discard`, the `*_update` set methods) on a list, dict, set or bytearray, since a binding is shared by every node naming it; then checks the name, and resolves the target: a callable held under that key in a mapping must pass `check_callable` (untrusted: a plain Python function only), anything else is a method of a plain-data receiver — a domain record's methods and every other type's refuse. It refuses a non-callable, and charges a bound before calling: on text, the padding target for `ljust`/`rjust`/`center`/`zfill`, `len × tabsize` for `expandtabs`, the joined length for `join`, the worst case for `replace`, `n ×` the longest string value in the table for `translate` (a table that is neither a mapping nor a list refuses), `3n` for the case methods (`upper`, `lower`, `casefold`, `title`, `swapcase`, `capitalize`: `'ﬃ'.upper()` is three characters), `10n` for `encode` (`100n` with `namereplace`), `4n` for `decode`, `n × (2 + separator)` for `hex`, else the receiver plus its text arguments; on an int, `n` for `to_bytes(n)` (so `(1).to_bytes(10**9, 'big')` refuses) and nothing for its other methods, nor for a float's or complex's; on a container, its length plus every sized argument (`fromkeys`, `union`, …), and `list.index` / `list.count` of a container argument its `element_bound` (`c0094c7`, T091 AP3). An int result is capped at `MAX_POW_RESULT_BITS` (`(0).from_bytes(b, 'big')`), and what a function held in a mapping — an included helper's — returns passes `access.check_returned` (`df0bc6c`, T091 AP1). ^op-method
+    Refuses an in-place method (`append`, `extend`, `insert`, `remove`, `pop`, `clear`, `sort`, `reverse`, `update`, `setdefault`, `popitem`, `add`, `discard`, the `*_update` set methods) on a list, dict, set or bytearray, since a binding is shared by every node naming it; then checks the name, and resolves the target: a callable held under that key in a mapping must pass `check_callable` (untrusted: a plain Python function only), anything else is a method of a plain-data receiver — a domain record's methods and every other type's refuse. It refuses a non-callable, and charges a bound before calling: on text, the padding target for `ljust`/`rjust`/`center`/`zfill`, `len × tabsize` for `expandtabs`, the joined length for `join`, the worst case for `replace`, `n ×` the longest string value in the table for `translate` (a table that is neither a mapping nor a list refuses), `3n` for the case methods (`upper`, `lower`, `casefold`, `title`, `swapcase`, `capitalize`: `'ﬃ'.upper()` is three characters), `10n` for `encode` (`100n` with `namereplace`), `4n` for `decode`, `n × (2 + separator)` for `hex`, else the receiver plus its text arguments; on an int, `n` for `to_bytes(n)` (so `(1).to_bytes(10**9, 'big')` refuses) and nothing for its other methods, nor for a float's or complex's; on a container, its length plus every sized argument (`fromkeys`, `union`, …), and `list.index` / `list.count` of a container argument its `element_bound` (`c0094c7`, T091 AP3); on a `Mapping` or `Set` receiver, `charge_hash` of every argument, or of the items of a list, set or mapping argument (`d.get(k)`, `{}.fromkeys(xs)`, `s.union(xs)`; `baf9fb9`, T091 AT2). An int result is capped at `MAX_POW_RESULT_BITS` (`(0).from_bytes(b, 'big')`), and what a function held in a mapping — an included helper's — returns passes `access.check_returned` (`df0bc6c`, T091 AP1). ^op-method
 
 **op:fstr**`(*parts, ctx) -> str`
     Charges the summed rendered size of the parts (`render_bound` for a non-text part, so nothing is rendered first), then renders and joins. ^op-fstr
@@ -216,6 +220,7 @@ The module's exports beyond its registrations.
 | [render_bound](#^render-bound) | Upper estimate of `len(str(value))` |
 | [repr_bound](#^repr-bound) | Upper estimate of `len(repr(text))` |
 | [element_bound](#^element-bound) | Elements a deep comparison visits |
+| [charge_hash](#^charge-hash) | Charge hashing deep keys |
 | [charge_render](#^charge-render) | Charge a value's rendered size |
 | [flatten_iter](#^flatten-iter) | Unmetered one-level flatten |
 
@@ -238,10 +243,13 @@ The module's exports beyond its registrations.
     An upper bound on `len(repr(text))` without building it: a printable string is its length + 2 quotes + one escape per backslash or quote; any other is charged 10 characters per character (`'\U000e0000'`) + 2 (`c0094c7`, T091 AP8). ^repr-bound
 
 **element_bound**`(value, limit: int) -> int`
-    The elements a deep comparison of `value` can visit, capped at `limit + 1`; a scalar is 1. Deep means any `Mapping`, `Set` or `Sequence` — subclasses included (`88a1cf6`, T091 AR1: an exact-type test read a `Call`'s `FrozenKwargs` as a leaf, so an alias bomb under any `!head {…}` counted one node and a 611-byte file hung `--dry`) — or a dataclass value; text, `bytes` and `range` are leaves (`_FLAT_SEQUENCES`). `render_bound` uses the same test. Every occurrence of a shared container counts — the comparison repeats it — but each distinct container is walked once, its size memoized by identity, so the bound costs the distinct structure; a container on the current path is a cycle and adds nothing (`c0094c7`, T091 AP3). Also the expanded size of a parsed YAML document (`MAX_DOCUMENT_NODES`, [ABIO YamlTags](ABIO%20YamlTags.md)). ^element-bound
+    The elements a deep comparison of `value` can visit, capped at `limit + 1`; a scalar is 1. Deep means any `Mapping`, `Set` or `Sequence` — subclasses included (`88a1cf6`, T091 AR1: an exact-type test read a `Call`'s `FrozenKwargs` as a leaf, so an alias bomb under any `!head {…}` counted one node and a 611-byte file hung `--dry`) — or a dataclass value; text, `bytes`, `range` and `UserString` are leaves (`_FLAT_SEQUENCES`; `UserString` since `baf9fb9`, T091 AT4, because its items are fresh `UserString`s). `render_bound` uses the same test. Every occurrence of a shared container counts — the comparison repeats it — but each distinct container is walked once, its size memoized by identity, so the bound costs the distinct structure; a container on the current path is a cycle and adds nothing (`c0094c7`, T091 AP3). The walk also counts the containers it enters and returns `limit + 1` once that count passes `limit`, so the bound is total even when no identity repeats (`baf9fb9`, T091 AT4: a sequence whose items are fresh instances of itself walked forever). Also the expanded size of a parsed YAML document (`MAX_DOCUMENT_NODES`, [ABIO YamlTags](ABIO%20YamlTags.md)). ^element-bound
 
 **charge_render**`(value, ctx, what: str) -> None`
     Charges `len(value)` for text, else `render_bound(value, remaining budget + 1)`, before the caller renders. ^charge-render
+
+**charge_hash**`(keys: Iterable, limits, path: str, what: str) -> None`
+    Charges hashing `keys` before the container that hashes them is built or looked up: when any key is deep, `limits.charge(element_bound(deep keys, remaining entities + 1))`, then the clock ticks; flat keys charge nothing. A tuple's hash is not cached, so hashing a deep one walks every occurrence of every element — a chain of `(p, p)` pairs is 2^depth in one C call the clock cannot interrupt (`baf9fb9`, T091 AT2). Called by `op:set`, `dict`, `op:item`, `op:method` on a mapping or set, and [ABIO Interp](ABIO%20Interp.md)'s `each(key=)`. ^charge-hash
 
 **flatten_iter**`(xs) -> list`
     A plain Python helper, not a head. ^flatten-iter
@@ -257,16 +265,17 @@ A distribution head declares `ctx` and so receives the node's context; `ctx.rng`
 
 
 ## The meter's coverage
-`limits.entities` (one million by default) bounds one producer and the running total of a session. The heads split three ways:
+`limits.entities` (one million by default) bounds one producer and the running total of a session. The heads split by how they are bounded:
 
 | Behaviour | Heads |
 | --- | --- |
+| Charged before hashing | `op:set` (`{…}` and set comprehensions), `dict`, `op:item`, `each(key=)`, a mapping or set method's arguments and their items: each deep key's `element_bound`, then a clock tick |
 | Charged before building | `range`, `list`, `sorted`, `reversed`, `zip`, `sum`, `max`, `min` (sized inputs; container items also `element_bound × log2 n`), `str`, `op:add`, `op:mul` on a sequence, `op:flatten`, `op:fstr`, `op:fmt`, `op:mod` on text, `op:method`, `op:eq` … `op:notin` on containers |
 | Bounded otherwise | `op:pow` and `pow` by name (exponent and result bits; with a modulus, modulus bits and exponent × modulus bits), `op:mul` on two ints (result bits), `int` and an int method's result (result bits), integer `op:mod` and `op:floordiv` (operand bits), `round` (`MIN_ROUND_NDIGITS`) |
-| Not charged (‡) | `op:set`, `dict`, `op:is`, `op:isnot` |
+| Not charged (‡) | `op:is`, `op:isnot`; hashing a flat key (a string or bytes, linear in a length already charged where it was built; an int, at most 2^20 bits) |
 | Refused by name | `str.format` / `format_map` (a format field walks attributes outside the allowlist — use an f-string), the in-place methods; `bytes` / `bytearray` are not heads |
 
-M48.5 and T051 box 4 closed the first rows' original members; T088 (`c90ce0d`) added `pow` by name, `op:mod`, `op:method` and the `op:fmt` width, and moved `op:flatten`/`op:fstr` ahead of the build; T091 AH (`5d578ec`) added `int.to_bytes` and a container method's sized arguments. T091 AL (`db4e905`) moved `str` from the third row to the first, sized every rendered value by `render_bound` rather than by rendering it, and capped `int * int` and the three-argument `pow`. T091 AP (`c0094c7`) charged container comparisons, `in`, ordering of container items and `list.index`/`count` by `element_bound`, and bit-capped `int`, `round`, int methods, `//` and integer `%`, emptying the old *Not bounded* row. The `heads.py` module docstring carries the full charge table. The third row builds no more than an input that was already charged.
+M48.5 and T051 box 4 closed the first rows' original members; T088 (`c90ce0d`) added `pow` by name, `op:mod`, `op:method` and the `op:fmt` width, and moved `op:flatten`/`op:fstr` ahead of the build; T091 AH (`5d578ec`) added `int.to_bytes` and a container method's sized arguments. T091 AL (`db4e905`) moved `str` from the third row to the first, sized every rendered value by `render_bound` rather than by rendering it, and capped `int * int` and the three-argument `pow`. T091 AP (`c0094c7`) charged container comparisons, `in`, ordering of container items and `list.index`/`count` by `element_bound`, and bit-capped `int`, `round`, int methods, `//` and integer `%`, emptying the old *Not bounded* row. T091 AT (`baf9fb9`) moved `op:set` and `dict` out of the third row into the new hashing row and charged `op:item`, a mapping or set method's arguments and `each(key=)` the same way. The `heads.py` module docstring carries the full charge table. The *Not charged* row builds no more than an input that was already charged.
 
 
 
@@ -285,3 +294,4 @@ The interpreter calls every head body — function, special form or expander —
 - 2026-10-30 — refreshed for `db4e905` (T091 AL5–AL7): `str` is a metered head; `op:fmt`, `op:fstr` and `op:mod` charge `render_bound` before rendering; `int * int` and `**` capped at `MAX_POW_RESULT_BITS = 2^20` (was 2^24), three-argument `pow` by `MAX_MODPOW_WORK`; every head body passes `interp._guard_raw`. New blocks `render_bound`, `charge_render`, `MAX_MODPOW_WORK`; figure's `str`, metered-operator and cap labels updated.
 - 2026-10-30 — refreshed for `c0094c7` (T091 AP3, AP4, AP8) and `df0bc6c` (AP1): comparisons and `in` on containers, `sorted`/`max`/`min` over container items and `list.index`/`count` charged by `element_bound`; `int`, `round` (`MIN_ROUND_NDIGITS`), int method results, `//` and integer `%` bit-capped; `MAX_POW_RESULT_BITS` is `parse.MAX_INT_LITERAL_BITS`; `repr_bound` charges `!r`/`!a` and strings inside containers; a mapping-held function's result passes `access.check_returned`. New blocks `int`, `round`, `op:floordiv`, `op:is`, `MIN_ROUND_NDIGITS`, `repr_bound`, `element_bound`; figure's plain-math, operator, unmetered and cap labels updated.
 - 2026-11-05 — refreshed for `88a1cf6` (T091 AR1): `element_bound` and `render_bound` see through every `Mapping`, `Set` and `Sequence` subclass (`FrozenKwargs`, tagged mappings); text and `range` stay leaves. Figure still true.
+- 2026-11-05 — refreshed for `baf9fb9` (T091 AT2, AT4): new `charge_hash`; `op:set`, `dict` (now its own metered head), `op:item`, `op:method` on a mapping or set and `each(key=)` charge a deep key's hash and tick the clock; `x in` any `Mapping`/`Set` charges `x`; `element_bound` is total and `UserString` is text; § The meter's coverage gains the hashing row and its *Not charged* row now reads as the docstring's. Its *a hash a container caches (`dict(d)`)* clause was left out: `_dict` charges a mapping argument's deep keys, so `dict(d)` is charged. Figure no longer true: it still draws `op:set · dict` as unmetered ‡ and `dict` among the plain math heads.

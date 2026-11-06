@@ -142,7 +142,7 @@ Registered at import; each receives forms, so only the branch it takes is evalua
 | Form | Arguments | Value |
 | --- | --- | --- |
 | `let` | `bindings` (mapping), `body` | `body` in a child scope;<br>a binding sees the earlier ones |
-| `each` | `over`, `as`, `body`, optional `key`, `where` | a list, or a mapping when `key` is given; a duplicate key refuses; the length is charged to the meter before the loop |
+| `each` | `over`, `as`, `body`, optional `key`, `where` | a list, or a mapping when `key` is given; a duplicate key refuses; the length is charged to the meter before the loop; each key is charged its hash (`charge_hash`) and, when not a string, its rendered size (it becomes the body's path) before it is used (`baf9fb9`, T091 AT2) |
 | `if` | `cond`, `then`, optional `else` | the taken branch; `None` when false with no `else` |
 | `quote` | `form` | a `QuotedForm` |
 | `run` | `form`, optional `bindings` | a quoted form evaluated now, under the current seed |
@@ -172,3 +172,4 @@ A retried call keeps its path, so its instance on every attempt is named by its 
 - 2026-10-28 — refreshed against `0eb23e5`: a retry re-draws on a child seed at the same path (the instance keeps its key), a keyword rebinding a bound positional refuses, `ValueError`/`ArithmeticError` from a callable become `ExprError` (`e2efa89`).
 - 2026-10-30 — refreshed for `5c08bc8` (T091 AG1): `QuotedForm`'s environment is the private `_env`, read from Python by the new `closure_env` (rate_law and expr_experiment use it). Figure still true.
 - 2026-10-30 — refreshed for `db4e905` (T091 AL6, AL7): `evaluate` starts the `limits.seconds` clock; every head body runs under `_guard_raw`, which wraps any exception. Figure still true.
+- 2026-11-05 — refreshed for `baf9fb9` (T091 AT2): `each(key=)` charges each key's hash through `heads.charge_hash` and a non-string key's render before the duplicate check; the key's path is unchanged, so seeds do not move. Figure still true.

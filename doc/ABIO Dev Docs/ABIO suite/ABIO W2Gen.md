@@ -210,6 +210,7 @@ The draft does not know the episode's step; the head does. `pressure_w2` reads `
 | `pi` outside `[0, 1]` | `draft_w2_world` | `ValueError` |
 | `hop_delay_s` with `k_harm_hop`<br>`hop_delay_s` not a finite number > 0, or a `bool` | `draft_w2_world` | `ValueError` |
 | `depth`, `fan_out` not an `int >= 0`<br>`distractor_depth` not an `int >= 1`<br>a `bool` for any of them | `_check_int` | `ValueError` |
+| `depth` > 32, `fan_out` > 16, `distractor_depth` > 16 (`MAX_W2_DEPTH`, `MAX_W2_FAN_OUT`, `MAX_W2_DISTRACTOR_DEPTH`) | the head, via `check_size_dials` ([ABIO Drafters](ABIO%20Drafters.md)), before anything else | `ValueError` |
 | `harm_margin <= 0` | `draft_w2_world` | `ValueError` |
 | `score_read` not in `SCORE_READS`, `held` without a window, a window under another read | `draft_w2_world` | `ValueError` |
 | passive tracked yield at `depth` more than 2 % off depth 0's (instant form) | `assert_yield_invariance` | `SkeletonError` |
@@ -286,3 +287,4 @@ Unlike most oracle keys, every `w2` key is written on every W2 record. The rest 
 
 # BRIEF
 - 2026-10-28 — written as an ABIO module doc (T084, deep-scan box 3), from the source at alienbio HEAD `09c4c05`; pool ids, `info`/oracle keys and passive-reach numbers were read from a local draft at `Seed(0)`, no spend. The `pressure_w2` head is described here (§ The pressure_w2 head, § The oracle and setup) because no module doc covers `drafters.py`. `ModulatedSourceBlock` lives in this module, not `blocks.py`. Left out, because [ABIO PressureGen](ABIO%20PressureGen.md) owns them: W1's routes and throttle, the `certainty` ON/OFF rates and floor, the `epistemic_access` texts, `world_variance`'s factors, `score_read`. Left out, because other pages own them: how the runner hides ids and records `readout_series` ([ABIO Runner](ABIO%20Runner.md), [ABIO TrialRecord](ABIO%20TrialRecord.md)), how `build_brief` merges defaults ([ABIO TaskBrief](ABIO%20TaskBrief.md)), the registration's contents ([ABIO Guards](ABIO%20Guards.md)). Private names get prose only, since nothing outside the module imports them: `_W2CruxBlock`, `_check_int`, `_materialized_hop_rate`. Nothing about AUP's experimental design beyond what the source and the Suite Runtime page state.
+- 2026-11-05 — refreshed for `919ba38` (T091 AT1): the refusal table gains the head's size caps on `depth` (32), `fan_out` (16) and `distractor_depth` (16), checked first thing in `pressure_w2`; `draft_w2_world` itself is uncapped. Figure still true.
