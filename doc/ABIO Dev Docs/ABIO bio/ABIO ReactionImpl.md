@@ -199,7 +199,7 @@ This module stores only what it is given: every parameter defaults to `None`, an
 | Suite derivers — `carve`, `perturbations` | `rebuild_reaction`, sharing molecules | carried unless the caller passes one |
 | The runner's `_chemistry_with_rate`, `ChemistryImpl.subgraph` | the constructor directly, sharing molecules | as each passes it |
 
-`subgraph` and `rebuild_reaction` carry `compartments`; the runner's `_chemistry_with_rate` and `arch_diagnose.perturb_reaction_rate` (via `mk.R`) do not yet (T091 Q2 report).
+`subgraph`, `rebuild_reaction`, the runner's `_chemistry_with_rate`, `arch_diagnose.perturb_reaction_rate` and the discover drafter's step variants (via `mk.R`) all carry `compartments` (T091 Q2; the last three closed by the Pilot the same night).
 
 ## Compartment scope
 `compartments` is a whitelist of compartment ids; `None`, the default, runs the reaction in every compartment of the world (T091 Q2). `compartment_scope` normalizes it at construction: a bare string is a one-element list, and an empty list, a non-string entry or a repeated id raises `ValueError` naming the reaction — a reaction that runs nowhere is a spec error, not a switch. Whether each id is a compartment of the world is checked where the world is known: `world_simulator.reaction_compartment_ids`, called by `WorldImpl` at construction and by `from_chemistry`, refuses an id the world lacks with `ValueError` naming the reaction and the id. The spec spellings are `compartments: [pond]` on a `!Chemistry` reaction mapping or a `!Reaction`, and `compartments=` on the `reaction` head ([[ABIO ExprHeads]]).
@@ -219,3 +219,4 @@ A reaction's `name` is its `local_name`, and `ChemistryImpl` keys reactions by i
 - 2026-10-29 — refreshed for `db300c9` (T091 F5): `Modulation.__post_init__` runs the hill `K`/`n` check the rate-law path runs. Figure still true.
 - 2026-11-06 — refreshed for `9fce196` (T091 BA): `__init__` re-raises a `from_json` `ValueError` prefixed with the reaction's name (a law past `MAX_RATE_LAW_NODES` was otherwise reported without it); the constructor block amended. Figure still true.
 - 2026-11-06 — T091 Q2: the `compartments` scope (slot, constructor keyword, property, `attributes`/`hydrate` only when set, `rebuild_reaction`, `subgraph`) and § Compartment scope; two rebuild paths outside `bio/` that drop it are named under § Construction paths. Figure not updated: it does not show the scope.
+- 2026-11-06 — T091 Q2 follow-up: the two rebuild paths outside `bio/` (and the discover drafter's variants) carry the scope; § Construction paths says so.

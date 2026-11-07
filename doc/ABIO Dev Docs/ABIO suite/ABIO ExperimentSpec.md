@@ -125,7 +125,7 @@ A frozen dataclass whose methods are `__post_init__` and the `_validate` it call
     The `suite.plots.PLOTTERS` name whose figure becomes `key.png`; `None` takes the first readout the records carry, in report order. Refused at load when not a `PLOTTERS` name. ^key-readout
 
 **cost_ceiling_usd**`: Optional[float] = None`
-    M45.5: positive, or absent. `run_experiment`'s `stop()` halts the grid once the priced usage of landed records reaches it; nothing compares it with the estimate ([Expected turns and the estimate](#expected-turns-and-the-estimate)). ^cost-ceiling-usd
+    M45.5: positive and finite, or absent (T091 Q1: `.nan` compared false against every spend, so a NaN ceiling never stopped a run; it and `.inf` refuse at construction). `run_experiment`'s `stop()` halts the grid once the priced usage of landed records reaches it; nothing compares it with the estimate ([Expected turns and the estimate](#expected-turns-and-the-estimate)). ^cost-ceiling-usd
 
 **price_usd_per_mtok**`: Optional[Union[tuple[float, float], Mapping[str, tuple[float, float]]]] = None`
     USD per million tokens for models absent from the published price table, never a reprice (`f0604df`, T091 Q2): a pair `(input, output)` of non-negative numbers prices every unpriced model in play; a mapping `{model_id: (input, output)}` prices them by name. A mapping naming a published model refuses at construction; a pair beside a published live model refuses in `estimate_cost` (the `price` check), naming the models. `spec_to_dict` writes the mapping as `{model: [in, out]}`. ^price-usd-per-mtok
@@ -354,3 +354,4 @@ Not validated in `spec.py`: the scalar `agent` (the `agent` check owns it) and t
 - 2026-11-06 — refreshed for `1c098be` (T091 AV5): the repeated-level check compares across hashable and unhashable levels alike (`{1}` and `frozenset({1})` are one level) and names the earliest equal prior. Figure still true.
 - 2026-11-06 — refreshed for `9fce196` (T091 BA): `drafter_kwargs` may not set `sim_cfg` — refused at construction in every form, the message pointing at `episode(sim_steps=, sim_dt=)`, noted in recorded mode as `sim-cfg-in-spec` (new entry in `RECORDED_NOTE_RULES`); the `drafter_kwargs` block, the dial-placement table and the refusal table amended. Figure still true.
 - 2026-11-06 — refreshed for `4047480` (T091 BB3): `drafter_kwargs` must be a mapping (`None` reads as none), refused by name in both validation modes at construction and in `spec_from_dict`; the `drafter_kwargs` and `spec_from_dict` blocks, the refusal table and the both-modes line amended. Figure still true.
+- 2026-11-06 — T091 Q1 follow-up (Pilot): `cost_ceiling_usd` refuses NaN and inf at construction; the CLI's `--cost-ceiling` refused them already. Figure still true.
