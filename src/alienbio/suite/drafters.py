@@ -1784,17 +1784,66 @@ class _Drafters(dict):
     """The drafters by name — each the :func:`_adapt` of its head. A dict (so
     a test may ``monkeypatch.setitem`` a spy in) that also resolves a drafter
     head registered *after* import — one an experiment file's ``_includes_``
-    brought in (the catalog examples)."""
+    brought in (the catalog examples).
+
+    T099 — an adapter is remembered with the head it adapted, and a lookup
+    re-adapts when the registry now holds a DIFFERENT head under that name
+    (a same-definition re-registration: two copies of one example's
+    ``helpers.py`` loaded in one process, each reading the yaml beside
+    itself). The cached adapter used to outlive the head it came from, so
+    both copies drafted from the first copy's spec. An entry set from
+    outside (``monkeypatch.setitem``) has no remembered head and is left
+    alone."""
+
+    def __init__(self, heads: Mapping[str, Head]) -> None:
+        super().__init__({name: _adapt(head) for name, head in heads.items()})
+        self._heads: dict[str, Head] = dict(heads)
+
+    @staticmethod
+    def _current(name: str) -> Optional[Head]:
+        if name in _registry:
+            head = _registry.get(name)
+            if head.kind == "drafter":
+                return head
+        return None
+
+    def _adapt_now(self, name: str, head: Head) -> DrafterFn:
+        self._heads[name] = head
+        fn = _adapt(head)
+        dict.__setitem__(self, name, fn)
+        return fn
 
     def __missing__(self, name: str) -> DrafterFn:
-        if name in _registry and _registry.get(name).kind == "drafter":
-            self[name] = _adapt(_registry.get(name))
-            return self[name]
-        raise KeyError(name)
+        head = self._current(name)
+        if head is None:
+            raise KeyError(name)
+        return self._adapt_now(name, head)
+
+    def __getitem__(self, name: str) -> DrafterFn:
+        adapted = self._heads.get(name)
+        if adapted is not None and dict.__contains__(self, name):
+            now = self._current(name)
+            if now is not None and now is not adapted:
+                return self._adapt_now(name, now)
+        return dict.__getitem__(self, name)
+
+    def __setitem__(self, name: str, fn: DrafterFn) -> None:
+        # Set from outside (a spy, a test restoring an entry): no head to
+        # compare against, so a lookup never replaces it.
+        self._heads.pop(name, None)
+        dict.__setitem__(self, name, fn)
+
+    def __delitem__(self, name: str) -> None:
+        self._heads.pop(name, None)
+        dict.__delitem__(self, name)
+
+    def pop(self, name: str, *default: Any) -> Any:
+        self._heads.pop(name, None)
+        return dict.pop(self, name, *default)
 
 
 #: Registered world/task drafters, by name — the ``drafter`` an :class:`ExperimentSpec` names.
-DRAFTERS: dict[str, DrafterFn] = _Drafters({name: _adapt(head) for name, head in drafter_heads().items()})
+DRAFTERS: dict[str, DrafterFn] = _Drafters(drafter_heads())
 
 #: Drafters whose WORLD is an AUP-registered substrate — the M31 conflict /
 #: pressure / delta generators and the controls drafted on the pressure world.

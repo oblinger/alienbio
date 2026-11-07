@@ -45,24 +45,13 @@ def _load(yml: Path):
 
 @pytest.fixture
 def microcosm(tmp_path):
-    """A copy of the Microcosm example; returns (yaml path, run dir).
-
-    ``DRAFTERS`` keeps the adapter of the first ``microcosm`` head it
-    resolved — in a full test session, another test's copy, reading the yaml
-    beside THAT helpers file. The cached entry is dropped for this test (and
-    restored after), so the head this copy's helpers register is the one
-    the run drafts with; on teardown the entry this test cached is dropped
-    again (or the earlier one put back), so no later test drafts from this
-    test's deleted directory."""
-    before = dict.get(DRAFTERS, "microcosm")
-    DRAFTERS.pop("microcosm", None)
+    """A copy of the Microcosm example; returns (yaml path, run dir). Since
+    T099 ``DRAFTERS`` re-adapts when this copy's helpers re-register the
+    head, so the copy drafts from its own yaml with no cache eviction."""
     d = tmp_path / "mc"
     d.mkdir()
     shutil.copy(MICROCOSM / "helpers.py", d / "helpers.py")
     yield d / "microcosm.yaml", d / "run"
-    DRAFTERS.pop("microcosm", None)
-    if before is not None:
-        DRAFTERS["microcosm"] = before
 
 
 def _crashed_run(yml: Path, out: Path, text: str) -> None:

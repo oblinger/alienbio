@@ -134,7 +134,7 @@ The adapter, the derived registries and the dial sets.
     Every head of kind `drafter` in the registry now, by name. ^drafter-heads
 
 **DRAFTERS**`: dict[str, DrafterFn]`
-    `_adapt` of every drafter head at import; a missing name that is a drafter head registered later (a catalog example's include) is adapted on first lookup. A plain `dict` subclass, so a test may `monkeypatch.setitem` a spy. § [The adapter](#the-adapter). ^drafters
+    `_adapt` of every drafter head at import; a missing name that is a drafter head registered later (a catalog example's include) is adapted on first lookup. Each adapter is remembered with the head it adapted, and a lookup re-adapts when the registry now holds a different head under the name (T099: two copies of one example's `helpers.py` in one process both drafted from the first copy's yaml). A `dict` subclass, so a test may `monkeypatch.setitem` a spy; an entry set from outside has no remembered head and is never replaced. § [The adapter](#the-adapter). ^drafters
 
 **FACTORY_DIALS**`: frozenset[str]`
     `agent`, `model`, `memory`, `compact_at`, `compact_budget`, `history_token_limit`, `max_tokens`, `output_schedule`. ^factory-dials
@@ -263,3 +263,4 @@ A draft runs as plain Python outside the Expr evaluation clock, on `--dry` and i
 - 2026-11-06 — refreshed for `0085d15` (T091 AX3, AX6): `check_size_dials` judges a 0-d numpy array by its item; `check_generator_sim_cfg` refuses a non-`SimConfig` with `ValueError`, a config refusal naming the head and `!sim`. The figure draws the registry and the adapter, which did not change: still true.
 - 2026-11-06 — refreshed for `9fce196` (T091 BA): `check_generator_sim_cfg`'s non-`SimConfig` message now ends `pass a suite.verify.SimConfig`; no experiment spec reaches it, since `ExperimentSpec` refuses `sim_cfg` in `drafter_kwargs` — the block was corrected in place. The figure draws the registry and the adapter, which did not change: still true.
 - 2026-11-06 — refreshed for `4047480` (T091 BC): `check_generator_sim_cfg`'s non-`SimConfig` message ends `pass a suite.verify.SimConfig (in an Expr world head, build it with !sim)`, naming both callers; the block was corrected in place (pass 14 wrote the BA message). `phase1_pressure`'s docstring now says its two horizons differ only for a Python caller's own `sim_cfg`, as [ABIO Phase1Gen](ABIO%20Phase1Gen.md) already states. The figure draws the registry and the adapter, which did not change: still true.
+- 2026-11-06 — T099: `DRAFTERS` re-adapts a name whose registry head changed (a same-definition re-registration); `pop`/`del`/`__setitem__` keep the remembered-head map in step. Figure still true.
