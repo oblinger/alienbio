@@ -68,13 +68,18 @@ def test_the_experiment_runs_over_the_feed_rate(tmp_path):
     assert abs(6.0 - pond_food[0.9]) < abs(6.0 - pond_food[0.3])
     assert by_feed[0.9].objective_score > by_feed[0.3].objective_score
     assert by_feed[0.9].objective_score == pytest.approx(1.0 / (1.0 + abs(pond_food[0.9] - 6.0)))
+    # T091 Q2: the chemistry is confined to the pond, so no population
+    # compartment makes food; the pond's own numbers did not move.
+    assert all(r.final_state[c]["food"] == 0.0 for r in rmap.records for c in ("juveniles", "adults", "rivals"))
+    assert pond_food[0.3] == pytest.approx(4.1543787677944914, abs=0) and pond_food[0.9] == pytest.approx(5.286371269132483, abs=0)
 
 
 def test_the_intervene_scorer_reads_one_compartment_and_refuses_an_ambiguous_one():
     """T091 E2: the target is read in the one compartment the binding names or
     that can hold it; a target held in several and named in none refuses at
-    draft. T091 I4: "can hold" reads the chemistry — the supply runs in every
-    compartment, so food can be held in all four and the example names the pond."""
+    draft. T091 I4: "can hold" reads the chemistry — and does not yet read a
+    reaction's ``compartments`` scope (T091 Q2), so food still counts as
+    holdable in all four and the example names the pond."""
     from alienbio.bio.world import Compartment
     from alienbio.suite.arch_intervene import target_compartment
 

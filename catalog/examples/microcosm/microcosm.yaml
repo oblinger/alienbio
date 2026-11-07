@@ -10,12 +10,14 @@ drain_rate: 0.02                 # the environmental pressure on the resource
 feed_rate: 0.6                   # the drafter overrides this per condition
 
 # ---- the chemistry: one resource, one waste ------------------------------
+# All three reactions run in the pond only (`compartments:`, T091 Q2); without
+# the key a reaction runs in every compartment.
 chem: !Chemistry
   molecules: [food, detritus]
   reactions:
-    supply: {reactants: [], products: [food], rate: !x feed_rate}
-    drain:  {reactants: [food], products: [], rate: !x drain_rate}      # environmental, not biological
-    decay:  {reactants: [detritus], products: [food], rate: 0.05}       # detritus returns to the pool
+    supply: {reactants: [], products: [food], rate: !x feed_rate, compartments: [pond]}
+    drain:  {reactants: [food], products: [], rate: !x drain_rate, compartments: [pond]}  # environmental
+    decay:  {reactants: [detritus], products: [food], rate: 0.05, compartments: [pond]}   # detritus returns
 
 # ---- the world: compartments with COUNTS ---------------------------------
 # `multiplicity` is the population count. The `pond` holds the shared food;
@@ -43,8 +45,8 @@ world: !World
 # it to a level, with the supply and the drain the only levers.
 task: !task
   archetype: microcosm-intervene
-  # The supply runs in every compartment, so food can be held in all four:
-  # the pond is named (T091 I4), not inferred from where `initial` lists it.
+  # The score reads the pond's food; the pond is named (T091 I4), not
+  # inferred from where `initial` lists it.
   objective: !intervene_q {world: !x world, target_value: 6.0, binding: {target: food, compartment: pond}}
 
 experiment: !experiment

@@ -24,14 +24,16 @@ Deliberately absent: every AI-safety dial (roadmap M48.9).
 
 ## The score reads the pond
 
-The `intervene` scorer reads `food` in ONE compartment — the pond, because the binding names it (`compartment: pond`). The food supply runs in every compartment, so all four can hold `food` (`arch_intervene.target_holders`), and a target held in several compartments with none named refuses at draft (`arch_intervene.target_compartment`). Until T091 E2 it summed `food` over all four compartments, whose volumes differ (10.0 against 0.1–0.2), and so ranked the worse feed rate higher. `bio suite run` at base seed 5 (2 s, 4 turns × 10 steps), goal 6.0:
+The `intervene` scorer reads `food` in ONE compartment — the pond, because the binding names it (`compartment: pond`). Until T091 E2 it summed `food` over all four compartments, whose volumes differ (10.0 against 0.1–0.2), and so ranked the worse feed rate higher.
 
-| feed_rate | pond `food` | adults / juveniles / rivals `food` | score, summed (before) | score, pond (now) |
-|---|---|---|---|---|
-| 0.3 | 4.154 | 0.552 / 0.589 / 0.589 | 0.896 | 0.351 |
-| 0.9 | 5.286 | 1.654 / 1.766 / 1.766 | 0.183 | 0.584 |
+The three reactions (`supply`, `drain`, `decay`) run in the pond only: each carries `compartments: [pond]` (T091 Q2). Before the key existed a world-level chemistry ran in every compartment, so the supply made `food` inside the grazers, read by nothing. `bio suite run` at base seed 5 (2 s, 4 turns × 10 steps), goal 6.0:
 
-⚠️ The three reactions (`supply`, `drain`, `decay`) still run in **every** compartment, not only the pond: a world-level chemistry applies everywhere, and the engine has no way to confine a reaction to one compartment yet (`ReactionSpec.compartments` exists but no world or YAML path sets it). That is why the population compartments carry the `food` amounts in the table — food made inside the grazers, read by nothing now that the score reads the pond. Confining the chemistry to the pond needs that primitive (T091 E3, open).
+| feed_rate | pond `food` | adults / juveniles / rivals `food`, unscoped (before) | scoped (now) | score, summed (before E2) | score, pond |
+|---|---|---|---|---|---|
+| 0.3 | 4.154 | 0.552 / 0.589 / 0.589 | 0 / 0 / 0 | 0.896 | 0.351 |
+| 0.9 | 5.286 | 1.654 / 1.766 / 1.766 | 0 / 0 / 0 | 0.183 | 0.584 |
+
+The pond's `food` and the score are bit-identical with and without the scope: a reaction runs per compartment, and growth draws from the pond alone. `arch_intervene.target_holders` still assumes every reaction runs everywhere, so a `food` target with no compartment named still refuses as held in all four; the binding names the pond either way.
 
 ## Test
 
