@@ -124,3 +124,15 @@ def test_only_resume_takes_the_flag():
             parser.parse_args([verb, "x", "--cost-ceiling", "3"])
     with pytest.raises(SystemExit):
         parser.parse_args(["run", "x.yaml", "--cost-ceiling", "3"])
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
+def test_a_non_finite_ceiling_in_a_spec_refuses_too(value):
+    """``_validate_cost_ceiling`` accepted NaN and inf from a spec file
+    (``.nan`` / ``.inf`` are valid YAML floats); NaN compared false against
+    every spend, so such a ceiling never stopped a run (T091 Q1, Pilot)."""
+    from alienbio.suite.spec import _validate_cost_ceiling
+
+    with pytest.raises(ValueError, match="cost_ceiling_usd must be (a finite number|> 0)"):
+        _validate_cost_ceiling(value)
+    assert _validate_cost_ceiling(2.5) == 2.5

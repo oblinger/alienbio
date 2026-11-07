@@ -33,7 +33,7 @@ The three reactions (`supply`, `drain`, `decay`) run in the pond only: each carr
 | 0.3 | 4.154 | 0.552 / 0.589 / 0.589 | 0 / 0 / 0 | 0.896 | 0.351 |
 | 0.9 | 5.286 | 1.654 / 1.766 / 1.766 | 0 / 0 / 0 | 0.183 | 0.584 |
 
-The pond's `food` and the score are bit-identical with and without the scope: a reaction runs per compartment, and growth draws from the pond alone. `arch_intervene.target_holders` still assumes every reaction runs everywhere, so a `food` target with no compartment named still refuses as held in all four; the binding names the pond either way.
+The pond's `food` and the score are bit-identical with and without the scope: a reaction runs per compartment, and growth draws from the pond alone. `arch_intervene.target_holders` reads the scope too, so with the three reactions confined to the pond, `food` can be held only there and a binding that names no compartment resolves to the pond on its own; the example still names it, as documentation of what the score reads.
 
 ## Test
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -753,11 +754,16 @@ def _validate_output_schedule(max_tokens: Any, output_schedule: Any) -> Optional
 
 
 def _validate_cost_ceiling(value: Any) -> Optional[float]:
-    """``cost_ceiling_usd`` must be a positive number, or absent (``None``)."""
+    """``cost_ceiling_usd`` must be a positive finite number, or absent
+    (``None``). T091 Q1: NaN compared false against every spend, so a NaN
+    ceiling never stopped a run; it and ``inf`` refuse here (``.nan`` /
+    ``.inf`` are valid YAML floats)."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
         raise ValueError(f"experiment spec: cost_ceiling_usd must be > 0, got {value!r}")
+    if not math.isfinite(value):
+        raise ValueError(f"experiment spec: cost_ceiling_usd must be a finite number, got {value!r}")
     return float(value)
 
 

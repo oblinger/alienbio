@@ -77,15 +77,16 @@ def test_the_experiment_runs_over_the_feed_rate(tmp_path):
 def test_the_intervene_scorer_reads_one_compartment_and_refuses_an_ambiguous_one():
     """T091 E2: the target is read in the one compartment the binding names or
     that can hold it; a target held in several and named in none refuses at
-    draft. T091 I4: "can hold" reads the chemistry — and does not yet read a
-    reaction's ``compartments`` scope (T091 Q2), so food still counts as
-    holdable in all four and the example names the pond."""
+    draft. T091 I4: "can hold" reads the chemistry, and since T091 Q2 the
+    reactions' ``compartments`` scope: supply, drain and decay run in the pond
+    only, so the pond is food's one holder and a nameless binding resolves
+    to it (the example names it anyway)."""
     from alienbio.bio.world import Compartment
-    from alienbio.suite.arch_intervene import target_compartment
+    from alienbio.suite.arch_intervene import target_compartment, target_holders
 
     world = Env.standard(seed=5, trusted=True).load(SPEC).force_all()["world"]
-    with pytest.raises(ValueError, match=r"can be held in \['pond', 'juveniles', 'adults', 'rivals'\]"):
-        target_compartment(world, "food")
+    assert target_holders(world, "food") == ["pond"]
+    assert target_compartment(world, "food") == "pond"
     assert target_compartment(world, "food", "pond") == "pond"
     assert target_compartment(world, "food", "adults") == "adults"
     with pytest.raises(ValueError, match="not a compartment"):

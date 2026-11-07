@@ -62,7 +62,8 @@ def _strict_loads(text: str):
 def test_a_spec_carrying_inf_writes_a_strict_manifest_that_reads_back_equal(tmp_path):
     from alienbio.suite.store import _build_manifest, _write_manifest, read_manifest
 
-    spec = _spec("inf", fixed_dials={"levers": [], "budget": float("inf")}, cost_ceiling_usd=float("inf"))
+    # T091 Q1 — ``cost_ceiling_usd`` refuses inf now; the dial carries it.
+    spec = _spec("inf", fixed_dials={"levers": [], "budget": float("inf")})
     path = tmp_path / "manifest.json"
     _write_manifest(path, _build_manifest(spec, 2, "2026-10-28T00:00:00Z"))
     raw = _strict_loads(path.read_text())

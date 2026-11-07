@@ -162,9 +162,20 @@ def test_the_python_api_refuses_an_ambiguous_world_at_construction():
     from alienbio.expr import Env
     from alienbio.suite.arch_intervene import make_intervention_objective
 
+    from alienbio.bio.world import Compartment, WorldImpl
+
     world = Env.standard(seed=5, trusted=True).load(str(REPO / "catalog/examples/microcosm/microcosm.yaml")).force_all()["world"]
+    # T091 Q2 — Microcosm's chemistry is confined to the pond, so food has one
+    # holder there; the ambiguous case is two compartments that both start
+    # with food.
+    two = WorldImpl(
+        world.chemistry,
+        (Compartment("pond", None, "environment", 10.0, concentrations={"food": 4.0}),
+         Compartment("cove", "pond", "environment", 1.0, concentrations={"food": 1.0})),
+    )
     with pytest.raises(ValueError, match=r"intervene: target 'food' can be held in .*name the one to score"):
-        make_intervention_objective("food", 6.0, world=world)
+        make_intervention_objective("food", 6.0, world=two)
+    assert make_intervention_objective("food", 6.0, world=world).target == 6.0
     objective = make_intervention_objective("food", 6.0, "pond", world=world)
     assert objective.target == 6.0
     with pytest.raises(ValueError, match="not a compartment"):

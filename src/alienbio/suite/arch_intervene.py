@@ -146,8 +146,9 @@ def target_holders(world: Any, target_id: str) -> list[str]:
     """The compartments (in world order) that can ever hold ``target_id``: a
     fixpoint over what each compartment can contain — its initial amounts
     above zero, the products of every reaction whose reactants can all be
-    there (the simulators run every reaction in every compartment; a rate
-    of 0 still counts, since an Intervene may set it), what a transport flux
+    there and whose ``compartments`` scope admits it (T091 Q2: a reaction
+    with no scope runs in every compartment; a rate of 0 still counts,
+    since an Intervene may set it), what a transport flux
     carries while its driver can be in the origin, what a death law
     releases, and what a count flow carries from its origin to its dest
     with the individuals it moves. Duck-typed: a world without ``flows`` / ``population_laws``
@@ -157,7 +158,11 @@ def target_holders(world: Any, target_id: str) -> list[str]:
         str(c.id): {str(m) for m, v in dict(c.concentrations).items() if float(v) > 0.0} for c in comps
     }
     reactions = [
-        ({m.name for m in r.reactants}, {m.name for m in r.products})
+        (
+            {m.name for m in r.reactants},
+            {m.name for m in r.products},
+            None if getattr(r, "compartments", None) is None else {str(c) for c in r.compartments},
+        )
         for r in dict(world.chemistry.reactions).values()
     ]
     # A transport flux runs origin -> dest while its driver is in the origin;
@@ -193,8 +198,10 @@ def target_holders(world: Any, target_id: str) -> list[str]:
     changed = True
     while changed:
         changed = False
-        for held in present.values():
-            for reactants, products in reactions:
+        for comp, held in present.items():
+            for reactants, products, scope in reactions:
+                if scope is not None and comp not in scope:
+                    continue
                 if reactants <= held and not products <= held:
                     held |= products
                     changed = True

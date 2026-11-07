@@ -1210,13 +1210,19 @@ def discover(
         step_id, step = min(steps, key=lambda kv: _numeric_rate(kv[1]))
         k = _numeric_rate(step)
         catalyst = mk.M(CATALYST_ID)
-        plain = mk.R(step_id, dict(step.reactants), dict(step.products), rate=k * (1.0 - symbiosis))
+        # T091 Q2 — both variants keep the step's compartments scope (None today:
+        # generated hosts are never scoped, so the default path is unchanged).
+        plain = mk.R(
+            step_id, dict(step.reactants), dict(step.products), rate=k * (1.0 - symbiosis),
+            compartments=step.compartments,
+        )
         catalysed = mk.R(
             f"{step_id}_cat",
             dict(step.reactants),
             dict(step.products),
             rate=k * symbiosis,
             modifiers={catalyst: Modulation(kind="michaelis", Vmax=(K + level) / level, K=K)},
+            compartments=step.compartments,
         )
         molecules = list(chem.molecules.values()) + [catalyst]
         reactions = [plain if rid == step_id else rxn for rid, rxn in chem.reactions.items()] + [catalysed]

@@ -45,8 +45,9 @@ world: !World
 # it to a level, with the supply and the drain the only levers.
 task: !task
   archetype: microcosm-intervene
-  # The score reads the pond's food; the pond is named (T091 I4), not
-  # inferred from where `initial` lists it.
+  # The score reads the pond's food. With the chemistry confined to the
+  # pond (T091 Q2) it is the only holder, so the name is documentation;
+  # a target held in several compartments must name one (T091 I4).
   objective: !intervene_q {world: !x world, target_value: 6.0, binding: {target: food, compartment: pond}}
 
 experiment: !experiment

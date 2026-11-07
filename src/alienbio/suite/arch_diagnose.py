@@ -217,7 +217,10 @@ def perturb_reaction_rate(world: WorldImpl, reaction_id: str, factor: float) -> 
         raise ValueError(f"perturb_reaction_rate: {reaction_id!r} has a non-numeric rate {rate!r}")
     if rxn.rate_law is not None:
         raise ValueError(f"perturb_reaction_rate: {reaction_id!r} carries a rate_law; its rate is unused")
-    replaced = mk.R(reaction_id, dict(rxn.reactants), dict(rxn.products), rate=float(rate) * factor, modifiers=dict(rxn.modifiers))
+    replaced = mk.R(
+        reaction_id, dict(rxn.reactants), dict(rxn.products), rate=float(rate) * factor,
+        modifiers=dict(rxn.modifiers), compartments=rxn.compartments,  # T091 Q2 — the scope rides along
+    )
     reactions = [replaced if rid == reaction_id else r for rid, r in chem.reactions.items()]
     new_chem = cast(ChemistryImpl, mk.C("host", list(chem.molecules.values()), reactions))
     return rebuild_world(world, new_chem)

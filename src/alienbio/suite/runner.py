@@ -344,6 +344,7 @@ def _chemistry_with_rate(
         products=old.products,
         modifiers=old.modifiers,
         rate=rate,
+        compartments=old.compartments,  # T091 Q2 — an Intervene keeps the scope
         dat=_mock_dat(f"rxn/{reaction_id}"),
     )
     return ChemistryImpl(

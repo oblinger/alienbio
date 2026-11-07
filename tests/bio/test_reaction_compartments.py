@@ -201,3 +201,48 @@ def test_the_reaction_head_scopes_both_its_blocks():
     with pytest.raises(ExprError, match="compartments is empty"):
         Env.standard(seed=3).load("<blocks>", text=SKELETON_DOC.replace("compartments: cell", "compartments: []")).force_all()
 
+
+
+# --- T091 Q2 follow-up (Pilot): the suite's own rebuilds keep the scope ----
+
+
+def test_an_intervene_rebuild_and_a_rate_perturbation_keep_the_scope():
+    """``runner._chemistry_with_rate`` (an Intervene on a reaction's rate) and
+    ``arch_diagnose.perturb_reaction_rate`` both rebuilt the reaction without
+    its scope, so a scoped reaction ran everywhere again after the lever."""
+    from alienbio.suite.arch_diagnose import perturb_reaction_rate
+    from alienbio.suite.runner import _chemistry_with_rate
+
+    world = _world(["fish"])
+    chem = _chemistry_with_rate(world.chemistry, "supply", 2.0)
+    assert chem.reactions["supply"].rate == 2.0
+    assert chem.reactions["supply"].compartments == ("fish",)
+    assert chem.reactions["spoil"].compartments is None
+    perturbed = perturb_reaction_rate(world, "supply", 3.0)
+    assert perturbed.chemistry.reactions["supply"].compartments == ("fish",)
+    assert perturbed.chemistry.reactions["supply"].rate == pytest.approx(1.5)
+
+
+def test_target_holders_respects_a_reactions_scope():
+    """``arch_intervene.target_holders`` assumed every reaction runs in every
+    compartment; a scoped supply makes its product only where it runs (its
+    reactants, here none, are present everywhere)."""
+    from alienbio.suite.arch_intervene import target_holders
+
+    assert target_holders(_world(None), "food") == ["pond", "fish", "weed"]
+    assert target_holders(_world(["fish"]), "food") == ["pond", "fish"]  # the pond starts with food
+    # waste comes only from spoil (food -> waste), which runs everywhere but
+    # needs food: the weed never has food, so never waste.
+    assert target_holders(_world(["fish"]), "waste") == ["pond", "fish"]
+
+
+def test_the_discover_variants_keep_the_scope():
+    """``drafters`` builds the discover world's plain and catalysed step from
+    a host step; both carry the step's scope (None for every generated host,
+    so the default path is unchanged)."""
+    from alienbio.suite.drafters import DRAFTERS
+
+    world, _task = DRAFTERS["discover"](7, {"symbiosis": 0.5})
+    chem = world.chemistry
+    cats = [r for r in chem.reactions.values() if r.local_name.endswith("_cat")]
+    assert cats and all(r.compartments is None for r in chem.reactions.values())
