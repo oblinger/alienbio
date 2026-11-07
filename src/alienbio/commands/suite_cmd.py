@@ -2,7 +2,8 @@
 
 Usage:
     bio suite run <spec.yaml> [--out DIR] [--dry] [-v]   # Run (or dry-preview) an ExperimentSpec
-    bio suite resume <DIR>                          # Resume a crashed/partial run (strict: today's rules)
+    bio suite resume <DIR> [--cost-ceiling USD]     # Resume a crashed/partial run (strict: today's rules);
+                                                    #   --cost-ceiling replaces the ceiling (never below the spend)
     bio suite aggregate <DIR>                       # Rebuild map.json/map.csv from records.jsonl alone
     bio suite report <DIR>                          # Print + rewrite report.txt (and key.png) from the record store
     bio suite models                                # Refresh the recorded models.list snapshot (T016; free)
@@ -14,6 +15,8 @@ See ``alienbio.suite.experiment`` for the spec format, the ``DRAFTERS``/
 from __future__ import annotations
 
 import argparse
+import dataclasses
+import math
 import sys
 from pathlib import Path
 from typing import Optional
@@ -27,12 +30,18 @@ from alienbio.suite.experiment import (
     spec_from_manifest,
 )
 from alienbio.suite.guards import resolved_out_dir
-from alienbio.suite.spec import ExperimentSpec, source_relpath, spec_to_dict
-from alienbio.suite.store import _model_axis_levels, _single_model, read_manifest
+from alienbio.suite.spec import (
+    ExperimentSpec,
+    _validate_cost_ceiling,
+    source_relpath,
+    spec_to_dict,
+    with_source,
+)
+from alienbio.suite.store import _model_axis_levels, _single_model, directory_spend_usd, read_manifest
 
 
 SUITE_USAGE = (
-    "bio suite run <spec.yaml> [--out DIR] [--dry] [-v] | resume <DIR> | "
+    "bio suite run <spec.yaml> [--out DIR] [--dry] [-v] | resume <DIR> [--cost-ceiling USD] | "
     "aggregate <DIR> | report <DIR> | models"
 )
 
@@ -67,6 +76,14 @@ def _parser() -> argparse.ArgumentParser:
     ):
         sub = verbs.add_parser(verb, help=doc)
         sub.add_argument("dir", help="the run directory")
+        if verb == "resume":
+            # T091 Q1 — a run the ceiling stopped re-stopped at once from the
+            # CLI: the manifest's ceiling was the only one it could use.
+            sub.add_argument(
+                "--cost-ceiling", metavar="USD", type=float, default=None,
+                help="replace the run's cost ceiling for this and later presses (> 0; the "
+                "directory's budget, so never below what its records already spent)",
+            )
         verbose(sub)
     verbose(verbs.add_parser("models", help="refresh the recorded models.list snapshot (free)"))
     return parser
@@ -95,7 +112,7 @@ def suite_command(args: list[str], verbose: bool = False) -> int:
         if ns.verb == "run":
             return _run(ns.spec, ns.out, ns.dry, verbose)
         if ns.verb == "resume":
-            return _resume(ns.dir, verbose)
+            return _resume(ns.dir, verbose, cost_ceiling=ns.cost_ceiling)
         if ns.verb == "aggregate":
             return _aggregate_cmd(ns.dir, verbose)
         if ns.verb == "report":
@@ -234,10 +251,20 @@ def _report_stop(rmap, trials_planned: int) -> None:
         )
 
 
-def _resume(out_dir: str, verbose: bool) -> int:
+def _usd(value: Optional[float]) -> str:
+    return "none" if value is None else f"${value:.4f}"
+
+
+def _resume(out_dir: str, verbose: bool, cost_ceiling: Optional[float] = None) -> int:
     manifest_path = Path(out_dir) / "manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"bio suite resume: no manifest.json in {out_dir}")
+    if cost_ceiling is not None:
+        # The spec's own value check, so the message is the spec's; a NaN or
+        # an infinity is not a budget (``nan <= 0`` is False).
+        if not math.isfinite(cost_ceiling):
+            raise ValueError(f"bio suite resume: --cost-ceiling must be a finite number, got {cost_ceiling!r}")
+        cost_ceiling = _validate_cost_ceiling(cost_ceiling)
 
     manifest = read_manifest(manifest_path)
     # T091 E1 — the experiment file as it is now (its helpers registered, and
@@ -245,13 +272,36 @@ def _resume(out_dir: str, verbose: bool) -> int:
     # names one; else the manifest's own spec.
     spec = spec_from_manifest(manifest, current=True)
 
+    # T091 Q1 — ``--cost-ceiling`` replaces the ceiling; the resume guard
+    # refuses one below the directory's spend (the rule lives there only),
+    # and the run appends it to ``cost_ceiling_history``. ``replace`` drops
+    # ``source`` (T091 Y3), so the spec_path is carried back on.
+    if cost_ceiling is None:
+        print(f"cost ceiling: {_usd(spec.cost_ceiling_usd)}")
+    else:
+        history = manifest.get("cost_ceiling_history") or [(manifest.get("spec") or {}).get("cost_ceiling_usd")]
+        was = history[-1]
+        spec = with_source(dataclasses.replace(spec, cost_ceiling_usd=cost_ceiling), spec.source)
+        try:
+            spent = f"${directory_spend_usd(Path(out_dir), spec):.4f}"
+        except (OSError, ValueError):  # a torn store: the resume's own check names it
+            spent = "unreadable"
+        print(f"cost ceiling: {_usd(cost_ceiling)} (was {_usd(was)}; directory spent {spent})")
+
     def progress(message: str) -> None:
         if verbose:
             print(message)
 
     # T091 Y7 — a note (the re-drafted pre-stamp store being stamped) prints
     # without ``-v``: a plain resume restamped a store silently.
-    rmap = run_experiment(spec, out_dir=out_dir, resume=True, progress=progress, notes=print)
+    try:
+        rmap = run_experiment(spec, out_dir=out_dir, resume=True, progress=progress, notes=print)
+    except ValueError as exc:
+        # A ceiling the stop overshot (or one set below the spend): the
+        # engine's message, plus the flag that answers it.
+        if "never set below the spend" in str(exc):
+            raise ValueError(f"{exc} (`bio suite resume {out_dir} --cost-ceiling USD` sets a new one)") from exc
+        raise
     _report_stop(rmap, int(manifest.get("trials_planned") or len(rmap.records)))
     return 0
 
