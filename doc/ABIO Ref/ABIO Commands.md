@@ -5,7 +5,7 @@ The reference for the `bio` CLI's four commands — `suite`, `report`, `test-mat
 | Command | CLI | Description |
 |---|---|---|
 | suite | `bio suite run <spec.yaml> [--out DIR] [--dry] [-v]` | Run a declared experiment ([Expr Spec](../ABIO%20Guides/ABIO%20Expr%20Spec.md) § experiments): drafts the grid, runs every trial, writes `records.jsonl`, `manifest.json`, `map.json`/`map.csv`, `report.txt`, and the run's one key figure `key.png` (+ `key.json`: readout and caption). `--dry` prints the grid, every preflight verdict and the cost estimate without running, and exits 1 when the run would refuse. |
-| | `bio suite resume <DIR>` | Continue a run from its record store (crashed or cost-stopped). |
+| | `bio suite resume <DIR> [--cost-ceiling USD]` | Continue a run from its record store (crashed or cost-stopped). Prints `cost ceiling: …` first. `--cost-ceiling` replaces the run's ceiling — the directory's budget, so it refuses a value at or below 0 or below what the records already spent, and the manifest's `cost_ceiling_history` gains it; a run the ceiling stopped needs it, since the stop overshoots the ceiling by the last trial. `bio suite run --dry` on the directory previews the recorded ceiling, not this flag. |
 | | `bio suite aggregate <DIR>` | Rebuild the reliability map from `records.jsonl` alone. |
 | | `bio suite report <DIR>` | Render the text report and the key figure (`key.png`, `key.json`) from the record store alone. |
 | | `bio suite models` | Refresh the recorded `models.list` snapshot (`suite/models_snapshot.json`, id → `created_at`) that lets an undated generation id count as pinned; a free call. |
