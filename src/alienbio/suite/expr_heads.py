@@ -51,7 +51,7 @@ from .dist import Constant, Dist, Seed
 from .pressure_gen import draft_pressure_world
 from .rate_law import RateLaw, compile_rate
 from ..bio.molecule import MoleculeImpl
-from ..bio.reaction import ReactionImpl
+from ..bio.reaction import ReactionImpl, compartment_scope
 from ..infra.mk import mk
 from .skeleton import Fragment, Provenance
 from .skeleton import PoolBinding, Port, PortDir, Role, Skeleton, SkeletonBlock
@@ -160,7 +160,10 @@ class RateLawBlock(ReactionBlock):
             for pool in self.law.expr_pools:
                 if pool in extra:
                     modifiers.setdefault(bound[pool], Modulation(kind=""))
-        reaction = _cast(ReactionImpl, mk.R(rxn_id, reactants, products, modifiers=modifiers, rate=k, rate_law=rate_law))
+        reaction = _cast(
+            ReactionImpl,
+            mk.R(rxn_id, reactants, products, modifiers=modifiers, rate=k, rate_law=rate_law, compartments=self.compartments),
+        )
         molecules = {m.name: m for m in [*reactants, *products, *modifiers]}
         container = self.ports[0].container if self.ports else None
         return Fragment(molecules=molecules, reactions={rxn_id: reaction}, provenance=(Provenance(rxn_id, container or "cell"),))
@@ -175,11 +178,18 @@ def reaction(
     container: Optional[str] = None,
     role: str = "supply",
     name: Optional[str] = None,
+    compartments: Any = None,
     *,
     env: Env,
 ) -> ReactionBlock:
     if not reactants and not products:
         raise env.error("reaction: needs at least one reactant or product pool")
+    # T091 Q2 — the compartment ids the reaction runs in (None = every one);
+    # a bare string is one id, an empty list refuses.
+    try:
+        scope = compartment_scope(name or "reaction", compartments)
+    except ValueError as exc:
+        raise env.error(str(exc)) from exc
     reactant_pools = [_pool(p, env) for p in reactants]
     product_pools = [_pool(p, env) for p in products]
     law = compile_rate(rate, env, reactants=reactant_pools, products=product_pools)
@@ -191,11 +201,13 @@ def reaction(
         Port(p, container, PortDir.OUT) for p in product_pools
     )
     if not law.modulations and law.expr is None:
-        return ReactionBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map)
+        return ReactionBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map, compartments=scope)
     consumed = set(reactant_pools) | set(product_pools)
     extra = tuple(dict.fromkeys([*law.modifier_pools, *(p for p in law.expr_pools if p not in consumed)]))
     ports = ports + tuple(Port(pool, container, PortDir.IN) for pool in extra)
-    return RateLawBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map, law=law, extra_pools=extra)
+    return RateLawBlock(
+        name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map, compartments=scope, law=law, extra_pools=extra
+    )
 
 
 @fn(summary="CRUX: one precursor pool feeding two rival routes")

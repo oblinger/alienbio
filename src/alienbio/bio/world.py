@@ -34,6 +34,7 @@ from .compartment_tree import CompartmentTreeImpl
 from .flow import Flow, TransportFlux
 from .population import CountFlow, PerCapitaDeath, PerCapitaGrowth, PopulationLaw
 from .world_state import WorldStateImpl
+from .world_simulator import reaction_compartment_ids
 
 # A compartment id (a readable string, e.g. ``"cell"`` / ``"c0"``).
 NodeId = str
@@ -225,6 +226,12 @@ class WorldImpl:
 
         mol_ids = list(chemistry.molecules.keys())
         mol_to_int = {name: i for i, name in enumerate(mol_ids)}
+
+        # A reaction confined to compartments the world lacks refuses here,
+        # where the world is drafted (T091 Q2), rather than when it is first
+        # simulated; ``from_chemistry`` runs the same check.
+        for rxn_name, rxn in chemistry.reactions.items():
+            reaction_compartment_ids(rxn_name, rxn.compartments, comp_to_int)
 
         state = WorldStateImpl(
             tree=tree,

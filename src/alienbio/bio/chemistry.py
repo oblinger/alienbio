@@ -348,6 +348,7 @@ class ChemistryImpl(Entity, head="Chemistry"):
                 },
                 rate=rxn.rate,
                 rate_law=rxn.rate_law,
+                compartments=rxn.compartments,
                 dat=_mock_dat(f"rxn/{rname}"),
             )
         return ChemistryImpl(

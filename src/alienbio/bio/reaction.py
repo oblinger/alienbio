@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numbers
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Mapping, Optional, TYPE_CHECKING, Self, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, TYPE_CHECKING, Self, Tuple, Union, cast
 
 from ..infra.entity import DatLike, Entity
 
@@ -111,6 +111,35 @@ def _numeric_rate(reaction: str, rate: Any) -> RateValue:
     )
 
 
+def compartment_scope(reaction: str, raw: Any) -> Optional[Tuple[str, ...]]:
+    """A reaction's compartment scope as a tuple of compartment ids, or
+    ``None`` (every compartment — the default).
+
+    A bare string is a one-element list. An empty list is refused — a
+    reaction that runs nowhere is a spec error, not a way to switch one
+    off — and so is a non-string entry or a repeated id. Whether each id
+    names a compartment of the world is checked where the world is known
+    (``world_simulator.reaction_compartment_ids``, T091 Q2).
+    """
+    if raw is None:
+        return None
+    items = (raw,) if isinstance(raw, str) else tuple(raw)
+    if not items:
+        raise ValueError(
+            f"reaction {reaction!r}: compartments is empty — a reaction must run "
+            f"somewhere; omit the key to run it in every compartment"
+        )
+    for item in items:
+        if not isinstance(item, str):
+            raise ValueError(
+                f"reaction {reaction!r}: compartments entries are compartment ids "
+                f"(strings), got {type(item).__name__}: {item!r}"
+            )
+    if len(set(items)) != len(items):
+        raise ValueError(f"reaction {reaction!r}: compartments repeats an id: {list(items)}")
+    return items
+
+
 def _side_items(
     reaction: str, role: str, raw: Any, default: Any
 ) -> List[Tuple[str, Any]]:
@@ -177,7 +206,7 @@ class ReactionImpl(Entity, head="Reaction"):
         )
     """
 
-    __slots__ = ("_reactants", "_products", "_modifiers", "_rate", "_rate_law")
+    __slots__ = ("_reactants", "_products", "_modifiers", "_rate", "_rate_law", "_compartments")
 
     def __init__(
         self,
@@ -188,6 +217,7 @@ class ReactionImpl(Entity, head="Reaction"):
         modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None,
         rate: RateValue = 1.0,
         rate_law: Optional[Any] = None,
+        compartments: Optional[Union[str, Sequence[str]]] = None,
         parent: Optional[Entity] = None,
         dat: Optional[DatLike] = None,
         description: str = "",
@@ -205,6 +235,9 @@ class ReactionImpl(Entity, head="Reaction"):
             rate_law: Optional compiled rate expression (``bio.rate_expr``, species
                 by molecule name) — the whole rate when it names a reactant, else the
                 factor multiplying mass action; ``rate`` is then unused (M47.10)
+            compartments: The compartment ids this reaction runs in; ``None``
+                (the default) runs it in every compartment. A bare string is a
+                one-element list; an empty list is refused (T091 Q2)
             parent: Link to containing entity
             dat: DAT anchor for root reactions
             description: Human-readable description
@@ -214,6 +247,7 @@ class ReactionImpl(Entity, head="Reaction"):
         self._products: Dict[MoleculeImpl, float] = products.copy() if products else {}
         self._modifiers: Dict[MoleculeImpl, ModifierValue] = dict(modifiers) if modifiers else {}
         self._rate: RateValue = _numeric_rate(name, rate)
+        self._compartments: Optional[Tuple[str, ...]] = compartment_scope(name, compartments)
         from .rate_expr import from_json
 
         try:
@@ -236,7 +270,8 @@ class ReactionImpl(Entity, head="Reaction"):
         """Create a Reaction from a dict.
 
         Args:
-            data: Dict with keys: reactants, products, rate, name, description
+            data: Dict with keys: reactants, products, modifiers, rate,
+                rate_law, compartments, name, description
             molecules: Dict mapping molecule names to MoleculeImpl instances
             dat: DAT anchor (if root entity)
             parent: Parent entity (if child)
@@ -281,6 +316,7 @@ class ReactionImpl(Entity, head="Reaction"):
             modifiers=modifiers,
             rate=rate,
             rate_law=data.get("rate_law"),
+            compartments=data.get("compartments"),
             parent=parent,
             dat=dat,
             description=data.get("description", ""),
@@ -307,6 +343,12 @@ class ReactionImpl(Entity, head="Reaction"):
         """The numeric rate constant (a state-dependent rate is a ``rate_law``,
         which, when set, the simulators read instead of this)."""
         return self._rate
+
+    @property
+    def compartments(self) -> Optional[Tuple[str, ...]]:
+        """The compartment ids this reaction runs in, or ``None`` for every
+        compartment (the default; T091 Q2)."""
+        return self._compartments
 
     @property
     def name(self) -> str:
@@ -376,6 +418,9 @@ class ReactionImpl(Entity, head="Reaction"):
             from .rate_expr import to_json
 
             result["rate_law"] = to_json(self._rate_law)
+        # Only when set, so every unscoped reaction serializes as before.
+        if self._compartments is not None:
+            result["compartments"] = list(self._compartments)
 
         return result
 
@@ -397,7 +442,8 @@ class ReactionImpl(Entity, head="Reaction"):
                 for m, role in self._modifiers.items()
             )
             arrow = f"-[{mod_str}]->"
-        return f"ReactionImpl({self._local_name}: {reactant_str} {arrow} {product_str}, rate={rate_str})"
+        scope = f", compartments={list(self._compartments)}" if self._compartments is not None else ""
+        return f"ReactionImpl({self._local_name}: {reactant_str} {arrow} {product_str}, rate={rate_str}{scope})"
 
 
 _KEEP: Any = object()
@@ -411,11 +457,13 @@ def rebuild_reaction(
     modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None,
     rate: Optional[RateValue] = None,
     rate_law: Any = _KEEP,
+    compartments: Any = _KEEP,
     dat: Optional[DatLike] = None,
 ) -> "ReactionImpl":
     """A fresh :class:`ReactionImpl` under ``rxn``'s name with only the named
     parts changed: everything not passed — sides, modifiers, ``rate``, the
-    compiled ``rate_law`` and ``description`` — is carried over (T088: the
+    compiled ``rate_law``, the ``compartments`` scope and ``description`` —
+    is carried over (T088: the
     suite's rebuilds passed sides and ``rate`` only, so a reaction with a
     ``rate_law`` came back as mass action). ``rate_law=None`` drops the law
     deliberately. ``dat`` defaults to a fresh mock anchor."""
@@ -429,6 +477,7 @@ def rebuild_reaction(
         modifiers=dict(rxn.modifiers) if modifiers is None else modifiers,
         rate=rxn.rate if rate is None else rate,
         rate_law=rxn.rate_law if rate_law is _KEEP else rate_law,
+        compartments=rxn.compartments if compartments is _KEEP else compartments,
         dat=dat if dat is not None else cast(Any, MockDat(f"rxn/{name}")),
         description=rxn.description,
     )

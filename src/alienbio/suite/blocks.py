@@ -132,6 +132,10 @@ class ReactionBlock(SkeletonBlock):
 
     rate: Dist[float] = field(default_factory=lambda: Constant(1.0))
     stoich: Mapping[str, float] = field(default_factory=dict)
+    #: The compartment ids the minted reaction runs in (``ReactionImpl.
+    #: compartments``); ``None``, the default, runs it in every compartment
+    #: (T091 Q2). Read by this block's and :class:`RateLawBlock`'s ``realize``.
+    compartments: Optional[tuple[str, ...]] = None
 
     def realize(self, seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment:
         reactants, products = _sides(self.ports, bound, self.stoich, ns)
@@ -139,7 +143,7 @@ class ReactionBlock(SkeletonBlock):
         rate = self.rate.sample(seed.child("rate"))
         rxn_id = f"{ns}/rxn"
         container = _container_of(self.ports)
-        reaction = cast(ReactionImpl, mk.R(rxn_id, reactants, products, rate=rate))
+        reaction = cast(ReactionImpl, mk.R(rxn_id, reactants, products, rate=rate, compartments=self.compartments))
         molecules = {m.name: m for m in list(reactants) + list(products)}
         return Fragment(
             molecules=molecules,

@@ -133,6 +133,32 @@ def check_reaction_compartments(
                 )
 
 
+def reaction_compartment_ids(
+    reaction: str,
+    compartments: Optional[Sequence[str]],
+    comp_to_int: Dict[str, CompartmentId],
+) -> Optional[List[CompartmentId]]:
+    """A reaction's compartment scope as the tree's integer ids (T091 Q2).
+
+    ``compartments`` is the reaction's own scope (``ReactionImpl.compartments``:
+    compartment ids by name, ``None`` = every compartment); ``comp_to_int``
+    maps the world's compartment ids to the tree's integers. ``None`` passes
+    through, so an unscoped reaction compiles exactly as before. An id the
+    world lacks is a ``ValueError`` naming the reaction and the id — the one
+    check ``WorldImpl`` (at draft time) and :meth:`WorldSimulatorImpl.
+    from_chemistry` (hence both simulators) share.
+    """
+    if compartments is None:
+        return None
+    for comp in compartments:
+        if comp not in comp_to_int:
+            raise ValueError(
+                f"reaction {reaction!r} is confined to compartment {comp!r}, which the "
+                f"world does not have (compartments: {sorted(comp_to_int)})"
+            )
+    return [comp_to_int[comp] for comp in compartments]
+
+
 class WorldSimulatorImpl:
     """Implementation: Multi-compartment simulator with reactions and flows.
 
@@ -522,6 +548,10 @@ class WorldSimulatorImpl:
         # Build molecule ID mapping
         mol_names = list(chemistry.molecules.keys())
         mol_to_id = {name: i for i, name in enumerate(mol_names)}
+        # Compartment ids by name, for a reaction's ``compartments`` scope (T091 Q2).
+        comp_names = [tree.name(c) for c in range(tree.num_compartments)]
+        comp_to_int = {name: c for c, name in enumerate(comp_names)}
+        shared_names = {name for name in comp_names if comp_names.count(name) > 1}
 
         # Convert reactions to specs
         reaction_specs = []
@@ -573,12 +603,21 @@ class WorldSimulatorImpl:
 
                 rate_law = map_species(reaction.rate_law, _column)
 
+            # A hand-built tree may repeat a name; a scope naming one is ambiguous.
+            ambiguous = sorted(set(reaction.compartments or ()) & shared_names)
+            if ambiguous:
+                raise ValueError(
+                    f"reaction {rxn_name!r} is confined to compartment(s) {ambiguous}, "
+                    f"a name the tree gives more than one compartment"
+                )
+
             reaction_specs.append(ReactionSpec(
                 name=rxn_name,
                 reactants=reactants,
                 products=products,
                 rate_constant=rate,
-                compartments=None,  # Apply to all compartments
+                # None (every compartment) unless the reaction is scoped (T091 Q2).
+                compartments=reaction_compartment_ids(rxn_name, reaction.compartments, comp_to_int),
                 modulators=modulators,
                 rate_law=rate_law,
             ))
