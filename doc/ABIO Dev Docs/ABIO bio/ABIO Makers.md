@@ -26,7 +26,7 @@ Three maker keys and the helper behind `mk.C`. Each accessor is `make(local_name
     `MoleculeImpl(local_name, **anchor, **kwargs)`: every molecule keyword (`atoms`, `bdepth`, `name`, `description`, `formation_energy`) passes through. With no anchor in scope the molecule gets `MockDat(f"mol/{local_name}")`, the same fallback `MoleculeImpl.hydrate` uses. ^mk-m
 
 **mk.R**`(local_name, reactants=None, products=None, *, dat=None, parent=None, **kwargs) -> ReactionImpl`
-    `ReactionImpl(local_name, reactants=…, products=…, **anchor, **kwargs)`, so `mk.R("R1", {a: 1.0}, {b: 1.0}, rate=0.5)` reads like the reaction. Reactants and products are dicts keyed by molecule objects; `rate`, `modifiers` and the rest pass through. Prefix `rxn`. ^mk-r
+    `ReactionImpl(local_name, reactants=…, products=…, **anchor, **kwargs)`, so `mk.R("R1", {a: 1.0}, {b: 1.0}, rate=0.5)` reads like the reaction. Reactants and products are dicts keyed by molecule objects; `rate`, `modifiers`, `rate_law`, `compartments` (the scope, T091 Q2: `compartments=["pond"]`) and the rest pass through. Prefix `rxn`. ^mk-r
 
 **mk.C**`(local_name, molecules=None, reactions=None, *, dat=None, parent=None, **kwargs) -> ChemistryImpl`
     `ChemistryImpl(local_name, molecules=_named_dict(molecules), reactions=_named_dict(reactions), **anchor, **kwargs)`: either collection may be a list of entities, a mapping (copied as is) or `None`. Prefix `chem`. ^mk-c
@@ -59,3 +59,4 @@ The three `mk.register` calls run once, at import. The pegboard accepts a re-reg
 - 2026-10-28 — written as an ABIO module doc (T084) from the source at alienbio HEAD `038c399` (read from a `git archive` export, a concurrent worker editing `src/`), with `infra/mk.py` read for the accessor and anchor rules this module depends on. Checked locally against the export: the duplicate-name collapse in `mk.C`. Production callers found by grep over `src/`. The pegboard itself is documented here only as far as the makers rely on it; its own page belongs to the `infra/` pass. Findings filed on T088.
 - 2026-10-28 — T088 bio and operator round: `mk.C` refuses two different entities sharing a local name (the same object twice is kept once); no shipped generator relied on the overwrite (suite green). A mapping keyed off its entity's name was already refused by `ChemistryImpl` (E3).
 - 2026-10-28 — refreshed against 0eb23e5: `_named_dict` and *Name-keyed collections* state the duplicate-name refusal and the mapping key check in `ChemistryImpl`; figure's ‡ note rewritten.
+- 2026-11-06 — T091 Q2: `mk.R` passes the `compartments` scope through to `ReactionImpl`.

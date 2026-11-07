@@ -408,9 +408,11 @@ Two guards are builtin: `nonempty` and `max_size(n)`.
 A: !Molecule {}
 B: !Molecule {bdepth: 1}
 leak: !Reaction {reactants: [!x A], products: [], rate: 0.01}
+seep: !Reaction {reactants: [!x A], products: [!x B], rate: 0.1,
+                 compartments: [inner]}
 host: !Chemistry
   molecules: [!x A, !x B]
-  reactions: [!x leak]
+  reactions: [!x leak, !x seep]
 dimer: !Reaction {reactants: [A, A], products: [{B: 2.0}], rate: 0.3}
 site: !Compartment {kind: cell, volume: 1.0, concentrations: {A: 2.0}}
 inner: !Compartment {id: inner, parent: site, kind: organelle,
@@ -423,6 +425,7 @@ saved: {_type: Reaction, name: r, reactants: [A], products: [B],
 ```
 
 - Every registered `Entity` head is a constructor head under its head name — `!Molecule`, `!Reaction`, `!Chemistry` — calling the class's `hydrate` over the mapping. The node's key is the name when none is given. A reaction's sides take names, `{name: coef}` mappings or Molecule objects; a repeated name sums (`[A, A]` is `{A: 2}`); a molecule a reaction names but nothing declares is minted.
+- A reaction runs in every compartment of its world unless it carries **`compartments:`** — a list of compartment ids it is confined to (`seep` above runs in `inner` only; a single id may be written bare). The key is the same on `!Reaction`, on a reaction mapping inside `!Chemistry {reactions: {...}}`, and on the `reaction` block head (`compartments=`). An empty list refuses, and so does an id the world has no compartment for, when the world is built.
 - `!Compartment`, `!Transport` and `!World` build the world **records** the simulator runs (`Compartment(id, kind, volume, parent, concentrations, multiplicity)` — `parent:` makes a tree; `Transport(origin, dest, molecule, rate, rate_law=gradient|first_order)` a membrane flux; `GrowthLaw` / `DeathLaw` / `CountFlow` the population laws over a compartment's `multiplicity` (counts); `World(chemistry, compartments, flows, population_laws)`). A world built this way is a `World` like any drafted one.
 - A mapping carrying **`_type: X`** is the untagged spelling of `!X {...}` — kept for saved worlds.
 
@@ -447,7 +450,7 @@ The block library is a set of heads over **pools as names**: a block names the p
 | Head | Block |
 |---|---|
 | `source` / `sink` | supply ∅ → pool / drain pool → ∅ |
-| `reaction` | one reaction over named pools; `rate:` is `k` or a compiled rate law |
+| `reaction` | one reaction over named pools; `rate:` is `k` or a compiled rate law; `compartments:` confines it |
 | `crux` | one precursor feeding two rival routes (`kA`, `kB`) |
 | `signal` / `inhibit` / `enzyme` / `cooperative` | a modifier pool modulating a conversion (activator / inhibitor / Michaelis / Hill) |
 | `insult` | an exogenous drain, optionally Poisson-scheduled |

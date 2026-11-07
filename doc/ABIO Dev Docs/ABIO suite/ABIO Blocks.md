@@ -19,6 +19,7 @@ The one reaction primitive: every `IN` port becomes a reactant, every `OUT` port
 | --- | --- |
 | [rate](#^rate) | The rate-constant hole |
 | [stoich](#^stoich) | Per-port coefficient overrides |
+| [compartments](#^compartments) | Where the reaction runs; None for all |
 | [realize](#^realize) | Emit the one reaction |
 
 **rate**`: Dist[float] = Constant(1.0)`
@@ -27,8 +28,11 @@ The one reaction primitive: every `IN` port becomes a reactant, every `OUT` port
 **stoich**`: Mapping[str, float] = {}`
     Port name to coefficient; a port not named gets `1.0`. A key naming no port is refused with `SkeletonError` at realize. ^stoich
 
+**compartments**`: Optional[tuple[str, ...]] = None`
+    The compartment ids the minted reaction runs in, passed to `mk.R` as `ReactionImpl.compartments` (T091 Q2); `None` runs it in every compartment. Set by the `reaction` head ([ABIO ExprHeads](ABIO%20ExprHeads.md)); read by this block's `realize` and `RateLawBlock`'s, and ignored by the modifier and leaf blocks, which have their own `realize`. ^compartments
+
 **realize**`(seed: Seed, ns: str, bound: Mapping[str, MoleculeImpl]) -> Fragment`
-    Builds `mk.R(f"{ns}/rxn", reactants, products, rate=…)` over the bound molecules and returns a fragment with those molecules, the one reaction and one `Provenance` attributed to the first declared port container (`cell` when none is). Two ports bound to one pool sum their coefficients (§ [One realize path](#one-realize-path)). ^realize
+    Builds `mk.R(f"{ns}/rxn", reactants, products, rate=…, compartments=self.compartments)` over the bound molecules and returns a fragment with those molecules, the one reaction and one `Provenance` attributed to the first declared port container (`cell` when none is). Two ports bound to one pool sum their coefficients (§ [One realize path](#one-realize-path)). ^realize
 
 
 
@@ -389,3 +393,4 @@ That rule makes parallel transport blocks compose (two blocks on the default `ce
 - 2026-10-28 — written as an ABIO module doc (T084), from the source at alienbio HEAD `7c1db83`. The transport-chain refusal, the lattice index behaviour, the two-ports-one-pool collapse, `lam = 0` and the authored-block write were each reproduced by a local realize or materialize, no spend. One interface section per class, with the four modifier blocks and the three source/sink/pressure configs documented only for what they add over their shared body. Left out: `ModulatedSourceBlock` and `RateLawBlock` (their own modules), the test coverage, and the conflict generator's use of the crux (on [ABIO ConflictGen](ABIO%20ConflictGen.md)).
 - 2026-10-28 — refreshed against 0eb23e5 (`6631831`): two ports on one pool sum, an unknown `stoich` key, `lam ≤ 0`, an unknown `kind` and an out-of-range lattice `k`/index all refuse, and a transport chain builds (`Fragment.merge` lets a parentless declaration yield).
 - 2026-11-06 — refreshed for `1c098be` and `1da9105` (T091 AW): new `MAX_POISSON_EVENTS` (1 000, checked in `PoissonSchedule`'s construction) and `MAX_LATTICE_CELLS` (4 096 — 256 in `1c098be`, raised in `1da9105` because it bounds the build, not the lattice; checked in `SpatialLatticeBlock`'s construction); the `lam` and `k` blocks name them. The figure draws no caps: still true.
+- 2026-11-06 — T091 Q2: `ReactionBlock.compartments` (field, index row, `realize`), the reaction's compartment scope.

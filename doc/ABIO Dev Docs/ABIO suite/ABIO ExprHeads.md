@@ -38,8 +38,8 @@ Layer 1, all kind `fn`, all with `env` injected. Each returns a block; a pool ar
 **sink**`(pool="in", rate=None, container=None, name=None)`
     `SinkBlock.make`. ^sink
 
-**reaction**`(reactants=(), products=(), rate=None, stoich=None, container=None, role="supply", name=None)`
-    Refuses with no pool on either side. Compiles `rate` with the reactant and product pools ([ABIO RateLaw](ABIO%20RateLaw.md)). A plain constant returns a `ReactionBlock`; a law with modulations or an expression returns a `RateLawBlock` whose extra `IN` ports are the modifier pools and the pools the expression reads that are neither consumed nor produced. `stoich` keys are pool names spelled in this scope like the reactant and product lists (`Env.pool`), so inside a `!template` a key `A` names the port `one.A` (T091 A6). ^reaction
+**reaction**`(reactants=(), products=(), rate=None, stoich=None, container=None, role="supply", name=None, compartments=None)`
+    Refuses with no pool on either side. Compiles `rate` with the reactant and product pools ([ABIO RateLaw](ABIO%20RateLaw.md)). A plain constant returns a `ReactionBlock`; a law with modulations or an expression returns a `RateLawBlock` whose extra `IN` ports are the modifier pools and the pools the expression reads that are neither consumed nor produced. `stoich` keys are pool names spelled in this scope like the reactant and product lists (`Env.pool`), so inside a `!template` a key `A` names the port `one.A` (T091 A6). `compartments` confines the reaction to those compartment ids (a string is one id; an empty list refuses here; `None` runs it everywhere) and rides on either block (T091 Q2). ^reaction
 
 **crux**`(precursor="precursor", kA=None, kB=None, container=None, name=None)`
     `ConflictCruxBlock.make`: one precursor pool, two routes, two sinks. ^crux
@@ -92,7 +92,7 @@ A frozen `ReactionBlock` subclass: one reaction whose rate is a compiled `RateLa
     The modifier pools and the pools the expression reads beyond the reactants and products; each is an `IN` port so `block` wires it like any other. ^extra-pools
 
 **realize**`(seed, ns, bound) -> Fragment`
-    Reactants and products from the non-extra ports through `blocks._sides`, the reaction primitive's own rule: `stoich` coefficients (default 1), two ports on one pool summing theirs, a `stoich` key naming no port refused (T091 A5); each modulation sampled under `seed.child("mod/<pool>")` into a non-consumed modifier; `k` drawn under `seed.child("rate")`. With an expression, the tree is drawn under `seed.child("law")`, mapped to molecule names, and every extra pool it reads rides as an inert modifier so the chemistry records the dependency. The reaction id is `"<ns>/rxn"`, placed in the first port's container or `cell`. ^realize
+    Reactants and products from the non-extra ports through `blocks._sides`, the reaction primitive's own rule: `stoich` coefficients (default 1), two ports on one pool summing theirs, a `stoich` key naming no port refused (T091 A5); each modulation sampled under `seed.child("mod/<pool>")` into a non-consumed modifier; `k` drawn under `seed.child("rate")`. With an expression, the tree is drawn under `seed.child("law")`, mapped to molecule names, and every extra pool it reads rides as an inert modifier so the chemistry records the dependency. The reaction id is `"<ns>/rxn"`, placed in the first port's container or `cell`, scoped by the block's `compartments` (T091 Q2). ^realize
 
 
 
@@ -161,10 +161,10 @@ Kind `constructor`, called by tag (`!Reaction {...}`) or by the untagged `_type:
     One head per entry of `infra.entity.get_registered_heads()` except `Entity`, `Compartment`, `Reaction` and `Chemistry` (which have their own): `cls.hydrate({**fields, "name": name})`, a `KeyError`/`TypeError`/`ValueError` re-raised as `ExprError` naming the head. `!Molecule` is one. ^entity-heads
 
 **Reaction**`(reactants=(), products=(), rate=None, name=None, molecules=None, **fields) -> ReactionImpl`
-    Each side is a list of names (a repeat sums: `[A, A]` is `{A: 2}`), `{name: coef}` mappings or Molecule objects. Names resolve against `molecules` and any Molecules given inline; any other name is minted as a plain Molecule. A numeric rate is coerced to float. ^reaction-ctor
+    Each side is a list of names (a repeat sums: `[A, A]` is `{A: 2}`), `{name: coef}` mappings or Molecule objects. Names resolve against `molecules` and any Molecules given inline; any other name is minted as a plain Molecule. A numeric rate is coerced to float. Other fields (`rate_law`, `compartments`, `description`) go to `ReactionImpl.hydrate`; `compartments: [pond]` confines the reaction to those compartments (T091 Q2). ^reaction-ctor
 
 **Chemistry**`(molecules=(), reactions=(), name=None, **fields) -> ChemistryImpl`
-    `molecules` as names, Molecules or a mapping of fields; `reactions` as a mapping of name to fields or Reaction, or a list of Reactions (a listed mapping refuses: it carries no name). Every molecule a reaction side or modifier names is added. ^chemistry
+    `molecules` as names, Molecules or a mapping of fields; `reactions` as a mapping of name to fields or Reaction, or a list of Reactions (a listed mapping refuses: it carries no name). Every molecule a reaction side or modifier names is added; a reaction mapping's `compartments:` key is its scope, as on `!Reaction`. ^chemistry
 
 **Compartment**`(id=None, kind="cell", volume=1.0, parent=None, concentrations=None, multiplicity=1.0) -> Compartment`
     The `bio.world.Compartment` record the simulator runs, not the M1 entity. ^compartment
@@ -218,3 +218,4 @@ Each attempt evaluates the world form on a child seed at the same path (`ctx.see
 - 2026-11-06 — refreshed for `1c098be` and `1da9105` (T091 AV2, AV3, AW): `sim` caps `steps` at `MAX_DRAFT_SIM_STEPS`; `verify` checks `MAX_EXPR_SIM_WORK` before each simulation; the six generator worlds apply the size-dial caps and the `sim_cfg` check; `lattice` and `insult` name the new block caps (`MAX_LATTICE_CELLS` 4 096, `MAX_POISSON_EVENTS` 1 000). The figure draws no caps: still true.
 - 2026-11-06 — refreshed for `d907f16` (T091 AY, after verifier AX1): `verify` charges `(w, w)` before the base simulation and `(w, w_pert)` after the perturbation, both simulations summed against the 4 000 000 cap. The figure draws no caps: still true.
 - 2026-11-06 — refreshed for `abf1194` (T091 AZ2): `verify` ticks the evaluation clock at the top of every attempt and before `perturb`; the cap it charges is now 40 000 000 weighted units ([ABIO Verify](ABIO%20Verify.md)). `sim` feeds a generator world head's `sim_cfg`, not a spec's `drafter_kwargs` (`9fce196`). The figure draws no caps or clock: still true.
+- 2026-11-06 — T091 Q2: `compartments` on the `reaction` head, `RateLawBlock.realize`, `!Reaction` and the `!Chemistry` reaction mapping.

@@ -29,7 +29,7 @@ An immutable bundle of topology, reaction specs, flows, population laws and step
 | [[#^dt\|dt]] | The step size |
 
 **from_chemistry**`(chemistry: ChemistryImpl, tree: CompartmentTreeImpl, flows: Optional[Sequence[Flow]] = None, dt: float = 1.0, population_laws: Optional[Sequence[PopulationLaw]] = None) -> WorldSimulatorImpl` (classmethod)
-    The production constructor. Molecule ids are the positions of `chemistry.molecules`' keys, in insertion order — the order `bio/world.py` and `suite/verify.py` rely on when they read a state back by name. Each reaction becomes a `ReactionSpec` active in every compartment (`compartments=None`), its modifiers coerced by `Modulation.from_value` (a bare role string is rate-inert) and its `rate_law` re-keyed name → id by `map_species`. `KeyError` when a reactant, product, modifier or rate-law species is not in `chemistry.molecules`. It does not check `reaction.rate`: `ReactionImpl` refuses a non-number at construction and in `set_rate` (2026-10), so its own guard, unreachable since, was removed. `num_molecules` is `len(chemistry.molecules)`. ^from-chemistry
+    The production constructor. Molecule ids are the positions of `chemistry.molecules`' keys, in insertion order — the order `bio/world.py` and `suite/verify.py` rely on when they read a state back by name. Each reaction becomes a `ReactionSpec` active in every compartment (`compartments=None`) unless the reaction is scoped, when its `compartments` names map to the tree's ids through `reaction_compartment_ids` (keyed by `tree.name`; an id the tree lacks, or a name the tree gives two compartments, raises `ValueError` naming the reaction; T091 Q2), its modifiers coerced by `Modulation.from_value` (a bare role string is rate-inert) and its `rate_law` re-keyed name → id by `map_species`. `KeyError` when a reactant, product, modifier or rate-law species is not in `chemistry.molecules`. It does not check `reaction.rate`: `ReactionImpl` refuses a non-number at construction and in `set_rate` (2026-10), so its own guard, unreachable since, was removed. `num_molecules` is `len(chemistry.molecules)`. ^from-chemistry
 
 **__init__**`(tree: CompartmentTreeImpl, reactions: List[ReactionSpec], flows: Sequence[Flow], num_molecules: int, dt: float = 1.0, population_laws: Optional[Sequence[PopulationLaw]] = None) -> None`
     Refuse a `ReactionSpec` whose `compartments` names an id outside `0..tree.num_compartments-1` (`check_reaction_compartments`, since `40c5c09`), then store the arguments as given; nothing else is validated or copied — not that every molecule id in `reactions` is below `num_molecules`, nor that ids fit the states later passed in. `flows` is required (pass `[]`); `population_laws=None` becomes `[]`, the fast path on which `step` skips the population pass entirely. ^init
@@ -91,7 +91,7 @@ One reaction in the id-indexed form the simulators run: molecule ids instead of 
     The mass-action `k`. Ignored whenever `rate_law` is set — a law that should scale by `k` carries it as a constant ([[#Rate laws and modulation]]). ^rate-constant
 
 **compartments**`: Optional[List[CompartmentId]]`
-    The compartments the reaction runs in; `None` means all. `from_chemistry` always writes `None`; any other value must hold tree ids, which both simulators check at construction. ^compartments
+    The compartments the reaction runs in; `None` means all. `from_chemistry` writes `None` for an unscoped reaction and the mapped ids of a `ReactionImpl.compartments` scope (T091 Q2); any value must hold tree ids, which both simulators check at construction. ^compartments
 
 **modulators**`: Dict[MoleculeId, Modulation]`
     Modifier species that scale the rate without being consumed (F015 S2); `{}` is the fast path. ^modulators
@@ -111,6 +111,7 @@ One reaction in the id-indexed form the simulators run: molecule ids instead of 
 | --- | --- |
 | [[#^subnormal-floor\|SUBNORMAL_FLOOR]] | Below this magnitude a concentration is zero |
 | [[#^check-reaction-compartments\|check_reaction_compartments]] | Refuse a compartment id outside the tree |
+| [[#^reaction-compartment-ids\|reaction_compartment_ids]] | Map a reaction's compartment names to tree ids |
 | [[#^moleculeid\|MoleculeId]] | Alias for a molecule's integer id |
 | [[#^compartmentid\|CompartmentId]] | Alias for a compartment's integer id |
 
@@ -119,6 +120,9 @@ One reaction in the id-indexed form the simulators run: molecule ids instead of 
 
 **check_reaction_compartments**`(reactions: Sequence[ReactionSpec], num_compartments: int) -> None`
     `ValueError` naming the reaction when any `compartments` entry is not an int (a bool included) in `0..num_compartments-1`; `None` passes. Called by this class's and `JaxWorldSimulator`'s constructors, so a bad id is one refusal on either backend where the reference ignored it and the JAX mask indexed it by position (since `40c5c09`). ^check-reaction-compartments
+
+**reaction_compartment_ids**`(reaction: str, compartments: Optional[Sequence[str]], comp_to_int: Dict[str, CompartmentId]) -> Optional[List[CompartmentId]]`
+    A reaction's `compartments` scope (names, `None` = every compartment) as the tree's integer ids; `None` passes through. An id not in `comp_to_int` raises `ValueError`: `reaction '<name>' is confined to compartment '<id>', which the world does not have (compartments: [...])`. The one check `WorldImpl` runs at construction (draft time, so `--dry` sees it) and `from_chemistry` runs for both simulators (T091 Q2). ^reaction-compartment-ids
 
 **MoleculeId**`= int`
     A column of the state: the molecule's position in the vocabulary. ^moleculeid
@@ -214,3 +218,4 @@ The subnormal flush copies XLA's denormals-are-zero, which the JAX core already 
 - 2026-10-29 — refreshed for `3269751` (T091 C2, C3): `ReactionSpec.__init__` runs `check_rate_law`; the reactant write snaps with `snap_residue` relative to the frozen pool, as the flow and population passes do; the 0–1e6 agreement range stated. Figure still true.
 - 2026-10-29 — refreshed for `198f307`: the exhausted-pool rule (an exhausted pool ends at exactly what the pass produced) and the one parity statement, `parity_agrees`.
 - 2026-10-29 — refreshed for `efc4556` (T091 M1): the exhausted-pool test is `rate_expr.asks_all` (asked for at least what it holds, to `ROUNDING_FLOOR` relative), not `ratio < 1`; every `run` comparison against JAX asserts `parity_agrees`. Figure still true.
+- 2026-11-06 — T091 Q2: `from_chemistry` maps a reaction's `compartments` scope through the new `reaction_compartment_ids` (block and index row); `ReactionSpec.compartments` no longer always `None`. Figure still true.

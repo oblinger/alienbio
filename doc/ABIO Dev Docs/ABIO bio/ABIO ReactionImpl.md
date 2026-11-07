@@ -13,7 +13,7 @@ This page covers the reaction entity, the `Modulation` record its modifiers carr
 
 
 ## ReactionImpl Interface
-The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `protocols/_conformance.py` under `pyright src/`), registered as Entity head `"Reaction"`. It owns five slots — `_reactants`, `_products`, `_modifiers`, `_rate`, `_rate_law` — and exposes them as properties that return copies of the dicts, so a caller cannot mutate a reaction through what it reads; the four `set_`/`add_` methods are the only writers. Molecules are dict keys by identity (`MoleculeImpl` defines no equality), shared by reference with the chemistry, never Entity children of the reaction. From `Entity` it inherits `local_name`, `head`, `dat()`, `full_name`, `to_dict()` and the rest, and requires a `parent` or a `dat`.
+The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `protocols/_conformance.py` under `pyright src/`), registered as Entity head `"Reaction"`. It owns six slots — `_reactants`, `_products`, `_modifiers`, `_rate`, `_rate_law`, `_compartments` — and exposes them as properties that return copies of the dicts, so a caller cannot mutate a reaction through what it reads; the four `set_`/`add_` methods are the only writers. Molecules are dict keys by identity (`MoleculeImpl` defines no equality), shared by reference with the chemistry, never Entity children of the reaction. From `Entity` it inherits `local_name`, `head`, `dat()`, `full_name`, `to_dict()` and the rest, and requires a `parent` or a `dat`.
 
 | ReactionImpl | |
 | --- | --- |
@@ -24,6 +24,7 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
 | [[#^modifiers\|modifiers]] | Non-consumed molecules and their Modulation or role tag |
 | [[#^rate\|rate]] | The numeric rate constant |
 | [[#^rate-law\|rate_law]] | The compiled rate tree, or None for mass action |
+| [[#^compartments\|compartments]] | The compartment ids it runs in, or None for all |
 | [[#^name\|name]] | The reaction's id, equal to its local name |
 | [[#^symbol\|symbol]] | Formula string, reactants -> products |
 | [[#^set-rate\|set_rate]] | Replace the rate constant |
@@ -32,11 +33,11 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
 | [[#^add-modifier\|add_modifier]] | Set one modifier's Modulation or role tag |
 | [[#^attributes\|attributes]] | The reaction as a plain dict |
 
-**ReactionImpl**`(name: str, *, reactants: Optional[Dict[MoleculeImpl, float]] = None, products: Optional[Dict[MoleculeImpl, float]] = None, modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None, rate: RateValue = 1.0, rate_law: Optional[Any] = None, parent: Optional[Entity] = None, dat: Optional[DatLike] = None, description: str = "") -> None`
-    Initialize the `Entity` (`ValueError` without a `parent` or `dat`, or with a space in `name`), then store a shallow copy of each molecule dict (an absent one is `{}`) and `rate`, which must be a real number (`ValueError` for anything else — a string, `None`, a `bool`, a callable; accepted unchecked until 2026-10). `rate_law` passes through `rate_expr.from_json`: a nested-list tree becomes tuples, a tuple tree passes through once its tags and arities are checked, and anything else — including rate-grammar text such as `"k * A"` — raises `ValueError`; the text form must be compiled first ([[#The numeric rate and the rate law]]). Any `ValueError` from `from_json`, a law past `MAX_RATE_LAW_NODES` (10 000) among them, is re-raised prefixed `reaction '<name>': ` (`9fce196`, T091 BA). Nothing checks `rate`'s type, the coefficients, or that the tree's species are molecules of this reaction. ^reactionimpl
+**ReactionImpl**`(name: str, *, reactants: Optional[Dict[MoleculeImpl, float]] = None, products: Optional[Dict[MoleculeImpl, float]] = None, modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None, rate: RateValue = 1.0, rate_law: Optional[Any] = None, compartments: Optional[Union[str, Sequence[str]]] = None, parent: Optional[Entity] = None, dat: Optional[DatLike] = None, description: str = "") -> None`
+    Initialize the `Entity` (`ValueError` without a `parent` or `dat`, or with a space in `name`), then store a shallow copy of each molecule dict (an absent one is `{}`) and `rate`, which must be a real number (`ValueError` for anything else — a string, `None`, a `bool`, a callable; accepted unchecked until 2026-10). `rate_law` passes through `rate_expr.from_json`: a nested-list tree becomes tuples, a tuple tree passes through once its tags and arities are checked, and anything else — including rate-grammar text such as `"k * A"` — raises `ValueError`; the text form must be compiled first ([[#The numeric rate and the rate law]]). Any `ValueError` from `from_json`, a law past `MAX_RATE_LAW_NODES` (10 000) among them, is re-raised prefixed `reaction '<name>': ` (`9fce196`, T091 BA). `compartments` goes through `compartment_scope` ([[#Compartment scope]]). Nothing checks the coefficients, or that the tree's species are molecules of this reaction. ^reactionimpl
 
 **hydrate**`(data: dict[str, Any], *, molecules: dict[str, MoleculeImpl], dat: Optional[DatLike] = None, parent: Optional[Entity] = None, local_name: Optional[str] = None) -> Self` (classmethod)
-    Build from a dict, resolving every molecule name through `molecules`; an unknown reactant, product or modifier raises `KeyError` naming the reaction and the molecule. `reactants`/`products` are a `{name: coef}` mapping (what `attributes` writes) or a list whose entries are a bare name (coefficient 1) or a `{name: coef}` dict; `modifiers` is a `{name: role}` dict or a list of names (role `""`) and `{name: role}` dicts, every key kept; any other entry type is `TypeError`; and a role that is itself a dict becomes `Modulation(**role)` (an unknown key raises `TypeError`). `rate` defaults to `1.0`, `rate_law` is passed to the constructor, the name is `local_name`, else `data["name"]`, else `"reaction"`, and with neither `dat` nor `parent` it mints `MockDat("rxn/<name>")`. It is the inverse of `attributes`: see [[#Serialization]]. ^hydrate
+    Build from a dict, resolving every molecule name through `molecules`; an unknown reactant, product or modifier raises `KeyError` naming the reaction and the molecule. `reactants`/`products` are a `{name: coef}` mapping (what `attributes` writes) or a list whose entries are a bare name (coefficient 1) or a `{name: coef}` dict; `modifiers` is a `{name: role}` dict or a list of names (role `""`) and `{name: role}` dicts, every key kept; any other entry type is `TypeError`; and a role that is itself a dict becomes `Modulation(**role)` (an unknown key raises `TypeError`). `rate` defaults to `1.0`, `rate_law` and `compartments` are passed to the constructor, the name is `local_name`, else `data["name"]`, else `"reaction"`, and with neither `dat` nor `parent` it mints `MockDat("rxn/<name>")`. It is the inverse of `attributes`: see [[#Serialization]]. ^hydrate
 
 **reactants**`: Dict[MoleculeImpl, float]` (property)
     A copy of the consumed molecules mapped to their stoichiometric coefficients — the exponents of mass action and the amounts each extent removes. An empty dict makes the reaction a boundary source; see [[#Stoichiometry and modifiers]]. ^reactants
@@ -52,6 +53,9 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
 
 **rate_law**`: Optional[Any]` (property)
     The compiled `rate_expr` tree with species named by molecule `name`, or `None` for plain mass action. Read by `from_chemistry`, which re-keys its species to molecule ids with `map_species` (a name outside the chemistry raises `KeyError`). ^rate-law
+
+**compartments**`: Optional[Tuple[str, ...]]` (property)
+    The compartment ids the reaction runs in, or `None` — the default — for every compartment (T091 Q2). Read by `from_chemistry`, which maps the names to the tree's integer ids ([[#Compartment scope]]). ^compartments
 
 **name**`: str` (property)
     The reaction's `local_name`, returned as is. A chemistry keys reactions by this value, so it shares the molecules' id namespace ([[#Reaction ids]]). ^name
@@ -72,7 +76,7 @@ The `Reaction` Protocol's implementation (`protocols/bio.py`, held to it by `pro
     Map `molecule` to `role` (a `Modulation` or a string), overwriting any earlier entry. The default `""` is a rate-inert label. ^add-modifier
 
 **attributes**`() -> Dict[str, Any]`
-    The Entity attributes (`name`, `description` when set) plus `reactants` and `products` as `{local_name: coef}` and `modifiers` as `{local_name: role}` — each only when non-empty, a `Modulation` written through `to_dict()` and a string as is — then `rate` always and `rate_law` (via `rate_expr.to_json`) when set. `to_dict()` and `ChemistryImpl.attributes()` serialize through this. ^attributes
+    The Entity attributes (`name`, `description` when set) plus `reactants` and `products` as `{local_name: coef}` and `modifiers` as `{local_name: role}` — each only when non-empty, a `Modulation` written through `to_dict()` and a string as is — then `rate` always, `rate_law` (via `rate_expr.to_json`) when set, and `compartments` as a list when set — an unscoped reaction writes exactly what it wrote before the key existed. `to_dict()` and `ChemistryImpl.attributes()` serialize through this. ^attributes
 
 
 
@@ -131,8 +135,8 @@ The module exports `ReactionImpl` and `Modulation`, both re-exported from `alien
 **ModifierValue**` = Union[Modulation, str]`
     What a modifier maps to: a `Modulation`, or a bare role-tag string kept for backward compatibility (F015 Q2). ^modifiervalue
 
-**rebuild_reaction**`(rxn: ReactionImpl, *, reactants: Optional[Dict[MoleculeImpl, float]] = None, products: Optional[Dict[MoleculeImpl, float]] = None, modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None, rate: Optional[RateValue] = None, rate_law: Any = <keep>, dat: Optional[DatLike] = None) -> ReactionImpl`
-    A fresh `ReactionImpl` under `rxn`'s local name carrying every part not passed — sides, modifiers, `rate`, `rate_law`, `description`; `rate_law=None` drops the law deliberately, `dat` defaults to `MockDat("rxn/<name>")`. The one way a suite edit rebuilds a reaction (T088: the derivers passed sides and `rate` only, so a reaction with a `rate_law` came back as mass action). ^rebuild-reaction
+**rebuild_reaction**`(rxn: ReactionImpl, *, reactants: Optional[Dict[MoleculeImpl, float]] = None, products: Optional[Dict[MoleculeImpl, float]] = None, modifiers: Optional[Mapping[MoleculeImpl, ModifierValue]] = None, rate: Optional[RateValue] = None, rate_law: Any = <keep>, compartments: Any = <keep>, dat: Optional[DatLike] = None) -> ReactionImpl`
+    A fresh `ReactionImpl` under `rxn`'s local name carrying every part not passed — sides, modifiers, `rate`, `rate_law`, the `compartments` scope, `description`; `rate_law=None` drops the law deliberately, `dat` defaults to `MockDat("rxn/<name>")`. The one way a suite edit rebuilds a reaction (T088: the derivers passed sides and `rate` only, so a reaction with a `rate_law` came back as mass action). ^rebuild-reaction
 
 
 
@@ -180,7 +184,7 @@ This module stores only what it is given: every parameter defaults to `None`, an
 
 
 ## Serialization
-`attributes()` writes reactants and products as `{name: coef}` dicts, and `hydrate` reads that mapping form as well as the list form `!Reaction` builds, so `ReactionImpl.hydrate(r.attributes(), molecules=…)` for `A + 2B -> 3C` returns `A + 2B -> 3C`. Until 2026-10 `hydrate` iterated the mapping as a list, reading only its keys, so every coefficient came back as `1` and `ChemistryImpl.hydrate` inherited the loss. Modifiers round-trip — `hydrate` handles the dict form and rebuilds each `Modulation` from `to_dict()` output — and so does `rate_law` (`to_json` / `from_json`). A list-form modifier entry that is a dict with several keys contributes every key (it used to keep only its first). Pinned by `tests/bio/test_moddoc_findings_chemistry.py`.
+`attributes()` writes reactants and products as `{name: coef}` dicts, and `hydrate` reads that mapping form as well as the list form `!Reaction` builds, so `ReactionImpl.hydrate(r.attributes(), molecules=…)` for `A + 2B -> 3C` returns `A + 2B -> 3C`. Until 2026-10 `hydrate` iterated the mapping as a list, reading only its keys, so every coefficient came back as `1` and `ChemistryImpl.hydrate` inherited the loss. Modifiers round-trip — `hydrate` handles the dict form and rebuilds each `Modulation` from `to_dict()` output — and so do `rate_law` (`to_json` / `from_json`) and `compartments`. A list-form modifier entry that is a dict with several keys contributes every key (it used to keep only its first). Pinned by `tests/bio/test_moddoc_findings_chemistry.py`.
 
 
 
@@ -194,6 +198,11 @@ This module stores only what it is given: every parameter defaults to `None`, an
 | `ChemistryImpl.hydrate` | `hydrate` per entry | as given |
 | Suite derivers — `carve`, `perturbations` | `rebuild_reaction`, sharing molecules | carried unless the caller passes one |
 | The runner's `_chemistry_with_rate`, `ChemistryImpl.subgraph` | the constructor directly, sharing molecules | as each passes it |
+
+`subgraph` and `rebuild_reaction` carry `compartments`; the runner's `_chemistry_with_rate` and `arch_diagnose.perturb_reaction_rate` (via `mk.R`) do not yet (T091 Q2 report).
+
+## Compartment scope
+`compartments` is a whitelist of compartment ids; `None`, the default, runs the reaction in every compartment of the world (T091 Q2). `compartment_scope` normalizes it at construction: a bare string is a one-element list, and an empty list, a non-string entry or a repeated id raises `ValueError` naming the reaction — a reaction that runs nowhere is a spec error, not a switch. Whether each id is a compartment of the world is checked where the world is known: `world_simulator.reaction_compartment_ids`, called by `WorldImpl` at construction and by `from_chemistry`, refuses an id the world lacks with `ValueError` naming the reaction and the id. The spec spellings are `compartments: [pond]` on a `!Chemistry` reaction mapping or a `!Reaction`, and `compartments=` on the `reaction` head ([[ABIO ExprHeads]]).
 
 
 
@@ -209,3 +218,4 @@ A reaction's `name` is its `local_name`, and `ChemistryImpl` keys reactions by i
 - 2026-10-28 — refreshed against `b32d46b`: new module function `rebuild_reaction` (carries every unpassed part, `rate_law` included) given a block and index row; `carve`/`augment`/`perturbations` build through it.
 - 2026-10-29 — refreshed for `db300c9` (T091 F5): `Modulation.__post_init__` runs the hill `K`/`n` check the rate-law path runs. Figure still true.
 - 2026-11-06 — refreshed for `9fce196` (T091 BA): `__init__` re-raises a `from_json` `ValueError` prefixed with the reaction's name (a law past `MAX_RATE_LAW_NODES` was otherwise reported without it); the constructor block amended. Figure still true.
+- 2026-11-06 — T091 Q2: the `compartments` scope (slot, constructor keyword, property, `attributes`/`hydrate` only when set, `rebuild_reaction`, `subgraph`) and § Compartment scope; two rebuild paths outside `bio/` that drop it are named under § Construction paths. Figure not updated: it does not show the scope.
