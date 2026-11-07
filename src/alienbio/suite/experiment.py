@@ -333,7 +333,7 @@ def run_experiment(
             ceiling_history.append(spec.cost_ceiling_usd)
 
     trials_planned = _trials_planned(spec)
-    manifest = _build_manifest(spec, trials_planned, started_at)
+    manifest = _build_manifest(spec, trials_planned, started_at, flight.world_fingerprints)
     manifest["cost_ceiling_history"] = ceiling_history
     # T084 (ABIO Store) — every landed line, keyed (label, index) -> is_error,
     # so the manifest's counts describe the store on disk at every write: a

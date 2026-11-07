@@ -77,7 +77,7 @@ def test_a_non_positive_or_non_finite_ceiling_refuses(stopped, capsys, value):
     capsys.readouterr()
     assert suite_command(["resume", str(out), "--cost-ceiling", value]) == 1
     err = capsys.readouterr().err
-    expected = "cost_ceiling_usd must be > 0" if value in ("0", "-3") else "must be a finite number"
+    expected = "--cost-ceiling must be > 0, got" if value in ("0", "-3") else "--cost-ceiling must be a finite number"
     assert expected in err
     assert (out / "records.jsonl").read_text() == before
 
@@ -136,3 +136,33 @@ def test_a_non_finite_ceiling_in_a_spec_refuses_too(value):
     with pytest.raises(ValueError, match="cost_ceiling_usd must be (a finite number|> 0)"):
         _validate_cost_ceiling(value)
     assert _validate_cost_ceiling(2.5) == 2.5
+
+
+def test_the_refusal_names_the_flag_on_the_dry_preview_path_too(stopped):
+    """T091 BD5 — the hint was added in ``_resume`` only; the ``run --dry``
+    preview of a ceiling-stopped directory (which prints the preflight's
+    own verdict) never named the flag. It is in the engine's message now."""
+    from alienbio.suite.guards import preflight
+    from alienbio.suite.store import read_manifest as _read
+    from alienbio.suite.experiment import spec_from_manifest
+
+    out, _spent = stopped
+    spec = spec_from_manifest(_read(out / "manifest.json"), current=True)
+    flight = preflight(spec, out_dir=str(out), resume=True)
+    assert f"`bio suite resume {out} --cost-ceiling USD` sets a new one" in str(flight.refusal)
+    assert f"`bio suite resume {out} --cost-ceiling USD` sets a new one" in dict(flight.checks)["resume"]
+
+
+def test_a_ceiling_equal_to_the_spend_says_the_budget_is_spent(stopped, capsys):
+    """T091 BD6 — accepted (the guard refuses only below the spend), and the
+    run re-stops at once; the banner says so in words."""
+    out, spent = stopped
+    capsys.readouterr()
+    assert suite_command(["resume", str(out), "--cost-ceiling", str(spent)]) == 0
+    captured = capsys.readouterr()
+    assert (
+        f"cost ceiling: ${spent:.4f} (was $5.0000; directory spent ${spent:.4f} — the new budget is "
+        "already spent, the run will stop at once)"
+    ) in captured.out
+    assert "stopped early" in captured.err
+    assert read_manifest(out / "manifest.json")["cost_ceiling_history"] == [5.0, spent]

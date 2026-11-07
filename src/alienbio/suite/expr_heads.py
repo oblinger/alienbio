@@ -185,9 +185,12 @@ def reaction(
     if not reactants and not products:
         raise env.error("reaction: needs at least one reactant or product pool")
     # T091 Q2 — the compartment ids the reaction runs in (None = every one);
-    # a bare string is one id, an empty list refuses.
+    # a bare string is one id, an empty list refuses. Named by the block's
+    # own resolved name, the document key when ``name:`` is absent (BD4);
+    # ``compartment_scope`` raises only ``ValueError`` (BD3).
+    block_name = _name(name, env)
     try:
-        scope = compartment_scope(name or "reaction", compartments)
+        scope = compartment_scope(block_name, compartments)
     except ValueError as exc:
         raise env.error(str(exc)) from exc
     reactant_pools = [_pool(p, env) for p in reactants]
@@ -201,12 +204,12 @@ def reaction(
         Port(p, container, PortDir.OUT) for p in product_pools
     )
     if not law.modulations and law.expr is None:
-        return ReactionBlock(name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map, compartments=scope)
+        return ReactionBlock(name=block_name, role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map, compartments=scope)
     consumed = set(reactant_pools) | set(product_pools)
     extra = tuple(dict.fromkeys([*law.modifier_pools, *(p for p in law.expr_pools if p not in consumed)]))
     ports = ports + tuple(Port(pool, container, PortDir.IN) for pool in extra)
     return RateLawBlock(
-        name=_name(name, env), role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map, compartments=scope, law=law, extra_pools=extra
+        name=block_name, role=_role(role, env), ports=ports, rate=law.k, stoich=stoich_map, compartments=scope, law=law, extra_pools=extra
     )
 
 

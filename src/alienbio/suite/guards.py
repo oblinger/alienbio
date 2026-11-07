@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import math
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 
@@ -549,9 +549,103 @@ def recorded_worlds_violation(spec: ExperimentSpec, records_path: Path) -> tuple
     return None, len(first)
 
 
+def _fingerprint_plain(value: Any) -> Any:
+    """``value`` as a plain JSON tree for :func:`world_fingerprint`: a
+    mapping as a dict with string keys, a list or tuple as a list (order
+    kept — order is content), a set sorted by ``repr``, a dataclass as its
+    type name plus its fields. Every other leaf passes through
+    (``_canonical_json`` spells non-finite floats and ``repr``s the exotic)."""
+    import dataclasses
+
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        fields = {f.name: _fingerprint_plain(getattr(value, f.name)) for f in dataclasses.fields(value)}
+        return {"__type__": type(value).__name__, **fields}
+    if isinstance(value, Mapping):
+        return {str(k): _fingerprint_plain(v) for k, v in value.items()}
+    if isinstance(value, (set, frozenset)):
+        return [_fingerprint_plain(v) for v in sorted(value, key=repr)]
+    if isinstance(value, (list, tuple)):
+        return [_fingerprint_plain(v) for v in value]
+    return value
+
+
+def world_fingerprint(world: Any) -> str:
+    """A stable hash of what a drafted world IS (T091 BD1): sha256 over the
+    canonical JSON (sorted keys, ``store._canonical_json``) of
+
+    - ``chemistry`` — ``world.chemistry.attributes()``: its name, atoms,
+      molecules, and every reaction's reactants, products, modifiers
+      (modulations included), ``rate``, ``rate_law`` and ``compartments``
+      scope;
+    - ``compartments`` — each compartment's id, parent, kind, volume,
+      multiplicity and initial concentrations, in the world's order;
+    - ``flows`` and ``population_laws`` — each spec record with its type
+      name and every field.
+
+    A resume compares it with the manifest's ``world_fingerprints`` entry
+    for the label: a yaml edit that moves a world (a ``compartments:``
+    scope added, a rate changed on a document-level ``!Chemistry``) moves
+    no record field the re-draft compares (:func:`_world_identity`), so
+    two worlds would share one store. A drafted world is concrete (no
+    ``Dist``), so the hash is the same in every process."""
+    import hashlib
+
+    from .store import _canonical_json
+
+    payload = {
+        "chemistry": _fingerprint_plain(world.chemistry.attributes()),
+        "compartments": [
+            {
+                "id": c.id,
+                "parent": c.parent,
+                "kind": c.kind,
+                "volume": c.volume,
+                "multiplicity": c.multiplicity,
+                "concentrations": _fingerprint_plain(c.concentrations),
+            }
+            for c in world.compartments
+        ],
+        "flows": _fingerprint_plain(list(world.flows)),
+        "population_laws": _fingerprint_plain(list(world.population_laws)),
+    }
+    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def world_fingerprint_violation(
+    prior: Any, fresh: Mapping[str, str], manifest_path: Path
+) -> Optional[str]:
+    """Why a resume's freshly drafted worlds are not the ones the manifest
+    recorded — ``None`` when every label both name carries one hash, or
+    when the manifest has no ``world_fingerprints`` (a store from before
+    T091 BF, which the rebuilt manifest then stamps). ``fresh`` is the
+    ``draft`` check's ``{label: world_fingerprint}`` (each condition's
+    first-trial world, at that trial's own seed); a label only one side
+    names (an added axis level) is not compared."""
+    if not isinstance(prior, Mapping):
+        return None
+    moved = sorted(label for label, digest in fresh.items() if label in prior and prior[label] != digest)
+    if not moved:
+        return None
+    return (
+        f"run_experiment: resume=True but the world chemistry/compartments of condition(s) "
+        f"{moved} differ from the worlds {manifest_path} recorded (world_fingerprints) — the "
+        "spec's world was edited since the records were drawn (a rate, a compartments scope, a "
+        "compartment, a flow or a population law), so new trials would run another world than "
+        "the records; start a new out_dir"
+    )
+
+
 def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     """Why DRAFTING this run's worlds refuses — ``None`` when every condition
-    drafts.
+    drafts. :func:`draft_conditions` with the fingerprints dropped."""
+    return draft_conditions(spec)[0]
+
+
+def draft_conditions(spec: ExperimentSpec) -> tuple[Optional[str], dict[str, str]]:
+    """Why DRAFTING this run's worlds refuses — ``None`` when every condition
+    drafts — and ``{label: world_fingerprint}`` of every condition that
+    drafted (T091 BD1: the run writes it on the manifest, a resume compares
+    it).
 
     The generators refuse a great deal at draft time, and every one of those
     refusals used to arrive as N error records after a clean ``--dry``:
@@ -580,13 +674,19 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
     named with its class (``generator error``), and refuses too, since the
     run would crash on the same draft (T084 finding D).
     """
+    from .dist import Seed
+
     problem = unknown_drafter_violation(spec)
     if problem is not None:
-        return problem
+        return problem, {}
     drafter = DRAFTERS[spec.drafter]
     kwargs = dict(spec.drafter_kwargs or {})
     refusals: list[str] = []
-    for dials, trial_seed in _condition_units(spec):
+    fingerprints: dict[str, str] = {}
+    base = Seed(spec.base_seed)
+    for label, dials, seed_label in _condition_seed_labels(spec):
+        # The seed :func:`_condition_units` derives: the condition's FIRST trial.
+        trial_seed = base.child(f"{seed_label}/0")
         cond = {k: v for k, v in dials.items() if k not in spec.fixed_dials} or dials
         try:
             world, task = drafter(trial_seed.child("draft"), dials, **kwargs)
@@ -607,6 +707,7 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
                 "(a drafter fault, not a config refusal: the run would crash on this draft)"
             )
             continue
+        fingerprints[label] = world_fingerprint(world)
         # The brief, built exactly as the run builds it before turn 0: every
         # brief-side refusal that reads the drafted world (``assays`` naming
         # no reaction, a lever on the readout or on a hidden pool, a
@@ -622,7 +723,7 @@ def draft_violation(spec: ExperimentSpec) -> Optional[str]:
                 f"{spec.drafter}: condition {cond} — brief error {type(exc).__name__}: {exc} "
                 "(a fault, not a config refusal: the run would crash building this brief)"
             )
-    return "; ".join(refusals) if refusals else None
+    return ("; ".join(refusals) if refusals else None), fingerprints
 
 
 def inert_arm_violation(spec: ExperimentSpec) -> Optional[str]:
@@ -992,6 +1093,10 @@ class Preflight:
     #: What a passing check wants said on the progress channel — today the
     #: verified pre-stamp store (T091 R2), which the run then stamps.
     notes: tuple[str, ...] = ()
+    #: ``{label: world_fingerprint}`` of each condition's first-trial world,
+    #: from the ``draft`` check (empty when it was skipped or refused) — the
+    #: run writes it on the manifest (T091 BD1).
+    world_fingerprints: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -1144,7 +1249,14 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
     # After the price check, so an unpriced model level still refuses first:
     # drafting is free of spend but does real work, and pricing is the
     # cheaper verdict.
-    check("draft", lambda: _raise_if(draft_violation(spec), "draft"), only_if_clean=True)
+    fingerprints: dict[str, str] = {}
+
+    def _draft() -> None:
+        problem, drafted = draft_conditions(spec)
+        _raise_if(problem, "draft")
+        fingerprints.update(drafted)
+
+    check("draft", _draft, only_if_clean=True)
 
     def _records_readable() -> None:
         # T091 B4 — a torn last line (a crash mid-append) used to kill the
@@ -1254,6 +1366,22 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                 f"resume: {manifest_path} had no world_scheme stamp; {checked} recorded condition(s) "
                 f"re-drafted identically, stamping {current_scheme}"
             )
+        if records_path.exists() and refusal is None:
+            # T091 BD1 — the record re-draft above compares what a record
+            # holds (task id, oracle, question, affordances); a world edit
+            # that moves none of those (a ``compartments:`` scope, a rate on
+            # a document-level ``!Chemistry``) is caught here, against the
+            # manifest. A manifest from before the field is stamped by the
+            # rebuilt one, never refused.
+            prior_fingerprints = prior_manifest.get("world_fingerprints")
+            moved = world_fingerprint_violation(prior_fingerprints, fingerprints, manifest_path)
+            if moved is not None:
+                raise ValueError(moved)
+            if prior_fingerprints is None:
+                notes.append(
+                    f"resume: {manifest_path} had no world_fingerprints; stamping {len(fingerprints)} "
+                    "condition(s) from this press's re-draft"
+                )
         ceiling = spec.cost_ceiling_usd
         if ceiling is not None:
             from .store import directory_spend_usd
@@ -1266,7 +1394,11 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
                     f"run_experiment: resume=True with cost_ceiling_usd={ceiling} but the records "
                     f"in {resolved_out} (records.jsonl and records.retried.jsonl) already spent "
                     f"${spent:.4f} — the ceiling is the directory's budget; it may be raised on a "
-                    "resume, never set below the spend"
+                    "resume, never set below the spend "
+                    # T091 BD5 — the flag that answers it, here so every path
+                    # that shows this refusal shows it (``bio suite resume``
+                    # and the ``bio suite run --dry`` preview of the directory).
+                    f"(`bio suite resume {resolved_out} --cost-ceiling USD` sets a new one)"
                 )
 
     check("resume", _resume)
@@ -1279,4 +1411,7 @@ def preflight(spec: ExperimentSpec, *, out_dir: Optional[str] = None, resume: bo
             )
 
     check("out_dir", _out_dir)
-    return Preflight(resolved_out, out_exists, tuple(checks), estimate, refusal, tuple(skipped), resume, tuple(notes))
+    return Preflight(
+        resolved_out, out_exists, tuple(checks), estimate, refusal, tuple(skipped), resume, tuple(notes),
+        dict(fingerprints),
+    )

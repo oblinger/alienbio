@@ -264,7 +264,12 @@ def _resume(out_dir: str, verbose: bool, cost_ceiling: Optional[float] = None) -
         # an infinity is not a budget (``nan <= 0`` is False).
         if not math.isfinite(cost_ceiling):
             raise ValueError(f"bio suite resume: --cost-ceiling must be a finite number, got {cost_ceiling!r}")
-        cost_ceiling = _validate_cost_ceiling(cost_ceiling)
+        try:
+            cost_ceiling = _validate_cost_ceiling(cost_ceiling)
+        except ValueError:
+            # T091 BD6 — the spec's rule, the flag's name: the spec key is not
+            # what the user typed.
+            raise ValueError(f"bio suite resume: --cost-ceiling must be > 0, got {cost_ceiling!r}") from None
 
     manifest = read_manifest(manifest_path)
     # T091 E1 — the experiment file as it is now (its helpers registered, and
@@ -282,11 +287,21 @@ def _resume(out_dir: str, verbose: bool, cost_ceiling: Optional[float] = None) -
         history = manifest.get("cost_ceiling_history") or [(manifest.get("spec") or {}).get("cost_ceiling_usd")]
         was = history[-1]
         spec = with_source(dataclasses.replace(spec, cost_ceiling_usd=cost_ceiling), spec.source)
+        spent_usd: Optional[float]
         try:
-            spent = f"${directory_spend_usd(Path(out_dir), spec):.4f}"
+            spent_usd = directory_spend_usd(Path(out_dir), spec)
         except (OSError, ValueError):  # a torn store: the resume's own check names it
-            spent = "unreadable"
-        print(f"cost ceiling: {_usd(cost_ceiling)} (was {_usd(was)}; directory spent {spent})")
+            spent_usd = None
+        spent = "unreadable" if spent_usd is None else f"${spent_usd:.4f}"
+        # T091 BD6 — a ceiling equal to the spend is accepted (the guard
+        # refuses only below it) and the grid stops before its first trial;
+        # the banner says so rather than leaving a silent re-stop.
+        already = (
+            " — the new budget is already spent, the run will stop at once"
+            if spent_usd is not None and cost_ceiling == spent_usd
+            else ""
+        )
+        print(f"cost ceiling: {_usd(cost_ceiling)} (was {_usd(was)}; directory spent {spent}{already})")
 
     def progress(message: str) -> None:
         if verbose:
@@ -294,14 +309,9 @@ def _resume(out_dir: str, verbose: bool, cost_ceiling: Optional[float] = None) -
 
     # T091 Y7 — a note (the re-drafted pre-stamp store being stamped) prints
     # without ``-v``: a plain resume restamped a store silently.
-    try:
-        rmap = run_experiment(spec, out_dir=out_dir, resume=True, progress=progress, notes=print)
-    except ValueError as exc:
-        # A ceiling the stop overshot (or one set below the spend): the
-        # engine's message, plus the flag that answers it.
-        if "never set below the spend" in str(exc):
-            raise ValueError(f"{exc} (`bio suite resume {out_dir} --cost-ceiling USD` sets a new one)") from exc
-        raise
+    # A ceiling the stop overshot (or one set below the spend) refuses with
+    # the engine's message, which names the flag (T091 BD5).
+    rmap = run_experiment(spec, out_dir=out_dir, resume=True, progress=progress, notes=print)
     _report_stop(rmap, int(manifest.get("trials_planned") or len(rmap.records)))
     return 0
 

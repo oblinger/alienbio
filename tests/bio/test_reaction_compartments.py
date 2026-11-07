@@ -91,6 +91,26 @@ def test_an_empty_a_non_string_or_a_repeated_scope_refuses(scope, match):
         mk.R("r", {}, {food: 1.0}, rate=0.5, compartments=scope)
 
 
+@pytest.mark.parametrize(
+    ("scope", "kind"),
+    [
+        ({"pond": 1}, "dict"),
+        ({"pond", "fish"}, "set"),
+        (frozenset({"pond"}), "frozenset"),
+        (3, "int"),
+        (True, "bool"),
+        (Compartment("pond", None, "environment", 1.0), "Compartment"),
+    ],
+)
+def test_only_a_list_a_tuple_or_one_id_is_a_scope(scope, kind):
+    """T091 BD2/BD3 — a mapping read as its keys and a set in process-random
+    order were accepted; a scalar raised a bare ``TypeError`` naming no
+    reaction. Each is a ``ValueError`` naming the reaction now."""
+    food, _ = _mols()
+    with pytest.raises(ValueError, match=rf"reaction 'r': compartments must be a list of compartment ids or one id, got {kind}$"):
+        mk.R("r", {}, {food: 1.0}, rate=0.5, compartments=scope)
+    assert mk.R("t", {}, {food: 1.0}, rate=0.5, compartments=("pond", "fish")).compartments == ("pond", "fish")
+
 def test_rebuilds_carry_the_scope():
     world = _world(["pond"])
     supply = world.chemistry.reactions["supply"]
@@ -202,6 +222,23 @@ def test_the_reaction_head_scopes_both_its_blocks():
         Env.standard(seed=3).load("<blocks>", text=SKELETON_DOC.replace("compartments: cell", "compartments: []")).force_all()
 
 
+
+@pytest.mark.parametrize(
+    ("value", "match"),
+    [
+        ("{pond: 1}", "got dict"),
+        ("3", "got int"),
+        ("true", "got bool"),
+        ("!!set {cell: null}", "got set"),
+        ("[cell, cell]", "repeats an id"),
+    ],
+)
+def test_the_reaction_head_refuses_a_bad_scope_by_the_blocks_key(value, match):
+    """T091 BD3/BD4 — a scalar escaped the head as ``TypeError`` and an
+    unnamed block was called ``'reaction'``; the refusal names the key."""
+    doc = SKELETON_DOC.replace("compartments: cell", f"compartments: {value}")
+    with pytest.raises(ExprError, match=rf"reaction 'feed': .*{match}"):
+        Env.standard(seed=3).load("<blocks>", text=doc).force_all()
 
 # --- T091 Q2 follow-up (Pilot): the suite's own rebuilds keep the scope ----
 

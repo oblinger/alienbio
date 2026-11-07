@@ -115,15 +115,28 @@ def compartment_scope(reaction: str, raw: Any) -> Optional[Tuple[str, ...]]:
     """A reaction's compartment scope as a tuple of compartment ids, or
     ``None`` (every compartment — the default).
 
-    A bare string is a one-element list. An empty list is refused — a
-    reaction that runs nowhere is a spec error, not a way to switch one
-    off — and so is a non-string entry or a repeated id. Whether each id
-    names a compartment of the world is checked where the world is known
+    A bare string is a one-element list. Only a list, a tuple or a bare
+    string is accepted (T091 BD2/BD3): a mapping (whose keys a ``tuple()``
+    read silently), a set (whose order is process-random, so a saved world
+    and any hash over ``attributes()`` were too), a number, a bool or a
+    compartment object each raise ``ValueError`` naming the reaction. An
+    empty list is refused — a reaction that runs nowhere is a spec error,
+    not a way to switch one off — and so is a non-string entry or a
+    repeated id. Whether each id names a compartment of the world is
+    checked where the world is known
     (``world_simulator.reaction_compartment_ids``, T091 Q2).
     """
     if raw is None:
         return None
-    items = (raw,) if isinstance(raw, str) else tuple(raw)
+    if isinstance(raw, str):
+        items: Tuple[Any, ...] = (raw,)
+    elif isinstance(raw, (list, tuple)):
+        items = tuple(raw)
+    else:
+        raise ValueError(
+            f"reaction {reaction!r}: compartments must be a list of compartment ids "
+            f"or one id, got {type(raw).__name__}"
+        )
     if not items:
         raise ValueError(
             f"reaction {reaction!r}: compartments is empty — a reaction must run "

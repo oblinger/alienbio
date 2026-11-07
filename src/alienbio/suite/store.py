@@ -656,7 +656,12 @@ def world_scheme(spec: ExperimentSpec) -> str:
     return f"v{SEED_SCHEME_VERSION}:{hashlib.sha256(payload.encode('utf-8')).hexdigest()[:16]}"
 
 
-def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) -> dict[str, Any]:
+def _build_manifest(
+    spec: ExperimentSpec,
+    trials_planned: int,
+    started_at: str,
+    world_fingerprints: Optional[Mapping[str, str]] = None,
+) -> dict[str, Any]:
     spec_dict = spec_to_dict(spec)
     spec_sha256 = hashlib.sha256(_canonical_json(spec_dict).encode("utf-8")).hexdigest()
     git_commit, git_dirty = _git_info(REPO_ROOT)
@@ -684,6 +689,11 @@ def _build_manifest(spec: ExperimentSpec, trials_planned: int, started_at: str) 
         "git_dirty": git_dirty,
         # T091 R2 — which seed scheme drew this store's worlds (see world_scheme).
         "world_scheme": world_scheme(spec),
+        # T091 BD1 — ``{label: guards.world_fingerprint}`` of each condition's
+        # first-trial world (the preflight ``draft`` check's draft); a resume
+        # refuses a world the yaml moved. Absent when not given (a manifest
+        # built outside a run).
+        **({"world_fingerprints": dict(sorted(world_fingerprints.items()))} if world_fingerprints is not None else {}),
         "python_version": platform.python_version(),
         "platform": platform.platform(),
         "hostname": platform.node(),
